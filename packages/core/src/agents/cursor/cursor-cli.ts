@@ -3,10 +3,11 @@ import { realpath, stat } from 'node:fs/promises'
 import { basename, delimiter, join } from 'node:path'
 import { promisify } from 'node:util'
 import { z } from 'zod'
-import type { ChatCatalog } from '@kando/protocol'
+import type { AgentCliInstallation, ChatCatalog } from '@kando/protocol'
 import { Rejection } from '../../rejection'
 import { CursorAcp } from './cursor-acp'
 import { probeChatCatalog } from '../../chat-catalog'
+import type { AgentDetection } from '../agent-adapter'
 
 const execute = promisify(execFile)
 const cache = new Map<string, Promise<{ version: string; compatible: boolean }>>()
@@ -86,4 +87,19 @@ export async function cursorSignedIn(command: string): Promise<boolean | null> {
 export async function cursorCatalog(cwd: string): Promise<ChatCatalog | null> {
   const command = await requireCursorCli()
   return probeChatCatalog(new CursorAcp('catalog', { cwd, extraDirs: [], resume: null }, true), { command, args: ['acp'] }, cwd)
+}
+
+// Commands published by Cursor, selected for the core host rather than the client OS.
+export function cursorInstallation(platform: NodeJS.Platform): AgentCliInstallation | null {
+  if (platform === 'win32') return { agent: 'cursor', shell: 'powershell', command: "irm 'https://cursor.com/install?win32=true' | iex" }
+  if (platform === 'darwin' || platform === 'linux') return { agent: 'cursor', shell: 'bash', command: 'curl https://cursor.com/install -fsS | bash' }
+  return null
+}
+
+// Found under either of its names, and ready only once its release speaks ACP.
+export async function detectCursorCli(pathEnv: string, platform: NodeJS.Platform): Promise<AgentDetection> {
+  const command = await findCursorCli(pathEnv, platform)
+  if (!command) return { status: 'missing', version: null, path: null, signedIn: null }
+  const info = await cursorCliInfo(command).catch(() => null)
+  return { status: info?.compatible ? 'ok' : 'unknown', version: info?.version ?? null, path: command, signedIn: await cursorSignedIn(command) }
 }

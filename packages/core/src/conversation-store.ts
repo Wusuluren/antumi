@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { z } from 'zod'
-import { Conversation, ConversationMessage, ConversationStage, type AgentKind } from '@kando/protocol'
+import { AgentKind, Conversation, ConversationMessage, ConversationStage } from '@kando/protocol'
 
 const lastEnded = (column: string) => `(SELECT ${column} FROM conversation_stages
   WHERE conversation_id = conversations.id AND ended_at IS NOT NULL ORDER BY started_at DESC, rowid DESC LIMIT 1)`
@@ -23,11 +23,8 @@ const MESSAGE_SELECT = `SELECT sequence, conversation_id AS conversationId, stag
 const AgentChoice = z.object({ model: z.string().optional(), effort: z.string().optional() })
 const ChatOptions = z.object({
   permissionMode: z.string().optional(),
-  allowBypass: z.boolean().optional(),
-  claude: AgentChoice.optional(),
-  codex: AgentChoice.optional(),
-  cursor: AgentChoice.optional()
-}).catch({})
+  allowBypass: z.boolean().optional()
+}).and(z.partialRecord(AgentKind, AgentChoice)).catch({})
 export type ChatOptions = z.infer<typeof ChatOptions>
 
 function conversation(row: Record<string, unknown>): Conversation {

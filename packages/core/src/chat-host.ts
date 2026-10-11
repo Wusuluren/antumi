@@ -4,9 +4,7 @@ import type { AttachmentStore } from './attachment-store'
 import type { ChatAnswer, ChatDriver, ChatImageFile, ChatOutgoing, ChatRecord, ChatStageOptions, StageMessage } from './chat-driver'
 import { ChatLog, type LoggedRecord } from './chat-log'
 import type { KandoAsk, KandoResolution } from './kando-requests'
-import { ClaudeStream } from './agents/claude/claude-stream'
-import { CodexAppServer } from './agents/codex/codex-app-server'
-import { CursorAcp } from './agents/cursor/cursor-acp'
+import { adapterOf } from './agents'
 import type { SessionHost } from './daemon-client'
 import { LineFramer } from './line-framer'
 import { Rejection } from './rejection'
@@ -74,14 +72,7 @@ type Live = ChatStage & {
 export type WireTap = Pick<WireLog, 'record'>
 
 export function createDriver(stage: ChatStage): ChatDriver {
-  switch (stage.agent) {
-    case 'claude':
-      return new ClaudeStream(stage.stageId, stage.options)
-    case 'codex':
-      return new CodexAppServer(stage.stageId, stage.options)
-    case 'cursor':
-      return new CursorAcp(stage.stageId, stage.options)
-  }
+  return adapterOf(stage.agent).createDriver(stage.stageId, stage.options)
 }
 
 const ignore = () => {}
@@ -157,7 +148,7 @@ export class ChatHost {
       live.started = null
       throw error
     }
-    if (started) await this.withinStartTimeout(started, stage.agent === 'cursor' ? 60_000 : START_TIMEOUT_MS)
+    if (started) await this.withinStartTimeout(started, adapterOf(stage.agent).startTimeoutMs ?? START_TIMEOUT_MS)
   }
 
   // Drops a stage that never got going without logging its end.

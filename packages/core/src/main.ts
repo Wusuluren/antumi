@@ -1,12 +1,10 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { PROTOCOL_VERSION, usageReadable, type ChatItem } from '@kando/protocol'
+import { AGENT_KINDS, PROTOCOL_VERSION, usageReadable, type AgentKind, type ChatItem } from '@kando/protocol'
 import packageJson from '../package.json' with { type: 'json' }
 import { removeCoreEndpoint, kandoPaths, writeCoreEndpoint } from '@kando/protocol/node'
-import { hasClaudeCredentials, readClaudeUsage } from './agents/claude/claude-usage'
-import { hasCodexCredentials, readCodexUsage } from './agents/codex/codex-usage'
-import { readCursorUsage } from './agents/cursor/cursor-usage'
+import { adapterOf } from './agents'
 import { EnvironmentService } from './environment-check'
 import { AgentRunStore } from './agent-run-store'
 import { ChatTurnStore } from './chat-turn-store'
@@ -27,6 +25,7 @@ import { UsageLimitResumes } from './usage-limit-resume'
 import { ScheduleService } from './schedule-service'
 import { RoutineService } from './routine-service'
 import { UsageService } from './usage-service'
+import type { UsageSource } from './usage-source'
 import { kandoChatMcpServer } from './kando-mcp-server'
 import { SourceConfigStore } from './source-config'
 import { LoginFlows } from './source-login-flow'
@@ -169,7 +168,15 @@ const sources = new SourceService([jiraProvider(), githubProvider()], sourceConf
   listChanged: (list) => server?.broadcast('sources.listChanged', { sources: list })
 })
 
-const usage = new UsageService({ claude: readClaudeUsage, codex: readCodexUsage, cursor: readCursorUsage }, (entry) =>
+const usageSources: Partial<Record<AgentKind, UsageSource>> = {}
+const signedIn: Partial<Record<AgentKind, () => Promise<boolean>>> = {}
+for (const kind of AGENT_KINDS) {
+  const adapter = adapterOf(kind)
+  if (adapter.usage) usageSources[kind] = adapter.usage
+  if (adapter.signedIn) signedIn[kind] = adapter.signedIn
+}
+
+const usage = new UsageService(usageSources, (entry) =>
   server?.connections.forEach((connection) => {
     if (usageReadable(connection.usageKinds, entry)) connection.notify('usage.changed', { usage: entry })
   })
@@ -264,7 +271,7 @@ daemon.onConnect(() => {
 const environment = new EnvironmentService({
   pathEnv: process.env.PATH ?? '',
   platform: process.platform,
-  signedIn: { claude: hasClaudeCredentials, codex: hasCodexCredentials },
+  signedIn,
   changed: (environment) => server?.broadcast('system.environmentChanged', { environment })
 })
 

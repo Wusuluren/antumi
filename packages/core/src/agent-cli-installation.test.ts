@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Environment, Terminal } from '@kando/protocol'
-import { AgentCliInstaller, agentCliInstallations, cursorInstallation } from './agent-cli-installation'
+import { AgentCliInstaller, agentCliInstallations } from './agent-cli-installation'
+import { cursorInstallation } from './agents/cursor/cursor-cli'
 
 const missing: Environment = {
   checks: [{ tool: 'cursor', status: 'missing', version: null, path: null, signedIn: null }],

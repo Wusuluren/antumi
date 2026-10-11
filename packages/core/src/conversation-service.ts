@@ -1,22 +1,20 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { checkEditAdditionalProjects, checkSwitchBranch, isPlanApproval, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type UnattendedMode, isKandoRequest } from '@kando/protocol'
+import { agentDescriptor, checkEditAdditionalProjects, checkSwitchBranch, isPlanApproval, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type UnattendedMode, isKandoRequest } from '@kando/protocol'
 import type { DaemonEvent, SessionInfo } from '@kando/protocol/node'
 import type { TaskLaunchOptions } from '@kando/protocol'
 import type { RunMeasure } from './agent-run-store'
 import type { AttachmentStore } from './attachment-store'
 import type { ChatAnswer, StageMessage } from './chat-driver'
 import { catalogOf, probeChatCatalog } from './chat-catalog'
-import { ChatHost, createDriver, type ChatStage } from './chat-host'
+import { ChatHost, type ChatStage } from './chat-host'
 import { ChatLog } from './chat-log'
 import type { SessionHost } from './daemon-client'
 import { ConversationStore } from './conversation-store'
 import { folderChanges, folderDiff, folderHead } from './conversation-changes'
-import { CLAUDE_MODE_NAMES } from './agents/claude/claude-stream'
-import { CODEX_MODES } from './agents/codex/codex-app-server'
-import { CURSOR_MODES } from './agents/cursor/cursor-acp'
-import { cursorCatalog, requireCursorCli } from './agents/cursor/cursor-cli'
+import { adapterOf, checkUnattended } from './agents'
+import { requireCursorCli } from './agents/cursor/cursor-cli'
 import { cursorMcpReadyFile, cursorMcpServer, prepareCursorMcp, waitForCursorMcp } from './agents/cursor/cursor-mcp'
 import type { McpServer } from './agent-command'
 import { chatCommand, handoffPrompt, handoffPromptPath } from './conversation-command'
@@ -436,7 +434,7 @@ export class ConversationService {
   // Validate before preparing a workspace or replacing a task's existing stage.
   async validateStartOptions(agent: AgentKind, options: { permissionMode?: string; model?: string | null; effort?: string | null }): Promise<void> {
     const { permissionMode, model, effort } = options
-    if (permissionMode && !(permissionMode in (agent === 'claude' ? CLAUDE_MODE_NAMES : agent === 'cursor' ? CURSOR_MODES : CODEX_MODES))) {
+    if (permissionMode && !adapterOf(agent).permissionModes.includes(permissionMode)) {
       throw new Rejection('chat-option-invalid', `${agent} has no permission mode ${permissionMode}`)
     }
     if (model || effort) {
@@ -631,13 +629,13 @@ export class ConversationService {
       if (current.sessionId) throw new Rejection('conversation-running')
       if (launch.fork) return { ...await this.startFork(current, agent, launch.fork), starting: false }
       const previous = launch.fresh ? null : this.store.latestStage(id, agent)
-      // Kando picks a Claude session id before launch, so a run that died before its first prompt
-      // left an id Claude never saved. Only a session that recorded messages can be resumed, and
-      // only from the folder it ran in: moved elsewhere, Claude starts afresh from a handoff.
-      const resumable = !(launch.moved && (agent === 'claude' || agent === 'cursor'))
-      const saved = resumable && previous?.providerSessionId && (agent !== 'claude' || this.store.hasProviderMessages(id, previous.providerSessionId))
+      // A session named before launch may never have been saved, and one bound to its folder is
+      // left behind by a move: either way the agent starts afresh from a handoff.
+      const { session } = adapterOf(agent)
+      const resumable = !(launch.moved && session.folderBound)
+      const saved = resumable && previous?.providerSessionId && (!session.preassignedId || this.store.hasProviderMessages(id, previous.providerSessionId))
         ? previous.providerSessionId : null
-      const providerSessionId = saved ?? (agent === 'claude' ? randomUUID() : null)
+      const providerSessionId = saved ?? (session.preassignedId ? randomUUID() : null)
       const missingNativeSession = previous !== null && saved === null
       const messages = missingNativeSession ? this.store.messages(id) :
         handoff ? this.store.messages(id, previous?.receivedSequence ?? 0) : []
@@ -664,8 +662,9 @@ export class ConversationService {
   // agent can (Claude's session from the same folder, Codex's thread), else a fresh start. The chat
   // it continues is already copied, so no handoff file is written.
   private async startFork(current: Conversation, agent: AgentKind, fork: ForkPoint): Promise<Conversation> {
-    const native = agent !== 'cursor' && fork.providerSessionId !== null && fork.at !== null
-    const providerSessionId = native ? fork.providerSessionId : agent === 'claude' ? randomUUID() : null
+    const { session } = adapterOf(agent)
+    const native = session.nativeFork && fork.providerSessionId !== null && fork.at !== null
+    const providerSessionId = native ? fork.providerSessionId : session.preassignedId ? randomUUID() : null
     // Without a session to fork, the copied chat reaches the agent the way a handoff does.
     let handoffPath: string | null = null
     const messages = native ? [] : this.store.messages(current.id)
@@ -758,7 +757,8 @@ export class ConversationService {
     const chosen = this.store.chatOptions(conversation.id)
     const mcp = this.mcp?.(conversation.id)
     let permissionMode = chosen.permissionMode
-    if (stage.agent === 'cursor' && (!permissionMode || !(permissionMode in CURSOR_MODES))) permissionMode = 'ask'
+    const { fallbackMode, permissionModes } = adapterOf(stage.agent)
+    if (fallbackMode && (!permissionMode || !permissionModes.includes(permissionMode))) permissionMode = fallbackMode
     return {
       conversationId: conversation.id,
       stageId: stage.id,
@@ -814,7 +814,7 @@ export class ConversationService {
     const model = (name: string | null | undefined) => state.models.find((each) => each.id === name)
     if (option === 'permissionMode') {
       // Bypass is for the start to allow, which asks the user's setting again.
-      if ((value !== 'bypass' || agent === 'cursor') && !state.permissionModes.includes(value)) throw new Rejection('chat-option-invalid', `${agent} offers no permission mode ${value}`)
+      if ((value !== 'bypass' || !agentDescriptor(agent).capabilities.bypass) && !state.permissionModes.includes(value)) throw new Rejection('chat-option-invalid', `${agent} offers no permission mode ${value}`)
       this.store.setChatOptions(id, { permissionMode: value })
     } else if (option === 'model') {
       const picked = model(value)
@@ -836,8 +836,9 @@ export class ConversationService {
     const known = this.catalogs.get(agent)
     if (known) return known
     const found = this.catalogFromStages(agent)
-    const catalog = found ? Promise.resolve(found) : agent === 'cursor' ? cursorCatalog(this.sessionsRoot).catch(() => null) : probeChatCatalog(
-      createDriver({ conversationId: '', stageId: 'catalog', agent, options: { cwd: this.sessionsRoot, extraDirs: [], resume: null } }),
+    const adapter = adapterOf(agent)
+    const catalog = found ? Promise.resolve(found) : adapter.catalog ? adapter.catalog(this.sessionsRoot).catch(() => null) : probeChatCatalog(
+      adapter.createDriver('catalog', { cwd: this.sessionsRoot, extraDirs: [], resume: null }),
       chatCommand(agent, null, false, null),
       this.sessionsRoot
     )
@@ -919,7 +920,7 @@ export class ConversationService {
   // images go with the text; a message of pictures alone is sent as it is, not as the go-ahead.
   async runScheduled(id: string, text: string, images: readonly string[], mode: UnattendedMode, ready: () => Promise<unknown>, ref: string): Promise<void> {
     const conversation = this.get(id)
-    if (conversation.agent === 'cursor') throw new Rejection('cursor-unattended-unsupported', 'Cursor 暂不支持无人值守运行')
+    checkUnattended(conversation.agent)
     const plan = this.waitingPlan(conversation)
     if (plan) {
       await this.chats.respond(id, plan.requestId, { decision: 'allowForSession' })

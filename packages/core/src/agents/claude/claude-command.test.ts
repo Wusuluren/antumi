@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { claudeEditDenials, claudeReadRules } from './agent-command'
+import { claudeEditDenials, claudeReadRules } from './claude-command'
 
 describe('Claude permission rules', () => {
   it('lets Claude read exactly those files, and nothing about the folder', () => {

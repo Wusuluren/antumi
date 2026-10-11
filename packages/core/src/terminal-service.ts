@@ -3,7 +3,7 @@ import { stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { Terminal, type AgentCliInstallation, type TerminalOutput } from '@kando/protocol'
+import { agentDescriptor, Terminal, type AgentCliInstallation, type TerminalOutput } from '@kando/protocol'
 import type { SessionInfo } from '@kando/protocol/node'
 import type { SessionHost } from './daemon-client'
 import { Rejection } from './rejection'
@@ -116,7 +116,7 @@ export class TerminalService {
       : { command: '/bin/bash', args: ['-o', 'pipefail', '-c', installation.command] }
     const cwd = os.homedir()
     const { sessionId } = await this.daemon.request('spawn', { ...shell, cwd, env: {}, cols: 120, rows: 32 })
-    const terminal = { id: randomUUID(), sessionId, cwd, title: '安装 Cursor CLI', createdAt: this.now(), command: installation.command }
+    const terminal = { id: randomUUID(), sessionId, cwd, title: `安装 ${agentDescriptor(installation.agent).label} CLI`, createdAt: this.now(), command: installation.command }
     this.db.prepare('INSERT INTO terminals (id, session_id, cwd, title, created_at, command) VALUES (?, ?, ?, ?, ?, ?)')
       .run(terminal.id, sessionId, cwd, terminal.title, terminal.createdAt, terminal.command)
     this.changed()

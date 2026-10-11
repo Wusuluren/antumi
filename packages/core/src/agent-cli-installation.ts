@@ -1,23 +1,21 @@
-import type { AgentCliInstallation, AgentKind, Environment, Terminal } from '@kando/protocol'
+import { AGENT_KINDS, type AgentCliInstallation, type AgentKind, type Environment, type Terminal } from '@kando/protocol'
+import { adapterOf } from './agents'
 import type { EnvironmentService } from './environment-check'
 import type { TerminalService } from './terminal-service'
 import { Rejection } from './rejection'
 
-// Commands published by Cursor, selected for the core host rather than the client OS.
-export function cursorInstallation(platform: NodeJS.Platform): AgentCliInstallation | null {
-  if (platform === 'win32') return { agent: 'cursor', shell: 'powershell', command: "irm 'https://cursor.com/install?win32=true' | iex" }
-  if (platform === 'darwin' || platform === 'linux') return { agent: 'cursor', shell: 'bash', command: 'curl https://cursor.com/install -fsS | bash' }
-  return null
-}
-
+// Offered only for an agent whose application is there without its CLI, by the commands its
+// maker publishes for the core host rather than the client OS.
 export function agentCliInstallations(environment: Pick<Environment, 'checks' | 'detectedAgents'>, platform: NodeJS.Platform): AgentCliInstallation[] {
-  const installation = cursorInstallation(platform)
-  if (!installation) return []
-  const check = environment.checks.find((each) => each.tool === installation.agent)
-  const locations = environment.detectedAgents?.find((each) => each.id === installation.agent)?.locations ?? []
-  return check?.status === 'missing' && check.path === null &&
-    locations.some((each) => each.source === 'application') && !locations.some((each) => each.source === 'cli')
-    ? [installation] : []
+  return AGENT_KINDS.flatMap((kind) => {
+    const installation = adapterOf(kind).installation?.(platform)
+    if (!installation) return []
+    const check = environment.checks.find((each) => each.tool === kind)
+    const locations = environment.detectedAgents?.find((each) => each.id === kind)?.locations ?? []
+    return check?.status === 'missing' && check.path === null &&
+      locations.some((each) => each.source === 'application') && !locations.some((each) => each.source === 'cli')
+      ? [installation] : []
+  })
 }
 
 export class AgentCliInstaller {

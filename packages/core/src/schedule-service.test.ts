@@ -169,13 +169,13 @@ describe('ScheduleService', () => {
 
   it('rejects Cursor scheduling and rechecks a target whose agent changed before dispatch', async () => {
     task = { ...pendingTask(), agent: 'cursor' }
-    expect(() => schedules.create({ kind: 'task', taskId: task!.id }, clock + HOUR)).toThrow(expect.objectContaining({ reason: 'cursor-unattended-unsupported' }))
+    expect(() => schedules.create({ kind: 'task', taskId: task!.id }, clock + HOUR)).toThrow(expect.objectContaining({ reason: 'agent-unattended-unsupported' }))
     task = pendingTask()
     const scheduled = schedules.create({ kind: 'task', taskId: task.id }, clock + HOUR)
     task = { ...task, agent: 'cursor' }
     clock += HOUR
     await due()
-    expect(run(scheduled.id)).toMatchObject({ status: 'failed', error: 'cursor-unattended-unsupported' })
+    expect(run(scheduled.id)).toMatchObject({ status: 'failed', error: 'agent-unattended-unsupported' })
     expect(starts).toEqual([])
   })
 

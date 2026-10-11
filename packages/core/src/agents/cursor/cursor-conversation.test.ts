@@ -12,7 +12,7 @@ import { TaskStore } from '../../task-store'
 import { requireCursorCli } from './cursor-cli'
 import { writePrivateJson } from '@kando/protocol/node'
 
-vi.mock('./cursor-cli', () => ({ requireCursorCli: vi.fn(async () => '/fake/cursor-agent'), cursorCatalog: vi.fn(async () => null) }))
+vi.mock('./cursor-cli', async (original) => ({ ...await original<object>(), requireCursorCli: vi.fn(async () => '/fake/cursor-agent'), cursorCatalog: vi.fn(async () => null) }))
 const Frame = z.looseObject({ id: z.union([z.number(), z.string()]).optional(), method: z.string().optional(), params: z.unknown().optional() })
 const modes = { currentModeId: 'agent', availableModes: [{ id: 'agent', name: 'Agent' }, { id: 'plan', name: 'Plan' }, { id: 'ask', name: 'Ask' }] }
 let root: string

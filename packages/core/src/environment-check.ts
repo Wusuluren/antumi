@@ -4,8 +4,8 @@ import { delimiter, join } from 'node:path'
 import { homedir } from 'node:os'
 import { promisify } from 'node:util'
 import { agentCliInstallations } from './agent-cli-installation'
-import { cursorCliInfo, cursorSignedIn, findCursorCli } from './agents/cursor/cursor-cli'
-import { ENVIRONMENT_TOOLS, type DetectedAgent, type Environment, type EnvironmentCheck, type EnvironmentTool } from '@kando/protocol'
+import { adapterOf } from './agents'
+import { AGENT_KINDS, agentDescriptor, ENVIRONMENT_TOOLS, isAgentKind, type DetectedAgent, type Environment, type EnvironmentCheck, type EnvironmentTool } from '@kando/protocol'
 
 const execFileAsync = promisify(execFile)
 
@@ -15,19 +15,29 @@ const RESULT_TTL_MS = 5 * 60_000
 // What a CLI on Windows is called, in the order a shell tries them.
 const WINDOWS_EXTENSIONS = ['.exe', '.cmd', '.bat', '.ps1']
 
+type Discoverable = { id: string; name: string; commands: readonly string[]; applications: Partial<Record<NodeJS.Platform, readonly string[]>> }
+
 // Add a product here when its executable or application bundle can be identified reliably.
-// Integration into Kando's chat is separate from discovery.
-const OTHER_AGENTS = [
-  { id: 'cursor', name: 'Cursor', commands: ['cursor-agent'], applications: ['Cursor.app'] },
-  { id: 'windsurf', name: 'Windsurf', commands: [], applications: ['Windsurf.app'] },
-  { id: 'kiro', name: 'Kiro', commands: [], applications: ['Kiro.app'] },
-  { id: 'gemini', name: 'Gemini CLI', commands: ['gemini'], applications: [] },
-  { id: 'opencode', name: 'OpenCode', commands: ['opencode'], applications: ['OpenCode.app'] },
-  { id: 'aider', name: 'Aider', commands: ['aider'], applications: [] },
-  { id: 'copilot', name: 'GitHub Copilot CLI', commands: ['copilot'], applications: [] },
-  { id: 'goose', name: 'Goose', commands: ['goose'], applications: ['Goose.app'] },
-  { id: 'amp', name: 'Amp', commands: ['amp'], applications: [] }
+// Integration into Kando's chat is separate from discovery: an agent Kando runs is found through
+// its adapter's discovery instead.
+const OTHER_AGENTS: readonly Discoverable[] = [
+  { id: 'windsurf', name: 'Windsurf', commands: [], applications: { darwin: ['Windsurf.app'] } },
+  { id: 'kiro', name: 'Kiro', commands: [], applications: { darwin: ['Kiro.app'] } },
+  { id: 'gemini', name: 'Gemini CLI', commands: ['gemini'], applications: {} },
+  { id: 'opencode', name: 'OpenCode', commands: ['opencode'], applications: { darwin: ['OpenCode.app'] } },
+  { id: 'aider', name: 'Aider', commands: ['aider'], applications: {} },
+  { id: 'copilot', name: 'GitHub Copilot CLI', commands: ['copilot'], applications: {} },
+  { id: 'goose', name: 'Goose', commands: ['goose'], applications: { darwin: ['Goose.app'] } },
+  { id: 'amp', name: 'Amp', commands: ['amp'], applications: {} }
 ]
+
+function discoverable(): Discoverable[] {
+  const known = AGENT_KINDS.flatMap((kind) => {
+    const discovery = adapterOf(kind).discovery
+    return discovery ? [{ id: kind, name: agentDescriptor(kind).label, ...discovery }] : []
+  })
+  return [...known, ...OTHER_AGENTS.filter((agent) => !known.some((each) => each.id === agent.id))]
+}
 
 type Options = {
   // What the agents are started with: core's own PATH, which the daemon shares.
@@ -60,12 +70,10 @@ export function parseVersion(output: string): string | null {
 }
 
 async function discoverOtherAgents(pathEnv: string, platform: NodeJS.Platform, applicationDirs: string[]): Promise<DetectedAgent[]> {
-  const discovered = await Promise.all(OTHER_AGENTS.map(async ({ id, name, commands, applications }) => {
+  const discovered = await Promise.all(discoverable().map(async ({ id, name, commands, applications }) => {
     const commandPaths = await Promise.all(commands.map((command) => findOnPath(command, pathEnv, platform)))
     const commandPath = commandPaths.find((path): path is string => path !== null)
-    const appNames = platform === 'darwin' ? applications : id !== 'cursor' ? [] :
-      platform === 'win32' ? ['cursor/Cursor.exe'] :
-        platform === 'linux' ? ['cursor/cursor', 'Cursor/cursor', 'cursor', 'Cursor.AppImage'] : []
+    const appNames = applications[platform] ?? []
     const appPaths = await Promise.all(appNames.flatMap((app) => applicationDirs.map(async (dir) => {
       const path = join(dir, app)
       if (platform === 'darwin') return await access(join(path, 'Contents', 'Info.plist')).then(() => path, () => null)
@@ -156,7 +164,7 @@ export class EnvironmentService {
         return [{
           ...discovered,
           id: check.tool,
-          name: check.tool === 'claude' ? 'Claude Code' : check.tool === 'cursor' ? 'Cursor' : 'Codex',
+          name: agentDescriptor(check.tool).label,
           locations: [...(discovered?.locations ?? []), ...(!discovered?.locations.some((location) => location.source === 'cli' && location.path === check.path) ? [{ source: 'cli' as const, path: check.path }] : [])]
         }]
       }),
@@ -172,12 +180,8 @@ export class EnvironmentService {
 
   private async checkTool(tool: EnvironmentTool): Promise<EnvironmentCheck> {
     const { pathEnv, platform, signedIn } = this.options
-    if (tool === 'cursor') {
-      const command = await findCursorCli(pathEnv, platform)
-      if (!command) return { tool, status: 'missing', version: null, path: null, signedIn: null }
-      const info = await cursorCliInfo(command).catch(() => null)
-      return { tool, status: info?.compatible ? 'ok' : 'unknown', version: info?.version ?? null, path: command, signedIn: await cursorSignedIn(command) }
-    }
+    const detect = isAgentKind(tool) ? adapterOf(tool).detect : undefined
+    if (detect) return { tool, ...await detect(pathEnv, platform) }
     const path = await findOnPath(tool, pathEnv, platform)
     if (!path) return { tool, status: 'missing', version: null, path: null, signedIn: null }
     // A .cmd shim only a shell can run; the version goes unasked rather than through one.

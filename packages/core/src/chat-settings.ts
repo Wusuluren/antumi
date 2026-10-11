@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ChatSettings, UnattendedMode } from '@kando/protocol'
+import { AGENT_KINDS, ChatSettings, UnattendedMode } from '@kando/protocol'
 import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
 
 // Suggestions on, as in Claude Code itself; scheduled runs let edits through but still ask for
@@ -9,7 +9,7 @@ const DEFAULTS = {
   promptSuggestions: true,
   unattendedMode: 'acceptEdits',
   maxConcurrentAgents: 20,
-  agentConcurrency: { claude: DEFAULT_AGENT_CONCURRENCY, codex: DEFAULT_AGENT_CONCURRENCY, cursor: DEFAULT_AGENT_CONCURRENCY },
+  agentConcurrency: Object.fromEntries(AGENT_KINDS.map((kind) => [kind, DEFAULT_AGENT_CONCURRENCY])),
   wireLog: false
 } satisfies Required<ChatSettings>
 const Saved = z.object({
