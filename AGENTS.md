@@ -16,6 +16,7 @@ Task-first multi-agent manager. See docs/ARCHITECTURE.md for the architecture di
 - Clients and core can be on different versions. Adding an optional field is safe. A breaking change bumps `PROTOCOL_VERSION`, or `DAEMON_PROTOCOL_VERSION` for the daemon wire.
 - Index `rpcSchemas` / `daemonSchemas` with a generic method name. Indexing the raw `rpcMethods` widens to a union of every schema.
 - Status rules live in `checkMove` / `checkStart` / `manualMoves`. The UI calls them; it never re-encodes the rules.
+- What an agent is and can do lives in its descriptor (`protocol/src/agents`) and adapter (`core/src/agents`); code elsewhere asks those, never `agent === '<id>'`. See docs/ARCHITECTURE.md, 新增 Agent.
 
 ## Safety
 

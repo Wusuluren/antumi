@@ -160,7 +160,7 @@ Merge 前先提交或暂存改动。有冲突时，分支页列出文件，可�
 
 core 启动后会在自己的 PATH 里找 `git`、`claude`、`codex` 和 Cursor CLI（`cursor-agent` 或确认属于 Cursor 的 `agent`），问一下版本，再检查登录状态。Claude Code 和 Codex 只读本机凭据；Cursor 使用 CLI 的 `about --format json`。找不到 Git、支持的 Agent 一个都没装或都没登录时，左侧列表上方会有一条红色提醒：Agent 的问题点开是 设置 → 智能体，Git 的问题点开是 设置 → 关于。「智能体」里所有 Agent 都在一处，分三组：「已安装」的每个显示版本（悬停看路径）、登没登录和启用开关，没登录的给出登录命令；「可安装」是 Kando 能运行但这台电脑没装的，变灰并给出安装命令；「暂未支持」见下段。命令都可以直接复制，装好或登录后点「重新检测」。「关于」里的 Git 一行显示版本和路径，没装时给出安装命令。只装一个 Agent 不算问题：新建任务、新会话和「默认 Agent」设置只列出装了的，没装的不能移交过去；已有任务选的 Agent 不在时仍然显示，标为「未安装」。「智能体」底部可以展开 core 找命令用的目录：装在别处的，把它所在的目录加进登录 shell 的 PATH，再重启 Kando（打包的 App 启动 core 时用的就是登录 shell 的 PATH）。Windows 上 CLI 是 `.cmd` 垫片，只能看到装没装，问不到版本。
 
-设置 → 智能体里的「暂未支持」显示 Kando 认识、但尚未接入聊天的 Agent：从 core 当前的 PATH 查找已知 CLI，并在 macOS 的 `/Applications` 和 `~/Applications` 查找已知应用。Cursor 已支持聊天，应用和 CLI 会合并进「已安装」或「可安装」的一项；只安装编辑器仍需另外安装 CLI。找到 CLI 后会限时执行 `--version`，分别显示命令已响应、版本检测失败或 Windows 命令垫片无法直接验证；这不检查登录，也不代表 Kando 已支持该 CLI 的聊天协议。每 5 分钟自动复查，也能手动「重新检测」；新增 PATH 目录仍需重启 Kando，才能让 core 和 daemon 都用到它。未接入的 Agent 标为「暂未支持」，不能选来运行任务或会话。新增产品时在 `packages/core/src/environment-check.ts` 的发现清单里登记可辨认的命令或应用名。
+设置 → 智能体里的「暂未支持」显示 Kando 认识、但尚未接入聊天的 Agent：从 core 当前的 PATH 查找已知 CLI，并在 macOS 的 `/Applications` 和 `~/Applications` 查找已知应用。Cursor 已支持聊天，应用和 CLI 会合并进「已安装」或「可安装」的一项；只安装编辑器仍需另外安装 CLI。找到 CLI 后会限时执行 `--version`，分别显示命令已响应、版本检测失败或 Windows 命令垫片无法直接验证；这不检查登录，也不代表 Kando 已支持该 CLI 的聊天协议。每 5 分钟自动复查，也能手动「重新检测」；新增 PATH 目录仍需重启 Kando，才能让 core 和 daemon 都用到它。未接入的 Agent 标为「暂未支持」，不能选来运行任务或会话。尚未接入的产品在 `packages/core/src/environment-check.ts` 的发现清单里登记可辨认的命令或应用名；已接入的 Agent 由它的 adapter 声明（见「新增 Agent」）。
 
 ### Agent 并发
 
@@ -206,6 +206,21 @@ Claude Code 以 `claude -p --input-format stream-json --output-format stream-jso
 「移交」会先在 Agent 工作时请你确认停止，然后启动另一种 Agent。Kando 将已记录的可见用户消息、最终回复和本次补充说明写入 `sessions/<id>/handoffs/`，提示新 Agent 阅读文件并检查当前目录、Git 状态和测试。切回曾用过的 Agent 时，恢复它原来的 provider 对话（Claude session / Codex thread / Cursor session），并补上它离开期间的结构化历史。隐藏推理、未暴露上下文及 provider 专属能力无法移交。
 
 在会话列表里右键选「删除会话」。删除会删除数据库记录、结构化消息、交接文件和聊天记录，但**无论外部还是 Kando 托管的工作目录都会保留**，因为其中可能有唯一的工作成果。
+
+### 新增 Agent
+
+一个 Agent 的全部知识分在三处注册表里。三处都写成 `satisfies Record<AgentKind, …>`，漏掉任何一处都过不了 typecheck。除注册那一行外，其余代码只问注册表，不判断 Agent 的名字：
+
+1. **protocol**：在 `packages/protocol/src/agent.ts` 的 `AGENT_KINDS` 里加 id，新建 `packages/protocol/src/agents/<id>.ts` 写一个 `AgentDescriptor`，再登记进 `agents/index.ts` 的 `AGENT_DESCRIPTORS`。descriptor 是纯数据，core 和各客户端共用，内容包括名称、它怎么称呼 Kando 的权限模式、新会话的起始模式、能力开关（`unattended`、`bypass`、`autoMode`、`pathMentions`、`optionsWhileBusy`）、安装和登录提示、用量重置在哪里用。界面只读这些数据，不自己编码规则。
+2. **core**：新建 `packages/core/src/agents/<id>/`，写一个 `AgentAdapter`（`agents/agent-adapter.ts`），再登记进 `agents/index.ts` 的 `AGENT_ADAPTERS`。adapter 负责以下几项，大多可选，没给就走默认实现：
+   - 必填：driver（实现 `ChatDriver`）、启动命令（argv 数组）、能用的权限模式、会话策略（是否预先指定会话 id、会话是否绑定目录、是否支持原生 fork）。
+   - 可选：模型目录、环境检测、登录检查、用量读取、CLI 安装命令、应用发现。
+   - 可选 hooks，用于命令行之外的特殊需求：启动前后的准备（`launch`）、回合处理（`turns`：串行发送、取消后分阶段停止进程、首帧超时、换新进程重试、拒绝理由作为消息发送）。注册时 `checkAdapter()` 会检查这些 hooks 是否配套，比如声明了首帧超时，就必须同时能停进程、能重试。
+3. **desktop**：放一个图标资源，登记进 `components/icons.tsx` 的 `AGENT_MARKS`。
+
+说 ACP 的 Agent 不用另写 driver：`agents/acp/acp-driver.ts` 讲标准协议，Agent 自己的部分写成一份 `AcpDialect`，然后用 `new AcpDriver(dialect, …)` 创建 driver。dialect 至少要有显示名、请求 id 前缀（会写进日志，定下后不能改）和权限模式映射；扩展认证方式、模型列表、提问、计划审批、子 Agent、工具命名、写进回复的传输错误等，都按需声明。Cursor 的 dialect（`agents/cursor/cursor-dialect.ts`）可以作参照。`agents/acp/acp-driver.test.ts` 用一个什么扩展都不带的 dialect 跑完一整个回合，新 dialect 可以从它开始。
+
+`agents/agent-registry.test.ts` 检查每个 adapter 提供的权限模式和 descriptor 里写的完全一致，并检查声明的 hooks 都有对应实现。
 
 ## 5. 内置浏览器
 
