@@ -81,6 +81,10 @@ export type ChatStageOptions = {
 
 export type ChatPreferences = { permissionMode?: string; model?: string; effort?: string }
 
+// What a frame means to the turn Kando watches: going out, the prompt that starts one, a session
+// being opened, or a cancel; coming in, a frame that belongs to it.
+export type TurnSignal = 'prompt' | 'session-new' | 'session-load' | 'cancel' | 'turn'
+
 // Speaks one agent's JSON protocol. Everything it knows comes from apply(), so a live stage and one
 // rebuilt from its log end up the same; the frames it asks for are sent (and logged) by the host.
 export interface ChatDriver {
@@ -127,4 +131,6 @@ export interface ChatDriver {
   suggestion?(): string | null
   // Frames that stop (or restart) the suggestions without restarting the agent.
   pauseSuggestions?(paused: boolean): unknown[]
+  // For an agent whose turns Kando watches for a stall (AgentAdapter.turns.firstFrameTimeoutMs).
+  turnSignal?(frame: unknown, dir: 'in' | 'out'): TurnSignal | null
 }

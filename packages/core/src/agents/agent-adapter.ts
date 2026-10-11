@@ -24,6 +24,12 @@ export type AgentLaunch = {
 
 export type AgentDetection = Omit<EnvironmentCheck, 'tool'>
 
+// How long an agent is given to obey a cancel, then a TERM, before it is stopped harder.
+export type CancelGrace = { cancelGraceMs: number; termGraceMs: number }
+
+// The stage an adapter's launch steps act for.
+export type AgentStage = { sessionsRoot: string; conversationId: string; stageId: string; planOnly: boolean }
+
 // Everything core knows of one agent beyond its descriptor: how to start it, speak to it, find it
 // and read its limits. Core asks the adapter rather than the agent's name, so an agent is added by
 // writing one and registering it (agents/index.ts).
@@ -59,4 +65,31 @@ export interface AgentAdapter {
   installation?(platform: NodeJS.Platform): AgentCliInstallation | null
   // What discovery looks for besides its CLI: other executable names, and application bundles.
   readonly discovery?: { commands: readonly string[]; applications: Partial<Record<NodeJS.Platform, readonly string[]>> }
+  // Steps around starting its process, for an agent its command line alone does not set up.
+  readonly launch?: {
+    // Kando's MCP server as this agent is to start it.
+    mcp(server: McpServer, stage: AgentStage): McpServer
+    // Before the process starts, given the server it gets: the executable to run in place of the
+    // command's, once that is known to be able to run.
+    prepare(stage: AgentStage, mcp: McpServer | undefined): Promise<{ command?: string }>
+    // After its handshake, before its first message.
+    ready(stage: AgentStage): Promise<void>
+  }
+  // How its turns are handled beyond what its driver does.
+  readonly turns?: {
+    // Sends and retries wait for one another: its process cannot take them interleaved.
+    serialized?: boolean
+    // It may not obey a cancel: after one, its process is stopped, by TERM and then by force,
+    // each after its grace.
+    stopAfterCancel?: CancelGrace
+    // A prompt with no event for this long is stopped, with a notice offering to retry it. Its
+    // driver tells which frames start and belong to a turn (ChatDriver.turnSignal).
+    firstFrameTimeoutMs?: number
+    // A failed or stalled turn can be sent again from a fresh process.
+    retryByRestart?: boolean
+    // The message that goes with a denial reaches it only as a message of its own.
+    denialAsMessage?: boolean
+  }
+  // Its model and effort are remembered as its state reports them after a switch, not as asked.
+  readonly optionsFromState?: boolean
 }

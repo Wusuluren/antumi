@@ -14,8 +14,7 @@ import type { SessionHost } from './daemon-client'
 import { ConversationStore } from './conversation-store'
 import { folderChanges, folderDiff, folderHead } from './conversation-changes'
 import { adapterOf, checkUnattended } from './agents'
-import { requireCursorCli } from './agents/cursor/cursor-cli'
-import { cursorMcpReadyFile, cursorMcpServer, prepareCursorMcp, waitForCursorMcp } from './agents/cursor/cursor-mcp'
+import type { AgentStage, CancelGrace } from './agents/agent-adapter'
 import type { McpServer } from './agent-command'
 import { chatCommand, handoffPrompt, handoffPromptPath } from './conversation-command'
 import { searchSnippet } from './conversation-search'
@@ -72,8 +71,6 @@ type ForkPoint = { providerSessionId: string | null; at: string | null }
 const CHAT_PAGE_ITEMS = 1000
 const STOP_GRACE_MS = 5000
 const KILL_GRACE_MS = 2000
-const CURSOR_CANCEL_GRACE_MS = 2000
-const CURSOR_TERM_GRACE_MS = 2000
 // A chat agent left this long with nothing to do is let go (see releaseIdle).
 const CHAT_IDLE_MS = 30 * 60_000
 
@@ -139,8 +136,10 @@ export class ConversationService {
   // Sessions being stopped on purpose: their exit reads as a stop, not a crash.
   private readonly stopping = new Set<string>()
   private readonly exitWaiters = new Map<string, () => void>()
-  private readonly cursorStops = new Map<string, Promise<void>>()
-  private readonly cursorActions = new Map<string, Promise<void>>()
+  // Agents being stopped after a cancel they may not obey (AgentAdapter.turns.stopAfterCancel).
+  private readonly cancelStops = new Map<string, Promise<void>>()
+  // The tail of each conversation's sends and retries, for an agent that takes them one at a time.
+  private readonly serialActions = new Map<string, Promise<void>>()
   // Kando's own questions waiting on the user, by request id.
   private readonly asks = new Map<string, { resolve: (decision: ChatDecision) => void; reject: (error: Error) => void }>()
 
@@ -175,11 +174,14 @@ export class ConversationService {
       },
       offset: (stageId, end) => this.store.setChatOffset(stageId, end),
       usage: (stage, report) => this.emit({ type: 'usage', agent: stage.agent, report }),
-      cursorStalled: (_conversationId, sessionId) => {
+      turnStalled: (conversationId, sessionId) => {
+        const agent = this.store.get(conversationId)?.agent
+        const grace = agent ? adapterOf(agent).turns?.stopAfterCancel : undefined
+        if (!grace) return
         this.stopping.add(sessionId)
-        // ChatHost dispatches session/cancel immediately after this callback; begin its grace
+        // ChatHost dispatches the cancel immediately after this callback; begin its grace
         // period in the following microtask so the cancellation is always first.
-        queueMicrotask(() => { void this.stopCursorAfterCancel(sessionId) })
+        queueMicrotask(() => { void this.stopAfterCancel(sessionId, grace) })
       }
     }, Date.now, wire)
   }
@@ -690,7 +692,8 @@ export class ConversationService {
     const { id } = current
     const { agent } = stage
     const { options } = this.chatStage(current, stage, forkAt)
-    const cursorReady = agent === 'cursor' ? cursorMcpReadyFile(this.sessionsRoot, id, stage.id) : null
+    const { launch } = adapterOf(agent)
+    const agentStage = this.agentStage(id, stage)
     const command = chatCommand(agent, stage.providerSessionId, resume, handoffPath, options.extraDirs, {
       preferred: options.preferred,
       allowBypass: options.allowBypass,
@@ -701,18 +704,17 @@ export class ConversationService {
     })
     let sessionId: string
     try {
-      if (cursorReady) {
-        command.command = await requireCursorCli()
-        if (!options.mcp) throw new Rejection('cursor-mcp-unavailable', 'Cursor 需要 Kando MCP 配置')
-        await prepareCursorMcp(cursorReady)
+      if (launch) {
+        const prepared = await launch.prepare(agentStage, options.mcp)
+        if (prepared.command) command.command = prepared.command
       }
       this.wire?.record(id, stage.id, [{ dir: 'spawn', text: JSON.stringify({ command: command.command, args: command.args, cwd: current.workspacePath }) }])
       const spawned = await this.daemon.request('spawnPipe', { command: command.command, args: command.args, cwd: current.workspacePath, env: {} })
       sessionId = spawned.sessionId
-      if (cursorReady) {
+      if (launch) {
         this.wire?.record(id, stage.id, [{
           dir: 'note',
-          text: JSON.stringify({ event: 'cursor-lifecycle', phase: 'process-spawned', sessionId })
+          text: JSON.stringify({ event: `${agent}-lifecycle`, phase: 'process-spawned', sessionId })
         }])
       }
     } catch (error) {
@@ -725,7 +727,7 @@ export class ConversationService {
     this.changed(this.store.update(id, { agent, sessionId }))
     try {
       await this.chats.open(this.chatStage(current, stage, forkAt), sessionId, 0, true)
-      if (cursorReady) await waitForCursorMcp(cursorReady)
+      await launch?.ready(agentStage)
       if (handoffPath) await this.chats.send(id, handoffPrompt(handoffPath))
     } catch (error) {
       // A stage that never started leaves nothing to resume, so it goes, log and all.
@@ -757,7 +759,7 @@ export class ConversationService {
     const chosen = this.store.chatOptions(conversation.id)
     const mcp = this.mcp?.(conversation.id)
     let permissionMode = chosen.permissionMode
-    const { fallbackMode, permissionModes } = adapterOf(stage.agent)
+    const { fallbackMode, permissionModes, launch } = adapterOf(stage.agent)
     if (fallbackMode && (!permissionMode || !permissionModes.includes(permissionMode))) permissionMode = fallbackMode
     return {
       conversationId: conversation.id,
@@ -766,7 +768,7 @@ export class ConversationService {
       ended: stage.endedAt != null,
       options: {
         cwd: conversation.workspacePath,
-        ...(mcp ? { mcp: stage.agent === 'cursor' ? cursorMcpServer(mcp, cursorMcpReadyFile(this.sessionsRoot, conversation.id, stage.id), stage.planOnly ?? false) : mcp } : {}),
+        ...(mcp ? { mcp: launch ? launch.mcp(mcp, this.agentStage(conversation.id, stage)) : mcp } : {}),
         extraDirs: conversation.projectPaths.slice(1),
         resume: stage.providerSessionId,
         fork: forkAt,
@@ -778,6 +780,10 @@ export class ConversationService {
         keepImage: (data) => this.keepImage(data)
       }
     }
+  }
+
+  private agentStage(conversationId: string, stage: ConversationStage): AgentStage {
+    return { sessionsRoot: this.sessionsRoot, conversationId, stageId: stage.id, planOnly: stage.planOnly ?? false }
   }
 
   // Remembered for the conversation's next start once the stage took it: a model or effort here,
@@ -792,10 +798,10 @@ export class ConversationService {
     }
     await this.chats.setOption(id, option, value)
     if (option === 'permissionMode') return
-    if (agent === 'cursor') {
+    if (adapterOf(agent).optionsFromState) {
       const stage = this.store.activeStage(id)
       const state = stage ? this.chats.items(this.chatStage(conversation, stage)).findLast((item) => item.kind === 'state') : null
-      if (state?.kind === 'state') this.store.setChatOptions(id, { cursor: { model: state.model ?? undefined, effort: state.effort ?? undefined } })
+      if (state?.kind === 'state') this.store.setChatOptions(id, { [agent]: { model: state.model ?? undefined, effort: state.effort ?? undefined } })
       return
     }
     const chosen = this.store.chatOptions(id)
@@ -884,8 +890,8 @@ export class ConversationService {
   // A retry may resume in a new stage; its ref still names the original message.
   async send(id: string, text: string, imageIds: readonly string[] = [], queue = false, steer = false, ref?: string): Promise<void> {
     const conversation = this.get(id)
-    if (conversation.agent === 'cursor') {
-      return this.withCursorAction(id, () => this.sendNow(id, text, imageIds, queue, steer, ref))
+    if (adapterOf(conversation.agent).turns?.serialized) {
+      return this.serially(id, () => this.sendNow(id, text, imageIds, queue, steer, ref))
     }
     return this.sendNow(id, text, imageIds, queue, steer, ref)
   }
@@ -901,15 +907,15 @@ export class ConversationService {
     } finally { const pending = (this.gitSending.get(id) ?? 1) - 1; if (pending) this.gitSending.set(id, pending); else this.gitSending.delete(id) }
   }
 
-  private async withCursorAction<T>(id: string, action: () => Promise<T>): Promise<T> {
-    const previous = this.cursorActions.get(id) ?? Promise.resolve()
+  private async serially<T>(id: string, action: () => Promise<T>): Promise<T> {
+    const previous = this.serialActions.get(id) ?? Promise.resolve()
     const result = previous.catch(() => {}).then(action)
     const tail = result.then(() => {}, () => {})
-    this.cursorActions.set(id, tail)
+    this.serialActions.set(id, tail)
     try {
       return await result
     } finally {
-      if (this.cursorActions.get(id) === tail) this.cursorActions.delete(id)
+      if (this.serialActions.get(id) === tail) this.serialActions.delete(id)
     }
   }
 
@@ -1045,7 +1051,7 @@ export class ConversationService {
       ? this.chats.items(this.chatStage(conversation, stage)).find((each) => each.kind === 'approval' && each.requestId === requestId)
       : undefined
     await this.chats.respond(id, requestId, answer)
-    if (stage?.agent === 'cursor' && answer.decision === 'deny' && answer.message) await this.chats.send(id, answer.message, [], true)
+    if (stage && adapterOf(stage.agent).turns?.denialAsMessage && answer.decision === 'deny' && answer.message) await this.chats.send(id, answer.message, [], true)
     if (conversation.taskId && stage && item?.kind === 'approval' && isPlanApproval(item) && item.detail && answer.decision !== 'deny') {
       this.emit({ type: 'planApproved', taskId: conversation.taskId, plan: { markdown: item.detail, agent: stage.agent, stageId: stage.id, requestId } })
     }
@@ -1054,16 +1060,17 @@ export class ConversationService {
   async interrupt(id: string): Promise<void> {
     const current = this.get(id)
     this.chats.cancelAsks(id)
-    if (current.agent !== 'cursor' || !current.sessionId) {
+    const grace = adapterOf(current.agent).turns?.stopAfterCancel
+    if (!grace || !current.sessionId) {
       await this.chats.interrupt(id)
       return
     }
-    // Mark it intentional before writing cancel: Cursor may obey and exit before the daemon's
+    // Mark it intentional before writing cancel: the agent may obey and exit before the daemon's
     // write request itself has resolved.
     this.stopping.add(current.sessionId)
     try {
       await this.chats.interrupt(id)
-      await this.stopCursorAfterCancel(current.sessionId)
+      await this.stopAfterCancel(current.sessionId, grace)
     } catch (error) {
       this.stopping.delete(current.sessionId)
       throw error
@@ -1071,9 +1078,10 @@ export class ConversationService {
   }
 
   async retryCursorTurn(id: string, stageId: string, itemId: string): Promise<void> {
-    await this.withCursorAction(id, async () => {
+    await this.serially(id, async () => {
       const conversation = this.get(id)
-      if (conversation.agent !== 'cursor') throw new Rejection('chat-option-invalid', 'only Cursor turns can reconnect this way')
+      const { agent } = conversation
+      if (!adapterOf(agent).turns?.retryByRestart) throw new Rejection('chat-option-invalid', `${agent} turns cannot reconnect this way`)
       const stage = this.store.stages(id).find((candidate) => candidate.id === stageId)
       if (!stage) throw new Rejection('stage-not-found', `no chat stage ${stageId}`)
       const notice = this.chats.items(this.chatStage(conversation, stage)).find((item) => item.id === itemId)
@@ -1081,21 +1089,21 @@ export class ConversationService {
         throw new Rejection('chat-item-not-found', `no retry action ${itemId}`)
       }
       const user = this.chats.items(this.chatStage(conversation, stage)).find((item) => item.id === notice.action?.userItemId)
-      if (user?.kind !== 'user') throw new Rejection('chat-item-not-found', 'the Cursor message to retry is no longer available')
+      if (user?.kind !== 'user') throw new Rejection('chat-item-not-found', 'the message to retry is no longer available')
 
       const active = this.get(id)
-      if (active.sessionId) await this.cursorStops.get(active.sessionId)
+      if (active.sessionId) await this.cancelStops.get(active.sessionId)
       const ready = this.get(id)
-      if (ready.sessionId && !this.chats.idle(id)) throw new Rejection('chat-busy', 'Cursor is already working on another turn')
+      if (ready.sessionId && !this.chats.idle(id)) throw new Rejection('chat-busy', `${agent} is already working on another turn`)
       if (ready.sessionId) await this.stop(id)
-      await this.start(id, 'cursor', '', false)
+      await this.start(id, agent, '', false)
       await this.sendNow(id, user.text, user.images.map((image) => image.id), false, false, randomUUID())
       this.chats.updateNotice(this.chatStage(conversation, stage), {
         dir: 'note',
         at: Date.now(),
         id: notice.id,
         level: notice.level,
-        text: '已重新连接 Cursor，并重新发送这条消息。',
+        text: `已重新连接 ${agentDescriptor(agent).label}，并重新发送这条消息。`,
         action: null
       })
     })
@@ -1135,8 +1143,8 @@ export class ConversationService {
   // An agent is gone only once the daemon says so: clearing the session any earlier would let a
   // continue start a second writer on the same Claude session or Codex thread.
   private async stopAgent(sessionId: string): Promise<void> {
-    const cursorStop = this.cursorStops.get(sessionId)
-    if (cursorStop) return cursorStop
+    const cancelStop = this.cancelStops.get(sessionId)
+    if (cancelStop) return cancelStop
     const exited = new Promise<void>((resolve) => this.exitWaiters.set(sessionId, resolve))
     this.stopping.add(sessionId)
     await this.daemon.request('kill', { sessionId })
@@ -1148,27 +1156,27 @@ export class ConversationService {
     this.stopping.delete(sessionId)
   }
 
-  // session/cancel has already been written. Give Cursor two seconds to obey it, then terminate
-  // the process group, and force-kill the group only if it survives another two seconds.
-  private stopCursorAfterCancel(sessionId: string): Promise<void> {
-    const existing = this.cursorStops.get(sessionId)
+  // The cancel has already been written. Give the agent its grace to obey it, then terminate the
+  // process group, and force-kill the group only if it survives its second grace.
+  private stopAfterCancel(sessionId: string, grace: CancelGrace): Promise<void> {
+    const existing = this.cancelStops.get(sessionId)
     if (existing) return existing
-    const stopping = this.finishCursorStop(sessionId)
-    this.cursorStops.set(sessionId, stopping)
+    const stopping = this.finishStopAfterCancel(sessionId, grace)
+    this.cancelStops.set(sessionId, stopping)
     const clear = () => {
-      if (this.cursorStops.get(sessionId) === stopping) this.cursorStops.delete(sessionId)
+      if (this.cancelStops.get(sessionId) === stopping) this.cancelStops.delete(sessionId)
     }
     void stopping.then(clear, clear)
     return stopping
   }
 
-  private async finishCursorStop(sessionId: string): Promise<void> {
+  private async finishStopAfterCancel(sessionId: string, grace: CancelGrace): Promise<void> {
     const exited = new Promise<void>((resolve) => this.exitWaiters.set(sessionId, resolve))
     this.stopping.add(sessionId)
     try {
-      if (!this.store.bySession(sessionId) || await settles(exited, CURSOR_CANCEL_GRACE_MS)) return
+      if (!this.store.bySession(sessionId) || await settles(exited, grace.cancelGraceMs)) return
       await this.daemon.request('kill', { sessionId }).catch(() => {})
-      if (!this.store.bySession(sessionId) || await settles(exited, CURSOR_TERM_GRACE_MS)) return
+      if (!this.store.bySession(sessionId) || await settles(exited, grace.termGraceMs)) return
       await this.daemon.request('kill', { sessionId, force: true }).catch(() => {})
       await settles(exited, KILL_GRACE_MS)
     } finally {

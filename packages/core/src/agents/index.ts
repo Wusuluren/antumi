@@ -5,8 +5,18 @@ import { claude } from './claude/claude-adapter'
 import { codex } from './codex/codex-adapter'
 import { cursor } from './cursor/cursor-adapter'
 
+// Hooks that only work together: a stalled turn is stopped and offered for retry. An adapter
+// declaring one without the other fails as core starts rather than mid-turn.
+export function checkAdapter(adapter: AgentAdapter): AgentAdapter {
+  const turns = adapter.turns
+  if (turns?.firstFrameTimeoutMs && !(turns.stopAfterCancel && turns.retryByRestart)) {
+    throw new Error(`agent ${adapter.kind} watches for stalled turns without stopAfterCancel and retryByRestart`)
+  }
+  return adapter
+}
+
 // One adapter per agent kind: one left out fails to compile.
-export const AGENT_ADAPTERS = { claude, codex, cursor } satisfies Record<AgentKind, AgentAdapter>
+export const AGENT_ADAPTERS = { claude: checkAdapter(claude), codex: checkAdapter(codex), cursor: checkAdapter(cursor) } satisfies Record<AgentKind, AgentAdapter>
 
 export function adapterOf(kind: AgentKind): AgentAdapter {
   return AGENT_ADAPTERS[kind]

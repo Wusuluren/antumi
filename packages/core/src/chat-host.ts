@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { AgentKind, ChatImage, ChatItem, ChatOption, ChatQueued, ChatTurnActivity, ConversationRequest } from '@kando/protocol'
+import { agentDescriptor, type AgentKind, type ChatImage, type ChatItem, type ChatOption, type ChatQueued, type ChatTurnActivity, type ConversationRequest } from '@kando/protocol'
 import type { AttachmentStore } from './attachment-store'
 import type { ChatAnswer, ChatDriver, ChatImageFile, ChatOutgoing, ChatRecord, ChatStageOptions, StageMessage } from './chat-driver'
 import { ChatLog, type LoggedRecord } from './chat-log'
@@ -12,7 +12,6 @@ import type { UsageReport } from './usage-source'
 import type { WireLog } from './wire-log'
 
 const START_TIMEOUT_MS = 30_000
-export const CURSOR_FIRST_FRAME_TIMEOUT_MS = 30_000
 const STDERR_TAIL_CHARS = 8 * 1024
 // Ended stages kept rebuilt in memory, most recently read last.
 const HISTORY_CACHE = 20
@@ -32,11 +31,13 @@ export type ChatSink = {
   offset(stageId: string, end: number): void
   // The agent's account limits, as it reported them while running.
   usage(stage: ChatStage, report: UsageReport): void
-  // A Cursor prompt with no event for a while asks the owner to tear the process down in stages.
-  cursorStalled?(conversationId: string, sessionId: string): void
+  // A watched prompt with no event for a while asks the owner to tear the process down in stages.
+  turnStalled?(conversationId: string, sessionId: string): void
 }
 
-type CursorTurnTrace = {
+// A turn of an agent whose turns stall (AgentAdapter.turns.firstFrameTimeoutMs), traced to the
+// wire log as it goes.
+type TurnWatch = {
   ref: string
   promptSentAt: number
   firstFrameAt: number | null
@@ -65,7 +66,7 @@ type Live = ChatStage & {
   lastActive: number
   // A process this stage just started: the stderr it wrote before core attached goes to the wire log too.
   freshStderr: boolean
-  cursorTurn: CursorTurnTrace | null
+  watch: TurnWatch | null
 }
 
 // Where the raw traffic goes, for the user to debug with; it records nothing while switched off.
@@ -134,7 +135,7 @@ export class ChatHost {
       started: null,
       lastActive: records.at(-1)?.at ?? this.now(),
       freshStderr: records.length === 0,
-      cursorTurn: null
+      watch: null
     }
     this.lives.set(sessionId, live)
     this.history.delete(stage.stageId)
@@ -313,7 +314,7 @@ export class ChatHost {
   }
 
   // Replaces a persisted notice in a live or ended stage. Retry actions must disappear only after
-  // a new Cursor process is ready, so a failed reconnect remains retryable.
+  // a new process is ready, so a failed reconnect remains retryable.
   updateNotice(stage: ChatStage, record: Extract<ChatRecord, { dir: 'note' }>): void {
     const live = [...this.lives.values()].find((candidate) => candidate.stageId === stage.stageId)
     if (live) {
@@ -477,8 +478,8 @@ export class ChatHost {
       const at = this.now()
       const before = live.driver.activity()
       live.driver.apply({ dir: 'in', at, frame })
-      this.cursorFrame(live, frame, at)
-      if (live.agent === 'cursor' && before !== 'idle' && live.driver.activity() === 'idle') this.cursorTurnEnded(live, at)
+      this.watchFrame(live, frame, at)
+      if (before !== 'idle' && live.driver.activity() === 'idle') this.watchEnded(live, at)
       const kept = live.driver.logged(frame)
       if (kept !== null) records.push({ dir: 'in', at, frame: kept, end: line.end })
     }
@@ -511,15 +512,13 @@ export class ChatHost {
   // Logged and applied before it is written, so a crash in between cannot send it twice.
   private dispatch(live: Live, message: ChatOutgoing, ref?: string, images: readonly ChatImage[] = []): Promise<unknown> {
     this.record(live, { dir: 'out', at: this.now(), frame: message.logged, ...(ref ? { ref } : {}), ...(images.length ? { images: [...images] } : {}) })
-    const method = this.rpcMethod(message.logged)
-    if (live.agent === 'cursor') {
-      if (method === 'session/prompt') this.cursorPromptSent(live, ref ?? this.rpcId(message.logged) ?? 'prompt')
-      else if (method === 'session/load') this.cursorTrace(live, 'session-load-sent')
-      else if (method === 'session/new') this.cursorTrace(live, 'session-new-sent')
-      else if (method === 'session/cancel') {
-        this.clearCursorTimer(live)
-        this.cursorTrace(live, 'session-cancel-sent')
-      }
+    const timeout = adapterOf(live.agent).turns?.firstFrameTimeoutMs
+    const signal = timeout ? live.driver.turnSignal?.(message.logged, 'out') : null
+    if (timeout && signal === 'prompt') this.watchPrompt(live, ref ?? this.rpcId(message.logged) ?? 'prompt', timeout)
+    else if (signal === 'session-load' || signal === 'session-new') this.trace(live, `${signal}-sent`)
+    else if (signal === 'cancel') {
+      this.clearWatchTimer(live)
+      this.trace(live, 'session-cancel-sent')
     }
     const line = JSON.stringify(message.wire)
     this.tap(live, [{ dir: 'stdin', text: line }])
@@ -564,7 +563,7 @@ export class ChatHost {
   }
 
   private end(live: Live, code: number | null): void {
-    this.clearCursorTimer(live)
+    this.clearWatchTimer(live)
     const last = live.framer.flush()
     if (last) this.read(live, [last], false)
     const record: LoggedRecord = { dir: 'exit', at: this.now(), code, stderr: live.stderr.slice(-2000) }
@@ -602,78 +601,67 @@ export class ChatHost {
     })
   }
 
-  private rpcMethod(frame: unknown): string | null {
-    if (typeof frame !== 'object' || frame === null) return null
-    const method = Reflect.get(frame, 'method')
-    return typeof method === 'string' ? method : null
-  }
-
   private rpcId(frame: unknown): string | null {
     if (typeof frame !== 'object' || frame === null) return null
     const id = Reflect.get(frame, 'id')
     return typeof id === 'string' || typeof id === 'number' ? String(id) : null
   }
 
-  private cursorPromptSent(live: Live, ref: string): void {
-    this.clearCursorTimer(live)
-    const promptSentAt = this.now()
-    const turn: CursorTurnTrace = {
+  private watchPrompt(live: Live, ref: string, timeout: number): void {
+    this.clearWatchTimer(live)
+    const watch: TurnWatch = {
       ref,
-      promptSentAt,
+      promptSentAt: this.now(),
       firstFrameAt: null,
       lastFrameAt: null,
       stalled: false,
       timer: null
     }
-    turn.timer = setTimeout(() => this.cursorStalled(live, turn), CURSOR_FIRST_FRAME_TIMEOUT_MS)
-    turn.timer.unref()
-    live.cursorTurn = turn
-    this.cursorTrace(live, 'prompt-sent', turn)
+    watch.timer = setTimeout(() => this.stalled(live, watch, timeout), timeout)
+    watch.timer.unref()
+    live.watch = watch
+    this.trace(live, 'prompt-sent', watch)
   }
 
-  private cursorFrame(live: Live, frame: unknown, at: number): void {
-    const turn = live.cursorTurn
-    if (!turn || turn.stalled) return
-    const method = this.rpcMethod(frame)
-    const id = this.rpcId(frame)
-    const belongsToTurn = method === 'session/update' || (method !== null && id !== null) || id?.startsWith('cursor-prompt-')
-    if (!belongsToTurn) return
-    turn.lastFrameAt = at
-    if (turn.firstFrameAt !== null) {
-      this.cursorTrace(live, 'last-activity', turn)
+  private watchFrame(live: Live, frame: unknown, at: number): void {
+    const watch = live.watch
+    if (!watch || watch.stalled) return
+    if (live.driver.turnSignal?.(frame, 'in') !== 'turn') return
+    watch.lastFrameAt = at
+    if (watch.firstFrameAt !== null) {
+      this.trace(live, 'last-activity', watch)
       return
     }
-    turn.firstFrameAt = at
-    if (turn.timer) clearTimeout(turn.timer)
-    turn.timer = null
-    this.cursorTrace(live, 'first-frame', turn)
+    watch.firstFrameAt = at
+    if (watch.timer) clearTimeout(watch.timer)
+    watch.timer = null
+    this.trace(live, 'first-frame', watch)
   }
 
-  private cursorTurnEnded(live: Live, at: number): void {
-    const turn = live.cursorTurn
-    if (!turn) return
-    turn.lastFrameAt ??= at
-    if (turn.timer) clearTimeout(turn.timer)
-    turn.timer = null
-    this.cursorTrace(live, 'turn-ended', turn)
-    live.cursorTurn = null
+  private watchEnded(live: Live, at: number): void {
+    const watch = live.watch
+    if (!watch) return
+    watch.lastFrameAt ??= at
+    if (watch.timer) clearTimeout(watch.timer)
+    watch.timer = null
+    this.trace(live, 'turn-ended', watch)
+    live.watch = null
   }
 
-  private cursorStalled(live: Live, turn: CursorTurnTrace): void {
-    if (this.lives.get(live.sessionId) !== live || live.cursorTurn !== turn || turn.firstFrameAt !== null) return
-    turn.timer = null
-    turn.stalled = true
+  private stalled(live: Live, watch: TurnWatch, timeout: number): void {
+    if (this.lives.get(live.sessionId) !== live || live.watch !== watch || watch.firstFrameAt !== null) return
+    watch.timer = null
+    watch.stalled = true
     const at = this.now()
-    const noticeId = `cursor-stalled:${turn.ref}`
     this.record(live, {
       dir: 'note',
       at,
-      id: noticeId,
+      id: `${live.agent}-stalled:${watch.ref}`,
       level: 'warning',
-      text: 'Cursor 30 秒内没有返回当前回合事件，本轮正在停止。Kando 不会自动重发，以免重复执行已经开始的操作。',
-      action: { kind: 'retryCursorTurn', userItemId: `u:${turn.ref}` }
+      text: `${agentDescriptor(live.agent).label} ${Math.round(timeout / 1000)} 秒内没有返回当前回合事件，本轮正在停止。Kando 不会自动重发，以免重复执行已经开始的操作。`,
+      action: { kind: 'retryCursorTurn', userItemId: `u:${watch.ref}` }
     })
-    this.cursorTrace(live, 'first-frame-timeout', turn)
+    this.trace(live, 'first-frame-timeout', watch)
     let frames: unknown[] = []
     try {
       frames = live.driver.interrupt()
@@ -681,29 +669,29 @@ export class ChatHost {
       // The turn ended while the timeout callback was entering.
     }
     this.flush(live)
-    // Let the owner mark this as an intentional stop before Cursor has a chance to exit from the
-    // cancellation frame; otherwise that clean exit could briefly look like a crash.
-    this.sink.cursorStalled?.(live.conversationId, live.sessionId)
+    // Let the owner mark this as an intentional stop before the agent has a chance to exit from
+    // the cancellation frame; otherwise that clean exit could briefly look like a crash.
+    this.sink.turnStalled?.(live.conversationId, live.sessionId)
     void Promise.all(frames.map((frame) => this.write(live, frame))).catch(ignore)
   }
 
-  private clearCursorTimer(live: Live): void {
-    if (live.cursorTurn?.timer) clearTimeout(live.cursorTurn.timer)
-    if (live.cursorTurn) live.cursorTurn.timer = null
+  private clearWatchTimer(live: Live): void {
+    if (live.watch?.timer) clearTimeout(live.watch.timer)
+    if (live.watch) live.watch.timer = null
   }
 
-  private cursorTrace(live: Live, phase: string, turn: CursorTurnTrace | null = live.cursorTurn): void {
+  private trace(live: Live, phase: string, watch: TurnWatch | null = live.watch): void {
     this.tap(live, [{
       dir: 'note',
       text: JSON.stringify({
-        event: 'cursor-lifecycle',
+        event: `${live.agent}-lifecycle`,
         phase,
         sessionId: live.sessionId,
-        ...(turn ? {
-          ref: turn.ref,
-          promptSentAt: turn.promptSentAt,
-          firstFrameAt: turn.firstFrameAt,
-          lastFrameAt: turn.lastFrameAt
+        ...(watch ? {
+          ref: watch.ref,
+          promptSentAt: watch.promptSentAt,
+          firstFrameAt: watch.firstFrameAt,
+          lastFrameAt: watch.lastFrameAt
         } : {})
       })
     }])

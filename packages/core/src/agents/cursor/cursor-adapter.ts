@@ -1,7 +1,11 @@
-import type { AgentAdapter } from '../agent-adapter'
+import { Rejection } from '../../rejection'
+import type { AgentAdapter, AgentStage } from '../agent-adapter'
 import { CURSOR_MODES, CursorAcp } from './cursor-acp'
-import { cursorCatalog, cursorInstallation, detectCursorCli } from './cursor-cli'
+import { cursorCatalog, cursorInstallation, detectCursorCli, requireCursorCli } from './cursor-cli'
+import { cursorMcpReadyFile, cursorMcpServer, prepareCursorMcp, waitForCursorMcp } from './cursor-mcp'
 import { readCursorUsage } from './cursor-usage'
+
+const readyFile = (stage: AgentStage) => cursorMcpReadyFile(stage.sessionsRoot, stage.conversationId, stage.stageId)
 
 export const cursor: AgentAdapter = {
   kind: 'cursor',
@@ -18,6 +22,25 @@ export const cursor: AgentAdapter = {
   detect: detectCursorCli,
   usage: readCursorUsage,
   installation: cursorInstallation,
+  launch: {
+    // Kando's MCP server reports, through a file, that Cursor connected to it.
+    mcp: (server, stage) => cursorMcpServer(server, readyFile(stage), stage.planOnly),
+    prepare: async (stage, mcp) => {
+      const command = await requireCursorCli()
+      if (!mcp) throw new Rejection('cursor-mcp-unavailable', 'Cursor 需要 Kando MCP 配置')
+      await prepareCursorMcp(readyFile(stage))
+      return { command }
+    },
+    ready: (stage) => waitForCursorMcp(readyFile(stage))
+  },
+  turns: {
+    serialized: true,
+    stopAfterCancel: { cancelGraceMs: 2000, termGraceMs: 2000 },
+    firstFrameTimeoutMs: 30_000,
+    retryByRestart: true,
+    denialAsMessage: true
+  },
+  optionsFromState: true,
   discovery: {
     commands: ['cursor-agent'],
     applications: {

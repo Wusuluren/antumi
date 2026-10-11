@@ -5,7 +5,7 @@ import { StageState } from '../../chat-stage-state'
 import { ChatQueue } from '../../chat-queue'
 import { KandoRequests } from '../../kando-requests'
 import { markKeptImages, keepImageBlocks, stripImageBytes } from '../../image-frames'
-import { messageText, type ChatAnswer, type ChatDriver, type ChatImageFile, type ChatOutgoing, type ChatRecord, type ChatStageOptions, type StageMessage } from '../../chat-driver'
+import { messageText, type ChatAnswer, type ChatDriver, type ChatImageFile, type ChatOutgoing, type ChatRecord, type ChatStageOptions, type StageMessage, type TurnSignal } from '../../chat-driver'
 import { Rejection } from '../../rejection'
 
 export const CURSOR_MODES = { ask: 'agent', plan: 'plan', readOnly: 'ask' } as const
@@ -166,6 +166,15 @@ export class CursorAcp implements ChatDriver {
       const id = Frame.safeParse(frame).data?.id
       return id === undefined || !this.requests.has(keyOf(id))
     })
+  }
+
+  turnSignal(frame: unknown, dir: 'in' | 'out'): TurnSignal | null {
+    const parsed = Frame.safeParse(frame)
+    if (!parsed.success) return null
+    const { method, id } = parsed.data
+    if (dir === 'out') return method === 'session/prompt' ? 'prompt' : method === 'session/load' ? 'session-load' : method === 'session/new' ? 'session-new' : method === 'session/cancel' ? 'cancel' : null
+    // Updates, the agent's own requests, and the answer to the prompt itself.
+    return method === 'session/update' || (method !== undefined && id !== undefined) || (id !== undefined && String(id).startsWith('cursor-prompt-')) ? 'turn' : null
   }
 
   ready(): boolean { return this.session !== null && this.setup && this.modelsRead && this.initial.size === 0 && !this.startError && !this.exited }
