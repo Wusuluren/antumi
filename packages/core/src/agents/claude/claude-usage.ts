@@ -5,7 +5,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { z } from 'zod'
 import type { ResetCredit, ResetCredits, UsageWindow } from '@kando/protocol'
-import { fetchUsageJson, parseJson, type UsageReading, type UsageReport } from './usage-source'
+import { fetchUsageJson, parseJson, type UsageReading, type UsageReport } from '../../usage-source'
 
 // The same endpoint Claude Code's /usage reads; it only accepts the OAuth token of a Claude subscription.
 // `cedar_ember` is Claude Code's name for the usage-limit resets promotion; asking adds its state.

@@ -1,7 +1,7 @@
 import { access, mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
-import type { McpServer } from './agent-command'
-import { Rejection } from './rejection'
+import type { McpServer } from '../../agent-command'
+import { Rejection } from '../../rejection'
 
 export function cursorMcpReadyFile(sessionsRoot: string, conversationId: string, stageId: string): string {
   return path.join(sessionsRoot, conversationId, 'cursor-mcp', `${stageId}.json`)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { commandOf } from './agent-commands'
+import { commandOf } from '../../agent-commands'
 import { codexCommand, requestText } from './codex-commands'
 
 const skills = [{ name: 'simplify', description: '', path: '/s/SKILL.md' }]

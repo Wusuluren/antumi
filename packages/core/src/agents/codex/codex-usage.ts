@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { z } from 'zod'
 import type { ResetCredits, UsageWindow } from '@kando/protocol'
-import { fetchUsageJson, parseJson, type UsageReading } from './usage-source'
+import { fetchUsageJson, parseJson, type UsageReading } from '../../usage-source'
 
 // The endpoint behind Codex's /status; only ChatGPT sign-ins have plan limits.
 const USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'

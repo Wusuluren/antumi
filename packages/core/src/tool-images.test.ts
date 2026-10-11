@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { imageMarker } from '@kando/protocol'
 import type { ChatRecord } from './chat-driver'
-import { ClaudeStream } from './claude-stream'
-import { CodexAppServer } from './codex-app-server'
+import { ClaudeStream } from './agents/claude/claude-stream'
+import { CodexAppServer } from './agents/codex/codex-app-server'
 
 const OPTIONS = { cwd: '/work/repo', extraDirs: [], resume: null }
 const at = 1_790_000_000_000

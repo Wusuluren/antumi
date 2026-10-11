@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { cursorProviderError, takeImageMarkers, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatPermissionMode, type ChatTurnActivity, type ChatTurnState } from '@kando/protocol'
-import { ChatItems, clip } from './chat-items'
-import { StageState } from './chat-stage-state'
-import { ChatQueue } from './chat-queue'
-import { KandoRequests } from './kando-requests'
-import { markKeptImages, keepImageBlocks, stripImageBytes } from './image-frames'
-import { messageText, type ChatAnswer, type ChatDriver, type ChatImageFile, type ChatOutgoing, type ChatRecord, type ChatStageOptions, type StageMessage } from './chat-driver'
-import { Rejection } from './rejection'
+import { ChatItems, clip } from '../../chat-items'
+import { StageState } from '../../chat-stage-state'
+import { ChatQueue } from '../../chat-queue'
+import { KandoRequests } from '../../kando-requests'
+import { markKeptImages, keepImageBlocks, stripImageBytes } from '../../image-frames'
+import { messageText, type ChatAnswer, type ChatDriver, type ChatImageFile, type ChatOutgoing, type ChatRecord, type ChatStageOptions, type StageMessage } from '../../chat-driver'
+import { Rejection } from '../../rejection'
 
 export const CURSOR_MODES = { ask: 'agent', plan: 'plan', readOnly: 'ask' } as const
 const Id = z.union([z.string(), z.number()])

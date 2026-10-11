@@ -2,7 +2,7 @@ import type { AgentKind } from '@kando/protocol'
 import { claudeEditDenials, claudeReadRules, GIT_READ_TOOLS, type AgentCommand, type McpServer } from './agent-command'
 import { browserToolName, SHOW_PREVIEW_TOOL, terminalToolName } from '@kando/protocol'
 import type { ChatPreferences } from './chat-driver'
-import { CLAUDE_MODE_NAMES } from './claude-stream'
+import { CLAUDE_MODE_NAMES } from './agents/claude/claude-stream'
 
 // The browser tools that only read: what the page shows, says in its console, or is waited on.
 export const BROWSER_READ_TOOLS: readonly string[] = (['snapshot', 'screenshot', 'scroll', 'wait', 'console', 'tabs'] as const).map(browserToolName)

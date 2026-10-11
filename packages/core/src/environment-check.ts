@@ -4,7 +4,7 @@ import { delimiter, join } from 'node:path'
 import { homedir } from 'node:os'
 import { promisify } from 'node:util'
 import { agentCliInstallations } from './agent-cli-installation'
-import { cursorCliInfo, cursorSignedIn, findCursorCli } from './cursor-cli'
+import { cursorCliInfo, cursorSignedIn, findCursorCli } from './agents/cursor/cursor-cli'
 import { ENVIRONMENT_TOOLS, type DetectedAgent, type Environment, type EnvironmentCheck, type EnvironmentTool } from '@kando/protocol'
 
 const execFileAsync = promisify(execFile)

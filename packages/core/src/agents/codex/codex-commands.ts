@@ -1,5 +1,5 @@
 import type { ChatCommand } from '@kando/protocol'
-import { commandOf, offeredCommand } from './agent-commands'
+import { commandOf, offeredCommand } from '../../agent-commands'
 
 // The app server expands no slash command: Kando offers the TUI's /compact and /review as the
 // methods behind them, and each skill as a message that carries it.

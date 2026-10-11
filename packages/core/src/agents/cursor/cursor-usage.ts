@@ -5,7 +5,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { z } from 'zod'
 import type { UsageWindow } from '@kando/protocol'
-import { fetchUsageJson, parseJson, type UsageReading } from './usage-source'
+import { fetchUsageJson, parseJson, type UsageReading } from '../../usage-source'
 
 // What the Cursor CLI's own /usage asks: Connect RPC with a JSON body, on the CLI's access token.
 const DASHBOARD_URL = 'https://api2.cursor.sh/aiserver.v1.DashboardService'

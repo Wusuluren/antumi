@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { ChatItem } from '@kando/protocol'
-import type { ChatRecord, ChatStageOptions } from './chat-driver'
-import { parseChatRecord } from './chat-log'
+import type { ChatRecord, ChatStageOptions } from '../../chat-driver'
+import { parseChatRecord } from '../../chat-log'
 import { CodexAppServer, commandDescription, unwrapShell } from './codex-app-server'
 
 const OPTIONS: ChatStageOptions = { cwd: '/work/repo', extraDirs: [], resume: null }

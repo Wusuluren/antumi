@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs'
 import { z } from 'zod'
 import { ChatItem } from '@kando/protocol'
 import { CursorAcp } from './cursor-acp'
-import type { ChatRecord, ChatStageOptions } from './chat-driver'
-import { parseChatRecord } from './chat-log'
+import type { ChatRecord, ChatStageOptions } from '../../chat-driver'
+import { parseChatRecord } from '../../chat-log'
 
 const OPTIONS: ChatStageOptions = { cwd: '/work/repo', extraDirs: [], resume: null, mcp: { command: 'node', args: ['mcp.mjs', '--conversation', 'conversation'] } }
 const modes = { currentModeId: 'agent', availableModes: [{ id: 'agent', name: 'Agent' }, { id: 'plan', name: 'Plan' }, { id: 'ask', name: 'Ask' }] }

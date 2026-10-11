@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { parseClaudeResets, parseClaudeUsage, parseCliVersion, rateLimitReport } from './claude-usage'
-import { parseCodexUsage, parseResetCredits } from './codex-usage'
-import { parseCursorPlan, parseCursorUsage } from './cursor-usage'
+import { parseClaudeResets, parseClaudeUsage, parseCliVersion, rateLimitReport } from './agents/claude/claude-usage'
+import { parseCodexUsage, parseResetCredits } from './agents/codex/codex-usage'
+import { parseCursorPlan, parseCursorUsage } from './agents/cursor/cursor-usage'
 
 describe('parseClaudeUsage', () => {
   it('maps the 5-hour and 7-day windows', () => {

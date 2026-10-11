@@ -4,9 +4,9 @@ import { basename, delimiter, join } from 'node:path'
 import { promisify } from 'node:util'
 import { z } from 'zod'
 import type { ChatCatalog } from '@kando/protocol'
-import { Rejection } from './rejection'
+import { Rejection } from '../../rejection'
 import { CursorAcp } from './cursor-acp'
-import { probeChatCatalog } from './chat-catalog'
+import { probeChatCatalog } from '../../chat-catalog'
 
 const execute = promisify(execFile)
 const cache = new Map<string, Promise<{ version: string; compatible: boolean }>>()
