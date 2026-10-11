@@ -4,7 +4,7 @@ import type { ChatItem, Conversation } from '@kando/protocol'
 import { dropChat, pathShortener, setChatPage, useChat } from '../chat-state'
 import { dismissError, perform, useCore } from '../core-store'
 import { layoutRequestPopup, onRequestPopupWanted, openFromRequestPopup } from '../desktop-bridge'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { usePreferences } from '../preferences'
 import { popupKey, popupLabel, popupQueue, type PopupEntry } from '../request-popup'
 import { ChatSurfaceContext, type ChatSurface } from './chat-surface'
@@ -147,7 +147,7 @@ export function RequestPopup() {
         <header className="request-popup-header">
           <span className="request-popup-label">{popupLabel(entry.request)}</span>
           <span className="request-popup-title" title={entry.title}>{entry.title}</span>
-          <span className="request-popup-agent">{AGENT_LABEL[conversation.agent]}</span>
+          <span className="request-popup-agent">{agentLabel(conversation.agent)}</span>
           <span className="request-popup-spacer" />
           {queue.length > 1 && (
             <span className="request-popup-pager">

@@ -5,7 +5,7 @@ import { perform, setNewTaskOpen, useCore } from '../core-store'
 import { defaultAgent } from '../default-agent'
 import { canPickFolder, pickFolder } from '../desktop-bridge'
 import { useInstalledAgents } from '../installed-agents'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { latestProjects } from '../task-board'
 import { ContextMenu, MenuRadioItem, type MenuPoint } from './ContextMenu'
 import { AgentIcon, ChevronDownIcon, FolderIcon } from './icons'
@@ -205,13 +205,13 @@ function AgentPick({ agent }: { agent: AgentKind | null }) {
         onClick={toggle}
       >
         <span className="task-quick-add-agent"><AgentIcon agent={agent} /></span>
-        {agent ? AGENT_LABEL[agent] : '选择 Agent'}
+        {agent ? agentLabel(agent) : '选择 Agent'}
         <ChevronDownIcon />
       </button>
       {at && (
         <ContextMenu at={at} trigger={button.current} label="新任务的 Agent" onClose={close}>
           {choices.map((each) => (
-            <MenuRadioItem key={each} label={AGENT_LABEL[each]} checked={each === agent} onSelect={() => {
+            <MenuRadioItem key={each} label={agentLabel(each)} checked={each === agent} onSelect={() => {
               useQuickAdd.setState({ agent: each })
               close()
             }} />

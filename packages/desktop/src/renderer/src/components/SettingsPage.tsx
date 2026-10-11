@@ -9,7 +9,7 @@ import { UNATTENDED_LABEL } from '../schedules'
 import { useInstalledAgents } from '../installed-agents'
 import { InstalledAgentsSettings } from './InstalledAgentsSettings'
 import { ChatFontPicker } from './ChatFontPicker'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { canNotify, canShowRequestPopup } from '../desktop-bridge'
 import { formatBytes } from '../wire-entries'
 import {
@@ -29,7 +29,7 @@ import {
 import { AgentStatsSettings } from './AgentStatsSettings'
 import { ChatCommandSettings } from './ChatCommandSettings'
 import { CopyButton } from './CopyButton'
-import { checkStatusText, INSTALL_HINT } from '../environment-text'
+import { checkStatusText, GIT_INSTALL_HINT } from '../environment-text'
 import { settingsSectionOf } from './SourceInboxView'
 import { SourceSettingsSection } from './SourceSettingsSection'
 import { projectName } from './ProjectPicker'
@@ -238,7 +238,7 @@ function AgentSettings() {
       {chatSettings?.agentConcurrency && AGENT_KINDS.map((agent) => (
         <SettingsRow
           key={agent}
-          label={`${AGENT_LABEL[agent]} 同时运行`}
+          label={`${agentLabel(agent)} 同时运行`}
           description="同一 Agent 的上限；实际可启动数量也受总数上限约束。"
           control={(labelId) => (
             <Stepper labelId={labelId} value={chatSettings.agentConcurrency?.[agent] ?? 6} min={1} max={50} unit="个" onChange={(count) => void setChatSettings({ agentConcurrency: { [agent]: count } })} />
@@ -303,7 +303,7 @@ function AgentSettings() {
             onChange={(next) => setPreference('defaultAgent', next)}
             options={[
               { value: 'recent', label: '最近用过的' },
-              ...installed.map((kind) => ({ value: kind, label: AGENT_LABEL[kind] })),
+              ...installed.map((kind) => ({ value: kind, label: agentLabel(kind) })),
               { value: 'none', label: '不指定' }
             ]}
           />
@@ -410,8 +410,8 @@ function GitRow() {
           <span className="environment-pill" data-level={missing ? 'danger' : 'ok'}>{checkStatusText(git)}</span>
           {missing && (
             <span className="environment-fix">
-              <code>{INSTALL_HINT.git}</code>
-              <CopyButton text={INSTALL_HINT.git} label="复制命令" />
+              <code>{GIT_INSTALL_HINT}</code>
+              <CopyButton text={GIT_INSTALL_HINT} label="复制命令" />
             </span>
           )}
         </span>
@@ -481,7 +481,7 @@ const SECTIONS: readonly Section[] = [
     group: '界面',
     title: '用量额度',
     description: '底部状态栏里的 Agent 订阅额度。',
-    keywords: ['状态栏', '额度', '百分比', '已用', '剩余', 'claude', 'codex'],
+    keywords: ['状态栏', '额度', '百分比', '已用', '剩余', ...AGENT_KINDS],
     Icon: GaugeIcon,
     Body: UsageSettings
   },
@@ -500,7 +500,7 @@ const SECTIONS: readonly Section[] = [
     group: '任务',
     title: '智能体',
     description: '这台电脑上的 Agent：装没装、什么版本、登没登录，没装或没登录的给出要敲的命令；以及新建和执行任务、开始会话时它们的默认行为。',
-    keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', 'claude', 'codex', '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守'],
+    keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守'],
     Icon: SparkIcon,
     Body: AgentSettings
   },
@@ -509,7 +509,7 @@ const SECTIONS: readonly Section[] = [
     group: '任务',
     title: '智能体表现',
     description: '每个 Agent 和模型的表现。任务（包括在聊天界面里执行的任务）看结果：你接受、继续修改、重做各占多少，从 0.10.0 开始记录；自由会话没有验收，只看用量：回合、失败、撞额度、耗时和 token。',
-    keywords: ['表现', '统计', '通过率', '接受', '继续修改', '重做', '耗时', 'token', '模型', '会话', '用量', '回合', '失败', '额度', 'claude', 'codex'],
+    keywords: ['表现', '统计', '通过率', '接受', '继续修改', '重做', '耗时', 'token', '模型', '会话', '用量', '回合', '失败', '额度', ...AGENT_KINDS],
     Icon: GaugeIcon,
     Body: AgentStatsSettings
   },

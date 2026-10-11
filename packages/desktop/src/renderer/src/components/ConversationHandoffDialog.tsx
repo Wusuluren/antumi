@@ -3,7 +3,7 @@ import type { AgentKind, Conversation, Task } from '@kando/protocol'
 import { resolveModel, useAgentCatalog, type ModelChoice } from '../agent-models'
 import { dismissError, perform, setSettingsOpen, useCore } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { AgentQuotaHint, confirmQuota, modelText } from './AgentQuota'
 import { effortLabel } from './ChatOptionsBar'
 import { startOptions } from './ConversationActions'
@@ -56,18 +56,18 @@ export function ConversationHandoffDialog({ conversation, task, initial = null, 
     return <dialog ref={dialog} className="modal" onCancel={(event) => { event.preventDefault(); onClose() }}>
       <div className="modal-body">
         <header className="modal-header"><h2>没有可以移交的 Agent</h2><button type="button" className="icon-button modal-close" aria-label="关闭" onClick={onClose}>×</button></header>
-        <p className="muted">这台电脑上只找到了 {AGENT_LABEL[from]}。装好另一个 Agent 后，在 设置 → 智能体 里重新检测，就可以移交了。</p>
+        <p className="muted">这台电脑上只找到了 {agentLabel(from)}。装好另一个 Agent 后，在 设置 → 智能体 里重新检测，就可以移交了。</p>
         <footer className="modal-footer"><button type="button" className="button ghost" onClick={onClose}>关闭</button><button type="button" className="button primary" onClick={() => { onClose(); setSettingsOpen(true, 'agents') }}>打开智能体设置</button></footer>
       </div>
     </dialog>
   }
   return <dialog ref={dialog} className="modal" onCancel={(event) => { event.preventDefault(); onClose() }}>
     <div className="modal-body">
-      <header className="modal-header"><h2>移交给 {AGENT_LABEL[target]}</h2><button type="button" className="icon-button modal-close" aria-label="关闭" onClick={onClose}>×</button></header>
+      <header className="modal-header"><h2>移交给 {agentLabel(target)}</h2><button type="button" className="icon-button modal-close" aria-label="关闭" onClick={onClose}>×</button></header>
       <p className="muted">{task
         ? '会传递可见消息和补充说明，新 Agent 在任务的 worktree 里接着做，之后这个任务都由它执行。隐藏推理和 provider 私有上下文无法移交；新 Agent 应检查文件、Git 状态和测试结果。'
         : '会传递可见消息、补充说明和所选项目目录（无项目时为 Kando 托管目录）。隐藏推理和 provider 私有上下文无法移交；新 Agent 应检查文件、Git 状态和测试结果。'}</p>
-      <label className="modal-field"><span className="modal-label">目标 Agent</span><select className="input" value={target} onChange={(event) => { const next = targets.find((agent) => agent === event.target.value); if (next) setSelected(next) }}>{targets.map((agent) => <option key={agent} value={agent}>{AGENT_LABEL[agent]}</option>)}</select></label>
+      <label className="modal-field"><span className="modal-label">目标 Agent</span><select className="input" value={target} onChange={(event) => { const next = targets.find((agent) => agent === event.target.value); if (next) setSelected(next) }}>{targets.map((agent) => <option key={agent} value={agent}>{agentLabel(agent)}</option>)}</select></label>
       {modelsSupported && <>
         <label className="modal-field"><span className="modal-label">模型</span>
           <select className="input" value={modelId ?? ''} disabled={!catalog?.models.length} onChange={(event) => choose({ model: event.target.value || undefined })}>
@@ -86,7 +86,7 @@ export function ConversationHandoffDialog({ conversation, task, initial = null, 
       <label className="modal-field"><span className="modal-label">补充说明 <span className="modal-optional">[可选]</span></span>
         <textarea className="input modal-textarea" rows={4} value={note} onChange={(event) => setNote(event.target.value)} />
       </label>
-      {mustConfirm && <label className="conversation-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />确认停止当前 {AGENT_LABEL[from]}，然后启动 {AGENT_LABEL[target]}</label>}
+      {mustConfirm && <label className="conversation-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />确认停止当前 {agentLabel(from)}，然后启动 {agentLabel(target)}</label>}
       {blocker && <p className="modal-error" role="alert">还不能移交：{blocker}</p>}
       {error && <p className="modal-error" role="alert">{error}</p>}
       <footer className="modal-footer"><button type="button" className="button ghost" onClick={onClose}>取消</button><button type="button" className="button primary" disabled={busy || blocker !== null || (mustConfirm && !confirmed)} onClick={() => void submit()}>移交</button></footer>

@@ -3,7 +3,7 @@ import { AgentKind, IMAGE_MIME_TYPES, type TaskImage } from '@kando/protocol'
 import { dismissError, perform, selectTask, setNewTaskOpen, useCore } from '../core-store'
 import { defaultAgent } from '../default-agent'
 import { useInstalledAgents } from '../installed-agents'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { PRIMARY_KEY_LABEL, hasPrimaryModifier } from '../shortcut-keys'
 import { AgentQuotaHint } from './AgentQuota'
 import { DependencyPicker } from './DependencyPicker'
@@ -220,7 +220,7 @@ export function NewTaskDialog() {
           />
           <label className="new-task-agent-chip">
             <AgentIcon agent={agent} />
-            <span>{agent ? AGENT_LABEL[agent] : '选择 Agent'}</span>
+            <span>{agent ? agentLabel(agent) : '选择 Agent'}</span>
             <select
               aria-label="选择 Agent"
               value={agent ?? ''}
@@ -231,7 +231,7 @@ export function NewTaskDialog() {
             >
               <option value="">以后再选</option>
               {installed.map((kind) => (
-                <option key={kind} value={kind}>{AGENT_LABEL[kind]}</option>
+                <option key={kind} value={kind}>{agentLabel(kind)}</option>
               ))}
             </select>
           </label>

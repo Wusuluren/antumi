@@ -35,6 +35,7 @@ function grantAction(grant: ApprovalGrant): string {
       if (grant.behavior === 'allow' && prefixes.every((prefix) => prefix !== undefined)) return `以 ${listed(prefixes.map(String))} 开头的命令不再问`
       return grant.behavior === 'deny' ? `都不许用 ${what}` : grant.behavior === 'ask' ? `${what} 每次都先问` : `${what} 不再问`
     }
+    // Only Claude suggests switching mode.
     case 'mode':
       return `改用「${modeLabel('claude', grant.values[0] ?? '')}」模式`
     case 'directories':

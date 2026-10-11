@@ -1,42 +1,12 @@
-import type { AgentKind, ChatContextUse, ChatItem, ChatModel, ChatOption, ChatPermissionMode, Conversation } from '@kando/protocol'
+import { agentDescriptor, agentModeText, type AgentKind, type ChatContextUse, type ChatItem, type ChatModel, type ChatOption, type ChatPermissionMode, type Conversation } from '@kando/protocol'
 import { perform } from '../core-store'
 import { usePreferences } from '../preferences'
 import { ChatModelPicker, ChatPicker, type PickerOption } from './ChatPicker'
 
 type StateItem = Extract<ChatItem, { kind: 'state' }>
 
-// Kando's permission modes as each agent's users know them; the Codex default reads "auto".
-const MODE_LABEL: Record<AgentKind, Record<string, string>> = {
-  claude: { ask: '逐项确认', acceptEdits: '自动接受编辑', plan: '规划', auto: '自动判断', bypass: '全部放行' },
-  codex: { ask: '逐项确认', acceptEdits: '自动', plan: '规划', readOnly: '只读', bypass: '全部放行' },
-  cursor: { ask: 'Agent', plan: 'Plan', readOnly: 'Ask' }
-}
-
 export function modeLabel(agent: AgentKind, mode: string): string {
-  return MODE_LABEL[agent][mode] ?? mode
-}
-
-// What each mode lets the agent do without asking, under its name in the menu.
-const MODE_DESCRIPTION: Record<AgentKind, Record<string, string>> = {
-  claude: {
-    ask: '改文件、运行命令前都先问你',
-    acceptEdits: '改文件不再问，运行命令仍会问',
-    plan: '只读代码、给出计划，你确认后才动手',
-    auto: '由模型判断哪些操作要先问你',
-    bypass: '什么都不问，也不受限制'
-  },
-  codex: {
-    ask: '每一步都先问你',
-    acceptEdits: '在项目里自由修改，越界时才问',
-    plan: '只读代码、给出计划，你确认后才动手',
-    readOnly: '只能读，不能修改文件',
-    bypass: '什么都不问，也不受沙箱限制'
-  },
-  cursor: {
-    ask: 'Cursor 原生 Agent 模式，审批按 CLI 提供的选项处理',
-    plan: '先探索代码并制定计划，确认后执行',
-    readOnly: 'Cursor 原生 Ask 模式，用于提问和理解代码'
-  }
+  return agentModeText(agent, mode)?.label ?? mode
 }
 
 // The modes as the picker lists them; one the agent offers but cannot be picked now stays greyed.
@@ -44,7 +14,7 @@ export function modeOptions(agent: AgentKind, modes: readonly string[], offered:
   return modes.map((mode) => ({
     value: mode,
     label: modeLabel(agent, mode),
-    description: MODE_DESCRIPTION[agent][mode] ?? null,
+    description: agentModeText(agent, mode)?.description ?? null,
     disabled: !offered.includes(mode)
   }))
 }
@@ -54,29 +24,16 @@ export function modeTone(mode: string | null): string | undefined {
   return mode === 'plan' || mode === 'bypass' ? mode : undefined
 }
 
-// What a new conversation can start in, before its agent lists model-specific auto and optional
-// bypass. The first is the fallback when its preferred default is unavailable.
-export const START_MODES: Record<AgentKind, readonly ChatPermissionMode[]> = {
-  claude: ['ask', 'acceptEdits', 'plan'],
-  codex: ['acceptEdits', 'ask', 'plan', 'readOnly'],
-  cursor: ['ask', 'plan', 'readOnly']
-}
-
-export const DEFAULT_START_MODES: Record<AgentKind, ChatPermissionMode> = {
-  claude: 'auto',
-  codex: 'acceptEdits',
-  cursor: 'ask'
-}
-
 export function defaultStartMode(agent: AgentKind, offered: readonly ChatPermissionMode[]): ChatPermissionMode {
-  const preferred = DEFAULT_START_MODES[agent]
-  return offered.includes(preferred) ? preferred : START_MODES[agent][0]!
+  const { defaultStartMode: preferred, startModes } = agentDescriptor(agent)
+  return offered.includes(preferred) ? preferred : startModes[0]!
 }
 
-// Those, with auto where the model takes it (as the agent's catalog says) and bypass where the
-// settings allow it, in the order a running chat lists them.
+// What a new conversation can start in, with auto where the model takes it (as the agent's catalog
+// says) and bypass where the settings allow it, in the order a running chat lists them.
 export function startModes(agent: AgentKind, model: ChatModel | undefined, allowBypass: boolean): ChatPermissionMode[] {
-  return [...START_MODES[agent], ...(model?.autoMode && agent === 'claude' ? ['auto' as const] : []), ...(allowBypass && agent !== 'cursor' ? ['bypass' as const] : [])]
+  const { startModes, capabilities } = agentDescriptor(agent)
+  return [...startModes, ...(model?.autoMode && capabilities.autoMode ? ['auto' as const] : []), ...(allowBypass && capabilities.bypass ? ['bypass' as const] : [])]
 }
 
 const EFFORT_LABEL: Record<string, string> = {
@@ -146,7 +103,7 @@ export function ChatOptionsBar({ conversation, state }: { conversation: Conversa
   // The next start offers bypass by the setting as it is then; a task that only plans never.
   const offered = running || conversation.planOnly
     ? state.permissionModes
-    : [...state.permissionModes.filter((mode) => mode !== 'bypass'), ...(allowBypass && agent !== 'cursor' ? ['bypass'] : [])]
+    : [...state.permissionModes.filter((mode) => mode !== 'bypass'), ...(allowBypass && agentDescriptor(agent).capabilities.bypass ? ['bypass'] : [])]
   const model = state.models.find((each) => each.id === modelId)
   const modes = withCurrent(offered, permissionMode)
   const models = model || !modelId
@@ -162,7 +119,7 @@ export function ChatOptionsBar({ conversation, state }: { conversation: Conversa
           placeholder="权限模式"
           options={modeOptions(agent, modes, offered)}
           tone={modeTone(permissionMode)}
-          disabled={agent === 'cursor' && !idle}
+          disabled={!agentDescriptor(agent).capabilities.optionsWhileBusy && !idle}
           title={later ?? undefined}
           onChange={(mode) => set('permissionMode', mode)}
         />

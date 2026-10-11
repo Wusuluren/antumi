@@ -3,7 +3,7 @@ import type { ChatDecision, ConversationRequest } from '@kando/protocol'
 import { quickApproval, type ActionableItem, type ActionableReason } from '../attention'
 import { toolLabel } from '../chat-tools'
 import { openAttentionItem, perform, refreshAttentionSummaries, setAttentionOpen, useActionableItems, useCore } from '../core-store'
-import { AGENT_LABEL, chatDayAndTime } from '../labels'
+import { agentLabel, chatDayAndTime } from '../labels'
 import { projectNames } from './ProjectPicker'
 import { CloseIcon } from './icons'
 
@@ -52,7 +52,7 @@ function AttentionRow({ item }: { item: ActionableItem }) {
         </div>
         <div className="attention-row-meta">
           <span>{item.target.kind === 'task' ? '任务' : '聊天'}</span>
-          {item.agent && <span>{AGENT_LABEL[item.agent]}</span>}
+          {item.agent && <span>{agentLabel(item.agent)}</span>}
           <span className="attention-project" title={item.projectPaths.join('\n')}>{projectNames(item.projectPaths)}</span>
           <time dateTime={new Date(item.updatedAt).toISOString()}>更新于 {chatDayAndTime(item.updatedAt)}</time>
         </div>

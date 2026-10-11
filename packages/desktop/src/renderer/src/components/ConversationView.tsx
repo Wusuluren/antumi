@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { usePlans } from '../chat-state'
 import { markRoutineRunSeen, selectConversation, setConversationInspectorOpen, setRoutinesOpen, useCore, useWireLogShown } from '../core-store'
 import { conversationState } from '../conversation-state'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { primaryProjectName } from './ProjectPicker'
 import { BranchStatus } from './BranchStatus'
 import { ConversationChat } from './ConversationChat'
@@ -72,7 +72,7 @@ export function ConversationView({ id }: { id: string }) {
         {renaming
           ? <TitleEditor title={conversation.title} label="会话标题" onSave={rename} onDone={() => setRenaming(false)} />
           : <button type="button" className="terminal-view-title conversation-title" title={`${conversation.title}\n点击重命名`} disabled={busy} onClick={() => setRenaming(true)}>{conversation.title}</button>}
-        <span className="muted">{AGENT_LABEL[conversation.agent]}</span>
+        <span className="muted">{agentLabel(conversation.agent)}</span>
         <span className="muted" title={conversation.projectPaths.join('\n') || conversation.workspacePath}>{primaryProjectName(conversation.projectPaths)}</span>
         <BranchStatus target={{ kind: 'conversation', id }} updatedAt={conversation.updatedAt} />
         <span className={state.failed ? 'conversation-exit-failed' : 'muted'} title={state.detail ?? undefined}>{state.label}</span>

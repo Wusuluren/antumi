@@ -10,7 +10,7 @@ import { formatTokens, isSubagent, thoughtFor, workedFor } from '../chat-tools'
 import { perform, useCore } from '../core-store'
 import { ChatSurfaceContext, conversationSurface, useChatSurface, type ChatSurface } from './chat-surface'
 import { forkConversation } from './ConversationActions'
-import { AGENT_LABEL, chatDayAndTime, dayAndTime, messageTime } from '../labels'
+import { agentLabel, chatDayAndTime, dayAndTime, messageTime } from '../labels'
 import { usePreferences } from '../preferences'
 import { ChatDock } from './ChatDock'
 import { ChatImageStrip } from './ChatImages'
@@ -71,7 +71,7 @@ function MessageTime({ at }: { at: number }) {
 // A task's chat says where each stage ran: only planning beside the projects, or in its worktrees.
 function StageDivider({ stage, task }: { stage: ConversationStage; task: boolean }) {
   const where = stage.planOnly ? ' · 只读规划' : task ? ' · 在 worktree 里执行' : ''
-  return <div className="chat-stage">{AGENT_LABEL[stage.agent]} · {chatDayAndTime(stage.startedAt)}{where}</div>
+  return <div className="chat-stage">{agentLabel(stage.agent)} · {chatDayAndTime(stage.startedAt)}{where}</div>
 }
 
 // How long each finished thought took, by item key.
@@ -227,7 +227,7 @@ function InitialMessageEntry({ id, agent, message }: { id: string; agent: AgentK
       ) : (
         <div className="chat-working" role="status">
           <Spinner />
-          <span>{message.phase === 'starting' ? `正在启动 ${AGENT_LABEL[agent]}…` : '正在发送首条消息…'}</span>
+          <span>{message.phase === 'starting' ? `正在启动 ${agentLabel(agent)}…` : '正在发送首条消息…'}</span>
         </div>
       )}
     </>
@@ -331,7 +331,7 @@ function TurnHead({ at, messageKey, live }: { at: number; messageKey: string; li
   return (
     <div className="chat-turn-head" data-relay-for={messageKey}>
       <span className="chat-turn-head-icon" data-live={live ?? undefined} aria-hidden="true"><AgentIcon agent={agent} /></span>
-      <span className="chat-turn-head-name">{AGENT_LABEL[agent]}</span>
+      <span className="chat-turn-head-name">{agentLabel(agent)}</span>
       {model && <span className="chat-turn-head-model" title={`模型：${model}`}>{model}</span>}
       {model && effort && <span className="chat-turn-head-effort" title={`推理程度：${effortLabel(effort)}`}>{effortLabel(effort)}</span>}
       <MessageTime at={at} />

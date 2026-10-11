@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from 'react'
 import { isScheduleOpen, type Routine, type ScheduledRun } from '@kando/protocol'
 import { selectConversation, useCore } from '../core-store'
 import { reasonText } from '../labels'
-import { deleteRoutine, fetchRoutineRuns, isUnread, markRoutineAllSeen, nextRunText, ROUTINE_AGENT_LABEL, runOutcomeText, runRoutineNow, scheduleText, updateRoutine } from '../routines'
+import { deleteRoutine, fetchRoutineRuns, isUnread, markRoutineAllSeen, nextRunText, routineAgentLabel, runOutcomeText, runRoutineNow, scheduleText, updateRoutine } from '../routines'
 import { scheduleTime } from '../schedules'
 import { useNow } from '../usage-format'
 import { ChevronRightIcon, ClockIcon, CloseIcon, PencilIcon, PlayIcon } from './icons'
@@ -83,7 +83,7 @@ function Row({ routine, now, onEdit }: { routine: Routine; now: number; onEdit: 
             {routine.unread > 0 && <span className="inbox-entry-count routine-unread" aria-label={`${routine.unread} 次运行未看`}>{routine.unread}</span>}
           </span>
           <span className="schedule-meta">
-            {scheduleText(routine.schedule)} · {ROUTINE_AGENT_LABEL[routine.target.agent]} · {nextRunText(routine, now)}
+            {scheduleText(routine.schedule)} · {routineAgentLabel(routine.target.agent)} · {nextRunText(routine, now)}
             {routine.lastRun && isScheduleOpen(routine.lastRun) && <span> · {runOutcomeText(routine.lastRun, now)}</span>}
             {failure && <span className="routine-failure"> · 上次：{reasonText(failure, failure)}</span>}
           </span>

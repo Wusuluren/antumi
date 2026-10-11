@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import type { AgentKind } from '@kando/protocol'
 import { useInstalledAgents } from '../installed-agents'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { AgentQuotaHint } from './AgentQuota'
 import { AgentIcon, CheckIcon, ChevronDownIcon } from './icons'
 import { Popover } from './Popover'
@@ -24,7 +24,7 @@ export function AgentPicker({
   const installed = useInstalledAgents()
   // The task's own agent stays in the list when it is not here, so what the task says is visible.
   const kinds = agent && !installed.includes(agent) ? [...installed, agent] : installed
-  const label = agent ? AGENT_LABEL[agent] : '未选择'
+  const label = agent ? agentLabel(agent) : '未选择'
   const pick = (next: AgentKind | null) => {
     close()
     if (next !== agent) {
@@ -61,7 +61,7 @@ export function AgentPicker({
               onClick={() => pick(kind)}
             >
               <AgentIcon agent={kind} />
-              <span className="menu-item-title">{AGENT_LABEL[kind]}</span>
+              <span className="menu-item-title">{agentLabel(kind)}</span>
               {installed.includes(kind) ? <AgentQuotaHint agent={kind} className="menu-item-path" /> : <span className="menu-item-path">未安装</span>}
               {kind === agent && (
                 <span className="menu-check">

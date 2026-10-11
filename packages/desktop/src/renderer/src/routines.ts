@@ -1,10 +1,14 @@
 import { nextOccurrence, type Routine, type RoutineAgent, type RoutineFields, type RoutineSchedule, type ScheduledRun } from '@kando/protocol'
 import type { Notice } from './attention'
 import { perform } from './core-store'
-import { AGENT_LABEL, reasonText } from './labels'
+import { agentLabel, reasonText } from './labels'
 import { scheduleState, scheduleTime } from './schedules'
 
-export const ROUTINE_AGENT_LABEL: Record<RoutineAgent, string> = { ...AGENT_LABEL, auto: '自动' }
+export const AUTO_AGENT_LABEL = '自动'
+
+export function routineAgentLabel(agent: RoutineAgent): string {
+  return agent === 'auto' ? AUTO_AGENT_LABEL : agentLabel(agent)
+}
 export const WEEKDAY_LABEL = ['日', '一', '二', '三', '四', '五', '六'] as const
 
 // A run that started this long after the time it stands for was made up for, not run on time.

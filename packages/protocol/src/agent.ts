@@ -4,3 +4,7 @@ import { z } from 'zod'
 export const AGENT_KINDS = ['claude', 'codex', 'cursor'] as const
 export const AgentKind = z.enum(AGENT_KINDS)
 export type AgentKind = z.infer<typeof AgentKind>
+
+export function isAgentKind(value: string): value is AgentKind {
+  return AGENT_KINDS.some((kind) => kind === value)
+}

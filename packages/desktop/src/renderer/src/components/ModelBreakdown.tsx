@@ -1,6 +1,6 @@
 import type { DashboardModel } from '@kando/protocol'
 import { acceptance } from '../dashboard-model'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { compact, durationText, percent } from '../stat-format'
 import { AgentIcon } from './icons'
 
@@ -34,7 +34,7 @@ export function ModelBreakdown({ models }: { models: readonly DashboardModel[] }
                   <th scope="row">
                     <span className="dashboard-model-name">
                       <AgentIcon agent={row.agent} />
-                      <span className="muted">{AGENT_LABEL[row.agent]}</span>
+                      <span className="muted">{agentLabel(row.agent)}</span>
                       {row.model ?? <span className="muted">未知模型</span>}
                     </span>
                   </th>

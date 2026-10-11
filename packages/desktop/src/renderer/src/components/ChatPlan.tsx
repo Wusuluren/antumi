@@ -14,7 +14,7 @@ import { ContextMenu, type MenuPoint } from './ContextMenu'
 import { CheckIcon, ChevronDownIcon, CopyIcon, DownloadIcon } from './icons'
 import { createSchedule } from '../schedules'
 import { modeLabel } from './ChatOptionsBar'
-import type { AgentKind } from '@kando/protocol'
+import { agentDescriptor, type AgentKind } from '@kando/protocol'
 
 // Approving later, once the quota is back: an empty scheduled message approves the plan waiting.
 function SchedulePlanButton({ conversationId }: { conversationId: string }) {
@@ -78,7 +78,7 @@ function RunModeButton({ modes, mode, disabled, onRun, agent }: { modes: readonl
   return (
     <span className="plan-run">
       <button type="button" className="button primary plan-run-main" disabled={disabled} onClick={onRun}>
-        执行 · {agent === 'cursor' ? modeLabel(agent, mode) : RUN_MODE[mode].label}<kbd>↵</kbd>
+        执行 · {agentDescriptor(agent).nativePlanRun ? modeLabel(agent, mode) : RUN_MODE[mode].label}<kbd>↵</kbd>
       </button>
       <button
         ref={arrow}
@@ -111,8 +111,8 @@ function RunModeButton({ modes, mode, disabled, onRun, agent }: { modes: readonl
               }}
             >
               <span className="plan-run-mode-text">
-                <span className="menu-item-title">{agent === 'cursor' ? modeLabel(agent, each) : RUN_MODE[each].label}</span>
-                <span className="menu-item-path">{agent === 'cursor' ? '使用 Cursor 原生 Agent 模式执行' : RUN_MODE[each].hint}</span>
+                <span className="menu-item-title">{agentDescriptor(agent).nativePlanRun ? modeLabel(agent, each) : RUN_MODE[each].label}</span>
+                <span className="menu-item-path">{agentDescriptor(agent).nativePlanRun?.hint ?? RUN_MODE[each].hint}</span>
               </span>
               {each === mode && <span className="menu-check"><CheckIcon /></span>}
             </button>
@@ -160,7 +160,7 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
   // Not in a routine's chat, whose follow-ups nobody is told of (ChatComposer).
   const routine = useCore((s) => Boolean(s.conversations[conversationId]?.routineId))
   const agent = useCore((s) => s.conversations[conversationId]?.agent ?? 'claude')
-  const schedulable = useSchedulesSupported() && agent !== 'cursor' && !savePlan && !routine
+  const schedulable = useSchedulesSupported() && agentDescriptor(agent).capabilities.unattended && !savePlan && !routine
   const runModes = RUN_MODES.filter((mode) => modes.includes(mode))
   const picked = usePreferences((s) => s.planRunMode)
   const runMode: RunMode = runModes.includes(picked) ? picked : runModes.includes('auto') ? 'auto' : runModes[0] ?? 'ask'

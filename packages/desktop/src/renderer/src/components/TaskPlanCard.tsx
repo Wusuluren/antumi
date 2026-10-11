@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Task } from '@kando/protocol'
-import { AGENT_LABEL, dayAndTime } from '../labels'
+import { agentLabel, dayAndTime } from '../labels'
 import { ChevronDownIcon } from './icons'
 import { MarkdownEditor } from './MarkdownEditor'
 
@@ -23,7 +23,7 @@ export function TaskPlanCard({ task }: { task: Task }) {
           {title}
         </button>
         <span className="muted">
-          {AGENT_LABEL[plan.agent]} · {dayAndTime(plan.createdAt)}
+          {agentLabel(plan.agent)} · {dayAndTime(plan.createdAt)}
           {!plan.approved && ' · 开始执行时交给 Agent'}
         </span>
       </header>

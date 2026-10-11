@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import type { AgentKind } from '@kando/protocol'
 import cursorMark from '../assets/cursor.svg'
 
@@ -134,17 +135,12 @@ function NoAgentMark() {
   )
 }
 
+const AGENT_MARKS = { claude: ClaudeMark, codex: CodexMark, cursor: CursorMark } satisfies Record<AgentKind, () => ReactElement>
+
 export function AgentIcon({ agent }: { agent: AgentKind | null }) {
-  switch (agent) {
-    case 'claude':
-      return <ClaudeMark />
-    case 'codex':
-      return <CodexMark />
-    case 'cursor':
-      return <CursorMark />
-    case null:
-      return <NoAgentMark />
-  }
+  if (agent === null) return <NoAgentMark />
+  const Mark = AGENT_MARKS[agent]
+  return <Mark />
 }
 
 export function InspectorIcon() {

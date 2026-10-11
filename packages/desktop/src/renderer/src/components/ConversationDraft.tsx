@@ -3,7 +3,7 @@ import { ChatPermissionMode, type AgentKind, type ChatCatalog } from '@kando/pro
 import { closeConversationDraft, perform, selectConversation, useChatImagesSupported, useChatOptionsSupported, useConversationWorktreesSupported, useCore, useStartBranchSupported } from '../core-store'
 import { defaultAgent } from '../default-agent'
 import { currentInstalledAgents, useInstalledAgents } from '../installed-agents'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { kandoEntries } from '../chat-commands'
 import { AgentQuotaHint, confirmQuota, modelText } from './AgentQuota'
 import { usePreferences } from '../preferences'
@@ -14,7 +14,7 @@ import { useChatCommandMenu } from './ChatCommandMenu'
 import { useChatMentionMenu } from './ChatMentionMenu'
 import { MentionField, useMentionedText } from './ChatMentionField'
 import { writeMentions } from '../chat-mentions'
-import { defaultStartMode, DEFAULT_START_MODES, effortLabel, modeOptions, modeTone, startModes } from './ChatOptionsBar'
+import { defaultStartMode, effortLabel, modeOptions, modeTone, startModes } from './ChatOptionsBar'
 import { ChatModelPicker, ChatPicker } from './ChatPicker'
 import { AgentIcon, CloseIcon, EnterIcon } from './icons'
 import { ProjectPicker } from './ProjectPicker'
@@ -41,9 +41,9 @@ export function ConversationDraft() {
   const { text } = value
   const [busy, setBusy] = useState(false)
   // Kept per agent, so switching back finds the mode picked for it.
-  const [modes, setModes] = useState<Record<AgentKind, ChatPermissionMode>>(DEFAULT_START_MODES)
+  const [modes, setModes] = useState<Partial<Record<AgentKind, ChatPermissionMode>>>({})
   // A model or effort left unpicked is the agent's own default, which the start does not pass.
-  const [picks, setPicks] = useState<Record<AgentKind, { model?: string; effort?: string }>>({ claude: {}, codex: {}, cursor: {} })
+  const [picks, setPicks] = useState<Partial<Record<AgentKind, { model?: string; effort?: string }>>>({})
   // Each agent's models, asked for once it is picked; absent while asking, null when core cannot say.
   const [catalogs, setCatalogs] = useState<Partial<Record<AgentKind, ChatCatalog | null>>>({})
   const rpc = useCore((s) => s.rpc)
@@ -70,7 +70,7 @@ export function ConversationDraft() {
   // Only the user's own commands: the agent has not started to say what it takes.
   const chatCommands = useCore((s) => s.chatCommands)
   const commandEntries = useMemo(() => kandoEntries(chatCommands, projectPaths), [chatCommands, projectPaths])
-  const commandMenu = useChatCommandMenu({ text, entries: commandEntries, agentLabel: agent ? AGENT_LABEL[agent] : '', setText, sendCommand: () => {} })
+  const commandMenu = useChatCommandMenu({ text, entries: commandEntries, agentLabel: agent ? agentLabel(agent) : '', setText, sendCommand: () => {} })
   // The agent will work in the first project picked.
   const mentionMenu = useChatMentionMenu({ value, setText, setValue, roots: projectPaths, cwd: projectPaths[0] ?? null, agent })
   // Written out for the agent picked when it goes, which may not be the one picked before.
@@ -86,18 +86,19 @@ export function ConversationDraft() {
   }, [agent, rpc, optionsSupported, catalogs])
 
   const catalog = agent ? catalogs[agent] : null
-  const pick = agent ? picks[agent] : {}
+  const pick = (agent ? picks[agent] : undefined) ?? {}
   const modelId = pick.model ?? catalog?.models.find((each) => each.isDefault)?.id ?? null
   const model = catalog?.models.find((each) => each.id === modelId)
   const efforts = model?.efforts ?? []
   // A mode the model or settings no longer allow falls back to that agent's available default.
   const offeredModes = agent ? startModes(agent, model, allowBypass) : []
-  const mode = agent ? (offeredModes.includes(modes[agent]) ? modes[agent] : defaultStartMode(agent, offeredModes)) : null
+  const chosenMode = agent ? modes[agent] : undefined
+  const mode = agent ? (chosenMode && offeredModes.includes(chosenMode) ? chosenMode : defaultStartMode(agent, offeredModes)) : null
   const effort = pick.effort && efforts.includes(pick.effort) ? pick.effort : null
   // The model a start would run, as quota windows name models; unknown until its catalog is in.
   const modelFor = (kind: AgentKind) => {
     const models = catalogs[kind]?.models ?? []
-    const id = picks[kind].model ?? models.find((each) => each.isDefault)?.id
+    const id = picks[kind]?.model ?? models.find((each) => each.isDefault)?.id
     return modelText(models.find((each) => each.id === id))
   }
   const choose = (next: { model?: string; effort?: string }) => {
@@ -164,7 +165,7 @@ export function ConversationDraft() {
                     onClick={() => setAgent(kind)}
                   >
                     <AgentIcon agent={kind} />
-                    <span>{AGENT_LABEL[kind]}</span>
+                    <span>{agentLabel(kind)}</span>
                     <AgentQuotaHint agent={kind} model={modelFor(kind)} />
                   </button>
                 ))}
@@ -217,7 +218,7 @@ export function ConversationDraft() {
                   autoFocus
                   readOnly={busy}
                   aria-label="第一条消息"
-                  placeholder={agent ? `给 ${AGENT_LABEL[agent]} 发第一条消息，Enter 发送，Shift+Enter 换行` : '先在上面选一个 Agent'}
+                  placeholder={agent ? `给 ${agentLabel(agent)} 发第一条消息，Enter 发送，Shift+Enter 换行` : '先在上面选一个 Agent'}
                   onChange={(event) => setText(event.target.value, event.target.selectionEnd)}
                   onPaste={imagesSupported ? attached.handlers.onPaste : undefined}
                   onKeyDown={(event) => {
@@ -265,7 +266,7 @@ export function ConversationDraft() {
                   type="button"
                   className="chat-input-button" data-tooltip-side="top-end"
                   aria-label="发送（Enter）"
-                  data-tooltip={busy && agent ? (inWorktree ? `正在建 worktree 并启动 ${AGENT_LABEL[agent]}…` : `正在启动 ${AGENT_LABEL[agent]}…`) : '发送（Enter）'}
+                  data-tooltip={busy && agent ? (inWorktree ? `正在建 worktree 并启动 ${agentLabel(agent)}…` : `正在启动 ${agentLabel(agent)}…`) : '发送（Enter）'}
                   disabled={!canSend}
                   onClick={() => void send()}
                 >

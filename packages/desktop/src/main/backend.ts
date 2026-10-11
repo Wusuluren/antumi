@@ -5,7 +5,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { app } from 'electron'
 import { z } from 'zod'
-import type { CoreEndpoint } from '@kando/protocol'
+import { AGENT_KINDS, agentDescriptor, type CoreEndpoint } from '@kando/protocol'
 import { kandoPaths, readCoreEndpoint } from '@kando/protocol/node'
 
 // Where CLIs land that a Finder-launched app's minimal PATH misses.
@@ -17,8 +17,11 @@ const START_WAIT_MS = 15_000
 function loginShellPath(): Promise<string> {
   if (process.platform === 'win32') {
     const parts = (process.env.PATH ?? '').split(';').filter(Boolean)
-    const cursorBin = process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'cursor-agent') : null
-    if (cursorBin && !parts.some((part) => part.toLowerCase() === cursorBin.toLowerCase())) parts.push(cursorBin)
+    const local = process.env.LOCALAPPDATA
+    const installed = local ? AGENT_KINDS.flatMap((kind) => agentDescriptor(kind).windowsPathDirs ?? []).map((dir) => join(local, dir)) : []
+    for (const dir of installed) {
+      if (!parts.some((part) => part.toLowerCase() === dir.toLowerCase())) parts.push(dir)
+    }
     return Promise.resolve(parts.join(';'))
   }
   const shell = process.env.SHELL || '/bin/zsh'

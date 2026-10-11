@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AGENT_KINDS, type Conversation } from '@kando/protocol'
 import { selectConversation, useCore } from '../core-store'
 import { conversationState, timeAgo } from '../conversation-state'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { CONVERSATION_GROUPS, CONVERSATION_SORTS, setPreference, usePreferences, type Preferences } from '../preferences'
 import { ConversationContextMenu, newConversation, renameConversation } from './ConversationActions'
 import { ConversationHandoffDialog } from './ConversationHandoffDialog'
@@ -33,7 +33,7 @@ function groupOf(conversation: Conversation, by: Exclude<GroupBy, 'none'>): { la
     case 'project':
       return { label: projectNames(conversation.projectPaths), rank: conversation.projectPaths.length > 0 ? 0 : 1 }
     case 'agent':
-      return { label: AGENT_LABEL[conversation.agent], rank: AGENT_KINDS.indexOf(conversation.agent) }
+      return { label: agentLabel(conversation.agent), rank: AGENT_KINDS.indexOf(conversation.agent) }
     case 'status':
       return conversation.sessionId ? { label: '运行中', rank: 0 } : { label: '已停止', rank: 1 }
   }
@@ -104,7 +104,7 @@ function Highlighted({ text, query }: { text: string; query: string }) {
 }
 
 function conversationMeta(conversation: Conversation): string {
-  return `${AGENT_LABEL[conversation.agent]} · ${projectNames(conversation.projectPaths)} · ${conversationState(conversation).label}`
+  return `${agentLabel(conversation.agent)} · ${projectNames(conversation.projectPaths)} · ${conversationState(conversation).label}`
 }
 
 // The time, a minute at a time, for how long ago each row last changed.

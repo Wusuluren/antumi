@@ -3,7 +3,7 @@ import { quotaVerdict, type ChatItem, type Conversation } from '@kando/protocol'
 import { otherInstalledAgent, useInstalledAgents } from '../installed-agents'
 import { perform, setSchedulesOpen, useCore, useUsageLimitSupported } from '../core-store'
 import { scheduleTime, UNATTENDED_LABEL } from '../schedules'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { formatClock, useNow } from '../usage-format'
 import { useChatSurface } from './chat-surface'
 
@@ -101,7 +101,7 @@ export function ChatUsageLimitCard({ conversation, item }: { conversation: Conve
         )}
         <span className="chat-dock-spacer" />
         {handoff && other && (
-          <button type="button" className="button" disabled={retrying} data-tooltip={`移交给 ${AGENT_LABEL[other]}`} onClick={handoff}>
+          <button type="button" className="button" disabled={retrying} data-tooltip={`移交给 ${agentLabel(other)}`} onClick={handoff}>
             立即移交
           </button>
         )}

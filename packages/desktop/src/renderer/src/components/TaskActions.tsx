@@ -1,5 +1,6 @@
 import { useCallback, useState, type ReactElement } from 'react'
 import {
+  agentDescriptor,
   checkMove,
   checkScheduleTask,
   checkStart,
@@ -290,7 +291,7 @@ function StartButton({ task, dependencies, labelled }: { task: Task; dependencie
 // Carrying the task out later, unattended: once its time comes and its agent has quota again.
 // Once scheduled, the button says when and leads to the page of scheduled runs.
 function ScheduleButton({ task, dependencies, labelled }: { task: Task; dependencies: readonly Task[]; labelled: boolean }) {
-  const supported = useSchedulesSupported() && task.agent !== 'cursor'
+  const supported = useSchedulesSupported() && (task.agent === null || agentDescriptor(task.agent).capabilities.unattended)
   const scheduled = useCore((s) => openRunForTask(s.schedules, task.id))
   const [open, setOpen] = useState(false)
   const close = useCallback(() => setOpen(false), [])

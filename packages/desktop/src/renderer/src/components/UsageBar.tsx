@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 
 import { createPortal } from 'react-dom'
 import {
   AGENT_KINDS,
+  agentDescriptor,
   tightestWindow,
   usageLevel,
   type AgentKind,
@@ -10,16 +11,15 @@ import {
   type UsageWindow
 } from '@kando/protocol'
 import { refreshUsage, useCore } from '../core-store'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { usePreferences } from '../preferences'
 import { formatClock, formatDuration, percentText, resetText, shownPercent, useNow, windowLabel } from '../usage-format'
+import { agentNames } from '../environment-text'
 import { AgentIcon } from './icons'
-
-const AGENT_CLI: Record<AgentKind, string> = { claude: 'claude', codex: 'codex', cursor: 'agent' }
 
 function errorText(usage: AgentUsage): string {
   return usage.error === 'auth-expired'
-    ? `登录凭据已过期，运行一次 ${AGENT_CLI[usage.agent]} 即可刷新`
+    ? `登录凭据已过期，运行一次 ${agentDescriptor(usage.agent).cli} 即可刷新`
     : '读取失败，稍后自动重试'
 }
 
@@ -49,13 +49,6 @@ function clearsText(clears: readonly UsageWindow['kind'][]): string {
   return session ? '清零 5h 额度' : weekly ? '清零每周额度' : ''
 }
 
-// Where a reset can actually be used: Claude's cannot be from a terminal.
-const WHERE_TO_USE: Record<AgentKind, string> = {
-  claude: '在 claude.ai 网页版或 Claude Desktop 的 设置 → Usage 里使用',
-  codex: '在 Codex 的用量设置里使用',
-  cursor: '在 Cursor 的用量设置里查看'
-}
-
 function ResetCreditList({ agent, credits, now }: { agent: AgentKind; credits: ResetCredits; now: number }) {
   if (credits.blockedBy === 'cli_version') {
     return <div className="usage-card-credits muted">升级 Claude Code 后，这里会显示可用的重置卡</div>
@@ -80,7 +73,7 @@ function ResetCreditList({ agent, credits, now }: { agent: AgentKind; credits: R
         )
       })}
       {unlisted > 0 && <div className="usage-card-credit">另有 {unlisted} 张没有给出过期时间</div>}
-      <div className="usage-card-credits-hint">{WHERE_TO_USE[agent]}</div>
+      <div className="usage-card-credits-hint">{agentDescriptor(agent).usageWhere}</div>
     </div>
   )
 }
@@ -114,7 +107,7 @@ function UsageCard({ usage, now, anchor, id, cardRef, onEnter, onLeave, onRefres
       id={id}
       ref={cardRef}
       role="dialog"
-      aria-label={`${AGENT_LABEL[usage.agent]} 用量额度`}
+      aria-label={`${agentLabel(usage.agent)} 用量额度`}
       className="usage-card"
       style={{ left, bottom, width: CARD_WIDTH }}
       onMouseEnter={onEnter}
@@ -123,7 +116,7 @@ function UsageCard({ usage, now, anchor, id, cardRef, onEnter, onLeave, onRefres
       onBlurCapture={onLeave}
     >
       <div className="usage-card-title">
-        {AGENT_LABEL[usage.agent]}
+        {agentLabel(usage.agent)}
         {usage.plan && <span className="muted"> · {usage.plan}</span>}
       </div>
       {usage.windows.map((window) => {
@@ -239,7 +232,7 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
         }}
       >
         {/* Just the mark: the card that opens on hover leads with the full name. */}
-        <span className="usage-agent" role="img" aria-label={AGENT_LABEL[usage.agent]}>
+        <span className="usage-agent" role="img" aria-label={agentLabel(usage.agent)}>
           <AgentIcon agent={usage.agent} />
         </span>
         {tightest && (
@@ -298,7 +291,7 @@ export function UsageBar() {
     <div className="statusbar-group" aria-label="Agent 用量额度">
       {known.length === 0 && <span className="statusbar-hint">正在读取用量额度…</span>}
       {known.length > 0 && shown.length === 0 && (
-        <span className="statusbar-hint">未检测到 Claude Code、Codex 或 Cursor 的登录，登录后这里会显示用量额度</span>
+        <span className="statusbar-hint">未检测到 {agentNames()} 的登录，登录后这里会显示用量额度</span>
       )}
       {shown.map((entry) => (
         <UsageSegment key={entry.agent} usage={entry} now={now} />

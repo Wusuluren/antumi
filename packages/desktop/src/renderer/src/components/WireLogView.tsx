@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { WireEntry, WireStage } from '@kando/protocol'
 import { useCore } from '../core-store'
 import { canRevealFile, revealFile } from '../desktop-bridge'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { formatBytes, groupWireEntries, isWireStream, mergeWireEntries, streamLabel, streamText, totalSize, WIRE_DIR_LABEL, WIRE_MARK, wireDetail, wireJsonl, wireLabel, wireMatches, wireSize, wireTime } from '../wire-entries'
 import { CopyButton } from './CopyButton'
 import { FolderIcon } from './icons'
@@ -21,7 +21,7 @@ function held(shown: Shown, entries: WireEntry[]): Shown {
 
 function stageText(stage: WireStage): string {
   const started = new Date(stage.startedAt).toLocaleString(undefined, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-  const agent = stage.agent ? AGENT_LABEL[stage.agent] : '没能启动'
+  const agent = stage.agent ? agentLabel(stage.agent) : '没能启动'
   const running = stage.agent && stage.endedAt === null ? '（运行中）' : ''
   return `${agent} · ${started}${running} · ${formatBytes(stage.bytes)}`
 }

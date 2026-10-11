@@ -1,4 +1,4 @@
-import { AgentKind } from '@kando/protocol'
+import { AGENT_KINDS, AgentKind } from '@kando/protocol'
 import { z } from 'zod'
 import { create } from 'zustand'
 import { PALETTES } from './palettes'
@@ -32,7 +32,7 @@ const Preferences = z.object({
   requestPopup: z.boolean().catch(true),
   usageDisplay: z.enum(['used', 'remaining']).catch('used'),
   // 'recent' reuses whichever agent the newest task picked.
-  defaultAgent: z.enum(['recent', 'claude', 'codex', 'cursor', 'none']).catch('recent'),
+  defaultAgent: z.enum(['recent', ...AGENT_KINDS, 'none']).catch('recent'),
   // The permission mode a plan is carried out in, as last picked; where the stage lacks it, auto,
   // then accepting edits.
   planRunMode: z.enum(['auto', 'acceptEdits', 'ask', 'bypass']).catch('auto'),

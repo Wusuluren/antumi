@@ -1,7 +1,7 @@
 import { quotaVerdict, usageLevel, type AgentKind, type ChatModel, type QuotaVerdict } from '@kando/protocol'
 import { useCore } from '../core-store'
 import { currentInstalledAgents, otherInstalledAgent } from '../installed-agents'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { usePreferences, type Preferences } from '../preferences'
 import { formatClock, resetText, useNow, windowLabel } from '../usage-format'
 
@@ -70,13 +70,13 @@ export function confirmQuota(agent: AgentKind, model?: string | null): boolean {
   const display = usePreferences.getState().usageDisplay
   const suggestion =
     other && otherVerdict && (otherVerdict.state === 'ok' || otherVerdict.state === 'tight')
-      ? `\n${AGENT_LABEL[other]} 还有额度${otherVerdict.window ? `（${quotaText(otherVerdict, display, now)}）` : ''}，可以先换成它。`
+      ? `\n${agentLabel(other)} 还有额度${otherVerdict.window ? `（${quotaText(otherVerdict, display, now)}）` : ''}，可以先换成它。`
       : ''
   // Waiting for the reset is a choice too, where core can start things later.
   const later = useCore.getState().rpc?.features.includes('schedules')
     ? '\n也可以取消，点旁边的时钟按钮预约，额度恢复后自动开始。'
     : ''
   return window.confirm(
-    `${AGENT_LABEL[agent]} 已用完${spaced(windowLabel(verdict.window))}额度${reset ? `，${reset}` : ''}。${suggestion}${later}\n\n仍要用 ${AGENT_LABEL[agent]} 启动吗？`
+    `${agentLabel(agent)} 已用完${spaced(windowLabel(verdict.window))}额度${reset ? `，${reset}` : ''}。${suggestion}${later}\n\n仍要用 ${agentLabel(agent)} 启动吗？`
   )
 }

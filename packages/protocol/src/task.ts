@@ -11,7 +11,7 @@ export const TASK_STATUSES = ['pending', 'running', 'review', 'done', 'abandoned
 export const TaskStatus = z.enum(TASK_STATUSES)
 export type TaskStatus = z.infer<typeof TaskStatus>
 
-export { AGENT_KINDS, AgentKind } from './agent'
+export { AGENT_KINDS, AgentKind, isAgentKind } from './agent'
 
 export const MAX_TASK_REPOS = 10
 export const MAX_DETAILS_LENGTH = 100_000

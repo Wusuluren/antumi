@@ -3,7 +3,7 @@ import { ChatPermissionMode, checkStart, checkStartMode, type AgentKind, type Ta
 import { resolveModel, useAgentCatalog, type ModelChoice } from '../agent-models'
 import { dismissError, perform, selectTask, showView, updateTask, useCore } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
-import { AGENT_LABEL, reasonText } from '../labels'
+import { agentLabel, reasonText } from '../labels'
 import { usePreferences } from '../preferences'
 import { useOccludesBrowser } from '../browser-occlusion'
 import { AgentQuotaHint, confirmQuota, modelText } from './AgentQuota'
@@ -48,10 +48,9 @@ function LaunchForm({ task }: { task: Task }) {
       effort: task.launch.effort ?? chat?.effort ?? undefined
     } }
   })
-  const [modes, setModes] = useState<Record<AgentKind, ChatPermissionMode>>(() => {
-    const modes: Record<AgentKind, ChatPermissionMode> = { claude: 'plan', codex: 'plan', cursor: 'plan' }
-    return task.agent && task.launch.permissionMode ? { ...modes, [task.agent]: task.launch.permissionMode } : modes
-  })
+  // Unpicked, each agent starts the task planning.
+  const [modes, setModes] = useState<Partial<Record<AgentKind, ChatPermissionMode>>>(() =>
+    task.agent && task.launch.permissionMode ? { [task.agent]: task.launch.permissionMode } : {})
 
   useEffect(() => {
     const element = dialog.current
@@ -63,7 +62,7 @@ function LaunchForm({ task }: { task: Task }) {
   const choice = agent ? choices[agent] ?? {} : {}
   const { defaultModel, model, modelId, efforts, effort } = resolveModel(catalog, choice)
   const offered = agent ? startModes(agent, model, allowBypass) : []
-  const requestedMode = agent ? modes[agent] : 'plan'
+  const requestedMode = (agent ? modes[agent] : undefined) ?? 'plan'
   const mode = supported && offered.includes(requestedMode) && !checkStartMode(dependencies, requestedMode) ? requestedMode : 'plan'
   const options = agent ? modeOptions(agent, ['plan', ...offered.filter((each) => each !== 'plan')]) : []
   const blocker = checkStart({ ...task, agent }, dependencies)
@@ -109,7 +108,7 @@ function LaunchForm({ task }: { task: Task }) {
               if (next) setAgent(next)
             }}>
               {!agent && <option value="" disabled>选择 Agent</option>}
-              {agents.map((kind) => <option key={kind} value={kind}>{AGENT_LABEL[kind]}{installed.includes(kind) ? '' : '（未安装）'}</option>)}
+              {agents.map((kind) => <option key={kind} value={kind}>{agentLabel(kind)}{installed.includes(kind) ? '' : '（未安装）'}</option>)}
             </select>
           </label>
           {supported && <>

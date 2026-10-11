@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { AGENT_KINDS, type AgentKind, type Task } from '@kando/protocol'
 import { timeAgo } from '../conversation-state'
 import { openInbox, selectTask, setNewTaskOpen, useCore } from '../core-store'
-import { AGENT_LABEL, STATUS_LABEL } from '../labels'
+import { agentLabel, STATUS_LABEL } from '../labels'
 import { setPreference, TASK_SORTS, usePreferences } from '../preferences'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { boardColumns, boardProjects, type BoardColumn, type BoardFilter, type TaskSort } from '../task-board'
@@ -157,7 +157,7 @@ function TaskCard({ task, tasks, now, fresh, renaming, menuOpen, onRenamed, onMe
   const action = cardAction(task, dependencies, turn)
   // A chat task that has not started its work: planning, or holding the plan it saved.
   const planning = task.status === 'pending' && task.conversationId !== null
-  const agent = task.agent ? AGENT_LABEL[task.agent] : 'Agent'
+  const agent = task.agent ? agentLabel(task.agent) : 'Agent'
   return (
     <article
       className="task-card"
@@ -280,7 +280,7 @@ function ProjectFilter({ tasks, value }: { tasks: readonly Task[]; value: string
 function AgentFilter({ tasks, value }: { tasks: readonly Task[]; value: AgentKind | null }) {
   const used = AGENT_KINDS.filter((agent) => tasks.some((task) => task.agent === agent))
   if (used.length < 2 && value === null) return null
-  const describe = (agent: AgentKind | null) => (agent === null ? '全部 Agent' : AGENT_LABEL[agent])
+  const describe = (agent: AgentKind | null) => (agent === null ? '全部 Agent' : agentLabel(agent))
   return (
     <ChoiceMenu
       label="按 Agent 筛选"

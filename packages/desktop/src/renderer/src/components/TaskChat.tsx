@@ -3,7 +3,7 @@ import { checkChatResume, shortTaskId, type Task } from '@kando/protocol'
 import { usePlans, type PlanItem } from '../chat-state'
 import { loadConversation, perform, showBrowserPanel, showInspectorFile, showTaskChanges, showTaskPlan, useChatOptionsSupported, useCore, useWireLogShown } from '../core-store'
 import { locateInspectorFile } from '../inspector-file'
-import { AGENT_LABEL, reasonText, STATUS_LABEL } from '../labels'
+import { agentLabel, reasonText, STATUS_LABEL } from '../labels'
 import { usePreferences } from '../preferences'
 import { waitingOn } from '../task-waiting'
 import { confirmQuota } from './AgentQuota'
@@ -116,7 +116,7 @@ export function TaskChat({ taskId }: { taskId: string }) {
           <span className="terminal-view-title" title={task.title}>
             {task.title}
           </span>
-          {task.agent && <span className="muted">{AGENT_LABEL[task.agent]}</span>}
+          {task.agent && <span className="muted">{agentLabel(task.agent)}</span>}
           {task.repos.length > 0 && (
             <span className="muted" title={task.repos.map((repo) => repo.path).join('\n')}>
               {primaryProjectName(task.repos.map((repo) => repo.path))}

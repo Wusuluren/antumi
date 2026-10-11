@@ -1,11 +1,11 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
-import { HOURLY_EVERY, nextOccurrence, RoutineAgent, type AgentKind, type ChatCatalog, type Routine, type RoutineFields, type RoutineSchedule } from '@kando/protocol'
+import { agentDescriptor, HOURLY_EVERY, nextOccurrence, RoutineAgent, type AgentKind, type ChatCatalog, type Routine, type RoutineFields, type RoutineSchedule } from '@kando/protocol'
 import type { RoutineTemplate } from '../routine-templates'
 import { dismissError, useChatOptionsSupported, useCore } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { PRIMARY_KEY_LABEL, hasPrimaryModifier } from '../shortcut-keys'
-import { createRoutine, ROUTINE_AGENT_LABEL, updateRoutine, WEEKDAY_LABEL } from '../routines'
+import { createRoutine, AUTO_AGENT_LABEL, updateRoutine, WEEKDAY_LABEL } from '../routines'
 import { scheduleTime, UNATTENDED_LABEL } from '../schedules'
 import { AgentQuotaHint } from './AgentQuota'
 import { ChatAddMenu, ChatImageStrip, useComposerImages } from './ChatImages'
@@ -55,10 +55,10 @@ export function RoutineEditor({ routine, template = null, onClose }: { routine: 
   const mode = useCore((s) => s.chatSettings?.unattendedMode ?? 'acceptEdits')
   const rpc = useCore((s) => s.rpc)
   const optionsSupported = useChatOptionsSupported()
-  const installed = useInstalledAgents().filter((agent) => agent !== 'cursor')
+  const installed = useInstalledAgents().filter((agent) => agentDescriptor(agent).capabilities.unattended)
   const [title, setTitle] = useState(routine?.title ?? template?.title ?? '')
   const [text, setText] = useState(routine?.target.text ?? template?.text ?? '')
-  const [agent, setAgent] = useState<RoutineAgent>(routine?.target.agent ?? installed[0] ?? 'claude')
+  const [agent, setAgent] = useState<RoutineAgent>(routine?.target.agent ?? installed[0] ?? 'auto')
   const [projectPaths, setProjectPaths] = useState<string[]>(routine?.target.projectPaths ?? [])
   const [model, setModel] = useState<string | null>(routine?.target.model ?? null)
   const [effort, setEffort] = useState<string | null>(routine?.target.effort ?? null)
@@ -180,8 +180,8 @@ export function RoutineEditor({ routine, template = null, onClose }: { routine: 
                 value={agent}
                 placeholder="agent"
                 options={[
-                  ...installed.map((kind) => ({ value: kind, label: AGENT_LABEL[kind] })),
-                  { value: 'auto', label: ROUTINE_AGENT_LABEL.auto, description: '到点时用有额度的那个' }
+                  ...installed.map((kind) => ({ value: kind, label: agentLabel(kind) })),
+                  { value: 'auto', label: AUTO_AGENT_LABEL, description: '到点时用有额度的那个' }
                 ]}
                 disabled={busy}
                 onChange={(value) => {

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import type { ScheduledRun } from '@kando/protocol'
 import { selectConversation, selectTask, setAwakeMode, setSchedulesOpen, showView, useCore } from '../core-store'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { cancelSchedule, clearSchedules, openQueueRuns, reorderSchedules, rescheduleRun, runAction, runScheduleNow, scheduleState, TARGET_LABEL, UNATTENDED_LABEL } from '../schedules'
 import { ArrowDownIcon, ArrowUpIcon, ClockIcon, CloseIcon, PlayIcon } from './icons'
 import { SchedulePicker, SettingsLink } from './SchedulePicker'
@@ -54,7 +54,7 @@ function OpenRow({ run, index, count, now, onMove }: { run: ScheduledRun; index:
       <span className="schedule-index">{index + 1}</span>
       <span className="schedule-main">
         <button type="button" className="schedule-title" onClick={() => openTarget(run)}>{run.title}</button>
-        <span className="schedule-meta" title={runAction(run)}>{TARGET_LABEL[run.target.kind]} · {AGENT_LABEL[run.agent]} · {runAction(run)}</span>
+        <span className="schedule-meta" title={runAction(run)}>{TARGET_LABEL[run.target.kind]} · {agentLabel(run.agent)} · {runAction(run)}</span>
       </span>
       <span className="schedule-state">{scheduleState(run, now)}</span>
       <span className="schedule-actions">
@@ -88,7 +88,7 @@ function SettledRow({ run, now }: { run: ScheduledRun; now: number }) {
       <span className="schedule-index" />
       <span className="schedule-main">
         <button type="button" className="schedule-title" onClick={() => openTarget(run)}>{run.title}</button>
-        <span className="schedule-meta" title={runAction(run)}>{TARGET_LABEL[run.target.kind]} · {AGENT_LABEL[run.agent]} · {runAction(run)}</span>
+        <span className="schedule-meta" title={runAction(run)}>{TARGET_LABEL[run.target.kind]} · {agentLabel(run.agent)} · {runAction(run)}</span>
       </span>
       <span className="schedule-state" data-warn={run.status === 'failed' || undefined}>{scheduleState(run, now)}</span>
       <span className="schedule-actions" />

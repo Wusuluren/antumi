@@ -1,8 +1,8 @@
 import { useId, useState, type ReactNode } from 'react'
-import { AGENT_KINDS, type AgentCliInstallation, type AgentKind, type DetectedAgent, type EnvironmentCheck } from '@kando/protocol'
+import { AGENT_KINDS, agentDescriptor, type AgentCliInstallation, type AgentKind, type DetectedAgent, type EnvironmentCheck } from '@kando/protocol'
 import { installAgentCli, refreshEnvironment, showTerminal, useCore } from '../core-store'
-import { checkStatusText, INSTALL_HINT, SIGN_IN_HINT, TOOL_ROLE } from '../environment-text'
-import { AGENT_LABEL } from '../labels'
+import { checkStatusText } from '../environment-text'
+import { agentLabel } from '../labels'
 import { setPreference, usePreferences } from '../preferences'
 import { CopyButton } from './CopyButton'
 import { AgentIcon, RefreshIcon } from './icons'
@@ -36,15 +36,15 @@ function AgentRow({ kind, check, enabled, last }: { kind: AgentKind; check: Envi
       <span className="agent-row-icon" aria-hidden="true"><AgentIcon agent={kind} /></span>
       <div className="settings-row-text">
         <div className="agent-row-head">
-          <span id={labelId} className="settings-row-label">{AGENT_LABEL[kind]}</span>
+          <span id={labelId} className="settings-row-label">{agentLabel(kind)}</span>
           {version && <span className="agent-row-version mono" title={check.path ?? undefined}>{version}</span>}
           {!enabled && <span className="agent-row-pill">已禁用</span>}
           {check.signedIn !== null && (
             <span className="environment-pill" data-level={check.signedIn ? 'ok' : 'warning'}>{check.signedIn ? '已登录' : '未登录'}</span>
           )}
         </div>
-        {check.status === 'unknown' && <p className="settings-row-description">{checkStatusText(check)}。请检查 CLI 是否能正常启动{kind === 'cursor' ? '，并使用支持 ACP 的版本' : ''}。</p>}
-        {check.signedIn === false && <Fix label="登录：" command={SIGN_IN_HINT[kind]} />}
+        {check.status === 'unknown' && <p className="settings-row-description">{checkStatusText(check)}。请检查 CLI 是否能正常启动{agentDescriptor(kind).environment.outdated?.hint ?? ''}。</p>}
+        {check.signedIn === false && <Fix label="登录：" command={agentDescriptor(kind).environment.signIn} />}
       </div>
       <div className="settings-row-control">
         <Toggle
@@ -76,11 +76,11 @@ function MissingAgentRow({ kind, installation }: { kind: AgentKind; installation
       <span className="agent-row-icon" aria-hidden="true"><AgentIcon agent={kind} /></span>
       <div className="settings-row-text">
         <div className="agent-row-head">
-          <span className="settings-row-label">{AGENT_LABEL[kind]}</span>
+          <span className="settings-row-label">{agentLabel(kind)}</span>
           <span className="agent-row-pill">{installation ? '未找到 CLI' : '未安装'}</span>
         </div>
-        <p className="settings-row-description">{installation ? `已检测到 ${AGENT_LABEL[kind]} App，安装 CLI 后即可在 Kando 中使用。` : TOOL_ROLE[kind]}</p>
-        <Fix label="安装：" command={installation?.command ?? INSTALL_HINT[kind]} />
+        <p className="settings-row-description">{installation ? `已检测到 ${agentLabel(kind)} App，安装 CLI 后即可在 Kando 中使用。` : agentDescriptor(kind).environment.role}</p>
+        <Fix label="安装：" command={installation?.command ?? agentDescriptor(kind).environment.install} />
         {installation && (
           <div className="agent-install-actions">
             <button type="button" className="button" disabled={opening} onClick={() => void install()}>

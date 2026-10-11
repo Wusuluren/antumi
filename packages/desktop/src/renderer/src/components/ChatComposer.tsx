@@ -1,12 +1,12 @@
 import { useCallback, useContext, useEffect, useMemo, useState, type KeyboardEvent } from 'react'
-import type { ChatImage, ChatItem, ChatQueued, Conversation } from '@kando/protocol'
+import { agentDescriptor, type ChatImage, type ChatItem, type ChatQueued, type Conversation } from '@kando/protocol'
 import { perform, useChatImagesSupported, useChatOptionsSupported, useCore, useFileMentionsSupported, useScheduleImagesSupported, useSchedulesSupported } from '../core-store'
 import { agentEntries, kandoEntries } from '../chat-commands'
 import { composeMessage, parseQuotes, setQuotes, useQuotes, type ChatQuote } from '../chat-quotes'
 import { takeDraft } from '../chat-drafts'
 import { writeMentions } from '../chat-mentions'
 import { QuoteCards } from './ChatQuoteCards'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { useChatSurface } from './chat-surface'
 import { ChatAddMenu, ChatImageStrip, useComposerImages } from './ChatImages'
 import { useChatCommandMenu } from './ChatCommandMenu'
@@ -243,7 +243,7 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
   const queueable = optionsSupported && working
   const stopped = !running
   const starting = Boolean(conversation.starting) || (stopped && busy) || Boolean(initialMessage)
-  const initialHint = initialMessage ? initialMessage.phase === 'failed' ? '请先重试上面的首条消息' : initialMessage.phase === 'sending' ? '正在发送首条消息…' : `正在启动 ${AGENT_LABEL[conversation.agent]}…` : null
+  const initialHint = initialMessage ? initialMessage.phase === 'failed' ? '请先重试上面的首条消息' : initialMessage.phase === 'sending' ? '正在发送首条消息…' : `正在启动 ${agentLabel(conversation.agent)}…` : null
   const canTake = (idle || queueable || stopped) && !busy && !starting && !surface.sendBlocker && attached.uploading === 0
   const canSend = canTake && (text.trim() !== '' || attached.images.length > 0 || quotes.length > 0)
   // What the agent guesses comes next, as Claude Code shows it: grey in the empty input, Tab or →
@@ -260,7 +260,7 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
   const commandMenu = useChatCommandMenu({
     text,
     entries: commandEntries,
-    agentLabel: AGENT_LABEL[conversation.agent],
+    agentLabel: agentLabel(conversation.agent),
     setText,
     sendCommand: (command) => void send(false, command)
   })
@@ -382,7 +382,7 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
         )}
         {/* A routine's chat is out of the list and its follow-ups light nothing: a run scheduled
             here would finish unseen. Running again belongs to the routine's own schedule. */}
-        {schedulesSupported && conversation.agent !== 'cursor' && !conversation.routineId && (
+        {schedulesSupported && agentDescriptor(conversation.agent).capabilities.unattended && !conversation.routineId && (
           <ScheduleSendButton
             conversationId={id}
             text={written}
@@ -410,7 +410,7 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
             <StopIcon />
           </button>
         ) : (
-          <button type="button" className="chat-input-button" data-tooltip-side="top-end" aria-label="发送（Enter）" data-tooltip={initialHint ?? (starting ? `正在启动 ${AGENT_LABEL[conversation.agent]}…` : '发送（Enter）')} disabled={!canSend} onClick={() => void send()}>
+          <button type="button" className="chat-input-button" data-tooltip-side="top-end" aria-label="发送（Enter）" data-tooltip={initialHint ?? (starting ? `正在启动 ${agentLabel(conversation.agent)}…` : '发送（Enter）')} disabled={!canSend} onClick={() => void send()}>
             <EnterIcon />
           </button>
         )}

@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { AGENT_KINDS, MIN_DECIDED_RUNS, type AgentKind, type AgentStats, type ConversationStats } from '@kando/protocol'
 import { workedFor } from '../chat-tools'
 import { perform, useAgentStatsSupported, useConversationStatsSupported, useCore } from '../core-store'
-import { AGENT_LABEL } from '../labels'
+import { agentLabel } from '../labels'
 import { durationText, percent, tokens } from '../stat-format'
 import { AgentIcon } from './icons'
 
@@ -41,7 +41,7 @@ function ByAgent<T extends { agent: AgentKind; model: string | null }>({ rows, c
               <tr className="settings-stats-agent">
                 <th scope="rowgroup" colSpan={columns.length + 1}>
                   <AgentIcon agent={agent} />
-                  {AGENT_LABEL[agent]}
+                  {agentLabel(agent)}
                 </th>
               </tr>
               {own.map((row) => (

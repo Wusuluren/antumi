@@ -1,4 +1,4 @@
-import type { AgentKind, SourceFailure, SourceProblem, TaskStatus } from '@kando/protocol'
+import { agentDescriptor, type AgentKind, type SourceFailure, type SourceProblem, type TaskStatus } from '@kando/protocol'
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
   pending: '未执行',
@@ -16,10 +16,8 @@ export const STATUS_HINT: Record<TaskStatus, string> = {
   abandoned: '已废弃，由继承它的新任务接着做'
 }
 
-export const AGENT_LABEL: Record<AgentKind, string> = {
-  claude: 'Claude Code',
-  codex: 'Codex',
-  cursor: 'Cursor'
+export function agentLabel(kind: AgentKind): string {
+  return agentDescriptor(kind).label
 }
 
 const SOURCE_FAILURE_TEXT: Record<SourceFailure, string> = {

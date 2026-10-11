@@ -1,4 +1,4 @@
-import type { AgentKind, ProjectFileMatch } from '@kando/protocol'
+import { agentDescriptor, type AgentKind, type ProjectFileMatch } from '@kando/protocol'
 
 const MAX_PROJECTS = 8
 
@@ -29,7 +29,7 @@ export function mentionText(target: MentionTarget, agent: AgentKind): string {
   const shown = target.relative ?? target.path
   const written = target.kind === 'directory' ? `${shown}/` : shown
   const spaced = /\s/.test(written)
-  if (agent === 'claude' && target.kind !== 'project') return spaced ? `@"${written}"` : `@${written}`
+  if (agentDescriptor(agent).capabilities.pathMentions && target.kind !== 'project') return spaced ? `@"${written}"` : `@${written}`
   return spaced ? `\`${written}\`` : written
 }
 
