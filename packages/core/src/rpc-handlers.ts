@@ -360,6 +360,7 @@ export function createRpcHandlers(
     'discussions.create': (fields) => discussions.create(fields),
     'discussions.posts': ({ id }) => discussions.posts(id),
     'discussions.post': ({ id, text, mentions }) => discussions.post(id, text, mentions),
+    'discussions.newTopic': ({ id, text }) => discussions.newTopic(id, text),
     'discussions.control': ({ id, action }) => discussions.control(id, action),
     'discussions.rename': ({ id, title }) => discussions.rename(id, title),
     'discussions.addMember': ({ id, member }) => discussions.addMember(id, member),

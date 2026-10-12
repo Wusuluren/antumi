@@ -8410,6 +8410,9 @@ body.side-panel-resizing * {
 /* The chat on the page's grey, its bubbles on the surface, as a chat app sets them apart. */
 .discussion-view .terminal-body { background: var(--bg); }
 .discussion-topic { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
+/* A topic the user moved the group on to, opening its rounds. */
+.discussion-topic[data-moved] { border-color: var(--accent); }
+.discussion-topic[data-moved] .discussion-post-kind { background: var(--accent-bg); color: var(--accent); }
 .discussion-post-kind { padding: 0 8px; border-radius: 999px; background: var(--fill-2); color: var(--text-muted); font-size: var(--chat-font-small); }
 .discussion-round { display: flex; flex-direction: column; gap: 14px; }
 /* Kando's own notes, rounds and what happened, small and in the middle. */
@@ -8488,6 +8491,13 @@ body.side-panel-resizing * {
 .discussion-draft-chair { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 .discussion-draft-add { align-self: flex-start; margin-left: 0; }
 .discussion-draft-error { margin: 0; color: var(--danger); font-size: 12px; }
+/* The composer's choice of what a send is: the composer's small type, a new topic in the accent. */
+.segmented.discussion-send-mode button { height: 22px; padding: 0 10px; font-size: 12px; }
+.segmented.discussion-send-mode button:disabled,
+.segmented.discussion-send-mode button[aria-disabled='true'] { cursor: default; opacity: 0.5; }
+.segmented.discussion-send-mode button[aria-disabled='true']:hover { color: var(--text-muted); }
+.segmented.discussion-send-mode button[aria-checked='true']:last-child { color: var(--accent); font-weight: 600; }
+.discussion-draft > .discussion-draft-from { padding: 8px 12px; border-radius: var(--radius); background: var(--accent-bg); font-size: 12px; }
 .discussion-draft-options { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
 .discussion-draft-options label { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); }
 .discussion-draft-options select { padding: 2px 8px; border: 1px solid var(--border-2); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkAddDiscussionMember, checkDiscussionAction, checkEditDiscussionProjects, checkRemoveDiscussionMember, memberLetter } from './discussion'
+import { checkAddDiscussionMember, checkDiscussionAction, checkEditDiscussionProjects, checkNewDiscussionTopic, checkRemoveDiscussionMember, currentTopic, memberLetter } from './discussion'
 
 describe('checkDiscussionAction', () => {
   it('pauses and stops only what runs, and not the summary', () => {
@@ -40,6 +40,17 @@ describe('changing a group chat midway', () => {
     expect(checkEditDiscussionProjects(group([member('a', 0), member('b', 1)], []))).toBe('no-projects')
     expect(checkEditDiscussionProjects(group([member('a', 0), member('b', 1, 'working')]))).toBe('busy')
     expect(checkEditDiscussionProjects(group([member('a', 0), member('b', 1)]))).toBeNull()
+  })
+
+  it('moves on to a new topic only once nothing is out, and knows the topic now discussed', () => {
+    const idle = [member('a', 0), member('b', 1)]
+    expect(checkNewDiscussionTopic({ state: 'running', members: idle })).toBe('busy')
+    expect(checkNewDiscussionTopic({ state: 'pausing', members: idle })).toBe('busy')
+    expect(checkNewDiscussionTopic({ state: 'paused', members: [member('a', 0), member('b', 1, 'working')] })).toBe('busy')
+    expect(checkNewDiscussionTopic({ state: 'done', members: idle })).toBeNull()
+    const said = (text: string, topic: boolean) => ({ text, topic })
+    expect(currentTopic({ topic: 'first' }, [said('aside', false)])).toBe('first')
+    expect(currentTopic({ topic: 'first' }, [said('second', true), said('third', true), said('aside', false)])).toBe('third')
   })
 
   it('keeps each member\'s letter by when it joined, a former one\'s too', () => {

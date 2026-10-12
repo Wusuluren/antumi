@@ -63,7 +63,7 @@ export function SidebarDiscussions() {
     <nav className="sidebar-discussions" data-collapsed={collapsed} aria-label="群聊">
       <header className="task-list-header">
         <SidebarCollapseButton icon={<GroupChatIcon />} label="群聊" count={list.length} collapsed={collapsed} controls="sidebar-discussions" onToggle={() => setCollapsed((value) => !value)} />
-        <button type="button" className="icon-button task-list-add" aria-label="新建群聊" data-tooltip="新建群聊" onClick={openDiscussionDraft}>＋</button>
+        <button type="button" className="icon-button task-list-add" aria-label="新建群聊" data-tooltip="新建群聊" onClick={() => openDiscussionDraft()}>＋</button>
       </header>
       <div id="sidebar-discussions" className="sidebar-section-content" hidden={collapsed}>
         {list.length === 0 ? <p className="task-list-empty">让几个 Agent 一起讨论一个主题，点右上角的 ＋ 开始。</p> : (
@@ -101,6 +101,7 @@ export function SidebarDiscussions() {
         <ContextMenu at={menu.at} label={`群聊「${menuDiscussion.title}」的操作`} onClose={closeMenu}>
           <MenuItem label={menuDiscussion.pinnedAt !== null ? '取消置顶' : '置顶'} onSelect={pick(() => void setDiscussionPinned(menuDiscussion.id, menuDiscussion.pinnedAt === null))} />
           <MenuItem label="重命名" onSelect={pick(() => setRenamingId(menuDiscussion.id))} />
+          <MenuItem label="用相同成员新建群聊" onSelect={pick(() => openDiscussionDraft(menuDiscussion))} />
           <div className="menu-separator" role="separator" />
           <MenuItem label="删除群聊" danger onSelect={pick(() => void removeDiscussion(menuDiscussion))} />
         </ContextMenu>

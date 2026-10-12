@@ -74,8 +74,10 @@ export type CoreState = {
   // Group chats as core keeps them; empty on a core without them.
   discussions: Record<string, Discussion>
   selectedDiscussionId: string | null
-  // The page a new group chat starts from.
+  // The page a new group chat starts from, and the group it copies, if any: a new object each time,
+  // so the page starts over.
   discussionDraft: boolean
+  discussionDraftFrom: { discussion: Discussion } | null
   // The projects the new-conversation page was last asked to start with; a new object each time, so
   // asking again applies again.
   conversationDraftProjects: { paths: readonly string[] } | null
@@ -168,6 +170,7 @@ export const useCore = create<CoreState>()(() => ({
   discussions: {},
   selectedDiscussionId: null,
   discussionDraft: false,
+  discussionDraftFrom: null,
   selectedId: null,
   view: 'detail',
   inspectorOpen: false,
@@ -486,8 +489,9 @@ export function selectDiscussion(id: string | null): void {
   useCore.setState({ selectedDiscussionId: id, section: 'discussions', discussionDraft: false, ...PAGES_CLOSED })
 }
 
-export function openDiscussionDraft(): void {
-  useCore.setState({ selectedDiscussionId: null, section: 'discussions', discussionDraft: true, ...PAGES_CLOSED })
+// from: a group whose members, projects and options the new one starts with.
+export function openDiscussionDraft(from?: Discussion): void {
+  useCore.setState({ selectedDiscussionId: null, section: 'discussions', discussionDraft: true, discussionDraftFrom: from ? { discussion: from } : null, ...PAGES_CLOSED })
 }
 
 export function closeDiscussionDraft(): void {
@@ -506,6 +510,11 @@ export function useDiscussionMembersSupported(): boolean {
 
 export function useDiscussionProjectsSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('discussion-projects') ?? false)
+}
+
+// Whether core moves a group chat on to a new topic (discussions.newTopic).
+export function useDiscussionTopicsSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('discussion-topics') ?? false)
 }
 
 // The sidebar entry shows a failure in place of the count, so opening it then shows that failure.

@@ -40,7 +40,8 @@ function since(discussion: Members, posts: readonly DiscussionPost[]): string[] 
     : lines
 }
 
-export function openingPrompt(discussion: Discussion, member: DiscussionMember, userPosts: readonly DiscussionPost[]): string {
+// background: what members said before the topic now discussed, for one that joins as the group moves on to it.
+export function openingPrompt(discussion: Discussion, member: DiscussionMember, topic: string, userPosts: readonly DiscussionPost[], background: readonly DiscussionPost[] = []): string {
   const others = discussion.members.filter((each) => each.id !== member.id)
   const self = discussion.anonymous ? `你在讨论中的代号是${speakerName(discussion, member.id)}。` : `你在讨论中的名字是「${member.name}」。`
   const projects = discussion.projectPaths.length > 0
@@ -50,7 +51,7 @@ export function openingPrompt(discussion: Discussion, member: DiscussionMember, 
     '你正在参加 Kando 的一场圆桌讨论，和其他几位 AI 一起讨论用户给出的主题。讨论分几轮进行，最后由主持人总结。',
     '',
     '## 主题',
-    discussion.topic,
+    topic,
     '',
     '## 你',
     self + (member.role ? `\n你的立场或角度：${member.role}` : ''),
@@ -67,6 +68,7 @@ export function openingPrompt(discussion: Discussion, member: DiscussionMember, 
     '- 观点要具体，给出理由；不确定的地方直接说不确定。',
     '- 每次发言尽量控制在 600 字以内，除非主题确实需要更多。',
     ...(userPosts.length > 0 ? ['', '## 用户的补充', ...userPosts.map((post) => post.text)] : []),
+    ...(background.length > 0 ? ['', '## 之前议题的讨论（只作背景）', ...since(discussion, background)] : []),
     '',
     '## 第 1 轮',
     '请独立给出你的看法。这一轮你看不到其他成员的回答，他们也看不到你的。'
@@ -91,6 +93,20 @@ export function roundPrompt(discussion: Discussion, round: number, unseen: reado
   ].join('\n')
 }
 
+// The user moved the group on: each member answers the new topic alone, as it did the first.
+export function topicPrompt(discussion: Discussion, topic: string, unseen: readonly DiscussionPost[]): string {
+  return [
+    '## 新议题',
+    ...projectsNow(discussion),
+    '用户换了一个议题。之前的讨论只作背景，不必再回应；新议题同样分几轮讨论，最后由主持人总结。',
+    '',
+    topic,
+    ...(unseen.length > 0 ? ['', '你上次发言以来的其他新内容（背景）：', '', ...since(discussion, unseen)] : []),
+    '',
+    '请独立给出你对新议题的看法。这一轮你看不到其他成员的回答，他们也看不到你的。'
+  ].join('\n')
+}
+
 export function summaryPrompt(discussion: Discussion, unseen: readonly DiscussionPost[]): string {
   return [
     '## 总结',
@@ -102,7 +118,8 @@ export function summaryPrompt(discussion: Discussion, unseen: readonly Discussio
     '## 分歧（各方观点和理由）',
     '## 建议',
     '## 待决问题',
-    '只总结讨论里出现过的内容，不要加入新的结论。'
+    '只总结讨论里出现过的内容，不要加入新的结论。',
+    ...(discussion.topicStart > 0 ? ['这次只总结新议题的讨论，之前议题的内容不必再写。'] : [])
   ].join('\n')
 }
 

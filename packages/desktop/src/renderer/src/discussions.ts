@@ -59,6 +59,10 @@ export function postToDiscussion(id: string, text: string, mentions: readonly st
   return perform((rpc) => rpc.call('discussions.post', { id, text, mentions: [...mentions] }))
 }
 
+export function newDiscussionTopic(id: string, text: string): Promise<DiscussionPost | null> {
+  return perform((rpc) => rpc.call('discussions.newTopic', { id, text }))
+}
+
 export function controlDiscussion(id: string, action: DiscussionAction): Promise<Discussion | null> {
   return perform((rpc) => rpc.call('discussions.control', { id, action }))
 }
@@ -89,9 +93,11 @@ export const MEMBER_STATUS_LABEL: Record<DiscussionMemberStatus, string> = {
 }
 
 // Where the discussion stands, in a few words for its header and its row.
-export function discussionProgress(discussion: Pick<Discussion, 'state' | 'step' | 'round' | 'lastRound'>): string {
+// Rounds count from the topic now discussed.
+export function discussionProgress(discussion: Pick<Discussion, 'state' | 'step' | 'round' | 'lastRound' | 'topicStart'>): string {
   if (discussion.state === 'done') return DISCUSSION_STATE_LABEL.done
-  const where = discussion.step === 'summary' ? '总结' : discussion.round > 0 ? `第 ${discussion.round} / ${Math.max(discussion.round, discussion.lastRound)} 轮` : '准备中'
+  const { round, lastRound, topicStart } = discussion
+  const where = discussion.step === 'summary' ? '总结' : round > topicStart ? `第 ${round - topicStart} / ${Math.max(round, lastRound) - topicStart} 轮` : '准备中'
   return discussion.state === 'running' ? where : `${where} · ${DISCUSSION_STATE_LABEL[discussion.state]}`
 }
 

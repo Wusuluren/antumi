@@ -52,6 +52,7 @@ export function App() {
   const conversationDraft = useCore((s) => s.conversationDraft)
   const selectedDiscussionId = useCore((s) => s.selectedDiscussionId)
   const discussionDraft = useCore((s) => s.discussionDraft)
+  const discussionDraftFrom = useCore((s) => s.discussionDraftFrom)
   const view = useCore((s) => s.view)
   const error = useCore((s) => s.error)
   const newTaskOpen = useCore((s) => s.newTaskOpen)
@@ -168,7 +169,7 @@ export function App() {
               <DashboardView />
             ) : section === 'discussions' ? (
               selectedDiscussionId ? <DiscussionView key={selectedDiscussionId} id={selectedDiscussionId} /> :
-                discussionDraft ? <DiscussionDraft /> :
+                discussionDraft ? <DiscussionDraft key={discussionDraftFrom?.discussion.id ?? 'blank'} from={discussionDraftFrom?.discussion ?? null} /> :
                 <section className="detail-empty">选择或新建一个群聊</section>
             ) : section === 'conversations' ? (
               selectedConversationId ? <ConversationView key={selectedConversationId} id={selectedConversationId} /> :

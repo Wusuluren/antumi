@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { checkDiscussionAction, checkEditDiscussionProjects, checkRemoveDiscussionMember, MAX_DETAILS_LENGTH, memberLetter, type Discussion, type DiscussionAction, type DiscussionMember, type DiscussionPost } from '@kando/protocol'
-import { loadConversation, perform, selectConversation, selectDiscussion, selectTask, useCore, useDiscussionMembersSupported, useDiscussionProjectsSupported } from '../core-store'
-import { controlDiscussion, discussionProgress, EVERYONE, loadDiscussionPosts, removeDiscussionMember, setDiscussionProjects, MEMBER_STATUS_LABEL, mentionedMembers, postToDiscussion, renameDiscussion, useDiscussionPosts } from '../discussions'
+import { checkDiscussionAction, checkEditDiscussionProjects, checkNewDiscussionTopic, checkRemoveDiscussionMember, currentTopic, MAX_DETAILS_LENGTH, memberLetter, type Discussion, type DiscussionAction, type DiscussionMember, type DiscussionPost } from '@kando/protocol'
+import { loadConversation, openDiscussionDraft, perform, selectConversation, selectDiscussion, selectTask, useCore, useDiscussionMembersSupported, useDiscussionProjectsSupported, useDiscussionTopicsSupported } from '../core-store'
+import { controlDiscussion, discussionProgress, EVERYONE, loadDiscussionPosts, newDiscussionTopic, removeDiscussionMember, setDiscussionProjects, MEMBER_STATUS_LABEL, mentionedMembers, postToDiscussion, renameDiscussion, useDiscussionPosts } from '../discussions'
 import { agentLabel, messageTime, reasonText } from '../labels'
 import { setPreference, usePreferences } from '../preferences'
 import { ChatMarkdown } from './ChatMarkdown'
@@ -22,6 +22,12 @@ const ACTIONS: Array<{ action: DiscussionAction; label: string; hint: string }> 
   { action: 'stop', label: '停止', hint: '打断正在发言的成员并暂停' }
 ]
 
+// What the composer's next send is: more on the topic now discussed, or a new one.
+const SEND_MODES = [
+  { topic: false, label: '接着聊', hint: '在当前议题里补充或追问，发出后大家再讨论一轮' },
+  { topic: true, label: '新议题', hint: '换一个议题：大家重新各自作答、讨论、总结，成员和项目不变' }
+] as const
+
 const KIND_LABEL: Partial<Record<DiscussionPost['kind'], string>> = { opening: '独立作答', rebuttal: '回应', reply: '回答你', summary: '总结' }
 
 // A member's own conversation, where its tool calls and approvals are: it is kept out of the list,
@@ -31,9 +37,12 @@ async function openMember(member: DiscussionMember): Promise<void> {
   selectConversation(member.conversationId)
 }
 
+// What a summary sums up: the topic it closes, and in how many of that topic's rounds.
+type Topic = { text: string; rounds: number }
+
 // The summary as a task's details, for the conclusion to be carried out.
-async function taskFromSummary(discussion: Discussion, summary: DiscussionPost): Promise<void> {
-  const details = [`来自群聊「${discussion.title}」的结论。`, '', '## 讨论主题', discussion.topic, '', summary.text].join('\n').slice(0, MAX_DETAILS_LENGTH)
+async function taskFromSummary(discussion: Discussion, topic: string, summary: DiscussionPost): Promise<void> {
+  const details = [`来自群聊「${discussion.title}」的结论。`, '', '## 讨论主题', topic, '', summary.text].join('\n').slice(0, MAX_DETAILS_LENGTH)
   const task = await perform((rpc) => rpc.call('tasks.create', { title: discussion.title, details, repos: discussion.projectPaths }))
   if (task) selectTask(task.id)
 }
@@ -130,7 +139,7 @@ function PendingPost({ member }: { member: DiscussionMember | undefined }) {
 
 // One post, as a chat app lays a group out: a member's on the left, its face beside a bubble under
 // its name; the user's on the right; Kando's own notes in the middle; the summary as a card.
-function Post({ post, discussion }: { post: DiscussionPost; discussion: Discussion }) {
+function Post({ post, discussion, topic }: { post: DiscussionPost; discussion: Discussion; topic: Topic }) {
   if (post.kind === 'notice') return <p className="discussion-system">{post.text}</p>
   if (post.kind === 'user') {
     return (
@@ -156,8 +165,8 @@ function Post({ post, discussion }: { post: DiscussionPost; discussion: Discussi
             <div className="discussion-summary-head">讨论总结</div>
             <div className="discussion-summary-body"><ChatMarkdown text={post.text} /></div>
             <div className="discussion-summary-foot">
-              <span>{discussion.members.length} 位成员 · {discussion.round} 轮</span>
-              <button type="button" className="link-button" onClick={() => void taskFromSummary(discussion, post)}>从结论新建任务</button>
+              <span>{discussion.members.length} 位成员 · {topic.rounds} 轮</span>
+              <button type="button" className="link-button" onClick={() => void taskFromSummary(discussion, topic.text, post)}>从结论新建任务</button>
             </div>
           </div>
         ) : (
@@ -176,23 +185,35 @@ function Post({ post, discussion }: { post: DiscussionPost; discussion: Discussi
 }
 
 // Posts by round, each opened by a note in the middle. The first round's independent answers go one
-// after another, or side by side to compare them; the summary is announced by who gives it.
+// after another, or side by side to compare them; the summary is announced by who gives it. A new
+// topic the user moved the group on to opens its first round, and its rounds count from there.
 function Rounds({ discussion, posts }: { discussion: Discussion; posts: readonly DiscussionPost[] }) {
   const sideBySide = usePreferences((p) => p.discussionSideBySide)
   const rounds = new Map<number, DiscussionPost[]>()
   for (const post of posts) rounds.set(post.round, [...(rounds.get(post.round) ?? []), post])
   const chair = discussion.members.find((member) => member.id === discussion.chairId)
+  const moves = posts.filter((post) => post.topic)
   return (
     <>
       {[...rounds].map(([round, list]) => {
+        const moved = list.find((post) => post.topic)
+        const since = moves.findLast((post) => post.round <= round)
+        const shown = round - (since ? since.round - 1 : 0)
+        const topic = { text: currentTopic(discussion, since ? [since] : []), rounds: shown }
         const openings = list.filter((post) => post.kind === 'opening')
-        const rest = list.filter((post) => post.kind !== 'opening')
+        const rest = list.filter((post) => post.kind !== 'opening' && !post.topic)
         const what = openings.length > 0 ? '各自独立作答，彼此看不到' : list.some((post) => post.kind === 'rebuttal') ? '互相回应' : null
         return (
-          <section key={round} className="discussion-round" aria-label={round === 0 ? '开场' : `第 ${round} 轮`}>
+          <section key={round} className="discussion-round" aria-label={round === 0 ? '开场' : `第 ${shown} 轮`}>
+            {moved && (
+              <div className="discussion-topic" data-moved="">
+                <span className="discussion-post-kind">新议题</span>
+                <ChatMarkdown text={moved.text} />
+              </div>
+            )}
             {round > 0 && (
               <div className="discussion-system">
-                第 {round} 轮{what && ` · ${what}`}
+                第 {shown} 轮{what && ` · ${what}`}
                 {openings.length > 1 && (
                   <button type="button" className="link-button" aria-pressed={sideBySide} onClick={() => setPreference('discussionSideBySide', !sideBySide)}>
                     {sideBySide ? '按顺序看' : '并排对比'}
@@ -202,13 +223,13 @@ function Rounds({ discussion, posts }: { discussion: Discussion; posts: readonly
             )}
             {openings.length > 0 && (
               <div className="discussion-openings" data-side-by-side={(sideBySide && openings.length > 1) || undefined}>
-                {openings.map((post) => <Post key={post.id} post={post} discussion={discussion} />)}
+                {openings.map((post) => <Post key={post.id} post={post} discussion={discussion} topic={topic} />)}
               </div>
             )}
             {rest.map((post) => (
               <Fragment key={post.id}>
                 {post.kind === 'summary' && <p className="discussion-system">讨论结束 · {chair ? `${chair.name} 总结` : '总结'}</p>}
-                <Post post={post} discussion={discussion} />
+                <Post post={post} discussion={discussion} topic={topic} />
               </Fragment>
             ))}
           </section>
@@ -227,8 +248,11 @@ export function DiscussionView({ id }: { id: string }) {
   const [renaming, setRenaming] = useState(false)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
+  // The next send moves the group on to a new topic rather than adding to this one.
+  const [asTopic, setAsTopic] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
-  const mentionMenu = useDiscussionMentionMenu({ text, setText, members: discussion?.members ?? [], input })
+  const mentionMenu = useDiscussionMentionMenu({ text, setText, members: asTopic ? [] : discussion?.members ?? [], input })
+  const topicsSupported = useDiscussionTopicsSupported()
   const membersEditable = useDiscussionMembersSupported()
   // A group begun without projects has none to change.
   const projectsEditable = useDiscussionProjectsSupported() && (discussion?.projectPaths.length ?? 0) > 0
@@ -244,9 +268,10 @@ export function DiscussionView({ id }: { id: string }) {
   }, [posts])
 
   if (!discussion) return null
-  const mentions = mentionedMembers(text, discussion.members)
+  const mentions = asTopic ? [] : mentionedMembers(text, discussion.members)
   const busyNamed = discussion.members.filter((member) => mentions.includes(member.id) && member.status !== 'idle')
-  const canSend = !busy && text.trim() !== '' && busyNamed.length === 0
+  const topicBlocked = checkNewDiscussionTopic(discussion) !== null
+  const canSend = !busy && text.trim() !== '' && busyNamed.length === 0 && !(asTopic && topicBlocked)
   const chairId = discussion.chairId
 
   const act = async (action: DiscussionAction) => {
@@ -257,10 +282,11 @@ export function DiscussionView({ id }: { id: string }) {
   const send = async () => {
     if (!canSend) return
     setBusy(true)
-    const sent = await postToDiscussion(id, text.trim(), mentions)
+    const sent = asTopic ? await newDiscussionTopic(id, text.trim()) : await postToDiscussion(id, text.trim(), mentions)
     setBusy(false)
     if (sent) {
       setText('')
+      setAsTopic(false)
       pinned.current = true
     }
   }
@@ -291,6 +317,9 @@ export function DiscussionView({ id }: { id: string }) {
               {label}
             </button>
           ))}
+          <button type="button" className="button discussion-action" data-tooltip="另开一个群聊，沿用这些成员、项目和设置，不带之前的讨论" onClick={() => openDiscussionDraft(discussion)}>
+            同成员新群聊
+          </button>
           <span className="toolbar-separator" aria-hidden="true" />
           <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => selectDiscussion(null)}><CloseIcon /></button>
         </div>
@@ -346,7 +375,9 @@ export function DiscussionView({ id }: { id: string }) {
                 rows={2}
                 value={text}
                 aria-label="发言"
-                placeholder={discussion.state === 'done' || discussion.state === 'paused'
+                placeholder={asTopic
+                  ? `写新的议题：大家先各自独立作答，再讨论最多 ${discussion.maxRounds} 轮，最后总结；之前的讨论只作背景`
+                  : discussion.state === 'done' || discussion.state === 'paused'
                   ? '补充看法或追问，发出后大家再讨论一轮；@成员 只问它，@所有人 让大家现在都回答'
                   : '插一句话，下一轮大家都会看到；@成员 只问它，@所有人 让大家现在都回答'}
                 {...mentionMenu.inputProps}
@@ -362,6 +393,32 @@ export function DiscussionView({ id }: { id: string }) {
                 }}
               />
               <div className="chat-options">
+                {topicsSupported && (
+                  <div className="segmented discussion-send-mode" role="radiogroup" aria-label="发出的消息">
+                    {SEND_MODES.map(({ topic, label, hint }) => {
+                      const blocked = topic && topicBlocked && !asTopic
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          role="radio"
+                          aria-checked={asTopic === topic}
+                          aria-disabled={blocked || undefined}
+                          disabled={busy}
+                          data-tooltip={blocked ? '成员还在发言；先暂停或等讨论结束，再换议题' : hint}
+                          onClick={() => {
+                            if (blocked) return
+                            setAsTopic(topic)
+                            input.current?.focus()
+                          }}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+                {asTopic && topicBlocked && <span className="chat-options-note muted">成员还在发言，先暂停或等讨论结束</span>}
                 {busyNamed.length > 0 && <span className="chat-options-note muted">{busyNamed.map((member) => member.name).join('、')} 还在发言，等它说完再问</span>}
                 <span className="chat-dock-spacer" />
                 <button type="button" className="chat-input-button" aria-label="发送（Enter）" data-tooltip="发送（Enter）" data-tooltip-side="top-end" disabled={!canSend} onClick={() => void send()}>

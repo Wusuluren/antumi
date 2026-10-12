@@ -5,7 +5,9 @@ import {
   checkAddDiscussionMember,
   checkDiscussionAction,
   checkEditDiscussionProjects,
+  checkNewDiscussionTopic,
   checkRemoveDiscussionMember,
+  currentTopic,
   Discussion,
   DiscussionCreate,
   DiscussionMemberFields,
@@ -19,7 +21,7 @@ import {
   type DiscussionPostKind
 } from '@kando/protocol'
 import type { ConversationService } from './conversation-service'
-import { holdsPosition, openingPrompt, replyPrompt, roundPrompt, summaryPrompt } from './discussion-prompt'
+import { holdsPosition, openingPrompt, replyPrompt, roundPrompt, summaryPrompt, topicPrompt } from './discussion-prompt'
 import { Rejection } from './rejection'
 
 const REF_PREFIX = 'discussion:'
@@ -27,14 +29,19 @@ const TURN_PREFIX = `turn:${REF_PREFIX}`
 const PLAN_DENIAL = '这是只读讨论，不执行计划。请不要提交计划，直接把你的看法作为文字回答写出来。'
 
 const DISCUSSION_SELECT = `SELECT id, title, topic, project_paths AS projectPaths, chair_id AS chairId, max_rounds AS maxRounds,
-  anonymous, state, step, round, last_round AS lastRound, pinned_at AS pinnedAt, created_at AS createdAt, updated_at AS updatedAt
+  anonymous, state, step, round, last_round AS lastRound, topic_start AS topicStart, pinned_at AS pinnedAt, created_at AS createdAt, updated_at AS updatedAt
   FROM discussions`
 const MEMBER_SELECT = `SELECT id, discussion_id AS discussionId, conversation_id AS conversationId, agent, model, effort, name, role,
   position, removed_at AS removedAt FROM discussion_members`
 const POST_SELECT = `SELECT id, discussion_id AS discussionId, sequence, round, member_id AS memberId, kind, text, mentions,
-  delivered, state, error, created_at AS createdAt, updated_at AS updatedAt FROM discussion_posts`
+  topic, delivered, state, error, created_at AS createdAt, updated_at AS updatedAt FROM discussion_posts`
 
 type StoredPost = DiscussionPost & { delivered: string[] }
+
+// What a group chat is called until the user names it: its topic's first line.
+function titleOf(topic: string): string {
+  return [...(topic.split(/\r?\n/).find((line) => line.trim()) ?? '群聊').trim()].slice(0, 40).join('')
+}
 
 export type DiscussionEvents = {
   changed: (discussion: Discussion) => void
@@ -106,7 +113,7 @@ export class DiscussionService {
     }
     const id = randomUUID()
     const at = this.now()
-    const title = parsed.title || [...(parsed.topic.split(/\r?\n/).find((line) => line.trim()) ?? '群聊').trim()].slice(0, 40).join('')
+    const title = parsed.title || titleOf(parsed.topic)
     const members = parsed.members.map((member) => ({ ...member, id: randomUUID(), conversationId: randomUUID() }))
     const chairId = members[parsed.chair]!.id
     this.db.prepare(`INSERT INTO discussions (id, title, topic, project_paths, chair_id, max_rounds, anonymous, state, step, round, last_round, pinned_at, created_at, updated_at)
@@ -153,6 +160,26 @@ export class DiscussionService {
         this.write(id, { state: 'running', last_round: discussion.round + 1 })
         await this.dispatchRound(id, discussion.round + 1)
       }
+      this.announce(id)
+      return this.postOf(id, said.id)
+    })
+  }
+
+  // The user moves the group on, once nothing is out: every member answers the new topic alone, with
+  // what came before as background, then it goes round to the summary as the first did. A title that
+  // only named the old topic follows it.
+  async newTopic(id: string, text: string): Promise<DiscussionPost> {
+    return this.serially(id, async () => {
+      const discussion = this.get(id)
+      if (checkNewDiscussionTopic(discussion)) throw new Rejection('discussion-busy', 'the turns out now go first')
+      const named = discussion.title === titleOf(currentTopic(discussion, this.storedPosts(id)))
+      const said = this.insertPost(id, { round: discussion.round + 1, memberId: null, kind: 'user', text, mentions: [], state: 'done', topic: true })
+      this.announcePosts(id, [said])
+      this.write(id, {
+        state: 'running', topic_start: discussion.round, last_round: discussion.round + discussion.maxRounds,
+        ...(named ? { title: titleOf(text) } : {})
+      })
+      await this.dispatchRound(id, discussion.round + 1)
       this.announce(id)
       return this.postOf(id, said.id)
     })
@@ -389,7 +416,7 @@ export class DiscussionService {
       this.write(id, { state: 'paused' })
       return
     }
-    const settled = discussion.round >= 2 && done.length === discussion.members.length && done.every((post) => holdsPosition(post.text))
+    const settled = discussion.round >= discussion.topicStart + 2 && done.length === discussion.members.length && done.every((post) => holdsPosition(post.text))
     if (discussion.round >= discussion.lastRound || settled) await this.dispatchSummary(id)
     else await this.dispatchRound(id, discussion.round + 1)
   }
@@ -397,16 +424,21 @@ export class DiscussionService {
   private async dispatchRound(id: string, round: number): Promise<void> {
     this.write(id, { step: 'round', round })
     const discussion = this.get(id)
+    const posts = this.storedPosts(id)
+    const opening = round === discussion.topicStart + 1
+    const moved = discussion.topicStart > 0 ? posts.findLast((post) => post.topic) : undefined
+    const topic = currentTopic(discussion, posts)
     await Promise.all(discussion.members.map((member) => {
       // A member whose every answer failed may never have had the opening: it is given it again.
-      const introduced = this.storedPosts(id).some((post) => post.memberId === member.id && post.state === 'done')
-      const kind = round === 1 ? 'opening' : 'rebuttal'
-      return this.ask(discussion, member, kind, round, (unseen) => {
+      const introduced = posts.some((post) => post.memberId === member.id && post.state === 'done')
+      return this.ask(discussion, member, opening ? 'opening' : 'rebuttal', round, (unseen) => {
+        const others = unseen.filter((post) => post.id !== moved?.id)
         if (!introduced) {
-          const opening = openingPrompt(discussion, member, unseen.filter((post) => post.memberId === null))
-          return round === 1 ? opening : `${opening}\n\n${roundPrompt(discussion, round, unseen.filter((post) => post.memberId !== null))}`
+          const said = others.filter((post) => post.memberId !== null)
+          const intro = openingPrompt(discussion, member, topic, others.filter((post) => post.memberId === null), opening ? said : [])
+          return opening ? intro : `${intro}\n\n${roundPrompt(discussion, round, said)}`
         }
-        return roundPrompt(discussion, round, unseen)
+        return opening && moved ? topicPrompt(discussion, moved.text, others) : roundPrompt(discussion, round, unseen)
       })
     }))
   }
@@ -419,11 +451,11 @@ export class DiscussionService {
   }
 
   // Sends a member what it has not seen, as the prompt makes of it, under a pending post's name.
-  // In round 1 it is shown only what the user said: the others' first answers are its to not see.
+  // Answering a topic alone it is shown only what came before it: the others' first answers are its to not see.
   private async ask(discussion: Discussion, member: DiscussionMember, kind: DiscussionPostKind, round: number, prompt: (unseen: DiscussionPost[]) => string): Promise<void> {
     const unseen = this.storedPosts(discussion.id).filter((post) =>
       post.state === 'done' && post.memberId !== member.id && post.kind !== 'notice' && !post.delivered.includes(member.id)
-      && (kind !== 'opening' || post.memberId === null))
+      && (kind !== 'opening' || post.memberId === null || post.round <= discussion.topicStart))
     const text = prompt(unseen.map(({ delivered: _delivered, ...post }) => post))
     const post = this.insertPost(discussion.id, { round, memberId: member.id, kind, text: '', mentions: [], state: 'pending' })
     const deliver = this.db.prepare('UPDATE discussion_posts SET delivered = ? WHERE id = ?')
@@ -468,13 +500,13 @@ export class DiscussionService {
     this.announcePosts(id, [this.insertPost(id, { round, memberId: null, kind: 'notice', text, mentions: [], state: 'done' })])
   }
 
-  private insertPost(id: string, post: Pick<DiscussionPost, 'round' | 'memberId' | 'kind' | 'text' | 'mentions' | 'state'>): DiscussionPost {
+  private insertPost(id: string, post: Pick<DiscussionPost, 'round' | 'memberId' | 'kind' | 'text' | 'mentions' | 'state'> & { topic?: boolean }): DiscussionPost {
     const postId = randomUUID()
     const at = this.now()
     const row = this.db.prepare('SELECT COALESCE(MAX(sequence), 0) + 1 AS next FROM discussion_posts WHERE discussion_id = ?').get(id)
-    this.db.prepare(`INSERT INTO discussion_posts (id, discussion_id, sequence, round, member_id, kind, text, mentions, delivered, state, error, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, NULL, ?, ?)`)
-      .run(postId, id, Number(row?.next ?? 1), post.round, post.memberId, post.kind, post.text, JSON.stringify(post.mentions), post.state, at, at)
+    this.db.prepare(`INSERT INTO discussion_posts (id, discussion_id, sequence, round, member_id, kind, text, mentions, topic, delivered, state, error, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, NULL, ?, ?)`)
+      .run(postId, id, Number(row?.next ?? 1), post.round, post.memberId, post.kind, post.text, JSON.stringify(post.mentions), Number(post.topic ?? false), post.state, at, at)
     this.write(id, {})
     return this.postOf(id, postId)
   }
@@ -496,7 +528,7 @@ export class DiscussionService {
   }
 
   private parsePost(row: Record<string, unknown>): StoredPost {
-    const post = DiscussionPost.parse({ ...row, mentions: JSON.parse(String(row.mentions)) })
+    const post = DiscussionPost.parse({ ...row, mentions: JSON.parse(String(row.mentions)), topic: Boolean(row.topic) })
     return { ...post, delivered: JSON.parse(String(row.delivered)) }
   }
 

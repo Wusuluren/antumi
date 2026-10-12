@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { DEFAULT_DISCUSSION_ROUNDS, MAX_DISCUSSION_MEMBERS, MAX_DISCUSSION_ROUNDS, MIN_DISCUSSION_MEMBERS, type AgentKind } from '@kando/protocol'
+import { DEFAULT_DISCUSSION_ROUNDS, MAX_DISCUSSION_MEMBERS, MAX_DISCUSSION_ROUNDS, MIN_DISCUSSION_MEMBERS, type AgentKind, type Discussion } from '@kando/protocol'
 import { resolveModel, useAgentCatalog } from '../agent-models'
 import { closeDiscussionDraft, selectDiscussion } from '../core-store'
 import { createDiscussion, defaultMemberName, loadDiscussionPosts } from '../discussions'
@@ -87,12 +87,18 @@ function MemberRow({ member, index, agents, chair, busy, removable, onChange, on
   )
 }
 
-// A new group chat: a topic, the projects its members may read, and who discusses it.
-export function DiscussionDraft() {
+// A new group chat: a topic, the projects its members may read, and who discusses it. One begun from
+// another group starts with its members, projects and options, for a topic of its own.
+export function DiscussionDraft({ from }: { from: Discussion | null }) {
   const installed = useInstalledAgents()
   const [topic, setTopic] = useState('')
-  const [projectPaths, setProjectPaths] = useState<string[]>([])
+  const [projectPaths, setProjectPaths] = useState<string[]>(() => from?.projectPaths ?? [])
   const [members, setMembers] = useState<Draft[]>(() => {
+    if (from) {
+      return from.members.map((member) => ({
+        key: crypto.randomUUID(), agent: member.agent, model: member.model ?? undefined, effort: member.effort ?? undefined, name: member.name, role: member.role
+      }))
+    }
     const first = installed[0] ?? 'claude'
     const second = installed[1] ?? first
     return [
@@ -100,9 +106,9 @@ export function DiscussionDraft() {
       { key: crypto.randomUUID(), agent: second, name: null, role: '' }
     ]
   })
-  const [chair, setChair] = useState(0)
-  const [rounds, setRounds] = useState(DEFAULT_DISCUSSION_ROUNDS)
-  const [anonymous, setAnonymous] = useState(false)
+  const [chair, setChair] = useState(() => Math.max(0, from?.members.findIndex((member) => member.id === from.chairId) ?? 0))
+  const [rounds, setRounds] = useState(from?.maxRounds ?? DEFAULT_DISCUSSION_ROUNDS)
+  const [anonymous, setAnonymous] = useState(from?.anonymous ?? false)
   const [busy, setBusy] = useState(false)
   // Names in use more than once would make @ ambiguous.
   const names = members.map((member) => (member.name ?? defaultMemberName(member.agent, member.model ?? null)).trim())
@@ -148,6 +154,7 @@ export function DiscussionDraft() {
         </div>
       </header>
       <div className="discussion-draft">
+        {from && <p className="discussion-draft-from">沿用群聊「{from.title}」的成员、项目和设置，各成员从头开始，不带之前的讨论。</p>}
         <p className="muted">
           几个 Agent 先各自独立作答，再一轮轮看彼此的观点、反驳或修正，最后由主持人总结共识和分歧。讨论只读：成员可以读所选项目的代码来佐证，但不会改动文件。
         </p>

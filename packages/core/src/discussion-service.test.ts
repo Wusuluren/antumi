@@ -187,6 +187,30 @@ describe('DiscussionService', () => {
     expect(prompts(discussion, 'Ann')[2]).toContain('用户说：\nConsider memory use too.')
   })
 
+  it('moves on to a new topic once nothing is out, answered alone with the old as background, and renames a group named after the old', async () => {
+    const discussion = await discussions.create(fields())
+    await expect(discussions.newTopic(discussion.id, 'Which queue?')).rejects.toMatchObject({ reason: 'discussion-busy' })
+    await until(() => state(discussion.id) === 'done')
+    const said = await discussions.newTopic(discussion.id, 'Which queue?\nKafka or SQS.')
+    expect(said).toMatchObject({ kind: 'user', topic: true, round: 3 })
+    await until(() => state(discussion.id) === 'done' && discussions.posts(discussion.id).at(-1)?.round === 4)
+    expect(kinds(discussions.posts(discussion.id)).slice(-8)).toEqual([
+      '3:user:done', '3:opening:done', '3:opening:done', '3:opening:done', '4:rebuttal:done', '4:rebuttal:done', '4:rebuttal:done', '4:summary:done'
+    ])
+    expect(discussions.get(discussion.id)).toMatchObject({ topicStart: 2, lastRound: 4, title: 'Which queue?' })
+    const opening = prompts(discussion, 'Ann')[2]!
+    expect(opening).toContain('## 新议题')
+    expect(opening).toContain('Kafka or SQS.')
+    expect(opening).toContain('speaker="Cid" round="2"')
+    expect(opening).not.toContain('round="3"')
+    expect(prompts(discussion, 'Cid').at(-1)).toContain('只总结新议题')
+
+    await discussions.rename(discussion.id, 'Infra')
+    await discussions.newTopic(discussion.id, 'Which database?')
+    await until(() => state(discussion.id) === 'done' && discussions.posts(discussion.id).at(-1)?.round === 6)
+    expect(discussions.get(discussion.id).title).toBe('Infra')
+  })
+
   it('pauses after the round out, resumes into the next, and concludes on request', async () => {
     const discussion = await discussions.create(fields({ maxRounds: 3 }))
     await discussions.control(discussion.id, 'pause')

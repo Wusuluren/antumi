@@ -151,6 +151,7 @@ const REASON_TEXT: Record<string, string> = {
   'discussion-not-paused': '群聊还在进行，先暂停或等它结束',
   'discussion-summing-up': '主持人正在写总结',
   'discussion-done': '群聊已经总结过了',
+  'discussion-busy': '成员还在发言，先暂停或等讨论结束，再换议题',
   'no-reply': 'Agent 没有给出文字回答',
   'fork-turn-running': '这一轮还没结束，等它结束再 fork',
   'chat-item-not-found': '找不到这条消息',

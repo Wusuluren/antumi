@@ -4,7 +4,7 @@ import { discussionProgress, EVERYONE, mentionChoices, mentionedMembers, mention
 
 const post = (sequence: number, patch: Partial<DiscussionPost> = {}): DiscussionPost => ({
   id: `00000000-0000-4000-8000-${String(sequence).padStart(12, '0')}`, discussionId: '00000000-0000-4000-8000-000000000100',
-  sequence, round: 1, memberId: null, kind: 'user', text: `p${sequence}`, mentions: [], state: 'done', error: null, createdAt: 0, updatedAt: sequence,
+  sequence, round: 1, memberId: null, kind: 'user', text: `p${sequence}`, mentions: [], topic: false, state: 'done', error: null, createdAt: 0, updatedAt: sequence,
   ...patch
 })
 
@@ -44,9 +44,11 @@ describe('group chat helpers', () => {
   })
 
   it('says where the discussion stands', () => {
-    expect(discussionProgress({ state: 'running', step: 'round', round: 2, lastRound: 3 })).toBe('第 2 / 3 轮')
-    expect(discussionProgress({ state: 'pausing', step: 'round', round: 1, lastRound: 3 })).toBe('第 1 / 3 轮 · 本轮结束后暂停')
-    expect(discussionProgress({ state: 'running', step: 'summary', round: 2, lastRound: 2 })).toBe('总结')
-    expect(discussionProgress({ state: 'done', step: 'summary', round: 2, lastRound: 2 })).toBe('已总结')
+    expect(discussionProgress({ state: 'running', step: 'round', round: 2, lastRound: 3, topicStart: 0 })).toBe('第 2 / 3 轮')
+    expect(discussionProgress({ state: 'pausing', step: 'round', round: 1, lastRound: 3, topicStart: 0 })).toBe('第 1 / 3 轮 · 本轮结束后暂停')
+    expect(discussionProgress({ state: 'running', step: 'summary', round: 2, lastRound: 2, topicStart: 0 })).toBe('总结')
+    // A new topic's rounds count from where it began.
+    expect(discussionProgress({ state: 'running', step: 'round', round: 4, lastRound: 5, topicStart: 2 })).toBe('第 2 / 3 轮')
+    expect(discussionProgress({ state: 'done', step: 'summary', round: 2, lastRound: 2, topicStart: 0 })).toBe('已总结')
   })
 })

@@ -69,6 +69,9 @@ export const Discussion = z.object({
   // The round last sent out, 0 before the first; lastRound is the one the summary follows.
   round: z.number().int().nonnegative(),
   lastRound: z.number().int().nonnegative(),
+  // The round before the one the topic now discussed opened: the user may move the group on to a new
+  // one, whose rounds count from here. Older cores leave it out.
+  topicStart: z.number().int().nonnegative().default(0),
   pinnedAt: z.number().nullable(),
   createdAt: z.number(),
   updatedAt: z.number()
@@ -91,6 +94,8 @@ export const DiscussionPost = z.object({
   text: z.string(),
   // The members a user's post names, who alone answer it.
   mentions: z.array(z.string().uuid()),
+  // A user's post that moves the group on to a new topic, discussed from its own first round.
+  topic: z.boolean().default(false),
   // A member's post is pending while its turn runs, failed when the turn did not complete.
   state: z.enum(['pending', 'done', 'failed']).catch('done'),
   error: z.string().nullable(),
@@ -150,6 +155,17 @@ export function checkRemoveDiscussionMember(discussion: Pick<Discussion, 'member
   if (discussion.members.length <= MIN_DISCUSSION_MEMBERS) return 'too-few'
   if (memberId === discussion.chairId) return 'chair'
   return discussion.members.find((member) => member.id === memberId)?.status === 'idle' ? null : 'busy'
+}
+
+// A new topic waits for the turns out now: the user pauses first, or lets the summary come.
+export function checkNewDiscussionTopic(discussion: Pick<Discussion, 'state' | 'members'>): 'busy' | null {
+  if (discussion.state === 'running' || discussion.state === 'pausing') return 'busy'
+  return discussion.members.every((member) => member.status === 'idle') ? null : 'busy'
+}
+
+// The topic now discussed: the last the user moved the group on to, else the one it began with.
+export function currentTopic(discussion: Pick<Discussion, 'topic'>, posts: readonly Pick<DiscussionPost, 'topic' | 'text'>[]): string {
+  return posts.findLast((post) => post.topic)?.text ?? discussion.topic
 }
 
 export type DiscussionProjectsBlocker = 'no-projects' | 'busy'

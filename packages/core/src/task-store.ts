@@ -277,7 +277,10 @@ export const MIGRATIONS = [
    );
    ALTER TABLE conversations ADD COLUMN discussion_id TEXT;`,
   // A member taken out of a group chat stays, for the name on what it said.
-  `ALTER TABLE discussion_members ADD COLUMN removed_at INTEGER;`
+  `ALTER TABLE discussion_members ADD COLUMN removed_at INTEGER;`,
+  // The user moves a group chat on to a new topic: the post that does, and the round before it opened.
+  `ALTER TABLE discussions ADD COLUMN topic_start INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE discussion_posts ADD COLUMN topic INTEGER NOT NULL DEFAULT 0;`
 ]
 
 

@@ -6,7 +6,7 @@ const ID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')
 
 const discussion = (anonymous: boolean): Discussion => ({
   id: ID(1), title: 't', topic: 'Pick a cache', projectPaths: ['/repo'], chairId: ID(3), maxRounds: 3, anonymous,
-  state: 'running', step: 'round', round: 1, lastRound: 3, pinnedAt: null, formerMembers: [], createdAt: 0, updatedAt: 0,
+  state: 'running', step: 'round', round: 1, lastRound: 3, topicStart: 0, pinnedAt: null, formerMembers: [], createdAt: 0, updatedAt: 0,
   members: [
     { id: ID(2), conversationId: ID(12), agent: 'claude', model: 'opus', effort: null, name: 'Ann', role: 'skeptic', status: 'idle' },
     { id: ID(3), conversationId: ID(13), agent: 'codex', model: null, effort: null, name: 'Bob', role: '', status: 'idle' }
@@ -15,16 +15,16 @@ const discussion = (anonymous: boolean): Discussion => ({
 
 const post = (memberId: string | null, text: string): DiscussionPost => ({
   id: ID(20), discussionId: ID(1), sequence: 1, round: 1, memberId, kind: memberId ? 'opening' : 'user', text, mentions: [],
-  state: 'done', error: null, createdAt: 0, updatedAt: 0
+  topic: false, state: 'done', error: null, createdAt: 0, updatedAt: 0
 })
 
 describe('discussion prompts', () => {
   it('introduces the others by name, agent and model, or by code when anonymous', () => {
-    const named = openingPrompt(discussion(false), discussion(false).members[0]!, [])
+    const named = openingPrompt(discussion(false), discussion(false).members[0]!, 'Pick a cache', [])
     expect(named).toContain('- Bob（Codex），主持人')
     expect(named).toContain('你的立场或角度：skeptic')
     expect(named).toContain('1. /repo')
-    const anonymous = openingPrompt(discussion(true), discussion(true).members[0]!, [])
+    const anonymous = openingPrompt(discussion(true), discussion(true).members[0]!, 'Pick a cache', [])
     expect(anonymous).toContain('成员 A')
     expect(anonymous).toContain('- 成员 B，主持人')
     expect(anonymous).not.toContain('Bob')
