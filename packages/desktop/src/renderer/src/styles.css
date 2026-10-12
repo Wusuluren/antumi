@@ -8524,7 +8524,9 @@ body.side-panel-resizing * {
 @keyframes discussion-typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-3px); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .discussion-typing i { animation: none; } }
 /* The summary as a card, as a chat app shows a forwarded record: what it is, then what came of it. */
-.discussion-summary { width: min(560px, 100%); padding: 0; }
+/* The summary takes the column, as a member's long answer may, so their right edges line up. */
+.discussion-msg[data-kind='summary'] .discussion-msg-body { flex: 1; }
+.discussion-summary { width: 100%; padding: 0; }
 .discussion-summary::before { display: none; }
 .discussion-summary-head { padding: 8px 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
 .discussion-summary-body { padding: 8px 12px; }
