@@ -26,6 +26,7 @@ import type { ChatSettingsStore } from './chat-settings'
 import type { EnvironmentService } from './environment-check'
 import type { ScheduleService } from './schedule-service'
 import type { RoutineService } from './routine-service'
+import type { DiscussionService } from './discussion-service'
 import { AgentTerminals } from './agent-terminals'
 import { AgentCliInstaller } from './agent-cli-installation'
 import { dashboardSince, summarizeDashboard } from './dashboard-stats'
@@ -55,6 +56,7 @@ export function createRpcHandlers(
   schedules: ScheduleService,
   chatCommands: ChatCommandStore,
   routines: RoutineService,
+  discussions: DiscussionService,
   wire: WireLog,
   gitChanged: () => void = () => {}
 ): RpcHandlers {
@@ -65,7 +67,7 @@ export function createRpcHandlers(
   worktrees.setGitRemoval((dirs, run) => git.withRepositories(dirs, run))
   const files = new ConversationFiles((id) => conversations.get(id))
   const cliInstaller = new AgentCliInstaller(environment, terminals)
-  const ports = new PortService(sessions, () => ({ terminals: terminals.list(), conversations: conversations.list(true), tasks: service.list() }))
+  const ports = new PortService(sessions, () => ({ terminals: terminals.list(), conversations: conversations.listAll(), tasks: service.list() }))
   // An agent's own terminals: run in the conversation's folder unless it names another, and
   // asked about in the chat where the agent asks nothing for MCP tools.
   const agentTerminals = new AgentTerminals(
@@ -353,6 +355,15 @@ export function createRpcHandlers(
     'routines.runs': ({ routineId, before, limit }) => routines.runs(routineId, before ?? null, limit),
     'routines.markSeen': ({ runId }) => { routines.markSeen(runId); return OK },
     'routines.markAllSeen': ({ routineId }) => { routines.markAllSeen(routineId); return OK },
+    'discussions.list': () => discussions.list(),
+    'discussions.get': ({ id }) => discussions.get(id),
+    'discussions.create': (fields) => discussions.create(fields),
+    'discussions.posts': ({ id }) => discussions.posts(id),
+    'discussions.post': ({ id, text, mentions }) => discussions.post(id, text, mentions),
+    'discussions.control': ({ id, action }) => discussions.control(id, action),
+    'discussions.rename': ({ id, title }) => discussions.rename(id, title),
+    'discussions.setPinned': ({ id, pinned }) => discussions.setPinned(id, pinned),
+    'discussions.delete': async ({ id }) => { await discussions.delete(id); return OK },
     'sources.list': () => sources.list(),
     'sources.saveSettings': (params) => sources.saveSettings(params),
     'sources.login': ({ provider, instance, flowId }, connection) => ({

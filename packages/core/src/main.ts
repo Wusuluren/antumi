@@ -17,6 +17,7 @@ import { DaemonClient } from './daemon-client'
 import { githubProvider } from './github-provider'
 import { jiraProvider } from './jira-provider'
 import { createRpcHandlers } from './rpc-handlers'
+import { DiscussionService } from './discussion-service'
 import { startRpcServer, type RpcServer } from './rpc-server'
 import { TaskService } from './task-service'
 import { ProjectRegistry } from './project-registry'
@@ -86,6 +87,7 @@ const conversations = new ConversationService(
       service.chatChanged(event.conversation)
       schedules.conversationChanged(event.conversation)
       routines.conversationChanged(event.conversation)
+      discussions.conversationChanged(event.conversation)
       refreshAwake()
     } else if (event.type === 'deleted') {
       server?.broadcast('conversations.deleted', { id: event.id })
@@ -96,6 +98,7 @@ const conversations = new ConversationService(
       limits.observe(event.conversationId, event.items)
       turns.observe(event.conversationId, event.items)
       routines.observe(event.conversationId, event.items)
+      discussions.observe(event.conversationId, event.items)
       notifyChatItems(event.conversationId, limits.decorate(event.items))
     } else if (event.type === 'planApproved') {
       service.recordPlan(event.taskId, event.plan)
@@ -214,6 +217,16 @@ const routines = new RoutineService(paths.database, {
   emit: (list) => server?.broadcast('routines.changed', { routines: list })
 })
 
+// Group chats run their members as conversations; built after them, called only once one changes.
+const discussions = new DiscussionService(paths.database, {
+  conversations,
+  events: {
+    changed: (discussion) => server?.broadcast('discussions.changed', { discussion }),
+    deleted: (id) => server?.broadcast('discussions.deleted', { id }),
+    posts: (discussionId, posts) => server?.broadcast('discussions.posts', { discussionId, posts })
+  }
+})
+
 const terminals = new TerminalService(paths.database, daemon, (list) => server?.broadcast('terminals.changed', { terminals: list }))
 const terminalCommands = new TerminalCommandStore(paths.database, (commands) => server?.broadcast('terminalCommands.changed', { commands }))
 const chatCommands = new ChatCommandStore(paths.database, (commands) => server?.broadcast('chatCommands.changed', { commands }))
@@ -262,6 +275,7 @@ daemon.onConnect(() => {
     .then(async ({ sessions }) => {
       await conversations.reconcile(sessions)
       terminals.reconcile(sessions)
+      await discussions.reconcile()
       void environment.check(true).catch((error: unknown) => console.error('[kando-core] agent discovery failed', error))
       // What came due while core or the daemon was away goes now, not at the next tick.
       await schedules.tick()
@@ -284,7 +298,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, wire, () => server?.broadcast('git.changed', {}))
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}))
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()
@@ -314,6 +328,7 @@ async function shutdown(): Promise<void> {
   usage.stop()
   schedules.stop()
   routines.stop()
+  discussions.close()
   sources.stop()
   awake?.stop()
   daemon.stop()

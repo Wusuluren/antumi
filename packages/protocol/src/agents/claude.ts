@@ -12,6 +12,7 @@ export const claude: AgentDescriptor = {
   },
   startModes: ['ask', 'acceptEdits', 'plan'],
   defaultStartMode: 'auto',
+  discussionMode: 'plan',
   capabilities: { unattended: true, bypass: true, autoMode: true, pathMentions: true, optionsWhileBusy: true },
   environment: {
     role: '聊天界面以 `claude -p` 运行它；没装也可以只用 Codex。',

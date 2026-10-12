@@ -11,7 +11,7 @@ import { commitRef, committedDiff, conflictFiles, filesBetween, gitOperation, lo
 
 export class GitService {
   private readonly locked = new Set<string>()
-  constructor(private readonly tasks: Pick<TaskService, 'get' | 'list' | 'isLaunching'>, private readonly conversations: Pick<ConversationService, 'get' | 'list' | 'recordGitChange' | 'isGitPending'>, private readonly changed: () => void = () => {}) {}
+  constructor(private readonly tasks: Pick<TaskService, 'get' | 'list' | 'isLaunching'>, private readonly conversations: Pick<ConversationService, 'get' | 'listAll' | 'recordGitChange' | 'isGitPending'>, private readonly changed: () => void = () => {}) {}
 
   private directory(target: GitTarget): string {
     if (target.kind === 'conversation') {
@@ -48,7 +48,7 @@ export class GitService {
     for (const task of this.tasks.list()) {
       if (this.tasks.isLaunching(task.id)) for (const repo of task.repos) if ((await repositoryKey(repo.worktreePath ?? repo.path) ?? await repositoryKey(repo.path)) === key) return true
     }
-    for (const conversation of this.conversations.list(true)) {
+    for (const conversation of this.conversations.listAll()) {
       if (!conversation.starting && !this.conversations.isGitPending(conversation.id) && (!conversation.sessionId || conversation.chat?.turn === 'idle')) continue
       for (const dir of conversation.projectPaths) if (await repositoryKey(dir) === key) return true
     }
@@ -173,7 +173,7 @@ export class GitService {
       const after = await projectHead(dir)
       const moved = ['switch', 'merge', 'pull', 'continue', 'abort', 'resolve'].includes(action.kind) || (action.kind === 'create' && action.checkout) || (action.kind === 'rename' && action.ref === `refs/heads/${status.branch}`)
       if (moved) {
-        for (const conversation of this.conversations.list(true)) {
+        for (const conversation of this.conversations.listAll()) {
           for (const project of conversation.projectPaths) {
             const root = await gitOrNull(project, ['rev-parse', '--show-toplevel'])
             if (root === await gitOrNull(dir, ['rev-parse', '--show-toplevel'])) {

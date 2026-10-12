@@ -224,9 +224,14 @@ export class ConversationService {
       [...active.values()].filter((kind) => kind === agent).length < (this.agentConcurrency[agent] ?? DEFAULT_AGENT_CONCURRENCY)
   }
 
-  // Task summaries are opt-in; older clients expect only free conversations.
+  // Task summaries are opt-in; older clients expect only free conversations. A group chat's members
+  // are never listed: a client that does not know group chats would show them as its own.
   list(includeTasks = false): Conversation[] {
-    return this.store.list().filter((conversation) => includeTasks || !conversation.taskId).map((conversation) => this.withChat(conversation))
+    return this.store.list().filter((conversation) => (includeTasks || !conversation.taskId) && !conversation.discussionId).map((conversation) => this.withChat(conversation))
+  }
+  // Every conversation, a group chat's members too: who else works in a folder.
+  listAll(): Conversation[] {
+    return this.store.list().map((conversation) => this.withChat(conversation))
   }
   get(id: string): Conversation {
     const found = this.store.get(id)
@@ -363,7 +368,8 @@ export class ConversationService {
     allowBypass?: boolean,
     start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string; deferStart?: boolean } = {},
     routine: { id: string; title: string } | null = null,
-    id: string = randomUUID()
+    id: string = randomUUID(),
+    discussion: { id: string; title: string } | null = null
   ): Promise<Conversation> {
     if (projectPaths.length > MAX_TASK_REPOS) throw new Rejection('too-many-projects')
     const { permissionMode, model, effort, worktree = false, branch } = start
@@ -398,7 +404,7 @@ export class ConversationService {
       const head = await folderHead(project)
       if (head) starts[project] = head
     }
-    const created = this.store.create(agent, workspace, projects, id, starts, null, routine)
+    const created = this.store.create(agent, workspace, projects, id, starts, null, routine, discussion)
     if (allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass })
     if (permissionMode) this.store.setChatOptions(id, { permissionMode })
     if (model || effort) this.store.setChatOptions(id, { [agent]: { model, effort } })
@@ -532,6 +538,8 @@ export class ConversationService {
 
   async handoff(id: string, agent: AgentKind, note: string, stopRunning: boolean, allowBypass?: boolean, choice: ModelChoice = {}): Promise<Conversation> {
     const current = this.free(id)
+    // A group chat's member is the agent the group chat names; another would speak in its place.
+    if (current.discussionId) throw new Rejection('discussion-member', 'a group chat member keeps its agent')
     if (agent === current.agent) throw new Rejection('conversation-same-agent')
     await this.validateStartOptions(agent, choice)
     if (allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass })

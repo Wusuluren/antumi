@@ -21,6 +21,7 @@ import { Environment } from './environment'
 import { RequestedTarget, ScheduledRun, ScheduledRunList } from './schedule'
 import { Routine, RoutineFields, RoutineList } from './routine'
 import { WireEntry, WirePage, WireUsage } from './wire'
+import { Discussion, DiscussionAction, DiscussionCreate, DiscussionList, DiscussionPost } from './discussion'
 
 // Bump only for breaking changes; additive optional fields keep the version.
 export const PROTOCOL_VERSION = 12
@@ -43,6 +44,7 @@ const IssueRef = InstanceRef.extend({ key: z.string().trim().min(1).max(160) })
 const FlowRef = z.object({ flowId: z.string().min(1).max(64) })
 const Ok = z.object({ ok: z.literal(true) })
 const ConversationRef = z.object({ id: z.string().uuid() })
+const DiscussionRef = z.object({ id: z.string().uuid() })
 // The usage window kinds this client reads; an older client names none, and reads session and weekly.
 const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // What core can do beyond this protocol version's baseline; an older core sends none.
@@ -62,13 +64,14 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // git-commit-branches: core lists the branches holding a commit (git.containing).
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
 // handoff-model: a handoff takes the model and effort the agent starts in (conversations.handoff, tasks.handoff).
-export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch'] as const
+export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions'] as const
 // task-launch-options: tasks.start accepts the first stage's mode, model and reasoning effort.
 // task-launch: a task keeps them (Task.launch, set by tasks.update and by each start by hand).
 // deferred-conversation-start: create can return before launching; send takes a ref for safe retries.
 // routines: core runs routines, rules that open a conversation on a schedule, and keeps their runs (routines.*). A
 // client without it shows the conversations they opened among the others, since it does not read routineId.
 // conversation-fork: a free conversation can be forked at one of its messages into a new one (conversations.fork).
+// discussions: core runs group chats, agents discussing a topic in rounds (discussions.*).
 // wire-log: core can record what passes between it and chat agents (ChatSettings.wireLog) and serves it (debug.*).
 // Whether a start may offer running with nothing asked and nothing sandboxed; the conversation
 // keeps what its latest start said.
@@ -461,6 +464,26 @@ export const rpcMethods = {
   // The user looked at a run's result (its conversation), or at all of a routine's.
   'routines.markSeen': { params: z.object({ runId: z.string().uuid() }), result: Ok },
   'routines.markAllSeen': { params: z.object({ routineId: z.string().uuid() }), result: Ok },
+  // Group chats, newest activity first. A member's conversation is a conversation of its own, with
+  // the group chat's id on it; the chat behind each member's posts is read there.
+  'discussions.list': { params: z.object({}), result: DiscussionList },
+  'discussions.get': { params: DiscussionRef, result: Discussion },
+  // Opens a conversation for each member and starts the first round at once.
+  'discussions.create': { params: DiscussionCreate, result: Discussion },
+  // Every post, oldest first.
+  'discussions.posts': { params: DiscussionRef, result: z.array(DiscussionPost) },
+  // The user's word. Naming members (mentions) asks only them, and they must be idle; otherwise it
+  // goes to every member in the next round, and starts one when the discussion is not running.
+  'discussions.post': {
+    params: DiscussionRef.extend({ text: z.string().trim().min(1).max(20000), mentions: z.array(z.string().uuid()).max(5).default([]) }),
+    result: DiscussionPost
+  },
+  // See checkDiscussionAction.
+  'discussions.control': { params: DiscussionRef.extend({ action: DiscussionAction }), result: Discussion },
+  'discussions.rename': { params: DiscussionRef.extend({ title: z.string().trim().min(1).max(200) }), result: Discussion },
+  'discussions.setPinned': { params: DiscussionRef.extend({ pinned: z.boolean() }), result: Discussion },
+  // Stops its members and deletes it with their conversations; their folders stay.
+  'discussions.delete': { params: DiscussionRef, result: Ok },
   'sources.list': { params: z.object({}), result: z.array(SourceDescriptor) },
   // Non-secret settings only; changing one marked bindsCredential signs the instance out.
   'sources.saveSettings': {
@@ -498,6 +521,11 @@ export const rpcNotifications = {
   'schedules.changed': z.object({ runs: ScheduledRunList }),
   // Every routine (routines.list) whenever one, or one of its runs, changes.
   'routines.changed': z.object({ routines: RoutineList }),
+  // A group chat changed: its state, its members' status, or a post was added or settled.
+  'discussions.changed': z.object({ discussion: Discussion }),
+  'discussions.deleted': DiscussionRef,
+  // Posts added or changed; to every connection, as there are few and they are short.
+  'discussions.posts': z.object({ discussionId: z.string(), posts: z.array(DiscussionPost) }),
   'conversations.changed': z.object({ conversation: Conversation }),
   'conversations.deleted': ConversationRef,
   // Items added or changed, newest revision each; only to connections watching the conversation.

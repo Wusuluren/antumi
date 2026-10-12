@@ -254,7 +254,28 @@ export const MIGRATIONS = [
   // The conversation a fork was made from; kept after the source is deleted, as a name only.
   `ALTER TABLE conversations ADD COLUMN forked_from_id TEXT;`,
   // The mode, model and effort a task starts in when a start names none (Task.launch, JSON).
-  `ALTER TABLE tasks ADD COLUMN launch TEXT;`
+  `ALTER TABLE tasks ADD COLUMN launch TEXT;`,
+  // Group chats (DiscussionService). Each member talks in a conversation of its own, which carries
+  // the discussion's id; a post's delivered lists the members it has been sent to.
+  `CREATE TABLE discussions (
+     id TEXT PRIMARY KEY, title TEXT NOT NULL, topic TEXT NOT NULL, project_paths TEXT NOT NULL DEFAULT '[]',
+     chair_id TEXT NOT NULL, max_rounds INTEGER NOT NULL, anonymous INTEGER NOT NULL DEFAULT 0,
+     state TEXT NOT NULL, step TEXT, round INTEGER NOT NULL DEFAULT 0, last_round INTEGER NOT NULL DEFAULT 0,
+     pinned_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+   );
+   CREATE TABLE discussion_members (
+     id TEXT PRIMARY KEY, discussion_id TEXT NOT NULL, position INTEGER NOT NULL, conversation_id TEXT NOT NULL,
+     agent TEXT NOT NULL, model TEXT, effort TEXT, name TEXT NOT NULL, role TEXT NOT NULL DEFAULT ''
+   );
+   CREATE INDEX discussion_members_discussion ON discussion_members(discussion_id, position);
+   CREATE INDEX discussion_members_conversation ON discussion_members(conversation_id);
+   CREATE TABLE discussion_posts (
+     id TEXT PRIMARY KEY, discussion_id TEXT NOT NULL, sequence INTEGER NOT NULL, round INTEGER NOT NULL,
+     member_id TEXT, kind TEXT NOT NULL, text TEXT NOT NULL DEFAULT '', mentions TEXT NOT NULL DEFAULT '[]',
+     delivered TEXT NOT NULL DEFAULT '[]', state TEXT NOT NULL, error TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+     UNIQUE (discussion_id, sequence)
+   );
+   ALTER TABLE conversations ADD COLUMN discussion_id TEXT;`
 ]
 
 

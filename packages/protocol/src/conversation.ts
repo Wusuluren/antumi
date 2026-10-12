@@ -64,7 +64,10 @@ export const Conversation = z.object({
   routineId: z.string().uuid().nullable().optional(),
   // The conversation this one was forked from, at some message of it; the source may be gone
   // since. Older cores leave it out.
-  forkedFromId: z.string().uuid().nullable().optional()
+  forkedFromId: z.string().uuid().nullable().optional(),
+  // The group chat it is a member's part of, which keeps it out of the list: it is reached from
+  // the group chat. Older cores leave it out.
+  discussionId: z.string().uuid().nullable().optional()
 })
 export type Conversation= z.infer<typeof Conversation>
 

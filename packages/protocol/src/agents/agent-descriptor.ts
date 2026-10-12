@@ -14,6 +14,9 @@ export type AgentDescriptor = {
   // The first is the fallback when defaultStartMode is unavailable.
   startModes: readonly ChatPermissionMode[]
   defaultStartMode: ChatPermissionMode
+  // What it runs in as a member of a group chat: it reads the projects and answers in words, and
+  // changes nothing.
+  discussionMode: ChatPermissionMode
   capabilities: {
     // Runs with nobody there: schedules and routines.
     unattended: boolean

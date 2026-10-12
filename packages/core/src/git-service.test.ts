@@ -32,7 +32,7 @@ describe('Git management', () => {
     conversations = [Conversation.parse({ id: randomUUID(), title: 'test', titleLocked: false, agent: 'claude', workspacePath: repo, projectPaths: [repo], managedWorkspace: false, sessionId: null, createdAt: 0, updatedAt: 0 })]
     tasks = []; launching = false; record.mockClear()
     service = new GitService({ get: (id) => { const task = tasks.find((task) => task.id === id); if (!task) throw new Error('task missing'); return task }, list: () => tasks, isLaunching: () => launching }, {
-      get: (id) => { const conversation = conversations.find((conversation) => conversation.id === id); if (!conversation) throw new Error('conversation missing'); return conversation }, list: () => conversations, recordGitChange: record, isGitPending: () => false
+      get: (id) => { const conversation = conversations.find((conversation) => conversation.id === id); if (!conversation) throw new Error('conversation missing'); return conversation }, listAll: () => conversations, recordGitChange: record, isGitPending: () => false
     })
     target = { kind: 'conversation', id: conversations[0]!.id, project: repo }
   })

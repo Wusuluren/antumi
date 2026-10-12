@@ -1,0 +1,272 @@
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { Discussion, DiscussionCreate, DiscussionPost } from '@kando/protocol'
+import { AttachmentStore } from './attachment-store'
+import { ConversationService } from './conversation-service'
+import { ConversationStore } from './conversation-store'
+import { DiscussionService } from './discussion-service'
+import { fakeChatDaemon } from './fake-chat-agent'
+import { ProjectRegistry } from './project-registry'
+import { Rejection } from './rejection'
+import { TaskStore } from './task-store'
+
+const TOPIC = 'Should the cache live in core?'
+
+describe('DiscussionService', () => {
+  let root: string
+  let tasks: TaskStore
+  let store: ConversationStore
+  let projects: ProjectRegistry
+  let daemon: ReturnType<typeof fakeChatDaemon>
+  let conversations: ConversationService
+  let discussions: DiscussionService
+  // What each member's agent says to a prompt; by default it echoes it, as the fake does.
+  let answer: (member: string, prompt: string) => string | null
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+  beforeEach(() => {
+    root = mkdtempSync(path.join(os.tmpdir(), 'kando-discussion-'))
+    const database = path.join(root, 'kando.db')
+    tasks = new TaskStore(database)
+    store = new ConversationStore(database)
+    projects = new ProjectRegistry(database)
+    daemon = fakeChatDaemon()
+    serve()
+    answer = (member, prompt) => `${member}: ${prompt.length}`
+    // A session's member is the one whose conversation it runs, named by its title's tail.
+    daemon.reply = (sessionId, prompt) => {
+      const conversation = conversations.listAll().find((each) => each.sessionId === sessionId)
+      const member = conversation?.title.split(' · ').at(-1) ?? '?'
+      const said = answer(member, prompt)
+      if (said === null) {
+        daemon.emit(sessionId, { type: 'result', subtype: 'success', is_error: true, result: 'boom', duration_ms: 5 })
+        return
+      }
+      daemon.emit(sessionId, { type: 'assistant', uuid: `uuid-${said.length}-${Math.random()}`, message: { id: `msg-${Math.random()}`, content: [{ type: 'text', text: said }] }, parent_tool_use_id: null })
+      daemon.emit(sessionId, { type: 'result', subtype: 'success', is_error: false, result: said, terminal_reason: 'completed', duration_ms: 5 })
+    }
+  })
+
+  // Core as it starts: its conversations and discussions read from the database, no agent open yet.
+  function serve(): void {
+    const attachments = path.join(root, 'attachments')
+    mkdirSync(attachments, { recursive: true })
+    conversations = new ConversationService(store, daemon, path.join(root, 'sessions'), (event) => {
+      if (event.type === 'chatItems') discussions.observe(event.conversationId, event.items)
+      else if (event.type === 'changed') discussions.conversationChanged(event.conversation)
+    }, projects, new AttachmentStore(attachments))
+    daemon.deliver = (event) => {
+      if (event.event === 'data') conversations.handleData(event)
+      else if (event.event === 'exit') conversations.handleExit(event.sessionId, event.exitCode)
+      else conversations.handleStderr(event.sessionId, event.data)
+    }
+    discussions = new DiscussionService(path.join(root, 'kando.db'), { conversations, events: { changed: () => {}, deleted: () => {}, posts: () => {} } })
+  }
+
+  afterEach(() => {
+    discussions.close()
+    projects.close()
+    store.close()
+    tasks.close()
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  const fields = (overrides: Partial<DiscussionCreate> = {}): DiscussionCreate => ({
+    topic: TOPIC,
+    projectPaths: [],
+    members: [
+      { agent: 'claude', name: 'Ann', role: 'argue for it' },
+      { agent: 'claude', name: 'Bob' },
+      { agent: 'claude', name: 'Cid' }
+    ],
+    chair: 2,
+    maxRounds: 2,
+    ...overrides
+  })
+
+  async function until(check: () => boolean): Promise<void> {
+    for (let i = 0; i < 500 && !check(); i++) await settle()
+    expect(check()).toBe(true)
+  }
+  const state = (id: string) => discussions.get(id).state
+  const by = (discussion: Discussion, name: string) => discussion.members.find((member) => member.name === name)!
+  // What a member's agent was sent, in order.
+  const prompts = (discussion: Discussion, name: string) => {
+    const conversation = conversations.get(by(discussion, name).conversationId)
+    const session = conversation.sessionId ?? ''
+    return daemon.written(session).flatMap((frame) => {
+      const message = typeof frame === 'object' && frame !== null && Reflect.get(frame, 'type') === 'user' ? Reflect.get(frame, 'message') : null
+      return message ? [String(Reflect.get(message, 'content'))] : []
+    })
+  }
+  const kinds = (posts: DiscussionPost[]) => posts.map((post) => `${post.round}:${post.kind}:${post.state}`)
+
+  it('runs independent openings, rebuttals that see only the others, then the chair sums up', async () => {
+    const discussion = await discussions.create(fields())
+    await until(() => state(discussion.id) === 'done')
+    const posts = discussions.posts(discussion.id)
+    expect(kinds(posts)).toEqual([
+      '1:opening:done', '1:opening:done', '1:opening:done',
+      '2:rebuttal:done', '2:rebuttal:done', '2:rebuttal:done',
+      '2:summary:done'
+    ])
+    expect(posts.at(-1)?.memberId).toBe(by(discussion, 'Cid').id)
+
+    const ann = prompts(discussion, 'Ann')
+    expect(ann).toHaveLength(2)
+    expect(ann[0]).toContain(TOPIC)
+    expect(ann[0]).toContain('argue for it')
+    expect(ann[0]).not.toContain('Bob: ')
+    // The second round shows the others' openings, fenced and named, and not its own.
+    expect(ann[1]).toContain('<discussion-post speaker="Bob" round="1">')
+    expect(ann[1]).toContain('<discussion-post speaker="Cid" round="1">')
+    expect(ann[1]).not.toContain('speaker="Ann"')
+    // The chair is shown only what came since it last spoke: the round-2 rebuttals.
+    const cid = prompts(discussion, 'Cid')
+    expect(cid).toHaveLength(3)
+    expect(cid[2]).toContain('## 总结')
+    expect(cid[2]).toContain('speaker="Ann" round="2"')
+    expect(cid[2]).not.toContain('round="1"')
+  })
+
+  it('starts each member read-only, and keeps their conversations out of the list and search', async () => {
+    const discussion = await discussions.create(fields())
+    await until(() => state(discussion.id) === 'done')
+    for (const member of discussion.members) {
+      const conversation = conversations.get(member.conversationId)
+      expect(conversation.discussionId).toBe(discussion.id)
+      expect(conversation.chatOptions?.permissionMode).toBe('plan')
+    }
+    expect(conversations.list(true)).toEqual([])
+    expect(conversations.search('Should the cache')).toEqual([])
+  })
+
+  it('sums up early once every member holds its position', async () => {
+    answer = (member, prompt) => prompt.includes('## 第 2 轮') ? `${member} agrees.\n\n**立场：维持**` : `${member} thinks so.`
+    const discussion = await discussions.create(fields({ maxRounds: 4 }))
+    await until(() => state(discussion.id) === 'done')
+    expect(kinds(discussions.posts(discussion.id)).at(-1)).toBe('2:summary:done')
+  })
+
+  it('goes on without a member whose turn failed, and pauses when nobody answered', async () => {
+    answer = (member, prompt) => member === 'Bob' ? null : `${member}: ${prompt.length}`
+    const discussion = await discussions.create(fields())
+    await until(() => state(discussion.id) === 'done')
+    const posts = discussions.posts(discussion.id)
+    expect(posts.filter((post) => post.state === 'failed').map((post) => post.memberId)).toEqual([by(discussion, 'Bob').id, by(discussion, 'Bob').id])
+    expect(posts.at(-1)?.kind).toBe('summary')
+
+    answer = () => null
+    const silent = await discussions.create(fields())
+    await until(() => state(silent.id) === 'paused')
+    expect(kinds(discussions.posts(silent.id)).at(-1)).toBe('1:notice:done')
+  })
+
+  it('asks only the members a post names, and leaves a finished discussion finished', async () => {
+    const discussion = await discussions.create(fields())
+    await until(() => state(discussion.id) === 'done')
+    const bob = by(discussion, 'Bob')
+    await discussions.post(discussion.id, 'Bob, why?', [bob.id])
+    await until(() => discussions.posts(discussion.id).at(-1)?.state === 'done')
+    const posts = discussions.posts(discussion.id)
+    expect(kinds(posts.slice(-2))).toEqual(['2:user:done', '2:reply:done'])
+    expect(posts.at(-1)?.memberId).toBe(bob.id)
+    expect(prompts(discussion, 'Bob').at(-1)).toContain('Bob, why?')
+    expect(prompts(discussion, 'Ann')).toHaveLength(2)
+    expect(state(discussion.id)).toBe('done')
+  })
+
+  it('takes a plain post into another round, which every member is shown', async () => {
+    const discussion = await discussions.create(fields())
+    await until(() => state(discussion.id) === 'done')
+    await discussions.post(discussion.id, 'Consider memory use too.')
+    await until(() => state(discussion.id) === 'done' && discussions.posts(discussion.id).at(-1)?.round === 3)
+    expect(kinds(discussions.posts(discussion.id)).slice(-5)).toEqual(['2:user:done', '3:rebuttal:done', '3:rebuttal:done', '3:rebuttal:done', '3:summary:done'])
+    expect(prompts(discussion, 'Ann')[2]).toContain('用户说：\nConsider memory use too.')
+  })
+
+  it('pauses after the round out, resumes into the next, and concludes on request', async () => {
+    const discussion = await discussions.create(fields({ maxRounds: 3 }))
+    await discussions.control(discussion.id, 'pause')
+    await until(() => state(discussion.id) === 'paused')
+    expect(kinds(discussions.posts(discussion.id))).toEqual(['1:opening:done', '1:opening:done', '1:opening:done'])
+    await expect(discussions.control(discussion.id, 'pause')).rejects.toThrow(Rejection)
+
+    await discussions.control(discussion.id, 'resume')
+    await discussions.control(discussion.id, 'conclude')
+    await until(() => state(discussion.id) === 'done')
+    expect(kinds(discussions.posts(discussion.id)).slice(-2)).toEqual(['2:rebuttal:done', '2:summary:done'])
+  })
+
+  it('names members by code when anonymous', async () => {
+    const discussion = await discussions.create(fields({ anonymous: true }))
+    await until(() => state(discussion.id) === 'done')
+    const ann = prompts(discussion, 'Ann')
+    expect(ann[0]).toContain('成员 A')
+    expect(ann[0]).not.toContain('Bob')
+    expect(ann[1]).toContain('speaker="成员 B"')
+  })
+
+  it('turns down a plan a member puts up, so it answers in words', async () => {
+    const planned = new Set<string>()
+    const reply = daemon.reply
+    daemon.reply = (sessionId, prompt) => {
+      if (planned.has(sessionId) || !prompt.includes('## 第 1 轮') || conversations.listAll().find((each) => each.sessionId === sessionId)?.title.endsWith('Bob') !== true) {
+        reply(sessionId, prompt)
+        return
+      }
+      planned.add(sessionId)
+      daemon.emit(sessionId, { type: 'assistant', message: { id: 'msg-plan', content: [{ type: 'tool_use', id: 'toolu-plan', name: 'ExitPlanMode', input: { plan: '# Plan' } }] }, parent_tool_use_id: null })
+      daemon.emit(sessionId, { type: 'control_request', request_id: 'req-plan', request: { subtype: 'can_use_tool', tool_name: 'ExitPlanMode', input: { plan: '# Plan' }, tool_use_id: 'toolu-plan' } })
+    }
+    const discussion = await discussions.create(fields())
+    const bob = by(discussion, 'Bob')
+    const session = () => conversations.get(bob.conversationId).sessionId ?? ''
+    const denied = () => daemon.written(session()).some((frame) => JSON.stringify(frame).includes('"behavior":"deny"') && JSON.stringify(frame).includes('只读讨论'))
+    await until(denied)
+    reply(session(), 'Bob answers in words.')
+    await until(() => state(discussion.id) === 'done')
+    expect(discussions.posts(discussion.id).find((post) => post.memberId === bob.id)?.state).toBe('done')
+  })
+
+  it('settles a post whose agent was lost while core was away, and goes on', async () => {
+    const reply = daemon.reply
+    let hung = false
+    daemon.reply = (sessionId, prompt) => {
+      if (!hung && conversations.listAll().find((each) => each.sessionId === sessionId)?.title.endsWith('Bob')) {
+        hung = true
+        return
+      }
+      reply(sessionId, prompt)
+    }
+    const discussion = await discussions.create(fields())
+    const bob = by(discussion, 'Bob')
+    await until(() => discussions.posts(discussion.id).filter((post) => post.state === 'done').length === 2)
+    daemon.sessions.delete(conversations.get(bob.conversationId).sessionId ?? '')
+    discussions.close()
+    serve()
+    await conversations.reconcile((await daemon.request('list', {})).sessions)
+    await discussions.reconcile()
+    await until(() => state(discussion.id) === 'done')
+    const opening = discussions.posts(discussion.id).find((post) => post.memberId === bob.id)
+    expect(opening).toMatchObject({ kind: 'opening', state: 'failed', error: 'agent-lost' })
+    // Shown the rules again with its next round, as its first answer may never have reached it.
+    expect(prompts(discussion, 'Bob').at(-1)).toContain('## 规则')
+  })
+
+  it('keeps each member on its agent', async () => {
+    const discussion = await discussions.create(fields())
+    await until(() => state(discussion.id) === 'done')
+    await expect(conversations.handoff(by(discussion, 'Ann').conversationId, 'codex', '', true)).rejects.toThrow('a group chat member keeps its agent')
+  })
+
+  it('deletes the discussion with its members’ conversations', async () => {
+    const discussion = await discussions.create(fields())
+    await until(() => state(discussion.id) === 'done')
+    await discussions.delete(discussion.id)
+    expect(discussions.list()).toEqual([])
+    expect(conversations.listAll()).toEqual([])
+  })
+})
