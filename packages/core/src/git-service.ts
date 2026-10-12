@@ -7,7 +7,7 @@ import { git, gitOrNull } from './git-changes'
 import { projectHead } from './workspace'
 import { commitAll } from './project-commit'
 import { Rejection } from './rejection'
-import { commitRef, committedDiff, conflictFiles, filesBetween, gitOperation, logCommits, repositoryKey, writeGit } from './git-repository'
+import { checkoutKey, commitRef, committedDiff, conflictFiles, filesBetween, gitOperation, logCommits, repositoryKey, writeGit } from './git-repository'
 
 export class GitService {
   private readonly locked = new Set<string>()
@@ -41,10 +41,10 @@ export class GitService {
     }
   }
 
-  // Holds the repositories' lock for run, and refuses while an agent works anywhere in one of them.
+  // Holds the repositories' lock for run, and refuses while an agent works in one of those checkouts.
   async withRepositories<T>(dirs: readonly string[], run: () => Promise<T>): Promise<T> {
-    return this.locking(dirs, async (keys) => {
-      for (const key of keys) if (await this.busy(key)) throw new Rejection('chat-busy')
+    return this.locking(dirs, async () => {
+      for (const dir of dirs) if (await this.busy(dir)) throw new Rejection('chat-busy')
       return run()
     })
   }
@@ -55,23 +55,27 @@ export class GitService {
     return this.locking(dirs, () => run())
   }
 
-  private async locking<T>(dirs: readonly string[], run: (keys: readonly string[]) => Promise<T>): Promise<T> {
+  private async locking<T>(dirs: readonly string[], run: () => Promise<T>): Promise<T> {
     const keys = [...new Set((await Promise.all(dirs.map(repositoryKey))).filter((key): key is string => key !== null))]
     if (keys.some((key) => this.locked.has(key))) throw new Rejection('git-busy', '这个仓库已有 Git 操作进行中。')
     keys.forEach((key) => this.locked.add(key))
     this.changed()
     try {
-      return await run(keys)
+      return await run()
     } finally { keys.forEach((key) => this.locked.delete(key)); this.changed() }
   }
 
-  private async busy(key: string): Promise<boolean> {
+  // Whether an agent works, waits or starts in dir's checkout. One in another worktree of the same
+  // repository is on a branch of its own, so it is no reason to hold git here.
+  private async busy(dir: string): Promise<boolean> {
+    const checkout = await checkoutKey(dir)
+    if (!checkout) return false
     for (const task of this.tasks.list()) {
-      if (this.tasks.isLaunching(task.id)) for (const repo of task.repos) if ((await repositoryKey(repo.worktreePath ?? repo.path) ?? await repositoryKey(repo.path)) === key) return true
+      if (this.tasks.isLaunching(task.id)) for (const repo of task.repos) if (await checkoutKey(repo.worktreePath ?? repo.path) === checkout) return true
     }
     for (const conversation of this.conversations.listAll()) {
       if (!conversation.starting && !this.conversations.isGitPending(conversation.id) && (!conversation.sessionId || conversation.chat?.turn === 'idle')) continue
-      for (const dir of conversation.projectPaths) if (await repositoryKey(dir) === key) return true
+      for (const project of conversation.projectPaths) if (await checkoutKey(project) === checkout) return true
     }
     return false
   }
@@ -94,7 +98,7 @@ export class GitService {
     const [head, sha, listing, worktrees, remotes, protectedRefs, busy, operation, conflicts] = await Promise.all([
       projectHead(dir), gitOrNull(dir, ['rev-parse', 'HEAD']),
       git(dir, ['for-each-ref', '--sort=-committerdate', '--format=%(refname)%00%(objectname)%00%(upstream)', 'refs/heads', 'refs/remotes']),
-      git(dir, ['worktree', 'list', '--porcelain', '-z']), git(dir, ['remote']), this.protectedRefs(key), this.busy(key), gitOperation(dir), conflictFiles(dir)
+      git(dir, ['worktree', 'list', '--porcelain', '-z']), git(dir, ['remote']), this.protectedRefs(key), this.busy(dir), gitOperation(dir), conflictFiles(dir)
     ])
     const holders = new Map<string, string>()
     let folder = ''
@@ -187,7 +191,7 @@ export class GitService {
     this.changed()
     try {
       const status = await this.status(target)
-      const blocker = checkGitOperation(target.kind, action, await this.busy(key), status)
+      const blocker = checkGitOperation(target.kind, action, await this.busy(dir), status)
       if (blocker) throw new Rejection(blocker)
       if (target.kind === 'task' && status.branch !== this.tasks.get(target.id).repos.find((repo) => repo.path === target.project)?.branch) throw new Rejection('git-task-branch', 'worktree 的实际分支与任务绑定不符，请先在终端修复。')
       const result = await this.perform(dir, status, action)
