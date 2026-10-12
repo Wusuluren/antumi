@@ -27,6 +27,7 @@ const task = (id: string, patch: Partial<Task> = {}): Task => ({
   repos: [],
   dependsOn: [],
   agent: 'claude',
+  slug: null,
   derivedFrom: null,
   abandonReason: null,
   attempts: [],

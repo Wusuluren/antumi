@@ -132,6 +132,18 @@ function MentionedText({ text, names }: { text: string; names: readonly string[]
   return <>{text.split(pattern).map((part, index) => (tags.includes(part) ? <span key={index} className="discussion-at">{part}</span> : part))}</>
 }
 
+// A post that failed: the reason as the app words it, and what the agent said, where core kept it.
+function FailedPost({ error }: { error: string | null }) {
+  const [reason = '', ...said] = (error ?? '').split('\n')
+  const detail = said.join('\n').trim()
+  return (
+    <div className="discussion-post-failed">
+      <p>这次没有发言成功：{reasonText(reason, reason || '未知原因')}</p>
+      {detail && <p className="discussion-post-failed-detail">{detail}</p>}
+    </div>
+  )
+}
+
 function PendingPost({ member }: { member: DiscussionMember | undefined }) {
   if (member?.status === 'awaiting') {
     return <span className="discussion-typing">在等你确认，<button type="button" className="link-button" onClick={() => void openMember(member)}>去处理</button></span>
@@ -176,7 +188,7 @@ function Post({ post, discussion, topic }: { post: DiscussionPost; discussion: D
             {post.state === 'pending' ? <PendingPost member={member} /> : (
               <>
                 {post.text && <ChatMarkdown text={post.text} />}
-                {post.state === 'failed' && <p className="discussion-post-failed">这次没有发言成功：{reasonText(post.error ?? '', post.error ?? '未知原因')}</p>}
+                {post.state === 'failed' && <FailedPost error={post.error} />}
               </>
             )}
           </div>
@@ -283,16 +295,18 @@ export function DiscussionView({ id }: { id: string }) {
     await controlDiscussion(id, action)
     setBusy(false)
   }
+  // The input empties as the words go, as a chat app's does; refused, they come back, unless
+  // something new was typed meanwhile.
   const send = async () => {
     if (!canSend) return
+    const said = text.trim()
     setBusy(true)
-    const sent = asTopic ? await newDiscussionTopic(id, text.trim()) : await postToDiscussion(id, text.trim(), mentions)
+    setText('')
+    pinned.current = true
+    const sent = asTopic ? await newDiscussionTopic(id, said) : await postToDiscussion(id, said, mentions)
     setBusy(false)
-    if (sent) {
-      setText('')
-      setAsTopic(false)
-      pinned.current = true
-    }
+    if (sent) setAsTopic(false)
+    else setText((current) => current || said)
   }
   const mention = (member: DiscussionMember) => {
     const tag = `@${member.name} `

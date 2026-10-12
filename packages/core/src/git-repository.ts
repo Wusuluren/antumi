@@ -13,6 +13,13 @@ export async function repositoryKey(dir: string): Promise<string | null> {
   return common ? realpath(path.resolve(dir, common)) : null
 }
 
+// One working tree of a repository: its own HEAD, branch and index, which another worktree's agent
+// does not touch.
+export async function checkoutKey(dir: string): Promise<string | null> {
+  const top = await gitOrNull(dir, ['rev-parse', '--show-toplevel'])
+  return top ? realpath(top.trim()).catch(() => null) : null
+}
+
 export async function writeGit(dir: string, args: string[]): Promise<string> {
   try {
     const { stdout } = await execFileAsync('git', ['-C', dir, ...args], {

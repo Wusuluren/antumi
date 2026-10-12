@@ -101,6 +101,7 @@ export const DiscussionPost = z.object({
   topic: z.boolean().default(false),
   // A member's post is pending while its turn runs, failed when the turn did not complete.
   state: z.enum(['pending', 'done', 'failed']).catch('done'),
+  // Why a member's post failed: a reason code, then, on the lines after it, what the agent said.
   error: z.string().nullable(),
   createdAt: z.number(),
   updatedAt: z.number()

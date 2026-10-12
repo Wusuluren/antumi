@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { checkSwitchBranch, type CommitPushResult, type CommitResult, type Conversation, type ProjectBranches, type ProjectHead, type PushResult } from '@kando/protocol'
+import { checkSwitchBranch, type CommitPushResult, type CommitResult, type Conversation, type GitTarget, type ProjectBranches, type ProjectHead, type PushResult } from '@kando/protocol'
 import { perform, useCore } from '../core-store'
 import { reasonText } from '../labels'
 import { shortRef } from '../task-starts'
 import { BranchStatusDetails } from './BranchStatus'
+import { CommitMessageButton } from './CommitMessageButton'
 import { ArrowUpIcon, BranchIcon, CheckIcon, CommitIcon, PlusIcon } from './icons'
 import { hasPrimaryModifier, PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { useOccludesBrowser } from '../browser-occlusion'
+import { commitSubject, commitWithWrittenMessage, useCanWriteCommitMessage, useWritingCommit } from '../written-commits'
 
 // A conversation works in the user's own checkout: switching changes it for everything in the folder.
 function useBranchOptions(id: string, version: number): readonly ProjectBranches[] {
@@ -106,11 +108,13 @@ function CreateForm({ onCreate }: { onCreate: (name: string) => void }) {
 }
 
 // The message gets room for a subject and a body. With the steps on their own, it can be kept
-// local; ⌘Enter commits and pushes, as the main button does.
-function CommitForm({ title, steps, busy, onCommit }: { title: string; steps: boolean; busy: boolean; onCommit: (message: string, push: boolean) => void }) {
-  const [message, setMessage] = useState(title)
+// local; ⌘Enter commits and pushes, as the main button does. Left empty, the agent writes it.
+function CommitForm({ target, steps, busy, onCommit }: { target: GitTarget; steps: boolean; busy: boolean; onCommit: (message: string, push: boolean) => void }) {
+  const [message, setMessage] = useState('')
+  const writable = useCanWriteCommitMessage(target)
+  const ready = !busy && (Boolean(message.trim()) || writable)
   const submit = (push: boolean) => {
-    if (message.trim() && !busy) onCommit(message.trim(), push)
+    if (ready) onCommit(message.trim(), push)
   }
   return (
     <div className="branch-action branch-commit">
@@ -127,13 +131,14 @@ function CommitForm({ title, steps, busy, onCommit }: { title: string; steps: bo
             submit(true)
           }
         }}
-        placeholder="提交信息：第一行是标题，空一行再写详细说明"
+        placeholder={writable ? '提交信息：第一行是标题，空一行再写说明。留空则由 Agent 用小模型写好后直接提交' : '提交信息：第一行是标题，空一行再写详细说明'}
         aria-label="提交信息"
       />
       <p className="branch-action-note">提交这个仓库里的全部改动{steps ? '；Commit & Push 再接着推送当前分支' : '，并推送当前分支'}，没有 upstream 时推到 origin 并跟踪它。</p>
       <div className="branch-commit-buttons">
-        {steps && <button type="button" className="button" disabled={!message.trim() || busy} onClick={() => submit(false)}>Commit</button>}
-        <button type="button" className="button primary" disabled={!message.trim() || busy} title={`${PRIMARY_KEY_LABEL}Enter`} onClick={() => submit(true)}>Commit &amp; Push</button>
+        <CommitMessageButton target={target} disabled={busy} onMessage={setMessage} />
+        {steps && <button type="button" className="button" disabled={!ready} onClick={() => submit(false)}>Commit</button>}
+        <button type="button" className="button primary" disabled={!ready} title={`${PRIMARY_KEY_LABEL}Enter`} onClick={() => submit(true)}>Commit &amp; Push</button>
       </div>
     </div>
   )
@@ -213,6 +218,7 @@ function ProjectActions({ conversation, head, option, onChanged }: {
   const steps = useCore((s) => s.rpc?.features.includes('conversation-commit-steps') ?? false)
   const [open, setOpen] = useState<BranchAction | null>(null)
   const [busy, setBusy] = useState(false)
+  const writing = useWritingCommit({ kind: 'conversation', id: conversation.id, project: head.path })
   if (!option?.git) return null
   const blocker = checkSwitchBranch(conversation)
   const done = <T,>(note: (result: T) => string) => (result: T | null) => {
@@ -227,7 +233,20 @@ function ProjectActions({ conversation, head, option, onChanged }: {
     done(() => switchedNote(branch))(await perform(call))
   }
   const project = { id: conversation.id, project: head.path }
+  const target: GitTarget = { kind: 'conversation', ...project }
   const commit = async (message: string, push: boolean) => {
+    if (!message) {
+      // The dialog goes at once; the agent writes the message and the commit follows behind it.
+      setOpen(null)
+      if (push || !steps) {
+        const done = await commitWithWrittenMessage(target, (written) => perform((rpc) => rpc.call('conversations.commitPush', { ...project, message: written })))
+        if (done) onChanged(`已提交 ${done.result.commit}「${commitSubject(done.message)}」并推送到 ${done.result.upstream}。`)
+      } else {
+        const done = await commitWithWrittenMessage(target, (written) => perform((rpc) => rpc.call('conversations.commit', { ...project, message: written })))
+        if (done) onChanged(`已提交 ${done.result.commit}「${commitSubject(done.message)}」，还没推送。`)
+      }
+      return
+    }
     setBusy(true)
     if (push || !steps) {
       done<CommitPushResult>((result) => `已提交 ${result.commit} 并推送到 ${result.upstream}。`)(await perform((rpc) => rpc.call('conversations.commitPush', { ...project, message })))
@@ -252,7 +271,7 @@ function ProjectActions({ conversation, head, option, onChanged }: {
       data-primary={primary || undefined}
       aria-haspopup="dialog"
       aria-expanded={open === action}
-      disabled={busy || !enabled}
+      disabled={busy || writing || !enabled}
       title={title}
       onClick={() => setOpen(action)}
     >
@@ -266,7 +285,7 @@ function ProjectActions({ conversation, head, option, onChanged }: {
         {button('create', blocker === null, hint, <><PlusIcon />新建</>)}
         {commitPush && button('commit', canCommit, commitHint, <><CommitIcon />{steps ? 'Commit' : 'Commit & Push'}</>, canCommit)}
         {commitPush && steps && button('push', canPush, pushHint, <><ArrowUpIcon />Push</>, !canCommit && canPush && (head.ahead ?? 0) > 0)}
-        {blocker && <span className="branch-actions-blocked">{hint}</span>}
+        {blocker ? <span className="branch-actions-blocked">{hint}</span> : writing && <span className="branch-actions-blocked">正在写提交信息，写好就提交…</span>}
       </div>
       {open && (
         <BranchActionDialog action={open} head={head} onClose={() => setOpen(null)}>
@@ -274,7 +293,7 @@ function ProjectActions({ conversation, head, option, onChanged }: {
             <SwitchList option={option} onPick={(ref) => void run((rpc) => rpc.call('conversations.switchBranch', { ...project, ref }), localName(ref))} />
           )}
           {open === 'create' && <CreateForm onCreate={(name) => void run((rpc) => rpc.call('conversations.createBranch', { ...project, name }), name)} />}
-          {open === 'commit' && <CommitForm title={conversation.title} steps={steps} busy={busy} onCommit={(message, alsoPush) => void commit(message, alsoPush)} />}
+          {open === 'commit' && <CommitForm target={target} steps={steps} busy={busy} onCommit={(message, alsoPush) => void commit(message, alsoPush)} />}
           {open === 'push' && <PushForm head={head} busy={busy} onPush={() => void push()} />}
         </BranchActionDialog>
       )}

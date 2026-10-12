@@ -7,12 +7,12 @@
 一块看板管理 Claude Code、Codex 和 Cursor：每个任务在独立的 worktree 里跑，<br/>
 先出计划再动手，做完交回来由你验收。
 
-[![Version](https://img.shields.io/badge/version-0.15.8-blue?style=flat)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.15.10-blue?style=flat)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green?style=flat)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey?style=flat)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor-8A2BE2?style=flat)
 
-[快速开始](#快速开始) · [功能](#功能) · [支持的 Agent](#支持的-agent) · [技术架构](docs/ARCHITECTURE.md) · [更新日志](CHANGELOG.md) · [路线图](ROADMAP.md)
+[快速开始](#快速开始) · [功能](#功能) · [支持的 Agent](#支持的-agent) · [技术架构](docs/ARCHITECTURE.md) · [更新日志](CHANGELOG.md)
 
 </div>
 
@@ -247,13 +247,12 @@ pnpm dist:mac     # 产物在 packages/desktop/dist/Kando-<版本>-arm64.dmg
 | 打包、安装、卸载 | [技术架构 · 打包与安装](docs/ARCHITECTURE.md#8-打包与安装) |
 | 参与开发 | [开发与验证](docs/ARCHITECTURE.md#9-开发与验证) · [AGENTS.md](AGENTS.md) · [DESIGN.md](DESIGN.md) |
 | 看每个版本改了什么 | [CHANGELOG.md](CHANGELOG.md) |
-| 了解产品方向 | [ROADMAP.md](ROADMAP.md) |
 
 ---
 
 ## 现状
 
-Kando 目前是**开发者预览版**（0.15.8），主要在 macOS 上开发和测试，需要从源码运行或自行打包。接下来的重点是验收闭环：按项目配置的测试命令在 worktree 里跑，把结果作为验收证据放进检查器，再到 PR 和合并。完整规划见 [ROADMAP.md](ROADMAP.md)。
+Kando 目前是**开发者预览版**（0.15.10），主要在 macOS 上开发和测试，需要从源码运行或自行打包。接下来的重点是验收闭环：按项目配置的测试命令在 worktree 里跑，把结果作为验收证据放进检查器，再到 PR 和合并。
 
 ## 名字
 

@@ -67,11 +67,29 @@ describe('Git management', () => {
     await expect(service.execute(target, { kind: 'fetch' })).resolves.toEqual({ state: 'done' })
   })
 
+  it('commits and pushes in one checkout while an agent works in another worktree of the repository', async () => {
+    const worktree = path.join(root, 'worktree')
+    git(repo, 'worktree', 'add', '-q', '-b', 'feature', worktree)
+    const other = Conversation.parse({ ...conversations[0], id: randomUUID(), workspacePath: worktree, projectPaths: [worktree] })
+    conversations.push(other)
+    conversations[0]!.sessionId = 'agent'; conversations[0]!.chat = { turn: 'running' }
+    const here: GitTarget = { kind: 'conversation', id: other.id, project: worktree }
+    expect((await service.status(here)).blocker).toBeNull()
+    writeFileSync(path.join(worktree, 'feature.txt'), 'feature\n')
+    expect(await service.execute(here, { kind: 'commit', message: 'feature', push: true })).toMatchObject({ state: 'done' })
+    expect(git(remote, 'log', '-1', '--format=%s', 'feature')).toBe('feature')
+    await expect(service.withRepositories([worktree], async () => 'ok')).resolves.toBe('ok')
+    // The checkout the agent works in stays held, from wherever in it git is asked.
+    expect((await service.status(target)).blocker).not.toBeNull()
+    await expect(service.execute(target, { kind: 'fetch' })).rejects.toMatchObject({ reason: 'chat-busy' })
+    const child = path.join(repo, 'child'); mkdirSync(child)
+    await expect(service.withRepositories([child], async () => {})).rejects.toMatchObject({ reason: 'chat-busy' })
+  })
+
   it('removes a worktree while an agent works in another checkout of its repository, but not during a Git operation', async () => {
     const worktree = path.join(root, 'worktree')
     git(repo, 'worktree', 'add', '-q', '-b', 'kando/done', worktree)
     conversations[0]!.sessionId = 'agent'; conversations[0]!.chat = { turn: 'running' }
-    await expect(service.withRepositories([worktree], async () => {})).rejects.toMatchObject({ reason: 'chat-busy' })
     await service.withRepositoryLock([worktree], async () => { git(repo, 'worktree', 'remove', worktree) })
     expect(git(repo, 'worktree', 'list')).not.toContain(worktree)
 

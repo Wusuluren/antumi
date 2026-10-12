@@ -44,12 +44,19 @@ import type { AgentRunStore } from './agent-run-store'
 import type { AttachmentStore } from './attachment-store'
 import type { ConversationService, ModelChoice } from './conversation-service'
 import type { ProjectRegistry } from './project-registry'
+import { needsSlug } from './branch-slug'
 import { Rejection } from './rejection'
 import { fileDiff, repoChanges } from './task-changes'
 import type { TaskPatch, TaskStore } from './task-store'
 import { normalizeRepoPath, prepareRefineWorkspace, prepareWorkspace, projectHead, removePlanningCheckouts, restartBranches, startOptions, withKnownWorktrees } from './workspace'
 
 export type TaskEvent = { type: 'changed'; task: Task } | { type: 'deleted'; id: string }
+
+// English words for a title's branch, from the task's agent; null when it gave none.
+export type BranchNamer = (agent: AgentKind, title: string) => Promise<string | null>
+
+// How long a start that makes a branch waits for a slug still on its way, before naming it without.
+const SLUG_WAIT_MS = 10_000
 
 // What a task needs of its chat.
 export type TaskConversations = Pick<ConversationService, 'startForTask' | 'send' | 'savePlan' | 'stopForTask' | 'deleteForTask' | 'get' | 'runUsage' | 'capacityAvailable' | 'validateStartOptions'>
@@ -72,6 +79,9 @@ export class TaskService {
   private readonly launching = new Set<string>()
   private gitGuard: ((dirs: readonly string[]) => Promise<void>) | null = null
   setGitGuard(guard: (dirs: readonly string[]) => Promise<void>): void { this.gitGuard = guard }
+  private namer: BranchNamer | null = null
+  private readonly naming = new Map<string, Promise<void>>()
+  setBranchNamer(namer: BranchNamer): void { this.namer = namer }
   isLaunching(id: string): boolean { return this.launching.has(id) || (this.squads?.preparing(id) ?? false) }
 
   constructor(
@@ -142,14 +152,14 @@ export class TaskService {
       dependsOn: dependencyIds
     }
     const hasFields = Object.values(patch).some((value) => value !== undefined)
-    return this.changed(hasFields ? this.store.update(task.id, patch) : task)
+    return this.named(this.changed(hasFields ? this.store.update(task.id, patch) : task))
   }
 
   // A task made from an issue: the issue's text stays in its snapshot and the details start empty,
   // for the user (or a refining agent) to write the plan in. No repos yet: issues rarely say which.
   importTask({ title, agent, source, snapshot }: { title: string; agent: AgentKind | null; source: TaskSource; snapshot: SourceSnapshot }): Task {
     const task = this.store.create(title)
-    return this.changed(this.store.update(task.id, { agent, source, sourceSnapshot: snapshot }))
+    return this.named(this.changed(this.store.update(task.id, { agent, source, sourceSnapshot: snapshot })))
   }
 
   // Keys of the issues tasks were imported from, abandoned ones included: a redo keeps its source.
@@ -227,7 +237,8 @@ export class TaskService {
     if (task.squadId && squadId !== null && agent !== undefined && agent !== task.agent) throw new Rejection('squad-managed')
     const patch: TaskPatch = { title, details, agent, launch, squadId }
     if (squadId) { patch.agent = this.requireSquads().agent(squadId); patch.launch = { permissionMode: 'ask' } }
-
+    // Words for an old title would name the branch after what the task no longer is.
+    if (title !== undefined && title !== task.title) patch.slug = null
     // Another agent has models and modes of its own, so what was picked for the last one goes.
     if (agent !== undefined && agent !== task.agent && launch === undefined) patch.launch = {}
     if (repos !== undefined) {
@@ -252,7 +263,41 @@ export class TaskService {
       }
       patch.dependsOn = ids
     }
-    return this.changed(this.store.update(task.id, patch))
+    return this.named(this.changed(this.store.update(task.id, patch)))
+  }
+
+  // Asks the task's agent for English words for its branch, ahead of the start that makes it, so the
+  // start rarely waits. A failure is tried again at that start.
+  private named(task: Task): Task {
+    void this.nameBranch(task)
+    return task
+  }
+
+  private nameBranch({ id, title, slug, agent }: Task): Promise<void> {
+    if (!this.namer || !agent || slug !== null || !needsSlug(title)) return Promise.resolve()
+    const key = `${id}\n${agent}\n${title}`
+    const known = this.naming.get(key)
+    if (known) return known
+    const work = this.namer(agent, title)
+      .then((words) => {
+        const current = this.store.get(id)
+        // The title may have changed meanwhile, and its own words are on their way.
+        if (words && current?.title === title && current.slug === null) this.changed(this.store.update(id, { slug: words }))
+      })
+      .catch((error: unknown) => console.error(`[kando-core] naming the branch of task ${id} failed:`, error instanceof Error ? error.message : error))
+      .finally(() => this.naming.delete(key))
+    this.naming.set(key, work)
+    return work
+  }
+
+  // The task as a start lays its worktrees out: a branch is named once, when first made, so only then
+  // are the words worth a short wait.
+  private async withSlug(task: Task): Promise<Task> {
+    if (task.repos.every((repo) => repo.branch !== null)) return task
+    let timer: ReturnType<typeof setTimeout> | undefined
+    await Promise.race([this.nameBranch(task), new Promise<void>((resolve) => { timer = setTimeout(resolve, SLUG_WAIT_MS) })])
+    clearTimeout(timer)
+    return this.get(task.id)
   }
 
   // Only a ref of the form a start takes is kept: whether the repo has it is known when the branch
@@ -411,7 +456,7 @@ export class TaskService {
         return this.changed(this.get(task.id))
       }
       // The worktrees are kept before the agent starts, so a failed start is retried in the same trees.
-      const workspace = await prepareWorkspace(task, dependencies, this.worktreesRoot)
+      const workspace = await prepareWorkspace(await this.withSlug(task), dependencies, this.worktreesRoot)
       this.store.update(task.id, { repos: workspace.repos })
       const conversation = await chats.startForTask({ id: task.id, title: task.title, agent }, {
         cwd: workspace.cwd, extraDirs: workspace.extraDirs, planOnly: false, session: 'new', readable: images.readable,
@@ -479,7 +524,7 @@ export class TaskService {
         })
         return kept()
       }
-      const workspace = await prepareWorkspace(task, dependencies, this.worktreesRoot)
+      const workspace = await prepareWorkspace(await this.withSlug(task), dependencies, this.worktreesRoot)
       this.store.update(task.id, { repos: workspace.repos })
       await chats.startForTask({ id: task.id, title: task.title, agent }, {
         cwd: workspace.cwd, extraDirs: workspace.extraDirs, planOnly: false, session: 'resume', readable: images.readable, allowBypass, handoffNote, ...choice

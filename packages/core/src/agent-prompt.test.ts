@@ -27,6 +27,7 @@ function dependency(overrides: Partial<Task> = {}): Task {
     repos: [{ path: '/code/app', worktreePath: '/wt/a', branch: 'kando/a-add', startRef: null, start: null }],
     dependsOn: [],
     agent: 'claude',
+    slug: null,
     derivedFrom: null,
     attempts: [],
     abandonReason: null,

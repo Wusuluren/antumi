@@ -30,6 +30,11 @@ describe('chatCommand', () => {
     expect(allowed).not.toContain('mcp__kando__terminal_run')
   })
 
+  it('gives Cursor each extra project as a workspace root before its ACP server', () => {
+    expect(chatCommand('cursor', null, false, null, ['/code/web', '/code/api']).args).toEqual(['--add-dir', '/code/web', '--add-dir', '/code/api', 'acp'])
+    expect(chatCommand('cursor', null, false, null).args).toEqual(['acp'])
+  })
+
   it('lets Claude drive the user\'s Chrome as the setting says, either way, and leaves Codex as it is', () => {
     expect(chatCommand('claude', 's', false, null, [], { userBrowser: true }).args).toContain('--chrome')
     expect(chatCommand('claude', 's', false, null, [], { userBrowser: false }).args).toContain('--no-chrome')

@@ -62,8 +62,9 @@ const Preferences = z.object({
   // comes into view rather than when asked.
   translateTo: TranslateLanguage.catch('zh-CN'),
   autoTranslate: z.boolean().catch(false),
-  // The model each agent translates with, where the user picked one; otherwise its cheapest.
-  translateModels: z.partialRecord(AgentKind, z.string().min(1)).catch({})
+  // The model each agent does small jobs with (translating a reply, writing a commit message), where
+  // the user picked one; otherwise its cheapest.
+  quickModels: z.partialRecord(AgentKind, z.string().min(1)).catch({})
 })
 export type Preferences = z.infer<typeof Preferences>
 
@@ -76,6 +77,10 @@ function load(): Preferences {
     saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')
   } catch {
     // Unreadable storage: start from defaults.
+  }
+  // 0.15.8 kept them as translateModels, before commit messages used them too.
+  if (typeof saved === 'object' && saved !== null && 'translateModels' in saved && !('quickModels' in saved)) {
+    saved = { ...saved, quickModels: saved.translateModels }
   }
   const parsed = Preferences.safeParse(saved)
   return parsed.success ? parsed.data : Preferences.parse({})

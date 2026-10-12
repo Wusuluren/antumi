@@ -286,6 +286,8 @@ export const MIGRATIONS = [
   // Conversations and group chats the user put away.
   `ALTER TABLE conversations ADD COLUMN archived_at INTEGER;
    ALTER TABLE discussions ADD COLUMN archived_at INTEGER;`,
+  // English words for the branch of a task whose title git cannot name one after (Task.slug).
+  `ALTER TABLE tasks ADD COLUMN slug TEXT;`,
   `ALTER TABLE tasks ADD COLUMN squad_id TEXT;
    ALTER TABLE conversations ADD COLUMN squad_run_id TEXT;
    ALTER TABLE conversations ADD COLUMN workspace_read_only INTEGER NOT NULL DEFAULT 0;
@@ -295,7 +297,7 @@ export const MIGRATIONS = [
 ]
 
 
-const SELECT = `SELECT id, title, details, status, agent, squad_id AS squadId,
+const SELECT = `SELECT id, title, slug, details, status, agent, squad_id AS squadId,
   derived_from AS derivedFrom, abandon_reason AS abandonReason, source, source_snapshot AS sourceSnapshot, images,
   awaiting_input AS awaitingInput, plan, launch, attempts,
   (SELECT id FROM conversations WHERE task_id = tasks.id ORDER BY created_at DESC LIMIT 1) AS conversationId,
@@ -360,6 +362,7 @@ export type TaskPatch = Partial<
   Pick<
     Task,
     | 'title'
+    | 'slug'
     | 'details'
     | 'status'
     | 'squadId'
@@ -381,6 +384,7 @@ export type TaskPatch = Partial<
 // Columns on `tasks` itself; repos and dependencies live in their own tables.
 const SCALAR_KEYS = [
   'title',
+  'slug',
   'details',
   'status',
   'agent',
@@ -391,6 +395,7 @@ const SCALAR_KEYS = [
 
 const SCALAR_COLUMNS: Record<(typeof SCALAR_KEYS)[number], string> = {
   title: 'title',
+  slug: 'slug',
   details: 'details',
   status: 'status',
   agent: 'agent',

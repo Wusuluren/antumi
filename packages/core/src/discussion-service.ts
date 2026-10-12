@@ -56,8 +56,10 @@ export type DiscussionDeps = {
   events: DiscussionEvents
 }
 
+// The reason, and below it what went wrong in the agent's own words (its stderr, a refusal), which a
+// reason alone leaves out: "chat-start-failed" says nothing of why.
 function failure(error: unknown): string {
-  if (error instanceof Rejection) return error.reason
+  if (error instanceof Rejection) return error.message && error.message !== error.reason ? `${error.reason}\n${error.message}` : error.reason
   return error instanceof Error ? error.message : String(error)
 }
 
@@ -144,7 +146,7 @@ export class DiscussionService {
 
   // The user's word: to the members it names, who answer it alone, or to all in the next round.
   async post(id: string, text: string, mentions: readonly string[] = []): Promise<DiscussionPost> {
-    return this.serially(id, async () => {
+    const { said, next } = await this.serially(id, async () => {
       const discussion = this.writable(id)
       const named = [...new Set(mentions)].map((memberId) => {
         const member = discussion.members.find((each) => each.id === memberId)
@@ -156,21 +158,34 @@ export class DiscussionService {
       const said = this.insertPost(id, { round: discussion.round, memberId: null, kind: 'user', text, mentions: named.map((member) => member.id), state: 'done' })
       this.announcePosts(id, [said])
       if (named.length > 0) {
-        await Promise.all(named.map((member) => this.ask(this.get(id), member, 'reply', discussion.round, (unseen) => replyPrompt(this.get(id), said, unseen))))
-      } else if (discussion.state === 'paused' || discussion.state === 'done') {
+        return { said, next: () => Promise.all(named.map((member) => this.ask(this.get(id), member, 'reply', discussion.round, (unseen) => replyPrompt(this.get(id), said, unseen)))) }
+      }
+      if (discussion.state === 'paused' || discussion.state === 'done') {
         this.write(id, { state: 'running', last_round: discussion.round + 1 })
-        await this.dispatchRound(id, discussion.round + 1)
+        this.announce(id)
+        return { said, next: () => this.dispatchRound(id, discussion.round + 1) }
       }
       this.announce(id)
-      return this.postOf(id, said.id)
+      return { said, next: null }
     })
+    if (next) this.followUp(id, next)
+    return this.postOf(id, said.id)
+  }
+
+  // What a post sets going, after the post is answered: an agent can take seconds to start, and the
+  // user's words are in already. It runs next in the discussion's line, as a step of its own.
+  private followUp(id: string, work: () => Promise<unknown>): void {
+    void this.serially(id, async () => {
+      await work()
+      this.announce(id)
+    }).catch(() => {})
   }
 
   // The user moves the group on, once nothing is out: every member answers the new topic alone, with
   // what came before as background, then it goes round to the summary as the first did. A title that
   // only named the old topic follows it.
   async newTopic(id: string, text: string): Promise<DiscussionPost> {
-    return this.serially(id, async () => {
+    const said = await this.serially(id, async () => {
       const discussion = this.writable(id)
       if (checkNewDiscussionTopic(discussion)) throw new Rejection('discussion-busy', 'the turns out now go first')
       const named = discussion.title === titleOf(currentTopic(discussion, this.storedPosts(id)))
@@ -180,10 +195,11 @@ export class DiscussionService {
         state: 'running', topic_start: discussion.round, last_round: discussion.round + discussion.maxRounds,
         ...(named ? { title: titleOf(text) } : {})
       })
-      await this.dispatchRound(id, discussion.round + 1)
       this.announce(id)
-      return this.postOf(id, said.id)
+      return said
     })
+    this.followUp(id, () => this.dispatchRound(id, said.round))
+    return this.postOf(id, said.id)
   }
 
   async control(id: string, action: DiscussionAction): Promise<Discussion> {

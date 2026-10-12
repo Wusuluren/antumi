@@ -112,7 +112,8 @@ export function ContextMenu({ at, align = 'start', above = false, trigger, scrol
     >
       {children}
     </div>,
-    trigger?.closest('dialog') ?? document.body
+    // Inside the top-layer host it opens from (a dialog, a lifted Popover): from the body it would sit beneath it.
+    trigger?.closest('dialog, [popover]') ?? document.body
   )
 }
 
