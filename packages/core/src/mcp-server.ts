@@ -6,10 +6,12 @@ import { connectRpc, coreUrl, isPreviewImage, PREVIEW_EXTENSIONS, SHOW_PREVIEW_T
 import { readCoreEndpoint, kandoPaths } from '@kando/protocol/node'
 import { AttachmentStore } from './attachment-store'
 import { BROWSER_ARGUMENTS, BROWSER_TOOL_SPECS, browserToolsOverCore, type BrowserTools, type ToolOutcome } from './mcp-browser-tools'
+import { HISTORY_ARGUMENTS, HISTORY_TOOL_SPECS, historyToolsOverCore, type HistoryTools } from './mcp-history-tools'
 import { TERMINAL_ARGUMENTS, TERMINAL_TOOL_SPECS, terminalToolsOverCore, type TerminalTools } from './mcp-terminal-tools'
 
 // A tools-only MCP server over stdio, giving an agent Kando's own tools: showing a file it wrote in
-// the chat, the browser Kando hosts, and terminals of its own in the app's panel.
+// the chat, the browser Kando hosts, terminals of its own in the app's panel, and, unless the user
+// turned it off, reading their history in Kando.
 // Messages are newline-delimited JSON-RPC 2.0; stdout is the channel, so logs go to stderr.
 
 const Message = z.object({
@@ -54,6 +56,8 @@ export type McpTools = {
   browser?: BrowserTools
   // Terminals of the conversation's own in the app's panel, there likewise.
   terminal?: TerminalTools
+  // The user's conversations, tasks and group chats, read-only; there unless turned off.
+  history?: HistoryTools
 }
 
 export type McpResponse = {
@@ -82,7 +86,7 @@ const describe = (error: unknown) => (error instanceof Error ? error.message : S
 // arguments are the model's to fix, so they come back as a tool error it can read.
 type ToolEntry = { spec: object & { name: string }; run(args: Record<string, unknown>): Promise<McpResult> }
 
-function toolTable({ preview, browser, terminal, planOnly }: McpTools): ToolEntry[] {
+function toolTable({ preview, browser, terminal, history, planOnly }: McpTools): ToolEntry[] {
   const entries: ToolEntry[] = [
     {
       spec: PREVIEW_TOOL,
@@ -122,6 +126,18 @@ function toolTable({ preview, browser, terminal, planOnly }: McpTools): ToolEntr
           const args = TERMINAL_ARGUMENTS[kind].safeParse(raw)
           if (!args.success) return textResult(`参数不对：${args.error.issues.map((issue) => `${issue.path.join('.') || '参数'} ${issue.message}`).join('；')}`, true)
           return outcomeResult(await terminal.call(kind, args.data))
+        }
+      })
+    }
+  }
+  if (history) {
+    for (const { kind, ...spec } of HISTORY_TOOL_SPECS) {
+      entries.push({
+        spec,
+        run: async (raw) => {
+          const args = HISTORY_ARGUMENTS[kind].safeParse(raw)
+          if (!args.success) return textResult(`参数不对：${args.error.issues.map((issue) => `${issue.path.join('.') || '参数'} ${issue.message}`).join('；')}`, true)
+          return outcomeResult(await history.call(kind, args.data))
         }
       })
     }
@@ -187,9 +203,9 @@ export async function checkPreviewFile(path: string): Promise<void> {
 }
 
 // A server started for a conversation has the browser tools, acting for that conversation alone;
-// one without has the preview tool alone. Each call connects anew, so a core restart between calls
-// is harmless.
-export async function serveMcp(home: string | undefined, conversationId?: string, planOnly = false, initialized?: () => Promise<void>): Promise<void> {
+// one without has the preview tool alone. `history` adds the tools that read the user's history.
+// Each call connects anew, so a core restart between calls is harmless.
+export async function serveMcp(home: string | undefined, conversationId?: string, planOnly = false, initialized?: () => Promise<void>, history = false): Promise<void> {
   const withCore = async <T>(work: (rpc: RpcConnection) => Promise<T>): Promise<T> => {
     const endpoint = await readCoreEndpoint(home)
     if (!endpoint) {
@@ -209,7 +225,8 @@ export async function serveMcp(home: string | undefined, conversationId?: string
     ...(conversationId ? {
       browser: browserToolsOverCore(withCore, conversationId, new AttachmentStore(kandoPaths(home).attachments)),
       terminal: terminalToolsOverCore(withCore, conversationId)
-    } : {})
+    } : {}),
+    ...(history ? { history: historyToolsOverCore(withCore, conversationId ?? null) } : {})
   })
   const lines = readline.createInterface({ input: process.stdin, crlfDelay: Number.POSITIVE_INFINITY })
   for await (const line of lines) {

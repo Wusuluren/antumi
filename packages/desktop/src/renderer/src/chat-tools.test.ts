@@ -63,6 +63,8 @@ describe('toolIconKind', () => {
     expect(toolLabel('mcp__plugin_figma_figma__get_screenshot')).toBe('plugin figma figma · get_screenshot')
     // Kando's own keep their names, and so do the agent's built-in tools.
     expect(toolLabel('mcp__kando__show_preview')).toBe('预览')
+    expect([toolLabel('mcp__kando__history_list'), toolLabel('kando.history_read')]).toEqual(['查看 Kando 记录', '读取 Kando 记录'])
+    expect(toolIconKind('mcp__kando__history_read')).toBe('read')
     expect(toolLabel('Bash')).toBe(toolLabel('Bash', { name: 'ignored', server: null }))
     expect(runSummary([{ name: 'mcp__x__y', display: { name: 'Y', server: 'X' } }, { name: 'mcp__x__y', display: { name: 'Y', server: 'X' } }])).toBe('X · Y 2 次')
   })

@@ -281,6 +281,15 @@ function AgentSettings() {
           )}
         />
       )}
+      {chatSettings?.readHistory !== undefined && (
+        <SettingsRow
+          label="让 Agent 读你在 Kando 里的记录"
+          description="打开后，每个 Agent 都能用 Kando 的两个只读工具，列出和读取你在 Kando 里的会话、任务和群聊，包括其他 Agent 的，比如让定时任务「总结我本周的工作」。只能读，不能改。关掉后，Agent 就没有这两个工具。改动从下次启动 Agent 起生效，已经在跑的会话不受影响。"
+          control={(labelId) => (
+            <Toggle labelId={labelId} checked={chatSettings.readHistory ?? true} onChange={(next) => void setChatSettings({ readHistory: next })} />
+          )}
+        />
+      )}
       {chatSettings?.unattendedMode && (
         <SettingsRow
           label="预约运行的权限"
@@ -509,7 +518,7 @@ const SECTIONS: readonly Section[] = [
     group: '任务',
     title: '智能体',
     description: '这台电脑上的 Agent：装没装、什么版本、登没登录，没装或没登录的给出要敲的命令；以及新建和执行任务、开始会话时它们的默认行为。',
-    keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守'],
+    keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', 'mcp'],
     Icon: SparkIcon,
     Body: AgentSettings
   },

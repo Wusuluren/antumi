@@ -1,4 +1,4 @@
-import { BROWSER_HOST_TOOL, browserToolKind, isBrowserTool, isPreviewTool, TERMINAL_RUN_TOOL, terminalToolKind, type BrowserToolKind, type ChatDiff, type ChatItem, type ChatToolStatus, type TerminalToolKind } from '@kando/protocol'
+import { BROWSER_HOST_TOOL, browserToolKind, historyToolKind, isBrowserTool, isPreviewTool, TERMINAL_RUN_TOOL, terminalToolKind, type BrowserToolKind, type ChatDiff, type ChatItem, type ChatToolStatus, type TerminalToolKind } from '@kando/protocol'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 
@@ -67,6 +67,8 @@ function mcpToolLabel(name: string, display: ToolDisplay | null | undefined): st
 
 export function toolLabel(name: string, display?: ToolDisplay | null): string {
   if (isPreviewTool(name)) return '预览'
+  const history = historyToolKind(name)
+  if (history) return history === 'list' ? '查看 Kando 记录' : '读取 Kando 记录'
   if (name === TERMINAL_RUN_TOOL) return TERMINAL_LABEL.run
   const terminal = terminalToolKind(name)
   if (terminal) return TERMINAL_LABEL[terminal]
@@ -90,6 +92,8 @@ export function toolIconKind(name: string): ToolIconKind {
   if (name === TERMINAL_RUN_TOOL || terminalToolKind(name)) return 'terminal'
   if (browserToolKind(name) === 'screenshot' || isPreviewTool(name)) return 'image'
   if (isBrowserTool(name)) return 'browser'
+  const history = historyToolKind(name)
+  if (history) return history === 'list' ? 'list' : 'read'
   return TOOL_ICONS[name] ?? 'tool'
 }
 

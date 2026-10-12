@@ -27,7 +27,10 @@ export const ChatSettings = z.object({
   wireLog: z.boolean().optional(),
   // Whether an agent that can may drive the user's own browser, signed in as they are (Claude Code
   // through Claude in Chrome), from its next start. Older cores omit it.
-  userBrowser: z.boolean().optional()
+  userBrowser: z.boolean().optional(),
+  // Whether agents get the tools that read the user's conversations, tasks and group chats in
+  // Kando (see HISTORY_TOOLS), from their next start. Older cores omit it.
+  readHistory: z.boolean().optional()
 })
 export type ChatSettings = z.infer<typeof ChatSettings>
 
@@ -325,6 +328,18 @@ export const PREVIEW_IMAGE_EXTENSIONS: ReadonlySet<string> = new Set(['png', 'jp
 export const PREVIEW_EXTENSIONS: ReadonlySet<string> = new Set(['html', 'htm', 'svg', ...PREVIEW_IMAGE_EXTENSIONS])
 export function isPreviewImage(path: string): boolean {
   return PREVIEW_IMAGE_EXTENSIONS.has(path.split('.').at(-1)?.toLowerCase() ?? '')
+}
+
+// The tools that read the user's own history in Kando, across agents: what had activity in a
+// stretch of time, and what was said in one of them. Read-only, and off where the user turned it off.
+export const HISTORY_TOOLS = ['list', 'read'] as const
+export type HistoryToolKind = (typeof HISTORY_TOOLS)[number]
+export function historyToolName(kind: HistoryToolKind): string {
+  return `history_${kind}`
+}
+export function historyToolKind(name: string): HistoryToolKind | null {
+  const own = kandoToolName(name)
+  return HISTORY_TOOLS.find((kind) => own === historyToolName(kind)) ?? null
 }
 
 // Codex's call that looks at a picture on disk (its view_image tool).

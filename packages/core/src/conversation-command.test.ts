@@ -23,6 +23,13 @@ describe('chatCommand', () => {
     expect(chatCommand('claude', 's', false, null, []).args).not.toContain('--permission-mode')
   })
 
+  it('lets Claude show a file, read its own terminals and the user\'s history without asking', () => {
+    const args = chatCommand('claude', 's', false, null, [], { mcp: { command: 'node', args: ['mcp.mjs'] } }).args
+    const allowed = args[args.indexOf('--allowedTools') + 1]?.split(',') ?? []
+    expect(allowed).toEqual(expect.arrayContaining(['mcp__kando__show_preview', 'mcp__kando__terminal_read', 'mcp__kando__history_list', 'mcp__kando__history_read']))
+    expect(allowed).not.toContain('mcp__kando__terminal_run')
+  })
+
   it('lets Claude drive the user\'s Chrome as the setting says, either way, and leaves Codex as it is', () => {
     expect(chatCommand('claude', 's', false, null, [], { userBrowser: true }).args).toContain('--chrome')
     expect(chatCommand('claude', 's', false, null, [], { userBrowser: false }).args).toContain('--no-chrome')

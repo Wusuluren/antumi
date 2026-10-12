@@ -3,8 +3,8 @@ import { AGENT_KINDS, ChatSettings, UnattendedMode } from '@kando/protocol'
 import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
 
 // Suggestions on, as in Claude Code itself; scheduled runs let edits through but still ask for
-// anything else; an agent that can drives the user's own browser. Each field falls back on its own,
-// so one bad value resets nothing else.
+// anything else; an agent that can drives the user's own browser; agents may read the user's
+// history in Kando. Each field falls back on its own, so one bad value resets nothing else.
 export const DEFAULT_AGENT_CONCURRENCY = 6
 const DEFAULTS = {
   promptSuggestions: true,
@@ -12,7 +12,8 @@ const DEFAULTS = {
   maxConcurrentAgents: 20,
   agentConcurrency: Object.fromEntries(AGENT_KINDS.map((kind) => [kind, DEFAULT_AGENT_CONCURRENCY])),
   wireLog: false,
-  userBrowser: true
+  userBrowser: true,
+  readHistory: true
 } satisfies Required<ChatSettings>
 const Saved = z.object({
   promptSuggestions: z.boolean().catch(DEFAULTS.promptSuggestions),
@@ -20,7 +21,8 @@ const Saved = z.object({
   maxConcurrentAgents: ChatSettings.shape.maxConcurrentAgents.unwrap().catch(DEFAULTS.maxConcurrentAgents),
   agentConcurrency: ChatSettings.shape.agentConcurrency.unwrap().catch(DEFAULTS.agentConcurrency),
   wireLog: z.boolean().catch(DEFAULTS.wireLog),
-  userBrowser: z.boolean().catch(DEFAULTS.userBrowser)
+  userBrowser: z.boolean().catch(DEFAULTS.userBrowser),
+  readHistory: z.boolean().catch(DEFAULTS.readHistory)
 }).catch(DEFAULTS)
 
 // Machine-level, like keeping the computer awake: every window and every chat goes by the same.
@@ -56,7 +58,8 @@ export class ChatSettingsStore {
       maxConcurrentAgents: patch.maxConcurrentAgents ?? this.settings.maxConcurrentAgents,
       agentConcurrency: { ...this.settings.agentConcurrency, ...patch.agentConcurrency },
       wireLog: patch.wireLog ?? this.settings.wireLog,
-      userBrowser: patch.userBrowser ?? this.settings.userBrowser
+      userBrowser: patch.userBrowser ?? this.settings.userBrowser,
+      readHistory: patch.readHistory ?? this.settings.readHistory
     }
     await writePrivateJson(this.file, { version: 1, ...next })
     this.settings = next

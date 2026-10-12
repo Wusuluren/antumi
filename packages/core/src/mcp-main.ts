@@ -11,13 +11,14 @@ const { values } = parseArgs({
     home: { type: 'string' },
     conversation: { type: 'string' },
     'plan-only': { type: 'boolean' },
+    history: { type: 'boolean' },
     'ready-file': { type: 'string' }
   }
 })
 
 // Speaks MCP on stdout, so nothing else may print there.
 const readyFile = values['ready-file']
-serveMcp(values.home, values.conversation, values['plan-only'], readyFile ? () => writePrivateJson(readyFile, { ready: true }) : undefined).catch((error: unknown) => {
+serveMcp(values.home, values.conversation, values['plan-only'], readyFile ? () => writePrivateJson(readyFile, { ready: true }) : undefined, values.history).catch((error: unknown) => {
   const reason = error instanceof RpcError && error.reason ? ` (${error.reason})` : ''
   console.error(`kando mcp: ${error instanceof Error ? error.message : String(error)}${reason}`)
   process.exitCode = 1

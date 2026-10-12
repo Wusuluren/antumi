@@ -111,7 +111,8 @@ const conversations = new ConversationService(
   },
   projects,
   attachments,
-  (id) => kandoChatMcpServer(paths.home, id),
+  // Read at each agent start, so turning history off holds from the next start.
+  (id) => kandoChatMcpServer(paths.home, id, chatSettings.current().readHistory),
   paths.worktrees,
   wire
 )
