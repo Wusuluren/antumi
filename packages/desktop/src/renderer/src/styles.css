@@ -6986,6 +6986,31 @@ body.side-panel-resizing * {
 .chat-image-action[data-copied] { color: var(--status-done); }
 .chat-image-action svg { width: 14px; height: 14px; }
 
+.chat-image-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.chat-image:hover .chat-image-remove,
+.chat-image:focus-within .chat-image-remove { opacity: 1; }
+.chat-image-remove:hover { color: var(--danger); }
+.chat-image-remove:focus-visible { outline: 2px solid var(--focus); }
+.chat-image-remove svg { width: 12px; height: 12px; }
+
 .chat-queued-images { flex: none; color: var(--text-muted); }
 
 /* Below the input: plain text that reads as a setting until hovered, like the agents' own CLIs. */

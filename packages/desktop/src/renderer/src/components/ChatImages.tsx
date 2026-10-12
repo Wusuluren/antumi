@@ -145,12 +145,13 @@ function Thumb({ image, onOpen, onRemove }: { image: ChatImage; onOpen: () => vo
         >
           {copied ? <CheckIcon /> : <CopyIcon />}
         </button>
-        {onRemove && (
-          <button type="button" className="chat-image-action" aria-label="删除" data-tooltip="删除" onClick={onRemove}>
-            <CloseIcon />
-          </button>
-        )}
       </span>
+      {/* Taking it out sits on the corner, apart from looking at it, as a task's images have it. */}
+      {onRemove && (
+        <button type="button" className="chat-image-remove" aria-label="删除图片" data-tooltip="删除" onClick={onRemove}>
+          <CloseIcon />
+        </button>
+      )}
     </span>
   )
 }
