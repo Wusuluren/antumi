@@ -512,6 +512,16 @@ export function useDiscussionProjectsSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('discussion-projects') ?? false)
 }
 
+// Whether core cancels and reopens tasks (tasks.cancel, tasks.reopen).
+export function useTaskCancelSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('task-cancel') ?? false)
+}
+
+// Whether a redo keeps the task, starting it over in place, rather than making a new one.
+export function useTaskRedoInPlace(): boolean {
+  return useCore((s) => s.rpc?.features.includes('task-redo-in-place') ?? false)
+}
+
 // Whether core moves a group chat on to a new topic (discussions.newTopic).
 export function useDiscussionTopicsSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('discussion-topics') ?? false)

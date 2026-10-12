@@ -9,7 +9,7 @@ import { CloseIcon, FolderIcon, TerminalIcon } from './icons'
 import { projectName } from './ProjectPicker'
 
 const GROUP_TEXT: Record<WorktreeGroupId, { title: string; note: string }> = {
-  cleanable: { title: '可以清理', note: '任务已完成或已废弃，没有未提交的改动' },
+  cleanable: { title: '可以清理', note: '任务已完成或已取消，没有未提交的改动' },
   orphaned: { title: '找不到任务或会话', note: '任务或会话删了，worktree 还在' },
   attention: { title: '需要你处理', note: '清理会丢东西，先在终端里提交、移走或丢弃' },
   active: { title: '进行中', note: '任务还没完成或会话还在，只看占用' }

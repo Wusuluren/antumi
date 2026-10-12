@@ -1,6 +1,7 @@
 import { useCallback, useState, type ReactElement } from 'react'
 import {
   agentDescriptor,
+  checkCancel,
   checkMove,
   checkScheduleTask,
   checkStart,
@@ -15,7 +16,7 @@ import {
   type Task,
   type TaskStatus
 } from '@kando/protocol'
-import { openChatWhileStarting, perform, selectTask, setInspectorOpen, setSchedulesOpen, showTaskChanges, showView, updateTask, useChatOptionsSupported, useCore, useSchedulesSupported, useTaskLaunchSupported, useWireLogShown, useWorktreesSupported, type TaskView } from '../core-store'
+import { openChatWhileStarting, perform, selectTask, setInspectorOpen, setSchedulesOpen, showTaskChanges, showView, updateTask, useChatOptionsSupported, useCore, useSchedulesSupported, useTaskCancelSupported, useTaskLaunchSupported, useTaskRedoInPlace, useWireLogShown, useWorktreesSupported, type TaskView } from '../core-store'
 import { resolveModel, useAgentCatalog } from '../agent-models'
 import { reasonText, STATUS_HINT, STATUS_LABEL } from '../labels'
 import { useFileTabs } from '../file-tabs'
@@ -192,6 +193,31 @@ async function deleteTask(task: Task): Promise<void> {
   }
 }
 
+// Cancelling stops the agent and keeps the rest, so it asks first, saying what stays.
+async function cancelTask(task: Task): Promise<void> {
+  const stops = task.status === 'running' ? 'Agent 会停下，' : ''
+  if (window.confirm(`取消任务「${task.title}」？${stops}聊天记录和 worktree 都保留，之后可以重新打开。`)) {
+    await perform((rpc) => rpc.call('tasks.cancel', { id: task.id }))
+  }
+}
+
+export function reopenTask(task: Task): Promise<Task | null> {
+  return perform((rpc) => rpc.call('tasks.reopen', { id: task.id }))
+}
+
+// What the task menus offer for giving a task up or bringing it back, where core takes them.
+function useCancelling(task: Task): { label: string; run: () => void } | null {
+  const supported = useTaskCancelSupported()
+  const tasks = useCore((s) => s.tasks)
+  if (!supported) return null
+  if (task.status === 'abandoned') {
+    // One abandoned for a redo, before redoing kept the task, has its successor carrying on.
+    if (Object.values(tasks).some((other) => other.derivedFrom === task.id)) return null
+    return { label: '重新打开', run: () => void reopenTask(task) }
+  }
+  return checkCancel(task) === null ? { label: '取消任务', run: () => void cancelTask(task) } : null
+}
+
 function copyTaskId(taskId: string): void {
   void navigator.clipboard.writeText(taskId).catch(() => {})
 }
@@ -201,20 +227,24 @@ function unfinished(dependencies: readonly Task[]): Task[] {
 }
 
 // Redoing gives up this attempt, so it asks first, and takes the reason along to the next one.
+// An older core redoes it as a new task, which is then the one to show.
 function RedoButton({ task, labelled }: { task: Task; labelled: boolean }) {
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
+  const inPlace = useTaskRedoInPlace()
   const close = useCallback(() => setOpen(false), [])
   const redo = async () => {
     setBusy(true)
-    const successor = await perform((rpc) => rpc.call('tasks.redo', { id: task.id, reason: reason.trim() || undefined }))
+    const redone = await perform((rpc) => rpc.call('tasks.redo', { id: task.id, reason: reason.trim() || undefined }))
     setBusy(false)
-    if (successor) {
+    if (redone) {
       close()
-      selectTask(successor.id)
+      setReason('')
+      selectTask(redone.id)
     }
   }
+  const kept = task.repos.flatMap((repo) => (repo.branch ? [`${repo.branch}-try${task.attempts.length + 1}`] : []))
   return (
     <span className="menu-anchor">
       <button
@@ -223,7 +253,7 @@ function RedoButton({ task, labelled }: { task: Task; labelled: boolean }) {
         aria-label="重做"
         aria-haspopup="dialog"
         aria-expanded={open}
-        data-tooltip="重做：废弃这次结果，新建一个继承它的任务"
+        data-tooltip={inPlace ? '重做：从头再来，这次的改动另存到一个分支' : '重做：放弃这次结果，新建一个继承它的任务'}
         data-tooltip-align={labelled ? 'start' : undefined}
         onClick={() => setOpen((current) => !current)}
       >
@@ -233,24 +263,30 @@ function RedoButton({ task, labelled }: { task: Task; labelled: boolean }) {
       {open && (
         <Popover label="重做任务" onClose={close}>
           <div className="note-form">
-            <p className="note-form-title">废弃这次结果，从头重做</p>
-            <p className="menu-note">
-              会新建一个继承标题、详情、项目和依赖的任务，从干净的分支开始。这次的 worktree 会保留，依赖本任务的任务改为依赖新任务。
-            </p>
+            <p className="note-form-title">从头重做</p>
+            {inPlace ? (
+              <p className="menu-note">
+                Agent 会停下，这次的改动（包括没提交的）另存到分支 {kept.length > 0 ? kept.join('、') : '…-try'}，任务分支从头开始，任务回到「未执行」。聊天记录保留，下次开始时 Agent 重新起步，并会知道原因和上次的分支。
+              </p>
+            ) : (
+              <p className="menu-note">
+                会新建一个继承标题、详情、项目和依赖的任务，从干净的分支开始。这次的 worktree 会保留，依赖本任务的任务改为依赖新任务。
+              </p>
+            )}
             <textarea
               className="input note-form-input"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="为什么废弃？（可选，会告诉重做的 Agent）"
+              placeholder="为什么重做？（可选，会告诉下次的 Agent）"
               maxLength={500}
               rows={3}
             />
             <div className="note-form-actions">
               <button type="button" className="button ghost" onClick={close}>
-                取消
+                返回
               </button>
               <button type="button" className="button primary" disabled={busy} onClick={() => void redo()}>
-                废弃并重做
+                {busy ? '正在重做…' : '重做'}
               </button>
             </div>
           </div>
@@ -476,6 +512,7 @@ function MoreMenu({ task }: { task: Task }) {
   const [open, setOpen] = useState(false)
   const close = useCallback(() => setOpen(false), [])
   const clean = useWorktreeCleaning(task)
+  const cancelling = useCancelling(task)
   return (
     <span className="menu-anchor">
       <button
@@ -513,6 +550,18 @@ function MoreMenu({ task }: { task: Task }) {
             >
               清理 worktree
               <span className="menu-item-path">分支保留</span>
+            </button>
+          )}
+          {cancelling && (
+            <button
+              type="button"
+              className="menu-item"
+              onClick={() => {
+                close()
+                cancelling.run()
+              }}
+            >
+              {cancelling.label}
             </button>
           )}
           <div className="menu-separator" />
@@ -724,6 +773,7 @@ export function TaskContextMenu({ task, at, onClose, onRename }: {
   const turn = useChatTurn(task)
   const startBlocker = task.status === 'pending' ? checkStart(task, dependencies) : null
   const clean = useWorktreeCleaning(task)
+  const cancelling = useCancelling(task)
   const actions: ReactElement[] = []
   if (task.status === 'pending' && startBlocker !== 'planning') {
     const label = startKind(dependencies) === 'plan' ? '开始规划' : '开始执行'
@@ -765,6 +815,7 @@ export function TaskContextMenu({ task, at, onClose, onRename }: {
       <MenuItem label="重命名" onSelect={pick(onRename)} />
       <MenuItem label="复制任务 id" hint={`${shortTaskId(task.id)}…`} onSelect={pick(() => copyTaskId(task.id))} />
       {clean && <MenuItem label="清理 worktree" hint="分支保留" onSelect={pick(clean)} />}
+      {cancelling && <MenuItem label={cancelling.label} onSelect={pick(cancelling.run)} />}
       <div className="menu-separator" role="separator" />
       <MenuItem label="删除任务" danger onSelect={pick(() => void deleteTask(task))} />
     </ContextMenu>

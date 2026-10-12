@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
 import { z } from 'zod'
-import { SourceSnapshot, Task, TaskImage, TaskLaunchOptions, TaskPlan, TaskSource, TaskStart, type TaskStatus } from '@kando/protocol'
+import { SourceSnapshot, Task, TaskAttempt, TaskImage, TaskLaunchOptions, TaskPlan, TaskSource, TaskStart, type TaskStatus } from '@kando/protocol'
 
 // Append-only: each entry upgrades PRAGMA user_version by one.
 export const MIGRATIONS = [
@@ -280,13 +280,15 @@ export const MIGRATIONS = [
   `ALTER TABLE discussion_members ADD COLUMN removed_at INTEGER;`,
   // The user moves a group chat on to a new topic: the post that does, and the round before it opened.
   `ALTER TABLE discussions ADD COLUMN topic_start INTEGER NOT NULL DEFAULT 0;
-   ALTER TABLE discussion_posts ADD COLUMN topic INTEGER NOT NULL DEFAULT 0;`
+   ALTER TABLE discussion_posts ADD COLUMN topic INTEGER NOT NULL DEFAULT 0;`,
+  // A task redone in place keeps its earlier goes (Task.attempts, JSON).
+  `ALTER TABLE tasks ADD COLUMN attempts TEXT;`
 ]
 
 
 const SELECT = `SELECT id, title, details, status, agent,
   derived_from AS derivedFrom, abandon_reason AS abandonReason, source, source_snapshot AS sourceSnapshot, images,
-  awaiting_input AS awaitingInput, plan, launch,
+  awaiting_input AS awaitingInput, plan, launch, attempts,
   (SELECT id FROM conversations WHERE task_id = tasks.id ORDER BY created_at DESC LIMIT 1) AS conversationId,
   created_at AS createdAt, updated_at AS updatedAt FROM tasks`
 
@@ -299,16 +301,19 @@ const TaskRow = Task.omit({
   images: true,
   awaitingInput: true,
   plan: true,
-  launch: true
+  launch: true,
+  attempts: true
 }).extend({
   source: z.string().nullable(),
   sourceSnapshot: z.string().nullable(),
   images: z.string().nullable(),
   awaitingInput: z.number(),
   plan: z.string().nullable(),
-  launch: z.string().nullable()
+  launch: z.string().nullable(),
+  attempts: z.string().nullable()
 })
 const TaskImages = z.array(TaskImage)
+const TaskAttempts = z.array(TaskAttempt)
 
 // A column that fails to parse reads as empty, but says so: losing where a task came from silently
 // would be worse than a noisy log.
@@ -357,6 +362,7 @@ export type TaskPatch = Partial<
     | 'awaitingInput'
     | 'plan'
     | 'launch'
+    | 'attempts'
     | 'repos'
     | 'dependsOn'
   >
@@ -456,6 +462,7 @@ export class TaskStore {
       awaitingInput: row.awaitingInput !== 0,
       plan: parseColumn(TaskPlan, row.plan, `plan of task ${row.id}`),
       launch: parseColumn(TaskLaunchOptions, row.launch, `launch of task ${row.id}`) ?? {},
+      attempts: parseColumn(TaskAttempts, row.attempts, `attempts of task ${row.id}`) ?? [],
       repos: (repos.get(row.id) ?? []).map(({ path, worktreePath, branch, startRef, start }) => ({
         path, worktreePath, branch, startRef, start: parseColumn(TaskStart, start, `start of ${path} in task ${row.id}`)
       })),
@@ -560,6 +567,10 @@ export class TaskStore {
       if (patch.launch !== undefined) {
         sets.push('launch = ?')
         values.push(JSON.stringify(patch.launch))
+      }
+      if (patch.attempts !== undefined) {
+        sets.push('attempts = ?')
+        values.push(JSON.stringify(patch.attempts))
       }
       sets.push('updated_at = ?')
       values.push(this.now())

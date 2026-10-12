@@ -8,7 +8,7 @@ export type BoardFilter = { query: string; project: string | null; agent: AgentK
 
 export type BoardColumn = { status: TaskStatus; tasks: Task[]; total: number }
 
-// Abandoned attempts stay out of the way unless asked for.
+// Cancelled tasks stay out of the way unless asked for.
 const COLUMNS: readonly TaskStatus[] = ['pending', 'running', 'review', 'done']
 
 // Done only grows; the rest is a click away.

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { checkChangePrimary, checkEditProjects, shortTaskId, type Task } from '@kando/protocol'
-import { selectTask, updateTask, useCore } from '../core-store'
+import { selectTask, updateTask, useCore, useTaskCancelSupported } from '../core-store'
 import { dayAndTime } from '../labels'
 import { saveTaskText, unsavedTaskText, useTaskSaveState, type SaveState } from '../unsaved-edits'
 import { MarkdownEditor } from './MarkdownEditor'
@@ -10,7 +10,7 @@ import { BoardCrumb } from './TaskBoard'
 import { TaskAlerts } from './TaskAlerts'
 import { TaskPlanCard } from './TaskPlanCard'
 import { TaskImages, useImageAdder } from './TaskImages'
-import { TaskStatusMenu, TaskSteps, TaskToolbar } from './TaskActions'
+import { reopenTask, TaskStatusMenu, TaskSteps, TaskToolbar } from './TaskActions'
 import { DependencyPicker, TaskDependents } from './DependencyPicker'
 import { ProjectPicker } from './ProjectPicker'
 import { TaskStarts } from './TaskStarts'
@@ -40,19 +40,33 @@ function SaveIndicator({ taskId }: { taskId: string }) {
   return state && <span className="save-state" data-state={state} role="status">{SAVE_TEXT[state]}</span>
 }
 
-// Where a redo came from, or which task took over from an abandoned one.
+// Why a task was cancelled, and the way back; how many times it was redone, why last, and where the
+// earlier goes are kept. From before redoing kept the task: which task a redo came from, or took over.
 function Lineage({ task, tasks }: { task: Task; tasks: Record<string, Task> }) {
   const link = (other: Task) => (
     <button type="button" className="link-button" onClick={() => selectTask(other.id)}>
       「{other.title}」
     </button>
   )
+  const reopenable = useTaskCancelSupported()
   if (task.status === 'abandoned') {
     const successor = Object.values(tasks).find((other) => other.derivedFrom === task.id)
     return (
       <p className="lineage" data-abandoned="true">
-        已废弃{task.abandonReason ? `：${task.abandonReason}` : ''}。
-        {successor && <>由{link(successor)}接着做，这次的 worktree 仍保留在磁盘上。</>}
+        已取消{task.abandonReason ? `：${task.abandonReason}` : ''}。
+        {successor
+          ? <>由{link(successor)}接着做，这次的 worktree 仍保留在磁盘上。</>
+          : reopenable && <button type="button" className="link-button" onClick={() => void reopenTask(task)}>重新打开</button>}
+      </p>
+    )
+  }
+  const last = task.attempts.at(-1)
+  if (last) {
+    const branches = task.attempts.flatMap((attempt) => attempt.branches.map((kept) => kept.branch))
+    return (
+      <p className="lineage">
+        已重做 {task.attempts.length} 次{last.reason ? `，上次的原因：${last.reason}` : ''}。
+        {branches.length > 0 && <>之前的改动在分支 <span className="mono">{branches.join('、')}</span>。</>}
       </p>
     )
   }
@@ -63,7 +77,7 @@ function Lineage({ task, tasks }: { task: Task; tasks: Record<string, Task> }) {
   return (
     <p className="lineage">
       重做自{link(predecessor)}
-      （已废弃{predecessor.abandonReason ? `：${predecessor.abandonReason}` : ''}）
+      （已放弃{predecessor.abandonReason ? `：${predecessor.abandonReason}` : ''}）
     </p>
   )
 }

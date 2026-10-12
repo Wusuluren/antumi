@@ -331,12 +331,11 @@ describe('SourceService', () => {
     await setUp()
     const task = await service.import('demo', 'default', 'D-1', 'claude')
     store.update(task.id, { status: 'done' })
-    const successor = tasks.redo(task.id, undefined)
-    expect(successor).toMatchObject({ source: task.source, sourceSnapshot: task.sourceSnapshot })
+    const redone = await tasks.redo(task.id, undefined)
+    expect(redone).toMatchObject({ source: task.source, sourceSnapshot: task.sourceSnapshot })
     expect(keys(service.inbox('demo', 'default'))).not.toContain('D-1')
 
     await tasks.delete(task.id)
-    await tasks.delete(successor.id)
     expect(keys(service.inbox('demo', 'default'))).toContain('D-1')
   })
 

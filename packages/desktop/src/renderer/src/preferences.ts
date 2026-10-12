@@ -48,7 +48,7 @@ const Preferences = z.object({
   sidebarHidden: z.boolean().catch(false),
   // As the user dragged it, before the cap a small window puts on it.
   sidebarWidth: z.number().int().min(MIN_SIDEBAR_WIDTH).max(MAX_SIDEBAR_WIDTH).catch(DEFAULT_SIDEBAR_WIDTH),
-  // On, the task board has a column for abandoned tasks.
+  // On, the task board has a column for cancelled tasks.
   showAbandonedTasks: z.boolean().catch(false),
   // Creation order preserves the task list's original behavior.
   taskSort: z.enum(TASK_SORTS).catch('created'),

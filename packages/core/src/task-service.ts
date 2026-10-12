@@ -1,4 +1,5 @@
 import {
+  checkCancel,
   checkChatResume,
   checkChangePrimary,
   checkDependencies,
@@ -6,6 +7,7 @@ import {
   checkEditStart,
   checkMove,
   checkRedo,
+  checkReopen,
   checkSavePlan,
   checkScheduleTask,
   checkStart,
@@ -16,6 +18,7 @@ import {
   isStartRef,
   MAX_CHAT_IMAGES,
   MAX_TASK_IMAGES,
+  reopenStatus,
   startKind,
   type AgentKind,
   type Conversation,
@@ -34,7 +37,7 @@ import {
   type TaskStatus,
   type UnattendedMode
 } from '@kando/protocol'
-import { chatPlanPrompt, chatStartPrompt, type PromptImages } from './agent-prompt'
+import { chatPlanPrompt, chatStartPrompt, type PreviousAttempt, type PromptImages } from './agent-prompt'
 import type { AgentRunStore } from './agent-run-store'
 import type { AttachmentStore } from './attachment-store'
 import type { ConversationService, ModelChoice } from './conversation-service'
@@ -42,7 +45,7 @@ import type { ProjectRegistry } from './project-registry'
 import { Rejection } from './rejection'
 import { fileDiff, repoChanges } from './task-changes'
 import type { TaskPatch, TaskStore } from './task-store'
-import { normalizeRepoPath, prepareRefineWorkspace, prepareWorkspace, projectHead, removePlanningCheckouts, startOptions, withKnownWorktrees } from './workspace'
+import { normalizeRepoPath, prepareRefineWorkspace, prepareWorkspace, projectHead, removePlanningCheckouts, restartBranches, startOptions, withKnownWorktrees } from './workspace'
 
 export type TaskEvent = { type: 'changed'; task: Task } | { type: 'deleted'; id: string }
 
@@ -295,36 +298,47 @@ export class TaskService {
     return this.changed(this.save(task.id, { status }))
   }
 
-  // For "wrong approach, start over": the done task is abandoned, keeping its worktree,
-  // and a new pending task takes its place, starting from a clean branch. Returns it.
-  redo(id: string, reason: string | undefined): Task {
+  // For "wrong approach, start over", in place: the agent stops, the work so far goes on a branch of
+  // its own (see restartBranches), and the task is pending again, its plan with the attempt. Its
+  // chat stays, and the next start begins there afresh, told why and where the last go is.
+  async redo(id: string, reason: string | undefined): Promise<Task> {
     const task = this.get(id)
     const blocker = checkRedo(task)
     if (blocker) {
       throw new Rejection(blocker)
     }
-    const successor = this.store.create(task.title)
-    this.store.update(successor.id, {
-      details: task.details,
-      agent: task.agent,
-      // The new attempt starts where this one was asked to, on a branch of its own.
-      repos: task.repos.map((repo) => ({ path: repo.path, worktreePath: null, branch: null, startRef: repo.startRef, start: null })),
-      dependsOn: task.dependsOn,
-      derivedFrom: task.id,
-      source: task.source,
-      sourceSnapshot: task.sourceSnapshot,
-      images: task.images,
-      launch: task.launch
+    return this.launchChat(task, async () => {
+      await this.chats?.stopForTask(task.id)
+      const attempt = task.attempts.length + 1
+      const { repos, kept } = await restartBranches(task, this.dependenciesOf(task), attempt)
+      const attempts = [...task.attempts, { reason: reason || null, branches: kept, at: Date.now() }]
+      return this.changed(this.save(task.id, { status: 'pending', repos, attempts, plan: null, awaitingInput: false }))
     })
-    // The abandoned attempt will never be done, so whatever waited on it waits on the redo.
-    this.store.dependents(task.id).forEach((dependent) => {
-      const dependsOn = [...new Set(dependent.dependsOn.map((other) => (other === task.id ? successor.id : other)))]
-      this.changed(this.store.update(dependent.id, { dependsOn }))
-    })
-    this.changed(this.save(task.id, { status: 'abandoned', abandonReason: reason || null }))
-    // The successor starts clean, without the chat; the abandoned one keeps it to read, idle.
-    void this.chats?.stopForTask(task.id).catch(() => {})
-    return this.changed(this.get(successor.id))
+  }
+
+  // Gives a task up: its agent stops, its chat and worktrees stay, and it can be reopened.
+  async cancel(id: string, reason: string | undefined): Promise<Task> {
+    const task = this.get(id)
+    const blocker = checkCancel(task)
+    if (blocker) {
+      throw new Rejection(blocker)
+    }
+    if (this.launching.has(task.id)) throw new Rejection('run-in-progress')
+    await this.chats?.stopForTask(task.id)
+    // A planning checkout only ever served a start, which will not come.
+    await removePlanningCheckouts(task.id, this.worktreesRoot)
+    return this.changed(this.save(task.id, { status: 'abandoned', abandonReason: reason || null, awaitingInput: false }))
+  }
+
+  // A cancelled task comes back where its work stands: under review with a worktree, else pending.
+  reopen(id: string): Task {
+    const task = this.get(id)
+    const redoneAs = this.store.list().find((each) => each.derivedFrom === task.id) ?? null
+    const blocker = checkReopen(task, redoneAs)
+    if (blocker) {
+      throw new Rejection(blocker)
+    }
+    return this.changed(this.save(task.id, { status: reopenStatus(task), abandonReason: null }))
   }
 
   // Planning is the default; direct execution uses the chosen permission mode. Before dependencies
@@ -360,7 +374,7 @@ export class TaskService {
           cwd: workspace.cwd, extraDirs: workspace.dirs.filter((dir) => dir !== workspace.cwd), planOnly: true, session: 'new',
           readable: images.readable, allowBypass, ...launch, permissionMode
         })
-        await chats.send(conversation.id, chatPlanPrompt(task, workspace, dependencies, this.predecessorOf(task), images.prompt), imageIds)
+        await chats.send(conversation.id, chatPlanPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt), imageIds)
         return this.changed(this.get(task.id))
       }
       // The worktrees are kept before the agent starts, so a failed start is retried in the same trees.
@@ -373,7 +387,7 @@ export class TaskService {
       // The planning agent stopped for the new stage, so nothing reads there any more.
       await removePlanningCheckouts(task.id, this.worktreesRoot)
       this.save(task.id, { status: 'running', awaitingInput: false })
-      const prompt = chatStartPrompt(task, workspace, dependencies, this.predecessorOf(task), images.prompt, task.plan, unattended !== undefined, permissionMode)
+      const prompt = chatStartPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, task.plan, unattended !== undefined, permissionMode)
       await chats.send(conversation.id, prompt, imageIds)
       return this.changed(this.get(task.id))
     })
@@ -540,8 +554,13 @@ export class TaskService {
     return { prompt: { attached, source }, readable: [...present(attached), ...present(source)] }
   }
 
-  private predecessorOf(task: Task): Task | null {
-    return task.derivedFrom ? this.store.get(task.derivedFrom) : null
+  private previousAttempt(task: Task): PreviousAttempt | null {
+    const last = task.attempts.at(-1)
+    if (last) return { reason: last.reason, branches: last.branches.map((kept) => kept.branch), redoneFrom: null }
+    const predecessor = task.derivedFrom ? this.store.get(task.derivedFrom) : null
+    if (!predecessor) return null
+    const branches = predecessor.repos.flatMap((repo) => (repo.branch ? [repo.branch] : []))
+    return { reason: predecessor.abandonReason, branches, redoneFrom: predecessor }
   }
 
   private dependenciesOf(task: Task): Task[] {

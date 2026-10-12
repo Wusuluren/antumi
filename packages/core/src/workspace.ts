@@ -289,6 +289,78 @@ export async function prepareConversationWorktrees(conversationId: string, proje
   return made.map(({ dir }) => dir)
 }
 
+async function worktreeOutput(dir: string, args: readonly string[]): Promise<string> {
+  try {
+    return (await execFileAsync('git', ['-C', dir, ...args])).stdout.trim()
+  } catch (error) {
+    const stderr = error instanceof Error && 'stderr' in error ? String(error.stderr).trim() : ''
+    throw new Rejection('worktree-failed', stderr || `git ${args.join(' ')} failed`)
+  }
+}
+
+// What a redo keeps of an attempt in one repo: everything it left, uncommitted work committed on
+// top, on a branch of its own, so the task's branch can start again with nothing lost. Hooks are
+// skipped and a missing identity filled in, as this commit is Kando's keeping, not the user's.
+async function keepAttemptWork(topLevel: string, repo: TaskRepo & { branch: string }, attempt: number): Promise<string | null> {
+  const dir = repo.worktreePath && (await isDirectory(repo.worktreePath)) ? repo.worktreePath : null
+  if (dir && (await worktreeOutput(dir, ['status', '--porcelain']))) {
+    const named = (await gitConfig(dir, 'user.name')) && (await gitConfig(dir, 'user.email'))
+    const identity = named ? [] : ['-c', 'user.name=Kando', '-c', 'user.email=kando@localhost']
+    await worktreeGit(dir, ['add', '-A'])
+    await worktreeGit(dir, [...identity, 'commit', '--no-verify', '-q', '-m', `Kando：第 ${attempt} 次尝试里没提交的改动`])
+  }
+  if (!(await branchExists(topLevel, repo.branch))) return null
+  const head = await worktreeOutput(topLevel, ['rev-parse', `refs/heads/${repo.branch}`])
+  if (repo.start && head === repo.start.commit) return null
+  let kept = `${repo.branch}-try${attempt}`
+  for (let n = 2; await branchExists(topLevel, kept); n++) kept = `${repo.branch}-try${attempt}-${n}`
+  // Renamed rather than copied: the worktree, if any, follows it, and the name is free again.
+  await worktreeGit(topLevel, ['branch', '-m', repo.branch, kept])
+  return kept
+}
+
+async function gitConfig(dir: string, key: string): Promise<string | null> {
+  try {
+    return (await execFileAsync('git', ['-C', dir, 'config', key])).stdout.trim() || null
+  } catch {
+    return null
+  }
+}
+
+// Starts each of a task's branches over for a redo, from what it would start from now. A worktree
+// stays where it is, so what git ignores there (installed dependencies, local settings) is kept;
+// one the user removed is laid out again at the next start. Returns the repos as they now stand
+// and the branches the attempt's work was kept on.
+export async function restartBranches(
+  task: Pick<Task, 'repos'>,
+  dependencies: readonly Pick<Task, 'repos'>[],
+  attempt: number,
+  at = Date.now()
+): Promise<{ repos: TaskRepo[]; kept: { path: string; branch: string }[] }> {
+  const stackable = await dependencyBranches(dependencies)
+  const repos: TaskRepo[] = []
+  const kept: { path: string; branch: string }[] = []
+  for (const repo of task.repos) {
+    const topLevel = repo.branch ? await gitTopLevel(repo.path) : null
+    if (!topLevel || !repo.branch) {
+      repos.push(repo)
+      continue
+    }
+    const branch = await keepAttemptWork(topLevel, { ...repo, branch: repo.branch }, attempt)
+    if (branch) kept.push({ path: repo.path, branch })
+    const dir = repo.worktreePath && (await isDirectory(repo.worktreePath)) ? repo.worktreePath : null
+    if (!dir) {
+      repos.push({ ...repo, start: null })
+      continue
+    }
+    const base = repo.startRef === null ? onlyBranch(stackable, topLevel) : null
+    const resolved = await resolveStart(topLevel, repo.startRef, base, at)
+    await worktreeGit(dir, ['checkout', '-q', '--no-track', '-B', repo.branch, resolved.commit])
+    repos.push({ ...repo, start: resolved.start })
+  }
+  return { repos, kept }
+}
+
 // Stack on a dependency's branch only when exactly one dependency left one in the repo; with
 // several there is no single right base.
 function onlyBranch(stackable: ReadonlyMap<string, string[]>, topLevel: string): string | null {

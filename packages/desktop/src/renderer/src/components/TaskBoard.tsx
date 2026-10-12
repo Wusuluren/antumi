@@ -89,7 +89,7 @@ export function TaskBoard() {
           aria-pressed={abandoned}
           onClick={() => setPreference('showAbandonedTasks', !abandoned)}
         >
-          已废弃
+          已取消
         </button>
         <SortButton value={sort} />
         <button type="button" className="button primary task-board-new" onClick={() => setNewTaskOpen(true)}>

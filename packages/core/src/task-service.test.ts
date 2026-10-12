@@ -240,12 +240,12 @@ describe('TaskService', () => {
     expect(store.get(task.id)?.launch.permissionMode).toBe('plan')
   })
 
-  it('forgets the launch when the agent changes, and hands it to a redo', () => {
+  it('forgets the launch when the agent changes, and keeps it through a redo', async () => {
     const task = readyTask('Switch agents', [initRepo('app')])
     service.update({ id: task.id, launch: { permissionMode: 'acceptEdits', model: 'sonnet' } })
     expect(service.update({ id: task.id, agent: 'claude' }).launch).toEqual({ permissionMode: 'acceptEdits', model: 'sonnet' })
     store.update(task.id, { status: 'done' })
-    expect(service.redo(task.id, undefined).launch).toEqual({ permissionMode: 'acceptEdits', model: 'sonnet' })
+    expect((await service.redo(task.id, undefined)).launch).toEqual({ permissionMode: 'acceptEdits', model: 'sonnet' })
     const other = readyTask('Other agent', [initRepo('lib')])
     service.update({ id: other.id, launch: { model: 'sonnet' } })
     expect(service.update({ id: other.id, agent: 'codex' }).launch).toEqual({})
@@ -309,7 +309,7 @@ describe('TaskService', () => {
       await handIn(task.id)
       await message(task.id, 'again')
       await handIn(task.id)
-      service.redo(task.id, 'wrong approach')
+      await service.redo(task.id, 'wrong approach')
       await settle()
       expect(verdicts(task.id)).toEqual([
         { kind: 'run', endedBy: 'submit', outcome: 'continued' },
@@ -356,11 +356,12 @@ describe('TaskService', () => {
     expect(running.repos[0]?.start).toMatchObject({ ref: 'release/2.4', commit: release, note: null })
     await handIn(task.id)
     expect(() => service.update({ id: task.id, starts: [{ path: repo, ref: null }] })).toThrow(expect.objectContaining({ reason: 'branch-exists' }))
-    // A redo is a new attempt from the same start, on a branch of its own.
+    // A redo starts the same branches again, from the same picks.
     service.move(task.id, 'done')
-    const successor = service.redo(task.id, undefined)
-    await settle()
-    expect(successor.repos.map((each) => [each.startRef, each.branch, each.start])).toEqual([['refs/heads/release/2.4', null, null], [null, null, null]])
+    const redone = await service.redo(task.id, undefined)
+    expect(redone.repos.map((each) => [each.startRef, each.branch])).toEqual(running.repos.map((each) => [each.startRef, each.branch]))
+    expect(git(redone.repos[0]!.worktreePath!, 'rev-parse', 'HEAD')).toBe(release)
+    expect(redone.repos[0]?.start).toMatchObject({ ref: 'release/2.4', commit: release })
   })
 
   it('lets a cleaned worktree go, and lays it out again from its branch when the task goes on', async () => {
@@ -434,7 +435,7 @@ describe('TaskService', () => {
 
     expect(service.updateImage(task.id, second.id, ' 弹窗 ').images[1]?.name).toBe('弹窗')
     store.update(task.id, { status: 'done' })
-    expect(service.redo(task.id, undefined).images.map((image) => image.name)).toEqual(['登录页', '弹窗'])
+    expect((await service.redo(task.id, undefined)).images.map((image) => image.name)).toEqual(['登录页', '弹窗'])
     expect(service.removeImage(task.id, first.id).images.map((image) => image.id)).toEqual([second.id])
   })
 
@@ -512,11 +513,29 @@ describe('TaskService', () => {
     await resuming
   })
 
-  it('rejects changes to an abandoned task through the service', () => {
-    const task = readyTask('Abandoned', [initRepo('api')])
-    store.update(task.id, { status: 'review' })
-    service.redo(task.id, undefined)
+  it('rejects changes to a cancelled task through the service', async () => {
+    const task = readyTask('Cancelled', [initRepo('api')])
+    await service.cancel(task.id, undefined)
     expect(() => service.update({ id: task.id, repos: [] })).toThrow(expect.objectContaining({ reason: 'task-abandoned' }))
+  })
+
+  it('cancels a task any time before it is accepted, and reopens it where its work stands', async () => {
+    const idle = readyTask('Never mind', [initRepo('api')])
+    expect(await service.cancel(idle.id, '不需要了')).toMatchObject({ status: 'abandoned', abandonReason: '不需要了' })
+    await expect(service.cancel(idle.id, undefined)).rejects.toMatchObject({ reason: 'task-cancelled' })
+    expect(service.reopen(idle.id)).toMatchObject({ status: 'pending', abandonReason: null })
+    expect(() => service.reopen(idle.id)).toThrow(expect.objectContaining({ reason: 'not-cancelled' }))
+
+    const working = readyTask('Half way', [initRepo('app')])
+    const run = await service.start(working.id)
+    await settle()
+    await service.cancel(working.id, undefined)
+    // Its agent stops; its chat and worktree stay, for it to come back to.
+    expect(conversations.get(run.conversationId ?? '').sessionId).toBeNull()
+    expect(existsSync(run.repos[0]?.worktreePath ?? '')).toBe(true)
+    expect(service.reopen(working.id).status).toBe('review')
+    service.move(working.id, 'done')
+    await expect(service.cancel(working.id, undefined)).rejects.toMatchObject({ reason: 'task-done' })
   })
 
   it('refuses a plain folder next to other repos', async () => {
@@ -556,15 +575,15 @@ describe('TaskService', () => {
     await handIn(task.id)
     expect(() => service.update({ id: task.id, repos: [api, web] })).toThrow(expect.objectContaining({ reason: 'primary-fixed' }))
 
-    const redo = service.redo(task.id, undefined)
-    await settle()
+    // A redo starts over in the same worktrees, in the same order; what was left there is kept.
+    const redo = await service.redo(task.id, undefined)
     expect(redo.repos.map((repo) => repo.path)).toEqual([web, api])
-    const redone = await service.start(redo.id)
-    const redonePrimary = redone.repos[0]?.worktreePath ?? ''
-    expect(daemon.spawns.at(-1)?.cwd).toBe(realpathSync(redonePrimary))
-    expect(redonePrimary).not.toBe(primary)
-    expect(existsSync(path.join(redonePrimary, 'draft.txt'))).toBe(false)
-    expect(readFileSync(path.join(primary ?? '', 'draft.txt'), 'utf8')).toBe('keep me')
+    expect(existsSync(path.join(primary ?? '', 'draft.txt'))).toBe(false)
+    const kept = `${running.repos[0]?.branch}-try1`
+    expect(redo.attempts[0]?.branches).toEqual([{ path: web, branch: kept }])
+    expect(git(web, 'show', `${kept}:draft.txt`)).toBe('keep me')
+    await service.start(redo.id)
+    expect(daemon.spawns.at(-1)?.cwd).toBe(realpathSync(primary ?? ''))
   })
 
   it('hands its chat to another agent once its agent is idle, which goes on from what was said', async () => {
@@ -621,45 +640,45 @@ describe('TaskService', () => {
     expect(conversations.get(resumed.conversationId ?? '').projectPaths).toEqual(resumed.repos.map((repo) => realpathSync(repo.worktreePath ?? '')))
   })
 
-  it('redoes a done task as a fresh pending one and moves its dependents over', async () => {
+  it('redoes a finished task in place: pending again on its branch started over, the work so far kept', async () => {
     const repo = initRepo('app')
     const task = readyTask('Attempt', [repo])
     const dependent = service.update({ id: service.create({ title: 'Later' }).id, dependsOn: [task.id] })
-    expect(() => service.redo(task.id, undefined)).toThrow(expect.objectContaining({ reason: 'not-done' }))
+    await expect(service.redo(task.id, undefined)).rejects.toMatchObject({ reason: 'not-done' })
 
     const run = await service.start(task.id)
+    const worktree = run.repos[0]?.worktreePath ?? ''
+    const branch = run.repos[0]?.branch ?? ''
+    git(worktree, 'commit', '-q', '--allow-empty', '-m', 'first go')
+    writeFileSync(path.join(worktree, 'wip.txt'), 'half done')
     await handIn(task.id)
-    // Dependencies are inherited too; added after the start so it did not only plan.
-    const base = service.create({ title: 'Base' })
-    service.update({ id: task.id, dependsOn: [base.id] })
-    const successor = service.redo(task.id, '方向错了')
-    await settle()
+    const redone = await service.redo(task.id, '方向错了')
 
-    expect(service.get(task.id)).toMatchObject({ status: 'abandoned', abandonReason: '方向错了', repos: run.repos })
-    expect(successor).toMatchObject({
-      status: 'pending',
-      title: 'Attempt',
-      details: 'x',
-      agent: 'claude',
-      dependsOn: [base.id],
-      derivedFrom: task.id,
-      repos: [{ path: repo, worktreePath: null, branch: null }]
+    expect(redone).toMatchObject({
+      id: task.id, status: 'pending', plan: null, conversationId: run.conversationId,
+      attempts: [{ reason: '方向错了', branches: [{ path: repo, branch: `${branch}-try1` }] }],
+      repos: [{ worktreePath: worktree, branch }]
     })
-    expect(service.get(dependent.id).dependsOn).toEqual([successor.id])
-    expect(() => service.move(task.id, 'pending')).toThrow(expect.objectContaining({ reason: 'invalid-transition' }))
+    expect(git(worktree, 'rev-parse', 'HEAD')).toBe(git(repo, 'rev-parse', 'HEAD'))
+    expect(git(worktree, 'status', '--porcelain')).toBe('')
+    expect(git(repo, 'log', '-2', '--format=%s', `${branch}-try1`)).toBe('Kando：第 1 次尝试里没提交的改动\nfirst go')
+    expect(service.get(dependent.id).dependsOn).toEqual([task.id])
+    await expect(service.redo(task.id, undefined)).rejects.toMatchObject({ reason: 'not-done' })
   })
 
-  it('starts a redo on a new branch and tells the agent about the abandoned attempt', async () => {
+  it('starts a redo afresh in its own chat, told why and where the last go is', async () => {
     const repo = initRepo('app')
     const task = readyTask('Attempt', [repo])
     const run = await service.start(task.id)
+    git(run.repos[0]?.worktreePath ?? '', 'commit', '-q', '--allow-empty', '-m', 'first go')
     await handIn(task.id)
-    const successor = service.redo(task.id, '')
+    await service.redo(task.id, '不该改表结构')
+    const spawned = daemon.spawns.length
 
-    const redone = await service.start(successor.id)
-    expect(redone.repos[0]?.branch).not.toBe(run.repos[0]?.branch)
-    expect(told(successor.id)).toContain(`上一次尝试 ${task.id.slice(0, 8)}「Attempt」已废弃。`)
-    expect(service.get(task.id).abandonReason).toBeNull()
+    const redone = await service.start(task.id)
+    expect(daemon.spawns.length).toBe(spawned + 1)
+    expect(redone).toMatchObject({ status: 'running', conversationId: run.conversationId, repos: [{ branch: run.repos[0]?.branch }] })
+    expect(told(task.id)).toContain(`这个任务是从头重做：上一次尝试已放弃，原因是：不该改表结构。它的改动在分支 ${run.repos[0]?.branch}-try1 上`)
   })
 
   it('waits for dependencies, then starts from the branch they left behind', async () => {
@@ -936,7 +955,7 @@ describe('TaskService', () => {
     expect(told(task.id)).toContain('<saved-plan>')
   })
 
-  it('goes on from review with a note, redoes without the chat, and deletes the chat with its task', async () => {
+  it('goes on from review with a note, redoes in the same chat, and deletes the chat with its task', async () => {
     const task = readyTask('Chat me', [initRepo('app')])
     const started = await service.start(task.id)
     await settle()
@@ -946,8 +965,8 @@ describe('TaskService', () => {
     expect(told(task.id)).toContain('rename the button')
     await settle()
     service.submit(task.id)
-    const successor = service.redo(task.id, 'wrong approach')
-    expect(successor.conversationId).toBeNull()
+    const redone = await service.redo(task.id, 'wrong approach')
+    expect(redone.conversationId).toBe(started.conversationId)
     await settle()
     await service.delete(task.id)
     expect(() => conversations.get(started.conversationId ?? '')).toThrow(expect.objectContaining({ reason: 'conversation-not-found' }))

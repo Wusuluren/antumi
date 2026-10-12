@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkChangePrimary, checkChatResume, checkContinue, checkEditProjects, checkEditStart, checkMove, checkRedo, checkSavePlan, checkStart, checkStartMode, checkSubmit, checkTaskHandoff, isStartRef, startKind, type Task } from './task'
+import { checkCancel, checkChangePrimary, checkChatResume, checkContinue, checkEditProjects, checkEditStart, checkMove, checkRedo, checkReopen, checkSavePlan, checkStart, checkStartMode, checkSubmit, checkTaskHandoff, isStartRef, reopenStatus, startKind, type Task } from './task'
 
 function task(overrides: Partial<Task> = {}): Task {
   return {
@@ -12,6 +12,7 @@ function task(overrides: Partial<Task> = {}): Task {
     agent: null,
     derivedFrom: null,
     abandonReason: null,
+    attempts: [],
     source: null,
     sourceSnapshot: null,
     images: [],
@@ -99,6 +100,20 @@ describe('checkContinue and checkRedo', () => {
     expect(checkRedo(task({ status: 'review' }))).toBeNull()
     expect(checkRedo(task({ status: 'running' }))).toBe('not-done')
     expect(checkRedo(task({ status: 'abandoned' }))).toBe('not-done')
+  })
+})
+
+describe('cancelling and reopening', () => {
+  it('cancels a task not yet accepted, and reopens one cancelled where its work stands', () => {
+    expect((['pending', 'running', 'review'] as const).map((status) => checkCancel(task({ status })))).toEqual([null, null, null])
+    expect(checkCancel(task({ status: 'done' }))).toBe('task-done')
+    expect(checkCancel(task({ status: 'abandoned' }))).toBe('task-cancelled')
+    expect(checkReopen(task({ status: 'review' }), null)).toBe('not-cancelled')
+    expect(checkReopen(task({ status: 'abandoned' }), null)).toBeNull()
+    expect(checkReopen(task({ status: 'abandoned' }), { id: 'successor' })).toBe('task-redone')
+    const repo = { path: '/app', worktreePath: null, branch: null, startRef: null, start: null }
+    expect(reopenStatus(task({ repos: [repo] }))).toBe('pending')
+    expect(reopenStatus(task({ repos: [{ ...repo, worktreePath: '/wt/app', branch: 'kando/x' }] }))).toBe('review')
   })
 })
 

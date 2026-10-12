@@ -137,6 +137,11 @@ describe('timeline', () => {
     expect(timeline(restarted, []).map((entry) => entry.kind === 'stage' && entry.stage.id)).toEqual(['chat-stage', 'codex'])
   })
 
+  it('marks one where a redo starts the task over with the same agent', () => {
+    const task = [stage('first', 1), stage('again', 2), stage('redone', 5)]
+    expect(timeline(task, [], [4]).map((entry) => entry.kind === 'stage' && entry.stage.id)).toEqual(['first', 'redone'])
+  })
+
   it('marks one where a task stops only planning and starts its work', () => {
     const task = [{ ...stage('plan', 1), planOnly: true }, { ...stage('again', 2), planOnly: true }, { ...stage('work', 3), planOnly: false }]
     expect(timeline(task, []).map((entry) => entry.kind === 'stage' && entry.stage.id)).toEqual(['plan', 'work'])

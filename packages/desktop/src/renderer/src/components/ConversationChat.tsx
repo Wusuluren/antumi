@@ -68,10 +68,16 @@ function MessageTime({ at }: { at: number }) {
   return <time className="chat-message-time" dateTime={new Date(at).toISOString()} title={dayAndTime(at)}>{messageTime(at)}</time>
 }
 
-// A task's chat says where each stage ran: only planning beside the projects, or in its worktrees.
-function StageDivider({ stage, task }: { stage: ConversationStage; task: boolean }) {
+// A task's chat says where each stage ran: only planning beside the projects, or in its worktrees;
+// and, once the task was redone, which go at it the stage belongs to.
+function StageDivider({ conversationId, stage, task }: { conversationId: string; stage: ConversationStage; task: boolean }) {
+  const attempts = useCore((s) => {
+    const taskId = s.conversations[conversationId]?.taskId
+    return taskId ? s.tasks[taskId]?.attempts : undefined
+  })
   const where = stage.planOnly ? ' · 只读规划' : task ? ' · 在 worktree 里执行' : ''
-  return <div className="chat-stage">{agentLabel(stage.agent)} · {chatDayAndTime(stage.startedAt)}{where}</div>
+  const attempt = attempts && attempts.length > 0 ? ` · 第 ${1 + attempts.filter((each) => each.at <= stage.startedAt).length} 次尝试` : ''
+  return <div className="chat-stage">{agentLabel(stage.agent)} · {chatDayAndTime(stage.startedAt)}{where}{attempt}</div>
 }
 
 // How long each finished thought took, by item key.
@@ -498,7 +504,7 @@ function Block({ conversationId, block, task, replies, fresh }: { conversationId
   return (
     <ChatCopyRegion text={entry.kind === 'item' ? copyTextForItem(entry.item) : ''}>
     <div className="chat-entry" data-user={isUserEntry(entry) || undefined} data-entry-key={block.key} data-fresh={entering}>
-      {entry.kind === 'stage' ? <StageDivider stage={entry.stage} task={task} />
+      {entry.kind === 'stage' ? <StageDivider conversationId={conversationId} stage={entry.stage} task={task} />
         : <Item conversationId={conversationId} item={entry.item} completedAt={replies.get(block.key)} blockKey={block.key} />}
     </div>
     </ChatCopyRegion>
@@ -576,6 +582,9 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
 
   const items = page?.items ?? NO_ITEMS
   useEffect(() => acknowledgeInitialMessage(id, items), [id, items])
+  // A task's redos, each starting its chat over.
+  const attempts = useCore((s) => (conversation.taskId ? s.tasks[conversation.taskId]?.attempts : undefined))
+  const redoneAt = useMemo(() => (attempts ?? []).map((attempt) => attempt.at), [attempts])
   const entries = useMemo(() => {
     // A plan shows with its approval; the call's own card would only repeat it.
     const plans = new Set(items.flatMap((item) =>
@@ -585,14 +594,14 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
     const limited = new Set(items.flatMap((item) =>
       item.kind === 'usageLimit' ? [itemKey({ stageId: item.stageId, id: item.id.replace(/^limit:/, 'turn:') })] : []))
     const limitWords = new Set(items.flatMap((item) => (item.kind === 'usageLimit' && item.message ? [`${item.stageId}\n${item.message.trim()}`] : [])))
-    return timeline(stages, items).flatMap((entry): TimelineEntry[] => {
+    return timeline(stages, items, redoneAt).flatMap((entry): TimelineEntry[] => {
       if (entry.kind !== 'item') return [entry]
       const { item } = entry
       if (plans.has(itemKey(item))) return []
       if (item.kind === 'assistant' && limitWords.has(`${item.stageId}\n${item.text.trim()}`)) return []
       return item.kind === 'turn' && limited.has(itemKey(item)) ? [{ kind: 'item', item: { ...item, error: null } }] : [entry]
     })
-  }, [stages, items])
+  }, [stages, items, redoneAt])
   const foldTurns = usePreferences((s) => s.foldTurns)
   const blocks = useMemo(() => chatBlocks(entries, { foldTurns }), [entries, foldTurns])
   for (const key of freshKeys(seen.current, blocks.map((block) => block.key), olderLoaded.current)) entered.current.add(key)

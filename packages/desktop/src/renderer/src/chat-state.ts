@@ -169,8 +169,9 @@ export type TimelineEntry =
   | { kind: 'stage'; stage: ConversationStage }
   | { kind: 'item'; item: ChatItem }
 
-// The conversation stage by stage, each as its items.
-export function timeline(stages: readonly ConversationStage[], items: readonly ChatItem[]): TimelineEntry[] {
+// The conversation stage by stage, each as its items. `redoneAt`: when a task's chat was redone, each
+// a new go that starts with a divider of its own.
+export function timeline(stages: readonly ConversationStage[], items: readonly ChatItem[], redoneAt: readonly number[] = []): TimelineEntry[] {
   const entries: TimelineEntry[] = []
   const known = new Set(stages.map((stage) => stage.id))
   // A stage's state item feeds the composer; it is not something that happened.
@@ -178,8 +179,10 @@ export function timeline(stages: readonly ConversationStage[], items: readonly C
   let previous: ConversationStage | null = null
   for (const stage of stages) {
     // An idle agent goes and the next message starts it again: no divider for that, only where the
-    // agent or a task's planning-only turn changes.
-    const restarted = previous !== null && previous.agent === stage.agent && Boolean(previous.planOnly) === Boolean(stage.planOnly)
+    // agent or a task's planning-only turn changes, or a redo starts the task over.
+    const from = previous?.startedAt ?? 0
+    const redone = redoneAt.some((at) => from <= at && at <= stage.startedAt)
+    const restarted = previous !== null && !redone && previous.agent === stage.agent && Boolean(previous.planOnly) === Boolean(stage.planOnly)
     if (!restarted) entries.push({ kind: 'stage', stage })
     previous = stage
     flow.filter((item) => item.stageId === stage.id).forEach((item) => entries.push({ kind: 'item', item }))

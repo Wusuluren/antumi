@@ -5,7 +5,7 @@ export const STATUS_LABEL: Record<TaskStatus, string> = {
   running: '执行中',
   review: '待验收',
   done: '已完成',
-  abandoned: '已废弃'
+  abandoned: '已取消'
 }
 
 export const STATUS_HINT: Record<TaskStatus, string> = {
@@ -13,7 +13,7 @@ export const STATUS_HINT: Record<TaskStatus, string> = {
   running: 'Agent 正在执行',
   review: 'Agent 已结束，等你看过结果后接受、继续修改或重做',
   done: '结果已接受，依赖它的任务可以执行了',
-  abandoned: '已废弃，由继承它的新任务接着做'
+  abandoned: '已取消，不再做了；可以重新打开'
 }
 
 export function agentLabel(kind: AgentKind): string {
@@ -65,10 +65,10 @@ const REASON_TEXT: Record<string, string> = {
   'repo-not-git': '涉及多个项目时，每个目录都必须是 Git 仓库',
   'repo-duplicate': '有两个项目路径指向同一个 Git 仓库',
   'task-running': '执行中不能修改项目',
-  'task-abandoned': '已废弃的任务不能修改项目',
+  'task-abandoned': '已取消的任务不能修改项目，先重新打开',
   'primary-fixed': '任务的对话开始后不能更换主项目，附加项目仍可增删',
   'branch-exists': '任务分支已经建好，起点不能再改',
-  'task-active': '任务还没完成或废弃',
+  'task-active': '任务还没完成或取消',
   'conversation-open': '会话还在，删除会话后才能清理它的 worktree',
   'worktree-not-git': '新建 worktree 时，每个项目都必须是 Git 仓库',
   'worktree-locked': '已用 git worktree lock 锁定',
@@ -132,7 +132,11 @@ const REASON_TEXT: Record<string, string> = {
   'not-chat': '这个任务没有聊天，不能提交验收',
   'agent-working': 'Agent 还在处理，等这一轮结束再提交',
   'no-chat': '这个任务还没有开始聊天',
-  abandoned: '已废弃的任务不能继续',
+  abandoned: '已取消的任务不能继续，先重新打开',
+  'task-done': '已完成的任务不能取消',
+  'task-cancelled': '任务已经取消了',
+  'not-cancelled': '只有已取消的任务可以重新打开',
+  'task-redone': '它已经由重做出来的新任务接着做，不能重新打开',
   'task-conversation': '这条会话属于一个任务，请从任务那里继续',
   'managed-workspace': '没选项目的会话在 Kando 的临时目录里运行，不能再添加项目',
   'chat-unavailable': '这个 core 不支持聊天界面',

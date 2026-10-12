@@ -34,7 +34,7 @@ function workspaceSection(workspace: Workspace): string | null {
 
 type Dependency = Pick<Task, 'id' | 'title' | 'repos' | 'status' | 'details'> & { plan?: Task['plan'] }
 
-const STATUS_TEXT: Record<TaskStatus, string> = { pending: '未执行', running: '执行中', review: '待验收', done: '已完成', abandoned: '已废弃' }
+const STATUS_TEXT: Record<TaskStatus, string> = { pending: '未执行', running: '执行中', review: '待验收', done: '已完成', abandoned: '已取消' }
 
 // Plans of unfinished dependencies go inline up to this much each.
 const PLAN_EXCERPT_LIMIT = 8_000
@@ -119,17 +119,19 @@ function sourceSection(task: Pick<Task, 'source' | 'sourceSnapshot'>, images: Pr
   return task.source ? untrustedSource(task.source, task.sourceSnapshot, images.source) : null
 }
 
-type Predecessor = Pick<Task, 'id' | 'title' | 'repos' | 'abandonReason'>
+// What a redo comes after: the task's own last go, or, from before redoing kept the task, the task
+// it was redone from.
+export type PreviousAttempt = { reason: string | null; branches: readonly string[]; redoneFrom: Pick<Task, 'id' | 'title'> | null }
 
-// A redo starts clean, but the abandoned attempt is worth a look for what not to repeat.
-function predecessorSection(predecessor: Predecessor | null): string | null {
-  if (!predecessor) {
+// A redo starts clean, but the last go is worth a look for what not to repeat.
+function previousSection(previous: PreviousAttempt | null): string | null {
+  if (!previous) {
     return null
   }
-  const branches = predecessor.repos.flatMap((repo) => (repo.branch ? [repo.branch] : []))
+  const { reason, branches, redoneFrom } = previous
   return [
-    `这个任务是重做：上一次尝试 ${shortTaskId(predecessor.id)}「${predecessor.title}」已废弃`,
-    predecessor.abandonReason ? `，原因是：${predecessor.abandonReason}` : '',
+    redoneFrom ? `这个任务是重做：上一次尝试 ${shortTaskId(redoneFrom.id)}「${redoneFrom.title}」已放弃` : '这个任务是从头重做：上一次尝试已放弃',
+    reason ? `，原因是：${reason}` : '',
     '。',
     branches.length ? `它的改动在分支 ${branches.join('、')} 上，可以用 git 查看作参考，但不要直接沿用。` : ''
   ].join('')
@@ -178,7 +180,7 @@ export function agentPrompt(
   task: Pick<Task, 'title' | 'details' | 'source' | 'sourceSnapshot'>,
   workspace: Workspace,
   dependencies: readonly Pick<Task, 'id' | 'title' | 'repos'>[],
-  predecessor: Predecessor | null = null,
+  previous: PreviousAttempt | null = null,
   images: PromptImages = NO_IMAGES
 ): string {
   const sections = [
@@ -187,7 +189,7 @@ export function agentPrompt(
     sourceSection(task, images),
     workspaceSection(workspace),
     dependencySection(workspace, dependencies),
-    predecessorSection(predecessor)
+    previousSection(previous)
   ]
   return sections.filter((section) => section !== null).join('\n\n')
 }
@@ -208,14 +210,14 @@ export function chatStartPrompt(
   task: Pick<Task, 'title' | 'details' | 'source' | 'sourceSnapshot'>,
   workspace: Workspace,
   dependencies: readonly Pick<Task, 'id' | 'title' | 'repos'>[],
-  predecessor: Predecessor | null = null,
+  previous: PreviousAttempt | null = null,
   images: PromptImages = NO_IMAGES,
   plan: Pick<TaskPlan, 'markdown'> | null = null,
   unattended = false,
   mode = 'plan'
 ): string {
   const sections = [
-    agentPrompt(task, workspace, dependencies, predecessor, images),
+    agentPrompt(task, workspace, dependencies, previous, images),
     plan
       ? `依赖的任务完成之前，我们已经定下了下面的计划。先对照现在的代码核对一遍，需要调整的地方说明原因：\n<saved-plan>\n${plan.markdown.trim()}\n</saved-plan>`
       : null,
@@ -236,7 +238,7 @@ export function chatPlanPrompt(
   task: Pick<Task, 'title' | 'details' | 'source' | 'sourceSnapshot'>,
   workspace: RefineWorkspace,
   dependencies: readonly Dependency[],
-  predecessor: Predecessor | null = null,
+  previous: PreviousAttempt | null = null,
   images: PromptImages = NO_IMAGES
 ): string {
   const sections = [
@@ -247,7 +249,7 @@ export function chatPlanPrompt(
     sourceSection(task, images),
     codeSection(workspace),
     dependencyDetailsSection(workspace, dependencies),
-    predecessorSection(predecessor),
+    previousSection(previous),
     [
       '请这样进行：',
       '1. 先阅读相关代码，了解现状。',

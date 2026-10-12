@@ -138,6 +138,8 @@ export function createRpcHandlers(
     'tasks.startOptions': ({ id }) => service.startOptions(id),
     'tasks.move': ({ id, status }) => service.move(id, status),
     'tasks.redo': ({ id, reason }) => service.redo(id, reason),
+    'tasks.cancel': ({ id, reason }) => service.cancel(id, reason),
+    'tasks.reopen': ({ id }) => service.reopen(id),
     'tasks.start': ({ id, allowBypass, ...options }) => service.start(id, allowBypass, undefined, options),
     // Going on by hand in a task's chat is the user acting there, as in a free conversation.
     'tasks.resumeChat': ({ id, allowBypass }) => {

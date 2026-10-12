@@ -6,7 +6,8 @@ import { SourceSnapshot, TaskSource } from './source'
 
 // pending: not handed to an agent yet · running: an agent works on it in the task's chat
 // review: handed in, and the user has not judged the result · done: the user accepted it,
-// or closed the task themselves · abandoned: redone as a new task
+// or closed the task themselves · abandoned: cancelled, the user decided not to do it (before
+// redoing kept the task, a task redone was abandoned for a new one: see derivedFrom)
 export const TASK_STATUSES = ['pending', 'running', 'review', 'done', 'abandoned'] as const
 export const TaskStatus = z.enum(TASK_STATUSES)
 export type TaskStatus = z.infer<typeof TaskStatus>
@@ -52,6 +53,15 @@ export const TaskStart = z.object({
 })
 export type TaskStart = z.infer<typeof TaskStart>
 
+// A go at a task the user had redone from scratch: why, and the branches its work was kept on, one
+// per repo where it left any.
+export const TaskAttempt = z.object({
+  reason: z.string().nullable(),
+  branches: z.array(z.object({ path: z.string(), branch: z.string() })),
+  at: z.number()
+})
+export type TaskAttempt = z.infer<typeof TaskAttempt>
+
 export const TaskRepo = z.object({
   // Absolute path of the repo (or plain folder) the user picked.
   path: z.string(),
@@ -90,10 +100,12 @@ export const Task = z.object({
   // Ids of tasks that must be done before this one can run.
   dependsOn: z.array(z.string()),
   agent: AgentKind.nullable(),
-  // The abandoned task this one redoes.
+  // The abandoned task this one redoes, from before redoing kept the task.
   derivedFrom: z.string().nullable().default(null),
-  // Why an abandoned task was given up, handed to the agent that redoes it.
+  // Why the task was cancelled (or, from before, given up for a redo).
   abandonReason: z.string().nullable().default(null),
+  // The goes before this one, oldest first, each redone from scratch. Older cores leave it out.
+  attempts: z.array(TaskAttempt).default([]),
   // The issue a task was imported from, and that issue's text as fetched.
   source: TaskSource.nullable().default(null),
   sourceSnapshot: SourceSnapshot.nullable().default(null),
@@ -141,10 +153,10 @@ export function checkChangePrimary(task: Pick<Task, 'conversationId'>): PrimaryC
 }
 
 // `running` is entered only by starting or continuing, `review` only by the task being handed in
-// (its agent does not end with the work), and `abandoned` only by
-// redoing. A finished task never goes back to pending: it continues in place, or is redone from
-// scratch. Moving to done is the user's say-so: accepting a result under review,
-// or closing a task whose work was finished some other way.
+// (its agent does not end with the work), and `abandoned` only by cancelling. A finished task goes
+// back to pending only by being redone from scratch; otherwise it continues in place. Moving to done
+// is the user's say-so: accepting a result under review, or closing a task whose work was finished
+// some other way.
 const MANUAL_MOVES: Record<TaskStatus, readonly TaskStatus[]> = {
   pending: ['done'],
   running: ['done'],
@@ -265,8 +277,32 @@ export function checkContinue(task: Task, dependencies: readonly Pick<Task, 'sta
 
 export type RedoBlocker = 'not-done'
 
-export function checkRedo(task: Task): RedoBlocker | null {
+// Redoing starts the task over on its own branch, the work so far kept on another: for a result
+// handed in or accepted that took the wrong way.
+export function checkRedo(task: Pick<Task, 'status'>): RedoBlocker | null {
   return isFinished(task.status) ? null : 'not-done'
+}
+
+export type CancelBlocker = 'task-done' | 'task-cancelled'
+
+// Any task not yet accepted can be given up; its agent stops, and its chat and worktrees stay.
+export function checkCancel(task: Pick<Task, 'status'>): CancelBlocker | null {
+  if (task.status === 'done') return 'task-done'
+  return task.status === 'abandoned' ? 'task-cancelled' : null
+}
+
+export type ReopenBlocker = 'not-cancelled' | 'task-redone'
+
+// A cancelled task comes back as it was left; one abandoned for a redo, before redoing kept the
+// task, has its successor carrying it on instead.
+export function checkReopen(task: Pick<Task, 'status'>, redoneAs: Pick<Task, 'id'> | null): ReopenBlocker | null {
+  if (task.status !== 'abandoned') return 'not-cancelled'
+  return redoneAs ? 'task-redone' : null
+}
+
+// Where a reopened task comes back: to review with what its worktrees hold, else to pending.
+export function reopenStatus(task: Pick<Task, 'repos'>): TaskStatus {
+  return task.repos.some((repo) => repo.worktreePath !== null) ? 'review' : 'pending'
 }
 
 // The agent's work was handed in, accepted or not.

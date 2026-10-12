@@ -64,11 +64,12 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // git-commit-branches: core lists the branches holding a commit (git.containing).
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
 // handoff-model: a handoff takes the model and effort the agent starts in (conversations.handoff, tasks.handoff).
-export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics'] as const
+export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place'] as const
 // task-launch-options: tasks.start accepts the first stage's mode, model and reasoning effort.
 // task-launch: a task keeps them (Task.launch, set by tasks.update and by each start by hand).
 // discussion-members: members join and leave a group chat midway; discussion-projects: its projects but the first change.
 // discussion-topics: the user moves a group chat on to a new topic (discussions.newTopic, Discussion.topicStart, DiscussionPost.topic).
+// task-cancel: tasks.cancel and tasks.reopen; task-redo-in-place: tasks.redo keeps the task, its earlier goes in Task.attempts.
 // deferred-conversation-start: create can return before launching; send takes a ref for safe retries.
 // routines: core runs routines, rules that open a conversation on a schedule, and keeps their runs (routines.*). A
 // client without it shows the conversations they opened among the others, since it does not read routineId.
@@ -144,8 +145,14 @@ export const rpcMethods = {
   // What each of the task's repos could start from, read from git on every call.
   'tasks.startOptions': { params: TaskRef, result: z.array(RepoStartOptions) },
   'tasks.move': { params: TaskRef.extend({ status: TaskStatus }), result: Task },
-  // Abandons a done task and returns the new pending task that takes over from it.
+  // Starts a task handed in or accepted over from scratch (checkRedo): its work so far goes on a
+  // branch of its own, its branch starts again, and it is pending, with the reason for its next
+  // agent. Returns the task. Before task-redo-in-place, it returned a new task that took over.
   'tasks.redo': { params: TaskRef.extend({ reason: z.string().trim().max(500).optional() }), result: Task },
+  // Gives a task up (checkCancel): its agent stops, what it did stays. Needs task-cancel.
+  'tasks.cancel': { params: TaskRef.extend({ reason: z.string().trim().max(500).optional() }), result: Task },
+  // Brings a cancelled task back (checkReopen, reopenStatus). Needs task-cancel.
+  'tasks.reopen': { params: TaskRef, result: Task },
   // A task runs in its chat. start plans first, then carries the plan out in the task's worktree,
   // or only plans while its dependencies are unfinished. resumeChat readies its agent before a
   // message, reopening a finished task as continuing does. submit hands a running one in for

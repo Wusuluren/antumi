@@ -101,8 +101,9 @@ export class AgentRunStore {
       return
     }
     if (from === 'review' && to === 'done') return this.judge(after.id, 'accepted', at, false)
-    // Redoing outranks an earlier acceptance: the user has since decided it was not right.
-    if (isFinished(from) && to === 'abandoned') return this.judge(after.id, 'redone', at, true)
+    // Redoing outranks an earlier acceptance: the user has since decided it was not right. Before
+    // redoing kept the task, a redo abandoned it; now that is cancelling, which judges nothing.
+    if (isFinished(from) && to === 'pending') return this.judge(after.id, 'redone', at, true)
   }
 
   private start(task: Task, agent: AgentKind, kind: z.infer<typeof RunKind>, at: number): void {
