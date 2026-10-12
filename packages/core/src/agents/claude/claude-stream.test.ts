@@ -750,12 +750,22 @@ describe('ClaudeStream background tasks, as recorded', () => {
     expect(driver.activity()).toBe('idle')
   })
 
-  it('tells a failed command from a subagent, each opening a turn of its own', () => {
+  it('tells a failed command from a subagent, and leaves out the turn the CLI opened and closed on nothing', () => {
     const driver = replay(fixture('claude-background-mixed.jsonl'))
     const tools = ofKind(driver.items.list(), 'tool')
     expect(tools.map((tool) => [tool.name, tool.status, tool.background ?? false])).toEqual([['Bash', 'failed', true], ['Agent', 'done', true]])
     expect(tools.map((tool) => tool.execution)).toEqual([{ status: 'failed', exitCode: null }, undefined])
-    expect(ofKind(driver.items.list(), 'turn').map((turn) => turn.resumedBy ?? null)).toEqual([null, 'subagent', 'command'])
+    // The subagent's notification opened a turn with no request in it; the command's then answered both.
+    expect(ofKind(driver.items.list(), 'turn').map((turn) => turn.resumedBy ?? null)).toEqual([null, 'command'])
+  })
+
+  it('shows no turn for one the CLI opens after a report and ends on nothing', () => {
+    const turns = (list: readonly ChatRecord[]) => ofKind(replay(list).items.list(), 'turn').length
+    const empty: ChatRecord[] = [
+      { dir: 'in', at: 99_000, frame: { type: 'system', subtype: 'init', session_id: 'x' } },
+      { dir: 'in', at: 99_016, frame: { type: 'result', subtype: 'success', is_error: false, num_turns: 0, duration_ms: 16, result: '', usage: { input_tokens: 0, output_tokens: 0 } } }
+    ]
+    expect(turns([...records, ...empty])).toBe(turns(records))
   })
 
   it('lets a command still running go when the agent exits', () => {

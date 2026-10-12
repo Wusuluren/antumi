@@ -165,6 +165,8 @@ const ResultFrame = z.looseObject({
   terminal_reason: z.string().nullish(),
   errors: z.array(z.string()).nullish().catch(null),
   duration_ms: z.number().nullish(),
+  // How many model requests the turn made; none for a turn the CLI started and found nothing in.
+  num_turns: z.number().nullish(),
   // What the whole turn sent and received, cached input included.
   usage: Usage.optional().catch(undefined),
   // How many subagents have finished so far, over the whole session: the CLI does not always hand
@@ -1071,7 +1073,11 @@ export class ClaudeStream implements ChatDriver {
     const usage = used
       ? { input: (used.input_tokens ?? 0) + (used.cache_creation_input_tokens ?? 0) + (used.cache_read_input_tokens ?? 0), output: used.output_tokens ?? 0 }
       : null
-    this.endTurn(state, error, result.duration_ms ?? null, at, usage, limit)
+    // A subagent's report starts a turn the model answers, then the CLI starts another for the same
+    // notification and ends it at once, the report already taken: no request, nothing said. That
+    // one is left out, rather than shown as a turn of its own.
+    const empty = state === 'completed' && this.turn?.resumed === true && !this.turn.assistant && result.num_turns === 0
+    this.endTurn(state, error, result.duration_ms ?? null, at, usage, limit, empty)
   }
 
   // The window of the model the stage runs; a turn's usage also lists models the CLI ran for itself.
@@ -1108,7 +1114,8 @@ export class ClaudeStream implements ChatDriver {
     durationMs: number | null,
     at: number,
     usage: { input: number; output: number } | null = null,
-    limit: UsageLimitHit | null = null
+    limit: UsageLimitHit | null = null,
+    unseen = false
   ): void {
     this.finishStreaming(at)
     if (state !== 'completed') this.items.settleTools(state, at, true)
@@ -1118,7 +1125,7 @@ export class ClaudeStream implements ChatDriver {
     for (const requestId of [...this.pending.keys()]) this.resolve(requestId, 'cancelled', null, at)
     const turn = this.turn
     const id = turn ? `turn:${turn.ref}` : `turn:result-${++this.results}`
-    this.items.put({ id, kind: 'turn', state, error, durationMs, usage, ...(turn?.resumed ? { resumed: true, ...(turn.resumedBy ? { resumedBy: turn.resumedBy } : {}) } : {}), providerRef: turn?.uuid ?? null }, at)
+    if (!unseen) this.items.put({ id, kind: 'turn', state, error, durationMs, usage, ...(turn?.resumed ? { resumed: true, ...(turn.resumedBy ? { resumedBy: turn.resumedBy } : {}) } : {}), providerRef: turn?.uuid ?? null }, at)
     if (limit) this.items.usageLimit(id, limit, at)
     this.refused = null
     if (turn?.assistant) {
