@@ -93,6 +93,9 @@ export type RepoStartOptions = z.infer<typeof RepoStartOptions>
 export const Task = z.object({
   id: z.string(),
   title: z.string(),
+  // English words for a branch name, for a title git cannot name one after; null until the agent's
+  // small model gives them, or when the title serves. Older cores leave it out.
+  slug: z.string().nullable().default(null),
   details: z.string(),
   status: TaskStatus,
   // Ordered: the first repo is primary; its working directory is the agent's cwd.

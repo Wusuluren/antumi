@@ -32,6 +32,7 @@ import { AgentCliInstaller } from './agent-cli-installation'
 import { dashboardSince, summarizeDashboard } from './dashboard-stats'
 import { PortService } from './port-service'
 import type { WireLog } from './wire-log'
+import { cleanSlug, slugPrompt } from './branch-slug'
 import { cleanCommitMessage, commitContext, commitMessagePrompt } from './commit-message'
 import { QuickRequests } from './quick-request'
 import { TranslationService } from './translation-service'
@@ -71,6 +72,7 @@ export function createRpcHandlers(
   const files = new ConversationFiles((id) => conversations.get(id))
   const quick = new QuickRequests({ catalog: (agent) => conversations.chatCatalog(agent) })
   const translations = new TranslationService(quick)
+  service.setBranchNamer(async (agent, title) => cleanSlug((await quick.ask(agent, slugPrompt(title))).text))
   const cliInstaller = new AgentCliInstaller(environment, terminals)
   const ports = new PortService(sessions, () => ({ terminals: terminals.list(), conversations: conversations.listAll(), tasks: service.list() }))
   // An agent's own terminals: run in the conversation's folder unless it names another, and

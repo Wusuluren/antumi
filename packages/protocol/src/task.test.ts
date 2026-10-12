@@ -10,6 +10,7 @@ function task(overrides: Partial<Task> = {}): Task {
     repos: [],
     dependsOn: [],
     agent: null,
+    slug: null,
     derivedFrom: null,
     abandonReason: null,
     attempts: [],

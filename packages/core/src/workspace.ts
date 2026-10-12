@@ -162,14 +162,14 @@ async function addWorktree(topLevel: string, worktreePath: string, args: readonl
 // The agent works in the primary worktree and gets the others as additional directories.
 // A plain folder runs in place, so it can only be a task's sole repo.
 export async function prepareWorkspace(
-  task: Pick<Task, 'id' | 'title' | 'repos' | 'source'>,
+  task: Pick<Task, 'id' | 'title' | 'repos' | 'source'> & Partial<Pick<Task, 'slug'>>,
   dependencies: readonly Pick<Task, 'repos'>[],
   worktreesRoot: string,
   at = Date.now()
 ): Promise<Workspace> {
   const shortId = shortTaskId(task.id)
   // An issue key in the branch name is how Jira links the branch to the issue.
-  const slug = branchSlug(task.title)
+  const slug = task.slug ?? branchSlug(task.title)
   const key = task.source ? branchKey(task.source.key) : ''
   const branch = `kando/${key ? `${key}-` : ''}${shortId}${slug ? `-${slug}` : ''}`
   const taskDir = path.join(worktreesRoot, shortId)

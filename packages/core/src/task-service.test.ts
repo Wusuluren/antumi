@@ -471,6 +471,33 @@ describe('TaskService', () => {
     expect(told(task.id)).toContain('这个任务来自 Jira PROJ-7')
   })
 
+  it('names the branch of a task titled in Chinese in English words from its agent, made ahead of the start', async () => {
+    const asked: string[] = []
+    let answer: (words: string | null) => void = () => {}
+    service.setBranchNamer(async (agent, title) => {
+      asked.push(`${agent}:${title}`)
+      return title === '修复登录超时' ? 'fix-login-timeout' : new Promise((resolve) => { answer = resolve })
+    })
+    const repo = initRepo('app')
+    // A title git can name a branch after asks nothing.
+    service.create({ title: 'Add dark mode', agent: 'claude' })
+    const task = service.create({ title: '修复登录超时', repos: [repo] })
+    expect(asked).toEqual([])
+    service.update({ id: task.id, agent: 'claude' })
+    await settle()
+    expect(service.get(task.id).slug).toBe('fix-login-timeout')
+
+    // Words for the old title go with it; a start waits for those of the new one.
+    service.update({ id: task.id, title: '修复登出' })
+    expect(service.get(task.id).slug).toBeNull()
+    const starting = service.start(task.id)
+    await settle()
+    answer('fix-logout')
+    const running = await starting
+    expect(running.repos[0]?.branch).toBe(`kando/${task.id.slice(0, 8)}-fix-logout`)
+    expect(asked).toEqual(['claude:修复登录超时', 'claude:修复登出'])
+  })
+
   it('works in place for a plain folder workspace', async () => {
     const folder = path.join(dir, 'notes')
     mkdirSync(folder)
