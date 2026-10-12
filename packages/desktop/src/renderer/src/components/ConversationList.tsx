@@ -174,7 +174,11 @@ export function ConversationList() {
   const sortBy = usePreferences((p) => p.conversationSort)
   // A task's conversation is reached from its task; a routine's from the routine's history; a group
   // chat member's from the group chat.
-  const all = Object.values(conversations).filter((conversation) => !conversation.taskId && !conversation.routineId && !conversation.discussionId)
+  const free = Object.values(conversations).filter((conversation) => !conversation.taskId && !conversation.routineId && !conversation.discussionId)
+  // Archived ones wait in a group of their own at the end, folded, and come up in a search.
+  const all = free.filter((conversation) => conversation.archivedAt == null)
+  const archivedAll = free.filter((conversation) => conversation.archivedAt != null).sort(COMPARE[sortBy])
+  const [archivedOpen, setArchivedOpen] = useState(false)
   // Null while the search box is closed. Groups left empty by a search drop out.
   const [query, setQuery] = useState<string | null>(null)
   const needle = query?.trim() ?? ''
@@ -186,6 +190,7 @@ export function ConversationList() {
     ? all.filter((conversation) => matches(conversation, needle) || snippets?.has(conversation.id))
     : all
   const groups = arrange(visible, groupBy, sortBy)
+  const archived = searching ? archivedAll.filter((conversation) => matches(conversation, needle) || snippets?.has(conversation.id)) : archivedAll
   // A search opens every group, so nothing it found is folded away.
   const folded = usePreferences((p) => p.foldedConversationGroups)
   const foldKey = (key: string) => `${groupBy}:${key}`
@@ -264,8 +269,8 @@ export function ConversationList() {
         <SidebarSearchField label="搜索会话" placeholder="标题、项目名或聊天内容" query={query} onChange={setQuery} />
       )}
       <div id="sidebar-conversations" className="sidebar-section-content" hidden={collapsed}>
-      {all.length === 0 ? <p className="task-list-empty">还没有会话，点右上角的 ＋ 新建。</p> :
-        visible.length === 0 ? snippets && <p className="task-list-empty">没有找到匹配「{needle}」的会话。</p> :
+      {free.length === 0 ? <p className="task-list-empty">还没有会话，点右上角的 ＋ 新建。</p> :
+        visible.length === 0 && archived.length === 0 ? snippets && <p className="task-list-empty">没有找到匹配「{needle}」的会话。</p> :
         groups.map((group) => group.label === null
           ? <ul key={group.key}>{group.items.map(row)}</ul>
           : <section key={group.key} className="conversation-group" aria-label={group.label}>
@@ -289,6 +294,18 @@ export function ConversationList() {
             </h3>
             {!isFolded(group.key) && <ul>{group.items.map(row)}</ul>}
           </section>)}
+      {archived.length > 0 && (
+        <section className="conversation-group conversation-archive" aria-label="已归档">
+          <h3 className="conversation-group-title">
+            <button type="button" className="conversation-group-fold" aria-expanded={searching || archivedOpen} onClick={() => setArchivedOpen(!archivedOpen)}>
+              <ChevronDownIcon />
+              已归档
+              <span className="count">{archived.length}</span>
+            </button>
+          </h3>
+          {(searching || archivedOpen) && <ul>{archived.map(row)}</ul>}
+        </section>
+      )}
       </div>
       {viewAt && <ViewMenu at={viewAt} trigger={viewButton.current} onClose={closeView} />}
       {menu && menuConversation && (

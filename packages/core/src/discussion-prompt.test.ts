@@ -6,7 +6,7 @@ const ID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')
 
 const discussion = (anonymous: boolean): Discussion => ({
   id: ID(1), title: 't', topic: 'Pick a cache', projectPaths: ['/repo'], chairId: ID(3), maxRounds: 3, anonymous,
-  state: 'running', step: 'round', round: 1, lastRound: 3, topicStart: 0, pinnedAt: null, formerMembers: [], createdAt: 0, updatedAt: 0,
+  state: 'running', step: 'round', round: 1, lastRound: 3, topicStart: 0, pinnedAt: null, archivedAt: null, formerMembers: [], createdAt: 0, updatedAt: 0,
   members: [
     { id: ID(2), conversationId: ID(12), agent: 'claude', model: 'opus', effort: null, name: 'Ann', role: 'skeptic', status: 'idle' },
     { id: ID(3), conversationId: ID(13), agent: 'codex', model: null, effort: null, name: 'Bob', role: '', status: 'idle' }

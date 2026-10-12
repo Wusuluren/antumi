@@ -211,6 +211,23 @@ describe('DiscussionService', () => {
     expect(discussions.get(discussion.id).title).toBe('Infra')
   })
 
+  it('archives a group chat once nothing is out, read-only until taken out again', async () => {
+    const discussion = await discussions.create(fields())
+    await expect(discussions.setArchived(discussion.id, true)).rejects.toMatchObject({ reason: 'discussion-busy' })
+    await until(() => state(discussion.id) === 'done')
+
+    const archived = await discussions.setArchived(discussion.id, true)
+    expect(archived.archivedAt).toEqual(expect.any(Number))
+    expect(archived.members.map((member) => conversations.get(member.conversationId).sessionId)).toEqual([null, null, null])
+    await expect(discussions.post(discussion.id, 'more?')).rejects.toMatchObject({ reason: 'discussion-archived' })
+    await expect(discussions.newTopic(discussion.id, 'Another')).rejects.toMatchObject({ reason: 'discussion-archived' })
+    await expect(discussions.control(discussion.id, 'nextRound')).rejects.toMatchObject({ reason: 'discussion-archived' })
+
+    expect((await discussions.setArchived(discussion.id, false)).archivedAt).toBeNull()
+    await discussions.post(discussion.id, 'One more round.')
+    await until(() => state(discussion.id) === 'done' && discussions.posts(discussion.id).at(-1)?.round === 3)
+  })
+
   it('pauses after the round out, resumes into the next, and concludes on request', async () => {
     const discussion = await discussions.create(fields({ maxRounds: 3 }))
     await discussions.control(discussion.id, 'pause')

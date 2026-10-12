@@ -656,6 +656,12 @@ body.stacked-panel-resizing * {
   height: 16px;
 }
 
+/* What the user put away: a word beside its title, and where its input was, the way back. */
+.archived-tag { flex-shrink: 0; padding: 0 6px; border-radius: 999px; background: var(--fill-2); color: var(--text-muted); font-size: 12px; font-weight: 400; }
+.chat-archived { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px dashed var(--border-2); border-radius: var(--radius-lg); background: var(--surface); color: var(--text-muted); font-size: 13px; }
+/* The archive closes the list, set apart from the groups above it. */
+.conversation-archive { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 4px; }
+
 /* Icon buttons beside a sidebar section's ＋: search, the task filter, the conversations' view menu. */
 .sidebar-tool {
   margin-right: 4px;
@@ -6452,7 +6458,8 @@ body.side-panel-resizing * {
 .chat-intervention-tab:hover { color: var(--text); }
 .chat-intervention-tab[aria-selected='true'] { border-bottom-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
 .chat-intervention-count { flex-shrink: 0; margin-left: auto; padding: 4px 12px; color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.chat-dock-composer[hidden] { display: none; }
+.chat-dock-composer[hidden],
+.chat-input-card[hidden] { display: none; }
 /* The two other ways to answer sit at the end of the question tabs. */
 .chat-ask-tab-alt { margin-left: auto; }
 .chat-ask-free {

@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react'
-import type { Discussion } from '@kando/protocol'
-import { openDiscussionDraft, selectDiscussion, useCore, useDiscussionsSupported } from '../core-store'
-import { deleteDiscussion, discussionProgress, renameDiscussion, setDiscussionPinned } from '../discussions'
+import { checkArchiveDiscussion, type Discussion } from '@kando/protocol'
+import { openDiscussionDraft, selectDiscussion, useCore, useDiscussionArchiveSupported, useDiscussionsSupported } from '../core-store'
+import { archiveDiscussion, deleteDiscussion, discussionProgress, renameDiscussion, setDiscussionPinned } from '../discussions'
 import { agentLabel } from '../labels'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
-import { AgentIcon, GroupChatIcon, PlusIcon } from './icons'
+import { AgentIcon, ChevronDownIcon, GroupChatIcon, PlusIcon } from './icons'
 import { SidebarCollapseButton } from './SidebarCollapseButton'
 import { TitleEditor } from './TitleEditor'
 
@@ -51,13 +51,44 @@ export function SidebarDiscussions() {
   const [menu, setMenu] = useState<{ id: string; at: MenuPoint } | null>(null)
   const closeMenu = useCallback(() => setMenu(null), [])
   const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [archivedOpen, setArchivedOpen] = useState(false)
+  const archivable = useDiscussionArchiveSupported()
   if (!supported) return null
-  const list = arranged(discussions)
+  // Archived ones wait at the end, folded.
+  const list = arranged(discussions).filter((discussion) => discussion.archivedAt === null)
+  const archived = arranged(discussions).filter((discussion) => discussion.archivedAt !== null)
   const menuDiscussion = menu ? discussions[menu.id] : undefined
   const pick = (action: () => void) => () => {
     closeMenu()
     action()
   }
+
+  const row = (discussion: Discussion) => (
+    <li key={discussion.id}>
+      {renamingId === discussion.id ? (
+        <div className="task-row conversation-row" data-renaming>
+          <DiscussionDot discussion={discussion} />
+          <TitleEditor title={discussion.title} label="群聊标题" onSave={(title) => void renameDiscussion(discussion.id, title)} onDone={() => setRenamingId(null)} />
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="task-row conversation-row"
+          data-menu-open={menu?.id === discussion.id || undefined}
+          aria-current={section === 'discussions' && selected === discussion.id}
+          onClick={() => selectDiscussion(discussion.id)}
+          onContextMenu={(event) => {
+            event.preventDefault()
+            setMenu({ id: discussion.id, at: menuPoint(event) })
+          }}
+        >
+          <DiscussionDot discussion={discussion} />
+          <span className="task-row-title" title={discussion.title}>{discussion.title}</span>
+          <span className="task-row-meta"><DiscussionMarks discussion={discussion} />{discussionProgress(discussion)}</span>
+        </button>
+      )}
+    </li>
+  )
 
   return (
     <nav className="sidebar-discussions" data-collapsed={collapsed} aria-label="群聊">
@@ -66,35 +97,22 @@ export function SidebarDiscussions() {
         <button type="button" className="icon-button task-list-add sidebar-add" aria-label="新建群聊" data-tooltip="新建群聊" onClick={() => openDiscussionDraft()}><PlusIcon /></button>
       </header>
       <div id="sidebar-discussions" className="sidebar-section-content" hidden={collapsed}>
-        {list.length === 0 ? <p className="task-list-empty">让几个 Agent 一起讨论一个主题，点右上角的 ＋ 开始。</p> : (
-          <ul>
-            {list.map((discussion) => (
-              <li key={discussion.id}>
-                {renamingId === discussion.id ? (
-                  <div className="task-row conversation-row" data-renaming>
-                    <DiscussionDot discussion={discussion} />
-                    <TitleEditor title={discussion.title} label="群聊标题" onSave={(title) => void renameDiscussion(discussion.id, title)} onDone={() => setRenamingId(null)} />
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="task-row conversation-row"
-                    data-menu-open={menu?.id === discussion.id || undefined}
-                    aria-current={section === 'discussions' && selected === discussion.id}
-                    onClick={() => selectDiscussion(discussion.id)}
-                    onContextMenu={(event) => {
-                      event.preventDefault()
-                      setMenu({ id: discussion.id, at: menuPoint(event) })
-                    }}
-                  >
-                    <DiscussionDot discussion={discussion} />
-                    <span className="task-row-title" title={discussion.title}>{discussion.title}</span>
-                    <span className="task-row-meta"><DiscussionMarks discussion={discussion} />{discussionProgress(discussion)}</span>
+        {list.length === 0 && archived.length === 0 ? <p className="task-list-empty">让几个 Agent 一起讨论一个主题，点右上角的 ＋ 开始。</p> : (
+          <>
+            <ul>{list.map(row)}</ul>
+            {archived.length > 0 && (
+              <section className="conversation-group conversation-archive" aria-label="已归档的群聊">
+                <h3 className="conversation-group-title">
+                  <button type="button" className="conversation-group-fold" aria-expanded={archivedOpen} onClick={() => setArchivedOpen(!archivedOpen)}>
+                    <ChevronDownIcon />
+                    已归档
+                    <span className="count">{archived.length}</span>
                   </button>
-                )}
-              </li>
-            ))}
-          </ul>
+                </h3>
+                {archivedOpen && <ul>{archived.map(row)}</ul>}
+              </section>
+            )}
+          </>
         )}
       </div>
       {menu && menuDiscussion && (
@@ -102,6 +120,14 @@ export function SidebarDiscussions() {
           <MenuItem label={menuDiscussion.pinnedAt !== null ? '取消置顶' : '置顶'} onSelect={pick(() => void setDiscussionPinned(menuDiscussion.id, menuDiscussion.pinnedAt === null))} />
           <MenuItem label="重命名" onSelect={pick(() => setRenamingId(menuDiscussion.id))} />
           <MenuItem label="用相同成员新建群聊" onSelect={pick(() => openDiscussionDraft(menuDiscussion))} />
+          {archivable && (menuDiscussion.archivedAt !== null
+            ? <MenuItem label="取消归档" onSelect={pick(() => void archiveDiscussion(menuDiscussion.id, false))} />
+            : <MenuItem
+              label="归档"
+              hint={checkArchiveDiscussion(menuDiscussion) ? '等成员说完，或先暂停' : null}
+              disabled={checkArchiveDiscussion(menuDiscussion) !== null}
+              onSelect={pick(() => void archiveDiscussion(menuDiscussion.id, true))}
+            />)}
           <div className="menu-separator" role="separator" />
           <MenuItem label="删除群聊" danger onSelect={pick(() => void removeDiscussion(menuDiscussion))} />
         </ContextMenu>

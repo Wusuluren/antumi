@@ -282,7 +282,10 @@ export const MIGRATIONS = [
   `ALTER TABLE discussions ADD COLUMN topic_start INTEGER NOT NULL DEFAULT 0;
    ALTER TABLE discussion_posts ADD COLUMN topic INTEGER NOT NULL DEFAULT 0;`,
   // A task redone in place keeps its earlier goes (Task.attempts, JSON).
-  `ALTER TABLE tasks ADD COLUMN attempts TEXT;`
+  `ALTER TABLE tasks ADD COLUMN attempts TEXT;`,
+  // Conversations and group chats the user put away.
+  `ALTER TABLE conversations ADD COLUMN archived_at INTEGER;
+   ALTER TABLE discussions ADD COLUMN archived_at INTEGER;`
 ]
 
 

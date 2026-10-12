@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { checkDiscussionAction, checkEditDiscussionProjects, checkNewDiscussionTopic, checkRemoveDiscussionMember, currentTopic, MAX_DETAILS_LENGTH, memberLetter, type Discussion, type DiscussionAction, type DiscussionMember, type DiscussionPost } from '@kando/protocol'
 import { loadConversation, openDiscussionDraft, perform, selectConversation, selectDiscussion, selectTask, useCore, useDiscussionMembersSupported, useDiscussionProjectsSupported, useDiscussionTopicsSupported } from '../core-store'
-import { controlDiscussion, discussionProgress, EVERYONE, loadDiscussionPosts, newDiscussionTopic, removeDiscussionMember, setDiscussionProjects, MEMBER_STATUS_LABEL, mentionedMembers, postToDiscussion, renameDiscussion, useDiscussionPosts } from '../discussions'
+import { archiveDiscussion, controlDiscussion, discussionProgress, EVERYONE, loadDiscussionPosts, newDiscussionTopic, removeDiscussionMember, setDiscussionProjects, MEMBER_STATUS_LABEL, mentionedMembers, postToDiscussion, renameDiscussion, useDiscussionPosts } from '../discussions'
 import { agentLabel, messageTime, reasonText } from '../labels'
 import { setPreference, usePreferences } from '../preferences'
 import { ChatMarkdown } from './ChatMarkdown'
@@ -13,6 +13,7 @@ import { Spinner } from './Spinner'
 import { TitleEditor } from './TitleEditor'
 import { useDiscussionMentionMenu } from './DiscussionMentions'
 import { AddMemberButton } from './DiscussionMemberForm'
+import { ArchivedBar } from './ArchivedBar'
 
 const ACTIONS: Array<{ action: DiscussionAction; label: string; hint: string }> = [
   { action: 'pause', label: '暂停', hint: '这一轮说完后先停下' },
@@ -61,7 +62,8 @@ async function leave(discussion: Discussion, member: DiscussionMember): Promise<
 function MemberChip({ member, chair, onMention, leaveBlocker, onLeave }: {
   member: DiscussionMember
   chair: boolean
-  onMention: () => void
+  // Null where nothing can be said to it: the group is archived.
+  onMention: (() => void) | null
   // Why it cannot leave now; leaving is offered only where the core takes it.
   leaveBlocker: string | null
   onLeave: (() => void) | null
@@ -83,7 +85,7 @@ function MemberChip({ member, chair, onMention, leaveBlocker, onLeave }: {
           {status}
         </span>
       </button>
-      <button type="button" className="icon-button discussion-member-mention" aria-label={`@${member.name}`} data-tooltip="只问它" onClick={onMention}>@</button>
+      {onMention && <button type="button" className="icon-button discussion-member-mention" aria-label={`@${member.name}`} data-tooltip="只问它" onClick={onMention}>@</button>}
       {onLeave && (
         <button
           type="button"
@@ -253,9 +255,11 @@ export function DiscussionView({ id }: { id: string }) {
   const input = useRef<HTMLTextAreaElement>(null)
   const mentionMenu = useDiscussionMentionMenu({ text, setText, members: asTopic ? [] : discussion?.members ?? [], input })
   const topicsSupported = useDiscussionTopicsSupported()
-  const membersEditable = useDiscussionMembersSupported()
+  // An archived group is read-only until it is taken out again.
+  const archived = (discussion?.archivedAt ?? null) !== null
+  const membersEditable = useDiscussionMembersSupported() && !archived
   // A group begun without projects has none to change.
-  const projectsEditable = useDiscussionProjectsSupported() && (discussion?.projectPaths.length ?? 0) > 0
+  const projectsEditable = useDiscussionProjectsSupported() && (discussion?.projectPaths.length ?? 0) > 0 && !archived
   const projectsBlocked = discussion ? checkEditDiscussionProjects(discussion) !== null : true
   const list = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
@@ -308,9 +312,10 @@ export function DiscussionView({ id }: { id: string }) {
           <span className="muted">{discussionProgress(discussion)}</span>
           {!projectsEditable && discussion.projectPaths.length > 0 && <span className="muted" title={discussion.projectPaths.join('\n')}>{projectNames(discussion.projectPaths)}</span>}
           {discussion.anonymous && <span className="muted">匿名互评</span>}
+          {archived && <span className="archived-tag">已归档</span>}
         </div>
         <div className="toolbar">
-          {ACTIONS.filter(({ action }) => checkDiscussionAction(discussion, action) === null).map(({ action, label, hint }) => (
+          {ACTIONS.filter(({ action }) => !archived && checkDiscussionAction(discussion, action) === null).map(({ action, label, hint }) => (
             <button key={action} type="button" className="button discussion-action" data-tooltip={hint} disabled={busy} onClick={() => void act(action)}>
               {action === 'resume' && <PlayIcon />}
               {action === 'stop' && <StopIcon />}
@@ -334,7 +339,7 @@ export function DiscussionView({ id }: { id: string }) {
                   key={member.id}
                   member={member}
                   chair={member.id === chairId}
-                  onMention={() => mention(member)}
+                  onMention={archived ? null : () => mention(member)}
                   leaveBlocker={blocked === null || blocked === 'full' ? null : LEAVE_BLOCKER[blocked]}
                   onLeave={membersEditable ? () => void leave(discussion, member) : null}
                 />
@@ -367,7 +372,8 @@ export function DiscussionView({ id }: { id: string }) {
             {posts ? <Rounds discussion={discussion} posts={posts} /> : <p className="muted"><Spinner /> 正在读取发言…</p>}
           </div>
           <div className="chat-dock">
-            <div className="chat-input-card" data-working={busy || undefined}>
+            {archived && <ArchivedBar what="群聊" onRestore={() => archiveDiscussion(id, false)} />}
+            <div className="chat-input-card" data-working={busy || undefined} hidden={archived}>
               {mentionMenu.menu}
               <textarea
                 ref={input}

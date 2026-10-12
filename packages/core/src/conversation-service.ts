@@ -526,8 +526,30 @@ export class ConversationService {
     return this.changed(this.store.setPinned(id, pinned))
   }
 
+  // Puts a free conversation away, or takes it out again. An archived one is read-only, so its
+  // agent, which must be idle, is let go; the next message after taking it out resumes it.
+  async setArchived(id: string, archived: boolean): Promise<Conversation> {
+    const current = this.free(id)
+    if (current.discussionId) throw new Rejection('discussion-member', 'a group chat member is put away with its group chat')
+    if ((current.archivedAt != null) === archived) return current
+    if (archived) {
+      if (this.launching.has(id)) throw new Rejection('conversation-running')
+      if (current.sessionId && !this.chats.idle(id)) throw new Rejection('chat-busy', 'the agent is still working')
+      if (current.sessionId) await this.stop(id)
+    }
+    return this.changed(this.store.setArchived(id, archived))
+  }
+
+  // An archived conversation takes no message until it is taken out again.
+  private writable(id: string): Conversation {
+    const conversation = this.get(id)
+    if (conversation.archivedAt != null) throw new Rejection('conversation-archived', 'take the conversation out of the archive first')
+    return conversation
+  }
+
   // Readies the agent for a message: one already up stays as it is.
   async continue(id: string, allowBypass?: boolean): Promise<Conversation> {
+    this.writable(id)
     const current = this.free(id)
     if (this.launching.has(id)) throw new Rejection('conversation-running')
     if (current.sessionId && this.chats.activity(id) !== null) return current
@@ -537,6 +559,7 @@ export class ConversationService {
   }
 
   async handoff(id: string, agent: AgentKind, note: string, stopRunning: boolean, allowBypass?: boolean, choice: ModelChoice = {}): Promise<Conversation> {
+    this.writable(id)
     const current = this.free(id)
     // A group chat's member is the agent the group chat names; another would speak in its place.
     if (current.discussionId) throw new Rejection('discussion-member', 'a group chat member keeps its agent')
@@ -905,7 +928,7 @@ export class ConversationService {
 
   // A retry may resume in a new stage; its ref still names the original message.
   async send(id: string, text: string, imageIds: readonly string[] = [], queue = false, steer = false, ref?: string): Promise<void> {
-    const conversation = this.get(id)
+    const conversation = this.writable(id)
     if (adapterOf(conversation.agent).turns?.serialized) {
       return this.serially(id, () => this.sendNow(id, text, imageIds, queue, steer, ref))
     }

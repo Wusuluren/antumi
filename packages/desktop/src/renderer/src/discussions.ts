@@ -75,6 +75,10 @@ export function setDiscussionPinned(id: string, pinned: boolean): Promise<Discus
   return perform((rpc) => rpc.call('discussions.setPinned', { id, pinned }))
 }
 
+export function archiveDiscussion(id: string, archived: boolean): Promise<Discussion | null> {
+  return perform((rpc) => rpc.call('discussions.setArchived', { id, archived }))
+}
+
 export function deleteDiscussion(id: string): Promise<{ ok: true } | null> {
   return perform((rpc) => rpc.call('discussions.delete', { id }))
 }

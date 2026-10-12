@@ -64,11 +64,12 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // git-commit-branches: core lists the branches holding a commit (git.containing).
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
 // handoff-model: a handoff takes the model and effort the agent starts in (conversations.handoff, tasks.handoff).
-export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place'] as const
+export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive'] as const
 // task-launch-options: tasks.start accepts the first stage's mode, model and reasoning effort.
 // task-launch: a task keeps them (Task.launch, set by tasks.update and by each start by hand).
 // discussion-members: members join and leave a group chat midway; discussion-projects: its projects but the first change.
 // discussion-topics: the user moves a group chat on to a new topic (discussions.newTopic, Discussion.topicStart, DiscussionPost.topic).
+// conversation-archive: conversations.setArchived, Conversation.archivedAt; discussion-archive: discussions.setArchived, Discussion.archivedAt.
 // task-cancel: tasks.cancel and tasks.reopen; task-redo-in-place: tasks.redo keeps the task, its earlier goes in Task.attempts.
 // deferred-conversation-start: create can return before launching; send takes a ref for safe retries.
 // routines: core runs routines, rules that open a conversation on a schedule, and keeps their runs (routines.*). A
@@ -210,6 +211,9 @@ export const rpcMethods = {
   'conversations.rename': { params: ConversationRef.extend({ title: z.string().trim().min(1).max(200) }), result: Conversation },
   // Keeps it at the top of the conversation list, without counting as activity.
   'conversations.setPinned': { params: ConversationRef.extend({ pinned: z.boolean() }), result: Conversation },
+  // Puts a free conversation away, read-only, or takes it out again. Its agent must be idle, and is
+  // let go. Needs conversation-archive.
+  'conversations.setArchived': { params: ConversationRef.extend({ archived: z.boolean() }), result: Conversation },
   'conversations.continue': { params: ConversationRef.extend({ allowBypass: AllowBypass }), result: Conversation },
   'conversations.handoff': {
     params: ConversationRef.extend({ agent: AgentKind, note: z.string().max(10000), stopRunning: z.boolean(), allowBypass: AllowBypass }).extend(HandoffModel.shape),
@@ -499,6 +503,9 @@ export const rpcMethods = {
   // Every project but the first, which stays (see checkEditDiscussionProjects). Needs discussion-projects.
   'discussions.setProjects': { params: DiscussionRef.extend({ projectPaths: z.array(z.string().trim().min(1)).min(1).max(MAX_TASK_REPOS) }), result: Discussion },
   'discussions.setPinned': { params: DiscussionRef.extend({ pinned: z.boolean() }), result: Discussion },
+  // Puts a group chat away, read-only, or takes it out again (checkArchiveDiscussion). Needs
+  // discussion-archive.
+  'discussions.setArchived': { params: DiscussionRef.extend({ archived: z.boolean() }), result: Discussion },
   // Stops its members and deletes it with their conversations; their folders stay.
   'discussions.delete': { params: DiscussionRef, result: Ok },
   'sources.list': { params: z.object({}), result: z.array(SourceDescriptor) },

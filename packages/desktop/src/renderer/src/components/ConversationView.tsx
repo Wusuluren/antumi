@@ -60,6 +60,7 @@ export function ConversationView({ id }: { id: string }) {
   const inspectable = conversation.projectPaths.length > 0
   const hasPanel = inspectable || plans.length > 0 || wire || files.tabs.length > 0
   const state = conversationState(conversation)
+  const archived = conversation.archivedAt != null
   const action = async (run: () => Promise<unknown>) => {
     if (busy) return
     setBusy(true)
@@ -78,6 +79,7 @@ export function ConversationView({ id }: { id: string }) {
         <span className="muted" title={conversation.projectPaths.join('\n') || conversation.workspacePath}>{primaryProjectName(conversation.projectPaths)}</span>
         <BranchStatus target={{ kind: 'conversation', id }} updatedAt={conversation.updatedAt} />
         <span className={state.failed ? 'conversation-exit-failed' : 'muted'} title={state.detail ?? undefined}>{state.label}</span>
+        {archived && <span className="archived-tag">已归档</span>}
         {conversation.forkedFromId && <ForkOrigin id={conversation.forkedFromId} />}
         {conversation.routineId && (
           <span className="muted conversation-origin">
@@ -93,7 +95,7 @@ export function ConversationView({ id }: { id: string }) {
         )}
       </div>
       <div className="toolbar">
-        {!conversation.discussionId && <button type="button" className="tool-button" aria-label="移交给其他智能体" data-tooltip="移交给其他智能体" disabled={busy} onClick={openHandoff}><HandoffIcon /></button>}
+        {!conversation.discussionId && <button type="button" className="tool-button" aria-label="移交给其他智能体" data-tooltip="移交给其他智能体" disabled={busy || archived} onClick={openHandoff}><HandoffIcon /></button>}
         {hasPanel && (
           <button
             type="button"

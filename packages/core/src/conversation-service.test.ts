@@ -320,6 +320,29 @@ describe('ConversationService', () => {
     expect(() => service.setPinned(task.id, true)).toThrow(expect.objectContaining({ reason: 'task-conversation' }))
   })
 
+  it('archives an idle conversation read-only, letting its agent go, and takes it out to go on', async () => {
+    const echo = daemon.reply
+    daemon.reply = () => {}
+    const created = await service.create('claude', [root])
+    await service.send(created.id, 'still going')
+    await settle()
+    await expect(service.setArchived(created.id, true)).rejects.toMatchObject({ reason: 'chat-busy' })
+    echo(created.sessionId!, 'still going')
+    await settle()
+
+    const archived = await service.setArchived(created.id, true)
+    expect(archived).toMatchObject({ archivedAt: expect.any(Number), sessionId: null, updatedAt: service.get(created.id).updatedAt })
+    await expect(service.send(created.id, 'more')).rejects.toMatchObject({ reason: 'conversation-archived' })
+    await expect(service.continue(created.id)).rejects.toMatchObject({ reason: 'conversation-archived' })
+
+    expect((await service.setArchived(created.id, false)).archivedAt).toBeNull()
+    daemon.reply = echo
+    expect((await service.continue(created.id)).sessionId).not.toBeNull()
+    await service.send(created.id, 'more')
+    const task = store.create('claude', root, [root], randomUUID(), {}, { id: randomUUID(), title: 'Task' })
+    await expect(service.setArchived(task.id, true)).rejects.toMatchObject({ reason: 'task-conversation' })
+  })
+
   it('passes only unseen messages on a return handoff, which resumes the first agent under the title the user gave', async () => {
     const created = await service.create('claude', [root])
     const [first] = service.stages(created.id)

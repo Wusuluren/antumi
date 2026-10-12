@@ -73,6 +73,9 @@ export const Discussion = z.object({
   // one, whose rounds count from here. Older cores leave it out.
   topicStart: z.number().int().nonnegative().default(0),
   pinnedAt: z.number().nullable(),
+  // When the user put it away: out of the list and read-only until taken out again. Older cores
+  // leave it out.
+  archivedAt: z.number().nullable().default(null),
   createdAt: z.number(),
   updatedAt: z.number()
 })
@@ -161,6 +164,11 @@ export function checkRemoveDiscussionMember(discussion: Pick<Discussion, 'member
 export function checkNewDiscussionTopic(discussion: Pick<Discussion, 'state' | 'members'>): 'busy' | null {
   if (discussion.state === 'running' || discussion.state === 'pausing') return 'busy'
   return discussion.members.every((member) => member.status === 'idle') ? null : 'busy'
+}
+
+// A group chat is put away only once nothing is out, its members' agents then let go.
+export function checkArchiveDiscussion(discussion: Pick<Discussion, 'state' | 'members'>): 'busy' | null {
+  return checkNewDiscussionTopic(discussion)
 }
 
 // The topic now discussed: the last the user moved the group on to, else the one it began with.

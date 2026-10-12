@@ -59,6 +59,9 @@ export const Conversation = z.object({
   planOnly: z.boolean().optional(),
   // When the user pinned it to the top of the list; null when it is not pinned. Older cores leave it out.
   pinnedAt: z.number().nullable().optional(),
+  // When the user put it away: out of the list and read-only until taken out again. Older cores
+  // leave it out.
+  archivedAt: z.number().nullable().optional(),
   // The routine whose run opened it, which keeps it out of the list: it is reached from the
   // routine's history. Older cores leave it out.
   routineId: z.string().uuid().nullable().optional(),

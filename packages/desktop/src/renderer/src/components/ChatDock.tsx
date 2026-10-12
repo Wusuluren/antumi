@@ -5,7 +5,9 @@ import { isPlanApproval, type ChatItem, type Conversation } from '@kando/protoco
 import { itemKey } from '../chat-state'
 import { toolLabel } from '../chat-tools'
 import { useChatSurface } from './chat-surface'
+import { ArchivedBar } from './ArchivedBar'
 import { ChatComposer } from './ChatComposer'
+import { archiveConversation } from './ConversationActions'
 import { ChatMessageList, type SentMessage } from './ChatMessageList'
 import { ChatPlanCard } from './ChatPlan'
 import { ChatProjects } from './ChatProjects'
@@ -124,6 +126,7 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
   const inspectable = useChatSurface().changes !== null
   const running = conversation.sessionId !== null
   const waiting = running && pending.length > 0
+  const archived = conversation.archivedAt != null
   return (
     <div className="chat-dock">
       <div className="chat-dock-header">
@@ -138,8 +141,9 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
       </div>
       <ChatSchedules conversationId={conversation.id} />
       {waiting && <PendingRequests conversation={conversation} pending={pending} tools={tools} modes={state?.permissionModes ?? []} />}
-      {/* The composer stays mounted while a request takes its place, so a draft is not lost. */}
-      <div className="chat-dock-composer" hidden={waiting}>
+      {archived && <ArchivedBar what="会话" onRestore={() => archiveConversation(conversation.id, false)} />}
+      {/* The composer stays mounted while a request or the archive takes its place, so a draft is not lost. */}
+      <div className="chat-dock-composer" hidden={waiting || archived}>
         <ChatComposer conversation={conversation} state={state} />
       </div>
     </div>

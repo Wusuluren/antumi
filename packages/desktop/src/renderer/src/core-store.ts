@@ -512,6 +512,15 @@ export function useDiscussionProjectsSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('discussion-projects') ?? false)
 }
 
+// Whether core puts conversations and group chats away (conversations.setArchived, discussions.setArchived).
+export function useConversationArchiveSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('conversation-archive') ?? false)
+}
+
+export function useDiscussionArchiveSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('discussion-archive') ?? false)
+}
+
 // Whether core cancels and reopens tasks (tasks.cancel, tasks.reopen).
 export function useTaskCancelSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('task-cancel') ?? false)

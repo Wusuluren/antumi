@@ -3,6 +3,7 @@ import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
 import {
   agentDescriptor,
   checkAddDiscussionMember,
+  checkArchiveDiscussion,
   checkDiscussionAction,
   checkEditDiscussionProjects,
   checkNewDiscussionTopic,
@@ -29,7 +30,7 @@ const TURN_PREFIX = `turn:${REF_PREFIX}`
 const PLAN_DENIAL = '这是只读讨论，不执行计划。请不要提交计划，直接把你的看法作为文字回答写出来。'
 
 const DISCUSSION_SELECT = `SELECT id, title, topic, project_paths AS projectPaths, chair_id AS chairId, max_rounds AS maxRounds,
-  anonymous, state, step, round, last_round AS lastRound, topic_start AS topicStart, pinned_at AS pinnedAt, created_at AS createdAt, updated_at AS updatedAt
+  anonymous, state, step, round, last_round AS lastRound, topic_start AS topicStart, pinned_at AS pinnedAt, archived_at AS archivedAt, created_at AS createdAt, updated_at AS updatedAt
   FROM discussions`
 const MEMBER_SELECT = `SELECT id, discussion_id AS discussionId, conversation_id AS conversationId, agent, model, effort, name, role,
   position, removed_at AS removedAt FROM discussion_members`
@@ -144,7 +145,7 @@ export class DiscussionService {
   // The user's word: to the members it names, who answer it alone, or to all in the next round.
   async post(id: string, text: string, mentions: readonly string[] = []): Promise<DiscussionPost> {
     return this.serially(id, async () => {
-      const discussion = this.get(id)
+      const discussion = this.writable(id)
       const named = [...new Set(mentions)].map((memberId) => {
         const member = discussion.members.find((each) => each.id === memberId)
         if (!member) throw new Rejection('discussion-member-not-found', `no member ${memberId}`)
@@ -170,7 +171,7 @@ export class DiscussionService {
   // only named the old topic follows it.
   async newTopic(id: string, text: string): Promise<DiscussionPost> {
     return this.serially(id, async () => {
-      const discussion = this.get(id)
+      const discussion = this.writable(id)
       if (checkNewDiscussionTopic(discussion)) throw new Rejection('discussion-busy', 'the turns out now go first')
       const named = discussion.title === titleOf(currentTopic(discussion, this.storedPosts(id)))
       const said = this.insertPost(id, { round: discussion.round + 1, memberId: null, kind: 'user', text, mentions: [], state: 'done', topic: true })
@@ -187,7 +188,7 @@ export class DiscussionService {
 
   async control(id: string, action: DiscussionAction): Promise<Discussion> {
     return this.serially(id, async () => {
-      const discussion = this.get(id)
+      const discussion = this.writable(id)
       const blocked = checkDiscussionAction(discussion, action)
       if (blocked) throw new Rejection(`discussion-${blocked}`)
       const pending = this.storedPosts(id).filter((post) => post.state === 'pending')
@@ -224,7 +225,7 @@ export class DiscussionService {
   // so far, as what it has not seen; a discussion paused or summed up takes it on when it goes on.
   async addMember(id: string, fields: DiscussionMemberFields): Promise<Discussion> {
     return this.serially(id, async () => {
-      const discussion = this.get(id)
+      const discussion = this.writable(id)
       const blocked = checkAddDiscussionMember(discussion)
       if (blocked) throw new Rejection(`discussion-member-${blocked}`)
       const member = DiscussionMemberFields.parse(fields)
@@ -255,7 +256,7 @@ export class DiscussionService {
   // A member leaves, its conversation with it; what it said stays, under its name.
   async removeMember(id: string, memberId: string): Promise<Discussion> {
     return this.serially(id, async () => {
-      const discussion = this.get(id)
+      const discussion = this.writable(id)
       const member = discussion.members.find((each) => each.id === memberId)
       if (!member) throw new Rejection('discussion-member-not-found', `no member ${memberId}`)
       const blocked = checkRemoveDiscussionMember(discussion, memberId)
@@ -274,7 +275,7 @@ export class DiscussionService {
   // again on its session, and later prompts list them.
   async setProjects(id: string, projectPaths: readonly string[]): Promise<Discussion> {
     return this.serially(id, async () => {
-      const discussion = this.get(id)
+      const discussion = this.writable(id)
       const blocked = checkEditDiscussionProjects(discussion)
       if (blocked) throw new Rejection(blocked === 'busy' ? 'discussion-member-busy' : 'discussion-no-projects')
       const [primary] = discussion.projectPaths
@@ -295,6 +296,31 @@ export class DiscussionService {
     this.get(id)
     this.write(id, { title })
     return this.announce(id)
+  }
+
+  // Puts it away once nothing is out, letting its members' agents go; taken out again, it goes on as
+  // it was left. Archived, it is read-only.
+  async setArchived(id: string, archived: boolean): Promise<Discussion> {
+    return this.serially(id, async () => {
+      const current = this.get(id)
+      if ((current.archivedAt !== null) === archived) return current
+      if (archived) {
+        if (checkArchiveDiscussion(current)) throw new Rejection('discussion-busy', 'the turns out now go first')
+        for (const member of current.members) {
+          const conversation = this.conversation(member.conversationId)
+          if (conversation?.sessionId) await this.deps.conversations.stop(member.conversationId)
+        }
+      }
+      this.db.prepare('UPDATE discussions SET archived_at = ? WHERE id = ?').run(archived ? this.now() : null, id)
+      return this.announce(id)
+    })
+  }
+
+  // What changes a group chat waits until it is taken out of the archive.
+  private writable(id: string): Discussion {
+    const discussion = this.get(id)
+    if (discussion.archivedAt !== null) throw new Rejection('discussion-archived', 'take the group chat out of the archive first')
+    return discussion
   }
 
   setPinned(id: string, pinned: boolean): Discussion {
