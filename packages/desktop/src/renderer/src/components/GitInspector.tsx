@@ -8,6 +8,7 @@ import { openResolvedFile, showResolvedFile } from '../file-actions'
 import { useOccludesBrowser } from '../browser-occlusion'
 import { BranchStatusDetails, type BranchTarget } from './BranchStatus'
 import { CommitMessageButton } from './CommitMessageButton'
+import { commitSubject, commitWithWrittenMessage, useCanWriteCommitMessage, useWritingCommit } from '../written-commits'
 import { GitRefLabel, GitRefName } from './GitRefLabel'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
 import { FileDiffView, FileList, useFocusCount } from './Inspector'
@@ -77,7 +78,8 @@ function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; upda
   const status = state?.data
   const branch = status?.branches.find((branch) => branch.ref === selected)
   const ref = selected === 'all' || selected === 'HEAD' || branch ? selected : 'HEAD'
-  const disabled = busy || Boolean(status?.blocker) || !status?.git
+  const writing = useWritingCommit(target)
+  const disabled = busy || writing || Boolean(status?.blocker) || !status?.git
   const run = async (action: GitAction) => {
     if (busy) return false
     setBusy(true)
@@ -91,6 +93,11 @@ function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; upda
       }
       return true
     } finally { setBusy(false); retry() }
+  }
+  // The dialog is gone by then: the agent writes the message, and the commit follows behind it.
+  const commitWritten = async (push: boolean) => {
+    const done = await commitWithWrittenMessage(target, async (message) => (await run({ kind: 'commit', message, push })) || null)
+    if (done) setNote(`已提交「${commitSubject(done.message)}」${push ? '并推送' : ''}。`)
   }
   const pick = (ref: string) => { setSelected(ref); setSelectedCommit(null); setComparison(false); setDetailView(false) }
   const can = (action: GitAction) => !disabled && checkGitOperation(target.kind, action, false, status) === null
@@ -119,6 +126,7 @@ function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; upda
         <button className="button" disabled={!can({ kind: 'commit', message: 'commit', push: false }) || !status.branch || !status.changes} onClick={() => setDialog({ kind: 'commit' })}>Commit</button>
       </div>
       {status.blocker && <p className="git-message muted" role="status">{status.blocker}</p>}
+      {writing && <p className="git-message muted" role="status">正在写提交信息，写好就提交…</p>}
       {note && <p className="git-message" role="status">{note}</p>}
       {status.operation && <div className="git-conflicts">
         <strong>{status.operation === 'merge' ? 'Merge 尚未完成' : '其他 Git 操作尚未完成，请在终端处理'}</strong>
@@ -145,7 +153,7 @@ function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; upda
             : selectedCommit ? <CommitDetail target={target} sha={selectedCommit} refreshKey={refreshKey} retry={retry} /> : <p className="git-message muted">选择提交查看说明、文件和 diff。</p>}
         </div>
       </div>
-      {dialog && <ActionDialog choice={dialog} target={target} status={status} busy={busy} run={run} close={() => setDialog(null)} />}
+      {dialog && <ActionDialog choice={dialog} target={target} status={status} busy={busy} run={run} commitWritten={(push) => void commitWritten(push)} close={() => setDialog(null)} />}
     </>}
   </ReadState>
 }
@@ -329,7 +337,7 @@ function Comparison({ target, gitRef, direct, setDirect, refreshKey, retry }: { 
 }
 
 const TITLES: Record<DialogKind, string> = { create: '新建分支', rename: '重命名本地分支', delete: '删除分支', push: 'Push', commit: 'Commit', merge: 'Merge', abort: '中止 Merge' }
-function ActionDialog({ choice, target, status, busy, run, close }: { choice: DialogChoice; target: GitTarget; status: GitStatus; busy: boolean; run: (action: GitAction) => Promise<boolean>; close: () => void }) {
+function ActionDialog({ choice, target, status, busy, run, commitWritten, close }: { choice: DialogChoice; target: GitTarget; status: GitStatus; busy: boolean; run: (action: GitAction) => Promise<boolean>; commitWritten: (push: boolean) => void; close: () => void }) {
   useOccludesBrowser()
   const dialog = useRef<HTMLDialogElement>(null)
   const [name, setName] = useState(choice.kind === 'push' ? status.upstream?.split('/').slice(1).join('/') || status.branch || '' : choice.kind === 'rename' ? choice.branch?.name ?? '' : '')
@@ -337,6 +345,7 @@ function ActionDialog({ choice, target, status, busy, run, close }: { choice: Di
   const [checkout, setCheckout] = useState(target.kind === 'conversation')
   const [remote, setRemote] = useState(status.upstream?.split('/')[0] ?? (status.remotes.includes('origin') ? 'origin' : status.remotes[0] ?? ''))
   const [message, setMessage] = useState('')
+  const writable = useCanWriteCommitMessage(target)
   const [confirm, setConfirm] = useState('')
   useEffect(() => { dialog.current?.showModal() }, [])
   const performAction = async (action: GitAction) => { if (await run(action)) close() }
@@ -347,19 +356,22 @@ function ActionDialog({ choice, target, status, busy, run, close }: { choice: Di
       case 'rename': if (choice.branch) void performAction({ kind: 'rename', ref: choice.branch.ref, name: name.trim() }); break
       case 'delete': if (choice.branch) void performAction({ kind: 'delete', ref: choice.branch.ref }); break
       case 'push': void performAction({ kind: 'push', remote, name: name.trim() }); break
-      case 'commit': void performAction({ kind: 'commit', message: message.trim(), push }); break
+      case 'commit':
+        if (message.trim()) void performAction({ kind: 'commit', message: message.trim(), push })
+        else { close(); commitWritten(push) }
+        break
       case 'merge': if (choice.branch) void performAction({ kind: 'merge', ref: choice.branch.ref }); break
       case 'abort': void performAction({ kind: 'abort' }); break
     }
   }
-  const enabled = !busy && (choice.kind === 'commit' ? Boolean(message.trim()) : ['create', 'rename', 'push'].includes(choice.kind) ? Boolean(name.trim()) : choice.kind === 'delete' && choice.branch?.remote ? confirm === `${choice.branch.remote}/${choice.branch.name}` : true)
+  const enabled = !busy && (choice.kind === 'commit' ? Boolean(message.trim()) || writable : ['create', 'rename', 'push'].includes(choice.kind) ? Boolean(name.trim()) : choice.kind === 'delete' && choice.branch?.remote ? confirm === `${choice.branch.remote}/${choice.branch.name}` : true)
   return <dialog ref={dialog} className="modal branch-dialog git-dialog" onCancel={(event) => { event.preventDefault(); if (!busy) close() }}>
     <div className="modal-body">
       <h2>{TITLES[choice.kind]}</h2><p className="muted">{projectName(target.project)} · {status.branch ?? '分离 HEAD'}</p>
       {(choice.kind === 'create' || choice.kind === 'rename' || choice.kind === 'push') && <label>分支名<input className="input" autoFocus value={name} onChange={(event) => setName(event.target.value)} /></label>}
       {choice.kind === 'create' && <><label>起点<select className="input" value={source} onChange={(event) => setSource(event.target.value)}><option value="HEAD">HEAD · 当前提交</option>{status.branches.map((branch) => <option key={branch.ref} value={branch.ref}>{branch.remote ? `${branch.remote}/` : ''}{branch.name}</option>)}</select></label>{target.kind === 'conversation' && <label><input type="checkbox" checked={checkout} onChange={(event) => setCheckout(event.target.checked)} /> 创建后切换</label>}</>}
       {choice.kind === 'push' && <label>Remote<select className="input" value={remote} onChange={(event) => setRemote(event.target.value)}>{status.remotes.map((remote) => <option key={remote}>{remote}</option>)}</select></label>}
-      {choice.kind === 'commit' && <><textarea className="input branch-commit-message" aria-label="提交信息" autoFocus maxLength={10000} placeholder="提交标题，空一行后填写说明" value={message} onChange={(event) => setMessage(event.target.value)} /><p className="muted">提交这个仓库的全部改动。推送失败时，本地提交保留。</p></>}
+      {choice.kind === 'commit' && <><textarea className="input branch-commit-message" aria-label="提交信息" autoFocus maxLength={10000} placeholder={writable ? '提交标题，空一行后填写说明。留空则由 Agent 用小模型写好后直接提交' : '提交标题，空一行后填写说明'} value={message} onChange={(event) => setMessage(event.target.value)} /><p className="muted">提交这个仓库的全部改动。推送失败时，本地提交保留。</p></>}
       {choice.kind === 'delete' && <><p>仓库：<span className="mono">{status.directory}</span><br />{choice.branch?.remote ? `删除远端 ${choice.branch.remote}/${choice.branch.name}` : `安全删除本地 ${choice.branch?.name}，未合并时 Git 会拒绝。`}</p>{choice.branch?.remote && <label>输入完整远端分支名确认<input className="input" autoFocus placeholder={`${choice.branch.remote}/${choice.branch.name}`} value={confirm} onChange={(event) => setConfirm(event.target.value)} /></label>}</>}
       {choice.kind === 'merge' && <p>把 <span className="mono">{choice.branch?.ref.replace(/^refs\/(heads|remotes)\//, '')}</span> 合入 <span className="mono">{status.branch}</span>。分叉时产生合并提交；有冲突时保留现场供你处理。</p>}
       {choice.kind === 'abort' && <p>中止当前 merge，撤销这次合并及解决冲突的改动。Git 无法安全恢复时会拒绝，请在终端检查。</p>}
