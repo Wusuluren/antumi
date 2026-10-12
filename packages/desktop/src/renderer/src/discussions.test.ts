@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DiscussionPost } from '@kando/protocol'
-import { discussionProgress, mentionedMembers, mergePosts } from './discussions'
+import { discussionProgress, EVERYONE, mentionChoices, mentionedMembers, mentionQuery, mergePosts } from './discussions'
 
 const post = (sequence: number, patch: Partial<DiscussionPost> = {}): DiscussionPost => ({
   id: `00000000-0000-4000-8000-${String(sequence).padStart(12, '0')}`, discussionId: '00000000-0000-4000-8000-000000000100',
@@ -21,6 +21,26 @@ describe('group chat helpers', () => {
     expect(mentionedMembers('@Claude · opus why?', members)).toEqual(['b'])
     expect(mentionedMembers('@Claude and @Codex', members)).toEqual(['a', 'c'])
     expect(mentionedMembers('no one', members)).toEqual([])
+  })
+
+  it('reads @所有人 as every member', () => {
+    const members = [{ id: 'a', name: 'Claude' }, { id: 'c', name: 'Codex' }]
+    expect(mentionedMembers('@所有人 再想想', members)).toEqual(['a', 'c'])
+  })
+
+  it('finds the @ being typed at the caret, as one word after a space or at the start', () => {
+    expect(mentionQuery('@Cl', 3)).toEqual({ start: 0, query: 'Cl' })
+    expect(mentionQuery('好的 @', 4)).toEqual({ start: 3, query: '' })
+    expect(mentionQuery('a@b', 3)).toBeNull()
+    expect(mentionQuery('@Claude 你', 9)).toBeNull()
+    expect(mentionQuery('@Claude 你', 4)).toEqual({ start: 0, query: 'Cla' })
+  })
+
+  it('offers everyone first, then the members a query matches', () => {
+    const members = [{ name: 'Claude' }, { name: 'Codex' }]
+    expect(mentionChoices(members, '')).toEqual([EVERYONE, ...members])
+    expect(mentionChoices(members, 'co')).toEqual([{ name: 'Codex' }])
+    expect(mentionChoices(members, '所')).toEqual([EVERYONE])
   })
 
   it('says where the discussion stands', () => {

@@ -6523,6 +6523,10 @@ body.side-panel-resizing * {
 }
 .chat-command-keys kbd { margin-left: 6px; }
 .chat-command-keys kbd:first-child { margin-left: 0; }
+/* A group chat's @ list: each member's agent mark, or an @ for everyone, before its name. */
+.discussion-mention-option { align-items: center; }
+.discussion-mention-mark { display: grid; place-items: center; flex-shrink: 0; width: 16px; height: 16px; font-size: 13px; font-weight: 600; color: var(--accent); }
+.discussion-mention-mark .agent-mark { width: 14px; height: 14px; }
 
 /* While the agent works a light runs round the border; a reduced-motion setting keeps it still
    but tinted. */

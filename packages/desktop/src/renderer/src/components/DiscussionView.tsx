@@ -11,6 +11,7 @@ import { AgentIcon, CloseIcon, EnterIcon, PlayIcon, StopIcon } from './icons'
 import { projectNames } from './ProjectPicker'
 import { Spinner } from './Spinner'
 import { TitleEditor } from './TitleEditor'
+import { useDiscussionMentionMenu } from './DiscussionMentions'
 
 const ACTIONS: Array<{ action: DiscussionAction; label: string; hint: string }> = [
   { action: 'pause', label: '暂停', hint: '这一轮说完后先停下' },
@@ -143,6 +144,7 @@ export function DiscussionView({ id }: { id: string }) {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
+  const mentionMenu = useDiscussionMentionMenu({ text, setText, members: discussion?.members ?? [], input })
   const list = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
 
@@ -225,6 +227,7 @@ export function DiscussionView({ id }: { id: string }) {
           </div>
           <div className="chat-dock">
             <div className="chat-input-card" data-working={busy || undefined}>
+              {mentionMenu.menu}
               <textarea
                 ref={input}
                 className="chat-input"
@@ -232,10 +235,15 @@ export function DiscussionView({ id }: { id: string }) {
                 value={text}
                 aria-label="发言"
                 placeholder={discussion.state === 'done' || discussion.state === 'paused'
-                  ? '补充看法或追问，发出后大家再讨论一轮；@成员 只问它'
-                  : '插一句话，下一轮大家都会看到；@成员 只问它'}
-                onChange={(event) => setText(event.target.value)}
+                  ? '补充看法或追问，发出后大家再讨论一轮；@成员 只问它，@所有人 让大家现在都回答'
+                  : '插一句话，下一轮大家都会看到；@成员 只问它，@所有人 让大家现在都回答'}
+                {...mentionMenu.inputProps}
+                onChange={(event) => {
+                  setText(event.target.value)
+                  mentionMenu.track(event.target)
+                }}
                 onKeyDown={(event) => {
+                  if (mentionMenu.onKeyDown(event)) return
                   if (!sendsMessage(event)) return
                   event.preventDefault()
                   void send()

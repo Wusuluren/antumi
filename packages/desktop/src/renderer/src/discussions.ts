@@ -88,8 +88,12 @@ export function defaultMemberName(agent: AgentKind, model: string | null): strin
   return model ? `${agentLabel(agent)} · ${model}` : agentLabel(agent)
 }
 
+// Names every member at once: each answers now, rather than all in the next round as an unnamed post does.
+export const EVERYONE = '所有人'
+
 // The names the composer's @ picks members by, longest first so a name that starts another wins.
 export function mentionedMembers(text: string, members: readonly Pick<Discussion['members'][number], 'id' | 'name'>[]): string[] {
+  if (text.includes(`@${EVERYONE}`)) return members.map((member) => member.id)
   const sorted = [...members].sort((a, b) => b.name.length - a.name.length)
   const found = new Set<string>()
   let rest = text
@@ -101,4 +105,20 @@ export function mentionedMembers(text: string, members: readonly Pick<Discussion
     }
   }
   return members.filter((member) => found.has(member.id)).map((member) => member.id)
+}
+
+// The @ being typed at the caret: where it starts and what follows it, while that is one word.
+export function mentionQuery(text: string, caret: number): { start: number; query: string } | null {
+  const before = text.slice(0, caret)
+  const at = before.lastIndexOf('@')
+  if (at < 0 || (at > 0 && !/\s/.test(before[at - 1] ?? ''))) return null
+  const query = before.slice(at + 1)
+  return /\s/.test(query) ? null : { start: at, query }
+}
+
+// What the @ list offers for a query: everyone first, then the members whose names hold it.
+export function mentionChoices<M extends Pick<Discussion['members'][number], 'name'>>(members: readonly M[], query: string): Array<M | typeof EVERYONE> {
+  const needle = query.toLowerCase()
+  const choices: Array<M | typeof EVERYONE> = EVERYONE.includes(needle) ? [EVERYONE] : []
+  return [...choices, ...members.filter((member) => member.name.toLowerCase().includes(needle))]
 }
