@@ -4,7 +4,7 @@ import { openDiscussionDraft, selectDiscussion, useCore, useDiscussionsSupported
 import { deleteDiscussion, discussionProgress, renameDiscussion, setDiscussionPinned } from '../discussions'
 import { agentLabel } from '../labels'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
-import { AgentIcon, GroupChatIcon } from './icons'
+import { AgentIcon, GroupChatIcon, PlusIcon } from './icons'
 import { SidebarCollapseButton } from './SidebarCollapseButton'
 import { TitleEditor } from './TitleEditor'
 
@@ -63,7 +63,7 @@ export function SidebarDiscussions() {
     <nav className="sidebar-discussions" data-collapsed={collapsed} aria-label="群聊">
       <header className="task-list-header">
         <SidebarCollapseButton icon={<GroupChatIcon />} label="群聊" count={list.length} collapsed={collapsed} controls="sidebar-discussions" onToggle={() => setCollapsed((value) => !value)} />
-        <button type="button" className="icon-button task-list-add" aria-label="新建群聊" data-tooltip="新建群聊" onClick={() => openDiscussionDraft()}>＋</button>
+        <button type="button" className="icon-button task-list-add sidebar-add" aria-label="新建群聊" data-tooltip="新建群聊" onClick={() => openDiscussionDraft()}><PlusIcon /></button>
       </header>
       <div id="sidebar-discussions" className="sidebar-section-content" hidden={collapsed}>
         {list.length === 0 ? <p className="task-list-empty">让几个 Agent 一起讨论一个主题，点右上角的 ＋ 开始。</p> : (

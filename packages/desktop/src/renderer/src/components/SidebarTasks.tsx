@@ -5,7 +5,7 @@ import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { activeTasks } from '../task-board'
 import { saveTaskText } from '../unsaved-edits'
 import { menuPoint, type MenuPoint } from './ContextMenu'
-import { BoardIcon } from './icons'
+import { BoardIcon, PlusIcon } from './icons'
 import { StatusIcon } from './StatusIcon'
 import { TaskContextMenu } from './TaskActions'
 import { hasTaskAlerts, TaskAlerts } from './TaskAlerts'
@@ -64,12 +64,12 @@ export function SidebarTasks() {
         </button>
         <button
           type="button"
-          className="icon-button sidebar-tasks-add"
+          className="icon-button sidebar-tasks-add sidebar-add"
           aria-label="新建任务"
           data-tooltip={`新建任务 ${PRIMARY_KEY_LABEL}N`}
           onClick={() => setNewTaskOpen(true)}
         >
-          ＋
+          <PlusIcon />
         </button>
       </div>
       {active.length > 0 && <ul className="sidebar-tasks-active" aria-label="进行中的任务">{active.map(row)}</ul>}

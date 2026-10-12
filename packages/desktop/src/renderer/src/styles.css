@@ -642,11 +642,16 @@ body.stacked-panel-resizing * {
 
 .task-list-add {
   margin-right: 12px;
-  display: grid;
-  place-items: center;
 }
 
-.task-list-add svg {
+/* A sidebar's ＋: drawn rather than typed, as the glyph sits off its box's centre. */
+.sidebar-add {
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.sidebar-add svg {
   width: 16px;
   height: 16px;
 }

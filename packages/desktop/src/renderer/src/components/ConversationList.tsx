@@ -7,7 +7,7 @@ import { CONVERSATION_GROUPS, CONVERSATION_SORTS, setPreference, usePreferences,
 import { beginHandoff, ConversationContextMenu, newConversation, renameConversation } from './ConversationActions'
 import { ConversationStatus } from './ConversationStatus'
 import { ContextMenu, menuPoint, MenuRadioItem, MenuSubmenu, type MenuPoint } from './ContextMenu'
-import { AgentIcon, ChatIcon, ChevronDownIcon, SlidersIcon } from './icons'
+import { AgentIcon, ChatIcon, ChevronDownIcon, PlusIcon, SlidersIcon } from './icons'
 import { primaryProjectName, projectName, projectNames } from './ProjectPicker'
 import { SidebarCollapseButton } from './SidebarCollapseButton'
 import { SidebarSearchField, SidebarSearchToggle } from './SidebarSearch'
@@ -258,7 +258,7 @@ export function ConversationList() {
         >
           <SlidersIcon />
         </button>
-        <button type="button" className="icon-button task-list-add" aria-label="新建会话" onClick={() => newConversation()}>＋</button>
+        <button type="button" className="icon-button task-list-add sidebar-add" aria-label="新建会话" onClick={() => newConversation()}><PlusIcon /></button>
       </header>
       {query !== null && !collapsed && (
         <SidebarSearchField label="搜索会话" placeholder="标题、项目名或聊天内容" query={query} onChange={setQuery} />
@@ -278,12 +278,12 @@ export function ConversationList() {
               {group.project && (
                 <button
                   type="button"
-                  className="icon-button conversation-group-new"
+                  className="icon-button conversation-group-new sidebar-add"
                   aria-label={`在 ${group.label} 新建会话`}
                   title={`在 ${group.label} 新建会话`}
                   onClick={() => group.project && newConversation([group.project])}
                 >
-                  ＋
+                  <PlusIcon />
                 </button>
               )}
             </h3>
