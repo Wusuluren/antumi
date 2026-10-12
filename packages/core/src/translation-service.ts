@@ -61,7 +61,11 @@ export class TranslationService {
     const quick = adapterOf(agent).quick
     if (!quick) throw new Rejection('translate-unsupported', `${agent} cannot translate`)
     if (process.platform === 'win32') throw new Rejection('translate-unsupported', 'not on Windows yet')
-    const model = picked ?? quickModel(agentDescriptor(agent).quickModels, await this.deps.catalog(agent).catch(() => null))
+    const catalog = await this.deps.catalog(agent).catch(() => null)
+    // A pick the agent no longer lists has gone: its cheapest stands in. Without a catalog to tell,
+    // the pick is tried as it is.
+    const gone = picked !== undefined && catalog !== null && !catalog.models.some((each) => each.id === picked)
+    const model = picked !== undefined && !gone ? picked : quickModel(agentDescriptor(agent).quickModels, catalog)
     const dir = await mkdtemp(path.join(os.tmpdir(), 'kando-translate-'))
     try {
       const outputFile = path.join(dir, 'answer.md')

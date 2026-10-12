@@ -163,8 +163,11 @@ function TranslationModelPicker({ agent }: { agent: AgentKind }) {
   const options = [
     { value: '', label: `自动（${cheapestLabel}）`, description: '它最便宜的小模型' },
     ...(catalog?.models ?? []).map((model) => ({ value: model.id, label: model.label, description: model.description || undefined })),
-    // A pick the catalog no longer lists stays shown, so it can be changed.
-    ...(picked && !catalog?.models.some((model) => model.id === picked) ? [{ value: picked, label: picked }] : [])
+    // A pick the catalog no longer lists stays shown, saying what translates in its place, so it can
+    // be changed; core falls back on the cheapest the same way.
+    ...(picked && !catalog?.models.some((model) => model.id === picked)
+      ? [{ value: picked, label: catalog ? `${picked}（已下线，改用自动：${cheapestLabel}）` : picked }]
+      : [])
   ]
   return (
     <span className="translation-model">

@@ -24,7 +24,7 @@ describe('translation', () => {
   it('asks the conversation\'s agent once per reply and language, reading its answer where it puts it', async () => {
     const asked: QuickCommand[] = []
     const service = new TranslationService({
-      catalog: async (agent) => (agent === 'codex' ? catalog('gpt-6-luna') : catalog('haiku')),
+      catalog: async (agent) => (agent === 'codex' ? catalog('gpt-6-luna') : catalog('sonnet', 'haiku')),
       run: async (command) => {
         asked.push(command)
         if (command.output === 'file') writeFileSync(command.args[command.args.indexOf('-o') + 1] ?? '', '译文（文件）\n')
@@ -41,6 +41,14 @@ describe('translation', () => {
     // A model the user picked wins over the cheapest, and is a translation of its own.
     expect(await service.translate('claude', 'Hello', 'zh-CN', 'sonnet')).toEqual({ text: '译文', model: 'sonnet' })
     expect(asked[2]?.args).toEqual(expect.arrayContaining(['--model', 'sonnet']))
+  })
+
+  it('falls back on the cheapest when the agent no longer lists the model picked, and tries a pick it cannot check', async () => {
+    let known: ChatCatalog | null = catalog('opus', 'haiku')
+    const service = new TranslationService({ catalog: async () => known, run: async (command) => command.args[command.args.indexOf('--model') + 1] ?? '' })
+    expect(await service.translate('claude', 'Hello', 'zh-CN', 'claude-sonnet-4-5')).toEqual({ text: 'haiku', model: 'haiku' })
+    known = null
+    expect(await service.translate('claude', 'Hi there', 'zh-CN', 'claude-sonnet-4-5')).toEqual({ text: 'claude-sonnet-4-5', model: 'claude-sonnet-4-5' })
   })
 
   it('runs a few at once and tries a failed one again next time', async () => {
