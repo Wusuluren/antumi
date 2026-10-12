@@ -21,3 +21,13 @@ export function useDisclosure(key: string): [boolean, (open: boolean) => void] {
   const set = useCallback((next: boolean) => setOpened(id, key, next), [id, key])
   return [open, set]
 }
+
+// Which one of `keys` is open, for a group that opens one at a time; opening one closes the rest.
+export function useChosen(keys: readonly string[]): [string | null, (key: string | null) => void] {
+  const id = useContext(ChatDisclosureScope)
+  const chosen = useOpened((s) => keys.find((key) => s[id]?.[key]) ?? null)
+  const choose = useCallback((next: string | null) => {
+    for (const key of keys) setOpened(id, key, key === next)
+  }, [id, keys])
+  return [chosen, choose]
+}

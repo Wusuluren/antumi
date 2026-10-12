@@ -5672,7 +5672,6 @@ body.side-panel-resizing * {
 /* A row's icon and a reply's copy button sit inset in their hover boxes; pulled out by that inset,
    their glyphs line up with the reply's text and the turn's head. */
 .chat-tool-run > .chat-tool-row,
-.chat-subagent > .chat-tool-row,
 .chat-entry > .chat-tool-line > .chat-tool-row {
   margin-left: -6px;
   width: calc(100% + 6px);
@@ -5699,7 +5698,7 @@ body.side-panel-resizing * {
 .chat-tool-line[data-finished] > .chat-tool-row,
 .chat-tool-run[data-finished] > .chat-tool-row,
 .chat-tool[data-finished] > .chat-tool-header,
-.chat-subagent[data-finished] > .chat-tool-row {
+.chat-subagent-card[data-finished] {
   background-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--status-done) 16%, transparent) 50%, transparent);
   background-size: 60% 100%;
   background-repeat: no-repeat;
@@ -5754,46 +5753,90 @@ body.side-panel-resizing * {
 .chat-fold[data-state='failed'] .chat-fold-header { color: var(--danger); }
 .chat-edit-step { display: flex; align-items: center; gap: 8px; }
 
-/* Subagents the agent sent off: set apart by a rule in the accent, each opening onto its brief and
-   its report. */
-.chat-subagents { display: flex; flex-direction: column; gap: 4px; }
-.chat-subagents-summary { padding: 0 4px; color: var(--text-muted); font-size: 12px; }
-.chat-subagent { position: relative; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
-/* A light runs along the top of each one still out, each at its own phase, so several at once read
-   as several lanes. */
-.chat-subagent[data-status='running']::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--status-running), transparent) no-repeat;
-  background-size: 40% 100%;
-  pointer-events: none;
-  animation: chat-lane 1.8s linear infinite;
-  animation-delay: calc(var(--chat-lane, 0) * -0.45s);
+/* Subagents the agent sent off, drawn as a fan: the main agent on the left, a dashed wire out to
+   each one, and under it all the one the user opened. */
+.chat-subagents { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.chat-subagents-graph { display: flex; align-items: center; max-width: 100%; min-width: 0; }
+.chat-subagents-root {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  text-align: center;
 }
-@keyframes chat-lane {
-  from { background-position: -70% 0; }
-  to { background-position: 170% 0; }
+.chat-subagents-root-name { color: var(--text); font-weight: 500; white-space: nowrap; }
+.chat-subagents-summary { color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* The wires stretch over the lanes; each lane takes an equal share of the column. */
+.chat-subagents-fan { display: grid; grid-template-columns: 72px minmax(0, 1fr); min-width: 0; }
+.chat-subagents-wires { width: 72px; height: 100%; overflow: visible; }
+.chat-subagents-wires path {
+  fill: none;
+  stroke: var(--text-3);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 0.3s, stroke-width 0.15s, opacity 0.15s;
 }
-.chat-subagent > .chat-tool-row { min-height: 36px; padding: 6px 12px; border-radius: 0; }
-/* "子 agent:" says what the row is; the kind alone reads like any other tool. */
-.chat-subagent-prefix { flex-shrink: 0; color: var(--text); }
-.chat-subagent > .chat-tool-row .chat-tool-name { flex-shrink: 0; }
-.chat-subagent-chip {
+.chat-subagents-wires path[data-status='done'] { stroke: var(--status-done); opacity: 0.7; }
+.chat-subagents-wires path[data-status='failed'] { stroke: var(--danger); opacity: 0.6; }
+/* One still out: its dashes flow from the main agent towards it, each lane at its own phase. */
+.chat-subagents-wires path[data-status='running'] {
+  stroke: var(--status-running);
+  animation: chat-wire-flow 0.6s linear infinite;
+  animation-delay: calc(var(--chat-lane, 0) * -0.15s);
+}
+@keyframes chat-wire-flow {
+  to { stroke-dashoffset: -7; }
+}
+.chat-subagents-wires path:is([data-hover], [data-chosen]) { stroke-width: 1.5; opacity: 1; }
+.chat-subagents-lanes { display: flex; flex-direction: column; min-width: 0; width: 360px; max-width: 100%; }
+.chat-subagent-lane { flex: 1; display: flex; align-items: center; min-width: 0; padding: 4px 0; }
+.chat-subagent-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
   min-width: 0;
-  overflow: hidden;
-  padding: 2px 10px;
-  border-radius: 999px;
-  background: var(--fill);
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
   color: var(--text);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s;
 }
-.chat-subagent-metrics { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; margin-left: 2px; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.chat-subagent-card:hover,
+.chat-subagent-card:focus-visible { background: var(--fill); }
+.chat-subagent-card[aria-expanded='true'] { border-color: var(--border-2); background: var(--fill-2); }
+.chat-subagent-card .chat-tool-icon { flex-shrink: 0; }
+.chat-subagent-kind { flex-shrink: 0; font-weight: 500; }
+.chat-subagent-title { flex: 1; min-width: 0; overflow: hidden; color: var(--text-muted); text-overflow: ellipsis; white-space: nowrap; }
+.chat-subagent-card:is(:hover, [aria-expanded='true']) .chat-subagent-title { color: var(--text); }
+/* A fan that arrives while the user watches unfolds: the wires draw out from the main agent, then
+   the cards rise in one after another. */
+.chat-subagents[data-fresh] .chat-subagents-root { animation: chat-entry-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.chat-subagents[data-fresh] .chat-subagents-wires { animation: chat-wire-in 0.35s ease-out 0.1s both; }
+.chat-subagents[data-fresh] .chat-subagent-lane {
+  animation: chat-lane-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(0.25s + var(--chat-lane, 0) * 0.07s);
+}
+@keyframes chat-wire-in {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes chat-lane-in {
+  from { opacity: 0; transform: translateX(-8px); }
+}
+.chat-subagent-metrics { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .chat-subagent-metrics-dot { color: var(--text-3); }
 .chat-subagent-mark { flex-shrink: 0; display: grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; background: var(--status-done); color: var(--surface); }
 .chat-subagent-mark[data-failed] { background: var(--danger); transform: scale(0.75); }
@@ -5811,7 +5854,16 @@ body.side-panel-resizing * {
 @keyframes chat-draw {
   to { stroke-dashoffset: 0; }
 }
-.chat-subagent-body { display: flex; flex-direction: column; gap: 12px; padding: 8px 12px 12px; border-top: 1px solid var(--border); }
+.chat-subagent-body {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  animation: chat-entry-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
 .chat-subagent-label { margin: 0 0 4px; padding-left: 4px; color: var(--text-3); font-size: 12px; font-weight: 500; }
 .chat-subagent-text { padding: 8px 12px; border-radius: var(--radius-lg); background: var(--fill); color: var(--text-muted); font-size: 12px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; }
 .chat-subagent-result { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); font-size: 12px; max-height: 320px; overflow: auto; }
@@ -6972,7 +7024,10 @@ body.side-panel-resizing * {
   .chat-subagent-mark[data-finished] svg path { stroke-dashoffset: 0; }
   .chat-reasoning-body[data-streaming]::before { animation: none; height: 100%; background: var(--accent); }
   .chat-turn-head-icon[data-live='running']::before { animation: none; background: color-mix(in srgb, var(--accent) 55%, transparent); }
-  .chat-subagent[data-status='running']::after { animation: none; background: color-mix(in srgb, var(--status-running) 50%, transparent); background-size: 100% 100%; }
+  .chat-subagents-wires path[data-status='running'],
+  .chat-subagents[data-fresh] :is(.chat-subagents-root, .chat-subagents-wires, .chat-subagent-lane),
+  .chat-subagent-card[data-finished],
+  .chat-subagent-body { animation: none; }
   .chat-tool-run-lines { transition: none; }
 }
 .chat-todos-count {
@@ -7255,7 +7310,6 @@ body.side-panel-resizing * {
   .chat-intervention-count,
   .chat-fold-bar,
   .chat-reasoning-text,
-  .chat-subagent-chip,
   .chat-subagent-metrics,
   .chat-subagent-result,
   .chat-todos-head,
@@ -7279,6 +7333,7 @@ body.side-panel-resizing * {
 .chat-view :is(
   .chat-tool-header,
   .chat-tool-row,
+  .chat-subagent-card,
   .chat-subagent-text,
   .chat-changes-summary .chat-diff-count,
   .chat-changes-file,
