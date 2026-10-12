@@ -75,7 +75,10 @@ export function Popover({ label, onClose, align = 'start', children }: { label: 
 
   useEffect(() => {
     const anchor = panel.current?.parentElement
+    // A picker inside the panel opens its menu in the top layer, outside the panel: a pick there is
+    // still the panel's.
     const onPointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Element && event.target.closest('.context-menu')) return
       if (event.target instanceof Node && !anchor?.contains(event.target)) {
         onClose()
       }
