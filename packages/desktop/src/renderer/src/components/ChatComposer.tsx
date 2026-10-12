@@ -366,7 +366,7 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
           {...mentionMenu.inputProps}
           readOnly={starting}
           placeholder={
-            handingOff ? `交给 ${agentLabel(handingOff)}：它先读移交说明再接着做。写在这里的会作为补充说明，也可以不写，直接按 Enter 移交`
+            handingOff ? `交给 ${agentLabel(handingOff)} 接着做：写下要它做的事，也可以不写，直接按 Enter 移交`
             : surface.sendBlocker ?? initialHint ?? suggestion ?? (idle || stopped ? `给 Agent 发消息，Enter 发送，Shift+Enter 换行${commandEntries.length > 0 ? '，/ 选命令' : ''}${mentionsSupported ? '，@ 引用文件' : ''}`
               : queueable ? `${turn === 'awaiting' ? '先回答上面的请求，' : ''}也可以写下一条，Enter 排到回合结束后发送${steerable ? '，⌘Enter 立刻插入' : ''}；Esc 中断`
               : turn === 'awaiting' ? '先回答上面的请求' : 'Agent 正在处理，可以先写下一条；Esc 中断')
