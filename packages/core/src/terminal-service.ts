@@ -149,6 +149,17 @@ export class TerminalService {
     await this.daemon.request('kill', { sessionId: row.sessionId })
   }
 
+  async stopForConversation(conversationId: string): Promise<void> {
+    for (const row of this.rows().filter((terminal) => terminal.conversationId === conversationId && terminal.exited !== 1)) {
+      await this.stop(conversationId, row.id)
+      const until = Date.now() + 5000
+      while (!(await this.daemon.request('attach', { sessionId: row.sessionId })).exited) {
+        if (Date.now() >= until) throw new Rejection('squad-terminal-stopping', '成员命令尚未停止，小队已暂停')
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+    }
+  }
+
   // Ends the shell; its row goes at once rather than waiting for the exit event. An agent's
   // command that already ended leaves its output with the daemon until now.
   async kill(id: string): Promise<void> {

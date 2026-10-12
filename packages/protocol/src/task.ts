@@ -100,6 +100,7 @@ export const Task = z.object({
   // Ids of tasks that must be done before this one can run.
   dependsOn: z.array(z.string()),
   agent: AgentKind.nullable(),
+  squadId: z.string().uuid().nullable().optional(),
   // The abandoned task this one redoes, from before redoing kept the task.
   derivedFrom: z.string().nullable().default(null),
   // Why the task was cancelled (or, from before, given up for a redo).
@@ -190,7 +191,7 @@ export function checkStartMode(dependencies: readonly Pick<Task, 'status'>[], mo
 }
 
 // planning: the task's read-only chat is open and it still cannot run; it goes on by message.
-export type StartBlocker = 'not-pending' | 'missing-repo' | 'missing-agent' | 'planning'
+export type StartBlocker = 'not-pending' | 'missing-repo' | 'missing-agent' | 'planning' | 'dependencies-unfinished'
 
 export function checkStart(task: Task, dependencies: readonly Pick<Task, 'status'>[]): StartBlocker | null {
   if (task.status !== 'pending') {
@@ -202,6 +203,7 @@ export function checkStart(task: Task, dependencies: readonly Pick<Task, 'status
   if (!task.agent) {
     return 'missing-agent'
   }
+  if (task.squadId && startKind(dependencies) === 'plan') return 'dependencies-unfinished'
   return task.conversationId && startKind(dependencies) === 'plan' ? 'planning' : null
 }
 

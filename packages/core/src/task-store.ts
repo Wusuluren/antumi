@@ -285,11 +285,17 @@ export const MIGRATIONS = [
   `ALTER TABLE tasks ADD COLUMN attempts TEXT;`,
   // Conversations and group chats the user put away.
   `ALTER TABLE conversations ADD COLUMN archived_at INTEGER;
-   ALTER TABLE discussions ADD COLUMN archived_at INTEGER;`
+   ALTER TABLE discussions ADD COLUMN archived_at INTEGER;`,
+  `ALTER TABLE tasks ADD COLUMN squad_id TEXT;
+   ALTER TABLE conversations ADD COLUMN squad_run_id TEXT;
+   ALTER TABLE conversations ADD COLUMN workspace_read_only INTEGER NOT NULL DEFAULT 0;
+   CREATE TABLE squads (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+   CREATE TABLE squad_runs (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, data TEXT NOT NULL);
+   CREATE INDEX squad_runs_task ON squad_runs(task_id);`
 ]
 
 
-const SELECT = `SELECT id, title, details, status, agent,
+const SELECT = `SELECT id, title, details, status, agent, squad_id AS squadId,
   derived_from AS derivedFrom, abandon_reason AS abandonReason, source, source_snapshot AS sourceSnapshot, images,
   awaiting_input AS awaitingInput, plan, launch, attempts,
   (SELECT id FROM conversations WHERE task_id = tasks.id ORDER BY created_at DESC LIMIT 1) AS conversationId,
@@ -356,6 +362,7 @@ export type TaskPatch = Partial<
     | 'title'
     | 'details'
     | 'status'
+    | 'squadId'
     | 'agent'
     | 'derivedFrom'
     | 'abandonReason'
@@ -377,6 +384,7 @@ const SCALAR_KEYS = [
   'details',
   'status',
   'agent',
+  'squadId',
   'derivedFrom',
   'abandonReason'
 ] as const
@@ -386,6 +394,7 @@ const SCALAR_COLUMNS: Record<(typeof SCALAR_KEYS)[number], string> = {
   details: 'details',
   status: 'status',
   agent: 'agent',
+  squadId: 'squad_id',
   derivedFrom: 'derived_from',
   abandonReason: 'abandon_reason'
 }

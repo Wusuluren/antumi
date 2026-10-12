@@ -174,7 +174,7 @@ export function ConversationList() {
   const sortBy = usePreferences((p) => p.conversationSort)
   // A task's conversation is reached from its task; a routine's from the routine's history; a group
   // chat member's from the group chat.
-  const free = Object.values(conversations).filter((conversation) => !conversation.taskId && !conversation.routineId && !conversation.discussionId)
+  const free = Object.values(conversations).filter((conversation) => !conversation.taskId && !conversation.routineId && !conversation.discussionId && !conversation.squadRunId)
   // Archived ones wait in a group of their own at the end, folded, and come up in a search.
   const all = free.filter((conversation) => conversation.archivedAt == null)
   const archivedAll = free.filter((conversation) => conversation.archivedAt != null).sort(COMPARE[sortBy])

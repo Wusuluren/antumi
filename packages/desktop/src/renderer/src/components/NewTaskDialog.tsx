@@ -39,6 +39,8 @@ export function NewTaskDialog() {
   const [repos, setRepos] = useState<string[]>(() => [...(draft?.repos ?? [])])
   const [agent, setAgent] = useState<AgentKind | null>(() => (draft ? draft.agent : defaultAgent(tasks)))
   const installed = useInstalledAgents()
+  const squads = useCore((state) => state.squads)
+  const [squadId, setSquadId] = useState<string | null>(null)
   const [dependsOn, setDependsOn] = useState<string[]>([])
   const [details, setDetails] = useState('')
   // The details editor holds its own text; a new key starts it empty for the next task.
@@ -91,6 +93,7 @@ export function NewTaskDialog() {
         repos,
         dependsOn,
         agent,
+        ...(squadId ? { squadId } : {}),
         images: images.map(({ id, name }) => ({ id, name }))
       })
     )
@@ -220,11 +223,13 @@ export function NewTaskDialog() {
           />
           <label className="new-task-agent-chip">
             <AgentIcon agent={agent} />
-            <span>{agent ? agentLabel(agent) : '选择 Agent'}</span>
+            <span>{squadId ? squads[squadId]?.name ?? '开发小队' : agent ? agentLabel(agent) : '选择 Agent'}</span>
             <select
               aria-label="选择 Agent"
-              value={agent ?? ''}
+              value={squadId ? `squad:${squadId}` : agent ?? ''}
               onChange={(e) => {
+                if (e.target.value.startsWith('squad:')) { setSquadId(e.target.value.slice(6)); return }
+                setSquadId(null)
                 const parsed = AgentKind.safeParse(e.target.value)
                 setAgent(parsed.success ? parsed.data : null)
               }}
@@ -233,6 +238,7 @@ export function NewTaskDialog() {
               {installed.map((kind) => (
                 <option key={kind} value={kind}>{agentLabel(kind)}</option>
               ))}
+              {Object.values(squads).filter((squad) => squad.archivedAt === null).map((squad) => <option key={squad.id} value={`squad:${squad.id}`}>小队 · {squad.name}</option>)}
             </select>
           </label>
           <span className="menu-anchor">

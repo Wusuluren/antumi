@@ -92,10 +92,11 @@ export const ScheduledRunList = z.array(z.unknown()).transform((runs) =>
   })
 )
 
-export type ScheduleTaskBlocker = StartBlocker | 'dependencies-unfinished'
+export type ScheduleTaskBlocker = StartBlocker | 'dependencies-unfinished' | 'squad-schedule-unsupported'
 
 // A task is scheduled to be carried out unattended: one that could only plan would wait on the user.
 export function checkScheduleTask(task: Task, dependencies: readonly Pick<Task, 'status'>[]): ScheduleTaskBlocker | null {
+  if (task.squadId) return 'squad-schedule-unsupported'
   const blocker = checkStart(task, dependencies)
   if (blocker) return blocker
   return startKind(dependencies) === 'plan' ? 'dependencies-unfinished' : null

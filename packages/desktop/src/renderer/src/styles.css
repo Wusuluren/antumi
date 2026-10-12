@@ -8532,3 +8532,25 @@ body.side-panel-resizing * {
 .discussion-draft-options select { padding: 2px 8px; border: 1px solid var(--border-2); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
 .discussion-draft input[type='radio'],
 .discussion-draft input[type='checkbox'] { accent-color: var(--accent); }
+
+/* Squad configuration and task work reuse the workspace's surfaces and rhythm. */
+.squad-editor-body { display: flex; flex-direction: column; gap: 16px; padding: 24px; overflow: auto; max-width: 960px; width: 100%; margin: 0 auto; }
+.squad-fields, .squad-member-fields { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.squad-member-fields { padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
+.squad-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+.squad-member-heading, .squad-member-options, .squad-run-heading, .squad-run-actions, .squad-work header, .task-executor-picker, .squad-member-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.squad-member-heading > svg, .squad-roster svg { width: 20px; height: 20px; flex-shrink: 0; }
+.squad-member-options .squad-field { min-width: 120px; }
+.squad-editor-footer { display: flex; justify-content: flex-end; }
+.squad-work-panel { display: flex; flex-direction: column; gap: 24px; padding: 16px; overflow: auto; }
+.squad-run { display: flex; flex-direction: column; gap: 12px; }
+.squad-run-heading { justify-content: space-between; }
+.squad-roster { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.squad-roster li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.squad-roster li > .muted { flex-basis: 100%; }
+.squad-work { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.squad-work header { justify-content: space-between; }
+.squad-work-instruction { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.squad-work details, .squad-run details { overflow-wrap: anywhere; }
+.squad-member-nav { padding: 8px 16px; border-bottom: 1px solid var(--border); }
+.task-executor-picker .input { width: auto; max-width: 240px; }

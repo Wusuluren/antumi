@@ -90,6 +90,7 @@ function withCurrent(values: readonly string[], current: string | null): string[
 // stage left them.
 export function ChatOptionsBar({ conversation, state }: { conversation: Conversation; state: StateItem }) {
   const { id, agent, chatOptions: next } = conversation
+  const managed = Boolean(conversation.squadRunId || conversation.workspaceReadOnly)
   const running = conversation.sessionId !== null
   const allowBypass = usePreferences((s) => s.allowBypass)
   // An older core takes options only from a running agent.
@@ -117,10 +118,10 @@ export function ChatOptionsBar({ conversation, state }: { conversation: Conversa
           label="权限模式"
           value={permissionMode}
           placeholder="权限模式"
-          options={modeOptions(agent, modes, offered)}
+          options={modeOptions(agent, modes, offered).map((option) => conversation.workspaceReadOnly ? { ...option, label: conversation.squadRunId ? '只读' : '只读协调' } : option)}
           tone={modeTone(permissionMode)}
-          disabled={!agentDescriptor(agent).capabilities.optionsWhileBusy && !idle}
-          title={later ?? undefined}
+          disabled={managed || (!agentDescriptor(agent).capabilities.optionsWhileBusy && !idle)}
+          title={managed ? '沿用本次小队配置' : later ?? undefined}
           onChange={(mode) => set('permissionMode', mode)}
         />
       )}
@@ -130,8 +131,8 @@ export function ChatOptionsBar({ conversation, state }: { conversation: Conversa
           models={models.map((each) => ({ value: each.id, label: each.label, description: each.description, efforts: each.efforts.map((one) => ({ value: one, label: effortLabel(one) })) }))}
           model={modelId}
           effort={effort}
-          disabled={!idle}
-          title={later ?? (idle ? undefined : '回合结束后才能换模型和推理强度')}
+          disabled={managed || !idle}
+          title={managed ? '沿用本次小队配置' : later ?? (idle ? undefined : '回合结束后才能换模型和推理强度')}
           onModel={(value) => set('model', value)}
           onEffort={(value) => set('effort', value)}
         />

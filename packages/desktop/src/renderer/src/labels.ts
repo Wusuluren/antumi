@@ -41,6 +41,16 @@ export function sourceProblemText(problem: SourceProblem): string {
 }
 
 const REASON_TEXT: Record<string, string> = {
+  'squad-busy': '小队正在开发，请先停止或等待工作完成',
+  'squad-archived': '小队已归档，请恢复或选择其他小队',
+  'squad-managed': '成员执行由小队协调，请从任务的小队面板操作',
+  'squad-not-leader': '只有正在执行任务的队长可以派活和提交',
+  'squad-run-not-found': '还没有可继续的小队运行，请开始小队开发',
+  'squad-work-unfinished': '还有未完成或失败的工作，请先处理',
+  'squad-member-invalid': '该成员不能承担这次工作',
+  'squad-schedule-unsupported': '小队任务暂不支持预约执行',
+  'read-only-workspace': '此成员只能读取工作区，请交给开发成员执行',
+
   ...Object.fromEntries(Object.entries(SOURCE_FAILURE_TEXT).map(([code, text]) => [`source-${code}`, text])),
   'source-already-imported': '这个 issue 已经导入成任务了',
   'attachment-not-image': '只支持 PNG、JPEG、GIF 和 WebP 图片',

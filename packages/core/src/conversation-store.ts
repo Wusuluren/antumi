@@ -11,7 +11,7 @@ const SELECT = `SELECT id, title, title_locked AS titleLocked, agent, workspace_
   updated_at AS updatedAt, ${lastEnded('exit_code')} AS lastExitCode, ${lastEnded('ended_at')} AS lastExitAt,
   (SELECT plan_only FROM conversation_stages WHERE conversation_id = conversations.id ORDER BY started_at DESC, rowid DESC LIMIT 1) AS planOnly,
   task_id AS taskId, pinned_at AS pinnedAt, archived_at AS archivedAt, routine_id AS routineId, forked_from_id AS forkedFromId,
-  discussion_id AS discussionId
+  discussion_id AS discussionId, squad_run_id AS squadRunId, workspace_read_only AS workspaceReadOnly
   FROM conversations`
 const STAGE_SELECT = `SELECT id, conversation_id AS conversationId, agent, provider_session_id AS providerSessionId,
   session_id AS sessionId, received_sequence AS receivedSequence, started_at AS startedAt,
@@ -31,7 +31,7 @@ export type ChatOptions = z.infer<typeof ChatOptions>
 function conversation(row: Record<string, unknown>): Conversation {
   const { lastExitCode, lastExitAt, ...rest } = row
   return Conversation.parse({ ...rest, projectPaths: JSON.parse(String(row.projectPaths)),
-    titleLocked: Boolean(row.titleLocked), managedWorkspace: Boolean(row.managedWorkspace), planOnly: Boolean(row.planOnly),
+    titleLocked: Boolean(row.titleLocked), managedWorkspace: Boolean(row.managedWorkspace), planOnly: Boolean(row.planOnly), workspaceReadOnly: Boolean(row.workspaceReadOnly),
     lastExit: lastExitAt === null ? null : { code: lastExitCode, at: lastExitAt } })
 }
 function stage(row: Record<string, unknown>): ConversationStage {
@@ -87,6 +87,14 @@ export class ConversationStore {
       id, named?.title ?? '新会话', Number(named !== null), agent, workspacePath, JSON.stringify(projectPaths), JSON.stringify(projectStarts),
       Number(projectPaths.length === 0), task?.id ?? null, routine?.id ?? null, discussion?.id ?? null, now, now)
     return this.get(id)!
+  }
+
+  setSquad(id: string, runId: string | null, readOnly: boolean): void {
+    this.db.prepare('UPDATE conversations SET squad_run_id = ?, workspace_read_only = ? WHERE id = ?').run(runId, Number(readOnly), id)
+  }
+
+  setWorkspaceReadOnly(id: string, readOnly: boolean): void {
+    this.db.prepare('UPDATE conversations SET workspace_read_only = ? WHERE id = ?').run(Number(readOnly), id)
   }
 
   setForkedFrom(id: string, sourceId: string): void {
@@ -255,7 +263,7 @@ export class ConversationStore {
   searchMessages(query: string): Array<{ conversationId: string; text: string }> {
     return this.db.prepare(`SELECT conversation_id AS conversationId, text, MAX(sequence) AS sequence
       FROM conversation_messages WHERE instr(lower(text), lower(?)) > 0
-      AND conversation_id IN (SELECT id FROM conversations WHERE task_id IS NULL AND discussion_id IS NULL) GROUP BY conversation_id`)
+      AND conversation_id IN (SELECT id FROM conversations WHERE task_id IS NULL AND discussion_id IS NULL AND squad_run_id IS NULL) GROUP BY conversation_id`)
       .all(query).map((row) => ({ conversationId: String(row.conversationId), text: String(row.text) }))
   }
 

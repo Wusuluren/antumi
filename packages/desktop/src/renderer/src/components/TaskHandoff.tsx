@@ -22,7 +22,7 @@ export function useTaskHandoff(task: Task | undefined): TaskHandoff {
   const open = useCallback((agent?: AgentKind) => {
     if (conversation) beginHandoff(conversation, agent)
   }, [conversation])
-  if (!task || !conversation) return { available: false, blocker: null, open }
+  if (!task || task.squadId || !conversation) return { available: false, blocker: null, open }
   const dependencies = task.dependsOn.map((id) => tasks[id]).filter((dependency) => dependency !== undefined)
   const found = checkTaskHandoff(task, dependencies, conversation.sessionId ? (conversation.chat?.turn ?? null) : null)
   return { available: supported, blocker: found && reasonText(found, found), open }

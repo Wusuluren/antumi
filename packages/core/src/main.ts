@@ -17,6 +17,8 @@ import { DaemonClient } from './daemon-client'
 import { githubProvider } from './github-provider'
 import { jiraProvider } from './jira-provider'
 import { createRpcHandlers } from './rpc-handlers'
+import { SquadService } from './squad-service'
+import { SquadStore } from './squad-store'
 import { DiscussionService } from './discussion-service'
 import { startRpcServer, type RpcServer } from './rpc-server'
 import { TaskService } from './task-service'
@@ -88,6 +90,7 @@ const conversations = new ConversationService(
       schedules.conversationChanged(event.conversation)
       routines.conversationChanged(event.conversation)
       discussions.conversationChanged(event.conversation)
+      squads.conversationChanged(event.conversation)
       refreshAwake()
     } else if (event.type === 'deleted') {
       server?.broadcast('conversations.deleted', { id: event.id })
@@ -99,6 +102,7 @@ const conversations = new ConversationService(
       turns.observe(event.conversationId, event.items)
       routines.observe(event.conversationId, event.items)
       discussions.observe(event.conversationId, event.items)
+      squads.observe(event.conversationId, event.items)
       notifyChatItems(event.conversationId, limits.decorate(event.items))
     } else if (event.type === 'planApproved') {
       service.recordPlan(event.taskId, event.plan)
@@ -228,6 +232,13 @@ const discussions = new DiscussionService(paths.database, {
   }
 })
 
+const squads = new SquadService(new SquadStore(paths.database), service, conversations, {
+  squad: (squad) => server?.broadcast('squads.changed', { squad }),
+  run: (run) => server?.broadcast('squads.runChanged', { run })
+}, (id) => terminals.stopForConversation(id))
+service.setSquads(squads)
+conversations.setSquadGuard((conversation) => squads.guardMember(conversation))
+
 const terminals = new TerminalService(paths.database, daemon, (list) => server?.broadcast('terminals.changed', { terminals: list }))
 const terminalCommands = new TerminalCommandStore(paths.database, (commands) => server?.broadcast('terminalCommands.changed', { commands }))
 const chatCommands = new ChatCommandStore(paths.database, (commands) => server?.broadcast('chatCommands.changed', { commands }))
@@ -238,7 +249,7 @@ awake = new ComputerAwakeService(daemon, new AwakeConfigStore(paths.awakeConfig)
 const chatSettings = new ChatSettingsStore(paths.chatSettings, (settings) => {
   conversations.setPromptSuggestions(settings.promptSuggestions)
   conversations.setUserBrowser(settings.userBrowser ?? true)
-  conversations.setCapacity(settings, () => { void schedules.tick() })
+  conversations.setCapacity(settings, () => { void schedules.tick(); squads.tick() })
   wire.setEnabled(settings.wireLog ?? false)
   server?.broadcast('system.chatSettingsChanged', { settings })
 })
@@ -246,7 +257,7 @@ const chatSettings = new ChatSettingsStore(paths.chatSettings, (settings) => {
 const initialChatSettings = await chatSettings.load()
 conversations.setPromptSuggestions(initialChatSettings.promptSuggestions)
 conversations.setUserBrowser(initialChatSettings.userBrowser)
-conversations.setCapacity(initialChatSettings, () => { void schedules.tick() })
+conversations.setCapacity(initialChatSettings, () => { void schedules.tick(); squads.tick() })
 wire.setEnabled(initialChatSettings.wireLog)
 
 daemon.onEvent((event) => {
@@ -277,6 +288,7 @@ daemon.onConnect(() => {
       await conversations.reconcile(sessions)
       terminals.reconcile(sessions)
       await discussions.reconcile()
+      await squads.reconcile()
       void environment.check(true).catch((error: unknown) => console.error('[kando-core] agent discovery failed', error))
       // What came due while core or the daemon was away goes now, not at the next tick.
       await schedules.tick()
@@ -299,7 +311,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}))
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()
@@ -329,6 +341,7 @@ async function shutdown(): Promise<void> {
   usage.stop()
   schedules.stop()
   routines.stop()
+  await squads.close()
   discussions.close()
   sources.stop()
   awake?.stop()

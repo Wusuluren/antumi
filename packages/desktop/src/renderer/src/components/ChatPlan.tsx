@@ -238,6 +238,7 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
         {inView
           ? <span className="chat-plan-aside">完整计划在右侧</span>
           : <button type="button" className="link-button" onClick={() => surface.showPlan(key)}>在检查器里看完整计划</button>}
+        {surface.handoffPlan && <button type="button" className="link-button" disabled={busy || saving} onClick={() => surface.handoffPlan?.(item)}>交给小队执行</button>}
         {schedulable && <SchedulePlanButton conversationId={conversationId} />}
       </div>
       {savePlan && <p className="chat-request-detail muted">依赖的任务还没完成：现在只能保存计划，等它们完成后开始执行时再按计划做。</p>}

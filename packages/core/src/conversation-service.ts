@@ -52,6 +52,7 @@ export type TaskChatLaunch = TaskLaunchOptions & {
   cwd: string
   extraDirs: readonly string[]
   planOnly: boolean
+  workspaceReadOnly?: boolean
   session: 'new' | 'resume'
   // Files the agent may read without asking, such as the task's images.
   readable?: readonly string[]
@@ -107,6 +108,9 @@ async function resolveProjects(projectPaths: readonly string[], taken: readonly 
 }
 
 export class ConversationService {
+  private squadGuard: ((conversation: Conversation) => void) | null = null
+  setSquadGuard(guard: (conversation: Conversation) => void): void { this.squadGuard = guard }
+
   // Core's chat settings say; main hands them over before any stage starts.
   private promptSuggestions = false
   private userBrowser: boolean | undefined
@@ -226,8 +230,8 @@ export class ConversationService {
 
   // Task summaries are opt-in; older clients expect only free conversations. A group chat's members
   // are never listed: a client that does not know group chats would show them as its own.
-  list(includeTasks = false): Conversation[] {
-    return this.store.list().filter((conversation) => (includeTasks || !conversation.taskId) && !conversation.discussionId).map((conversation) => this.withChat(conversation))
+  list(includeTasks = false, includeSquads = false): Conversation[] {
+    return this.store.list().filter((conversation) => (includeTasks || !conversation.taskId) && !conversation.discussionId && (includeSquads || !conversation.squadRunId)).map((conversation) => this.withChat(conversation))
   }
   // Every conversation, a group chat's members too: who else works in a folder.
   listAll(): Conversation[] {
@@ -369,13 +373,14 @@ export class ConversationService {
     start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string; deferStart?: boolean } = {},
     routine: { id: string; title: string } | null = null,
     id: string = randomUUID(),
-    discussion: { id: string; title: string } | null = null
+    discussion: { id: string; title: string } | null = null,
+    squad: { runId: string; readOnly: boolean } | null = null
   ): Promise<Conversation> {
     if (projectPaths.length > MAX_TASK_REPOS) throw new Rejection('too-many-projects')
     const { permissionMode, model, effort, worktree = false, branch } = start
     const worktreesRoot = worktree ? this.worktreesRoot : null
     if (worktree && (!worktreesRoot || projectPaths.length === 0)) throw new Rejection('missing-repo', 'a worktree needs a project to lay out')
-    if (!this.capacityAvailable(agent)) throw new Rejection('agent-capacity')
+    if (!start.deferStart && !this.capacityAvailable(agent)) throw new Rejection('agent-capacity')
     await this.validateStartOptions(agent, { permissionMode, model, effort })
     const resolved = await resolveProjects(projectPaths)
     const { picked } = resolved
@@ -405,6 +410,7 @@ export class ConversationService {
       if (head) starts[project] = head
     }
     const created = this.store.create(agent, workspace, projects, id, starts, null, routine, discussion)
+    if (squad) this.store.setSquad(id, squad.runId, squad.readOnly)
     if (allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass })
     if (permissionMode) this.store.setChatOptions(id, { permissionMode })
     if (model || effort) this.store.setChatOptions(id, { [agent]: { model, effort } })
@@ -419,6 +425,7 @@ export class ConversationService {
   // directories at launch, so an idle one restarts and goes on from where it was, as after /add-dir.
   async setAdditionalProjects(id: string, projectPaths: readonly string[]): Promise<Conversation> {
     const conversation = this.free(id)
+    if (conversation.squadRunId) throw new Rejection('squad-managed')
     const blocker = this.launching.has(id) ? 'conversation-running' : checkEditAdditionalProjects(conversation)
     if (blocker) throw new Rejection(blocker)
     const primary = conversation.workspacePath
@@ -476,10 +483,11 @@ export class ConversationService {
     const live = conversation.sessionId !== null && this.chats.activity(id) !== null
     // Going on with another agent than the chat had, it is handed what was said, as a handoff is.
     const switched = launch.session === 'resume' && conversation.agent !== task.agent
-    const same = !regrouped && !switched && (conversation.planOnly ?? false) === launch.planOnly
+    const same = !regrouped && !switched && (conversation.planOnly ?? false) === launch.planOnly && Boolean(conversation.workspaceReadOnly) === Boolean(launch.workspaceReadOnly)
     if (live && launch.session === 'resume' && same) return this.withChat(conversation)
     if (conversation.sessionId && !this.chats.idle(id)) throw new Rejection('chat-busy', 'the agent is still working')
     if (conversation.sessionId) await this.stop(id)
+    this.store.setWorkspaceReadOnly(id, launch.workspaceReadOnly ?? false)
     if (regrouped) this.store.moveWorkspace(id, cwd, projectPaths)
     if (conversation.title !== task.title) this.store.update(id, { title: task.title })
     if (launch.allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass: launch.allowBypass })
@@ -492,6 +500,14 @@ export class ConversationService {
       planOnly: launch.planOnly,
       readable: launch.readable
     })
+  }
+
+  planForTransfer(id: string, stageId: string, requestId: string): { markdown: string; agent: AgentKind } {
+    const item = this.chatPage(id).items.find((entry) => entry.stageId === stageId && entry.kind === 'approval' && entry.requestId === requestId)
+    const conversation = this.get(id)
+    const latest = this.store.stages(id).at(-1)
+    if (latest?.id !== stageId || !(conversation.planOnly || conversation.chatOptions?.permissionMode === 'plan') || item?.kind !== 'approval' || !isPlanApproval(item) || !item.detail || item.resolution !== null) throw new Rejection('chat-request-gone', '规划已执行或不存在')
+    return { markdown: item.detail, agent: this.get(id).agent }
   }
 
   // Keeps a plan-only stage's plan: answers it, if it still waits, so the agent does not carry it
@@ -530,6 +546,7 @@ export class ConversationService {
   // agent, which must be idle, is let go; the next message after taking it out resumes it.
   async setArchived(id: string, archived: boolean): Promise<Conversation> {
     const current = this.free(id)
+    if (current.squadRunId) throw new Rejection('squad-managed')
     if (current.discussionId) throw new Rejection('discussion-member', 'a group chat member is put away with its group chat')
     if ((current.archivedAt != null) === archived) return current
     if (archived) {
@@ -548,20 +565,21 @@ export class ConversationService {
   }
 
   // Readies the agent for a message: one already up stays as it is.
-  async continue(id: string, allowBypass?: boolean): Promise<Conversation> {
+  async continue(id: string, allowBypass?: boolean, readable?: readonly string[]): Promise<Conversation> {
     this.writable(id)
     const current = this.free(id)
     if (this.launching.has(id)) throw new Rejection('conversation-running')
     if (current.sessionId && this.chats.activity(id) !== null) return current
     if (allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass })
     if (current.sessionId) await this.stop(id)
-    return this.start(id, current.agent, '', false)
+    return this.start(id, current.agent, '', false, { readable })
   }
 
   async handoff(id: string, agent: AgentKind, note: string, stopRunning: boolean, allowBypass?: boolean, choice: ModelChoice = {}): Promise<Conversation> {
     this.writable(id)
     const current = this.free(id)
     // A group chat's member is the agent the group chat names; another would speak in its place.
+    if (current.squadRunId) throw new Rejection('squad-managed')
     if (current.discussionId) throw new Rejection('discussion-member', 'a group chat member keeps its agent')
     if (agent === current.agent) throw new Rejection('conversation-same-agent')
     await this.validateStartOptions(agent, choice)
@@ -594,6 +612,7 @@ export class ConversationService {
   // the same turn where it can be, so it remembers just that much.
   async fork(sourceId: string, stageId: string, itemId: string): Promise<Conversation> {
     const source = this.free(sourceId)
+    if (source.squadRunId) throw new Rejection('squad-managed')
     const stages = this.store.stages(sourceId)
     const index = stages.findIndex((stage) => stage.id === stageId)
     if (index < 0) throw new Rejection('stage-not-found', `no chat stage ${stageId}`)
@@ -658,6 +677,7 @@ export class ConversationService {
   }
 
   private async start(id: string, agent: AgentKind, note: string, handoff: boolean, launch: StageLaunch = {}): Promise<Conversation> {
+    this.squadGuard?.(this.get(id))
     if (this.launching.has(id)) throw new Rejection('conversation-running')
     if (!this.capacityAvailable(agent)) throw new Rejection('agent-capacity', 'Agent 运行数量已达到上限，请等待其他会话结束，或预约稍后执行')
     this.launching.set(id, agent)
@@ -811,9 +831,9 @@ export class ConversationService {
         extraDirs: conversation.projectPaths.slice(1),
         resume: stage.providerSessionId,
         fork: forkAt,
-        // Read off the stage, so a stage taken back after a restart still only plans.
-        planOnly: stage.planOnly ?? false,
-        allowBypass: !stage.planOnly && (chosen.allowBypass ?? false),
+        // Both constraints survive a restart; coordination is not task planning.
+        planOnly: Boolean(stage.planOnly || conversation.workspaceReadOnly),
+        allowBypass: !stage.planOnly && !conversation.workspaceReadOnly && (chosen.allowBypass ?? false),
         promptSuggestions: this.promptSuggestions,
         preferred: { permissionMode, ...chosen[stage.agent] },
         keepImage: (data) => this.keepImage(data)
@@ -822,7 +842,7 @@ export class ConversationService {
   }
 
   private agentStage(conversationId: string, stage: ConversationStage): AgentStage {
-    return { sessionsRoot: this.sessionsRoot, conversationId, stageId: stage.id, planOnly: stage.planOnly ?? false }
+    return { sessionsRoot: this.sessionsRoot, conversationId, stageId: stage.id, planOnly: Boolean(stage.planOnly || this.get(conversationId).workspaceReadOnly) }
   }
 
   // Remembered for the conversation's next start once the stage took it: a model or effort here,
@@ -830,6 +850,7 @@ export class ConversationService {
   // remembered, from what the last chat stage offered.
   async setOption(id: string, option: ChatOption, value: string): Promise<void> {
     const conversation = this.get(id)
+    if (conversation.squadRunId || conversation.workspaceReadOnly) throw new Rejection('squad-managed', '本次运行沿用小队配置')
     const { agent } = conversation
     if (this.chats.activity(id) === null) {
       this.chooseForNextStart(conversation, option, value)
@@ -929,6 +950,7 @@ export class ConversationService {
   // A retry may resume in a new stage; its ref still names the original message.
   async send(id: string, text: string, imageIds: readonly string[] = [], queue = false, steer = false, ref?: string): Promise<void> {
     const conversation = this.writable(id)
+    this.squadGuard?.(conversation)
     if (adapterOf(conversation.agent).turns?.serialized) {
       return this.serially(id, () => this.sendNow(id, text, imageIds, queue, steer, ref))
     }

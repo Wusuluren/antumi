@@ -1,4 +1,6 @@
+import path from 'node:path'
 import {
+  agentDescriptor,
   checkCancel,
   checkChatResume,
   checkChangePrimary,
@@ -37,7 +39,7 @@ import {
   type TaskStatus,
   type UnattendedMode
 } from '@kando/protocol'
-import { chatPlanPrompt, chatStartPrompt, type PreviousAttempt, type PromptImages } from './agent-prompt'
+import { agentPrompt, chatPlanPrompt, chatStartPrompt, type PreviousAttempt, type PromptImages } from './agent-prompt'
 import type { AgentRunStore } from './agent-run-store'
 import type { AttachmentStore } from './attachment-store'
 import type { ConversationService, ModelChoice } from './conversation-service'
@@ -52,11 +54,25 @@ export type TaskEvent = { type: 'changed'; task: Task } | { type: 'deleted'; id:
 // What a task needs of its chat.
 export type TaskConversations = Pick<ConversationService, 'startForTask' | 'send' | 'savePlan' | 'stopForTask' | 'deleteForTask' | 'get' | 'runUsage' | 'capacityAvailable' | 'validateStartOptions'>
 
+export type TaskSquads = {
+  preparing(id: string): boolean
+  agent(id: string): AgentKind
+  start(id: string, allowBypass?: boolean, options?: TaskLaunchOptions): Promise<Task>
+  resume(id: string, allowBypass?: boolean): Promise<Task>
+  cancel(id: string): Promise<void>
+  remove(id: string): Promise<void>
+  busy(id: string): boolean
+  awaiting(id: string): boolean
+}
+
 export class TaskService {
+  private squads: TaskSquads | null = null
+  setSquads(squads: TaskSquads): void { this.squads = squads }
+
   private readonly launching = new Set<string>()
   private gitGuard: ((dirs: readonly string[]) => Promise<void>) | null = null
   setGitGuard(guard: (dirs: readonly string[]) => Promise<void>): void { this.gitGuard = guard }
-  isLaunching(id: string): boolean { return this.launching.has(id) }
+  isLaunching(id: string): boolean { return this.launching.has(id) || (this.squads?.preparing(id) ?? false) }
 
   constructor(
     private readonly store: TaskStore,
@@ -108,18 +124,20 @@ export class TaskService {
     return fileDiff(repo, file)
   }
 
-  create({ title, details, repos, dependsOn, agent }: RpcParsedParams<'tasks.create'>): Task {
+  create({ title, details, repos, dependsOn, agent, squadId }: RpcParsedParams<'tasks.create'>): Task {
     // Validate before the row exists, so a bad repo path or id leaves nothing behind.
     const repoPaths = repos && [...new Set(repos.map(normalizeRepoPath))]
     // Nothing depends on a task that does not exist yet, so no loop is possible.
     const dependencyIds = dependsOn && this.resolveIds(dependsOn)
+    const squadAgent = squadId ? this.requireSquads().agent(squadId) : undefined
     const task = this.store.create(title)
     if (repoPaths) {
       this.projects.remember(repoPaths)
     }
     const patch: TaskPatch = {
       details,
-      agent,
+      squadId,
+      agent: squadAgent ?? agent,
       repos: repoPaths && withKnownWorktrees([], repoPaths),
       dependsOn: dependencyIds
     }
@@ -201,13 +219,19 @@ export class TaskService {
     return this.changed(this.store.update(task.id, { sourceSnapshot: snapshot }))
   }
 
-  update({ id, title, details, repos, dependsOn, agent, starts, launch }: RpcParsedParams<'tasks.update'>): Task {
+  update({ id, title, details, repos, dependsOn, agent, squadId, starts, launch }: RpcParsedParams<'tasks.update'>): Task {
     const task = this.get(id)
-    const patch: TaskPatch = { title, details, agent, launch }
+    if (squadId !== undefined && squadId !== task.squadId) {
+      if (this.isLaunching(task.id) || task.status !== 'pending' || this.squads?.busy(task.id)) throw new Rejection('squad-busy', '开发开始后不能更换小队')
+    }
+    if (task.squadId && squadId !== null && agent !== undefined && agent !== task.agent) throw new Rejection('squad-managed')
+    const patch: TaskPatch = { title, details, agent, launch, squadId }
+    if (squadId) { patch.agent = this.requireSquads().agent(squadId); patch.launch = { permissionMode: 'ask' } }
+
     // Another agent has models and modes of its own, so what was picked for the last one goes.
     if (agent !== undefined && agent !== task.agent && launch === undefined) patch.launch = {}
     if (repos !== undefined) {
-      const blocker = checkEditProjects(task, this.launching.has(task.id))
+      const blocker = checkEditProjects(task, this.isLaunching(task.id))
       if (blocker) throw new Rejection(blocker)
       patch.repos = withKnownWorktrees(task.repos, repos.map(normalizeRepoPath))
       if (patch.repos[0]?.path !== task.repos[0]?.path) {
@@ -238,7 +262,7 @@ export class TaskService {
     for (const [repoPath, ref] of picked) {
       const repo = repos.find((each) => each.path === repoPath)
       if (!repo) throw new Rejection('repo-not-found', `${repoPath} is not one of the task's repos`)
-      const blocker = checkEditStart(task, repo, this.launching.has(task.id))
+      const blocker = checkEditStart(task, repo, this.isLaunching(task.id))
       if (blocker) throw new Rejection(blocker)
       if (ref !== null && !isStartRef(ref)) throw new Rejection('invalid-start', `${ref} is not a branch to start from`)
     }
@@ -251,7 +275,7 @@ export class TaskService {
   // Tasks whose agent is at work in their worktrees.
   async inUse(): Promise<ReadonlySet<string>> {
     return new Set(this.store.list().flatMap((task) =>
-      task.conversationId !== null && this.chatTurn(task.conversationId) === 'running' ? [task.id] : []))
+      this.isLaunching(task.id) || this.squads?.busy(task.id) || (task.conversationId !== null && this.chatTurn(task.conversationId) === 'running') ? [task.id] : []))
   }
 
   private chatTurn(conversationId: string): string | null {
@@ -266,7 +290,8 @@ export class TaskService {
   // a task still starting, keeps it.
   async releaseAgent(id: string): Promise<void> {
     const task = this.get(id)
-    if (this.launching.has(task.id)) throw new Rejection('run-in-progress')
+    if (this.isLaunching(task.id)) throw new Rejection('run-in-progress')
+    if (this.squads?.busy(task.id)) throw new Rejection('worktree-in-use')
     if (!task.conversationId || !this.chats) return
     if (this.chats.get(task.conversationId).chat?.turn === 'running') throw new Rejection('worktree-in-use')
     await this.chats.stopForTask(task.id)
@@ -291,10 +316,12 @@ export class TaskService {
 
   move(id: string, status: TaskStatus): Task {
     const task = this.get(id)
+    if (this.isLaunching(task.id)) throw new Rejection('run-in-progress')
     const blocker = checkMove(task, status)
     if (blocker) {
       throw new Rejection(blocker, `cannot move task from ${task.status} to ${status}`)
     }
+    if (this.squads?.busy(task.id)) throw new Rejection('squad-busy')
     return this.changed(this.save(task.id, { status }))
   }
 
@@ -308,6 +335,7 @@ export class TaskService {
       throw new Rejection(blocker)
     }
     return this.launchChat(task, async () => {
+      await this.squads?.cancel(task.id)
       await this.chats?.stopForTask(task.id)
       const attempt = task.attempts.length + 1
       const { repos, kept } = await restartBranches(task, this.dependenciesOf(task), attempt)
@@ -323,7 +351,8 @@ export class TaskService {
     if (blocker) {
       throw new Rejection(blocker)
     }
-    if (this.launching.has(task.id)) throw new Rejection('run-in-progress')
+    if (this.isLaunching(task.id)) throw new Rejection('run-in-progress')
+    await this.squads?.cancel(task.id)
     await this.chats?.stopForTask(task.id)
     // A planning checkout only ever served a start, which will not come.
     await removePlanningCheckouts(task.id, this.worktreesRoot)
@@ -345,7 +374,11 @@ export class TaskService {
   // are accepted, the task can only plan read-only. Resolves once the first message is on its way.
   // unattended: a scheduled run, which carries the task out in that mode without planning first.
   // What `options` leaves out comes from the task's launch, which a start by hand then keeps.
-  async start(id: string, allowBypass?: boolean, unattended?: UnattendedMode, options: TaskLaunchOptions = {}): Promise<Task> {
+  async start(id: string, allowBypass?: boolean, unattended?: UnattendedMode, options: TaskLaunchOptions = {}, coordinator?: string): Promise<Task> {
+    if (this.get(id).squadId && !coordinator) {
+      if (unattended) throw new Rejection('squad-schedule-unsupported')
+      return this.requireSquads().start(id, allowBypass, options)
+    }
     const chats = this.requireChats()
     const task = this.get(id)
     const dependencies = this.dependenciesOf(task)
@@ -382,13 +415,14 @@ export class TaskService {
       this.store.update(task.id, { repos: workspace.repos })
       const conversation = await chats.startForTask({ id: task.id, title: task.title, agent }, {
         cwd: workspace.cwd, extraDirs: workspace.extraDirs, planOnly: false, session: 'new', readable: images.readable,
-        allowBypass: unattended === 'bypass' || allowBypass, ...launch, permissionMode
+        allowBypass: coordinator ? false : unattended === 'bypass' || allowBypass, ...launch,
+        permissionMode: coordinator ? agentDescriptor(agent).discussionMode : permissionMode, workspaceReadOnly: Boolean(coordinator)
       })
       // The planning agent stopped for the new stage, so nothing reads there any more.
       await removePlanningCheckouts(task.id, this.worktreesRoot)
       this.save(task.id, { status: 'running', awaitingInput: false })
       const prompt = chatStartPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, task.plan, unattended !== undefined, permissionMode)
-      await chats.send(conversation.id, prompt, imageIds)
+      await chats.send(conversation.id, coordinator ? `${prompt}\n\n${coordinator}` : prompt, imageIds)
       return this.changed(this.get(task.id))
     })
   }
@@ -404,6 +438,7 @@ export class TaskService {
   // finished task goes back to running, as continuing it does.
   async resumeChat(id: string, allowBypass?: boolean): Promise<Task> {
     const task = this.get(id)
+    if (task.squadId) return this.requireSquads().resume(id, allowBypass)
     const dependencies = this.dependenciesOf(task)
     const blocker = checkChatResume(task, dependencies)
     if (blocker) {
@@ -419,6 +454,7 @@ export class TaskService {
   async handoff(id: string, agent: AgentKind, note: string, allowBypass?: boolean, choice: ModelChoice = {}): Promise<Task> {
     const chats = this.requireChats()
     const task = this.get(id)
+    if (task.squadId) throw new Rejection('squad-managed')
     if (agent === task.agent) throw new Rejection('conversation-same-agent')
     const turn = task.conversationId ? (chats.get(task.conversationId).chat?.turn ?? null) : null
     const dependencies = this.dependenciesOf(task)
@@ -456,6 +492,7 @@ export class TaskService {
   submit(id: string): Task {
     const task = this.get(id)
     const turn = task.conversationId ? (this.requireChats().get(task.conversationId).chat?.turn ?? null) : null
+    if (this.squads?.busy(task.id)) throw new Rejection('squad-busy')
     const blocker = checkSubmit(task, turn)
     if (blocker) {
       throw new Rejection(blocker)
@@ -492,10 +529,56 @@ export class TaskService {
       return
     }
     const turn = conversation.chat?.turn ?? null
-    const waiting = task.status === 'running' ? turn !== 'running' : task.status === 'pending' && (turn === 'idle' || turn === 'awaiting')
+    const waiting = task.squadId ? (this.squads?.awaiting(task.id) ?? false) : task.status === 'running' ? turn !== 'running' : task.status === 'pending' && (turn === 'idle' || turn === 'awaiting')
     if (task.awaitingInput !== waiting) {
       this.changed(this.store.update(task.id, { awaitingInput: waiting }))
     }
+  }
+
+  async squadContext(id: string): Promise<{ text: string; readable: string[] }> {
+    const task = this.get(id)
+    const entries = task.repos.map((repo) => ({ name: path.basename(repo.path), source: repo.path, dir: repo.worktreePath ?? repo.path, branch: repo.branch, base: null, startRef: repo.startRef, start: repo.start }))
+    const cwd = entries[0]?.dir
+    if (!cwd) throw new Rejection('missing-repo')
+    const images = await this.images(task)
+    return { readable: images.readable, text: `${agentPrompt(task, { cwd, extraDirs: entries.slice(1).map((entry) => entry.dir), multi: entries.length > 1, entries, repos: task.repos }, this.dependenciesOf(task), this.previousAttempt(task), images.prompt)}${task.plan ? `\n\n已确认规划：\n${task.plan.markdown}` : ''}` }
+  }
+
+  assignSquad(id: string, squadId: string, agent: AgentKind): Task {
+    return this.changed(this.store.update(id, { squadId, agent, status: 'pending' }))
+  }
+
+  keepSquadPlan(id: string, plan: NonNullable<Task['plan']>): void {
+    this.changed(this.store.update(id, { plan }))
+  }
+
+  async resumeSquadLeader(id: string, allowBypass?: boolean): Promise<Task> {
+    const task = this.get(id)
+    if (task.status === 'abandoned' || task.status === 'pending') throw new Rejection('not-running')
+    const dependencies = this.dependenciesOf(task)
+    if (dependencies.some((dependency) => dependency.status !== 'done')) throw new Rejection('dependencies-unfinished')
+    const conversation = task.conversationId ? this.requireChats().get(task.conversationId) : null
+    if (!conversation) throw new Rejection('no-chat')
+    return this.launchChat(task, async () => {
+      const workspace = await prepareWorkspace(task, dependencies, this.worktreesRoot)
+      this.store.update(task.id, { repos: workspace.repos })
+      const images = await this.images(task)
+      await this.requireChats().startForTask({ id: task.id, title: task.title, agent: conversation.agent }, {
+        cwd: workspace.cwd, extraDirs: workspace.extraDirs, planOnly: false, readable: images.readable,
+        workspaceReadOnly: true, session: 'resume', allowBypass: false
+      })
+      return task.status === 'running' ? this.get(id) : this.changed(this.save(task.id, { status: 'running', awaitingInput: false }))
+    })
+  }
+
+  setSquadWaiting(id: string, waiting: boolean): void {
+    const task = this.store.get(id)
+    if (task && task.awaitingInput !== waiting) this.changed(this.store.update(id, { awaitingInput: waiting }))
+  }
+
+  private requireSquads(): TaskSquads {
+    if (!this.squads) throw new Rejection('squad-unavailable')
+    return this.squads
   }
 
   private requireChats(): TaskConversations {
@@ -526,7 +609,9 @@ export class TaskService {
 
   async delete(id: string): Promise<void> {
     const task = this.get(id)
+    if (this.isLaunching(task.id)) throw new Rejection('run-in-progress')
     const dependents = this.store.dependents(task.id)
+    await this.squads?.remove(task.id)
     await this.chats?.deleteForTask(task.id)
     // Worktrees are left on disk: they may hold the only copy of the agent's work. Planning
     // checkouts hold none, so they go, unless one holds changes after all.

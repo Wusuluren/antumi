@@ -15,6 +15,7 @@ import { DEFAULT_SIDE_PANEL_RATIO } from './side-panel-size'
 import { EMPTY_FILE_TABS, useFileTabs } from '../file-tabs'
 import { SourceLink } from './SourceLink'
 import { StatusIcon } from './StatusIcon'
+import { useSquadRuns } from '../squads'
 import { TaskInspector } from './TaskInspector'
 import { TaskAlerts } from './TaskAlerts'
 import { TaskToolbar } from './TaskActions'
@@ -27,7 +28,7 @@ import { useTaskHandoff } from './TaskHandoff'
 function planNote(task: Task, item: PlanItem): string | null {
   const { plan } = task
   const kept = plan && plan.stageId === item.stageId && plan.requestId === item.requestId
-  return kept && !plan.approved ? '已保存，依赖完成后执行' : null
+  return kept ? plan.approved && task.squadId ? '已交给开发小队执行' : !plan.approved ? '已保存，依赖完成后执行' : null : null
 }
 
 // A message to a task's chat goes through the task first unless its agent is at work: the task checks
@@ -56,6 +57,7 @@ function taskSurface(task: Task, dependencies: readonly Task[], planOnly: boolea
       return Boolean(await perform((rpc) => rpc.call('tasks.resumeChat', { id: task.id, ...allowBypass })))
     },
     sendBlocker: blocker && reasonText(blocker, blocker),
+    handoffPlan: !task.squadId && useCore.getState().rpc?.features.includes('squads') ? (item) => useCore.setState({ taskLaunchId: task.id, squadPlan: { stageId: item.stageId, requestId: item.requestId } }) : undefined,
     savePlan: planOnly
       ? async (item) => {
           await perform((rpc) => rpc.call('tasks.savePlan', { id: task.id, stageId: item.stageId, requestId: item.requestId }))
@@ -72,6 +74,10 @@ function taskSurface(task: Task, dependencies: readonly Task[], planOnly: boolea
 export function TaskChat({ taskId }: { taskId: string }) {
   const task = useCore((s) => s.tasks[taskId])
   const tasks = useCore((s) => s.tasks)
+  const runs = useSquadRuns(taskId)
+  const memberChatId = useCore((state) => state.taskMemberConversationId)
+  const setMemberChatId = (id: string | null) => useCore.setState({ taskMemberConversationId: id })
+  const memberConversation = useCore((state) => memberChatId ? state.conversations[memberChatId] : undefined)
   const conversationId = task?.conversationId ?? null
   const conversation = useCore((s) => (conversationId ? s.conversations[conversationId] : undefined))
   const inspectorOpen = useCore((s) => s.inspectorOpen)
@@ -86,8 +92,9 @@ export function TaskChat({ taskId }: { taskId: string }) {
   const handoffNow = handoff.available && handoff.blocker === null
 
   useEffect(() => {
+    if (memberChatId && !memberConversation) void loadConversation(memberChatId)
     if (conversationId && !conversation) void loadConversation(conversationId)
-  }, [conversationId, conversation])
+  }, [conversationId, conversation, memberChatId, memberConversation])
 
   // Handed in for review, the task opens on what it changed.
   const status = task?.status
@@ -107,7 +114,7 @@ export function TaskChat({ taskId }: { taskId: string }) {
     return null
   }
   const worktree = task.repos.some((repo) => repo.worktreePath !== null)
-  const showInspector = inspectorOpen && (worktree || plans.length > 0 || wire || files.tabs.length > 0)
+  const showInspector = inspectorOpen && (worktree || runs.length > 0 || plans.length > 0 || wire || files.tabs.length > 0)
 
   return (
     <section className="detail terminal-view" aria-label={`${task.title} 的聊天`}>
@@ -135,8 +142,11 @@ export function TaskChat({ taskId }: { taskId: string }) {
         </div>
         <TaskToolbar task={task} view="chat" />
       </header>
+      {memberChatId && <div className="squad-member-nav"><button type="button" className="button ghost" onClick={() => setMemberChatId(null)}>返回队长</button><span>{memberConversation?.title ?? '正在读取成员会话…'}</span></div>}
       <div className="terminal-body">
-        {conversation ? (
+        {memberChatId ? (
+          memberConversation ? <ConversationChat conversation={memberConversation} surface={{ ...surface, showBrowser: () => showBrowserPanel(memberConversation.id), prepareSend: async () => false, sendBlocker: '成员的分工由队长协调；请返回队长交流。', handoffPlan: undefined, savePlan: null, handoff: null }} /> : <p className="muted">正在读取成员会话…</p>
+        ) : conversation ? (
           <ConversationChat conversation={conversation} surface={surface} />
         ) : starting ? (
           // Before core has the chat: it is getting the code and the agent ready, which can take a while.
@@ -150,6 +160,8 @@ export function TaskChat({ taskId }: { taskId: string }) {
         {showInspector && (
           <TaskInspector
             task={task}
+            squadRuns={runs}
+            onMemberConversation={setMemberChatId}
             widthRatio={sidePanelRatio}
             onWidthRatioChange={setSidePanelRatio}
             plans={plans}

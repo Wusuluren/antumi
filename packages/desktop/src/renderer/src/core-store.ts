@@ -24,7 +24,10 @@ import {
   type ChatSettings,
   type Environment,
   type ScheduledRun,
-  type Discussion
+  type Discussion,
+  type Squad,
+  type SquadRun,
+  type SquadPlanRef
 } from '@kando/protocol'
 import { receiveChatDelta, receiveChatItems } from './chat-state'
 import { forgetDiscussionPosts, receiveDiscussionPosts } from './discussions'
@@ -46,7 +49,7 @@ export type ConnectionState = 'waiting-for-core' | 'connecting' | 'connected'
 // What the right-hand pane shows for the selected task.
 // terminal: a task's agent in a terminal · chat: a task started in the chat view, in its chat
 export type TaskView = 'detail' | 'chat'
-export type Section = 'tasks' | 'conversations' | 'discussions'
+export type Section = 'tasks' | 'conversations' | 'discussions' | 'squads'
 
 // A sign-in this window started. The flow lives in core and ends if the connection drops.
 export type LoginState = {
@@ -72,6 +75,12 @@ export type CoreState = {
   // The page a new conversation starts from while chats are the default (see ConversationDraft).
   conversationDraft: boolean
   // Group chats as core keeps them; empty on a core without them.
+  squads: Record<string, Squad>
+  squadRuns: Record<string, SquadRun>
+  selectedSquadId: string | null
+  squadDraft: boolean
+  squadLaunch: boolean
+  squadPlan: SquadPlanRef | null
   discussions: Record<string, Discussion>
   selectedDiscussionId: string | null
   // The page a new group chat starts from, and the group it copies, if any: a new object each time,
@@ -81,6 +90,7 @@ export type CoreState = {
   // The projects the new-conversation page was last asked to start with; a new object each time, so
   // asking again applies again.
   conversationDraftProjects: { paths: readonly string[] } | null
+  taskMemberConversationId: string | null
   selectedId: string | null
   view: TaskView
   // The inspector beside a task's terminal or chat, kept open from one task to the next, on the
@@ -167,10 +177,17 @@ export const useCore = create<CoreState>()(() => ({
   selectedConversationId: null,
   conversationDraft: false,
   conversationDraftProjects: null,
+  squads: {},
+  squadRuns: {},
+  selectedSquadId: null,
+  squadDraft: false,
+  squadLaunch: false,
+  squadPlan: null,
   discussions: {},
   selectedDiscussionId: null,
   discussionDraft: false,
   discussionDraftFrom: null,
+  taskMemberConversationId: null,
   selectedId: null,
   view: 'detail',
   inspectorOpen: false,
@@ -236,6 +253,7 @@ export function selectTask(id: string | null): void {
     const chat = task?.conversationId && task.status !== 'done' && task.status !== 'abandoned'
     return {
       selectedId: id,
+      taskMemberConversationId: null,
       inspectorFile: s.section === 'tasks' && s.selectedId === id ? s.inspectorFile : null,
       section: 'tasks',
       inboxOpen: false,
@@ -468,7 +486,7 @@ export function markRoutineRunSeen(conversationId: string): void {
 // A turn that was going and is now over, in a conversation the user is not looking at. A
 // routine's conversation is left out: core keeps whether its run was looked at.
 function finishedUnseen(s: CoreState, previous: Conversation | undefined, next: Conversation): boolean {
-  if (next.routineId || next.discussionId) return false
+  if (next.routineId || next.discussionId || next.squadRunId) return false
   const working = previous?.chat?.turn === 'running' || previous?.chat?.turn === 'awaiting'
   const looking = s.section === 'conversations' && s.selectedConversationId === next.id
   return working && next.chat?.turn !== 'running' && next.chat?.turn !== 'awaiting' && !looking
@@ -484,6 +502,14 @@ export function closeConversationDraft(): void {
 }
 
 const PAGES_CLOSED = { settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, attentionOpen: false } as const
+
+export function selectSquad(id: string | null, draft = false): void {
+  useCore.setState({ section: 'squads', selectedSquadId: id, squadDraft: draft, ...PAGES_CLOSED })
+}
+
+export function useSquadsSupported(): boolean {
+  return useCore((state) => state.rpc?.features.includes('squads') ?? false)
+}
 
 export function selectDiscussion(id: string | null): void {
   useCore.setState({ selectedDiscussionId: id, section: 'discussions', discussionDraft: false, ...PAGES_CLOSED })
@@ -622,7 +648,8 @@ export function useActionableItems(): ActionableItem[] {
   const conversations = useCore((s) => s.conversations)
   const mode = useCore((s) => s.attentionSummaryMode)
   const schedules = useCore((s) => s.schedules)
-  return useMemo(() => actionableItems({ tasks, conversations, schedules }, mode === 'complete'), [tasks, conversations, schedules, mode])
+  const squadRuns = useCore((state) => state.squadRuns)
+  return useMemo(() => actionableItems({ tasks, conversations, schedules, squadRuns }, mode === 'complete'), [tasks, conversations, schedules, squadRuns, mode])
 }
 
 export function openAttentionItem(item: ActionableItem): void {
@@ -632,6 +659,8 @@ export function openAttentionItem(item: ActionableItem): void {
     const task = useCore.getState().tasks[item.target.id]
     if (!task || task.status === 'done' || task.status === 'abandoned') return
     selectTask(task.id)
+    const member = item.conversationId ? useCore.getState().conversations[item.conversationId] : null
+    if (member?.squadRunId) useCore.setState({ taskMemberConversationId: member.id, view: 'chat', inspectorOpen: true, taskInspectorTab: 'squad' })
     if (task.status === 'review' && task.conversationId) showTaskChanges()
   }
 }
@@ -901,8 +930,18 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         const conversationChanges = new Map<string, Conversation | null>()
         let changedSchedules: ScheduledRun[] | null = null
         let changedRoutines: Routine[] | null = null
+        const runChanges = new Map<string, SquadRun | null>()
+        const squadChanges = new Map<string, Squad | null>()
         const discussionChanges = new Map<string, Discussion | null>()
         useCore.setState({ attentionSummaryLoading: true, attentionSummaryError: null })
+        rpc.on('squads.changed', ({ squad }) => {
+          if (!initialized) squadChanges.set(squad.id, squad)
+          useCore.setState((state) => ({ squads: { ...state.squads, [squad.id]: squad } }))
+        })
+        rpc.on('squads.runChanged', ({ run }) => {
+          if (!initialized) runChanges.set(run.id, run)
+          useCore.setState((state) => ({ squadRuns: { ...state.squadRuns, [run.id]: run } }))
+        })
         rpc.on('git.changed', () => useCore.setState((s) => ({ gitRevision: s.gitRevision + 1 })))
         rpc.on('tasks.changed', ({ task }) => {
           if (!initialized) taskChanges.set(task.id, task)
@@ -912,7 +951,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
           if (!initialized) taskChanges.set(id, null)
           useCore.setState((s) => {
             const { [id]: _removed, ...tasks } = s.tasks
-            return { tasks, selectedId: s.selectedId === id ? null : s.selectedId }
+            return { tasks, squadRuns: Object.fromEntries(Object.entries(s.squadRuns).filter(([, run]) => run.taskId !== id)), selectedId: s.selectedId === id ? null : s.selectedId }
           })
         })
         rpc.on('conversations.changed', ({ conversation }) => {
@@ -999,6 +1038,8 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         if (full && rpc.features.includes('prompt-suggestions')) void rpc.call('system.chatSettings', {}).then((chatSettings) => useCore.setState({ chatSettings })).catch(() => {})
         const schedules = full && rpc.features.includes('schedules') ? await rpc.call('schedules.list', {}).catch(() => []) : []
         const routines = full && rpc.features.includes('routines') ? await rpc.call('routines.list', {}).catch(() => []) : []
+        const activeSquadRuns = full && rpc.features.includes('squads') ? await rpc.call('squads.activeRuns', {}) : []
+        const squads = full && rpc.features.includes('squads') ? await rpc.call('squads.list', {}) : []
         const discussions = full && rpc.features.includes('discussions') ? await rpc.call('discussions.list', {}).catch(() => []) : []
         if (full && rpc.features.includes('chat-commands')) void rpc.call('chatCommands.list', {}).then((chatCommands) => useCore.setState({ chatCommands })).catch(() => {})
         if (full && rpc.features.includes('environment')) void rpc.call('system.environment', {}).then((environment) => useCore.setState({ environment })).catch(() => {})
@@ -1009,6 +1050,8 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
           conversations: replaySummaryChanges(Object.values(conversations ?? s.conversations), conversationChanges),
           schedules: changedSchedules ?? schedules,
           routines: changedRoutines ?? routines,
+          squads: replaySummaryChanges(squads, squadChanges),
+          squadRuns: replaySummaryChanges(activeSquadRuns, runChanges),
           discussions: replaySummaryChanges(discussions, discussionChanges),
           attentionSummaryMode: attentionSummaryMode(rpc),
           attentionSummaryLoading: false,

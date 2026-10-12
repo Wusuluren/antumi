@@ -26,6 +26,7 @@ import type { ChatSettingsStore } from './chat-settings'
 import type { EnvironmentService } from './environment-check'
 import type { ScheduleService } from './schedule-service'
 import type { RoutineService } from './routine-service'
+import type { SquadService } from './squad-service'
 import type { DiscussionService } from './discussion-service'
 import { AgentTerminals } from './agent-terminals'
 import { AgentCliInstaller } from './agent-cli-installation'
@@ -59,7 +60,8 @@ export function createRpcHandlers(
   routines: RoutineService,
   discussions: DiscussionService,
   wire: WireLog,
-  gitChanged: () => void = () => {}
+  gitChanged: () => void = () => {},
+  squads?: SquadService
 ): RpcHandlers {
   const git = new GitService(service, conversations, gitChanged)
   conversations.setGitGuard((dirs) => git.guardAgent(dirs))
@@ -89,7 +91,23 @@ export function createRpcHandlers(
     limits.cancelFor(id, since)
     return result
   }
+  const squadService = () => {
+    if (!squads) throw new Rejection('squad-unavailable')
+    return squads
+  }
   return {
+    'squads.list': () => squadService().list(),
+    'squads.create': (fields) => squadService().create(fields),
+    'squads.update': ({ id, ...fields }) => squadService().update(id, fields),
+    'squads.archive': ({ id, archived }) => squadService().archive(id, archived),
+    'squads.activeRuns': () => squadService().activeRuns(),
+    'squads.runs': ({ id }) => squadService().runs(id),
+    'squads.start': ({ id, squadId, plan, permissionMode, allowBypass }) => squadService().start(id, allowBypass, { permissionMode }, squadId, plan),
+    'squads.control': ({ id, action }) => squadService().control(id, action),
+    'squads.retry': ({ id, workId }) => squadService().retry(id, workId),
+    'squads.roster': ({ id }) => squadService().roster(id),
+    'squads.dispatch': ({ id, memberId, instruction, capability, retryOf }) => squadService().dispatch(id, memberId, instruction, capability, retryOf),
+    'squads.finish': async ({ id, summary }) => { await squadService().finish(id, summary); return OK },
     'git.status': (target) => git.status(target),
     'git.history': ({ ref, offset, query, tips, ...target }) => git.history(target, ref, offset, query, tips),
     'git.detail': ({ sha, parent, ...target }) => git.detail(target, sha, parent),
@@ -97,7 +115,7 @@ export function createRpcHandlers(
     'git.diff': ({ base, sha, file, ...target }) => git.diff(target, base, sha, file),
     'git.compare': ({ ref, direct, ...target }) => git.compare(target, ref, direct),
     'git.execute': ({ action, ...target }) => git.execute(target, action),
-    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: [...CORE_FEATURES] }),
+    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => feature !== 'squads' || Boolean(squads)) }),
     'files.resolve': ({ conversationId, path }) => files.resolve(conversationId, path),
     'files.read': ({ conversationId, path }) => files.read(conversationId, path),
     'system.awakeStatus': () => awake.status(),
@@ -138,7 +156,11 @@ export function createRpcHandlers(
     'tasks.create': (params) => service.createTask(params),
     'tasks.update': (params) => service.update(params),
     'tasks.startOptions': ({ id }) => service.startOptions(id),
-    'tasks.move': ({ id, status }) => service.move(id, status),
+    'tasks.move': async ({ id, status }) => {
+      if (service.isLaunching(id)) throw new Rejection('run-in-progress')
+      if (service.get(id).squadId && status === 'done') await squads?.cancel(id)
+      return service.move(id, status)
+    },
     'tasks.redo': ({ id, reason }) => service.redo(id, reason),
     'tasks.cancel': ({ id, reason }) => service.cancel(id, reason),
     'tasks.reopen': ({ id }) => service.reopen(id),
@@ -161,7 +183,7 @@ export function createRpcHandlers(
     'tasks.branches': ({ id }) => service.branches(id),
     'tasks.changes': ({ id }) => service.changes(id),
     'tasks.diff': ({ id, repo, file }) => service.diff(id, repo, file),
-    'conversations.list': ({ includeTasks }) => conversations.list(includeTasks),
+    'conversations.list': ({ includeTasks, includeSquads }) => conversations.list(includeTasks, includeSquads),
     'conversations.get': ({ id }) => conversations.get(id),
     'conversations.create': ({ agent, projectPaths, worktree, branch, allowBypass, permissionMode, model, effort, deferStart }) =>
       conversations.create(agent, projectPaths, allowBypass, { permissionMode, model, effort, worktree, branch, deferStart }),
@@ -171,11 +193,11 @@ export function createRpcHandlers(
     'conversations.rename': ({ id, title }) => conversations.rename(id, title),
     'conversations.setPinned': ({ id, pinned }) => conversations.setPinned(id, pinned),
     'conversations.setArchived': ({ id, archived }) => conversations.setArchived(id, archived),
-    'conversations.continue': ({ id, allowBypass }) => userActed(id, () => conversations.continue(id, allowBypass)),
+    'conversations.continue': ({ id, allowBypass }) => userActed(id, () => { squads?.guardUser(id, true); return conversations.continue(id, allowBypass) }),
     'conversations.handoff': ({ id, agent, note, stopRunning, allowBypass, model, effort }) => conversations.handoff(id, agent, note, stopRunning, allowBypass, { model, effort }),
     'conversations.fork': ({ id, stageId, itemId }) => conversations.fork(id, stageId, itemId),
-    'conversations.setOption': async ({ id, option, value }) => { await conversations.setOption(id, option, value); return OK },
-    'conversations.send': ({ id, text, images, queue, steer, ref }) => userActed(id, async () => { await conversations.send(id, text, images, queue, steer, ref); return OK }),
+    'conversations.setOption': async ({ id, option, value }) => { squads?.guardUser(id, true); await conversations.setOption(id, option, value); return OK },
+    'conversations.send': ({ id, text, images, queue, steer, ref }) => userActed(id, async () => { squads?.guardUser(id, true); await conversations.send(id, text, images, queue, steer, ref); return OK }),
     'conversations.cancelQueued': ({ id, ref }) => { conversations.cancelQueued(id, ref); return OK },
     'conversations.sendQueued': ({ id, ref, now }) => userActed(id, async () => { await conversations.sendQueued(id, ref, now); return OK }),
     'conversations.setUsageLimitAutoContinue': ({ id, stageId, itemId, autoContinue }) => {
@@ -184,8 +206,13 @@ export function createRpcHandlers(
     },
     'conversations.retryUsageLimit': async ({ id, stageId, itemId }) => { await limits.retry(id, stageId, itemId); return OK },
     'conversations.retryCursorTurn': async ({ id, stageId, itemId }) => { await conversations.retryCursorTurn(id, stageId, itemId); return OK },
-    'conversations.interrupt': async ({ id }) => { await conversations.interrupt(id); return OK },
-    'conversations.respond': async ({ id, requestId, ...answer }) => { await conversations.respond(id, requestId, answer); return OK },
+    'conversations.interrupt': async ({ id }) => {
+      const run = squads?.roster(id)
+      if (run?.leaderConversationId === id && run.state === 'running') await squads?.control(run.id, 'stop')
+      else await conversations.interrupt(id)
+      return OK
+    },
+    'conversations.respond': async ({ id, requestId, ...answer }) => { squads?.guardUser(id); await conversations.respond(id, requestId, answer); return OK },
     // Read after subscribing, so an item that changes in between reaches the client either way.
     'conversations.watchChat': ({ id }, connection) => {
       connection.watching.add(id)
@@ -193,8 +220,12 @@ export function createRpcHandlers(
     },
     'conversations.unwatchChat': ({ id }, connection) => { connection.watching.delete(id); return OK },
     'conversations.chatItems': ({ id, before }) => page(conversations.chatPage(id, before)),
-    'conversations.stop': ({ id }) => userActed(id, () => conversations.stop(id)),
-    'conversations.delete': async ({ id }) => { await conversations.delete(id); return OK },
+    'conversations.stop': ({ id }) => userActed(id, async () => {
+      const run = squads?.roster(id)
+      if (run?.leaderConversationId === id && run.state === 'running') await squads?.control(run.id, 'stop')
+      return conversations.stop(id)
+    }),
+    'conversations.delete': async ({ id }) => { squads?.guardUser(id, true); await conversations.delete(id); return OK },
     'conversations.messages': ({ id }) => conversations.messages(id),
     'conversations.stages': ({ id }) => conversations.stages(id),
     'conversations.branches': ({ id }) => conversations.branches(id),
@@ -272,7 +303,10 @@ export function createRpcHandlers(
     'ports.stop': async (ref) => { await ports.stop(ref); return OK },
     'terminals.list': () => terminals.list(),
     'terminals.open': ({ cwd }) => terminals.open(cwd),
-    'terminals.run': ({ conversationId, command, cwd }) => agentTerminals.run(conversationId, command, cwd),
+    'terminals.run': ({ conversationId, command, cwd }) => {
+      if (conversations.get(conversationId).workspaceReadOnly) throw new Rejection('read-only-workspace')
+      return agentTerminals.run(conversationId, command, cwd)
+    },
     'terminals.read': ({ conversationId, id, tail }) => terminals.read(conversationId, id, tail),
     'terminals.stop': async ({ conversationId, id }) => {
       await terminals.stop(conversationId, id)

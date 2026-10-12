@@ -70,7 +70,9 @@ export const Conversation = z.object({
   forkedFromId: z.string().uuid().nullable().optional(),
   // The group chat it is a member's part of, which keeps it out of the list: it is reached from
   // the group chat. Older cores leave it out.
-  discussionId: z.string().uuid().nullable().optional()
+  discussionId: z.string().uuid().nullable().optional(),
+  squadRunId: z.string().uuid().nullable().optional(),
+  workspaceReadOnly: z.boolean().optional()
 })
 export type Conversation= z.infer<typeof Conversation>
 

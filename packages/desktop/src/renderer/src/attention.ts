@@ -1,4 +1,4 @@
-import { isScheduleOpen, limitOf, PLAN_TOOLS, type AgentKind, type Conversation, type ConversationRequest, type Routine, type ScheduledRun, type Task } from '@kando/protocol'
+import { isScheduleOpen, limitOf, PLAN_TOOLS, type AgentKind, type Conversation, type ConversationRequest, type Routine, type ScheduledRun, type SquadRun, type Task } from '@kando/protocol'
 
 // What waits on the user: a task or a conversation.
 export type ActionableTarget = { kind: 'task' | 'conversation'; id: string }
@@ -16,6 +16,7 @@ export type Snapshot = {
   unseen: Readonly<Record<string, true>>
   // The routines, each with how many of its runs are unread; a core without routines has none.
   routines?: readonly Routine[]
+  squadRuns?: Readonly<Record<string, SquadRun>>
 }
 
 export const waiting = (conversation: Conversation) => conversation.sessionId !== null && conversation.chat?.turn === 'awaiting'
@@ -49,6 +50,8 @@ const requestOf = (conversation: Conversation | undefined, reasons: readonly Act
 
 const REASON_PRIORITY: Record<ActionableReason, number> = { awaiting: 0, crashed: 1, review: 2, reply: 3 }
 
+const waitingOrAsking = (conversation: Conversation | undefined) => Boolean(conversation && (waiting(conversation) || asking(conversation)))
+
 function chatReasons(conversation: Conversation | undefined): ActionableReason[] {
   if (!conversation) return []
   if (waiting(conversation)) return ['awaiting']
@@ -58,7 +61,7 @@ function chatReasons(conversation: Conversation | undefined): ActionableReason[]
 }
 
 // Limited cores must not depend on which task chats this window happened to open.
-export function actionableItems(s: Pick<Snapshot, 'tasks' | 'conversations'> & { schedules?: readonly ScheduledRun[] }, includeTaskSummaries = true): ActionableItem[] {
+export function actionableItems(s: Pick<Snapshot, 'tasks' | 'conversations' | 'squadRuns'> & { schedules?: readonly ScheduledRun[] }, includeTaskSummaries = true): ActionableItem[] {
   const items: ActionableItem[] = []
   const automaticResumes = new Set((s.schedules ?? []).flatMap((run) =>
     (run.target.kind === 'conversation' || run.target.kind === 'resume') && isScheduleOpen(run) && limitOf(run.target) ? [run.target.conversationId] : []
@@ -75,9 +78,10 @@ export function actionableItems(s: Pick<Snapshot, 'tasks' | 'conversations'> & {
     if (task.conversationId) owned.add(task.conversationId)
     if (task.status === 'done' || task.status === 'abandoned') continue
     const conversation = includeTaskSummaries ? (task.conversationId ? s.conversations[task.conversationId] : undefined) ?? byTask.get(task.id) : undefined
-    const reasons = chatReasons(conversation)
+    const reasons = task.squadId && !waitingOrAsking(conversation) ? [] : chatReasons(conversation)
     if (task.status === 'review') reasons.push('review')
-    if (task.awaitingInput && conversation?.chat?.turn !== 'running' && !reasons.includes('awaiting') && !reasons.includes('crashed') && !reasons.includes('reply') &&
+    const waitingMember = task.squadId && Object.values(s.conversations).some((member) => member.squadRunId && s.squadRuns?.[member.squadRunId]?.taskId === task.id && waitingOrAsking(member))
+    if (!waitingMember && task.awaitingInput && conversation?.chat?.turn !== 'running' && !reasons.includes('awaiting') && !reasons.includes('crashed') && !reasons.includes('reply') &&
       !automaticResumes.has(task.conversationId ?? conversation?.id ?? '')) reasons.push('reply')
     const primaryReason = reasons[0]
     if (!primaryReason) continue
@@ -90,6 +94,16 @@ export function actionableItems(s: Pick<Snapshot, 'tasks' | 'conversations'> & {
   }
   for (const conversation of Object.values(s.conversations)) {
     if (owned.has(conversation.id)) continue
+    if (conversation.squadRunId) {
+      const run = s.squadRuns?.[conversation.squadRunId]
+      const task = run ? s.tasks[run.taskId] : undefined
+      if (!task || task.status === 'done' || task.status === 'abandoned' || !waitingOrAsking(conversation)) continue
+      const reasons = chatReasons(conversation)
+      const primaryReason = reasons[0]
+      if (primaryReason) items.push({ target: { kind: 'task', id: task.id }, title: `${task.title} · ${conversation.title}`, agent: conversation.agent,
+        projectPaths: task.repos.map((repo) => repo.path), conversationId: conversation.id, primaryReason, reasons, request: requestOf(conversation, reasons), updatedAt: conversation.updatedAt })
+      continue
+    }
     const reasons = chatReasons(conversation)
     const primaryReason = reasons[0]
     if (!primaryReason) continue
@@ -112,20 +126,24 @@ export function actionableItems(s: Pick<Snapshot, 'tasks' | 'conversations'> & {
 export function attentionCount(s: Snapshot): number {
   const counted = new Set<string>()
   for (const conversation of Object.values(s.conversations)) {
-    if (conversation.routineId) continue
+    if (conversation.routineId || (conversation.squadRunId && !waitingOrAsking(conversation))) continue
+    const coordinated = conversation.taskId && s.tasks[conversation.taskId]?.squadId
+    if (coordinated && !waitingOrAsking(conversation)) continue
     if (waiting(conversation) || asking(conversation) || s.unseen[conversation.id]) counted.add(conversation.id)
   }
   let count = counted.size
   for (const task of Object.values(s.tasks)) {
-    if (task.awaitingInput && !(task.conversationId && counted.has(task.conversationId))) count += 1
+    const memberCounted = Object.values(s.conversations).some((member) => member.squadRunId && s.squadRuns?.[member.squadRunId]?.taskId === task.id && counted.has(member.id))
+    if (task.awaitingInput && !memberCounted && !(task.conversationId && counted.has(task.conversationId))) count += 1
   }
   for (const routine of s.routines ?? []) count += routine.unread
   return count
 }
 
 // A task's chat is told of under the task's name, and leads to the task.
-function named(conversation: Conversation, tasks: Snapshot['tasks']): { title: string; target: AttentionTarget } {
-  const task = conversation.taskId ? tasks[conversation.taskId] : undefined
+function named(conversation: Conversation, tasks: Snapshot['tasks'], runs?: Snapshot['squadRuns']): { title: string; target: AttentionTarget } {
+  const taskId = conversation.taskId ?? (conversation.squadRunId ? runs?.[conversation.squadRunId]?.taskId : undefined)
+  const task = taskId ? tasks[taskId] : undefined
   return task ? { title: task.title, target: { kind: 'task', id: task.id } } : { title: conversation.title, target: { kind: 'conversation', id: conversation.id } }
 }
 
@@ -139,8 +157,9 @@ export function noticesBetween(prev: Snapshot, next: Snapshot, tellWaiting = tru
     const before = prev.conversations[conversation.id]
     if (!before || before === conversation || conversation.routineId) continue
     // A group chat's member finishes a turn every round: only one waiting on the user is told of.
-    if (conversation.discussionId && !(waiting(conversation) && !waiting(before))) continue
-    const { title, target } = named(conversation, next.tasks)
+    if ((conversation.discussionId || conversation.squadRunId) && !(waiting(conversation) && !waiting(before))) continue
+    if (conversation.taskId && next.tasks[conversation.taskId]?.squadId && !waitingOrAsking(conversation)) continue
+    const { title, target } = named(conversation, next.tasks, next.squadRuns)
     if (crashed(conversation) && !crashed(before)) {
       notices.push({ title, body: `Agent 异常退出（code ${conversation.lastExit?.code}），发消息会重新启动它`, target })
     } else if (waiting(conversation) && !waiting(before)) {

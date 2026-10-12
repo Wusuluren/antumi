@@ -24,6 +24,8 @@ import { Routine, RoutineFields, RoutineList } from './routine'
 import { WireEntry, WirePage, WireUsage } from './wire'
 import { Discussion, DiscussionAction, DiscussionCreate, DiscussionList, DiscussionMemberFields, DiscussionPost } from './discussion'
 
+import { Squad, SquadFields, SquadRun, SquadWork, SquadPlanRef } from './squad'
+
 // Bump only for breaking changes; additive optional fields keep the version.
 export const PROTOCOL_VERSION = 12
 
@@ -36,7 +38,8 @@ const TaskFields = z.object({
   // The first repo is primary; reordering preserves each repo's worktree.
   repos: z.array(z.string().trim().min(1)).max(MAX_TASK_REPOS).optional(),
   dependsOn: z.array(z.string().trim().min(1)).max(50).optional(),
-  agent: AgentKind.nullable().optional()
+  agent: AgentKind.nullable().optional(),
+  squadId: z.string().uuid().nullable().optional()
 })
 const SessionRef = z.object({ sessionId: z.string().min(1) })
 const InstanceRef = z.object({ provider: SourceId, instance: SourceId })
@@ -65,7 +68,7 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // git-commit-branches: core lists the branches holding a commit (git.containing).
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
 // handoff-model: a handoff takes the model and effort the agent starts in (conversations.handoff, tasks.handoff).
-export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate'] as const
+export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'squads'] as const
 // task-launch-options: tasks.start accepts the first stage's mode, model and reasoning effort.
 // task-launch: a task keeps them (Task.launch, set by tasks.update and by each start by hand).
 // discussion-members: members join and leave a group chat midway; discussion-projects: its projects but the first change.
@@ -91,6 +94,18 @@ const BrowserConversationRef = z.object({ conversationId: z.string().uuid() })
 const BrowserTabRef = BrowserConversationRef.extend({ tabId: BrowserTabId })
 
 export const rpcMethods = {
+  'squads.list': { params: z.object({}), result: z.array(Squad) },
+  'squads.create': { params: SquadFields, result: Squad },
+  'squads.update': { params: SquadFields.safeExtend({ id: z.string().uuid() }), result: Squad },
+  'squads.archive': { params: z.object({ id: z.string().uuid(), archived: z.boolean() }), result: Squad },
+  'squads.activeRuns': { params: z.object({}), result: z.array(SquadRun) },
+  'squads.runs': { params: TaskRef, result: z.array(SquadRun) },
+  'squads.start': { params: TaskRef.extend({ squadId: z.string().uuid(), permissionMode: ChatPermissionMode.default('ask'), allowBypass: AllowBypass, plan: SquadPlanRef.optional() }), result: Task },
+  'squads.control': { params: z.object({ id: z.string().uuid(), action: z.enum(['stop', 'resume']) }), result: SquadRun },
+  'squads.retry': { params: z.object({ id: z.string().uuid(), workId: z.string().uuid() }), result: SquadRun },
+  'squads.roster': { params: ConversationRef, result: SquadRun.nullable() },
+  'squads.dispatch': { params: ConversationRef.extend({ memberId: z.string().uuid(), instruction: SquadWork.shape.instruction, capability: SquadWork.shape.capability, retryOf: z.string().uuid().optional() }), result: SquadWork },
+  'squads.finish': { params: ConversationRef.extend({ summary: z.string().trim().min(1).max(20000) }), result: Ok },
   'git.status': { params: GitTarget, result: GitStatus },
   'git.history': { params: GitTarget.extend({ ref: z.string(), query: z.string().max(500).default(''), offset: z.number().int().nonnegative().default(0), tips: z.array(z.string()).optional() }), result: GitHistory },
   'git.detail': { params: GitTarget.extend({ sha: z.string(), parent: z.string().optional() }), result: GitDetail },
@@ -177,7 +192,7 @@ export const rpcMethods = {
   'tasks.changes': { params: TaskRef, result: z.array(RepoChanges) },
   // One file of those changes; `repo` is the path the user picked, `file` a path from the change list.
   'tasks.diff': { params: TaskRef.extend({ repo: z.string().min(1), file: z.string().min(1) }), result: FileDiff },
-  'conversations.list': { params: z.object({ includeTasks: z.boolean().optional() }), result: z.array(Conversation) },
+  'conversations.list': { params: z.object({ includeTasks: z.boolean().optional(), includeSquads: z.boolean().optional() }), result: z.array(Conversation) },
   'conversations.get': { params: ConversationRef, result: Conversation },
   'conversations.create': {
     // permissionMode, model and effort: what the first start begins with, from what the agent has.
@@ -552,6 +567,8 @@ export const rpcNotifications = {
   // Every routine (routines.list) whenever one, or one of its runs, changes.
   'routines.changed': z.object({ routines: RoutineList }),
   // A group chat changed: its state, its members' status, or a post was added or settled.
+  'squads.changed': z.object({ squad: Squad }),
+  'squads.runChanged': z.object({ run: SquadRun }),
   'discussions.changed': z.object({ discussion: Discussion }),
   'discussions.deleted': DiscussionRef,
   // Posts added or changed; to every connection, as there are few and they are short.

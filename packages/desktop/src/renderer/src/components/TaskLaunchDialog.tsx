@@ -9,27 +9,31 @@ import { useOccludesBrowser } from '../browser-occlusion'
 import { AgentQuotaHint, confirmQuota, modelText } from './AgentQuota'
 import { effortLabel, modeOptions, startModes } from './ChatOptionsBar'
 import { CloseIcon } from './icons'
+import { SquadLaunchDialog } from './SquadLaunchDialog'
 import { useEditsInPlace } from './TaskLaunch'
 
 
 function closeTaskLaunch() {
   dismissError()
-  useCore.setState({ taskLaunchId: null })
+  useCore.setState({ taskLaunchId: null, squadLaunch: false, squadPlan: null })
 }
 
 export function TaskLaunchDialog({ taskId }: { taskId: string }) {
   const task = useCore((s) => s.tasks[taskId])
+  const plan = useCore((state) => state.squadPlan)
+  const [squad, setSquad] = useState(Boolean(task?.squadId || plan || useCore.getState().squadLaunch))
   useEffect(() => { if (!task) closeTaskLaunch() }, [task])
-  return task ? <LaunchForm task={task} /> : null
+  return task ? squad ? <SquadLaunchDialog task={task} onSingle={() => setSquad(false)} /> : <LaunchForm task={task} onSquad={() => setSquad(true)} /> : null
 }
 
-function LaunchForm({ task }: { task: Task }) {
+function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
   useOccludesBrowser()
   const dialog = useRef<HTMLDialogElement>(null)
   const installed = useInstalledAgents()
   const [agent, setAgent] = useState<AgentKind | null>(task.agent)
   const agents = agent && !installed.includes(agent) ? [...installed, agent] : installed
   const rpc = useCore((s) => s.rpc)
+  const squadsSupported = rpc?.features.includes('squads') ?? false
   const supported = rpc?.features.includes('task-launch-options') ?? false
   const allowBypass = usePreferences((s) => s.allowBypass)
   const error = useCore((s) => s.error)
@@ -76,7 +80,7 @@ function LaunchForm({ task }: { task: Task }) {
     if (!agent || busy || blocker || !confirmQuota(agent, modelText(model))) return
     setBusy(true)
     dismissError()
-    if (agent !== task.agent && !await updateTask(task.id, { agent })) {
+    if ((agent !== task.agent || task.squadId) && !await updateTask(task.id, { agent, ...(task.squadId ? { squadId: null } : {}) })) {
       setBusy(false)
       return
     }
@@ -99,6 +103,7 @@ function LaunchForm({ task }: { task: Task }) {
           <button type="button" className="icon-button modal-close" aria-label="关闭" disabled={busy} onClick={closeTaskLaunch}><CloseIcon /></button>
         </header>
         <p className="task-launch-name">{task.title}</p>
+        {squadsSupported && <button type="button" className="link-button" disabled={busy} onClick={onSquad}>交给开发小队</button>}
         <fieldset className="task-launch-fields" disabled={busy}>
           <label className="task-launch-field"><span>Agent</span>
             <select className="input" value={agent ?? ''} onChange={(event) => {

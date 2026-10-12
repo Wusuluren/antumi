@@ -30,6 +30,7 @@ import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
 import { ChatIcon, CheckIcon, ChevronDownIcon, ClockIcon, CloseIcon, DocumentIcon, HandoffIcon, InspectorIcon, MoreIcon, PlayIcon, ReopenIcon, SubmitIcon } from './icons'
 import { Popover } from './Popover'
 import { cleanWithConfirm } from './WorktreeManager'
+import { TaskExecutorPicker } from './TaskExecutorPicker'
 import { SchedulePicker } from './SchedulePicker'
 import { StatusIcon } from './StatusIcon'
 import { useTaskHandoff, type TaskHandoff } from './TaskHandoff'
@@ -645,7 +646,8 @@ export function TaskSteps({ task, labelled = false }: { task: Task; labelled?: b
   // A running task's agent changes only by handing its chat over; otherwise the next start or
   // message takes the new one, which a chat already begun is handed to.
   const handsOff = task.status === 'running' && handoff.available
-  const agent = (
+  const squadsSupported = useCore((state) => state.rpc?.features.includes('squads') ?? false)
+  const agent = (squadsSupported && (task.status === 'pending' || task.squadId) ? <TaskExecutorPicker task={task} /> :
     <AgentPicker
       agent={task.agent}
       locked={task.status === 'abandoned' || (task.status === 'running' && !handsOff)}
@@ -657,12 +659,12 @@ export function TaskSteps({ task, labelled = false }: { task: Task; labelled?: b
     />
   )
   // From the details a task starts at once as it keeps its launch; a planning task's chat is open.
-  const launch = useTaskLaunch(task, dependencies, labelled && task.status === 'pending' && checkStart(task, dependencies) !== 'planning')
+  const launch = useTaskLaunch(task, dependencies, labelled && !task.squadId && task.status === 'pending' && checkStart(task, dependencies) !== 'planning')
   const moves = labelled ? manualMoves(task.status).filter((status) => moveAction(task.status, status)?.primary) : manualMoves(task.status)
   const start = task.status === 'pending' && (launch
     ? <StartSplitButton task={task} dependencies={dependencies} launch={launch} />
     : <StartButton task={task} dependencies={dependencies} labelled={labelled} />)
-  const submit = task.status === 'running' && <SubmitButton task={task} labelled={labelled} />
+  const submit = !task.squadId && task.status === 'running' && <SubmitButton task={task} labelled={labelled} />
   const moveButtons = moves.map((status) => <MoveButton key={status} task={task} to={status} labelled={labelled} />)
   // A finished task goes on by a message in its chat.
   const redo = isFinished(task.status) && <RedoButton task={task} labelled={labelled} />

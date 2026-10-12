@@ -1,3 +1,4 @@
+import { squadToolsOverCore, type SquadTools } from './mcp-squad-tools'
 import readline from 'node:readline'
 import { stat } from 'node:fs/promises'
 import { extname, isAbsolute } from 'node:path'
@@ -58,6 +59,7 @@ export type McpTools = {
   terminal?: TerminalTools
   // The user's conversations, tasks and group chats, read-only; there unless turned off.
   history?: HistoryTools
+  squad?: SquadTools
 }
 
 export type McpResponse = {
@@ -86,7 +88,7 @@ const describe = (error: unknown) => (error instanceof Error ? error.message : S
 // arguments are the model's to fix, so they come back as a tool error it can read.
 type ToolEntry = { spec: object & { name: string }; run(args: Record<string, unknown>): Promise<McpResult> }
 
-function toolTable({ preview, browser, terminal, history, planOnly }: McpTools): ToolEntry[] {
+function toolTable({ preview, browser, terminal, history, squad, planOnly }: McpTools): ToolEntry[] {
   const entries: ToolEntry[] = [
     {
       spec: PREVIEW_TOOL,
@@ -142,6 +144,7 @@ function toolTable({ preview, browser, terminal, history, planOnly }: McpTools):
       })
     }
   }
+  if (squad) entries.push(...squad)
   return entries
 }
 
@@ -218,8 +221,14 @@ export async function serveMcp(home: string | undefined, conversationId?: string
       rpc.close()
     }
   }
+  const scope = conversationId ? await withCore(async (rpc) => {
+    const conversation = await rpc.call('conversations.get', { id: conversationId })
+    const run = rpc.features.includes('squads') ? await rpc.call('squads.roster', { id: conversationId }) : null
+    return { readOnly: conversation.workspaceReadOnly ?? false, run }
+  }) : null
   const handle = createMcpHandler({
-    planOnly,
+    planOnly: planOnly || scope?.readOnly,
+    ...(conversationId && scope?.run ? { squad: squadToolsOverCore(withCore, conversationId, scope.run) } : {}),
     initialized,
     preview: checkPreviewFile,
     ...(conversationId ? {

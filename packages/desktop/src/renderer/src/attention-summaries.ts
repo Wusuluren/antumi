@@ -21,7 +21,7 @@ export async function fetchAttentionSummaries(rpc: RpcConnection): Promise<Recor
   const offChanged = rpc.on('conversations.changed', ({ conversation }) => changes.set(conversation.id, conversation))
   const offDeleted = rpc.on('conversations.deleted', ({ id }) => changes.set(id, null))
   try {
-    const items = await rpc.call('conversations.list', attentionSummaryMode(rpc) === 'complete' ? { includeTasks: true } : {})
+    const items = await rpc.call('conversations.list', attentionSummaryMode(rpc) === 'complete' ? { includeTasks: true, ...(rpc.features.includes('squads') ? { includeSquads: true } : {}) } : {})
     return replaySummaryChanges(items, changes)
   } finally {
     offChanged()

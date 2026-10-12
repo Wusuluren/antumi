@@ -7,6 +7,7 @@ import { SourceInboxView } from './components/SourceInboxView'
 import { SourceLoginDialog } from './components/SourceLoginDialog'
 import { TaskDetail } from './components/TaskDetail'
 import { TaskBoard } from './components/TaskBoard'
+import { SidebarSquads, SquadsView } from './components/Squads'
 import { SidebarTasks } from './components/SidebarTasks'
 import { TaskChat } from './components/TaskChat'
 import { ConversationList } from './components/ConversationList'
@@ -154,6 +155,7 @@ export function App() {
               <RoutinesEntry />
               <EnvironmentNotice />
               <SidebarTasks />
+              <SidebarSquads />
               <SidebarDiscussions />
               <ConversationList />
             </Sidebar>
@@ -167,6 +169,8 @@ export function App() {
               <RoutinesView />
             ) : dashboardOpen ? (
               <DashboardView />
+            ) : section === 'squads' ? (
+              <SquadsView />
             ) : section === 'discussions' ? (
               selectedDiscussionId ? <DiscussionView key={selectedDiscussionId} id={selectedDiscussionId} /> :
                 discussionDraft ? <DiscussionDraft key={discussionDraftFrom?.discussion.id ?? 'blank'} from={discussionDraftFrom?.discussion ?? null} /> :
