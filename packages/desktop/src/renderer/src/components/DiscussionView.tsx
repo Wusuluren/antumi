@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { checkDiscussionAction, MAX_DETAILS_LENGTH, type Discussion, type DiscussionAction, type DiscussionMember, type DiscussionPost } from '@kando/protocol'
 import { loadConversation, perform, selectConversation, selectDiscussion, selectTask, useCore } from '../core-store'
-import { controlDiscussion, discussionProgress, loadDiscussionPosts, MEMBER_STATUS_LABEL, mentionedMembers, postToDiscussion, renameDiscussion, useDiscussionPosts } from '../discussions'
+import { controlDiscussion, discussionProgress, EVERYONE, loadDiscussionPosts, MEMBER_STATUS_LABEL, mentionedMembers, postToDiscussion, renameDiscussion, useDiscussionPosts } from '../discussions'
 import { agentLabel, messageTime, reasonText } from '../labels'
-import { usePreferences } from '../preferences'
+import { setPreference, usePreferences } from '../preferences'
 import { ChatMarkdown } from './ChatMarkdown'
 import { sendsMessage } from './ChatComposer'
 import { DiscussionDot } from './SidebarDiscussions'
@@ -60,73 +60,124 @@ function MemberChip({ member, chair, onMention }: { member: DiscussionMember; ch
   )
 }
 
-function PostHead({ post, member, children }: { post: DiscussionPost; member: DiscussionMember | undefined; children?: ReactNode }) {
+// A member's face: its agent's mark, and its letter (A, B…) to tell two on the same agent apart.
+function MemberFace({ member, index }: { member: DiscussionMember | undefined; index: number }) {
   return (
-    <div className="discussion-post-head">
-      {member ? <span className="discussion-member-mark"><AgentIcon agent={member.agent} /></span> : null}
-      <span className="discussion-post-author">{member ? member.name : post.memberId === null ? '你' : '已移除的成员'}</span>
-      {member && <span className="muted">{agentLabel(member.agent)}{member.model ? ` · ${member.model}` : ''}</span>}
-      {KIND_LABEL[post.kind] && <span className="discussion-post-kind">{KIND_LABEL[post.kind]}</span>}
-      <span className="discussion-post-time">{messageTime(post.createdAt)}</span>
-      {children}
+    <span className="discussion-face" aria-hidden="true">
+      {member && <AgentIcon agent={member.agent} />}
+      {index >= 0 && <span className="discussion-face-letter">{String.fromCharCode(65 + index)}</span>}
+    </span>
+  )
+}
+
+function PostHead({ post, member, chair }: { post: DiscussionPost; member: DiscussionMember | undefined; chair: boolean }) {
+  return (
+    <div className="discussion-msg-head">
+      <span className="discussion-msg-name">{member ? member.name : '已移除的成员'}</span>
+      {chair && <span className="discussion-tag" data-chair="">主持</span>}
+      {KIND_LABEL[post.kind] && post.kind !== 'summary' && <span className="discussion-tag">{KIND_LABEL[post.kind]}</span>}
+      {member?.model && <span>{member.model}</span>}
+      <span className="discussion-msg-time">{messageTime(post.createdAt)}</span>
     </div>
   )
 }
 
-function Post({ post, discussion, wide }: { post: DiscussionPost; discussion: Discussion; wide: boolean }) {
-  const member = discussion.members.find((each) => each.id === post.memberId)
-  if (post.kind === 'notice') return <p className="discussion-notice muted">{post.text}</p>
+// The user's words with the members it names standing out, as a chat app marks an @.
+function MentionedText({ text, names }: { text: string; names: readonly string[] }) {
+  const tags = [EVERYONE, ...names].map((name) => `@${name}`).sort((a, b) => b.length - a.length)
+  const pattern = new RegExp(`(${tags.map((tag) => tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`)
+  return <>{text.split(pattern).map((part, index) => (tags.includes(part) ? <span key={index} className="discussion-at">{part}</span> : part))}</>
+}
+
+function PendingPost({ member }: { member: DiscussionMember | undefined }) {
+  if (member?.status === 'awaiting') {
+    return <span className="discussion-typing">在等你确认，<button type="button" className="link-button" onClick={() => void openMember(member)}>去处理</button></span>
+  }
+  return <span className="discussion-typing" role="status"><i /><i /><i />正在思考</span>
+}
+
+// One post, as a chat app lays a group out: a member's on the left, its face beside a bubble under
+// its name; the user's on the right; Kando's own notes in the middle; the summary as a card.
+function Post({ post, discussion }: { post: DiscussionPost; discussion: Discussion }) {
+  if (post.kind === 'notice') return <p className="discussion-system">{post.text}</p>
   if (post.kind === 'user') {
-    const named = discussion.members.filter((each) => post.mentions.includes(each.id)).map((each) => each.name)
     return (
-      <div className="discussion-user">
-        {named.length > 0 && <span className="discussion-user-to muted">问 {named.join('、')}</span>}
-        <div className="discussion-user-text">{post.text}</div>
+      <div className="discussion-msg" data-mine="">
+        <span className="discussion-face discussion-face-me" aria-hidden="true">我</span>
+        <div className="discussion-msg-body">
+          <div className="discussion-bubble"><MentionedText text={post.text} names={discussion.members.map((member) => member.name)} /></div>
+        </div>
       </div>
     )
   }
+  const index = discussion.members.findIndex((each) => each.id === post.memberId)
+  const member = discussion.members[index]
+  const summary = post.kind === 'summary' && post.state === 'done'
   return (
-    <article className="discussion-post" data-kind={post.kind} data-state={post.state} data-wide={wide || undefined}>
-      <PostHead post={post} member={member}>
-        {post.kind === 'summary' && post.state === 'done' && (
-          <button type="button" className="link-button discussion-post-action" onClick={() => void taskFromSummary(discussion, post)}>从结论新建任务</button>
+    <article className="discussion-msg" data-kind={post.kind} data-state={post.state}>
+      <MemberFace member={member} index={index} />
+      <div className="discussion-msg-body">
+        <PostHead post={post} member={member} chair={member !== undefined && member.id === discussion.chairId} />
+        {summary ? (
+          <div className="discussion-bubble discussion-summary">
+            <div className="discussion-summary-head">讨论总结</div>
+            <div className="discussion-summary-body"><ChatMarkdown text={post.text} /></div>
+            <div className="discussion-summary-foot">
+              <span>{discussion.members.length} 位成员 · {discussion.round} 轮</span>
+              <button type="button" className="link-button" onClick={() => void taskFromSummary(discussion, post)}>从结论新建任务</button>
+            </div>
+          </div>
+        ) : (
+          <div className="discussion-bubble" data-failed={post.state === 'failed' || undefined}>
+            {post.state === 'pending' ? <PendingPost member={member} /> : (
+              <>
+                {post.text && <ChatMarkdown text={post.text} />}
+                {post.state === 'failed' && <p className="discussion-post-failed">这次没有发言成功：{reasonText(post.error ?? '', post.error ?? '未知原因')}</p>}
+              </>
+            )}
+          </div>
         )}
-      </PostHead>
-      {post.state === 'pending' ? (
-        <p className="discussion-post-pending muted">
-          <Spinner />
-          {member?.status === 'awaiting' ? <>在等你确认，<button type="button" className="link-button" onClick={() => member && void openMember(member)}>去处理</button></> : '正在思考…'}
-        </p>
-      ) : post.state === 'failed' ? (
-        <>
-          {post.text && <ChatMarkdown text={post.text} />}
-          <p className="discussion-post-failed">这次没有发言成功：{reasonText(post.error ?? '', post.error ?? '未知原因')}</p>
-        </>
-      ) : (
-        <ChatMarkdown text={post.text} />
-      )}
+      </div>
     </article>
   )
 }
 
-// Posts by round; the first round's independent answers side by side, the rest one after another.
+// Posts by round, each opened by a note in the middle. The first round's independent answers go one
+// after another, or side by side to compare them; the summary is announced by who gives it.
 function Rounds({ discussion, posts }: { discussion: Discussion; posts: readonly DiscussionPost[] }) {
+  const sideBySide = usePreferences((p) => p.discussionSideBySide)
   const rounds = new Map<number, DiscussionPost[]>()
   for (const post of posts) rounds.set(post.round, [...(rounds.get(post.round) ?? []), post])
+  const chair = discussion.members.find((member) => member.id === discussion.chairId)
   return (
     <>
       {[...rounds].map(([round, list]) => {
         const openings = list.filter((post) => post.kind === 'opening')
         const rest = list.filter((post) => post.kind !== 'opening')
+        const what = openings.length > 0 ? '各自独立作答，彼此看不到' : list.some((post) => post.kind === 'rebuttal') ? '互相回应' : null
         return (
           <section key={round} className="discussion-round" aria-label={round === 0 ? '开场' : `第 ${round} 轮`}>
-            {round > 0 && <h3 className="discussion-round-title">第 {round} 轮</h3>}
-            {openings.length > 0 && (
-              <div className="discussion-openings">
-                {openings.map((post) => <Post key={post.id} post={post} discussion={discussion} wide={false} />)}
+            {round > 0 && (
+              <div className="discussion-system">
+                第 {round} 轮{what && ` · ${what}`}
+                {openings.length > 1 && (
+                  <button type="button" className="link-button" aria-pressed={sideBySide} onClick={() => setPreference('discussionSideBySide', !sideBySide)}>
+                    {sideBySide ? '按顺序看' : '并排对比'}
+                  </button>
+                )}
               </div>
             )}
-            {rest.map((post) => <Post key={post.id} post={post} discussion={discussion} wide />)}
+            {openings.length > 0 && (
+              <div className="discussion-openings" data-side-by-side={(sideBySide && openings.length > 1) || undefined}>
+                {openings.map((post) => <Post key={post.id} post={post} discussion={discussion} />)}
+              </div>
+            )}
+            {rest.map((post) => (
+              <Fragment key={post.id}>
+                {post.kind === 'summary' && <p className="discussion-system">讨论结束 · {chair ? `${chair.name} 总结` : '总结'}</p>}
+                <Post post={post} discussion={discussion} />
+              </Fragment>
+            ))}
           </section>
         )
       })}
@@ -190,6 +241,7 @@ export function DiscussionView({ id }: { id: string }) {
           {renaming
             ? <TitleEditor title={discussion.title} label="群聊标题" onSave={(title) => void renameDiscussion(id, title)} onDone={() => setRenaming(false)} />
             : <button type="button" className="terminal-view-title conversation-title" title={`${discussion.title}\n点击重命名`} onClick={() => setRenaming(true)}>{discussion.title}</button>}
+          <span className="muted">（{discussion.members.length}）</span>
           <span className="muted">{discussionProgress(discussion)}</span>
           {discussion.projectPaths.length > 0 && <span className="muted" title={discussion.projectPaths.join('\n')}>{projectNames(discussion.projectPaths)}</span>}
           {discussion.anonymous && <span className="muted">匿名互评</span>}

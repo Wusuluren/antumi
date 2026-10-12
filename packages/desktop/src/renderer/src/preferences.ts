@@ -55,7 +55,9 @@ const Preferences = z.object({
   conversationGroup: z.enum(CONVERSATION_GROUPS).catch('none'),
   // Conversation groups folded in the sidebar, by grouping and group ("project:group:kando").
   foldedConversationGroups: z.array(z.string()).catch([]),
-  conversationSort: z.enum(CONVERSATION_SORTS).catch('recent')
+  conversationSort: z.enum(CONVERSATION_SORTS).catch('recent'),
+  // On, a group chat's first round shows its independent answers side by side, for comparing them.
+  discussionSideBySide: z.boolean().catch(false)
 })
 export type Preferences = z.infer<typeof Preferences>
 

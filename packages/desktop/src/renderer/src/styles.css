@@ -8392,37 +8392,56 @@ body.side-panel-resizing * {
 .discussion-member[data-status='awaiting'] .discussion-member-status { color: var(--warning); }
 .discussion-member-mention { width: 24px; height: 24px; margin-right: 4px; font-size: var(--chat-font-small); color: var(--text-muted); }
 
-.discussion-list { gap: 16px; }
-.discussion-topic { padding: 8px 12px; border-radius: var(--radius-lg); background: var(--fill); }
-.discussion-round { display: flex; flex-direction: column; gap: 12px; }
-.discussion-round-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 8px 0 0;
-  font-size: var(--chat-font-small);
-  font-weight: 600;
-  color: var(--text-muted);
-}
-.discussion-round-title::after { content: ''; flex: 1; border-top: 1px dashed var(--border-2); }
-/* The independent answers of the first round side by side, as many as fit, each at least a column wide. */
-.discussion-openings { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; align-items: start; }
-.discussion-post { min-width: 0; padding: 8px 12px 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); }
-.discussion-post[data-kind='summary'] { border-color: var(--border-2); background: var(--fill); }
-.discussion-post[data-state='failed'] { border-style: dashed; }
-.discussion-post .chat-markdown { line-height: 1.7; }
-.discussion-post-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 28px; font-size: var(--chat-font-small); }
-.discussion-post-author { font-weight: 600; font-size: var(--chat-font-size); }
+.discussion-list { gap: 14px; }
+/* The chat on the page's grey, its bubbles on the surface, as a chat app sets them apart. */
+.discussion-view .terminal-body { background: var(--bg); }
+.discussion-topic { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
 .discussion-post-kind { padding: 0 8px; border-radius: 999px; background: var(--fill-2); color: var(--text-muted); font-size: var(--chat-font-small); }
-.discussion-post-time { color: var(--text-3); font-variant-numeric: tabular-nums; }
-.discussion-post-action { margin-left: auto; }
-.discussion-post-pending { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; }
-.discussion-post-pending .chat-spinner { width: 12px; height: 12px; }
+.discussion-round { display: flex; flex-direction: column; gap: 14px; }
+/* Kando's own notes, rounds and what happened, small and in the middle. */
+.discussion-system { align-self: center; display: inline-flex; align-items: center; gap: 8px; max-width: 80%; margin: 0; padding: 2px 10px; border-radius: var(--radius-sm); background: var(--fill-2); color: var(--text-muted); font-size: var(--chat-font-small); text-align: center; }
+.discussion-system .link-button { font-size: inherit; }
+.discussion-openings { display: flex; flex-direction: column; gap: 14px; }
+/* Side by side: as many as fit, each at least a column wide, for comparing the independent answers. */
+.discussion-openings[data-side-by-side] { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; align-items: start; }
+.discussion-openings[data-side-by-side] .discussion-msg-body { max-width: 100%; }
+
+/* A member's post on the left, its face beside the bubble; the user's on the right. */
+.discussion-msg { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.discussion-msg[data-mine] { flex-direction: row-reverse; }
+.discussion-face { position: relative; flex-shrink: 0; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--border-2); border-radius: var(--radius); background: var(--surface); }
+.discussion-face .agent-mark { width: 20px; height: 20px; }
+.discussion-face-letter { position: absolute; right: -4px; bottom: -4px; display: grid; place-items: center; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px; background: var(--text); color: var(--surface); font-size: 10px; font-weight: 700; }
+.discussion-face-me { border-color: var(--accent); background: var(--accent); color: var(--accent-text); font-size: 13px; font-weight: 600; }
+.discussion-msg-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; max-width: min(78%, 640px); }
+.discussion-msg[data-mine] .discussion-msg-body { align-items: flex-end; }
+.discussion-msg-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: var(--chat-font-small); color: var(--text-3); }
+.discussion-msg-name { color: var(--text-muted); font-weight: 500; }
+.discussion-msg-time { font-variant-numeric: tabular-nums; }
+.discussion-tag { padding: 0 6px; border-radius: 999px; background: var(--fill-2); color: var(--text-muted); }
+.discussion-tag[data-chair] { background: var(--accent-bg); color: var(--accent); }
+/* The bubble, with a tail toward its face. Opaque, so the tail does not darken where it overlaps. */
+.discussion-bubble { position: relative; min-width: 0; max-width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
+.discussion-bubble::before { content: ''; position: absolute; top: 12px; left: -6px; width: 10px; height: 10px; border-bottom: 1px solid var(--border); border-left: 1px solid var(--border); background: inherit; transform: rotate(45deg); }
+.discussion-msg[data-mine] .discussion-bubble { --mine-edge: color-mix(in srgb, var(--accent) 25%, var(--surface)); border-color: var(--mine-edge); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); white-space: pre-wrap; }
+.discussion-msg[data-mine] .discussion-bubble::before { left: auto; right: -6px; border: 0; border-top: 1px solid var(--mine-edge); border-right: 1px solid var(--mine-edge); }
+.discussion-bubble[data-failed] { border-style: dashed; }
+.discussion-bubble .chat-markdown { line-height: 1.65; }
+.discussion-at { color: var(--accent); font-weight: 600; }
 .discussion-post-failed { margin: 4px 0 0; color: var(--danger); font-size: var(--chat-font-small); }
-.discussion-notice { margin: 0; text-align: center; font-size: var(--chat-font-small); }
-.discussion-user { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.discussion-user-to { font-size: var(--chat-font-small); }
-.discussion-user-text { max-width: 80%; padding: 8px 12px; border-radius: var(--radius-lg); background: var(--fill); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* A member still answering: the three dots a chat app shows while someone types. */
+.discussion-typing { display: inline-flex; align-items: center; gap: 4px; color: var(--text-3); font-size: var(--chat-font-small); }
+.discussion-typing i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: discussion-typing 1s ease-in-out infinite; }
+.discussion-typing i:nth-child(2) { animation-delay: 0.15s; }
+.discussion-typing i:nth-child(3) { animation-delay: 0.3s; margin-right: 4px; }
+@keyframes discussion-typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-3px); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .discussion-typing i { animation: none; } }
+/* The summary as a card, as a chat app shows a forwarded record: what it is, then what came of it. */
+.discussion-summary { width: min(560px, 100%); padding: 0; }
+.discussion-summary::before { display: none; }
+.discussion-summary-head { padding: 8px 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
+.discussion-summary-body { padding: 8px 12px; }
+.discussion-summary-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 12px; border-top: 1px solid var(--border); font-size: var(--chat-font-small); color: var(--text-3); }
 
 .discussion-draft { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px max(24px, calc((100% - 960px) / 2)) 24px; background: var(--surface); }
 .discussion-draft > p { margin: 0; }
