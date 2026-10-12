@@ -78,7 +78,9 @@ const SystemFrame = z.looseObject({
   model: z.string().optional(),
   permissionMode: z.string().optional(),
   // task_summary: what the agent is doing right now, null once it stops.
-  detail: z.string().nullish()
+  detail: z.string().nullish(),
+  // compact_boundary: how much of the context the summary left filled.
+  compact_metadata: z.looseObject({ post_tokens: z.number().optional() }).optional().catch(undefined)
 })
 // What the CLI says of work it keeps in the background: a task started (a command run with
 // run_in_background is local_bash, a subagent local_agent), and one done, with how it ended.
@@ -606,7 +608,9 @@ export class ClaudeStream implements ChatDriver {
         if (subtype === 'status' && permissionMode) return { type: 'system', subtype, permissionMode }
         const changed = CommandsChanged.safeParse(frame)
         if (changed.success) return { type: 'system', subtype: changed.data.subtype, commands: commandRows(changed.data.commands) }
-        return subtype === 'compact_boundary' ? { type: 'system', subtype } : null
+        if (subtype !== 'compact_boundary') return null
+        const left = system.data.compact_metadata?.post_tokens
+        return { type: 'system', subtype, ...(left === undefined ? {} : { compact_metadata: { post_tokens: left } }) }
       }
       case 'user': {
         const user = UserFrame.safeParse(frame)
@@ -798,7 +802,7 @@ export class ClaudeStream implements ChatDriver {
   private system(frame: unknown, at: number): void {
     const system = SystemFrame.safeParse(frame)
     if (!system.success) return
-    const { subtype, session_id, model, permissionMode, detail } = system.data
+    const { subtype, session_id, model, permissionMode, detail, compact_metadata } = system.data
     if (subtype === 'init' && session_id) this.sessionId = session_id
     if (subtype === 'init' && model) this.reportedModel = model
     // After the first turn, an init with no message before it is the CLI starting a turn of its
@@ -813,7 +817,13 @@ export class ClaudeStream implements ChatDriver {
     if ((subtype === 'init' || subtype === 'status') && permissionMode) this.permissionMode = PERMISSION_MODES[permissionMode] ?? permissionMode
     if (subtype === 'task_summary') this.state.set({ activity: detail ?? null })
     if (subtype === 'task_started' || subtype === 'task_notification') this.backgroundTask(frame, at)
-    if (subtype === 'compact_boundary') this.items.notice('info', CONTEXT_COMPACTED, at)
+    if (subtype === 'compact_boundary') {
+      this.items.notice('info', CONTEXT_COMPACTED, at)
+      // The last request's fill is gone with what was compacted. An older CLI says nothing of
+      // what is left, so the ring waits for the next request rather than show the old figure.
+      const left = compact_metadata?.post_tokens
+      this.state.set({ context: left === undefined ? null : { used: left, window: this.contextWindow ?? this.guessedWindow() } })
+    }
     const changed = CommandsChanged.safeParse(frame)
     if (changed.success) this.commands = commandRows(changed.data.commands)
   }

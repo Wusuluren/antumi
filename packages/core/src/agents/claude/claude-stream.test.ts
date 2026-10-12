@@ -213,6 +213,16 @@ describe('ClaudeStream state', () => {
     expect(state?.context?.used).toBeGreaterThan(10_000)
   })
 
+  it('empties the context ring to what a compaction left', () => {
+    const boundary = (metadata: object) => ({ type: 'system', subtype: 'compact_boundary', compact_metadata: { trigger: 'manual', pre_tokens: 180_000, ...metadata } })
+    const compacted = (metadata: object): ChatRecord => ({ dir: 'in', at: 9e12, frame: boundary(metadata) })
+    const driver = replay([...records, compacted({ post_tokens: 9_881 })])
+    expect(stateOf(driver)?.context).toEqual({ used: 9_881, window: 200_000 })
+    expect(driver.logged(boundary({ post_tokens: 9_881 }))).toEqual({ type: 'system', subtype: 'compact_boundary', compact_metadata: { post_tokens: 9_881 } })
+    // An older CLI names only what there was.
+    expect(stateOf(replay([...records, compacted({})]))?.context).toBeNull()
+  })
+
   it('follows the permission mode as the CLI reports it change', () => {
     const driver = new ClaudeStream('stage-1', OPTIONS)
     const modes: Array<string | null> = []
