@@ -6,6 +6,7 @@ import { useInstalledAgents } from '../installed-agents'
 import { agentLabel, reasonText } from '../labels'
 import { confirmQuota, modelText } from './AgentQuota'
 import { ChatModelPicker, ChatPicker } from './ChatPicker'
+import { AgentIcon } from './icons'
 import { effortLabel } from './ChatOptionsBar'
 import { startOptions } from './ConversationActions'
 
@@ -66,8 +67,8 @@ export function HandoffAgentPicker({ conversationId, handoff, disabled }: { conv
       value={target?.agent ?? from}
       placeholder={agentLabel(from)}
       options={[
-        { value: from, label: agentLabel(from), description: target ? '不移交，继续和它聊' : '正在用的 Agent' },
-        ...targets.map((agent) => ({ value: agent, label: agentLabel(agent), description: `移交给 ${agentLabel(agent)}，它读完移交说明后接着做` }))
+        { value: from, label: agentLabel(from), description: target ? '不移交，继续和它聊' : '正在用的 Agent', icon: <AgentIcon agent={from} /> },
+        ...targets.map((agent) => ({ value: agent, label: agentLabel(agent), description: `移交给 ${agentLabel(agent)}，它读完移交说明后接着做`, icon: <AgentIcon agent={agent} /> }))
       ]}
       tone={target ? 'handoff' : undefined}
       disabled={disabled}

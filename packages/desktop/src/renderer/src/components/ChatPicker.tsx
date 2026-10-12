@@ -2,7 +2,8 @@ import { useCallback, useRef, useState, type ReactNode } from 'react'
 import { ContextMenu, type MenuPoint } from './ContextMenu'
 import { CheckIcon, ChevronDownIcon } from './icons'
 
-export type PickerOption = { value: string; label: string; description?: string | null; disabled?: boolean }
+// `icon`: a mark before the label, in the menu and on the button, as an agent's.
+export type PickerOption = { value: string; label: string; description?: string | null; disabled?: boolean; icon?: ReactNode }
 
 // A choice in the composer's toolbar: its value as a small button as wide as its words, and a menu
 // above it. A native select is as wide as its longest option, which left most values far from their
@@ -70,6 +71,7 @@ export function PickerItem({ option, checked, onSelect }: { option: PickerOption
       disabled={option.disabled}
       onClick={onSelect}
     >
+      {option.icon && <span className="chat-picker-icon" aria-hidden="true">{option.icon}</span>}
       <span className="chat-picker-item-text">
         <span className="chat-picker-item-label">{option.label}</span>
         {option.description && <span className="chat-picker-item-description">{option.description}</span>}
@@ -93,9 +95,11 @@ export function ChatPicker({ label, value, placeholder, options, onChange, disab
   align?: 'start' | 'end'
   placement?: 'above' | 'below'
 }) {
-  const current = options.find((option) => option.value === value)?.label ?? placeholder
+  const picked = options.find((option) => option.value === value)
+  const current = picked?.label ?? placeholder
+  const shown = picked?.icon ? <><span className="chat-picker-icon" aria-hidden="true">{picked.icon}</span>{current}</> : current
   return (
-    <PickerShell label={label} spoken={`${label}：${current}`} tone={tone} disabled={disabled} title={title} align={align} placement={placement} value={current}>
+    <PickerShell label={label} spoken={`${label}：${current}`} tone={tone} disabled={disabled} title={title} align={align} placement={placement} value={shown}>
       {(close) => (
         <>
           <div className="chat-picker-heading">{label}</div>
