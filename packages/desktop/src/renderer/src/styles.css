@@ -8345,7 +8345,8 @@ body.side-panel-resizing * {
 .sidebar-discussions[data-collapsed='true'] { flex: 0 0 auto; }
 .sidebar-discussions ul { margin: 0; padding: 0 8px 8px; list-style: none; }
 .sidebar-discussions:hover .sidebar-collapse-icon, .sidebar-discussions:focus-within .sidebar-collapse-icon { opacity: 1; }
-.discussion-marks { display: inline-flex; margin-right: 2px; }
+/* Inside a flex box the marks' own vertical-align does nothing: the box takes it, to sit them on the text's centre. */
+.discussion-marks { display: inline-flex; vertical-align: -2px; margin-right: 2px; }
 .discussion-marks .conversation-agent { margin-right: 2px; }
 /* Where a group chat stands, like a conversation's mark: a ring when quiet, blue while someone
    speaks, amber and pulsing when someone waits on the user, green once summed up. */
