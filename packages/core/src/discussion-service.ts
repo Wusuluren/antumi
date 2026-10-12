@@ -56,8 +56,10 @@ export type DiscussionDeps = {
   events: DiscussionEvents
 }
 
+// The reason, and below it what went wrong in the agent's own words (its stderr, a refusal), which a
+// reason alone leaves out: "chat-start-failed" says nothing of why.
 function failure(error: unknown): string {
-  if (error instanceof Rejection) return error.reason
+  if (error instanceof Rejection) return error.message && error.message !== error.reason ? `${error.reason}\n${error.message}` : error.reason
   return error instanceof Error ? error.message : String(error)
 }
 

@@ -156,12 +156,13 @@ export class AcpDriver implements ChatDriver {
     if (this.catalogOnly) return this.modelsRead ? frames : [...frames, ...models]
     if (!this.sessionSent) {
       if (this.options.resume && !this.load) { this.startError = `此 ${this.name} CLI 不支持恢复会话，请升级`; return frames }
-      if (this.options.extraDirs.length && !this.directories) { this.startError = `此 ${this.name} CLI 不支持附加项目目录`; return frames }
       const mcp = this.options.mcp
       return [...frames, rpc(this.id('session'), this.options.resume ? 'session/load' : 'session/new', {
         cwd: this.options.cwd,
         ...(this.options.resume ? { sessionId: this.options.resume } : {}),
-        ...(this.options.extraDirs.length ? { additionalDirectories: this.options.extraDirs } : {}),
+        // Only where the agent says it takes them; one that does not is given them otherwise, as
+        // Cursor is on its command line, and reads them by their paths either way.
+        ...(this.options.extraDirs.length && this.directories ? { additionalDirectories: this.options.extraDirs } : {}),
         mcpServers: mcp ? [{ name: 'kando', command: mcp.command, args: mcp.args, env: [] }] : []
       })]
     }

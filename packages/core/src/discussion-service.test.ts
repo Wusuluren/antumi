@@ -228,6 +228,16 @@ describe('DiscussionService', () => {
     await until(() => state(discussion.id) === 'done' && discussions.posts(discussion.id).at(-1)?.round === 3)
   })
 
+  it('keeps what an agent said when it could not start, beside the reason', async () => {
+    daemon.answerInit = false
+    const discussion = await discussions.create(fields({ members: [{ agent: 'claude', name: 'Ann' }, { agent: 'claude', name: 'Bob' }], chair: 1 }))
+    await until(() => daemon.spawns.length >= 1)
+    daemon.deliver({ event: 'stderr', sessionId: 'pipe-1', data: 'error: unknown option --add-dir\n' })
+    daemon.exit('pipe-1', 1)
+    await until(() => discussions.posts(discussion.id).some((post) => post.state === 'failed'))
+    expect(discussions.posts(discussion.id).find((post) => post.state === 'failed')?.error).toBe('chat-start-failed\nerror: unknown option --add-dir')
+  })
+
   it('pauses after the round out, resumes into the next, and concludes on request', async () => {
     const discussion = await discussions.create(fields({ maxRounds: 3 }))
     await discussions.control(discussion.id, 'pause')

@@ -430,10 +430,12 @@ describe('Cursor ACP', () => {
     receive(driver, { id: 'cursor-session', result: { modes, models } })
     expect(driver.providerSessionId()).toBe('old')
     expect(() => driver.send('image', [{ id: 'image', width: 1, height: 1, mime: 'image/png', path: '/image', read: () => new Uint8Array() }])).toThrow()
+    // Extra folders it does not say it takes go unnamed in the session, rather than failing the start.
     const extra = new CursorAcp('stage', { ...OPTIONS, extraDirs: ['/other'] })
     due(extra); receive(extra, { id: 'cursor-init', result: { protocolVersion: 1 } })
-    expect(extra.due()).toEqual([])
-    expect(extra.failure()).toContain('附加项目')
+    const session = extra.due().find((frame) => JSON.stringify(frame).includes('session/new'))
+    expect(JSON.stringify(session)).not.toContain('additionalDirectories')
+    expect(extra.failure()).toBeNull()
   })
 
   it('rebuilds a live stage without repeating requests, including all streamed deltas', () => {
