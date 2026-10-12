@@ -375,8 +375,9 @@ export class ClaudeStream implements ChatDriver {
   private reported: BackgroundKind[] = []
   // Output tokens of the running turn's messages so far, for the working line.
   private turnOutput = 0
-  // Subagents the CLI has reported finished, and the last thing each said while it worked (its
-  // frames come with parent_tool_use_id), which stands as its report when no hand-back frame does.
+  // Subagents settled as finished, whether by their own report or by the CLI's count, and the last
+  // thing each said while it worked (its frames come with parent_tool_use_id), which stands as its
+  // report when no hand-back frame does.
   private agentsCompleted = 0
   private readonly subagentText = new Map<string, string>()
   private readonly pending = new Map<string, Pending>()
@@ -993,6 +994,9 @@ export class ClaudeStream implements ChatDriver {
       const metrics = subagent?.success && subagent.data.status === 'completed'
         ? { tools: subagent.data.totalToolUseCount ?? 0, tokens: subagent.data.totalTokens ?? 0, durationMs: subagent.data.totalDurationMs ?? 0 }
         : (tool.metrics ?? null)
+      // The CLI's count of finished subagents takes in this one; left uncounted, the next result
+      // would settle another subagent, still running, in its place.
+      if (SUBAGENT_TOOLS.has(tool.name) && tool.status === 'running' && status === 'done') this.agentsCompleted++
       this.items.put({
         id,
         kind: 'tool',
@@ -1038,6 +1042,8 @@ export class ClaudeStream implements ChatDriver {
     const tool = this.items.get(`t:${tool_use_id ?? known.toolUseId ?? ''}`)
     if (tool?.kind !== 'tool' || tool.status !== 'running') return
     const settled = status === 'completed' ? 'done' : status === 'failed' ? 'failed' : 'interrupted'
+    // Counted, as a hand-back is, so the CLI's count settles none other in its place.
+    if (known.kind === 'subagent' && settled === 'done') this.agentsCompleted++
     // A subagent's report is its output; a command's says how it ended.
     const output = known.kind === 'command' && summary ? clip([tool.output, summary].filter(Boolean).join('\n')) : tool.output
     this.items.put({
@@ -1095,8 +1101,9 @@ export class ClaudeStream implements ChatDriver {
     return names.some((name) => name.includes('[1m]')) ? ONE_MILLION : null
   }
 
-  // Background subagents the CLI counts as finished, oldest first, are done: their report is the
-  // hand-back's where one came, else the last thing they said.
+  // Background subagents the CLI counts as finished beyond those already settled by their own
+  // report, oldest first, are done: their report is the hand-back's where one came, else the last
+  // thing they said.
   private settleAgents(completed: number, at: number): void {
     let newly = completed - this.agentsCompleted
     this.agentsCompleted = Math.max(this.agentsCompleted, completed)

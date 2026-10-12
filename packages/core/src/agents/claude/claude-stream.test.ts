@@ -124,6 +124,61 @@ describe('ClaudeStream', () => {
     expect(driver.activity()).toBe('idle')
   })
 
+  // As Claude Code 2.1.288 ran three Explore subagents: each reports, the CLI answers it in a turn
+  // of its own, and that turn's result counts every subagent finished so far.
+  it('keeps a background subagent running until it reports, when others reported before it', () => {
+    const at = 1_790_000_000_000
+    const launch = (n: number): ChatRecord[] => [
+      { dir: 'in', at, frame: { type: 'system', subtype: 'task_started', task_id: `T${n}`, tool_use_id: `A${n}`, task_type: 'local_agent', is_backgrounded: true } },
+      { dir: 'in', at, frame: { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `A${n}`, content: [{ type: 'text', text: 'Async agent launched successfully.' }] }] }, tool_use_result: { isAsync: true, status: 'async_launched' } } }
+    ]
+    const report = (n: number, completed: number): ChatRecord[] => [
+      { dir: 'in', at, frame: { type: 'system', subtype: 'task_notification', task_id: `T${n}`, tool_use_id: `A${n}`, status: 'completed', summary: `Report ${n}.` } },
+      { dir: 'in', at, frame: { type: 'system', subtype: 'init', session_id: 's-1' } },
+      { dir: 'in', at, frame: { type: 'assistant', message: { id: `r${n}`, content: [{ type: 'text', text: `第 ${n} 份到了。` }] } } },
+      { dir: 'in', at, frame: { type: 'result', subtype: 'success', is_error: false, duration_ms: 300, num_turns: 1, origin: { kind: 'task-notification' }, subagent_stats: { completed } } }
+    ]
+    const driver = replay([
+      { dir: 'out', at, frame: { type: 'user', message: { role: 'user', content: '摸清三处代码' } }, ref: 'ref-1' },
+      { dir: 'in', at, frame: { type: 'system', subtype: 'init', session_id: 's-1' } },
+      { dir: 'in', at, frame: { type: 'assistant', message: { id: 'm1', content: [1, 2, 3].map((n) => ({ type: 'tool_use', id: `A${n}`, name: 'Agent', input: { subagent_type: 'Explore', description: `Map ${n}`, prompt: 'p', run_in_background: true } })) } } },
+      ...launch(1), ...launch(2), ...launch(3),
+      { dir: 'in', at, frame: { type: 'result', subtype: 'success', is_error: false, duration_ms: 900, num_turns: 4, subagent_stats: { completed: 0 } } }
+    ])
+    const statuses = () => ofKind(driver.items.list(), 'tool').map((tool) => tool.status)
+
+    report(3, 1).forEach((record) => driver.apply(record))
+    expect(statuses()).toEqual(['running', 'running', 'done'])
+    expect(driver.activity()).toBe('running')
+
+    report(1, 2).forEach((record) => driver.apply(record))
+    expect(statuses()).toEqual(['done', 'running', 'done'])
+    expect(driver.activity()).toBe('running')
+
+    report(2, 3).forEach((record) => driver.apply(record))
+    expect(statuses()).toEqual(['done', 'done', 'done'])
+    expect(driver.activity()).toBe('idle')
+  })
+
+  it('keeps a background subagent running when one run in the foreground finishes beside it', () => {
+    const at = 1_790_000_000_000
+    const driver = replay([
+      { dir: 'out', at, frame: { type: 'user', message: { role: 'user', content: '一个后台，一个前台' } }, ref: 'ref-1' },
+      { dir: 'in', at, frame: { type: 'system', subtype: 'init', session_id: 's-1' } },
+      { dir: 'in', at, frame: { type: 'assistant', message: { id: 'm1', content: [
+        { type: 'tool_use', id: 'A1', name: 'Agent', input: { subagent_type: 'Explore', description: 'Slow', prompt: 'p', run_in_background: true } },
+        { type: 'tool_use', id: 'A2', name: 'Agent', input: { subagent_type: 'Explore', description: 'Quick', prompt: 'p' } }
+      ] } } },
+      { dir: 'in', at, frame: { type: 'system', subtype: 'task_started', task_id: 'T1', tool_use_id: 'A1', task_type: 'local_agent', is_backgrounded: true } },
+      { dir: 'in', at, frame: { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'A1', content: [{ type: 'text', text: 'Async agent launched successfully.' }] }] }, tool_use_result: { isAsync: true, status: 'async_launched' } } },
+      { dir: 'in', at, frame: { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'A2', content: [{ type: 'text', text: 'Two files.' }] }] }, tool_use_result: { status: 'completed', content: [{ type: 'text', text: 'Two files.' }], totalToolUseCount: 2, totalTokens: 900, totalDurationMs: 1200 } } },
+      { dir: 'in', at, frame: { type: 'assistant', message: { id: 'm2', content: [{ type: 'text', text: '快的那个回来了，慢的还在跑。' }] } } },
+      { dir: 'in', at, frame: { type: 'result', subtype: 'success', is_error: false, duration_ms: 1500, num_turns: 2, subagent_stats: { completed: 1 } } }
+    ])
+    expect(ofKind(driver.items.list(), 'tool').map((tool) => tool.status)).toEqual(['running', 'done'])
+    expect(driver.activity()).toBe('running')
+  })
+
   it('names an MCP tool as Claude Code does for people, and a call it says nothing of by its own name', () => {
     const at = 1_790_000_000_000
     const records: ChatRecord[] = [
