@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { create } from 'zustand'
 import { isCompaction } from './chat-notices'
 import { diffCounts, isSubagent } from './chat-tools'
-import { type AgentKind, type ChatDiff, type ChatItem, type ChatQuestion, type ChatTodo, type ConversationStage, browserToolKind, isPlanApproval, isPreviewTool, toolImagePath, terminalToolKind } from '@kando/protocol'
+import { parseHandoffMessage, type AgentKind, type ChatDiff, type ChatItem, type ChatQuestion, type ChatTodo, type ConversationStage, browserToolKind, isPlanApproval, isPreviewTool, toolImagePath, terminalToolKind } from '@kando/protocol'
 
 // A conversation's chat items as this window holds them, in the order core first saw them;
 // `before` pages further back, null when nothing older is left.
@@ -141,6 +141,12 @@ export function dropChat(conversationId: string): void {
     const { [conversationId]: _dropped, ...rest } = state
     return rest
   }, true)
+}
+
+// What the user said in a message: of the one that starts a handoff, only their note, as Kando's
+// instruction to read the handoff file is its own.
+export function saidText(text: string): string {
+  return parseHandoffMessage(text)?.note ?? text
 }
 
 // Who answers in a turn: the agent, and the model (by its label where the agent gives one) and

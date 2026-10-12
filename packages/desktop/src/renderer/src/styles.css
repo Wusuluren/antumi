@@ -5314,6 +5314,13 @@ body.side-panel-resizing * {
   overflow-wrap: anywhere;
 }
 
+/* A handoff the user added nothing to: said in passing, on the user's side, not as a message. */
+.chat-user-handoff {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .chat-assistant {
   max-width: 100%;
   overflow-wrap: anywhere;

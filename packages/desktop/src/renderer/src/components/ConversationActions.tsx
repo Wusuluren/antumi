@@ -4,6 +4,7 @@ import { proposeHandoff } from '../chat-handoff'
 import { agentLabel } from '../labels'
 import { usePreferences } from '../preferences'
 import { offerDraft } from '../chat-drafts'
+import { saidText } from '../chat-state'
 import { confirmQuota } from './AgentQuota'
 import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
 import { currentInstalledAgents, otherInstalledAgent, useInstalledAgents } from '../installed-agents'
@@ -35,7 +36,7 @@ export function newConversation(projects?: readonly string[]): void {
 export async function forkConversation(id: string, item: ChatItem): Promise<void> {
   const forked = await perform((rpc) => rpc.call('conversations.fork', { id, stageId: item.stageId, itemId: item.id }))
   if (!forked) return
-  if (item.kind === 'user') offerDraft(forked.id, { text: item.text, images: item.images })
+  if (item.kind === 'user') offerDraft(forked.id, { text: saidText(item.text), images: item.images })
   selectConversation(forked.id)
 }
 

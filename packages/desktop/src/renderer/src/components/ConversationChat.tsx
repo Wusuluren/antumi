@@ -1,8 +1,8 @@
 import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { cursorProviderError, isBrowserTool, isPlanApproval, isPreviewTool, toolImagePath, type AgentKind, type ChatItem, type Conversation, type ConversationStage } from '@kando/protocol'
+import { cursorProviderError, isBrowserTool, isPlanApproval, isPreviewTool, parseHandoffMessage, toolImagePath, type AgentKind, type ChatItem, type Conversation, type ConversationStage } from '@kando/protocol'
 import { firstBrowserCall, shouldOpenBrowser } from '../browser-state'
 import { ChatBrowserCard, ChatBrowserRun, ChatShotCard } from './ChatBrowserCard'
-import { foldRowKeys, chatBlocks, dropChat, finalReplies, itemKey, pathShortener, prependChatPage, previousTodos, setChatPage, stageAgents, thoughtDurations, timeline, useChat, type ChatBlock, type TimelineEntry, type TurnAgent, type TurnFile } from '../chat-state'
+import { foldRowKeys, chatBlocks, dropChat, finalReplies, itemKey, pathShortener, prependChatPage, previousTodos, saidText, setChatPage, stageAgents, thoughtDurations, timeline, useChat, type ChatBlock, type TimelineEntry, type TurnAgent, type TurnFile } from '../chat-state'
 import { ChatDisclosureScope, setOpened, useDisclosure } from '../chat-disclosure'
 import { isCompaction, noticeSummary, readableNotice } from '../chat-notices'
 import { parseQuotes, withoutQuoteMarkers } from '../chat-quotes'
@@ -163,7 +163,7 @@ function UserMessageFooter({ item }: { item: UserItem }) {
   return (
     <div className="chat-user-footer">
       <MessageTime at={item.at} />
-      {item.text && <CopyButton text={withoutQuoteMarkers(item.text)} label="复制消息" />}
+      {saidText(item.text) && <CopyButton text={withoutQuoteMarkers(saidText(item.text))} label="复制消息" />}
       <ForkButton item={item} />
     </div>
   )
@@ -190,7 +190,18 @@ function UserQuotes({ quotes }: { quotes: ReturnType<typeof parseQuotes>['quotes
 // A long message the user sent, such as a task's first prompt, shows its start until opened.
 function UserMessage({ item, pending = false }: { item: UserItem; pending?: boolean }) {
   const [open, setOpen] = useDisclosure(`message:${itemKey(item)}`)
-  const { quotes, body } = parseQuotes(item.text)
+  const { byStage, current } = useContext(ChatAgent)
+  const handoff = parseHandoffMessage(item.text)
+  const { quotes, body } = parseQuotes(saidText(item.text))
+  // A handoff the user added nothing to: a line saying so, where the agent's head still goes under.
+  if (handoff && !body && quotes.length === 0 && item.images.length === 0) {
+    return (
+      <>
+        <div className="chat-user-handoff">移交给 {agentLabel((byStage.get(item.stageId) ?? current).agent)}，没有补充说明</div>
+        {!pending && <UserMessageFooter item={item} />}
+      </>
+    )
+  }
   const long = body.split('\n').length > 12 || body.length > 1200
   return (
     <>
@@ -631,8 +642,8 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
     if (block.kind !== 'entry' || !isUserEntry(block.entry)) return []
     const { entry } = block
     if (entry.kind !== 'item' || entry.item.kind !== 'user') return [{ key: block.key, text: '' }]
-    const { quotes, body } = parseQuotes(entry.item.text)
-    return [{ key: block.key, text: `${quotes.length ? `（引用 ${quotes.length} 段）` : ''}${body}` }]
+    const { quotes, body } = parseQuotes(saidText(entry.item.text))
+    return [{ key: block.key, text: `${quotes.length ? `（引用 ${quotes.length} 段）` : ''}${body || '（移交）'}` }]
   }), [blocks])
   const tools = useMemo(
     () => new Map(items.flatMap((item) => (item.kind === 'tool' ? [[item.id, item] as const] : []))),

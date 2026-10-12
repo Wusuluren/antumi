@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chatCommand, handoffPrompt, handoffPromptPath } from './conversation-command'
-
-describe('handoffPromptPath', () => {
-  it('reads the handoff path back out of the prompt it sent, and only from that prompt', () => {
-    expect(handoffPromptPath(`  ${handoffPrompt('/kando/sessions/c/handoffs/h.md')}\n`)).toBe('/kando/sessions/c/handoffs/h.md')
-    expect(handoffPromptPath('请先阅读 Kando 移交文件，然后告诉我里面写了什么')).toBeNull()
-  })
-})
+import { chatCommand } from './conversation-command'
 
 describe('chatCommand', () => {
   it('gives Codex Kando\'s tools and hides the ChatGPT app\'s browser beside them', () => {

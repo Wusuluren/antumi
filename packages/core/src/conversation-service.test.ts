@@ -469,12 +469,22 @@ describe('ConversationService', () => {
     expect(service.get(created.id).sessionId).toBeNull()
   })
 
-  it('hands off with the handoff prompt as the first message, kept out of the messages and the title', async () => {
+  it('hands off with the handoff prompt and the user\'s note as the first message, keeping only the note as said', async () => {
     const created = await codexOpens(service.create('codex', []))
     await service.stop(created.id)
     const handed = await service.handoff(created.id, 'claude', 'watch the tests', false)
     const [first] = daemon.written(handed.sessionId!).filter((frame) => JSON.stringify(frame).includes('"type":"user"'))
     expect(JSON.stringify(first)).toContain('请先阅读 Kando 移交文件')
+    expect(JSON.stringify(first)).toContain('watch the tests')
+    await settle()
+    expect(service.messages(created.id).filter((message) => message.role === 'user').map((message) => message.text)).toEqual(['watch the tests'])
+    expect(service.get(created.id).title).not.toContain('Kando')
+  })
+
+  it('keeps nothing as said for a handoff without a note', async () => {
+    const created = await codexOpens(service.create('codex', []))
+    await service.stop(created.id)
+    await service.handoff(created.id, 'claude', '', false)
     await settle()
     expect(service.messages(created.id).filter((message) => message.role === 'user')).toEqual([])
     expect(service.get(created.id).title).toBe('新会话')

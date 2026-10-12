@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { agentDescriptor, checkEditAdditionalProjects, checkSwitchBranch, isPlanApproval, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type UnattendedMode, isKandoRequest } from '@kando/protocol'
+import { agentDescriptor, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type UnattendedMode, isKandoRequest } from '@kando/protocol'
 import type { DaemonEvent, SessionInfo } from '@kando/protocol/node'
 import type { TaskLaunchOptions } from '@kando/protocol'
 import type { RunMeasure } from './agent-run-store'
@@ -16,7 +16,7 @@ import { folderChanges, folderDiff, folderHead } from './conversation-changes'
 import { adapterOf, checkUnattended } from './agents'
 import type { AgentStage, CancelGrace } from './agents/agent-adapter'
 import type { McpServer } from './agent-command'
-import { chatCommand, handoffPrompt, handoffPromptPath } from './conversation-command'
+import { chatCommand } from './conversation-command'
 import { searchSnippet } from './conversation-search'
 import { buildHandoff } from './conversation-handoff'
 import { SCHEDULED_GO_TEXT, UNATTENDED_NOTE } from './agent-prompt'
@@ -657,7 +657,7 @@ export class ConversationService {
       }
       const stageId = randomUUID()
       const stage = this.store.startStage(id, agent, providerSessionId, this.store.maxSequence(id), stageId, launch.planOnly ?? false)
-      return { ...await this.startChat(current, stage, saved !== null, handoffPath, launch.readable ?? []), starting: false }
+      return { ...await this.startChat(current, stage, saved !== null, handoffPath === null ? null : { path: handoffPath, note }, launch.readable ?? []), starting: false }
     } finally {
       this.launching.delete(id)
       const current = this.store.get(id)
@@ -683,7 +683,7 @@ export class ConversationService {
       await writeFile(handoffPath, buildHandoff(current, messages, '', agent, agent), { mode: 0o600 })
     }
     const stage = this.store.startStage(current.id, agent, providerSessionId, this.store.maxSequence(current.id), randomUUID(), false)
-    return this.startChat(current, stage, native, handoffPath, [], native ? fork.at : null)
+    return this.startChat(current, stage, native, handoffPath === null ? null : { path: handoffPath, note: '' }, [], native ? fork.at : null)
   }
 
   // Runs the stage's agent over stdio, driven by the chat host, and waits until it can take a message.
@@ -691,7 +691,8 @@ export class ConversationService {
     current: Conversation,
     stage: ConversationStage,
     resume: boolean,
-    handoffPath: string | null,
+    // The file a new agent reads first, and what the user added for it.
+    handoff: { path: string; note: string } | null,
     readable: readonly string[],
     forkAt: string | null = null
   ): Promise<Conversation> {
@@ -700,7 +701,7 @@ export class ConversationService {
     const { options } = this.chatStage(current, stage, forkAt)
     const { launch } = adapterOf(agent)
     const agentStage = this.agentStage(id, stage)
-    const command = chatCommand(agent, stage.providerSessionId, resume, handoffPath, options.extraDirs, {
+    const command = chatCommand(agent, stage.providerSessionId, resume, handoff?.path ?? null, options.extraDirs, {
       preferred: options.preferred,
       allowBypass: options.allowBypass,
       planOnly: options.planOnly ? { dirs: [options.cwd, ...options.extraDirs] } : undefined,
@@ -735,7 +736,7 @@ export class ConversationService {
     try {
       await this.chats.open(this.chatStage(current, stage, forkAt), sessionId, 0, true)
       await launch?.ready(agentStage)
-      if (handoffPath) await this.chats.send(id, handoffPrompt(handoffPath))
+      if (handoff) await this.chats.send(id, handoffMessage(handoff.path, handoff.note))
     } catch (error) {
       // A stage that never started leaves nothing to resume, so it goes, log and all.
       this.chats.forget(sessionId, stage.id)
@@ -1228,8 +1229,9 @@ export class ConversationService {
     const conversation = this.store.get(chat.conversationId)
     const stage = this.store.stage(chat.stageId)
     if (!conversation || !stage) return
-    const text = message.text.trim()
-    if (!text || (message.role === 'user' && this.isHandoffPrompt(conversation.id, text))) return
+    const said = message.role === 'user' ? this.userPart(conversation.id, message.text) : message.text
+    const text = said.trim()
+    if (!text) return
     const saved = this.store.addMessage({
       conversationId: conversation.id, stageId: stage.id, role: message.role, agent: stage.agent,
       text, eventKey: message.eventKey, complete: message.complete
@@ -1300,10 +1302,11 @@ export class ConversationService {
     }
   }
 
-  // Kando's own instruction, not something the user said: kept out of the title, search and later handoffs.
-  private isHandoffPrompt(id: string, text: string): boolean {
-    const handoffPath = handoffPromptPath(text)
-    return handoffPath !== null && path.dirname(handoffPath) === path.join(this.sessionsRoot, id, 'handoffs')
+  // What the user said in a message: of a handoff's, only their note, as Kando's instruction to read
+  // the file is not theirs and stays out of the title, search and later handoffs.
+  private userPart(id: string, text: string): string {
+    const handoff = parseHandoffMessage(text)
+    return handoff && path.dirname(handoff.path) === path.join(this.sessionsRoot, id, 'handoffs') ? handoff.note : text
   }
 
   private withChat(conversation: Conversation): Conversation {

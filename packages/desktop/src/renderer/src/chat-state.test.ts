@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ChatItem, type ConversationStage } from '@kando/protocol'
+import { ChatItem, handoffMessage, type ConversationStage } from '@kando/protocol'
 import {
   appendText,
   chatBlocks,
@@ -15,6 +15,7 @@ import {
   todoChange,
   receiveChatDelta,
   receiveChatItems,
+  saidText,
   setChatPage,
   stageAgents,
   timeline,
@@ -86,6 +87,14 @@ describe('streamed deltas', () => {
     receiveChatDelta('c', 'chat-stage', 'a', '!')
     flushChatDeltas()
     expect(useChat.getState().c?.items[0]).toEqual(text('a', 'hello, revised!', 'chat-stage', 2))
+  })
+})
+
+describe('saidText', () => {
+  it('keeps of a handoff only what the user added, and any other message whole', () => {
+    expect(saidText(handoffMessage('/k/sessions/c/handoffs/h.md', '先跑测试'))).toBe('先跑测试')
+    expect(saidText(handoffMessage('/k/sessions/c/handoffs/h.md'))).toBe('')
+    expect(saidText('请先阅读 README')).toBe('请先阅读 README')
   })
 })
 
