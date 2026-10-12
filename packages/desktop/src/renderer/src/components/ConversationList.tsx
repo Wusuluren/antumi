@@ -9,7 +9,7 @@ import { ConversationHandoffDialog } from './ConversationHandoffDialog'
 import { ConversationStatus } from './ConversationStatus'
 import { ContextMenu, menuPoint, MenuRadioItem, MenuSubmenu, type MenuPoint } from './ContextMenu'
 import { ChatIcon, ChevronDownIcon, SlidersIcon } from './icons'
-import { projectName, projectNames } from './ProjectPicker'
+import { primaryProjectName, projectName, projectNames } from './ProjectPicker'
 import { SidebarCollapseButton } from './SidebarCollapseButton'
 import { SidebarSearchField, SidebarSearchToggle } from './SidebarSearch'
 import { TitleEditor } from './TitleEditor'
@@ -27,11 +27,12 @@ const COMPARE: Record<SortBy, (a: Conversation, b: Conversation) => number> = {
 }
 
 // Groups keep a fixed order where there is one (running first, agents as listed);
-// projects go by name, with conversations that have no project last.
-function groupOf(conversation: Conversation, by: Exclude<GroupBy, 'none'>): { label: string; rank: number } {
+// projects go by name, with conversations that have no project last. A conversation belongs to its
+// primary project, where its agent works; the others only lend it folders.
+export function groupOf(conversation: Conversation, by: Exclude<GroupBy, 'none'>): { label: string; rank: number } {
   switch (by) {
     case 'project':
-      return { label: projectNames(conversation.projectPaths), rank: conversation.projectPaths.length > 0 ? 0 : 1 }
+      return { label: primaryProjectName(conversation.projectPaths), rank: conversation.projectPaths.length > 0 ? 0 : 1 }
     case 'agent':
       return { label: agentLabel(conversation.agent), rank: AGENT_KINDS.indexOf(conversation.agent) }
     case 'status':
