@@ -7014,7 +7014,9 @@ body.side-panel-resizing * {
 /* An option's mark: an agent's logo before its name, in full colour while the label is tinted. */
 .chat-picker-icon { display: inline-grid; place-items: center; flex-shrink: 0; vertical-align: -2px; margin-right: 5px; }
 .chat-picker-icon .agent-mark { width: 13px; height: 13px; }
-.chat-picker-item .chat-picker-icon { margin: 0; }
+/* An item is laid from the top, for a description under its name: the mark keeps a line's height,
+   to sit on the name's centre rather than its top. */
+.chat-picker-item .chat-picker-icon { height: 1lh; margin: 0; }
 .chat-picker-item .chat-picker-icon .agent-mark { width: 16px; height: 16px; }
 .chat-picker svg { flex-shrink: 0; width: 14px; height: 14px; opacity: 0.7; }
 .chat-picker[data-tone='plan'] { color: var(--status-running); }
