@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { usePlans } from '../chat-state'
-import { markRoutineRunSeen, selectConversation, setConversationInspectorOpen, setRoutinesOpen, useCore, useWireLogShown } from '../core-store'
+import { markRoutineRunSeen, selectConversation, selectDiscussion, setConversationInspectorOpen, setRoutinesOpen, useCore, useWireLogShown } from '../core-store'
 import { conversationState } from '../conversation-state'
 import { agentLabel } from '../labels'
 import { primaryProjectName } from './ProjectPicker'
@@ -41,6 +41,7 @@ export function ConversationView({ id }: { id: string }) {
   const plans = usePlans(id)
   const wire = useWireLogShown()
   const routine = useCore((state) => state.routines.find((each) => each.id === conversation?.routineId) ?? null)
+  const discussion = useCore((state) => (conversation?.discussionId ? state.discussions[conversation.discussionId] : undefined) ?? null)
   const routineId = conversation?.routineId ?? null
   const turn = conversation?.chat?.turn ?? null
   // Looking at a routine's conversation, with the window in front, is looking at its run: when
@@ -84,9 +85,15 @@ export function ConversationView({ id }: { id: string }) {
             <button type="button" className="link-button" onClick={() => setRoutinesOpen(true)}>回到定时任务</button>
           </span>
         )}
+        {conversation.discussionId && (
+          <span className="muted conversation-origin" title="在这里发的消息只有这个成员看到，不进群聊">
+            群聊{discussion ? `「${discussion.title}」` : ''}的成员 ·
+            <button type="button" className="link-button" onClick={() => conversation.discussionId && selectDiscussion(conversation.discussionId)}>回到群聊</button>
+          </span>
+        )}
       </div>
       <div className="toolbar">
-        <button type="button" className="tool-button" aria-label="移交给其他智能体" data-tooltip="移交给其他智能体" disabled={busy} onClick={openHandoff}><HandoffIcon /></button>
+        {!conversation.discussionId && <button type="button" className="tool-button" aria-label="移交给其他智能体" data-tooltip="移交给其他智能体" disabled={busy} onClick={openHandoff}><HandoffIcon /></button>}
         {hasPanel && (
           <button
             type="button"
@@ -104,7 +111,7 @@ export function ConversationView({ id }: { id: string }) {
       </div>
     </header>
     <div className="terminal-body">
-      <ConversationChat conversation={conversation} onHandoff={openHandoff} />
+      <ConversationChat conversation={conversation} onHandoff={conversation.discussionId ? undefined : openHandoff} />
       {hasPanel && inspectorOpen && <ConversationInspector conversation={conversation} widthRatio={panelRatio} onWidthRatioChange={setPanelRatio} wire={wire} />}
     </div>
   </section>

@@ -138,6 +138,8 @@ export function noticesBetween(prev: Snapshot, next: Snapshot, tellWaiting = tru
   for (const conversation of Object.values(next.conversations)) {
     const before = prev.conversations[conversation.id]
     if (!before || before === conversation || conversation.routineId) continue
+    // A group chat's member finishes a turn every round: only one waiting on the user is told of.
+    if (conversation.discussionId && !(waiting(conversation) && !waiting(before))) continue
     const { title, target } = named(conversation, next.tasks)
     if (crashed(conversation) && !crashed(before)) {
       notices.push({ title, body: `Agent 异常退出（code ${conversation.lastExit?.code}），发消息会重新启动它`, target })

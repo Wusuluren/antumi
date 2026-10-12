@@ -134,6 +134,13 @@ describe('actionableItems', () => {
     expect(noticesBetween(snapshot([before]), snapshot([conversation('idle', { chat: { turn: 'idle', request: ask } })]))[0]?.body).toContain('有个问题等你回答')
   })
 
+  it('tells of a group chat member only when it waits on the user', () => {
+    const discussionId = '00000000-0000-4000-8000-000000000201'
+    const working = conversation('m', { discussionId, chat: { turn: 'running' } })
+    expect(noticesBetween(snapshot([working]), snapshot([conversation('m', { discussionId, chat: { turn: 'idle' } })]))).toEqual([])
+    expect(noticesBetween(snapshot([working]), snapshot([conversation('m', { discussionId, chat: { turn: 'awaiting' } })]))[0]?.body).toBe('Agent 在等你允许或回答')
+  })
+
   it('excludes done, abandoned and deleted tasks and their conversations', () => {
     expect(actionableItems(snapshot([
       conversation('done', { taskId: 'done', chat: { turn: 'awaiting' } }),

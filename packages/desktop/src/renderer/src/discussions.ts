@@ -1,0 +1,104 @@
+import { create } from 'zustand'
+import type { AgentKind, Discussion, DiscussionAction, DiscussionCreate, DiscussionMemberStatus, DiscussionPost, DiscussionState } from '@kando/protocol'
+import { perform } from './core-store'
+import { agentLabel } from './labels'
+
+// Each open group chat's posts, by discussion id: fetched when its page opens, kept up by
+// discussions.posts after. A discussion not fetched yet has no entry, so a post or two arriving
+// for it is not mistaken for all of them.
+export const useDiscussionPosts = create<Record<string, DiscussionPost[]>>()(() => ({}))
+
+export function receiveDiscussionPosts(discussionId: string, posts: readonly DiscussionPost[]): void {
+  useDiscussionPosts.setState((all) => {
+    const known = all[discussionId]
+    if (!known) return all
+    return { ...all, [discussionId]: mergePosts(known, posts) }
+  })
+}
+
+// Newer revisions replace older ones by id; the list stays in sequence order.
+export function mergePosts(known: readonly DiscussionPost[], incoming: readonly DiscussionPost[]): DiscussionPost[] {
+  const byId = new Map(known.map((post) => [post.id, post]))
+  for (const post of incoming) {
+    const held = byId.get(post.id)
+    if (!held || held.updatedAt <= post.updatedAt) byId.set(post.id, post)
+  }
+  return [...byId.values()].sort((a, b) => a.sequence - b.sequence)
+}
+
+export function forgetDiscussionPosts(discussionId: string): void {
+  useDiscussionPosts.setState((all) => {
+    const { [discussionId]: _gone, ...rest } = all
+    return rest
+  }, true)
+}
+
+export async function loadDiscussionPosts(discussionId: string): Promise<void> {
+  const posts = await perform((rpc) => rpc.call('discussions.posts', { id: discussionId }))
+  // What arrived while asking is newer than the answer, or the same.
+  if (posts) useDiscussionPosts.setState((all) => ({ ...all, [discussionId]: mergePosts(posts, all[discussionId] ?? []) }))
+}
+
+export function createDiscussion(fields: DiscussionCreate): Promise<Discussion | null> {
+  return perform((rpc) => rpc.call('discussions.create', fields))
+}
+
+export function postToDiscussion(id: string, text: string, mentions: readonly string[]): Promise<DiscussionPost | null> {
+  return perform((rpc) => rpc.call('discussions.post', { id, text, mentions: [...mentions] }))
+}
+
+export function controlDiscussion(id: string, action: DiscussionAction): Promise<Discussion | null> {
+  return perform((rpc) => rpc.call('discussions.control', { id, action }))
+}
+
+export function renameDiscussion(id: string, title: string): Promise<Discussion | null> {
+  return perform((rpc) => rpc.call('discussions.rename', { id, title }))
+}
+
+export function setDiscussionPinned(id: string, pinned: boolean): Promise<Discussion | null> {
+  return perform((rpc) => rpc.call('discussions.setPinned', { id, pinned }))
+}
+
+export function deleteDiscussion(id: string): Promise<{ ok: true } | null> {
+  return perform((rpc) => rpc.call('discussions.delete', { id }))
+}
+
+export const DISCUSSION_STATE_LABEL: Record<DiscussionState, string> = {
+  running: '讨论中',
+  pausing: '本轮结束后暂停',
+  paused: '已暂停',
+  done: '已总结'
+}
+
+export const MEMBER_STATUS_LABEL: Record<DiscussionMemberStatus, string> = {
+  idle: '空闲',
+  working: '发言中',
+  awaiting: '等你确认'
+}
+
+// Where the discussion stands, in a few words for its header and its row.
+export function discussionProgress(discussion: Pick<Discussion, 'state' | 'step' | 'round' | 'lastRound'>): string {
+  if (discussion.state === 'done') return DISCUSSION_STATE_LABEL.done
+  const where = discussion.step === 'summary' ? '总结' : discussion.round > 0 ? `第 ${discussion.round} / ${Math.max(discussion.round, discussion.lastRound)} 轮` : '准备中'
+  return discussion.state === 'running' ? where : `${where} · ${DISCUSSION_STATE_LABEL[discussion.state]}`
+}
+
+// A member's name until the user gives it one: its agent, and the model where one is picked.
+export function defaultMemberName(agent: AgentKind, model: string | null): string {
+  return model ? `${agentLabel(agent)} · ${model}` : agentLabel(agent)
+}
+
+// The names the composer's @ picks members by, longest first so a name that starts another wins.
+export function mentionedMembers(text: string, members: readonly Pick<Discussion['members'][number], 'id' | 'name'>[]): string[] {
+  const sorted = [...members].sort((a, b) => b.name.length - a.name.length)
+  const found = new Set<string>()
+  let rest = text
+  for (const member of sorted) {
+    const tag = `@${member.name}`
+    if (rest.includes(tag)) {
+      found.add(member.id)
+      rest = rest.split(tag).join(' ')
+    }
+  }
+  return members.filter((member) => found.has(member.id)).map((member) => member.id)
+}

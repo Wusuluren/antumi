@@ -382,6 +382,16 @@ export function InfoIcon() {
   )
 }
 
+// A group chat: two speech bubbles, one behind the other.
+export function GroupChatIcon() {
+  return (
+    <svg {...stroked}>
+      <path d="M3.7 3.5h8.1a1.4 1.4 0 0 1 1.4 1.4v4.9a1.4 1.4 0 0 1-1.4 1.4H7.6l-2.6 2.2v-2.2H3.7a1.4 1.4 0 0 1-1.4-1.4V4.9a1.4 1.4 0 0 1 1.4-1.4z" />
+      <path d="M15.4 7.2h.9a1.4 1.4 0 0 1 1.4 1.4v4.9a1.4 1.4 0 0 1-1.4 1.4H15v2.2l-2.6-2.2H9.6a1.4 1.4 0 0 1-1.4-1.3" />
+    </svg>
+  )
+}
+
 export function ChatIcon() {
   return (
     <svg {...stroked}>

@@ -8335,3 +8335,119 @@ body.side-panel-resizing * {
 .request-popup .chat-intervention { max-height: none; border: 0; border-radius: 0; }
 .request-popup-error { margin: 0; padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--danger); font-size: var(--chat-font-small); }
 .request-popup-loading { margin: 0; padding: 12px; color: var(--text-3); }
+
+/* Group chats: a sidebar section between the tasks and the conversations, sized to what it holds. */
+.sidebar-discussions { flex: 0 1 auto; min-height: 0; max-height: 30%; display: flex; flex-direction: column; }
+.sidebar-discussions[data-collapsed='true'] { flex: 0 0 auto; }
+.sidebar-discussions ul { margin: 0; padding: 0 8px 8px; list-style: none; }
+.sidebar-discussions:hover .sidebar-collapse-icon, .sidebar-discussions:focus-within .sidebar-collapse-icon { opacity: 1; }
+.discussion-marks { display: inline-flex; margin-right: 2px; }
+.discussion-marks .conversation-agent { margin-right: 2px; }
+/* Where a group chat stands, like a conversation's mark: a ring when quiet, blue while someone
+   speaks, amber and pulsing when someone waits on the user, green once summed up. */
+.discussion-dot { justify-self: center; width: 12px; height: 12px; margin-top: 4px; border-radius: 50%; flex-shrink: 0; }
+.discussion-dot[data-tone='idle'] { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text-muted) 55%, transparent); }
+.discussion-dot[data-tone='working'] { background: var(--status-running); transform: scale(0.75); }
+.discussion-dot[data-tone='awaiting'] { background: var(--warning); transform: scale(0.75); animation: status-pulse 1.6s ease-out infinite; }
+.discussion-dot[data-tone='done'] { background: var(--status-done); transform: scale(0.75); }
+.discussion-view .detail-header .discussion-dot { margin-top: 0; }
+
+.discussion-view .toolbar .discussion-action { display: inline-flex; align-items: center; gap: 4px; }
+.discussion-view .toolbar .discussion-action svg { width: 14px; height: 14px; }
+
+.discussion-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 8px max(16px, calc((100% - var(--chat-width)) / 2)) 4px;
+  list-style: none;
+}
+.discussion-member { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); }
+.discussion-member[data-status='awaiting'] { border-color: var(--warning); }
+.discussion-member-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 8px;
+  border: 0;
+  border-radius: 999px 0 0 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--chat-font-small);
+  cursor: pointer;
+}
+.discussion-member-open:hover { background: var(--fill); }
+.discussion-member-mark { display: inline-grid; place-items: center; width: 16px; height: 16px; flex-shrink: 0; }
+.discussion-member-mark .agent-mark { width: 14px; height: 14px; }
+.discussion-member-name { font-weight: 600; }
+.discussion-member-chair { padding: 0 8px; border-radius: 999px; background: var(--fill-2); color: var(--text-muted); }
+.discussion-member-status { display: inline-flex; align-items: center; gap: 4px; color: var(--text-3); }
+.discussion-member-status .chat-spinner { width: 10px; height: 10px; }
+.discussion-member[data-status='awaiting'] .discussion-member-status { color: var(--warning); }
+.discussion-member-mention { width: 24px; height: 24px; margin-right: 4px; font-size: var(--chat-font-small); color: var(--text-muted); }
+
+.discussion-list { gap: 16px; }
+.discussion-topic { padding: 8px 12px; border-radius: var(--radius-lg); background: var(--fill); }
+.discussion-round { display: flex; flex-direction: column; gap: 12px; }
+.discussion-round-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 0;
+  font-size: var(--chat-font-small);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.discussion-round-title::after { content: ''; flex: 1; border-top: 1px dashed var(--border-2); }
+/* The independent answers of the first round side by side, as many as fit, each at least a column wide. */
+.discussion-openings { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; align-items: start; }
+.discussion-post { min-width: 0; padding: 8px 12px 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.discussion-post[data-kind='summary'] { border-color: var(--border-2); background: var(--fill); }
+.discussion-post[data-state='failed'] { border-style: dashed; }
+.discussion-post .chat-markdown { line-height: 1.7; }
+.discussion-post-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 28px; font-size: var(--chat-font-small); }
+.discussion-post-author { font-weight: 600; font-size: var(--chat-font-size); }
+.discussion-post-kind { padding: 0 8px; border-radius: 999px; background: var(--fill-2); color: var(--text-muted); font-size: var(--chat-font-small); }
+.discussion-post-time { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.discussion-post-action { margin-left: auto; }
+.discussion-post-pending { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; }
+.discussion-post-pending .chat-spinner { width: 12px; height: 12px; }
+.discussion-post-failed { margin: 4px 0 0; color: var(--danger); font-size: var(--chat-font-small); }
+.discussion-notice { margin: 0; text-align: center; font-size: var(--chat-font-small); }
+.discussion-user { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.discussion-user-to { font-size: var(--chat-font-small); }
+.discussion-user-text { max-width: 80%; padding: 8px 12px; border-radius: var(--radius-lg); background: var(--fill); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.discussion-draft { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px max(24px, calc((100% - 960px) / 2)) 24px; background: var(--surface); }
+.discussion-draft > p { margin: 0; }
+.discussion-draft-field { display: flex; flex-direction: column; gap: 8px; }
+.discussion-draft-field > span { font-weight: 600; font-size: 12px; color: var(--text-muted); }
+.discussion-draft-topic,
+.discussion-draft-name,
+.discussion-draft-role {
+  padding: 8px 12px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.discussion-draft-topic { resize: vertical; min-height: 96px; border-radius: var(--radius-lg); }
+.discussion-draft-topic:focus-visible,
+.discussion-draft-name:focus-visible,
+.discussion-draft-role:focus-visible { outline: 2px solid var(--focus); outline-offset: -1px; }
+.discussion-draft-members { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.discussion-draft-member { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.discussion-draft-index { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-sm); background: var(--fill-2); color: var(--text-muted); font-size: 12px; font-weight: 600; }
+.discussion-draft-name { width: 160px; padding: 4px 8px; }
+.discussion-draft-role { flex: 1; min-width: 200px; padding: 4px 8px; }
+.discussion-draft-chair { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.discussion-draft-add { align-self: flex-start; margin-left: 0; }
+.discussion-draft-error { margin: 0; color: var(--danger); font-size: 12px; }
+.discussion-draft-options { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.discussion-draft-options label { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); }
+.discussion-draft-options select { padding: 2px 8px; border: 1px solid var(--border-2); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+.discussion-draft input[type='radio'],
+.discussion-draft input[type='checkbox'] { accent-color: var(--accent); }

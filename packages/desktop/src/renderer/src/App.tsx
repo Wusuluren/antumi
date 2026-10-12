@@ -23,6 +23,9 @@ import { RoutinesView } from './components/RoutinesView'
 import { DashboardView } from './components/DashboardView'
 import { DashboardEntry } from './components/DashboardEntry'
 import { RoutinesEntry } from './components/RoutinesEntry'
+import { SidebarDiscussions } from './components/SidebarDiscussions'
+import { DiscussionView } from './components/DiscussionView'
+import { DiscussionDraft } from './components/DiscussionDraft'
 import { AttentionEntry } from './components/AttentionEntry'
 import { AttentionView } from './components/AttentionView'
 import { WindowBrand } from './components/WindowBrand'
@@ -47,6 +50,8 @@ export function App() {
   const section = useCore((s) => s.section)
   const selectedConversationId = useCore((s) => s.selectedConversationId)
   const conversationDraft = useCore((s) => s.conversationDraft)
+  const selectedDiscussionId = useCore((s) => s.selectedDiscussionId)
+  const discussionDraft = useCore((s) => s.discussionDraft)
   const view = useCore((s) => s.view)
   const error = useCore((s) => s.error)
   const newTaskOpen = useCore((s) => s.newTaskOpen)
@@ -148,6 +153,7 @@ export function App() {
               <RoutinesEntry />
               <EnvironmentNotice />
               <SidebarTasks />
+              <SidebarDiscussions />
               <ConversationList />
             </Sidebar>
             {attentionOpen ? (
@@ -160,6 +166,10 @@ export function App() {
               <RoutinesView />
             ) : dashboardOpen ? (
               <DashboardView />
+            ) : section === 'discussions' ? (
+              selectedDiscussionId ? <DiscussionView key={selectedDiscussionId} id={selectedDiscussionId} /> :
+                discussionDraft ? <DiscussionDraft /> :
+                <section className="detail-empty">选择或新建一个群聊</section>
             ) : section === 'conversations' ? (
               selectedConversationId ? <ConversationView key={selectedConversationId} id={selectedConversationId} /> :
                 conversationDraft ? <ConversationDraft /> :

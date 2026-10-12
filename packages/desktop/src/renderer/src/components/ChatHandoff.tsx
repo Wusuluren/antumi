@@ -36,7 +36,8 @@ export function useComposerHandoff(conversation: Conversation): ComposerHandoff 
   const installed = useInstalledAgents()
   const pending = useHandoffs((s) => s[id])
   const from = task?.agent ?? conversation.agent
-  const targets = !task || taskSupported ? installed.filter((agent) => agent !== from) : []
+  // A group chat's member keeps the agent it was added as.
+  const targets = (!task || taskSupported) && !conversation.discussionId ? installed.filter((agent) => agent !== from) : []
   const picked = pending && targets.includes(pending.agent) ? pending : null
   const catalog = useAgentCatalog(picked?.agent ?? null, modelsSupported)
   const { model, modelId, effort } = resolveModel(catalog, picked ?? {})

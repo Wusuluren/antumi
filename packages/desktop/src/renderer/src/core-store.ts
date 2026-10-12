@@ -23,9 +23,11 @@ import {
   type ComputerAwakeStatus,
   type ChatSettings,
   type Environment,
-  type ScheduledRun
+  type ScheduledRun,
+  type Discussion
 } from '@kando/protocol'
 import { receiveChatDelta, receiveChatItems } from './chat-state'
+import { forgetDiscussionPosts, receiveDiscussionPosts } from './discussions'
 import { forgetFileTabs } from './file-tabs'
 import { activeInboxes, inboxKey } from './source-inboxes'
 import type { BrowserStatus } from '@kando/protocol'
@@ -44,7 +46,7 @@ export type ConnectionState = 'waiting-for-core' | 'connecting' | 'connected'
 // What the right-hand pane shows for the selected task.
 // terminal: a task's agent in a terminal · chat: a task started in the chat view, in its chat
 export type TaskView = 'detail' | 'chat'
-export type Section = 'tasks' | 'conversations'
+export type Section = 'tasks' | 'conversations' | 'discussions'
 
 // A sign-in this window started. The flow lives in core and ends if the connection drops.
 export type LoginState = {
@@ -69,6 +71,11 @@ export type CoreState = {
   selectedConversationId: string | null
   // The page a new conversation starts from while chats are the default (see ConversationDraft).
   conversationDraft: boolean
+  // Group chats as core keeps them; empty on a core without them.
+  discussions: Record<string, Discussion>
+  selectedDiscussionId: string | null
+  // The page a new group chat starts from.
+  discussionDraft: boolean
   // The projects the new-conversation page was last asked to start with; a new object each time, so
   // asking again applies again.
   conversationDraftProjects: { paths: readonly string[] } | null
@@ -158,6 +165,9 @@ export const useCore = create<CoreState>()(() => ({
   selectedConversationId: null,
   conversationDraft: false,
   conversationDraftProjects: null,
+  discussions: {},
+  selectedDiscussionId: null,
+  discussionDraft: false,
   selectedId: null,
   view: 'detail',
   inspectorOpen: false,
@@ -338,6 +348,7 @@ export function showBrowserTab(tabId: string): void {
 // A new terminal starts in the folder of whatever the user is looking at: a task's worktree, a
 // conversation's project. Core falls back to home.
 function contextFolder(s: CoreState): string | undefined {
+  if (s.section === 'discussions') return (s.selectedDiscussionId ? s.discussions[s.selectedDiscussionId] : undefined)?.projectPaths[0]
   if (s.section === 'conversations') {
     const conversation = s.selectedConversationId ? s.conversations[s.selectedConversationId] : undefined
     return conversation && !conversation.managedWorkspace ? conversation.workspacePath : undefined
@@ -454,7 +465,7 @@ export function markRoutineRunSeen(conversationId: string): void {
 // A turn that was going and is now over, in a conversation the user is not looking at. A
 // routine's conversation is left out: core keeps whether its run was looked at.
 function finishedUnseen(s: CoreState, previous: Conversation | undefined, next: Conversation): boolean {
-  if (next.routineId) return false
+  if (next.routineId || next.discussionId) return false
   const working = previous?.chat?.turn === 'running' || previous?.chat?.turn === 'awaiting'
   const looking = s.section === 'conversations' && s.selectedConversationId === next.id
   return working && next.chat?.turn !== 'running' && next.chat?.turn !== 'awaiting' && !looking
@@ -467,6 +478,25 @@ export function openConversationDraft(projects?: readonly string[]): void {
 
 export function closeConversationDraft(): void {
   useCore.setState({ conversationDraft: false })
+}
+
+const PAGES_CLOSED = { settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, attentionOpen: false } as const
+
+export function selectDiscussion(id: string | null): void {
+  useCore.setState({ selectedDiscussionId: id, section: 'discussions', discussionDraft: false, ...PAGES_CLOSED })
+}
+
+export function openDiscussionDraft(): void {
+  useCore.setState({ selectedDiscussionId: null, section: 'discussions', discussionDraft: true, ...PAGES_CLOSED })
+}
+
+export function closeDiscussionDraft(): void {
+  useCore.setState({ discussionDraft: false })
+}
+
+// Whether core runs group chats (discussions.*).
+export function useDiscussionsSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('discussions') ?? false)
 }
 
 // The sidebar entry shows a failure in place of the count, so opening it then shows that failure.
@@ -829,6 +859,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         const conversationChanges = new Map<string, Conversation | null>()
         let changedSchedules: ScheduledRun[] | null = null
         let changedRoutines: Routine[] | null = null
+        const discussionChanges = new Map<string, Discussion | null>()
         useCore.setState({ attentionSummaryLoading: true, attentionSummaryError: null })
         rpc.on('git.changed', () => useCore.setState((s) => ({ gitRevision: s.gitRevision + 1 })))
         rpc.on('tasks.changed', ({ task }) => {
@@ -886,6 +917,19 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
           if (!initialized) changedRoutines = routines
           useCore.setState({ routines })
         })
+        rpc.on('discussions.changed', ({ discussion }) => {
+          if (!initialized) discussionChanges.set(discussion.id, discussion)
+          useCore.setState((s) => ({ discussions: { ...s.discussions, [discussion.id]: discussion } }))
+        })
+        rpc.on('discussions.deleted', ({ id }) => {
+          if (!initialized) discussionChanges.set(id, null)
+          forgetDiscussionPosts(id)
+          useCore.setState((s) => {
+            const { [id]: _removed, ...discussions } = s.discussions
+            return { discussions, selectedDiscussionId: s.selectedDiscussionId === id ? null : s.selectedDiscussionId }
+          })
+        })
+        rpc.on('discussions.posts', ({ discussionId, posts }) => receiveDiscussionPosts(discussionId, posts))
         rpc.on('sources.inboxChanged', ({ inbox }) =>
           useCore.setState((s) => ({ inboxes: { ...s.inboxes, [inboxKey(inbox)]: inbox } }))
         )
@@ -913,6 +957,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         if (full && rpc.features.includes('prompt-suggestions')) void rpc.call('system.chatSettings', {}).then((chatSettings) => useCore.setState({ chatSettings })).catch(() => {})
         const schedules = full && rpc.features.includes('schedules') ? await rpc.call('schedules.list', {}).catch(() => []) : []
         const routines = full && rpc.features.includes('routines') ? await rpc.call('routines.list', {}).catch(() => []) : []
+        const discussions = full && rpc.features.includes('discussions') ? await rpc.call('discussions.list', {}).catch(() => []) : []
         if (full && rpc.features.includes('chat-commands')) void rpc.call('chatCommands.list', {}).then((chatCommands) => useCore.setState({ chatCommands })).catch(() => {})
         if (full && rpc.features.includes('environment')) void rpc.call('system.environment', {}).then((environment) => useCore.setState({ environment })).catch(() => {})
         useCore.setState((s) => ({
@@ -922,6 +967,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
           conversations: replaySummaryChanges(Object.values(conversations ?? s.conversations), conversationChanges),
           schedules: changedSchedules ?? schedules,
           routines: changedRoutines ?? routines,
+          discussions: replaySummaryChanges(discussions, discussionChanges),
           attentionSummaryMode: attentionSummaryMode(rpc),
           attentionSummaryLoading: false,
           attentionSummaryError: summaryError,
