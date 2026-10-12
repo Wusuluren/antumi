@@ -33,14 +33,27 @@ export class GitService {
     }
   }
 
+  // Holds the repositories' lock for run, and refuses while an agent works anywhere in one of them.
   async withRepositories<T>(dirs: readonly string[], run: () => Promise<T>): Promise<T> {
+    return this.locking(dirs, async (keys) => {
+      for (const key of keys) if (await this.busy(key)) throw new Rejection('chat-busy')
+      return run()
+    })
+  }
+
+  // The lock alone: removing a worktree no agent uses leaves an agent at work in another checkout of
+  // the same repository be, so that agent is no reason to wait.
+  async withRepositoryLock<T>(dirs: readonly string[], run: () => Promise<T>): Promise<T> {
+    return this.locking(dirs, () => run())
+  }
+
+  private async locking<T>(dirs: readonly string[], run: (keys: readonly string[]) => Promise<T>): Promise<T> {
     const keys = [...new Set((await Promise.all(dirs.map(repositoryKey))).filter((key): key is string => key !== null))]
     if (keys.some((key) => this.locked.has(key))) throw new Rejection('git-busy', '这个仓库已有 Git 操作进行中。')
     keys.forEach((key) => this.locked.add(key))
     this.changed()
     try {
-      for (const key of keys) if (await this.busy(key)) throw new Rejection('chat-busy')
-      return await run()
+      return await run(keys)
     } finally { keys.forEach((key) => this.locked.delete(key)); this.changed() }
   }
 

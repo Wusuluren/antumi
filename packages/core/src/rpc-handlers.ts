@@ -64,7 +64,7 @@ export function createRpcHandlers(
   conversations.setGitGuard((dirs) => git.guardAgent(dirs))
   service.setGitGuard((dirs) => git.guardAgent(dirs))
   conversations.setGitPreparation((dirs, run) => git.withRepositories(dirs, run))
-  worktrees.setGitRemoval((dirs, run) => git.withRepositories(dirs, run))
+  worktrees.setGitRemoval((dirs, run) => git.withRepositoryLock(dirs, run))
   const files = new ConversationFiles((id) => conversations.get(id))
   const cliInstaller = new AgentCliInstaller(environment, terminals)
   const ports = new PortService(sessions, () => ({ terminals: terminals.list(), conversations: conversations.listAll(), tasks: service.list() }))

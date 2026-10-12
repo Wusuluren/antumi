@@ -67,6 +67,26 @@ describe('Git management', () => {
     await expect(service.execute(target, { kind: 'fetch' })).resolves.toEqual({ state: 'done' })
   })
 
+  it('removes a worktree while an agent works in another checkout of its repository, but not during a Git operation', async () => {
+    const worktree = path.join(root, 'worktree')
+    git(repo, 'worktree', 'add', '-q', '-b', 'kando/done', worktree)
+    conversations[0]!.sessionId = 'agent'; conversations[0]!.chat = { turn: 'running' }
+    await expect(service.withRepositories([worktree], async () => {})).rejects.toMatchObject({ reason: 'chat-busy' })
+    await service.withRepositoryLock([worktree], async () => { git(repo, 'worktree', 'remove', worktree) })
+    expect(git(repo, 'worktree', 'list')).not.toContain(worktree)
+
+    let release = () => {}
+    let started = () => {}
+    const pending = new Promise<void>((resolve) => { release = resolve })
+    const ready = new Promise<void>((resolve) => { started = resolve })
+    conversations[0]!.chat = { turn: 'idle' }
+    const operation = service.withRepositories([repo], async () => { started(); await pending })
+    await ready
+    try {
+      await expect(service.withRepositoryLock([repo], async () => {})).rejects.toMatchObject({ reason: 'git-busy' })
+    } finally { release(); await operation }
+  })
+
   it('lists upstreams and worktree holders and protects task branches even after cleanup', async () => {
     const worktree = path.join(root, 'worktree')
     git(repo, 'worktree', 'add', '-q', '-b', 'kando/task', worktree)
