@@ -497,6 +497,19 @@ export function setTaskStarting(id: string, starting: boolean): void {
   useCore.setState((s) => ({ startingTasks: starting ? [...s.startingTasks.filter((each) => each !== id), id] : s.startingTasks.filter((each) => each !== id) }))
 }
 
+// A task's start opens its chat at once: core fetches, lays out a checkout and starts the agent
+// before its first message goes, which takes a while. A start that fails, its error shown, goes back
+// to the details while the user is still on the task.
+export async function openChatWhileStarting(taskId: string, start: () => Promise<unknown>): Promise<boolean> {
+  selectTask(taskId)
+  useCore.setState({ view: 'chat' })
+  setTaskStarting(taskId, true)
+  const started = await start()
+  setTaskStarting(taskId, false)
+  if (!started && useCore.getState().selectedId === taskId) useCore.setState({ view: 'detail' })
+  return Boolean(started)
+}
+
 export type NewTaskDraft = { title: string; repos: readonly string[]; agent: AgentKind | null }
 
 export function setNewTaskOpen(open: boolean, draft: NewTaskDraft | null = null): void {

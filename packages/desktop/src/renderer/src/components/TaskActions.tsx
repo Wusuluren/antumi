@@ -15,7 +15,7 @@ import {
   type Task,
   type TaskStatus
 } from '@kando/protocol'
-import { perform, selectTask, setInspectorOpen, setSchedulesOpen, setTaskStarting, showTaskChanges, showView, updateTask, useChatOptionsSupported, useCore, useSchedulesSupported, useTaskLaunchSupported, useWireLogShown, useWorktreesSupported, type TaskView } from '../core-store'
+import { openChatWhileStarting, perform, selectTask, setInspectorOpen, setSchedulesOpen, showTaskChanges, showView, updateTask, useChatOptionsSupported, useCore, useSchedulesSupported, useTaskLaunchSupported, useWireLogShown, useWorktreesSupported, type TaskView } from '../core-store'
 import { resolveModel, useAgentCatalog } from '../agent-models'
 import { reasonText, STATUS_HINT, STATUS_LABEL } from '../labels'
 import { useFileTabs } from '../file-tabs'
@@ -349,17 +349,11 @@ function ScheduleButton({ task, dependencies, labelled }: { task: Task; dependen
   )
 }
 
-// Started from the details as the task keeps its launch, so the dialog is not needed there. The
-// chat opens at once: a start fetches, lays out a checkout and starts the agent before its first
-// message goes, which takes a while; a start that fails returns to the details, its error shown.
+// Started from the details as the task keeps its launch, so the dialog is not needed there.
 async function startNow(task: Task, launch: TaskLaunch): Promise<void> {
   if (!task.agent || !confirmQuota(task.agent, modelText(launch.model))) return
   const bypass = useCore.getState().rpc?.features.includes('chat-options') ? { allowBypass: usePreferences.getState().allowBypass } : {}
-  setTaskStarting(task.id, true)
-  showChatFor(task.id)
-  const started = await perform((rpc) => rpc.call('tasks.start', { id: task.id, ...bypass, ...launchOptions(launch) }))
-  setTaskStarting(task.id, false)
-  if (!started && useCore.getState().selectedId === task.id) showView('detail')
+  await openChatWhileStarting(task.id, () => perform((rpc) => rpc.call('tasks.start', { id: task.id, ...bypass, ...launchOptions(launch) })))
 }
 
 function startLabel(mode: ChatPermissionMode): string {

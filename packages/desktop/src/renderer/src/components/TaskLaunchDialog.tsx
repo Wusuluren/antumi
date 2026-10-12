@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChatPermissionMode, checkStart, checkStartMode, type AgentKind, type Task } from '@kando/protocol'
 import { resolveModel, useAgentCatalog, type ModelChoice } from '../agent-models'
-import { dismissError, perform, selectTask, showView, updateTask, useCore } from '../core-store'
+import { dismissError, openChatWhileStarting, perform, updateTask, useCore } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel, reasonText } from '../labels'
 import { usePreferences } from '../preferences'
@@ -70,25 +70,23 @@ function LaunchForm({ task }: { task: Task }) {
   const choose = (next: ModelChoice) => {
     if (agent) setChoices((known) => ({ ...known, [agent]: next }))
   }
+  // Once the agent is settled, the dialog closes and the chat opens while the task starts; an error
+  // from then on is the app's, not the closed dialog's.
   const submit = async () => {
     if (!agent || busy || blocker || !confirmQuota(agent, modelText(model))) return
     setBusy(true)
     dismissError()
-    try {
-      if (agent !== task.agent && !await updateTask(task.id, { agent })) return
-      const result = await perform((connection) => connection.call('tasks.start', {
-        id: task.id,
-        ...(rpc?.features.includes('chat-options') ? { allowBypass } : {}),
-        ...(supported ? { permissionMode: mode, model: modelId ?? null, effort: effort ?? null } : {})
-      }))
-      if (result) {
-        closeTaskLaunch()
-        selectTask(task.id)
-        showView('chat')
-      }
-    } finally {
+    if (agent !== task.agent && !await updateTask(task.id, { agent })) {
       setBusy(false)
+      return
     }
+    const params = {
+      id: task.id,
+      ...(rpc?.features.includes('chat-options') ? { allowBypass } : {}),
+      ...(supported ? { permissionMode: mode, model: modelId ?? null, effort: effort ?? null } : {})
+    }
+    closeTaskLaunch()
+    await openChatWhileStarting(task.id, () => perform((connection) => connection.call('tasks.start', params)))
   }
 
   return (

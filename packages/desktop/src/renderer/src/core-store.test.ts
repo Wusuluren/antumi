@@ -3,7 +3,7 @@ import { Task, createRpcClient, type Conversation, type RpcConnection } from '@k
 import { actionableItems } from './attention'
 import {
   openAttentionItem, openConversationDraft, openInbox, selectConversation, selectTask, setAttentionOpen,
-  refreshAttentionSummaries, setDashboardOpen, setTaskStarting, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, useCore,
+  refreshAttentionSummaries, setDashboardOpen, setTaskStarting, openChatWhileStarting, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, useCore,
   clearInspectorFile, installAgentCli, showConversationChanges, showInspectorFile, showTaskChanges
 } from './core-store'
 import { conversationSurface } from './components/chat-surface'
@@ -213,5 +213,21 @@ describe('tasks starting', () => {
     setTaskStarting('a', false)
     expect(useCore.getState().startingTasks).toEqual(['b'])
     setTaskStarting('b', false)
+  })
+})
+
+describe('opening a task\'s chat while it starts', () => {
+  it('shows the chat at once, marked starting, and stays there once it has started', async () => {
+    let finish: (value: unknown) => void = () => {}
+    const started = openChatWhileStarting('task', () => new Promise((resolve) => { finish = resolve }))
+    expect(useCore.getState()).toMatchObject({ selectedId: 'task', view: 'chat', startingTasks: ['task'] })
+    finish({ id: 'task' })
+    expect(await started).toBe(true)
+    expect(useCore.getState()).toMatchObject({ view: 'chat', startingTasks: [] })
+  })
+
+  it('goes back to the details when the start fails', async () => {
+    expect(await openChatWhileStarting('task', async () => null)).toBe(false)
+    expect(useCore.getState()).toMatchObject({ selectedId: 'task', view: 'detail', startingTasks: [] })
   })
 })
