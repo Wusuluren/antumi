@@ -322,5 +322,3 @@ pnpm dist:mac     # 打包 macOS 应用，见上面的「打包与安装」
 - **验收**：按项目配置的测试命令在 worktree 里跑，结果放进检查器；合并分支
 - **SSH / WSL 执行宿主**：给 git、PTY 操作加上 `hostId`
 - **Windows**：`claude` / `codex` 的 `.cmd` shim 需要单独解析（聊天界面遇到时会明确报错）
-
-产品层面的方向和优先级见 [ROADMAP.md](../ROADMAP.md)。
