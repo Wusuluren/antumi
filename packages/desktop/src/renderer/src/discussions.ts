@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AgentKind, Discussion, DiscussionAction, DiscussionCreate, DiscussionMemberStatus, DiscussionPost, DiscussionState } from '@kando/protocol'
+import type { AgentKind, Discussion, DiscussionAction, DiscussionCreate, DiscussionMemberFields, DiscussionMemberStatus, DiscussionPost, DiscussionState } from '@kando/protocol'
 import { perform } from './core-store'
 import { agentLabel } from './labels'
 
@@ -41,6 +41,18 @@ export async function loadDiscussionPosts(discussionId: string): Promise<void> {
 
 export function createDiscussion(fields: DiscussionCreate): Promise<Discussion | null> {
   return perform((rpc) => rpc.call('discussions.create', fields))
+}
+
+export function addDiscussionMember(id: string, member: DiscussionMemberFields): Promise<Discussion | null> {
+  return perform((rpc) => rpc.call('discussions.addMember', { id, member }))
+}
+
+export function removeDiscussionMember(id: string, memberId: string): Promise<Discussion | null> {
+  return perform((rpc) => rpc.call('discussions.removeMember', { id, memberId }))
+}
+
+export function setDiscussionProjects(id: string, projectPaths: readonly string[]): Promise<Discussion | null> {
+  return perform((rpc) => rpc.call('discussions.setProjects', { id, projectPaths: [...projectPaths] }))
 }
 
 export function postToDiscussion(id: string, text: string, mentions: readonly string[]): Promise<DiscussionPost | null> {

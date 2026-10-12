@@ -31,9 +31,20 @@ export const DiscussionMember = DiscussionMemberFields.extend({
   model: z.string().nullable(),
   effort: z.string().nullable(),
   role: z.string(),
-  status: DiscussionMemberStatus.catch('idle')
+  status: DiscussionMemberStatus.catch('idle'),
+  // Its place in the order members joined, never given again, so its letter (A, B…) stays when one
+  // before it leaves. Older cores leave it out: the place in the list stands in.
+  position: z.number().int().nonnegative().optional()
 })
 export type DiscussionMember = z.infer<typeof DiscussionMember>
+
+// The letter a member goes by in the group: its face, and its code when the discussion is anonymous.
+export function memberLetter(discussion: Pick<Discussion, 'members' | 'formerMembers'>, memberId: string): string | null {
+  const index = discussion.members.findIndex((member) => member.id === memberId)
+  const member = discussion.members[index] ?? discussion.formerMembers.find((each) => each.id === memberId)
+  if (!member) return null
+  return String.fromCharCode(65 + (member.position ?? index))
+}
 
 // running: turns are out, or the next step is about to go; pausing: the user paused, and the turns
 // still out are let finish; paused: nothing out, more to come when resumed; done: summed up.
@@ -46,6 +57,8 @@ export const Discussion = z.object({
   topic: z.string(),
   projectPaths: z.array(z.string()),
   members: z.array(DiscussionMember),
+  // Members taken out, for the names on what they said. Older cores leave it out.
+  formerMembers: z.array(DiscussionMember).default([]),
   chairId: z.string().uuid(),
   maxRounds: z.number().int().min(1).max(MAX_DISCUSSION_ROUNDS),
   // Whether members see each other as 成员 A, B… rather than by name, model and agent.
@@ -123,6 +136,30 @@ export function checkDiscussionAction(discussion: Pick<Discussion, 'state' | 'st
     case 'stop':
       return state === 'running' || state === 'pausing' ? null : 'not-running'
   }
+}
+
+export type DiscussionMemberBlocker = 'full' | 'too-few' | 'chair' | 'busy'
+
+// A member joins up to the limit, and takes part from the next round.
+export function checkAddDiscussionMember(discussion: Pick<Discussion, 'members'>): DiscussionMemberBlocker | null {
+  return discussion.members.length >= MAX_DISCUSSION_MEMBERS ? 'full' : null
+}
+
+// The chair stays, as it is to sum up; a member answering is let finish first.
+export function checkRemoveDiscussionMember(discussion: Pick<Discussion, 'members' | 'chairId'>, memberId: string): DiscussionMemberBlocker | null {
+  if (discussion.members.length <= MIN_DISCUSSION_MEMBERS) return 'too-few'
+  if (memberId === discussion.chairId) return 'chair'
+  return discussion.members.find((member) => member.id === memberId)?.status === 'idle' ? null : 'busy'
+}
+
+export type DiscussionProjectsBlocker = 'no-projects' | 'busy'
+
+// Each member's agent works in the first project and is given the others as it starts, so only those
+// others change, and only while every member is idle. One begun without projects works in a folder of
+// Kando's own, and stays there.
+export function checkEditDiscussionProjects(discussion: Pick<Discussion, 'projectPaths' | 'members'>): DiscussionProjectsBlocker | null {
+  if (discussion.projectPaths.length === 0) return 'no-projects'
+  return discussion.members.every((member) => member.status === 'idle') ? null : 'busy'
 }
 
 // Parsed one by one, so a discussion a newer core describes differently drops alone.

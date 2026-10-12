@@ -1,23 +1,20 @@
-import { agentDescriptor, type Discussion, type DiscussionMember, type DiscussionPost } from '@kando/protocol'
+import { agentDescriptor, memberLetter, type Discussion, type DiscussionMember, type DiscussionPost } from '@kando/protocol'
 
 // What each member of a group chat is sent. A member keeps its own agent session, so after the
 // first message it is sent only what was said since it last spoke.
 
-type Members = Pick<Discussion, 'members' | 'anonymous' | 'chairId'>
+type Members = Pick<Discussion, 'members' | 'formerMembers' | 'anonymous' | 'chairId'>
 
 const CLOSING_TAG = /<\/discussion-post/gi
 const HOLDS = /^立场[:：]\s*维持/
 
-export function memberCode(index: number): string {
-  return `成员 ${String.fromCharCode(65 + index)}`
-}
-
-// How the others are named to a member: by code when anonymous, so no one leans on a brand.
+// How the others are named to a member: by code when anonymous, so no one leans on a brand. A
+// member's code is its letter, which stays when another leaves.
 export function speakerName(discussion: Members, memberId: string): string {
-  const index = discussion.members.findIndex((member) => member.id === memberId)
-  const member = discussion.members[index]
-  if (!member) return '已移除的成员'
-  return discussion.anonymous ? memberCode(index) : member.name
+  const member = discussion.members.find((each) => each.id === memberId) ?? discussion.formerMembers.find((each) => each.id === memberId)
+  const letter = memberLetter(discussion, memberId)
+  if (!member || !letter) return '已移除的成员'
+  return discussion.anonymous ? `成员 ${letter}` : member.name
 }
 
 function describe(discussion: Members, member: DiscussionMember): string {
@@ -76,9 +73,15 @@ export function openingPrompt(discussion: Discussion, member: DiscussionMember, 
   ].filter((line, index, lines) => line !== '' || lines[index - 1] !== '').join('\n')
 }
 
+// The projects as they stand, for a member to read: the user may have changed them since it began.
+function projectsNow(discussion: Pick<Discussion, 'projectPaths'>): string[] {
+  return discussion.projectPaths.length > 0 ? [`相关项目：${discussion.projectPaths.join('、')}`, ''] : []
+}
+
 export function roundPrompt(discussion: Discussion, round: number, unseen: readonly DiscussionPost[]): string {
   return [
     `## 第 ${round} 轮`,
+    ...projectsNow(discussion),
     '下面是你上次发言以来的新内容。',
     '',
     ...since(discussion, unseen),
@@ -107,6 +110,7 @@ export function replyPrompt(discussion: Discussion, ask: DiscussionPost, unseen:
   const others = unseen.filter((post) => post.id !== ask.id)
   return [
     '## 用户点名问你',
+    ...projectsNow(discussion),
     ask.text,
     ...(others.length > 0 ? ['', '你上次发言以来的其他新内容：', '', ...since(discussion, others)] : []),
     '',

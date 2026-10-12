@@ -499,6 +499,15 @@ export function useDiscussionsSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('discussions') ?? false)
 }
 
+// A core that lets members join and leave a group chat midway, and one that changes its projects.
+export function useDiscussionMembersSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('discussion-members') ?? false)
+}
+
+export function useDiscussionProjectsSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('discussion-projects') ?? false)
+}
+
 // The sidebar entry shows a failure in place of the count, so opening it then shows that failure.
 export function openInbox(): void {
   useCore.setState((s) => ({

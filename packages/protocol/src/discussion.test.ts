@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkDiscussionAction } from './discussion'
+import { checkAddDiscussionMember, checkDiscussionAction, checkEditDiscussionProjects, checkRemoveDiscussionMember, memberLetter } from './discussion'
 
 describe('checkDiscussionAction', () => {
   it('pauses and stops only what runs, and not the summary', () => {
@@ -17,5 +17,34 @@ describe('checkDiscussionAction', () => {
     expect(checkDiscussionAction({ state: 'running', step: 'round' }, 'nextRound')).toBe('not-paused')
     expect(checkDiscussionAction({ state: 'paused', step: 'summary' }, 'conclude')).toBeNull()
     expect(checkDiscussionAction({ state: 'done', step: 'summary' }, 'conclude')).toBe('done')
+  })
+})
+
+describe('changing a group chat midway', () => {
+  const member = (id: string, position: number, status: 'idle' | 'working' = 'idle') => ({
+    id, conversationId: id, agent: 'claude' as const, model: null, effort: null, name: id, role: '', status, position
+  })
+  const group = (members: ReturnType<typeof member>[], projectPaths: string[] = ['/repo']) => ({ members, formerMembers: [], chairId: 'a', projectPaths })
+
+  it('lets members join up to the limit, and leave unless the chair, answering, or two are left', () => {
+    expect(checkAddDiscussionMember(group(['a', 'b', 'c', 'd', 'e'].map((id, i) => member(id, i))))).toBe('full')
+    expect(checkAddDiscussionMember(group([member('a', 0), member('b', 1)]))).toBeNull()
+    const three = group([member('a', 0), member('b', 1, 'working'), member('c', 2)])
+    expect(checkRemoveDiscussionMember(three, 'a')).toBe('chair')
+    expect(checkRemoveDiscussionMember(three, 'b')).toBe('busy')
+    expect(checkRemoveDiscussionMember(three, 'c')).toBeNull()
+    expect(checkRemoveDiscussionMember(group([member('a', 0), member('c', 2)]), 'c')).toBe('too-few')
+  })
+
+  it('changes projects only where there are some and everyone is idle', () => {
+    expect(checkEditDiscussionProjects(group([member('a', 0), member('b', 1)], []))).toBe('no-projects')
+    expect(checkEditDiscussionProjects(group([member('a', 0), member('b', 1, 'working')]))).toBe('busy')
+    expect(checkEditDiscussionProjects(group([member('a', 0), member('b', 1)]))).toBeNull()
+  })
+
+  it('keeps each member\'s letter by when it joined, a former one\'s too', () => {
+    const left = { members: [member('a', 0), member('c', 2)], formerMembers: [member('b', 1)] }
+    expect(['a', 'b', 'c'].map((id) => memberLetter(left, id))).toEqual(['A', 'B', 'C'])
+    expect(memberLetter(left, 'nobody')).toBeNull()
   })
 })

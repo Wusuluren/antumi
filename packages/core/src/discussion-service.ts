@@ -2,9 +2,13 @@ import { randomUUID } from 'node:crypto'
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
 import {
   agentDescriptor,
+  checkAddDiscussionMember,
   checkDiscussionAction,
+  checkEditDiscussionProjects,
+  checkRemoveDiscussionMember,
   Discussion,
   DiscussionCreate,
+  DiscussionMemberFields,
   DiscussionPost,
   PLAN_TOOLS,
   type ChatItem,
@@ -25,8 +29,8 @@ const PLAN_DENIAL = '这是只读讨论，不执行计划。请不要提交计�
 const DISCUSSION_SELECT = `SELECT id, title, topic, project_paths AS projectPaths, chair_id AS chairId, max_rounds AS maxRounds,
   anonymous, state, step, round, last_round AS lastRound, pinned_at AS pinnedAt, created_at AS createdAt, updated_at AS updatedAt
   FROM discussions`
-const MEMBER_SELECT = `SELECT id, discussion_id AS discussionId, conversation_id AS conversationId, agent, model, effort, name, role
-  FROM discussion_members`
+const MEMBER_SELECT = `SELECT id, discussion_id AS discussionId, conversation_id AS conversationId, agent, model, effort, name, role,
+  position, removed_at AS removedAt FROM discussion_members`
 const POST_SELECT = `SELECT id, discussion_id AS discussionId, sequence, round, member_id AS memberId, kind, text, mentions,
   delivered, state, error, created_at AS createdAt, updated_at AS updatedAt FROM discussion_posts`
 
@@ -40,7 +44,7 @@ export type DiscussionEvents = {
 
 export type DiscussionDeps = {
   conversations: Pick<ConversationService,
-    'create' | 'get' | 'continue' | 'send' | 'messages' | 'chatPage' | 'interrupt' | 'respond' | 'delete' | 'stop' | 'validateStartOptions' | 'capacityAvailable'>
+    'create' | 'get' | 'continue' | 'send' | 'messages' | 'chatPage' | 'interrupt' | 'respond' | 'delete' | 'stop' | 'validateStartOptions' | 'capacityAvailable' | 'setAdditionalProjects'>
   events: DiscussionEvents
 }
 
@@ -185,6 +189,77 @@ export class DiscussionService {
           break
       }
       await this.advance(id)
+      return this.announce(id)
+    })
+  }
+
+  // A member joins midway, up to the limit: the next round it is given the topic and everything said
+  // so far, as what it has not seen; a discussion paused or summed up takes it on when it goes on.
+  async addMember(id: string, fields: DiscussionMemberFields): Promise<Discussion> {
+    return this.serially(id, async () => {
+      const discussion = this.get(id)
+      const blocked = checkAddDiscussionMember(discussion)
+      if (blocked) throw new Rejection(`discussion-member-${blocked}`)
+      const member = DiscussionMemberFields.parse(fields)
+      if (discussion.members.some((each) => each.name.toLowerCase() === member.name.toLowerCase())) {
+        throw new Rejection('discussion-member-name-taken', `a member is already called ${member.name}`)
+      }
+      await this.deps.conversations.validateStartOptions(member.agent, { permissionMode: agentDescriptor(member.agent).discussionMode, model: member.model, effort: member.effort })
+      if (!this.deps.conversations.capacityAvailable(member.agent)) throw new Rejection('agent-capacity')
+      const memberId = randomUUID()
+      const conversationId = randomUUID()
+      const last = this.db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS next FROM discussion_members WHERE discussion_id = ?').get(id)
+      this.db.prepare(`INSERT INTO discussion_members (id, discussion_id, position, conversation_id, agent, model, effort, name, role)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(memberId, id, Number(last?.next ?? 0), conversationId, member.agent, member.model ?? null, member.effort ?? null, member.name, member.role)
+      try {
+        await this.deps.conversations.create(member.agent, discussion.projectPaths, undefined,
+          { permissionMode: agentDescriptor(member.agent).discussionMode, model: member.model, effort: member.effort, deferStart: true },
+          null, conversationId, { id, title: `${discussion.title} · ${member.name}` })
+      } catch (error) {
+        this.db.prepare('DELETE FROM discussion_members WHERE id = ?').run(memberId)
+        throw error
+      }
+      this.notice(id, discussion.round, `${member.name} 加入了讨论，下一轮开始发言。`)
+      return this.announce(id)
+    })
+  }
+
+  // A member leaves, its conversation with it; what it said stays, under its name.
+  async removeMember(id: string, memberId: string): Promise<Discussion> {
+    return this.serially(id, async () => {
+      const discussion = this.get(id)
+      const member = discussion.members.find((each) => each.id === memberId)
+      if (!member) throw new Rejection('discussion-member-not-found', `no member ${memberId}`)
+      const blocked = checkRemoveDiscussionMember(discussion, memberId)
+      if (blocked) throw new Rejection(`discussion-member-${blocked}`)
+      this.db.prepare('UPDATE discussion_members SET removed_at = ? WHERE id = ?').run(this.now(), memberId)
+      await this.deps.conversations.delete(member.conversationId).catch((error: unknown) => {
+        if (!(error instanceof Rejection && error.reason === 'conversation-not-found')) throw error
+      })
+      this.statuses.delete(memberId)
+      this.notice(id, discussion.round, `${member.name} 离开了讨论。`)
+      return this.announce(id)
+    })
+  }
+
+  // The projects after the first, for every member at once; each agent is given them as it starts
+  // again on its session, and later prompts list them.
+  async setProjects(id: string, projectPaths: readonly string[]): Promise<Discussion> {
+    return this.serially(id, async () => {
+      const discussion = this.get(id)
+      const blocked = checkEditDiscussionProjects(discussion)
+      if (blocked) throw new Rejection(blocked === 'busy' ? 'discussion-member-busy' : 'discussion-no-projects')
+      const [primary] = discussion.projectPaths
+      if (projectPaths[0] !== primary) throw new Rejection('primary-fixed', 'the first project stays')
+      let settled: readonly string[] = discussion.projectPaths
+      for (const member of discussion.members) {
+        const conversation = await this.deps.conversations.setAdditionalProjects(member.conversationId, projectPaths.slice(1))
+        settled = conversation.projectPaths
+      }
+      if (settled.join('\n') === discussion.projectPaths.join('\n')) return discussion
+      this.write(id, { project_paths: JSON.stringify(settled) })
+      this.notice(id, discussion.round, `项目改为：${settled.map((each) => each.split(/[\\/]/).filter(Boolean).at(-1) ?? each).join('、')}`)
       return this.announce(id)
     })
   }
@@ -448,11 +523,11 @@ export class DiscussionService {
 
   private describe(row: Record<string, unknown>): Discussion {
     const id = String(row.id)
-    const members = this.db.prepare(`${MEMBER_SELECT} WHERE discussion_id = ? ORDER BY position`).all(id).map((member) => {
-      const memberId = String(member.id)
-      return { ...member, status: this.statusOf(memberId, this.conversation(String(member.conversationId))) }
-    })
-    return Discussion.parse({ ...row, projectPaths: JSON.parse(String(row.projectPaths)), anonymous: Boolean(row.anonymous), members })
+    const rows = this.db.prepare(`${MEMBER_SELECT} WHERE discussion_id = ? ORDER BY position`).all(id)
+    const member = ({ removedAt: _removedAt, ...fields }: Record<string, unknown>) => ({ ...fields, status: this.statusOf(String(fields.id), this.conversation(String(fields.conversationId))) })
+    const members = rows.filter((row) => row.removedAt === null).map(member)
+    const formerMembers = rows.filter((row) => row.removedAt !== null).map((row) => ({ ...member(row), status: 'idle' }))
+    return Discussion.parse({ ...row, projectPaths: JSON.parse(String(row.projectPaths)), anonymous: Boolean(row.anonymous), members, formerMembers })
   }
 
   private write(id: string, values: Record<string, SQLInputValue>): void {

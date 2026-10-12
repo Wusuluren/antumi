@@ -275,7 +275,9 @@ export const MIGRATIONS = [
      delivered TEXT NOT NULL DEFAULT '[]', state TEXT NOT NULL, error TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
      UNIQUE (discussion_id, sequence)
    );
-   ALTER TABLE conversations ADD COLUMN discussion_id TEXT;`
+   ALTER TABLE conversations ADD COLUMN discussion_id TEXT;`,
+  // A member taken out of a group chat stays, for the name on what it said.
+  `ALTER TABLE discussion_members ADD COLUMN removed_at INTEGER;`
 ]
 
 

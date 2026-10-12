@@ -1,17 +1,18 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { checkDiscussionAction, MAX_DETAILS_LENGTH, type Discussion, type DiscussionAction, type DiscussionMember, type DiscussionPost } from '@kando/protocol'
-import { loadConversation, perform, selectConversation, selectDiscussion, selectTask, useCore } from '../core-store'
-import { controlDiscussion, discussionProgress, EVERYONE, loadDiscussionPosts, MEMBER_STATUS_LABEL, mentionedMembers, postToDiscussion, renameDiscussion, useDiscussionPosts } from '../discussions'
+import { checkDiscussionAction, checkEditDiscussionProjects, checkRemoveDiscussionMember, MAX_DETAILS_LENGTH, memberLetter, type Discussion, type DiscussionAction, type DiscussionMember, type DiscussionPost } from '@kando/protocol'
+import { loadConversation, perform, selectConversation, selectDiscussion, selectTask, useCore, useDiscussionMembersSupported, useDiscussionProjectsSupported } from '../core-store'
+import { controlDiscussion, discussionProgress, EVERYONE, loadDiscussionPosts, removeDiscussionMember, setDiscussionProjects, MEMBER_STATUS_LABEL, mentionedMembers, postToDiscussion, renameDiscussion, useDiscussionPosts } from '../discussions'
 import { agentLabel, messageTime, reasonText } from '../labels'
 import { setPreference, usePreferences } from '../preferences'
 import { ChatMarkdown } from './ChatMarkdown'
 import { sendsMessage } from './ChatComposer'
 import { DiscussionDot } from './SidebarDiscussions'
 import { AgentIcon, CloseIcon, EnterIcon, PlayIcon, StopIcon } from './icons'
-import { projectNames } from './ProjectPicker'
+import { ProjectPicker, projectNames } from './ProjectPicker'
 import { Spinner } from './Spinner'
 import { TitleEditor } from './TitleEditor'
 import { useDiscussionMentionMenu } from './DiscussionMentions'
+import { AddMemberButton } from './DiscussionMemberForm'
 
 const ACTIONS: Array<{ action: DiscussionAction; label: string; hint: string }> = [
   { action: 'pause', label: '暂停', hint: '这一轮说完后先停下' },
@@ -37,7 +38,25 @@ async function taskFromSummary(discussion: Discussion, summary: DiscussionPost):
   if (task) selectTask(task.id)
 }
 
-function MemberChip({ member, chair, onMention }: { member: DiscussionMember; chair: boolean; onMention: () => void }) {
+const LEAVE_BLOCKER: Record<'too-few' | 'chair' | 'busy', string> = {
+  'too-few': '至少要留 2 位成员',
+  chair: '主持人要写总结，不能离开',
+  busy: '它还在发言，等它说完'
+}
+
+// Takes a member out once the user agrees; what it said stays.
+async function leave(discussion: Discussion, member: DiscussionMember): Promise<void> {
+  if (window.confirm(`让「${member.name}」离开讨论？它说过的话会保留。`)) await removeDiscussionMember(discussion.id, member.id)
+}
+
+function MemberChip({ member, chair, onMention, leaveBlocker, onLeave }: {
+  member: DiscussionMember
+  chair: boolean
+  onMention: () => void
+  // Why it cannot leave now; leaving is offered only where the core takes it.
+  leaveBlocker: string | null
+  onLeave: (() => void) | null
+}) {
   const status = MEMBER_STATUS_LABEL[member.status]
   return (
     <li className="discussion-member" data-status={member.status}>
@@ -56,24 +75,37 @@ function MemberChip({ member, chair, onMention }: { member: DiscussionMember; ch
         </span>
       </button>
       <button type="button" className="icon-button discussion-member-mention" aria-label={`@${member.name}`} data-tooltip="只问它" onClick={onMention}>@</button>
+      {onLeave && (
+        <button
+          type="button"
+          className="icon-button discussion-member-leave"
+          aria-label={`让 ${member.name} 离开`}
+          aria-disabled={leaveBlocker !== null}
+          data-tooltip={leaveBlocker ?? '让它离开讨论'}
+          onClick={() => { if (!leaveBlocker) onLeave() }}
+        >
+          <CloseIcon />
+        </button>
+      )}
     </li>
   )
 }
 
 // A member's face: its agent's mark, and its letter (A, B…) to tell two on the same agent apart.
-function MemberFace({ member, index }: { member: DiscussionMember | undefined; index: number }) {
+function MemberFace({ member, letter }: { member: DiscussionMember | undefined; letter: string | null }) {
   return (
     <span className="discussion-face" aria-hidden="true">
       {member && <AgentIcon agent={member.agent} />}
-      {index >= 0 && <span className="discussion-face-letter">{String.fromCharCode(65 + index)}</span>}
+      {letter && <span className="discussion-face-letter">{letter}</span>}
     </span>
   )
 }
 
-function PostHead({ post, member, chair }: { post: DiscussionPost; member: DiscussionMember | undefined; chair: boolean }) {
+function PostHead({ post, member, chair, left }: { post: DiscussionPost; member: DiscussionMember | undefined; chair: boolean; left: boolean }) {
   return (
     <div className="discussion-msg-head">
       <span className="discussion-msg-name">{member ? member.name : '已移除的成员'}</span>
+      {left && <span className="discussion-tag">已离开</span>}
       {chair && <span className="discussion-tag" data-chair="">主持</span>}
       {KIND_LABEL[post.kind] && post.kind !== 'summary' && <span className="discussion-tag">{KIND_LABEL[post.kind]}</span>}
       {member?.model && <span>{member.model}</span>}
@@ -110,14 +142,15 @@ function Post({ post, discussion }: { post: DiscussionPost; discussion: Discussi
       </div>
     )
   }
-  const index = discussion.members.findIndex((each) => each.id === post.memberId)
-  const member = discussion.members[index]
+  // A member that has left still answers for what it said, under its name and letter.
+  const current = discussion.members.find((each) => each.id === post.memberId)
+  const member = current ?? discussion.formerMembers.find((each) => each.id === post.memberId)
   const summary = post.kind === 'summary' && post.state === 'done'
   return (
     <article className="discussion-msg" data-kind={post.kind} data-state={post.state}>
-      <MemberFace member={member} index={index} />
+      <MemberFace member={member} letter={post.memberId ? memberLetter(discussion, post.memberId) : null} />
       <div className="discussion-msg-body">
-        <PostHead post={post} member={member} chair={member !== undefined && member.id === discussion.chairId} />
+        <PostHead post={post} member={member} chair={member !== undefined && member.id === discussion.chairId} left={member !== undefined && current === undefined} />
         {summary ? (
           <div className="discussion-bubble discussion-summary">
             <div className="discussion-summary-head">讨论总结</div>
@@ -196,6 +229,10 @@ export function DiscussionView({ id }: { id: string }) {
   const [busy, setBusy] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
   const mentionMenu = useDiscussionMentionMenu({ text, setText, members: discussion?.members ?? [], input })
+  const membersEditable = useDiscussionMembersSupported()
+  // A group begun without projects has none to change.
+  const projectsEditable = useDiscussionProjectsSupported() && (discussion?.projectPaths.length ?? 0) > 0
+  const projectsBlocked = discussion ? checkEditDiscussionProjects(discussion) !== null : true
   const list = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
 
@@ -243,7 +280,7 @@ export function DiscussionView({ id }: { id: string }) {
             : <button type="button" className="terminal-view-title conversation-title" title={`${discussion.title}\n点击重命名`} onClick={() => setRenaming(true)}>{discussion.title}</button>}
           <span className="muted">（{discussion.members.length}）</span>
           <span className="muted">{discussionProgress(discussion)}</span>
-          {discussion.projectPaths.length > 0 && <span className="muted" title={discussion.projectPaths.join('\n')}>{projectNames(discussion.projectPaths)}</span>}
+          {!projectsEditable && discussion.projectPaths.length > 0 && <span className="muted" title={discussion.projectPaths.join('\n')}>{projectNames(discussion.projectPaths)}</span>}
           {discussion.anonymous && <span className="muted">匿名互评</span>}
         </div>
         <div className="toolbar">
@@ -261,7 +298,30 @@ export function DiscussionView({ id }: { id: string }) {
       <div className="terminal-body">
         <div className="chat-view discussion-body" data-width={width} data-font-size={fontSize} data-font={font}>
           <ul className="discussion-members" aria-label="成员">
-            {discussion.members.map((member) => <MemberChip key={member.id} member={member} chair={member.id === chairId} onMention={() => mention(member)} />)}
+            {discussion.members.map((member) => {
+              const blocked = checkRemoveDiscussionMember(discussion, member.id)
+              return (
+                <MemberChip
+                  key={member.id}
+                  member={member}
+                  chair={member.id === chairId}
+                  onMention={() => mention(member)}
+                  leaveBlocker={blocked === null || blocked === 'full' ? null : LEAVE_BLOCKER[blocked]}
+                  onLeave={membersEditable ? () => void leave(discussion, member) : null}
+                />
+              )
+            })}
+            {membersEditable && <AddMemberButton discussion={discussion} />}
+            {projectsEditable && (
+              <li className="discussion-projects" data-tooltip={projectsBlocked ? '成员发言时不能改项目，等这一轮说完' : '第一个项目不能换，其他项目可以增减'} data-tooltip-align="start">
+                <ProjectPicker
+                  projects={discussion.projectPaths.map((path) => ({ path, worktreePath: null }))}
+                  primaryLocked
+                  locked={projectsBlocked}
+                  onChange={(paths) => void setDiscussionProjects(id, paths)}
+                />
+              </li>
+            )}
           </ul>
           <div
             ref={list}

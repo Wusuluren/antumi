@@ -8391,6 +8391,19 @@ body.side-panel-resizing * {
 .discussion-member-status .chat-spinner { width: 10px; height: 10px; }
 .discussion-member[data-status='awaiting'] .discussion-member-status { color: var(--warning); }
 .discussion-member-mention { width: 24px; height: 24px; margin-right: 4px; font-size: var(--chat-font-small); color: var(--text-muted); }
+/* Taking a member out: quiet until pointed at, and dimmed while it may not leave. */
+.discussion-member-leave { width: 22px; height: 22px; margin-right: 4px; display: grid; place-items: center; color: var(--text-3); }
+.discussion-member-leave svg { width: 12px; height: 12px; }
+.discussion-member-leave[aria-disabled='true'] { opacity: 0.45; cursor: help; }
+/* Where a member joins: a chip of its own, outlined like a place still free. */
+.discussion-member-add { border-style: dashed; }
+.discussion-member-add .discussion-member-open { color: var(--text-muted); }
+.discussion-member-add .discussion-member-open:disabled { cursor: default; opacity: 0.6; }
+.discussion-projects { display: flex; align-items: center; margin-left: auto; }
+.discussion-member-form { width: 360px; }
+.discussion-member-form-pickers { display: flex; align-items: center; gap: 4px; }
+.discussion-member-form-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+.discussion-member-form-field .input { color: var(--text); font-size: 13px; }
 
 .discussion-list { gap: 14px; }
 /* The chat on the page's grey, its bubbles on the surface, as a chat app sets them apart. */

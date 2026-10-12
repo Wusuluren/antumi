@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -198,6 +198,63 @@ describe('DiscussionService', () => {
     await discussions.control(discussion.id, 'conclude')
     await until(() => state(discussion.id) === 'done')
     expect(kinds(discussions.posts(discussion.id)).slice(-2)).toEqual(['2:rebuttal:done', '2:summary:done'])
+  })
+
+  it('adds a member midway, who catches up on what was said in its first turn and takes part from then on', async () => {
+    const discussion = await discussions.create(fields())
+    await until(() => state(discussion.id) === 'done')
+    await expect(discussions.addMember(discussion.id, { agent: 'claude', name: 'ann' })).rejects.toMatchObject({ reason: 'discussion-member-name-taken' })
+    const joined = await discussions.addMember(discussion.id, { agent: 'claude', name: 'Dee', role: 'play devil' })
+    expect(joined.members.map((member) => member.name)).toEqual(['Ann', 'Bob', 'Cid', 'Dee'])
+    expect(discussions.posts(discussion.id).at(-1)).toMatchObject({ kind: 'notice', text: 'Dee 加入了讨论，下一轮开始发言。' })
+    await discussions.control(discussion.id, 'nextRound')
+    await until(() => state(discussion.id) === 'done')
+    const [first] = prompts(joined, 'Dee')
+    expect(first).toContain(TOPIC)
+    expect(first).toContain('play devil')
+    expect(first).toContain('speaker="Ann" round="1"')
+    expect(first).toContain('speaker="Bob" round="2"')
+    expect(kinds(discussions.posts(discussion.id)).slice(-5)).toEqual(['3:rebuttal:done', '3:rebuttal:done', '3:rebuttal:done', '3:rebuttal:done', '3:summary:done'])
+    await discussions.addMember(discussion.id, { agent: 'claude', name: 'Eve' })
+    await expect(discussions.addMember(discussion.id, { agent: 'claude', name: 'Fay' })).rejects.toMatchObject({ reason: 'discussion-member-full' })
+  })
+
+  it('takes a member out, keeping its letter for the others and its name on what it said', async () => {
+    const discussion = await discussions.create(fields({ anonymous: true }))
+    await until(() => state(discussion.id) === 'done')
+    await expect(discussions.removeMember(discussion.id, by(discussion, 'Cid').id)).rejects.toMatchObject({ reason: 'discussion-member-chair' })
+    const left = await discussions.removeMember(discussion.id, by(discussion, 'Bob').id)
+    expect(left.members.map((member) => member.name)).toEqual(['Ann', 'Cid'])
+    expect(left.formerMembers.map((member) => member.name)).toEqual(['Bob'])
+    expect(() => conversations.get(by(discussion, 'Bob').conversationId)).toThrow()
+    await expect(discussions.removeMember(discussion.id, by(discussion, 'Ann').id)).rejects.toMatchObject({ reason: 'discussion-member-too-few' })
+    await discussions.control(discussion.id, 'nextRound')
+    await until(() => state(discussion.id) === 'done')
+    // Cid was 成员 C before Bob left, and stays so rather than becoming 成员 B.
+    expect(prompts(discussion, 'Ann').at(-1)).toContain('speaker="成员 C" round="2"')
+    // What Bob said before leaving still reaches Ann under his letter.
+    expect(prompts(discussion, 'Ann').at(-1)).toContain('speaker="成员 B" round="2"')
+  })
+
+  it('changes the projects after the first for every member, and leaves the first and a group without projects as they are', async () => {
+    // Core keeps a project by its real path, which a temp folder's is not on macOS.
+    const [app, docs] = ['app', 'docs'].map((name) => {
+      const dir = path.join(realpathSync(root), name)
+      mkdirSync(dir)
+      return dir
+    })
+    const discussion = await discussions.create(fields({ projectPaths: [app!] }))
+    await until(() => state(discussion.id) === 'done')
+    const changed = await discussions.setProjects(discussion.id, [app!, docs!])
+    expect(changed.projectPaths).toEqual([app, docs])
+    for (const member of changed.members) expect(conversations.get(member.conversationId).projectPaths).toEqual([app, docs])
+    await expect(discussions.setProjects(discussion.id, [docs!])).rejects.toMatchObject({ reason: 'primary-fixed' })
+    await discussions.control(discussion.id, 'nextRound')
+    await until(() => state(discussion.id) === 'done')
+    expect(prompts(discussion, 'Ann').at(-1)).toContain(`相关项目：${app}、${docs}`)
+    const bare = await discussions.create(fields())
+    await until(() => state(bare.id) === 'done')
+    await expect(discussions.setProjects(bare.id, [app!])).rejects.toMatchObject({ reason: 'discussion-no-projects' })
   })
 
   it('names members by code when anonymous', async () => {

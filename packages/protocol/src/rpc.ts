@@ -21,7 +21,7 @@ import { Environment } from './environment'
 import { RequestedTarget, ScheduledRun, ScheduledRunList } from './schedule'
 import { Routine, RoutineFields, RoutineList } from './routine'
 import { WireEntry, WirePage, WireUsage } from './wire'
-import { Discussion, DiscussionAction, DiscussionCreate, DiscussionList, DiscussionPost } from './discussion'
+import { Discussion, DiscussionAction, DiscussionCreate, DiscussionList, DiscussionMemberFields, DiscussionPost } from './discussion'
 
 // Bump only for breaking changes; additive optional fields keep the version.
 export const PROTOCOL_VERSION = 12
@@ -64,9 +64,10 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // git-commit-branches: core lists the branches holding a commit (git.containing).
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
 // handoff-model: a handoff takes the model and effort the agent starts in (conversations.handoff, tasks.handoff).
-export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions'] as const
+export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects'] as const
 // task-launch-options: tasks.start accepts the first stage's mode, model and reasoning effort.
 // task-launch: a task keeps them (Task.launch, set by tasks.update and by each start by hand).
+// discussion-members: members join and leave a group chat midway; discussion-projects: its projects but the first change.
 // deferred-conversation-start: create can return before launching; send takes a ref for safe retries.
 // routines: core runs routines, rules that open a conversation on a schedule, and keeps their runs (routines.*). A
 // client without it shows the conversations they opened among the others, since it does not read routineId.
@@ -481,6 +482,11 @@ export const rpcMethods = {
   // See checkDiscussionAction.
   'discussions.control': { params: DiscussionRef.extend({ action: DiscussionAction }), result: Discussion },
   'discussions.rename': { params: DiscussionRef.extend({ title: z.string().trim().min(1).max(200) }), result: Discussion },
+  // See checkAddDiscussionMember and checkRemoveDiscussionMember. Needs discussion-members.
+  'discussions.addMember': { params: DiscussionRef.extend({ member: DiscussionMemberFields }), result: Discussion },
+  'discussions.removeMember': { params: DiscussionRef.extend({ memberId: z.string().uuid() }), result: Discussion },
+  // Every project but the first, which stays (see checkEditDiscussionProjects). Needs discussion-projects.
+  'discussions.setProjects': { params: DiscussionRef.extend({ projectPaths: z.array(z.string().trim().min(1)).min(1).max(MAX_TASK_REPOS) }), result: Discussion },
   'discussions.setPinned': { params: DiscussionRef.extend({ pinned: z.boolean() }), result: Discussion },
   // Stops its members and deletes it with their conversations; their folders stay.
   'discussions.delete': { params: DiscussionRef, result: Ok },
