@@ -8422,7 +8422,7 @@ body.side-panel-resizing * {
 .discussion-members {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
   padding: 8px max(16px, calc((100% - var(--chat-width)) / 2)) 4px;
   list-style: none;
@@ -8433,13 +8433,15 @@ body.side-panel-resizing * {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 4px 4px 8px;
+  padding: 3px 4px 3px 8px;
   border: 0;
   border-radius: 999px 0 0 999px;
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: var(--chat-font-small);
+  /* The group's row of who is in it and what it reads stays small, whatever size the chat is set
+     in, as the composer's pickers do: on a narrow window it should not take two lines of chips. */
+  font-size: 12px;
   cursor: pointer;
 }
 .discussion-member-open:hover { background: var(--fill); }
@@ -8450,16 +8452,21 @@ body.side-panel-resizing * {
 .discussion-member-status { display: inline-flex; align-items: center; gap: 4px; color: var(--text-3); }
 .discussion-member-status .chat-spinner { width: 10px; height: 10px; }
 .discussion-member[data-status='awaiting'] .discussion-member-status { color: var(--warning); }
-.discussion-member-mention { width: 24px; height: 24px; margin-right: 4px; font-size: var(--chat-font-small); color: var(--text-muted); }
+.discussion-member-mention { width: 20px; height: 20px; margin-right: 2px; font-size: 12px; color: var(--text-muted); }
 /* Taking a member out: quiet until pointed at, and dimmed while it may not leave. */
-.discussion-member-leave { width: 22px; height: 22px; margin-right: 4px; display: grid; place-items: center; color: var(--text-3); }
-.discussion-member-leave svg { width: 12px; height: 12px; }
+.discussion-member-leave { width: 20px; height: 20px; margin-right: 4px; display: grid; place-items: center; color: var(--text-3); }
+.discussion-member-leave svg { width: 10px; height: 10px; }
 .discussion-member-leave[aria-disabled='true'] { opacity: 0.45; cursor: help; }
 /* Where a member joins: a chip of its own, outlined like a place still free. */
 .discussion-member-add { border-style: dashed; }
 .discussion-member-add .discussion-member-open { color: var(--text-muted); }
 .discussion-member-add .discussion-member-open:disabled { cursor: default; opacity: 0.6; }
-.discussion-projects { display: flex; align-items: center; margin-left: auto; }
+.discussion-projects { display: flex; align-items: center; margin-left: auto; font-size: 12px; }
+.discussion-projects .chip-field { gap: 6px; }
+.discussion-projects .chip-main { padding: 2px 8px; }
+.discussion-projects .chip-main:has(+ .chip-remove) { padding-right: 2px; }
+.discussion-projects .chip-remove { padding: 0 8px 0 2px; font-size: 13px; }
+.discussion-projects .chip-add-button { padding: 2px 10px; }
 .discussion-member-form { width: 360px; }
 .discussion-member-form-pickers { display: flex; align-items: center; gap: 4px; }
 .discussion-member-form-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
