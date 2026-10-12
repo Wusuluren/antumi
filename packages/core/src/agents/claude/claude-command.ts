@@ -27,7 +27,7 @@ export const GIT_READ_TOOLS = ['Bash(git log:*)', 'Bash(git diff:*)', 'Bash(git 
 
 // Claude Code in print mode, speaking stream-json both ways.
 export function claudeCommand(launch: AgentLaunch): AgentCommand {
-  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readable = [], mcp, forkAt } = launch
+  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readable = [], mcp, forkAt, userBrowser } = launch
   const allowBypass = (launch.allowBypass ?? false) && !planOnly
   // A remembered bypass needs the user's say-so for this start too. Asking goes by manual on
   // the command line, and is passed too, so Claude Code's own default mode cannot override it.
@@ -59,6 +59,8 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     ...extraProjects.flatMap((project) => ['--add-dir', project]),
     ...(denials.length ? ['--disallowedTools', denials.join(',')] : []),
     ...(reads.length ? ['--allowedTools', reads.join(',')] : []),
-    ...(mcp ? ['--mcp-config', JSON.stringify({ mcpServers: { kando: { type: 'stdio', command: mcp.command, args: mcp.args } } })] : [])
+    ...(mcp ? ['--mcp-config', JSON.stringify({ mcpServers: { kando: { type: 'stdio', command: mcp.command, args: mcp.args } } })] : []),
+    // Claude in Chrome, either way, so Kando's setting wins over Claude Code's own default.
+    ...(userBrowser === undefined ? [] : [userBrowser ? '--chrome' : '--no-chrome'])
   ] }
 }

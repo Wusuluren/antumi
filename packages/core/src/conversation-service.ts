@@ -109,6 +109,7 @@ async function resolveProjects(projectPaths: readonly string[], taken: readonly 
 export class ConversationService {
   // Core's chat settings say; main hands them over before any stage starts.
   private promptSuggestions = false
+  private userBrowser: boolean | undefined
   private readonly launching = new Map<string, AgentKind>()
   private readonly gitSending = new Map<string, number>()
   private gitPreparation: (<T>(dirs: readonly string[], run: () => Promise<T>) => Promise<T>) | null = null
@@ -194,6 +195,11 @@ export class ConversationService {
     const showing = this.store.list().filter((conversation) => this.chats.suggestion(conversation.id) !== null)
     this.chats.pauseSuggestions(!enabled)
     showing.forEach((conversation) => this.changed(conversation))
+  }
+
+  // Read at each start: a running agent keeps what it started with.
+  setUserBrowser(enabled: boolean): void {
+    this.userBrowser = enabled
   }
 
   setCapacity(settings: Pick<ChatSettings, 'maxConcurrentAgents' | 'agentConcurrency'>, released: () => void): void {
@@ -700,7 +706,8 @@ export class ConversationService {
       planOnly: options.planOnly ? { dirs: [options.cwd, ...options.extraDirs] } : undefined,
       readable,
       forkAt,
-      ...(this.mcp ? { mcp: this.mcp(id) } : {})
+      ...(this.mcp ? { mcp: this.mcp(id) } : {}),
+      ...(this.userBrowser === undefined ? {} : { userBrowser: this.userBrowser })
     })
     let sessionId: string
     try {

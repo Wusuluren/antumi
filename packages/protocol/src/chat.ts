@@ -24,7 +24,10 @@ export const ChatSettings = z.object({
   maxConcurrentAgents: z.number().int().min(1).max(50).optional(),
   agentConcurrency: z.partialRecord(AgentKind, z.number().int().min(1).max(50)).optional(),
   // Whether core records the raw traffic with chat agents (see WireEntry); older cores omit it.
-  wireLog: z.boolean().optional()
+  wireLog: z.boolean().optional(),
+  // Whether an agent that can may drive the user's own browser, signed in as they are (Claude Code
+  // through Claude in Chrome), from its next start. Older cores omit it.
+  userBrowser: z.boolean().optional()
 })
 export type ChatSettings = z.infer<typeof ChatSettings>
 

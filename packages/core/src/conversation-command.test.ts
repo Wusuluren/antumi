@@ -30,6 +30,14 @@ describe('chatCommand', () => {
     expect(chatCommand('claude', 's', false, null, []).args).not.toContain('--permission-mode')
   })
 
+  it('lets Claude drive the user\'s Chrome as the setting says, either way, and leaves Codex as it is', () => {
+    expect(chatCommand('claude', 's', false, null, [], { userBrowser: true }).args).toContain('--chrome')
+    expect(chatCommand('claude', 's', false, null, [], { userBrowser: false }).args).toContain('--no-chrome')
+    // Unset (a catalog probe) leaves Claude Code's own default.
+    expect(chatCommand('claude', 's', false, null, []).args.filter((arg) => arg.endsWith('chrome'))).toEqual([])
+    expect(chatCommand('codex', null, false, null, [], { userBrowser: true }).args).toEqual(['app-server'])
+  })
+
   it('starts a Claude stage that may only plan in plan mode, its folders not editable and no bypass', () => {
     const args = chatCommand('claude', 's', false, null, ['/code/web'], {
       preferred: { permissionMode: 'acceptEdits' },

@@ -20,6 +20,8 @@ export type AgentLaunch = {
   forkAt?: string | null
   // Kando's own tools for the agent (showing a file it wrote); none for an older setup.
   mcp?: McpServer
+  // Whether it may drive the user's own browser, for an agent that can; unset leaves its own default.
+  userBrowser?: boolean
 }
 
 export type AgentDetection = Omit<EnvironmentCheck, 'tool'>

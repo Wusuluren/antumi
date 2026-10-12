@@ -272,6 +272,15 @@ function AgentSettings() {
           )}
         />
       )}
+      {chatSettings?.userBrowser !== undefined && (
+        <SettingsRow
+          label="让 Claude Code 操作你的 Chrome"
+          description="打开后，Claude Code 可以通过 Claude in Chrome 扩展在你自己的 Chrome 里打开、点击和填写网页，用的是你已经登录的账号。需要先在 Chrome 里装好 Claude 扩展。改动从下次启动 Agent 起生效，已经在跑的会话不受影响。Codex 和 Cursor 没有这个功能。"
+          control={(labelId) => (
+            <Toggle labelId={labelId} checked={chatSettings.userBrowser ?? true} onChange={(next) => void setChatSettings({ userBrowser: next })} />
+          )}
+        />
+      )}
       {chatSettings?.unattendedMode && (
         <SettingsRow
           label="预约运行的权限"

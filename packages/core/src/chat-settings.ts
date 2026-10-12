@@ -3,21 +3,24 @@ import { AGENT_KINDS, ChatSettings, UnattendedMode } from '@kando/protocol'
 import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
 
 // Suggestions on, as in Claude Code itself; scheduled runs let edits through but still ask for
-// anything else. Each field falls back on its own, so one bad value resets nothing else.
+// anything else; an agent that can drives the user's own browser. Each field falls back on its own,
+// so one bad value resets nothing else.
 export const DEFAULT_AGENT_CONCURRENCY = 6
 const DEFAULTS = {
   promptSuggestions: true,
   unattendedMode: 'acceptEdits',
   maxConcurrentAgents: 20,
   agentConcurrency: Object.fromEntries(AGENT_KINDS.map((kind) => [kind, DEFAULT_AGENT_CONCURRENCY])),
-  wireLog: false
+  wireLog: false,
+  userBrowser: true
 } satisfies Required<ChatSettings>
 const Saved = z.object({
   promptSuggestions: z.boolean().catch(DEFAULTS.promptSuggestions),
   unattendedMode: UnattendedMode.catch(DEFAULTS.unattendedMode),
   maxConcurrentAgents: ChatSettings.shape.maxConcurrentAgents.unwrap().catch(DEFAULTS.maxConcurrentAgents),
   agentConcurrency: ChatSettings.shape.agentConcurrency.unwrap().catch(DEFAULTS.agentConcurrency),
-  wireLog: z.boolean().catch(DEFAULTS.wireLog)
+  wireLog: z.boolean().catch(DEFAULTS.wireLog),
+  userBrowser: z.boolean().catch(DEFAULTS.userBrowser)
 }).catch(DEFAULTS)
 
 // Machine-level, like keeping the computer awake: every window and every chat goes by the same.
@@ -52,7 +55,8 @@ export class ChatSettingsStore {
       unattendedMode: patch.unattendedMode ?? this.settings.unattendedMode,
       maxConcurrentAgents: patch.maxConcurrentAgents ?? this.settings.maxConcurrentAgents,
       agentConcurrency: { ...this.settings.agentConcurrency, ...patch.agentConcurrency },
-      wireLog: patch.wireLog ?? this.settings.wireLog
+      wireLog: patch.wireLog ?? this.settings.wireLog,
+      userBrowser: patch.userBrowser ?? this.settings.userBrowser
     }
     await writePrivateJson(this.file, { version: 1, ...next })
     this.settings = next
