@@ -668,7 +668,7 @@ body.stacked-panel-resizing * {
   padding: 0 8px 8px;
 }
 
-.sidebar-search svg {
+.sidebar-search > svg {
   position: absolute;
   top: calc(50% - 4px);
   left: 18px;
@@ -680,8 +680,39 @@ body.stacked-panel-resizing * {
 }
 
 .sidebar-search .input {
-  padding: 5px 10px 5px 30px;
+  padding: 5px 30px 5px 30px;
   font-size: 13px;
+}
+
+.sidebar-search-clear {
+  position: absolute;
+  top: calc(50% - 4px);
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-muted);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.sidebar-search-clear:hover {
+  background: var(--fill-2);
+  color: var(--text);
+}
+
+.sidebar-search-clear:focus-visible {
+  outline: 2px solid var(--focus);
+}
+
+.sidebar-search-clear svg {
+  width: 12px;
+  height: 12px;
 }
 
 /* Once the box is open the label would only cover it. */
