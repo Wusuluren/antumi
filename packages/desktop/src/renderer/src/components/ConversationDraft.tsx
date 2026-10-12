@@ -34,7 +34,10 @@ export function ConversationDraft() {
     const latest = Object.values(conversations).sort((a, b) => b.updatedAt - a.updatedAt)[0]?.agent
     return latest && currentInstalledAgents().includes(latest) ? latest : defaultAgent(tasks)
   })
-  const [projectPaths, setProjectPaths] = useState<string[]>([])
+  // Asked for again while the page is open (another project's ＋), it takes the new ones.
+  const requested = useCore((s) => s.conversationDraftProjects)
+  const [projectPaths, setProjectPaths] = useState<string[]>(() => [...(requested?.paths ?? [])])
+  useEffect(() => { if (requested) setProjectPaths([...requested.paths]) }, [requested])
   const [worktree, setWorktree] = useState(false)
   const [draft] = useState(() => composerDraft(null))
   const { value, setText, setValue } = useMentionedText({ text: draft.text, mentions: draft.mentions })

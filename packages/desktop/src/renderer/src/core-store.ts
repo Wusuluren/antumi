@@ -69,6 +69,9 @@ export type CoreState = {
   selectedConversationId: string | null
   // The page a new conversation starts from while chats are the default (see ConversationDraft).
   conversationDraft: boolean
+  // The projects the new-conversation page was last asked to start with; a new object each time, so
+  // asking again applies again.
+  conversationDraftProjects: { paths: readonly string[] } | null
   selectedId: string | null
   view: TaskView
   // The inspector beside a task's terminal or chat, kept open from one task to the next, on the
@@ -152,6 +155,7 @@ export const useCore = create<CoreState>()(() => ({
   section: 'tasks',
   selectedConversationId: null,
   conversationDraft: false,
+  conversationDraftProjects: null,
   selectedId: null,
   view: 'detail',
   inspectorOpen: false,
@@ -453,8 +457,9 @@ function finishedUnseen(s: CoreState, previous: Conversation | undefined, next: 
   return working && next.chat?.turn !== 'running' && next.chat?.turn !== 'awaiting' && !looking
 }
 
-export function openConversationDraft(): void {
-  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, attentionOpen: false, conversationDraft: true })
+// `projects`: what the page starts with, as from a project's group; without, it starts with none.
+export function openConversationDraft(projects?: readonly string[]): void {
+  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, attentionOpen: false, conversationDraft: true, conversationDraftProjects: projects ? { paths: [...projects] } : null })
 }
 
 export function closeConversationDraft(): void {

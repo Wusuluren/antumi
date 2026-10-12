@@ -7,8 +7,8 @@ import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
 import { otherInstalledAgent, useInstalledAgents } from '../installed-agents'
 
 // A new conversation opens as a page its first message starts.
-export function newConversation(): void {
-  openConversationDraft()
+export function newConversation(projects?: readonly string[]): void {
+  openConversationDraft(projects)
 }
 
 // A new conversation holding this one's chat up to a message, opened once core has it. A fork

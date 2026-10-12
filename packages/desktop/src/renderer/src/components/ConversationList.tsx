@@ -40,7 +40,8 @@ export function groupOf(conversation: Conversation, by: Exclude<GroupBy, 'none'>
   }
 }
 
-type Group = { key: string; label: string | null; rank: number; items: Conversation[] }
+// `project`: the primary project a project's group stands for, where its ＋ starts a conversation.
+type Group = { key: string; label: string | null; rank: number; items: Conversation[]; project?: string }
 
 // Pinned conversations come first, in a group of their own, whatever the grouping.
 function arrange(conversations: Conversation[], by: GroupBy, sort: SortBy): Group[] {
@@ -52,7 +53,8 @@ function arrange(conversations: Conversation[], by: GroupBy, sort: SortBy): Grou
   const groups = new Map<string, Group>()
   for (const conversation of rest) {
     const { label, rank } = groupOf(conversation, by)
-    const group = groups.get(label) ?? { key: `group:${label}`, label, rank, items: [] }
+    const project = by === 'project' ? conversation.projectPaths[0] : undefined
+    const group = groups.get(label) ?? { key: `group:${label}`, label, rank, items: [], ...(project ? { project } : {}) }
     group.items.push(conversation)
     groups.set(label, group)
   }
@@ -250,7 +252,7 @@ export function ConversationList() {
         >
           <SlidersIcon />
         </button>
-        <button type="button" className="icon-button task-list-add" aria-label="新建会话" onClick={newConversation}>＋</button>
+        <button type="button" className="icon-button task-list-add" aria-label="新建会话" onClick={() => newConversation()}>＋</button>
       </header>
       {query !== null && !collapsed && (
         <SidebarSearchField label="搜索会话" placeholder="标题、项目名或聊天内容" query={query} onChange={setQuery} />
@@ -262,11 +264,22 @@ export function ConversationList() {
           ? <ul key={group.key}>{group.items.map(row)}</ul>
           : <section key={group.key} className="conversation-group" aria-label={group.label}>
             <h3 className="conversation-group-title">
-              <button type="button" aria-expanded={!isFolded(group.key)} onClick={() => toggleFold(group.key)}>
+              <button type="button" className="conversation-group-fold" aria-expanded={!isFolded(group.key)} onClick={() => toggleFold(group.key)}>
                 <ChevronDownIcon />
                 {group.label}
                 <span className="count">{group.items.length}</span>
               </button>
+              {group.project && (
+                <button
+                  type="button"
+                  className="icon-button conversation-group-new"
+                  aria-label={`在 ${group.label} 新建会话`}
+                  title={`在 ${group.label} 新建会话`}
+                  onClick={() => group.project && newConversation([group.project])}
+                >
+                  ＋
+                </button>
+              )}
             </h3>
             {!isFolded(group.key) && <ul>{group.items.map(row)}</ul>}
           </section>)}

@@ -191,3 +191,15 @@ describe('attention snapshot retry', () => {
     expect(useCore.getState()).toMatchObject({ conversations: { chat }, attentionSummaryMode: 'limited', attentionSummaryLoading: false })
   })
 })
+
+describe('new conversation page', () => {
+  it('starts with the projects it was opened for, anew each time, and with none otherwise', () => {
+    openConversationDraft(['/code/kando'])
+    const first = useCore.getState().conversationDraftProjects
+    expect(useCore.getState()).toMatchObject({ conversationDraft: true, conversationDraftProjects: { paths: ['/code/kando'] } })
+    openConversationDraft(['/code/kando'])
+    expect(useCore.getState().conversationDraftProjects).not.toBe(first)
+    openConversationDraft()
+    expect(useCore.getState().conversationDraftProjects).toBeNull()
+  })
+})
