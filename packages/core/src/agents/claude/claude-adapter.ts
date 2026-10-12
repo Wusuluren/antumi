@@ -12,5 +12,14 @@ export const claude: AgentAdapter = {
   // Claude Code asks for MCP tools itself, under whatever mode the user set.
   mcpApproval: 'agent',
   signedIn: hasClaudeCredentials,
-  usage: readClaudeUsage
+  usage: readClaudeUsage,
+  // Haiku, with no tools, no MCP servers, no skills, and no session left for --resume.
+  quick: {
+    command: (prompt, model) => ({
+      command: 'claude',
+      args: ['-p', ...(model ? ['--model', model] : []), '--tools', '', '--strict-mcp-config', '--no-session-persistence', '--disable-slash-commands'],
+      stdin: prompt,
+      output: 'stdout'
+    })
+  }
 }

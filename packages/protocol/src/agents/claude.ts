@@ -19,5 +19,6 @@ export const claude: AgentDescriptor = {
     install: 'npm install -g @anthropic-ai/claude-code',
     signIn: '在终端里运行 claude，按提示登录'
   },
-  usageWhere: '在 claude.ai 网页版或 Claude Desktop 的 设置 → Usage 里使用'
+  usageWhere: '在 claude.ai 网页版或 Claude Desktop 的 设置 → Usage 里使用',
+  quickModels: [/^haiku$/]
 }

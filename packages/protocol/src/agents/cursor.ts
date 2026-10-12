@@ -21,5 +21,6 @@ export const cursor: AgentDescriptor = {
     outdated: { status: '需要升级以支持 ACP', hint: '，并使用支持 ACP 的版本' }
   },
   usageWhere: '在 Cursor 的用量设置里查看',
-  windowsPathDirs: ['cursor-agent']
+  windowsPathDirs: ['cursor-agent'],
+  quickModels: [/flash/, /haiku/, /nano/, /mini/]
 }

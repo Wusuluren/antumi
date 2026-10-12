@@ -7,7 +7,8 @@ import { ChatDisclosureScope, setOpened, useDisclosure } from '../chat-disclosur
 import { isCompaction, noticeSummary, readableNotice } from '../chat-notices'
 import { parseQuotes, withoutQuoteMarkers } from '../chat-quotes'
 import { formatTokens, isSubagent, thoughtFor, workedFor } from '../chat-tools'
-import { perform, useCore } from '../core-store'
+import { perform, useCore, useTranslateSupported } from '../core-store'
+import { needsTranslation, showOriginal, translate, translationKey, useTranslations, type TranslationState } from '../translation'
 import { ChatSurfaceContext, conversationSurface, useChatSurface, type ChatSurface } from './chat-surface'
 import { forkConversation } from './ConversationActions'
 import { agentLabel, chatDayAndTime, dayAndTime, messageTime } from '../labels'
@@ -35,7 +36,7 @@ import { cssFontFamily } from '../system-fonts'
 import { freshKeys } from '../chat-motion'
 import { acknowledgeInitialMessage, sendInitialMessage, useInitialMessages, type InitialMessage } from '../initial-messages'
 import { Spinner } from './Spinner'
-import { ArrowDownIcon, ChevronDownIcon, ChevronRightIcon, FileChangesIcon, AgentIcon, ForkIcon } from './icons'
+import { ArrowDownIcon, ChevronDownIcon, ChevronRightIcon, FileChangesIcon, AgentIcon, ForkIcon, TranslateIcon } from './icons'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 const NO_ITEMS: ChatItem[] = []
@@ -290,30 +291,99 @@ function ChatNotice({ conversationId, item }: { conversationId: string; item: No
   )
 }
 
+// Puts a reply in another language than the user's into theirs, on request or, with translation on,
+// as it comes into view; the original stays a click away.
+function TranslateButton({ state, original, onTranslate, onToggle }: {
+  state: TranslationState | undefined
+  original: boolean
+  onTranslate: () => void
+  onToggle: () => void
+}) {
+  if (state?.state === 'pending') return <span className="chat-translate" role="status"><Spinner />翻译中…</span>
+  if (state?.state === 'done') {
+    const by = state.model ? `由 ${state.model} 翻译` : '由这个 Agent 的默认模型翻译'
+    return (
+      <button type="button" className="copy-button chat-translate" data-tooltip={original ? `看译文（${by}）` : `看原文（这是${by}的译文）`} onClick={onToggle}>
+        <TranslateIcon />{original ? '译文' : '原文'}
+      </button>
+    )
+  }
+  return (
+    <button type="button" className="copy-button chat-translate" data-failed={state?.state === 'failed' || undefined} data-tooltip={state?.state === 'failed' ? `${state.error}，点击重试` : '用这个 Agent 的小模型翻译这条回复'} onClick={onTranslate}>
+      <TranslateIcon />{state?.state === 'failed' ? '重试翻译' : '翻译'}
+    </button>
+  )
+}
+
+function AssistantReply({ conversationId, item, completedAt, ending, blockKey }: {
+  conversationId: string
+  item: Extract<ChatItem, { kind: 'assistant' }>
+  completedAt: number | undefined
+  ending: TurnItem | undefined
+  blockKey: string
+}) {
+  // A stored reply can still end in Cursor's raw transport error. Say what happened instead.
+  const failure = item.streaming ? null : cursorProviderError(item.text)
+  const text = failure ? failure.rest : item.text
+  const supported = useTranslateSupported()
+  const to = usePreferences((p) => p.translateTo)
+  const auto = usePreferences((p) => p.autoTranslate)
+  const agent = useCore((s) => s.conversations[conversationId]?.agent)
+  const model = usePreferences((p) => (agent ? p.translateModels[agent] : undefined)) ?? ''
+  const finished = completedAt !== undefined && !item.streaming && text !== ''
+  const foreign = useMemo(() => supported && finished && needsTranslation(text, to), [supported, finished, text, to])
+  const key = translationKey(conversationId, blockKey, to, model)
+  const result = useTranslations((s) => s.results[key])
+  const original = useTranslations((s) => s.original[key] ?? false)
+  const box = useRef<HTMLDivElement>(null)
+  // With translation on, a foreign reply is translated once it comes into view, so opening a long
+  // conversation does not translate all of it.
+  useEffect(() => {
+    const element = box.current
+    if (!foreign || !auto || result || !element) return
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return
+      observer.disconnect()
+      void translate(conversationId, key, text, to, model)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [foreign, auto, result, conversationId, key, text, to, model])
+  const shown = result?.state === 'done' && !original ? result.text : text
+  return (
+    <div ref={box} className="chat-assistant" data-streaming={item.streaming || undefined} data-translated={shown !== text || undefined}>
+      {shown && <ChatMarkdown text={shown} highlight={!item.streaming} runnable={!item.streaming} />}
+      {failure && <div className="chat-notice" data-level="warning">{failure.detail}</div>}
+      {completedAt !== undefined && text && (
+        <div className="chat-message-actions">
+          <CopyButton text={shown} label={shown !== text ? '复制译文' : '复制回复'} />
+          <MessageTime at={completedAt} />
+          {ending && <span className="chat-turn chat-turn-inline" data-state={ending.state}>{turnText(ending)}</span>}
+          {foreign && (
+            <TranslateButton
+              state={result}
+              original={original}
+              onTranslate={() => {
+                showOriginal(key, false)
+                void translate(conversationId, key, text, to, model)
+              }}
+              onToggle={() => showOriginal(key, !original)}
+            />
+          )}
+          <ForkButton item={item} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Item({ conversationId, item, completedAt, blockKey }: { conversationId: string; item: ChatItem; completedAt: number | undefined; blockKey: string }) {
   const ending = useContext(Endings).get(blockKey)
   switch (item.kind) {
     case 'user':
       return <UserMessage item={item} />
-    case 'assistant': {
-      // A stored reply can still end in Cursor's raw transport error. Say what happened instead.
-      const failure = item.streaming ? null : cursorProviderError(item.text)
-      const text = failure ? failure.rest : item.text
-      return (
-        <div className="chat-assistant" data-streaming={item.streaming || undefined}>
-          {text && <ChatMarkdown text={text} highlight={!item.streaming} runnable={!item.streaming} />}
-          {failure && <div className="chat-notice" data-level="warning">{failure.detail}</div>}
-          {completedAt !== undefined && text && (
-            <div className="chat-message-actions">
-              <CopyButton text={text} label="复制回复" />
-              <MessageTime at={completedAt} />
-              {ending && <span className="chat-turn chat-turn-inline" data-state={ending.state}>{turnText(ending)}</span>}
-              <ForkButton item={item} />
-            </div>
-          )}
-        </div>
-      )
-    }
+    case 'assistant':
+      return <AssistantReply conversationId={conversationId} item={item} completedAt={completedAt} ending={ending} blockKey={blockKey} />
     case 'reasoning':
       return <Reasoning item={item} />
     case 'tool':

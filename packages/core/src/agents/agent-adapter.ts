@@ -26,6 +26,9 @@ export type AgentLaunch = {
 
 export type AgentDetection = Omit<EnvironmentCheck, 'tool'>
 
+// A one-off request: the prompt on stdin or in argv, and the answer on stdout or in a file.
+export type QuickCommand = { command: string; args: string[]; stdin: string | null; output: 'stdout' | 'file' }
+
 // How long an agent is given to obey a cancel, then a TERM, before it is stopped harder.
 export type CancelGrace = { cancelGraceMs: number; termGraceMs: number }
 
@@ -94,4 +97,9 @@ export interface AgentAdapter {
   }
   // Its model and effort are remembered as its state reports them after a switch, not as asked.
   readonly optionsFromState?: boolean
+  // A one-off request with no tools and nothing kept, for a small job such as translating a reply
+  // (on its descriptor's quickModels): the command, `outputFile` where its answer goes to a file.
+  readonly quick?: {
+    command(prompt: string, model: string | null, outputFile: string): QuickCommand | Promise<QuickCommand>
+  }
 }

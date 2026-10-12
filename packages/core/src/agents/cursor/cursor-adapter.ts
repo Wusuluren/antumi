@@ -22,6 +22,15 @@ export const cursor: AgentAdapter = {
   detect: detectCursorCli,
   usage: readCursorUsage,
   installation: cursorInstallation,
+  // Asking only: it reads nothing and changes nothing.
+  quick: {
+    command: async (prompt, model) => ({
+      command: await requireCursorCli(),
+      args: ['-p', ...(model ? ['--model', model] : []), '--output-format', 'text', '--mode', 'ask', '--trust', prompt],
+      stdin: null,
+      output: 'stdout'
+    })
+  },
   launch: {
     // Kando's MCP server reports, through a file, that Cursor connected to it.
     mcp: (server, stage) => cursorMcpServer(server, readyFile(stage), stage.planOnly),

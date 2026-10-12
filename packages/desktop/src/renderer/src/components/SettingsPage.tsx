@@ -1,18 +1,21 @@
 import type { BrowserStatus, WireUsage } from '@kando/protocol'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
-import { AGENT_KINDS, PROTOCOL_VERSION, UNATTENDED_MODES, type SourceDescriptor } from '@kando/protocol'
+import { AGENT_KINDS, agentDescriptor, LANGUAGE_NAMES, PROTOCOL_VERSION, quickModel, TRANSLATE_LANGUAGES, UNATTENDED_MODES, type AgentKind, type SourceDescriptor } from '@kando/protocol'
 import packageJson from '../../../../package.json'
-import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useWireLogSupported } from '../core-store'
+import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
 import { setPreference, usePreferences } from '../preferences'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { UNATTENDED_LABEL } from '../schedules'
 import { useInstalledAgents } from '../installed-agents'
+import { useAgentCatalog } from '../agent-models'
+import { ChatPicker } from './ChatPicker'
 import { InstalledAgentsSettings } from './InstalledAgentsSettings'
 import { ChatFontPicker } from './ChatFontPicker'
 import { agentLabel } from '../labels'
 import { canNotify, canShowRequestPopup } from '../desktop-bridge'
 import { formatBytes } from '../wire-entries'
 import {
+  AgentIcon,
   ArrowLeftIcon,
   BellIcon,
   BugIcon,
@@ -24,7 +27,8 @@ import {
   InboxIcon,
   InfoIcon,
   SearchIcon,
-  SparkIcon
+  SparkIcon,
+  TranslateIcon
 } from './icons'
 import { AgentStatsSettings } from './AgentStatsSettings'
 import { ChatCommandSettings } from './ChatCommandSettings'
@@ -145,6 +149,75 @@ function NotificationSettings() {
           control={(labelId) => <Toggle labelId={labelId} checked={requestPopup} onChange={(next) => setPreference('requestPopup', next)} />}
         />
       )}
+    </>
+  )
+}
+
+// The model one agent translates with: its cheapest by default, which the first option names, or one
+// the user picked from its catalog.
+function TranslationModelPicker({ agent }: { agent: AgentKind }) {
+  const catalog = useAgentCatalog(agent, true)
+  const picked = usePreferences((s) => s.translateModels[agent]) ?? ''
+  const cheapest = quickModel(agentDescriptor(agent).quickModels, catalog)
+  const cheapestLabel = catalog?.models.find((model) => model.id === cheapest)?.label ?? (catalog === undefined ? '…' : '默认模型')
+  const options = [
+    { value: '', label: `自动（${cheapestLabel}）`, description: '它最便宜的小模型' },
+    ...(catalog?.models ?? []).map((model) => ({ value: model.id, label: model.label, description: model.description || undefined })),
+    // A pick the catalog no longer lists stays shown, so it can be changed.
+    ...(picked && !catalog?.models.some((model) => model.id === picked) ? [{ value: picked, label: picked }] : [])
+  ]
+  return (
+    <span className="translation-model">
+      <AgentIcon agent={agent} />
+      <span className="translation-model-agent">{agentLabel(agent)}</span>
+      <ChatPicker
+        label={`${agentLabel(agent)} 翻译用的模型`}
+        value={picked}
+        placeholder="自动"
+        placement="below"
+        align="end"
+        options={options}
+        onChange={(value) => {
+          const { [agent]: _gone, ...rest } = usePreferences.getState().translateModels
+          setPreference('translateModels', value ? { ...rest, [agent]: value } : rest)
+        }}
+      />
+    </span>
+  )
+}
+
+function TranslationSettings() {
+  const to = usePreferences((s) => s.translateTo)
+  const auto = usePreferences((s) => s.autoTranslate)
+  const supported = useTranslateSupported()
+  const installed = useInstalledAgents()
+  return (
+    <>
+      {!supported && <p className="muted">正在连接的 core 版本较旧，还不能翻译；更新后可用。</p>}
+      <SettingsRow
+        label="翻译成"
+        description="Agent 的回复不是这种语言时，回复下面会出现「翻译」按钮。"
+        control={(labelId) => (
+          <Segmented labelId={labelId} value={to} options={TRANSLATE_LANGUAGES.map((value) => ({ value, label: LANGUAGE_NAMES[value] }))} onChange={(next) => setPreference('translateTo', next)} />
+        )}
+      />
+      <SettingsRow
+        label="翻译用的模型"
+        description="用会话里同一个 Agent 翻译。不选就自动用它最便宜的小模型：Claude Code 用 Haiku，Codex 用 Luna 系列（推理强度 low），Cursor 用 Flash 一类；都没有时用它的默认模型。"
+        control={() => (
+          <span className="translation-models">
+            {installed.map((agent) => <TranslationModelPicker key={agent} agent={agent} />)}
+          </span>
+        )}
+      />
+      <SettingsRow
+        label="自动翻译"
+        description="打开后，不是这种语言的回复显示到屏幕上时就自动翻译，点「原文」可以看原来的内容。只翻译你看到的回复，打开一条很长的旧会话不会一下子全部翻译。"
+        control={(labelId) => <Toggle labelId={labelId} checked={auto} onChange={(next) => setPreference('autoTranslate', next)} />}
+      />
+      <p className="settings-note">
+        每次翻译单独请求一次、不带任何工具，不进会话，也不占会话的上下文，但会算进这个 Agent 的用量。同一条回复只翻译一次。
+      </p>
     </>
   )
 }
@@ -493,6 +566,15 @@ const SECTIONS: readonly Section[] = [
     keywords: ['主题', '浅色', '深色', '跟随系统', '终端', '字号', '字体', '聊天', '宽度', '全宽', '折叠', '回合', '工作了'],
     Icon: ContrastIcon,
     Body: AppearanceSettings
+  },
+  {
+    id: 'translation',
+    group: '界面',
+    title: '翻译',
+    description: 'Agent 的回复不是你常用的语言时，翻译成你选的语言。',
+    keywords: ['翻译', '语言', '中文', '英文', 'english', '日语', '韩语', '自动翻译', '原文', '译文', 'haiku'],
+    Icon: TranslateIcon,
+    Body: TranslationSettings
   },
   {
     id: 'usage',

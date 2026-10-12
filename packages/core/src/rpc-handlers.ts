@@ -32,6 +32,7 @@ import { AgentCliInstaller } from './agent-cli-installation'
 import { dashboardSince, summarizeDashboard } from './dashboard-stats'
 import { PortService } from './port-service'
 import type { WireLog } from './wire-log'
+import { TranslationService } from './translation-service'
 
 const OK = { ok: true } as const
 
@@ -66,6 +67,7 @@ export function createRpcHandlers(
   conversations.setGitPreparation((dirs, run) => git.withRepositories(dirs, run))
   worktrees.setGitRemoval((dirs, run) => git.withRepositoryLock(dirs, run))
   const files = new ConversationFiles((id) => conversations.get(id))
+  const translations = new TranslationService({ catalog: (agent) => conversations.chatCatalog(agent) })
   const cliInstaller = new AgentCliInstaller(environment, terminals)
   const ports = new PortService(sessions, () => ({ terminals: terminals.list(), conversations: conversations.listAll(), tasks: service.list() }))
   // An agent's own terminals: run in the conversation's folder unless it names another, and
@@ -164,6 +166,7 @@ export function createRpcHandlers(
     'conversations.create': ({ agent, projectPaths, worktree, branch, allowBypass, permissionMode, model, effort, deferStart }) =>
       conversations.create(agent, projectPaths, allowBypass, { permissionMode, model, effort, worktree, branch, deferStart }),
     'conversations.chatCatalog': ({ agent }) => conversations.chatCatalog(agent),
+    'conversations.translate': ({ id, text, to, model }) => translations.translate(conversations.get(id).agent, text, to, model),
     'conversations.setAdditionalProjects': ({ id, projectPaths }) => conversations.setAdditionalProjects(id, projectPaths),
     'conversations.rename': ({ id, title }) => conversations.rename(id, title),
     'conversations.setPinned': ({ id, pinned }) => conversations.setPinned(id, pinned),

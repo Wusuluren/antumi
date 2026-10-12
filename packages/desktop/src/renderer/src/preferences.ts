@@ -1,4 +1,4 @@
-import { AGENT_KINDS, AgentKind } from '@kando/protocol'
+import { AGENT_KINDS, AgentKind, TranslateLanguage } from '@kando/protocol'
 import { z } from 'zod'
 import { create } from 'zustand'
 import { PALETTES } from './palettes'
@@ -57,7 +57,13 @@ const Preferences = z.object({
   foldedConversationGroups: z.array(z.string()).catch([]),
   conversationSort: z.enum(CONVERSATION_SORTS).catch('recent'),
   // On, a group chat's first round shows its independent answers side by side, for comparing them.
-  discussionSideBySide: z.boolean().catch(false)
+  discussionSideBySide: z.boolean().catch(false),
+  // What an agent's reply in another language is translated into, and whether that happens as it
+  // comes into view rather than when asked.
+  translateTo: TranslateLanguage.catch('zh-CN'),
+  autoTranslate: z.boolean().catch(false),
+  // The model each agent translates with, where the user picked one; otherwise its cheapest.
+  translateModels: z.partialRecord(AgentKind, z.string().min(1)).catch({})
 })
 export type Preferences = z.infer<typeof Preferences>
 

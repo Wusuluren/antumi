@@ -512,6 +512,11 @@ export function useDiscussionProjectsSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('discussion-projects') ?? false)
 }
 
+// Whether core translates a reply with the conversation's agent (conversations.translate).
+export function useTranslateSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('translate') ?? false)
+}
+
 // Whether core puts conversations and group chats away (conversations.setArchived, discussions.setArchived).
 export function useConversationArchiveSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('conversation-archive') ?? false)

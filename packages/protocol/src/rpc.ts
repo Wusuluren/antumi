@@ -8,6 +8,7 @@ import { AgentStats, ConversationStats } from './agent-stats'
 import { DashboardParams, DashboardStats } from './dashboard'
 import { CommitPushResult, CommitResult, Conversation, ConversationMessage, ConversationSearchHit, ConversationStage, ProjectBranches, ProjectHead, PushResult } from './conversation'
 import { ChatCatalog, ChatDecision, ChatItemList, ChatOption, ChatPermissionMode, ChatSettings, TaskLaunchOptions } from './chat'
+import { TranslateLanguage, Translation } from './translation'
 import { FileDiff, FolderChanges, RepoChanges } from './changes'
 import { Terminal, TerminalCommand, TerminalCommandFields, TerminalOutput, TerminalRun } from './terminal'
 import { PortList, PortRef } from './ports'
@@ -64,11 +65,12 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // git-commit-branches: core lists the branches holding a commit (git.containing).
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
 // handoff-model: a handoff takes the model and effort the agent starts in (conversations.handoff, tasks.handoff).
-export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive'] as const
+export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate'] as const
 // task-launch-options: tasks.start accepts the first stage's mode, model and reasoning effort.
 // task-launch: a task keeps them (Task.launch, set by tasks.update and by each start by hand).
 // discussion-members: members join and leave a group chat midway; discussion-projects: its projects but the first change.
 // discussion-topics: the user moves a group chat on to a new topic (discussions.newTopic, Discussion.topicStart, DiscussionPost.topic).
+// translate: conversations.translate.
 // conversation-archive: conversations.setArchived, Conversation.archivedAt; discussion-archive: discussions.setArchived, Discussion.archivedAt.
 // task-cancel: tasks.cancel and tasks.reopen; task-redo-in-place: tasks.redo keeps the task, its earlier goes in Task.attempts.
 // deferred-conversation-start: create can return before launching; send takes a ref for safe retries.
@@ -202,6 +204,10 @@ export const rpcMethods = {
   // What the agent offers a new chat: the models its latest chat stage listed, or, when it never
   // ran one, what it lists when asked. null when it cannot be asked.
   'conversations.chatCatalog': { params: z.object({ agent: AgentKind }), result: ChatCatalog.nullable() },
+  // A reply of the conversation's put into another language by its own agent, on the smallest model
+  // it has, in a one-off request with no tools that is kept nowhere. Needs translate.
+  // model: the one the user picked for translating with this agent; without it, quickModel's.
+  'conversations.translate': { params: ConversationRef.extend({ text: z.string().min(1).max(60_000), to: TranslateLanguage, model: z.string().trim().min(1).max(200).optional() }), result: Translation },
   // Replaces every project but the primary (see checkEditAdditionalProjects); an idle chat agent
   // restarts on its session to be given them.
   'conversations.setAdditionalProjects': {

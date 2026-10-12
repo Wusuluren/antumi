@@ -265,6 +265,15 @@ export function CameraIcon() {
   )
 }
 
+// A character and a letter, for putting words into another language.
+export function TranslateIcon() {
+  return (
+    <svg {...stroked}>
+      <path d="M3 5h8M7 3v2M5 5c.7 2.4 2.3 4.3 4.6 5.4M9.2 5c-.7 2.5-2.4 4.5-5 5.6M10.5 17l3.3-8 3.2 8M11.6 14.5h4.6" />
+    </svg>
+  )
+}
+
 export function GlobeIcon() {
   return (
     <svg {...stroked}>

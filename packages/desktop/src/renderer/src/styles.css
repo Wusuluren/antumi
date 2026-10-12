@@ -656,6 +656,19 @@ body.stacked-panel-resizing * {
   height: 16px;
 }
 
+/* A reply's translation: its word in the reply's actions, and the note it sits under. */
+/* Over .copy-button, which it shares the hover with, it holds a word as well as its icon. */
+.chat-translate,
+.copy-button.chat-translate { display: inline-flex; align-items: center; gap: 3px; width: auto; padding: 0 6px; font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.chat-translate svg { width: 14px; height: 14px; }
+.copy-button.chat-translate[data-failed] { color: var(--danger); }
+span.chat-translate .spinner { width: 12px; height: 12px; }
+/* One line per agent: its mark and name, then the model it translates with. */
+.translation-models { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.translation-model { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.translation-model .agent-mark { width: 14px; height: 14px; }
+.settings-note { margin: 0; padding: 4px 0 14px; color: var(--text-muted); font-size: 12px; line-height: 1.6; }
+
 /* What the user put away: a word beside its title, and where its input was, the way back. */
 .archived-tag { flex-shrink: 0; padding: 0 6px; border-radius: 999px; background: var(--fill-2); color: var(--text-muted); font-size: 12px; font-weight: 400; }
 .chat-archived { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px dashed var(--border-2); border-radius: var(--radius-lg); background: var(--surface); color: var(--text-muted); font-size: 13px; }

@@ -20,5 +20,6 @@ export const codex: AgentDescriptor = {
     install: 'npm install -g @openai/codex',
     signIn: '在终端里运行 codex login'
   },
-  usageWhere: '在 Codex 的用量设置里使用'
+  usageWhere: '在 Codex 的用量设置里使用',
+  quickModels: [/-luna$/, /mini/, /nano/]
 }
