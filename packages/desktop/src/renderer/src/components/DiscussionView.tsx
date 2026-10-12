@@ -295,16 +295,18 @@ export function DiscussionView({ id }: { id: string }) {
     await controlDiscussion(id, action)
     setBusy(false)
   }
+  // The input empties as the words go, as a chat app's does; refused, they come back, unless
+  // something new was typed meanwhile.
   const send = async () => {
     if (!canSend) return
+    const said = text.trim()
     setBusy(true)
-    const sent = asTopic ? await newDiscussionTopic(id, text.trim()) : await postToDiscussion(id, text.trim(), mentions)
+    setText('')
+    pinned.current = true
+    const sent = asTopic ? await newDiscussionTopic(id, said) : await postToDiscussion(id, said, mentions)
     setBusy(false)
-    if (sent) {
-      setText('')
-      setAsTopic(false)
-      pinned.current = true
-    }
+    if (sent) setAsTopic(false)
+    else setText((current) => current || said)
   }
   const mention = (member: DiscussionMember) => {
     const tag = `@${member.name} `

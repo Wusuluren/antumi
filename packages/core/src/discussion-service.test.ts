@@ -169,7 +169,7 @@ describe('DiscussionService', () => {
     await until(() => state(discussion.id) === 'done')
     const bob = by(discussion, 'Bob')
     await discussions.post(discussion.id, 'Bob, why?', [bob.id])
-    await until(() => discussions.posts(discussion.id).at(-1)?.state === 'done')
+    await until(() => discussions.posts(discussion.id).at(-1)?.kind === 'reply' && discussions.posts(discussion.id).at(-1)?.state === 'done')
     const posts = discussions.posts(discussion.id)
     expect(kinds(posts.slice(-2))).toEqual(['2:user:done', '2:reply:done'])
     expect(posts.at(-1)?.memberId).toBe(bob.id)
@@ -226,6 +226,20 @@ describe('DiscussionService', () => {
     expect((await discussions.setArchived(discussion.id, false)).archivedAt).toBeNull()
     await discussions.post(discussion.id, 'One more round.')
     await until(() => state(discussion.id) === 'done' && discussions.posts(discussion.id).at(-1)?.round === 3)
+  })
+
+  it('answers a post before the member it names has started, which then answers', async () => {
+    const discussion = await discussions.create(fields())
+    await until(() => state(discussion.id) === 'done')
+    const bob = by(discussion, 'Bob')
+    // Bob's agent has gone, and the one the post starts will not finish starting.
+    await conversations.stop(bob.conversationId)
+    daemon.answerInit = false
+    const spawned = daemon.spawns.length
+    const said = await discussions.post(discussion.id, 'Bob, why?', [bob.id])
+    expect(said).toMatchObject({ kind: 'user', text: 'Bob, why?' })
+    await until(() => daemon.spawns.length > spawned)
+    expect(discussions.posts(discussion.id).at(-1)).toMatchObject({ kind: 'reply', state: 'pending', memberId: bob.id })
   })
 
   it('keeps what an agent said when it could not start, beside the reason', async () => {
