@@ -6237,6 +6237,31 @@ body.side-panel-resizing * {
 /* The numbers that say how the running turn goes; what it is at shows in the conversation above. */
 .chat-working { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 4px 0; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .chat-working-part { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+/* The working line's mark, by what the agent is at (see PhaseIcon). */
+.chat-working-icon { display: inline-grid; place-items: center; flex-shrink: 0; width: 14px; height: 14px; color: var(--text-3); }
+.chat-working-icon svg { width: 100%; height: 100%; overflow: visible; }
+/* Thinking: the brain breathes while a signal runs down its middle and sparks come and go. */
+.chat-working-icon:is([data-phase='thinking'], [data-phase='working']) svg { animation: working-breathe 1.8s ease-in-out infinite; }
+.chat-working-signal { stroke: var(--accent); stroke-width: 2.2; stroke-dasharray: 3 4; animation: working-flow 1s linear infinite; }
+.chat-working-spark { fill: var(--accent); opacity: 0; transform-box: fill-box; transform-origin: center; animation: working-spark 1.8s ease-in-out infinite; }
+.chat-working-spark:nth-of-type(2) { animation-delay: 0.6s; }
+.chat-working-spark:nth-of-type(3) { animation-delay: 1.2s; }
+/* A tool: a gear turning. */
+.chat-working-icon[data-phase='tools'] svg { animation: spin 2.4s linear infinite; }
+.chat-working-gear-teeth { stroke-dasharray: 2.1 1.83; }
+/* The reply: lines written one after another. */
+.chat-working-line { stroke-dasharray: 12; stroke-dashoffset: 12; animation: working-write 1.8s ease-in-out infinite; }
+.chat-working-line:nth-of-type(2) { animation-delay: 0.3s; }
+.chat-working-line:nth-of-type(3) { animation-delay: 0.6s; }
+/* Work left in the background: an hourglass turning over. */
+.chat-working-icon[data-phase='waiting'] svg { animation: working-flip 2.4s ease-in-out infinite; }
+/* The user's turn: the amber of a conversation that waits on them. */
+.chat-working-ask { width: 8px; height: 8px; border-radius: 50%; background: var(--warning); animation: status-pulse 1.6s ease-out infinite; }
+@keyframes working-breathe { 0%, 100% { transform: scale(0.94); } 50% { transform: scale(1.04); } }
+@keyframes working-flow { to { stroke-dashoffset: -7; } }
+@keyframes working-spark { 0%, 100% { opacity: 0; transform: scale(0.4); } 30% { opacity: 1; transform: scale(1); } 60% { opacity: 0; } }
+@keyframes working-write { 0% { stroke-dashoffset: 12; opacity: 1; } 45%, 80% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes working-flip { 0%, 80% { transform: rotate(0); } 100% { transform: rotate(180deg); } }
 .chat-working-dot { opacity: 0.6; }
 /* Each new count of tokens lands with a small rise. */
 .chat-working-tick { display: inline-block; animation: chat-tick 0.3s ease-out; }
@@ -7024,6 +7049,9 @@ body.side-panel-resizing * {
   .chat-entry[data-fresh],
   .chat-working,
   .chat-working-tick,
+  .chat-working-icon svg,
+  .chat-working-icon svg *,
+  .chat-working-ask,
   .chat-input-button,
   .chat-todos-ring[data-beat],
   .chat-todos-ring[data-finished],
@@ -7032,6 +7060,8 @@ body.side-panel-resizing * {
   [data-finished] > :is(.chat-tool-row, .chat-tool-header),
   [data-finished] > :is(.chat-tool-row, .chat-tool-header) > .chat-tool-icon { animation: none; }
   .chat-subagent-mark[data-finished] svg path { stroke-dashoffset: 0; }
+  .chat-working-line { stroke-dashoffset: 0; }
+  .chat-working-spark { opacity: 1; }
   .chat-reasoning-body[data-streaming]::before { animation: none; height: 100%; background: var(--accent); }
   .chat-turn-head-icon[data-live='running']::before { animation: none; background: color-mix(in srgb, var(--accent) 55%, transparent); }
   .chat-subagents-wires path[data-status='running'],
