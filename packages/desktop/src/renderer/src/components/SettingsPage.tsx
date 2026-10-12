@@ -67,7 +67,7 @@ function AppearanceSettings() {
       />
       <SettingsRow
         label="配色"
-        description="界面的整套颜色。每套都有浅色和深色两面，跟着上面的主题切换；每张色卡左边是浅色、右边是深色。"
+        description="界面的整套颜色，各有浅色和深色两面，跟着上面的主题切换；色卡左浅右深。"
         control={(labelId) => <PalettePicker labelId={labelId} />}
       />
       <SettingsRow
@@ -100,12 +100,12 @@ function AppearanceSettings() {
       />
       <SettingsRow
         label="聊天字体"
-        description="聊天消息和过程信息用的字体。系统跟随 macOS / Windows 的界面字体；衬线只改正文，代码不变；其他可以从这台电脑装的字体里挑，它没有的字仍回落到系统字体。"
+        description="聊天消息用的字体。衬线只改正文，代码不变；字体里缺的字回落到系统字体。"
         control={(labelId) => <ChatFontPicker labelId={labelId} />}
       />
       <SettingsRow
         label="聊天页宽度"
-        description="聊天界面里消息和输入框最宽多少：窄是 800px，中等是 1200px，全宽占满聊天区域。窗口比这窄时都占满。"
+        description="消息和输入框的最大宽度：窄 800px，中等 1200px，全宽占满聊天区域。"
         control={(labelId) => (
           <Segmented
             labelId={labelId}
@@ -121,7 +121,7 @@ function AppearanceSettings() {
       />
       <SettingsRow
         label="折叠做完的回合"
-        description="打开时，Agent 回完一轮，过程（思考、命令、中间的回复）收进「工作了 N 秒」，只留下最后的回答；点它仍能展开。关掉则一直全部显示。"
+        description="一轮回完后，把思考、命令和中间的回复收进「工作了 N 秒」，只留最后的回答，点开仍能看。"
         control={(labelId) => (
           <Toggle labelId={labelId} checked={foldTurns} onChange={(next) => setPreference('foldTurns', next)} />
         )}
@@ -138,14 +138,14 @@ function NotificationSettings() {
       {canNotify() && (
         <SettingsRow
           label="系统通知"
-          description="窗口不在前台时，Agent 等你允许或回答、这一轮做完、异常退出，以及定时任务的一次运行做完或没能开始，都发一条系统通知，点它回到那条会话或任务。关掉也不影响 Dock 图标上的数字：那是等你处理的会话、任务和没看过的定时任务运行有几个（macOS 和 Linux）。macOS 第一次会问要不要允许 Kando 通知。"
+          description="窗口不在前台时，Agent 等你确认、一轮做完、异常退出，或定时任务跑完时发通知，点它回到对应的会话或任务。不影响 Dock 图标上的待处理数字。"
           control={(labelId) => <Toggle labelId={labelId} checked={notifications} onChange={(next) => setPreference('notifications', next)} />}
         />
       )}
       {canShowRequestPopup() && (
         <SettingsRow
           label="离开时在屏幕顶部弹出待处理的请求"
-          description="你在别的应用里时，Agent 等你允许、回答问题或批准计划，屏幕顶部会弹出一张卡片，直接在上面选；不会抢走你正在打字的窗口。回到 Kando 窗口或点 ✕ 它就收起。打开时，这类请求不再另发系统通知。"
+          description="你在别的应用里时，Agent 等你确认的请求以卡片弹在屏幕顶部，可以直接选，不会抢走焦点。打开后这类请求不再另发系统通知。"
           control={(labelId) => <Toggle labelId={labelId} checked={requestPopup} onChange={(next) => setPreference('requestPopup', next)} />}
         />
       )}
@@ -199,14 +199,14 @@ function TranslationSettings() {
       {!supported && <p className="muted">正在连接的 core 版本较旧，还不能翻译；更新后可用。</p>}
       <SettingsRow
         label="翻译成"
-        description="Agent 的回复不是这种语言时，回复下面会出现「翻译」按钮。"
+        description="回复不是这种语言时，会出现「翻译」按钮。"
         control={(labelId) => (
           <Segmented labelId={labelId} value={to} options={TRANSLATE_LANGUAGES.map((value) => ({ value, label: LANGUAGE_NAMES[value] }))} onChange={(next) => setPreference('translateTo', next)} />
         )}
       />
       <SettingsRow
         label="翻译用的模型"
-        description="用会话里同一个 Agent 翻译。不选就自动用它最便宜的小模型：Claude Code 用 Haiku，Codex 用 Luna 系列（推理强度 low），Cursor 用 Flash 一类；都没有时用它的默认模型。"
+        description="用会话里同一个 Agent 翻译。不选时自动用它最便宜的模型（Haiku、Luna、Flash 一类），没有就用它的默认模型。"
         control={() => (
           <span className="translation-models">
             {installed.map((agent) => <TranslationModelPicker key={agent} agent={agent} />)}
@@ -215,11 +215,11 @@ function TranslationSettings() {
       />
       <SettingsRow
         label="自动翻译"
-        description="打开后，不是这种语言的回复显示到屏幕上时就自动翻译，点「原文」可以看原来的内容。只翻译你看到的回复，打开一条很长的旧会话不会一下子全部翻译。"
+        description="回复显示到屏幕上时自动翻译，点「原文」看原文。只翻你看到的，不会一下子翻完整条旧会话。"
         control={(labelId) => <Toggle labelId={labelId} checked={auto} onChange={(next) => setPreference('autoTranslate', next)} />}
       />
       <p className="settings-note">
-        每次翻译单独请求一次、不带任何工具，不进会话，也不占会话的上下文，但会算进这个 Agent 的用量。同一条回复只翻译一次。
+        每次翻译单独发一次请求，不进会话、不占上下文，但会计入这个 Agent 的用量；同一条回复只翻一次。
       </p>
     </>
   )
@@ -278,12 +278,12 @@ function BrowserRows() {
     <>
       <SettingsRow
         label="浏览器"
-        description="聊天界面里的 Agent 用 Kando 应用自带的浏览器打开页面、截图、点击，页面就显示在右侧的浏览器面板里；本地开发地址直接打开，其他站点第一次访问时在对话里问你。应用关掉时 Agent 用不了浏览器。"
+        description="Agent 用 Kando 自带的浏览器打开页面、截图和点击，页面显示在右侧面板。本地地址直接打开，其他网站第一次访问会先问你。Kando 关掉时不可用。"
         control={() => <span className="muted">{browserStatusText(status)}</span>}
       />
       <SettingsRow
         label="Agent 打开页面时自动显示浏览器"
-        description="Agent 第一次在会话里用浏览器时，自动打开右侧的浏览器面板并选中它的标签页。默认关：浏览器在后台跑，对话里的页面卡片上点「打开」才显示。"
+        description="Agent 第一次用浏览器时自动打开右侧的浏览器面板。关掉时，在页面卡片上点「打开」才显示。"
         control={(labelId) => (
           <Toggle labelId={labelId} checked={openOnTab} onChange={(next) => setPreference('openBrowserOnTab', next)} />
         )}
@@ -305,7 +305,7 @@ function AgentSettings() {
       {chatSettings?.maxConcurrentAgents !== undefined && (
         <SettingsRow
           label="同时运行的 Agent 总数"
-          description="达到上限后，新启动的会话会提示稍后重试；预约任务会等待空位。等待你批准的 Agent 也占一个位置，调低上限不会停止已运行的会话。"
+          description="到上限后，新会话会提示稍后再试，预约任务排队等空位。等你确认的 Agent 也占名额；调低不会停掉正在运行的会话。"
           control={(labelId) => (
             <Stepper labelId={labelId} value={chatSettings.maxConcurrentAgents ?? 20} min={1} max={50} unit="个" onChange={(maxConcurrentAgents) => void setChatSettings({ maxConcurrentAgents })} />
           )}
@@ -324,7 +324,7 @@ function AgentSettings() {
       {awakeSupported && awake && (
         <SettingsRow
           label="保持电脑唤醒"
-          description="「Agent 工作时」只在至少一个 Agent 正在执行、或还有预约等着运行时阻止系统睡眠；Agent 等待输入时允许睡眠。合上笔记本仍会睡眠。关闭 Kando 窗口不影响正在运行的 Agent。"
+          description="「Agent 工作时」：有 Agent 在执行或有预约待运行时阻止睡眠，等你输入时不阻止。合上笔记本仍会睡眠。"
           control={(labelId) => (
             <Segmented
               labelId={labelId}
@@ -342,7 +342,7 @@ function AgentSettings() {
       {chatSettings && (
         <SettingsRow
           label="回合结束后建议下一步"
-          description="Claude Code 在聊天界面里每轮回复完，预测你接下来可能要说的话，灰字显示在输入框里，按 Tab 或 → 填入，直接打字就忽略。生成建议要再发一次简短请求，复用对话缓存，花费很少，但会计入用量。关掉立即生效；打开后，已经在跑的 Claude 会话要等下次启动才有建议。Codex 没有这个功能。"
+          description="Claude Code 每轮回复后，在输入框里用灰字预测你的下一句，按 Tab 或 → 填入。每次多发一个简短请求，会计入少量用量。打开后从下次启动 Claude 起生效；Codex 不支持。"
           control={(labelId) => (
             <Toggle labelId={labelId} checked={chatSettings.promptSuggestions} onChange={(next) => void setChatSettings({ promptSuggestions: next })} />
           )}
@@ -351,7 +351,7 @@ function AgentSettings() {
       {chatSettings?.userBrowser !== undefined && (
         <SettingsRow
           label="让 Claude Code 操作你的 Chrome"
-          description="打开后，Claude Code 可以通过 Claude in Chrome 扩展在你自己的 Chrome 里打开、点击和填写网页，用的是你已经登录的账号。需要先在 Chrome 里装好 Claude 扩展。改动从下次启动 Agent 起生效，已经在跑的会话不受影响。Codex 和 Cursor 没有这个功能。"
+          description="Claude Code 通过 Claude in Chrome 扩展，在你自己的 Chrome 里用已登录的账号打开、点击和填写网页。需要先装好扩展。从下次启动 Agent 起生效；Codex 和 Cursor 不支持。"
           control={(labelId) => (
             <Toggle labelId={labelId} checked={chatSettings.userBrowser ?? true} onChange={(next) => void setChatSettings({ userBrowser: next })} />
           )}
@@ -360,7 +360,7 @@ function AgentSettings() {
       {chatSettings?.readHistory !== undefined && (
         <SettingsRow
           label="让 Agent 读你在 Kando 里的记录"
-          description="打开后，每个 Agent 都能用 Kando 的两个只读工具，列出和读取你在 Kando 里的会话、任务和群聊，包括其他 Agent 的，比如让定时任务「总结我本周的工作」。只能读，不能改。关掉后，Agent 就没有这两个工具。改动从下次启动 Agent 起生效，已经在跑的会话不受影响。"
+          description="每个 Agent 都能用两个只读工具，列出和读取你在 Kando 里的会话、任务和群聊（包括其他 Agent 的），比如让定时任务总结本周工作。从下次启动 Agent 起生效。"
           control={(labelId) => (
             <Toggle labelId={labelId} checked={chatSettings.readHistory ?? true} onChange={(next) => void setChatSettings({ readHistory: next })} />
           )}
@@ -369,7 +369,7 @@ function AgentSettings() {
       {chatSettings?.unattendedMode && (
         <SettingsRow
           label="预约运行的权限"
-          description="预约的任务和会话到点时没人在场，以这个模式开始，不先规划、不等确认。「自动接受编辑」：改文件不再问，运行命令等其他操作仍会问，没人回答就停在那里，第二天再处理。「全部放行」：什么都不问，Codex 也不受沙箱限制，只在你信任这些任务时用。"
+          description="预约的任务和会话到点时无人值守，以这个模式直接开始。「自动接受编辑」：改文件不问，其他操作仍会问，没人回答就停下；「全部放行」：什么都不问，Codex 也不受沙箱限制，只用于你信任的任务。"
           control={(labelId) => (
             <Segmented
               labelId={labelId}
@@ -382,7 +382,7 @@ function AgentSettings() {
       )}
       <SettingsRow
         label="允许「全部放行」"
-        description="打开后，聊天界面的权限模式里多出「全部放行」：Agent 不再请求确认，Codex 也不再受沙箱限制。Claude Code 自己建议只在没有网络的沙箱里这样用。只影响之后启动的聊天会话。"
+        description="权限模式里多出「全部放行」：Agent 不再请求确认，Codex 也不受沙箱限制。Claude Code 建议只在断网的沙箱里这样用。只影响之后启动的会话。"
         control={(labelId) => (
           <Toggle labelId={labelId} checked={allowBypass} onChange={(next) => setPreference('allowBypass', next)} />
         )}
@@ -472,12 +472,12 @@ function DebugSettings() {
     <>
       <SettingsRow
         label="记录和 Agent 之间的原始数据"
-        description="打开后，Kando 把和聊天里的 Agent 之间收发的每一行原样记下来：发给 Agent 的、Agent 输出的（包括不是 JSON 的行和一段段流出来的文字）、stderr、启动命令和退出码。会话和任务的检查器里多出「原始数据」，可以按时间看、搜索、展开 JSON、复制。正在运行的 Agent 从下一行开始记录。"
+        description="原样记下 Kando 和 Agent 之间收发的每一行（含 stderr、启动命令和退出码），在会话或任务检查器的「原始数据」里查看、搜索和复制。正在运行的 Agent 从下一行开始记。"
         control={(labelId) => <Toggle labelId={labelId} checked={wireLog} onChange={(next) => void setChatSettings({ wireLog: next })} />}
       />
       <SettingsRow
         label="已经记下的"
-        description={`${usage ? `${usage.files} 段，共 ${formatBytes(usage.bytes)}。` : ''}存在这台电脑的 ~/.kando/sessions/<会话>/wire/ 下，Agent 的每一段最多记 50 MB，超过 7 天的自动删除。里面有文件内容和命令输出，分享前看一眼。`}
+        description={`${usage ? `${usage.files} 段，共 ${formatBytes(usage.bytes)}。` : ''}存在 ~/.kando/sessions/<会话>/wire/ 下，每段最多 50 MB，7 天后自动删除。里面有文件内容和命令输出，分享前看一眼。`}
         control={() => (
           <button type="button" className="button" disabled={clearing || !usage || usage.files === 0} onClick={() => void clear()}>
             全部删除
@@ -602,7 +602,7 @@ const SECTIONS: readonly Section[] = [
     id: 'agents',
     group: '任务',
     title: '智能体',
-    description: '这台电脑上的 Agent：装没装、什么版本、登没登录，没装或没登录的给出要敲的命令；以及新建和执行任务、开始会话时它们的默认行为。',
+    description: '这台电脑上的 Agent：是否安装、版本和登录状态（缺什么会给出命令），以及新任务和会话的默认行为。',
     keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', 'mcp'],
     Icon: SparkIcon,
     Body: AgentSettings
@@ -611,7 +611,7 @@ const SECTIONS: readonly Section[] = [
     id: 'agent-stats',
     group: '任务',
     title: '智能体表现',
-    description: '每个 Agent 和模型的表现。任务（包括在聊天界面里执行的任务）看结果：你接受、继续修改、重做各占多少，从 0.10.0 开始记录；自由会话没有验收，只看用量：回合、失败、撞额度、耗时和 token。',
+    description: '每个 Agent 和模型的表现。任务看你接受、继续修改、重做的比例（从 0.10.0 起记录）；自由会话看用量：回合、失败、撞额度、耗时和 token。',
     keywords: ['表现', '统计', '通过率', '接受', '继续修改', '重做', '耗时', 'token', '模型', '会话', '用量', '回合', '失败', '额度', ...AGENT_KINDS],
     Icon: GaugeIcon,
     Body: AgentStatsSettings
@@ -620,7 +620,7 @@ const SECTIONS: readonly Section[] = [
     id: 'projects',
     group: '项目',
     title: '最近使用',
-    description: '给任务或会话添加项目时「最近使用」里列出的项目。移除只是不再列出，不影响已有的任务和会话。',
+    description: '添加项目时「最近使用」里列出的项目。移除只是不再列出，不影响已有的任务和会话。',
     keywords: ['项目', '仓库', '最近使用', '路径', '文件夹'],
     Icon: FolderIcon,
     Body: ProjectSettings
@@ -641,7 +641,7 @@ const CHAT_COMMANDS_SECTION: Section = {
   id: 'chat-commands',
   group: '任务',
   title: '聊天命令',
-  description: '自己的斜杠命令：在聊天输入框里输入 / 选用，把存好的提示词展开到输入框，改完再发。Claude Code 和 Codex 都能用。',
+  description: '自己的斜杠命令：在输入框里输入 / 选用，把存好的提示词填进输入框，改完再发。Claude Code 和 Codex 都能用。',
   keywords: ['命令', '斜杠', '/', '提示词', '模板', 'prompt', '聊天', '会话', '快捷'],
   Icon: ChatIcon,
   Body: ChatCommandSettings
@@ -652,7 +652,7 @@ const DEBUG_SECTION: Section = {
   id: 'debug',
   group: '其他',
   title: '调试',
-  description: '看清 Kando 和 Agent 之间到底传了什么：打开后，原样记下收发的每一行，在检查器的「原始数据」里查看。',
+  description: '原样记下 Kando 和 Agent 之间收发的数据，在检查器的「原始数据」里查看。',
   keywords: ['调试', 'debug', '原始数据', '日志', 'log', 'stdout', 'stderr', 'stdin', 'json', '协议', '抓包', 'wire'],
   Icon: BugIcon,
   Body: DebugSettings
@@ -663,7 +663,7 @@ const BROWSER_SECTION: Section = {
   id: 'browser',
   group: '集成',
   title: '浏览器',
-  description: '聊天里的 Agent 用 Kando 托管的 Chromium 看页面：安装状态，以及 Agent 打开页面时要不要自动显示浏览器面板。',
+  description: 'Kando 托管的 Chromium：安装状态，以及 Agent 打开页面时是否自动显示浏览器面板。',
   keywords: ['浏览器', 'chromium', '网页', '截图', '安装', '面板', '集成'],
   Icon: GlobeIcon,
   Body: BrowserRows

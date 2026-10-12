@@ -185,7 +185,7 @@ export function InstalledAgentsSettings() {
         <details className="environment-search-path">
           <summary>Kando 在这些目录里找命令（{environment.searchPath.length} 个）</summary>
           <p className="settings-row-description">
-            这是 core 启动时的 PATH，Agent 也用它启动；还会检查系统常见目录中的 App。CLI 装在别处的，把它所在的目录加进 PATH，再重启 Kando。
+            core 和 Agent 启动时用的 PATH，另外也会查常见目录里的 App。CLI 装在别处时，把它的目录加进 PATH 后重启 Kando。
           </p>
           <ul className="mono">
             {environment.searchPath.map((dir) => (

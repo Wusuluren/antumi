@@ -150,7 +150,7 @@ function ConversationUsage() {
     <>
       <ByAgent rows={stats} columns={CONVERSATION_COLUMNS} cells={(row) => <ConversationCells stats={row} />} />
       <p className="settings-stats-note muted">
-        会话没有验收，这里只看花了多少、断了几次，不评好坏。token 含缓存读到的部分，和聊天里每个回合显示的一样。也包括这项统计加入之前的会话。
+        会话没有验收，只看用量和中断次数，不评好坏。token 含缓存读取，和聊天里每个回合显示的一致；也含这项统计加入前的会话。
       </p>
     </>
   )
