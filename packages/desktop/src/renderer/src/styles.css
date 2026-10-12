@@ -663,11 +663,11 @@ body.stacked-panel-resizing * {
 .chat-translate svg { width: 14px; height: 14px; }
 .copy-button.chat-translate[data-failed] { color: var(--danger); }
 span.chat-translate .spinner { width: 12px; height: 12px; }
-/* One line per agent: its mark and name, then the model it translates with. */
-.translation-models { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.translation-model { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
-.translation-model .agent-mark { width: 14px; height: 14px; }
-.translation-model .chat-picker { max-width: 360px; }
+/* One line per agent: its mark and name, then the model it does small jobs with. */
+.quick-models { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.quick-model { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.quick-model .agent-mark { width: 14px; height: 14px; }
+.quick-model .chat-picker { max-width: 360px; }
 .settings-note { margin: 0; padding: 4px 0 14px; color: var(--text-muted); font-size: 12px; line-height: 1.6; }
 
 /* What the user put away: a word beside its title, and where its input was, the way back. */
@@ -7764,6 +7764,11 @@ body.side-panel-resizing * {
 .branch-commit { gap: 8px; }
 .branch-commit-message { width: 100%; min-height: 128px; resize: vertical; line-height: 1.5; font-family: var(--mono); font-size: 13px; }
 .branch-commit-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+/* Writing a message leads the row, apart from committing; what went wrong shows beside it. */
+.commit-message-generate { display: inline-flex; align-items: center; gap: 8px; margin-right: auto; min-width: 0; }
+.commit-message-generate .button { display: inline-flex; align-items: center; gap: 4px; }
+.commit-message-generate svg { width: 14px; height: 14px; }
+.commit-message-error { color: var(--danger); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .branch-push-what { margin: 0; font-size: 13px; }
 
 /* The browser card: a screenshot shown whole under the call's header, opening the viewer. */

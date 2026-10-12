@@ -1,5 +1,5 @@
 import path from 'node:path'
-import type { GitTarget, GitAction, GitResult, GitStatus, GitHistory, GitDetail, GitComparison, FileDiff } from '@kando/protocol'
+import type { AgentKind, GitTarget, GitAction, GitResult, GitStatus, GitHistory, GitDetail, GitComparison, FileDiff } from '@kando/protocol'
 import { checkGitOperation } from '@kando/protocol'
 import type { TaskService } from './task-service'
 import type { ConversationService } from './conversation-service'
@@ -24,6 +24,14 @@ export class GitService {
       if (repo) throw new Rejection('git-no-worktree', '任务 worktree 不存在，请先开始执行任务。')
     }
     throw new Rejection('repo-not-found', '项目不属于这个任务或会话。')
+  }
+
+  // Who writes a message for a target's changes, and where they are: its own agent, in its folder.
+  writer(target: GitTarget): { agent: AgentKind; dir: string } {
+    const dir = this.directory(target)
+    const agent = target.kind === 'conversation' ? this.conversations.get(target.id).agent : this.tasks.get(target.id).agent
+    if (!agent) throw new Rejection('missing-agent')
+    return { agent, dir }
   }
 
   async guardAgent(dirs: readonly string[]): Promise<void> {

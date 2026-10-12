@@ -7,6 +7,7 @@ import { commitRefs } from '../git-refs'
 import { openResolvedFile, showResolvedFile } from '../file-actions'
 import { useOccludesBrowser } from '../browser-occlusion'
 import { BranchStatusDetails, type BranchTarget } from './BranchStatus'
+import { CommitMessageButton } from './CommitMessageButton'
 import { GitRefLabel, GitRefName } from './GitRefLabel'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
 import { FileDiffView, FileList, useFocusCount } from './Inspector'
@@ -362,7 +363,7 @@ function ActionDialog({ choice, target, status, busy, run, close }: { choice: Di
       {choice.kind === 'delete' && <><p>仓库：<span className="mono">{status.directory}</span><br />{choice.branch?.remote ? `删除远端 ${choice.branch.remote}/${choice.branch.name}` : `安全删除本地 ${choice.branch?.name}，未合并时 Git 会拒绝。`}</p>{choice.branch?.remote && <label>输入完整远端分支名确认<input className="input" autoFocus placeholder={`${choice.branch.remote}/${choice.branch.name}`} value={confirm} onChange={(event) => setConfirm(event.target.value)} /></label>}</>}
       {choice.kind === 'merge' && <p>把 <span className="mono">{choice.branch?.ref.replace(/^refs\/(heads|remotes)\//, '')}</span> 合入 <span className="mono">{status.branch}</span>。分叉时产生合并提交；有冲突时保留现场供你处理。</p>}
       {choice.kind === 'abort' && <p>中止当前 merge，撤销这次合并及解决冲突的改动。Git 无法安全恢复时会拒绝，请在终端检查。</p>}
-      <div className="branch-commit-buttons"><button className="button" disabled={busy} onClick={close}>取消</button>{choice.kind === 'commit' && <button className="button" disabled={!enabled} onClick={(event) => submit(event, true)}>Commit &amp; Push</button>}<button className="button primary" disabled={!enabled} onClick={submit}>{busy ? '处理中…' : TITLES[choice.kind]}</button></div>
+      <div className="branch-commit-buttons">{choice.kind === 'commit' && <CommitMessageButton target={target} disabled={busy} onMessage={setMessage} />}<button className="button" disabled={busy} onClick={close}>取消</button>{choice.kind === 'commit' && <button className="button" disabled={!enabled} onClick={(event) => submit(event, true)}>Commit &amp; Push</button>}<button className="button primary" disabled={!enabled} onClick={submit}>{busy ? '处理中…' : TITLES[choice.kind]}</button></div>
     </div>
   </dialog>
 }

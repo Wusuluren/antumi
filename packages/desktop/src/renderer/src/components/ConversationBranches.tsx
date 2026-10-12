@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { checkSwitchBranch, type CommitPushResult, type CommitResult, type Conversation, type ProjectBranches, type ProjectHead, type PushResult } from '@kando/protocol'
+import { checkSwitchBranch, type CommitPushResult, type CommitResult, type Conversation, type GitTarget, type ProjectBranches, type ProjectHead, type PushResult } from '@kando/protocol'
 import { perform, useCore } from '../core-store'
 import { reasonText } from '../labels'
 import { shortRef } from '../task-starts'
 import { BranchStatusDetails } from './BranchStatus'
+import { CommitMessageButton } from './CommitMessageButton'
 import { ArrowUpIcon, BranchIcon, CheckIcon, CommitIcon, PlusIcon } from './icons'
 import { hasPrimaryModifier, PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { useOccludesBrowser } from '../browser-occlusion'
@@ -107,7 +108,7 @@ function CreateForm({ onCreate }: { onCreate: (name: string) => void }) {
 
 // The message gets room for a subject and a body. With the steps on their own, it can be kept
 // local; ⌘Enter commits and pushes, as the main button does.
-function CommitForm({ title, steps, busy, onCommit }: { title: string; steps: boolean; busy: boolean; onCommit: (message: string, push: boolean) => void }) {
+function CommitForm({ target, title, steps, busy, onCommit }: { target: GitTarget; title: string; steps: boolean; busy: boolean; onCommit: (message: string, push: boolean) => void }) {
   const [message, setMessage] = useState(title)
   const submit = (push: boolean) => {
     if (message.trim() && !busy) onCommit(message.trim(), push)
@@ -132,6 +133,7 @@ function CommitForm({ title, steps, busy, onCommit }: { title: string; steps: bo
       />
       <p className="branch-action-note">提交这个仓库里的全部改动{steps ? '；Commit & Push 再接着推送当前分支' : '，并推送当前分支'}，没有 upstream 时推到 origin 并跟踪它。</p>
       <div className="branch-commit-buttons">
+        <CommitMessageButton target={target} disabled={busy} onMessage={setMessage} />
         {steps && <button type="button" className="button" disabled={!message.trim() || busy} onClick={() => submit(false)}>Commit</button>}
         <button type="button" className="button primary" disabled={!message.trim() || busy} title={`${PRIMARY_KEY_LABEL}Enter`} onClick={() => submit(true)}>Commit &amp; Push</button>
       </div>
@@ -274,7 +276,7 @@ function ProjectActions({ conversation, head, option, onChanged }: {
             <SwitchList option={option} onPick={(ref) => void run((rpc) => rpc.call('conversations.switchBranch', { ...project, ref }), localName(ref))} />
           )}
           {open === 'create' && <CreateForm onCreate={(name) => void run((rpc) => rpc.call('conversations.createBranch', { ...project, name }), name)} />}
-          {open === 'commit' && <CommitForm title={conversation.title} steps={steps} busy={busy} onCommit={(message, alsoPush) => void commit(message, alsoPush)} />}
+          {open === 'commit' && <CommitForm target={{ kind: 'conversation', ...project }} title={conversation.title} steps={steps} busy={busy} onCommit={(message, alsoPush) => void commit(message, alsoPush)} />}
           {open === 'push' && <PushForm head={head} busy={busy} onPush={() => void push()} />}
         </BranchActionDialog>
       )}

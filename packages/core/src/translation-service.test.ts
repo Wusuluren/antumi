@@ -2,6 +2,7 @@ import { writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { agentDescriptor, quickModel, type ChatCatalog } from '@kando/protocol'
 import type { QuickCommand } from './agents/agent-adapter'
+import { QuickRequests } from './quick-request'
 import { translatePrompt, TranslationService } from './translation-service'
 
 const catalog = (...ids: string[]): ChatCatalog => ({ models: ids.map((id) => ({ id, label: id, description: '', efforts: [], isDefault: false })) })
@@ -23,14 +24,14 @@ describe('translation', () => {
 
   it('asks the conversation\'s agent once per reply and language, reading its answer where it puts it', async () => {
     const asked: QuickCommand[] = []
-    const service = new TranslationService({
+    const service = new TranslationService(new QuickRequests({
       catalog: async (agent) => (agent === 'codex' ? catalog('gpt-6-luna') : catalog('sonnet', 'haiku')),
       run: async (command) => {
         asked.push(command)
         if (command.output === 'file') writeFileSync(command.args[command.args.indexOf('-o') + 1] ?? '', '译文（文件）\n')
         return command.output === 'stdout' ? '  译文\n' : 'progress lines'
       }
-    })
+    }))
     expect(await service.translate('claude', 'Hello', 'zh-CN')).toEqual({ text: '译文', model: 'haiku' })
     expect(await service.translate('claude', 'Hello', 'zh-CN')).toEqual({ text: '译文', model: 'haiku' })
     expect(asked).toHaveLength(1)
@@ -45,7 +46,7 @@ describe('translation', () => {
 
   it('falls back on the cheapest when the agent no longer lists the model picked, and tries a pick it cannot check', async () => {
     let known: ChatCatalog | null = catalog('opus', 'haiku')
-    const service = new TranslationService({ catalog: async () => known, run: async (command) => command.args[command.args.indexOf('--model') + 1] ?? '' })
+    const service = new TranslationService(new QuickRequests({ catalog: async () => known, run: async (command) => command.args[command.args.indexOf('--model') + 1] ?? '' }))
     expect(await service.translate('claude', 'Hello', 'zh-CN', 'claude-sonnet-4-5')).toEqual({ text: 'haiku', model: 'haiku' })
     known = null
     expect(await service.translate('claude', 'Hi there', 'zh-CN', 'claude-sonnet-4-5')).toEqual({ text: 'claude-sonnet-4-5', model: 'claude-sonnet-4-5' })
@@ -55,7 +56,7 @@ describe('translation', () => {
     let running = 0
     let most = 0
     let fail = true
-    const service = new TranslationService({
+    const service = new TranslationService(new QuickRequests({
       catalog: async () => null,
       run: async () => {
         running++
@@ -65,7 +66,7 @@ describe('translation', () => {
         if (fail) throw new Error('boom')
         return 'ok'
       }
-    })
+    }))
     await Promise.allSettled(['a', 'b', 'c', 'd', 'e'].map((text) => service.translate('claude', text, 'en')))
     expect(most).toBe(2)
     fail = false

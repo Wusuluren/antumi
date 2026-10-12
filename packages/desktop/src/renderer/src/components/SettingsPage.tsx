@@ -153,11 +153,11 @@ function NotificationSettings() {
   )
 }
 
-// The model one agent translates with: its cheapest by default, which the first option names, or one
-// the user picked from its catalog.
-function TranslationModelPicker({ agent }: { agent: AgentKind }) {
+// The model one agent does small jobs with: its cheapest by default, which the first option names, or
+// one the user picked from its catalog.
+function QuickModelPicker({ agent }: { agent: AgentKind }) {
   const catalog = useAgentCatalog(agent, true)
-  const picked = usePreferences((s) => s.translateModels[agent]) ?? ''
+  const picked = usePreferences((s) => s.quickModels[agent]) ?? ''
   const cheapest = quickModel(agentDescriptor(agent).quickModels, catalog)
   const cheapestLabel = catalog?.models.find((model) => model.id === cheapest)?.label ?? (catalog === undefined ? '…' : '默认模型')
   const options = [
@@ -170,19 +170,19 @@ function TranslationModelPicker({ agent }: { agent: AgentKind }) {
       : [])
   ]
   return (
-    <span className="translation-model">
+    <span className="quick-model">
       <AgentIcon agent={agent} />
-      <span className="translation-model-agent">{agentLabel(agent)}</span>
+      <span className="quick-model-agent">{agentLabel(agent)}</span>
       <ChatPicker
-        label={`${agentLabel(agent)} 翻译用的模型`}
+        label={`${agentLabel(agent)} 做轻量任务用的模型`}
         value={picked}
         placeholder="自动"
         placement="below"
         align="end"
         options={options}
         onChange={(value) => {
-          const { [agent]: _gone, ...rest } = usePreferences.getState().translateModels
-          setPreference('translateModels', value ? { ...rest, [agent]: value } : rest)
+          const { [agent]: _gone, ...rest } = usePreferences.getState().quickModels
+          setPreference('quickModels', value ? { ...rest, [agent]: value } : rest)
         }}
       />
     </span>
@@ -193,7 +193,6 @@ function TranslationSettings() {
   const to = usePreferences((s) => s.translateTo)
   const auto = usePreferences((s) => s.autoTranslate)
   const supported = useTranslateSupported()
-  const installed = useInstalledAgents()
   return (
     <>
       {!supported && <p className="muted">正在连接的 core 版本较旧，还不能翻译；更新后可用。</p>}
@@ -205,21 +204,12 @@ function TranslationSettings() {
         )}
       />
       <SettingsRow
-        label="翻译用的模型"
-        description="用会话里同一个 Agent 翻译。不选时自动用它最便宜的模型（Haiku、Luna、Flash 一类），没有就用它的默认模型。"
-        control={() => (
-          <span className="translation-models">
-            {installed.map((agent) => <TranslationModelPicker key={agent} agent={agent} />)}
-          </span>
-        )}
-      />
-      <SettingsRow
         label="自动翻译"
         description="回复显示到屏幕上时自动翻译，点「原文」看原文。只翻你看到的，不会一下子翻完整条旧会话。"
         control={(labelId) => <Toggle labelId={labelId} checked={auto} onChange={(next) => setPreference('autoTranslate', next)} />}
       />
       <p className="settings-note">
-        每次翻译单独发一次请求，不进会话、不占上下文，但会计入这个 Agent 的用量；同一条回复只翻一次。
+        由会话里同一个 Agent 翻译，用的模型在 智能体 →「轻量任务用的模型」里选。每次翻译单独发一次请求，不进会话、不占上下文，但会计入这个 Agent 的用量；同一条回复只翻一次。
       </p>
     </>
   )
@@ -401,6 +391,15 @@ function AgentSettings() {
               { value: 'none', label: '不指定' }
             ]}
           />
+        )}
+      />
+      <SettingsRow
+        label="轻量任务用的模型"
+        description="翻译回复、生成提交信息时用会话里同一个 Agent 的这个模型。不选就自动用它最便宜的模型（Haiku、Luna、Flash 一类），没有就用默认模型。"
+        control={() => (
+          <span className="quick-models">
+            {installed.map((agent) => <QuickModelPicker key={agent} agent={agent} />)}
+          </span>
         )}
       />
     </>
@@ -603,7 +602,7 @@ const SECTIONS: readonly Section[] = [
     group: '任务',
     title: '智能体',
     description: '这台电脑上的 Agent：是否安装、版本和登录状态（缺什么会给出命令），以及新任务和会话的默认行为。',
-    keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', 'mcp'],
+    keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', 'mcp', '模型', '轻量', '提交信息', 'haiku'],
     Icon: SparkIcon,
     Body: AgentSettings
   },

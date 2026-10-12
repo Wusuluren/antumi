@@ -329,7 +329,7 @@ function AssistantReply({ conversationId, item, completedAt, ending, blockKey }:
   const to = usePreferences((p) => p.translateTo)
   const auto = usePreferences((p) => p.autoTranslate)
   const agent = useCore((s) => s.conversations[conversationId]?.agent)
-  const model = usePreferences((p) => (agent ? p.translateModels[agent] : undefined)) ?? ''
+  const model = usePreferences((p) => (agent ? p.quickModels[agent] : undefined)) ?? ''
   const finished = completedAt !== undefined && !item.streaming && text !== ''
   const foreign = useMemo(() => supported && finished && needsTranslation(text, to), [supported, finished, text, to])
   const key = translationKey(conversationId, blockKey, to, model)

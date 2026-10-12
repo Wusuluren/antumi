@@ -32,6 +32,8 @@ import { AgentCliInstaller } from './agent-cli-installation'
 import { dashboardSince, summarizeDashboard } from './dashboard-stats'
 import { PortService } from './port-service'
 import type { WireLog } from './wire-log'
+import { cleanCommitMessage, commitContext, commitMessagePrompt } from './commit-message'
+import { QuickRequests } from './quick-request'
 import { TranslationService } from './translation-service'
 
 const OK = { ok: true } as const
@@ -67,7 +69,8 @@ export function createRpcHandlers(
   conversations.setGitPreparation((dirs, run) => git.withRepositories(dirs, run))
   worktrees.setGitRemoval((dirs, run) => git.withRepositoryLock(dirs, run))
   const files = new ConversationFiles((id) => conversations.get(id))
-  const translations = new TranslationService({ catalog: (agent) => conversations.chatCatalog(agent) })
+  const quick = new QuickRequests({ catalog: (agent) => conversations.chatCatalog(agent) })
+  const translations = new TranslationService(quick)
   const cliInstaller = new AgentCliInstaller(environment, terminals)
   const ports = new PortService(sessions, () => ({ terminals: terminals.list(), conversations: conversations.listAll(), tasks: service.list() }))
   // An agent's own terminals: run in the conversation's folder unless it names another, and
@@ -97,6 +100,11 @@ export function createRpcHandlers(
     'git.diff': ({ base, sha, file, ...target }) => git.diff(target, base, sha, file),
     'git.compare': ({ ref, direct, ...target }) => git.compare(target, ref, direct),
     'git.execute': ({ action, ...target }) => git.execute(target, action),
+    'git.commitMessage': async ({ model, ...target }) => {
+      const { agent, dir } = git.writer(target)
+      const answer = await quick.ask(agent, commitMessagePrompt(await commitContext(dir)), model)
+      return { message: cleanCommitMessage(answer.text), model: answer.model }
+    },
     'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: [...CORE_FEATURES] }),
     'files.resolve': ({ conversationId, path }) => files.resolve(conversationId, path),
     'files.read': ({ conversationId, path }) => files.read(conversationId, path),

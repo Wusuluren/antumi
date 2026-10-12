@@ -512,6 +512,11 @@ export function useDiscussionProjectsSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('discussion-projects') ?? false)
 }
 
+// Whether core writes a commit message with the target's agent (git.commitMessage).
+export function useCommitMessageSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('commit-message') ?? false)
+}
+
 // Whether core translates a reply with the conversation's agent (conversations.translate).
 export function useTranslateSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('translate') ?? false)
