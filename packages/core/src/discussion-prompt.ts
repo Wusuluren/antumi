@@ -6,6 +6,9 @@ import { agentDescriptor, memberLetter, type Discussion, type DiscussionMember, 
 type Members = Pick<Discussion, 'members' | 'formerMembers' | 'anonymous' | 'chairId'>
 
 const CLOSING_TAG = /<\/discussion-post/gi
+// Each round opens with a heading, which members take up for their own posts ("## A社 · 第二轮"),
+// though the chat already shows who speaks and in which round.
+const NO_HEADING = '发言开头不要写标题或署名（如「某某 · 第 2 轮」）：界面已经显示你的名字和轮次，直接写内容。'
 const HOLDS = /^立场[:：]\s*维持/
 
 // How the others are named to a member: by code when anonymous, so no one leans on a brand. A
@@ -67,6 +70,7 @@ export function openingPrompt(discussion: Discussion, member: DiscussionMember, 
     '- 这是只读讨论：可以阅读项目代码、运行只读命令来佐证，引用时写出 `文件:行`；不要修改任何文件，不要提交计划或请求执行计划，直接用文字回答。',
     '- 观点要具体，给出理由；不确定的地方直接说不确定。',
     '- 每次发言尽量控制在 600 字以内，除非主题确实需要更多。',
+    `- ${NO_HEADING}`,
     ...(userPosts.length > 0 ? ['', '## 用户的补充', ...userPosts.map((post) => post.text)] : []),
     ...(background.length > 0 ? ['', '## 之前议题的讨论（只作背景）', ...since(discussion, background)] : []),
     '',
@@ -89,6 +93,7 @@ export function roundPrompt(discussion: Discussion, round: number, unseen: reado
     ...since(discussion, unseen),
     '',
     '请先点名回应你同意和不同意的观点，说明理由；再给出你现在的立场。只重复别人已经说过的话没有意义。',
+    NO_HEADING,
     '最后单独一行写「立场：维持」或「立场：已修改」。'
   ].join('\n')
 }
