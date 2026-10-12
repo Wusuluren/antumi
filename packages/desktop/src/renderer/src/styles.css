@@ -2475,6 +2475,16 @@ button.task-tag:hover {
   margin: auto;
 }
 
+/* A task's chat while its start is under way, before core has the chat to show. */
+.task-chat-starting {
+  margin: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 .terminal-body {
   --side-panel-separator-size: 12px;
   flex: 1;

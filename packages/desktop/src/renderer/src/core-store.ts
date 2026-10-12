@@ -97,6 +97,8 @@ export type CoreState = {
   // What the new task dialog starts from when it opens on a task already begun, as the board's quick add hands over.
   newTaskDraft: NewTaskDraft | null
   taskLaunchId: string | null
+  // Tasks whose start this window is waiting on: their chat shows that it is coming.
+  startingTasks: readonly string[]
   settingsOpen: boolean
   // Which settings section to show when settings open; null keeps the first.
   settingsSection: string | null
@@ -173,6 +175,7 @@ export const useCore = create<CoreState>()(() => ({
   newTaskOpen: false,
   newTaskDraft: null,
   taskLaunchId: null,
+  startingTasks: [],
   settingsOpen: false,
   settingsSection: null,
   inboxOpen: false,
@@ -488,6 +491,10 @@ export function setInboxTab(key: string): void {
 
 export function showView(view: TaskView): void {
   useCore.setState({ view })
+}
+
+export function setTaskStarting(id: string, starting: boolean): void {
+  useCore.setState((s) => ({ startingTasks: starting ? [...s.startingTasks.filter((each) => each !== id), id] : s.startingTasks.filter((each) => each !== id) }))
 }
 
 export type NewTaskDraft = { title: string; repos: readonly string[]; agent: AgentKind | null }

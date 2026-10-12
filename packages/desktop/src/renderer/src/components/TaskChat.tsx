@@ -18,6 +18,7 @@ import { StatusIcon } from './StatusIcon'
 import { TaskInspector } from './TaskInspector'
 import { TaskAlerts } from './TaskAlerts'
 import { TaskToolbar } from './TaskActions'
+import { Spinner } from './Spinner'
 import { BoardCrumb } from './TaskBoard'
 import { useTaskHandoff } from './TaskHandoff'
 
@@ -74,6 +75,7 @@ export function TaskChat({ taskId }: { taskId: string }) {
   const conversationId = task?.conversationId ?? null
   const conversation = useCore((s) => (conversationId ? s.conversations[conversationId] : undefined))
   const inspectorOpen = useCore((s) => s.inspectorOpen)
+  const starting = useCore((s) => s.startingTasks.includes(taskId))
   const bypassable = useChatOptionsSupported()
   const [sidePanelRatio, setSidePanelRatio] = useState(DEFAULT_SIDE_PANEL_RATIO)
   const files = useFileTabs((state) => state[conversationId ?? ''] ?? EMPTY_FILE_TABS)
@@ -136,6 +138,12 @@ export function TaskChat({ taskId }: { taskId: string }) {
       <div className="terminal-body">
         {conversation ? (
           <ConversationChat conversation={conversation} surface={surface} />
+        ) : starting ? (
+          // Before core has the chat: it is getting the code and the agent ready, which can take a while.
+          <div className="task-chat-starting" role="status">
+            <Spinner />
+            <span>正在启动 {task.agent ? agentLabel(task.agent) : 'Agent'}：同步最新代码、准备工作区，稍等几秒…</span>
+          </div>
         ) : (
           <p className="terminal-view-empty muted">正在读取聊天记录…</p>
         )}

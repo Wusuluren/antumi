@@ -15,7 +15,7 @@ import {
   type Task,
   type TaskStatus
 } from '@kando/protocol'
-import { perform, selectTask, setInspectorOpen, setSchedulesOpen, showTaskChanges, showView, updateTask, useChatOptionsSupported, useCore, useSchedulesSupported, useTaskLaunchSupported, useWireLogShown, useWorktreesSupported, type TaskView } from '../core-store'
+import { perform, selectTask, setInspectorOpen, setSchedulesOpen, setTaskStarting, showTaskChanges, showView, updateTask, useChatOptionsSupported, useCore, useSchedulesSupported, useTaskLaunchSupported, useWireLogShown, useWorktreesSupported, type TaskView } from '../core-store'
 import { resolveModel, useAgentCatalog } from '../agent-models'
 import { reasonText, STATUS_HINT, STATUS_LABEL } from '../labels'
 import { useFileTabs } from '../file-tabs'
@@ -262,6 +262,7 @@ function RedoButton({ task, labelled }: { task: Task; labelled: boolean }) {
 
 // While a task can only plan and already has a chat, return to it instead of launching again.
 function StartButton({ task, dependencies, labelled }: { task: Task; dependencies: readonly Task[]; labelled: boolean }) {
+  const starting = useCore((s) => s.startingTasks.includes(task.id))
   const blocker = checkStart(task, dependencies)
   if (blocker === 'planning') {
     return labelled ? (
@@ -281,7 +282,7 @@ function StartButton({ task, dependencies, labelled }: { task: Task; dependencie
       label={plan ? '开始规划' : '开始执行'}
       className={labelled ? 'primary' : 'run-button'}
       Icon={plan ? ChatIcon : PlayIcon}
-      reason={blocker && blockerText(blocker, unfinished(dependencies))}
+      reason={starting ? '正在启动' : blocker && blockerText(blocker, unfinished(dependencies))}
       launch={() => startTask(task.id)}
       labelled={labelled}
     />
@@ -348,11 +349,17 @@ function ScheduleButton({ task, dependencies, labelled }: { task: Task; dependen
   )
 }
 
-// Started from the details as the task keeps its launch, so the dialog is not needed there.
+// Started from the details as the task keeps its launch, so the dialog is not needed there. The
+// chat opens at once: a start fetches, lays out a checkout and starts the agent before its first
+// message goes, which takes a while; a start that fails returns to the details, its error shown.
 async function startNow(task: Task, launch: TaskLaunch): Promise<void> {
   if (!task.agent || !confirmQuota(task.agent, modelText(launch.model))) return
   const bypass = useCore.getState().rpc?.features.includes('chat-options') ? { allowBypass: usePreferences.getState().allowBypass } : {}
-  if (await perform((rpc) => rpc.call('tasks.start', { id: task.id, ...bypass, ...launchOptions(launch) }))) showChatFor(task.id)
+  setTaskStarting(task.id, true)
+  showChatFor(task.id)
+  const started = await perform((rpc) => rpc.call('tasks.start', { id: task.id, ...bypass, ...launchOptions(launch) }))
+  setTaskStarting(task.id, false)
+  if (!started && useCore.getState().selectedId === task.id) showView('detail')
 }
 
 function startLabel(mode: ChatPermissionMode): string {
@@ -366,6 +373,7 @@ function StartSplitButton({ task, dependencies, launch }: { task: Task; dependen
   const close = useCallback(() => setOpen(false), [])
   const writes = launch.mode !== 'plan' && launch.mode !== 'readOnly'
   const inPlace = useEditsInPlace(task)
+  const starting = useCore((s) => s.startingTasks.includes(task.id))
   const agent = task.agent
   if (!agent) return null
   const blocker = checkStart(task, dependencies)
@@ -394,7 +402,7 @@ function StartSplitButton({ task, dependencies, launch }: { task: Task; dependen
           label={startLabel(launch.mode)}
           className="primary"
           Icon={launch.mode === 'plan' ? ChatIcon : PlayIcon}
-          reason={blocker && blockerText(blocker, unfinished(dependencies))}
+          reason={starting ? '正在启动' : blocker && blockerText(blocker, unfinished(dependencies))}
           launch={() => startNow(task, launch)}
           labelled
           tooltip={described?.description ? `${modeLabel(agent, launch.mode)}：${described.description}` : undefined}

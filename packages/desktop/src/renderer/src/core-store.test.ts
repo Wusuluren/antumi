@@ -3,7 +3,7 @@ import { Task, createRpcClient, type Conversation, type RpcConnection } from '@k
 import { actionableItems } from './attention'
 import {
   openAttentionItem, openConversationDraft, openInbox, selectConversation, selectTask, setAttentionOpen,
-  refreshAttentionSummaries, setDashboardOpen, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, useCore,
+  refreshAttentionSummaries, setDashboardOpen, setTaskStarting, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, useCore,
   clearInspectorFile, installAgentCli, showConversationChanges, showInspectorFile, showTaskChanges
 } from './core-store'
 import { conversationSurface } from './components/chat-surface'
@@ -201,5 +201,17 @@ describe('new conversation page', () => {
     expect(useCore.getState().conversationDraftProjects).not.toBe(first)
     openConversationDraft()
     expect(useCore.getState().conversationDraftProjects).toBeNull()
+  })
+})
+
+describe('tasks starting', () => {
+  it('marks a task while its start is under way, once however often it is asked', () => {
+    setTaskStarting('a', true)
+    setTaskStarting('a', true)
+    setTaskStarting('b', true)
+    expect(useCore.getState().startingTasks).toEqual(['a', 'b'])
+    setTaskStarting('a', false)
+    expect(useCore.getState().startingTasks).toEqual(['b'])
+    setTaskStarting('b', false)
   })
 })
