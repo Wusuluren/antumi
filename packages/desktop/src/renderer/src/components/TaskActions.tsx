@@ -627,7 +627,6 @@ export function TaskSteps({ task, labelled = false }: { task: Task; labelled?: b
       {launch && <TaskModelPicker task={task} launch={launch} />}
       {handoffButton}
       {schedule}
-      {handoff.dialog}
     </>
   ) : (
     <>
@@ -638,7 +637,6 @@ export function TaskSteps({ task, labelled = false }: { task: Task; labelled?: b
       {submit}
       {moveButtons}
       {redo}
-      {handoff.dialog}
     </>
   )
 }

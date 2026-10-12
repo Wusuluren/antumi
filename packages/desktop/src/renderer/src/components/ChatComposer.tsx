@@ -13,6 +13,7 @@ import { useChatCommandMenu } from './ChatCommandMenu'
 import { useChatMentionMenu } from './ChatMentionMenu'
 import { MentionField, useMentionedText } from './ChatMentionField'
 import { ChatOptionsBar } from './ChatOptionsBar'
+import { HandoffAgentPicker, HandoffModelPicker, useComposerHandoff } from './ChatHandoff'
 import { ChevronDownIcon, ClockIcon, CloseIcon, EnterIcon, PencilIcon, StopIcon } from './icons'
 import { SchedulePicker } from './SchedulePicker'
 import { createSchedule } from '../schedules'
@@ -250,8 +251,11 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
   // takes it, typing anything else puts it away for good.
   const [dismissed, setDismissed] = useState<string | null>(null)
   const offered = idle ? conversation.chat?.suggestion ?? null : null
-  const suggestion = offered && offered !== dismissed && text === '' && attached.images.length === 0 && quotes.length === 0 && !surface.sendBlocker ? offered : null
-  const canSteer = queueable && steerable && canSend
+  // Another agent picked in the agent switch: the next send hands the chat to it instead.
+  const handoff = useComposerHandoff(conversation)
+  const handingOff = handoff.target?.agent ?? null
+  const suggestion = !handingOff && offered && offered !== dismissed && text === '' && attached.images.length === 0 && quotes.length === 0 && !surface.sendBlocker ? offered : null
+  const canSteer = !handingOff && queueable && steerable && canSend
   const chatCommands = useCore((s) => s.chatCommands)
   const commandEntries = useMemo(
     () => [...kandoEntries(chatCommands, conversation.projectPaths), ...agentEntries(state?.commands ?? [])],
@@ -298,6 +302,24 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
       if (quoting) setQuotes(id, [])
     } else relay?.cancel()
   }
+  // The message goes with the handoff as the note the new agent reads first; images wait for the next.
+  const handOff = async () => {
+    if (busy || starting || handoff.blocker) return
+    const quoting = quotes.length > 0
+    setBusy(true)
+    const went = await handoff.send(quoting ? composeMessage(quotes, written) : written.trim())
+    setBusy(false)
+    if (went) {
+      setText('')
+      if (quoting) setQuotes(id, [])
+    }
+  }
+  // Picking an agent to hand to, here or from elsewhere, leads to the input that sends it.
+  useEffect(() => {
+    if (handingOff) mentionMenu.inputProps.ref.current?.focus()
+    // Only when the agent picked changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handingOff])
   const cancelQueued = (ref: string) => perform((rpc) => rpc.call('conversations.cancelQueued', { id, ...(ref ? { ref } : {}) }))
   const releaseQueued = (ref: string) => void perform((rpc) => rpc.call('conversations.sendQueued', { id, ...(ref ? { ref } : {}) }))
   const sendQueuedNow = (ref: string) => void perform((rpc) => rpc.call('conversations.sendQueued', { id, ...(ref ? { ref } : {}), now: true }))
@@ -344,7 +366,8 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
           {...mentionMenu.inputProps}
           readOnly={starting}
           placeholder={
-            surface.sendBlocker ?? initialHint ?? suggestion ?? (idle || stopped ? `给 Agent 发消息，Enter 发送，Shift+Enter 换行${commandEntries.length > 0 ? '，/ 选命令' : ''}${mentionsSupported ? '，@ 引用文件' : ''}`
+            handingOff ? `交给 ${agentLabel(handingOff)}：它先读移交说明再接着做。写在这里的会作为补充说明，也可以不写，直接按 Enter 移交`
+            : surface.sendBlocker ?? initialHint ?? suggestion ?? (idle || stopped ? `给 Agent 发消息，Enter 发送，Shift+Enter 换行${commandEntries.length > 0 ? '，/ 选命令' : ''}${mentionsSupported ? '，@ 引用文件' : ''}`
               : queueable ? `${turn === 'awaiting' ? '先回答上面的请求，' : ''}也可以写下一条，Enter 排到回合结束后发送${steerable ? '，⌘Enter 立刻插入' : ''}；Esc 中断`
               : turn === 'awaiting' ? '先回答上面的请求' : 'Agent 正在处理，可以先写下一条；Esc 中断')
           }
@@ -355,7 +378,10 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
           onPaste={imagesSupported ? attached.handlers.onPaste : undefined}
           onKeyDown={(event) => {
             if (commandMenu.onKeyDown(event) || mentionMenu.onKeyDown(event)) return
-            if (suggestion && takesSuggestion(event)) {
+            if (handingOff && (steersMessage(event) || sendsMessage(event))) {
+              event.preventDefault()
+              void handOff()
+            } else if (suggestion && takesSuggestion(event)) {
               event.preventDefault()
               setText(suggestion)
             } else if (steersMessage(event)) {
@@ -374,7 +400,13 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
       {/* Under the input, inside its box: what goes with the message, how the agent runs, and send. */}
       <div className="chat-options">
         {imagesSupported && <ChatAddMenu disabled={starting} onAdd={attached.add} />}
-        {optionsSupported && state && <ChatOptionsBar conversation={conversation} state={state} />}
+        {handoff.targets.length > 0 && <HandoffAgentPicker conversationId={id} handoff={handoff} disabled={busy || starting} />}
+        {handingOff ? (
+          <>
+            <span className="chat-dock-spacer" />
+            <HandoffModelPicker conversationId={id} agent={handingOff} />
+          </>
+        ) : optionsSupported && state && <ChatOptionsBar conversation={conversation} state={state} />}
         {suggestion && (
           <span className="chat-suggestion-hint" aria-hidden="true">
             <kbd>Tab</kbd> 填入建议
@@ -382,7 +414,7 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
         )}
         {/* A routine's chat is out of the list and its follow-ups light nothing: a run scheduled
             here would finish unseen. Running again belongs to the routine's own schedule. */}
-        {schedulesSupported && agentDescriptor(conversation.agent).capabilities.unattended && !conversation.routineId && (
+        {!handingOff && schedulesSupported && agentDescriptor(conversation.agent).capabilities.unattended && !conversation.routineId && (
           <ScheduleSendButton
             conversationId={id}
             text={written}
@@ -405,7 +437,20 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
             立刻插入
           </button>
         )}
-        {working ? (
+        {handingOff ? (
+          <button
+            type="button"
+            className="button primary chat-handoff-send"
+            aria-label={`移交给 ${agentLabel(handingOff)}`}
+            data-tooltip-side="top-end"
+            aria-disabled={handoff.blocker !== null}
+            data-tooltip={handoff.blocker ? `还不能移交：${handoff.blocker}` : `${handoff.stopsRunning ? `停止 ${agentLabel(handoff.from)}，` : ''}交给 ${agentLabel(handingOff)} 接着做（Enter）`}
+            disabled={busy || starting}
+            onClick={() => void handOff()}
+          >
+            移交
+          </button>
+        ) : working ? (
           <button type="button" className="chat-input-button" data-tooltip-side="top-end" data-stop aria-label="中断这一回合（Esc）" data-tooltip="中断（Esc）" onClick={interrupt}>
             <StopIcon />
           </button>

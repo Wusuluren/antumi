@@ -4,8 +4,7 @@ import { selectConversation, useCore } from '../core-store'
 import { conversationState, timeAgo } from '../conversation-state'
 import { agentLabel } from '../labels'
 import { CONVERSATION_GROUPS, CONVERSATION_SORTS, setPreference, usePreferences, type Preferences } from '../preferences'
-import { ConversationContextMenu, newConversation, renameConversation } from './ConversationActions'
-import { ConversationHandoffDialog } from './ConversationHandoffDialog'
+import { beginHandoff, ConversationContextMenu, newConversation, renameConversation } from './ConversationActions'
 import { ConversationStatus } from './ConversationStatus'
 import { ContextMenu, menuPoint, MenuRadioItem, MenuSubmenu, type MenuPoint } from './ContextMenu'
 import { ChatIcon, ChevronDownIcon, SlidersIcon } from './icons'
@@ -192,9 +191,7 @@ export function ConversationList() {
   const closeView = useCallback(() => setViewAt(null), [])
   const viewButton = useRef<HTMLButtonElement>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
-  const [handoffId, setHandoffId] = useState<string | null>(null)
   const menuConversation = menu ? conversations[menu.id] : undefined
-  const handoffConversation = handoffId ? conversations[handoffId] : undefined
 
   const row = (conversation: Conversation) => {
     const snippet = searching ? snippets?.get(conversation.id) : undefined
@@ -291,10 +288,9 @@ export function ConversationList() {
           at={menu.at}
           onClose={closeMenu}
           onRename={() => setRenamingId(menuConversation.id)}
-          onHandoff={() => setHandoffId(menuConversation.id)}
+          onHandoff={() => beginHandoff(menuConversation)}
         />
       )}
-      {handoffConversation && <ConversationHandoffDialog conversation={handoffConversation} onClose={() => setHandoffId(null)} />}
     </nav>
   )
 }

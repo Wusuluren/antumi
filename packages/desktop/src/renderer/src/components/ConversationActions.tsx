@@ -1,10 +1,29 @@
-import type { ChatItem, Conversation } from '@kando/protocol'
-import { openConversationDraft, perform, selectConversation, useConversationPinSupported, useCore } from '../core-store'
+import type { AgentKind, ChatItem, Conversation } from '@kando/protocol'
+import { openConversationDraft, perform, selectConversation, selectTask, showView, useConversationPinSupported, useCore } from '../core-store'
+import { proposeHandoff } from '../chat-handoff'
+import { agentLabel } from '../labels'
 import { usePreferences } from '../preferences'
 import { offerDraft } from '../chat-drafts'
 import { confirmQuota } from './AgentQuota'
 import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
-import { otherInstalledAgent, useInstalledAgents } from '../installed-agents'
+import { currentInstalledAgents, otherInstalledAgent, useInstalledAgents } from '../installed-agents'
+
+// Every way into a handoff ends in the conversation's composer, with the agent picked there (by
+// default the other one here), to be sent from it with whatever the user adds.
+export function beginHandoff(conversation: Conversation, agent?: AgentKind): void {
+  const state = useCore.getState()
+  const from = (conversation.taskId ? state.tasks[conversation.taskId]?.agent : null) ?? conversation.agent
+  const target = agent ?? otherInstalledAgent(from, currentInstalledAgents())
+  if (!target) {
+    useCore.setState({ error: `这台电脑上只找到了 ${agentLabel(from)}。装好另一个 Agent 后，在 设置 → 智能体 里重新检测，就可以移交了。` })
+    return
+  }
+  proposeHandoff(conversation.id, target)
+  if (conversation.taskId) {
+    selectTask(conversation.taskId)
+    showView('chat')
+  } else selectConversation(conversation.id)
+}
 
 // A new conversation opens as a page its first message starts.
 export function newConversation(projects?: readonly string[]): void {

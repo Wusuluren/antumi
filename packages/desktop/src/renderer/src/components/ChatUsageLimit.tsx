@@ -102,7 +102,7 @@ export function ChatUsageLimitCard({ conversation, item }: { conversation: Conve
         <span className="chat-dock-spacer" />
         {handoff && other && (
           <button type="button" className="button" disabled={retrying} data-tooltip={`移交给 ${agentLabel(other)}`} onClick={handoff}>
-            立即移交
+            移交给 {agentLabel(other)}
           </button>
         )}
         <button type="button" className="button primary" disabled={retrying} onClick={() => void retry()}>

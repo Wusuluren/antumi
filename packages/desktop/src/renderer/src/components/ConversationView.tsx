@@ -8,8 +8,7 @@ import { BranchStatus } from './BranchStatus'
 import { ConversationChat } from './ConversationChat'
 import { ConversationInspector } from './ConversationInspector'
 import { ConversationStatus } from './ConversationStatus'
-import { ConversationHandoffDialog } from './ConversationHandoffDialog'
-import { renameConversation } from './ConversationActions'
+import { beginHandoff, renameConversation } from './ConversationActions'
 import { CloseIcon, HandoffIcon, InspectorIcon } from './icons'
 import { DEFAULT_SIDE_PANEL_RATIO } from './side-panel-size'
 import { EMPTY_FILE_TABS, useFileTabs } from '../file-tabs'
@@ -29,9 +28,11 @@ function ForkOrigin({ id }: { id: string }) {
 
 export function ConversationView({ id }: { id: string }) {
   const conversation = useCore((state) => state.conversations[id])
-  const [handoffOpen, setHandoffOpen] = useState(false)
   // Stable, so the chat's surface is not rebuilt on every render.
-  const openHandoff = useCallback(() => setHandoffOpen(true), [])
+  const openHandoff = useCallback(() => {
+    const current = useCore.getState().conversations[id]
+    if (current) beginHandoff(current)
+  }, [id])
   const [renaming, setRenaming] = useState(false)
   const [busy, setBusy] = useState(false)
   const inspectorOpen = useCore((state) => state.conversationInspectorOpen)
@@ -85,7 +86,7 @@ export function ConversationView({ id }: { id: string }) {
         )}
       </div>
       <div className="toolbar">
-        <button type="button" className="tool-button" aria-label="移交给其他智能体" data-tooltip="移交给其他智能体" disabled={busy} onClick={() => setHandoffOpen(true)}><HandoffIcon /></button>
+        <button type="button" className="tool-button" aria-label="移交给其他智能体" data-tooltip="移交给其他智能体" disabled={busy} onClick={openHandoff}><HandoffIcon /></button>
         {hasPanel && (
           <button
             type="button"
@@ -106,6 +107,5 @@ export function ConversationView({ id }: { id: string }) {
       <ConversationChat conversation={conversation} onHandoff={openHandoff} />
       {hasPanel && inspectorOpen && <ConversationInspector conversation={conversation} widthRatio={panelRatio} onWidthRatioChange={setPanelRatio} wire={wire} />}
     </div>
-    {handoffOpen && <ConversationHandoffDialog conversation={conversation} onClose={() => setHandoffOpen(false)} />}
   </section>
 }

@@ -6516,6 +6516,10 @@ body.side-panel-resizing * {
 
 /* Send, or stop: round, at the end of the toolbar. One turns into the other as the turn starts
    and ends. */
+/* Sends a handoff: worded, not an arrow, as it changes who the chat is with. As tall as the send. */
+.button.chat-handoff-send { flex-shrink: 0; height: 28px; margin-left: auto; padding: 0 12px; font-size: 12px; }
+.button.chat-handoff-send[aria-disabled='true'] { background: var(--fill); border-color: var(--border-2); color: var(--text-muted); cursor: help; }
+
 .chat-input-button {
   animation: chat-button-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
   display: grid;
@@ -6929,6 +6933,8 @@ body.side-panel-resizing * {
 .chat-picker svg { flex-shrink: 0; width: 14px; height: 14px; opacity: 0.7; }
 .chat-picker[data-tone='plan'] { color: var(--status-running); }
 .chat-picker[data-tone='bypass'] { color: var(--danger); }
+/* An agent picked to hand the chat to: the next send goes to it. */
+.chat-picker[data-tone='handoff'] { color: var(--accent); font-weight: 600; }
 /* Beside the task's buttons: a button's height, edge and type. */
 .chat-picker[data-size='large'] { max-width: 280px; height: 32px; padding: 0 8px 0 12px; gap: 6px; border: 1px solid var(--border-2); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 13px; }
 .chat-picker[data-size='large']:hover:not(:disabled),

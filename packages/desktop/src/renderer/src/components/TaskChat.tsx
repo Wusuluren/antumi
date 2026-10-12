@@ -150,7 +150,6 @@ export function TaskChat({ taskId }: { taskId: string }) {
           />
         )}
       </div>
-      {handoff.dialog}
     </section>
   )
 }
