@@ -43,7 +43,7 @@ function MemberRow({ member, index, agents, chair, busy, removable, onChange, on
           if (agent) onChange({ ...member, agent, model: undefined, effort: undefined })
         }}
       />
-      {catalog === undefined && <span className="chat-options-note muted">正在读取模型…</span>}
+      {!catalog && <span className="chat-options-note muted">{catalog === undefined ? '正在读取模型…' : '默认模型'}</span>}
       {catalog && (
         <ChatModelPicker
           align="start"
@@ -60,7 +60,7 @@ function MemberRow({ member, index, agents, chair, busy, removable, onChange, on
       )}
       <input
         className="discussion-draft-name"
-        aria-label={`成员 ${index + 1} 的名字`}
+        aria-label={`成员 ${index + 1} 的名字，消息里用它 @ 这个成员`}
         value={shownName}
         maxLength={60}
         disabled={busy}
@@ -70,7 +70,7 @@ function MemberRow({ member, index, agents, chair, busy, removable, onChange, on
       <input
         className="discussion-draft-role"
         aria-label={`成员 ${index + 1} 的立场或角度`}
-        placeholder={`立场或角度（可不填），如：${ROLE_HINTS[index % ROLE_HINTS.length]}`}
+        placeholder={`可不填，如：${ROLE_HINTS[index % ROLE_HINTS.length]}`}
         value={member.role}
         maxLength={2000}
         disabled={busy}
@@ -170,6 +170,16 @@ export function DiscussionDraft() {
         <div className="discussion-draft-field">
           <span>成员</span>
           <ul className="discussion-draft-members">
+            {/* What each column of a member is: the name most of all, as it is what @ picks it by. */}
+            <li className="discussion-draft-member discussion-draft-member-head" aria-hidden="true">
+              <span />
+              <span>Agent</span>
+              <span>模型</span>
+              <span>名字（@ 它时用）</span>
+              <span>立场或角度</span>
+              <span />
+              <span />
+            </li>
             {members.map((member, index) => (
               <MemberRow
                 key={member.key}
