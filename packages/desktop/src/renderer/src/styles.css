@@ -799,6 +799,10 @@ body.stacked-panel-resizing * {
   font-family: var(--mono);
 }
 
+/* The agent's mark at the head of a conversation's line, the size of the text beside it. */
+.conversation-agent { display: inline-flex; vertical-align: -2px; margin-right: 6px; }
+.conversation-agent .agent-mark { width: 12px; height: 12px; }
+
 .task-row-tags {
   grid-column: 2;
   display: flex;

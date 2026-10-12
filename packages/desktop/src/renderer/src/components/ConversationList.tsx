@@ -7,7 +7,7 @@ import { CONVERSATION_GROUPS, CONVERSATION_SORTS, setPreference, usePreferences,
 import { beginHandoff, ConversationContextMenu, newConversation, renameConversation } from './ConversationActions'
 import { ConversationStatus } from './ConversationStatus'
 import { ContextMenu, menuPoint, MenuRadioItem, MenuSubmenu, type MenuPoint } from './ContextMenu'
-import { ChatIcon, ChevronDownIcon, SlidersIcon } from './icons'
+import { AgentIcon, ChatIcon, ChevronDownIcon, SlidersIcon } from './icons'
 import { primaryProjectName, projectName, projectNames } from './ProjectPicker'
 import { SidebarCollapseButton } from './SidebarCollapseButton'
 import { SidebarSearchField, SidebarSearchToggle } from './SidebarSearch'
@@ -105,8 +105,16 @@ function Highlighted({ text, query }: { text: string; query: string }) {
   return <>{text.slice(0, at)}<mark>{text.slice(at, at + query.length)}</mark>{text.slice(at + query.length)}</>
 }
 
-function conversationMeta(conversation: Conversation): string {
-  return `${agentLabel(conversation.agent)} · ${projectNames(conversation.projectPaths)} · ${conversationState(conversation).label}`
+// The agent by its mark, which reads faster than its name and leaves room for the project; the name
+// is its label and tooltip.
+function ConversationMeta({ conversation }: { conversation: Conversation }) {
+  const agent = agentLabel(conversation.agent)
+  return (
+    <>
+      <span className="conversation-agent" role="img" aria-label={agent} title={agent}><AgentIcon agent={conversation.agent} /></span>
+      {`${projectNames(conversation.projectPaths)} · ${conversationState(conversation).label}`}
+    </>
+  )
 }
 
 // The time, a minute at a time, for how long ago each row last changed.
@@ -200,7 +208,7 @@ export function ConversationList() {
         ? <div className="task-row conversation-row" data-renaming>
           <ConversationStatus conversation={conversation} />
           <TitleEditor title={conversation.title} label="会话标题" onSave={(title) => void renameConversation(conversation.id, title)} onDone={() => setRenamingId(null)} />
-          <span className="task-row-meta">{conversationMeta(conversation)}</span>
+          <span className="task-row-meta"><ConversationMeta conversation={conversation} /></span>
         </div>
         : <button
           type="button"
@@ -216,7 +224,7 @@ export function ConversationList() {
           <ConversationStatus conversation={conversation} />
           <span className="task-row-title" title={conversation.title}>{conversation.title}</span>
           <span className="conversation-age">{timeAgo(conversation.updatedAt, now)}</span>
-          <span className="task-row-meta" title={conversation.projectPaths.join('\n')}>{conversationMeta(conversation)}</span>
+          <span className="task-row-meta" title={conversation.projectPaths.join('\n')}><ConversationMeta conversation={conversation} /></span>
           {snippet && <span className="conversation-snippet"><Highlighted text={snippet} query={needle} /></span>}
         </button>}
     </li>
