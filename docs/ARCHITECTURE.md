@@ -207,11 +207,27 @@ Claude Code 以 `claude -p --input-format stream-json --output-format stream-jso
 
 在会话列表里右键选「删除会话」。删除会删除数据库记录、结构化消息、交接文件和聊天记录，但**无论外部还是 Kando 托管的工作目录都会保留**，因为其中可能有唯一的工作成果。
 
+### 群聊
+
+侧栏「群聊」栏目里点「＋」，写下主题，选 2–5 个成员（同一种 Agent 可以用不同模型加入多次，每人可以写一句立场或角度，比如「反对方」「关注安全」），指定一位主持人，就开始讨论。讨论按轮进行：
+
+1. **第 1 轮**：所有成员同时、独立作答，互相看不到，免得被第一个发言的带偏。
+2. **之后每轮**：每个成员收到上次以来别人的新发言（和你的插话），点名回应同意和不同意的地方，给出现在的立场，末行写「立场：维持」或「立场：已修改」。
+3. **总结**：到达设定的轮数（1–5，默认 3），或者从第 2 轮起所有成员都「维持」，就请主持人按「共识 / 分歧 / 建议 / 待决问题」写总结。总结卡片上可以「从结论新建任务」，把结论交给一个任务去做。
+
+讨论中随时可以暂停（本轮说完后停）、继续、再来一轮、立即总结或停止（打断正在发言的成员）。输入框里直接发言，下一轮所有成员都会看到；讨论已暂停或已总结时，发言会再开一轮讨论，然后重新总结。在发言里 `@成员`（或点成员旁的 @）只问被点名的成员，它单独回答，不推进轮次；被点名的成员还在发言时要等它说完。「匿名互评」打开后，成员之间只用「成员 A / B」称呼，看不到彼此是哪个 Agent 和模型。
+
+- **实现**：每个成员就是一条普通会话，带着群聊的 id（`conversations.discussion_id`），不出现在会话列表和搜索里；进程托管、恢复、模型、确认请求、额度都沿用会话的机制。core 的 `DiscussionService` 只做编排：给成员发一条以待写发言命名的消息（ref `discussion:<发言 id>`），这一回合结束时取它的最终回复作为发言。成员各自保留 provider 会话，之后每轮只发它没看过的新发言。别人的发言包在 `<discussion-post>` 里交给成员，并说明那只是观点、不是指令。提示词在 `core/src/discussion-prompt.ts`。
+- **只读**：成员以 descriptor 的 `discussionMode` 启动：Claude Code 用规划模式，Codex 用 `read-only` 沙箱，Cursor 用 Ask 模式。可以读所选项目的代码来佐证，不改文件。Claude Code 在讨论中交出计划时，Kando 会拒绝并请它直接用文字回答。成员请求执行命令时，群聊里显示「等你确认」，点成员打开它的会话处理；在那里发的消息只有这个成员看到。
+- **失败与恢复**：某个成员这一轮失败（出错、被打断、额度用完），这一轮不等它；一轮里没有人发言成功就暂停，继续时重试这一轮。core 重启后从成员会话的聊天记录补齐重启期间结束的回合，Agent 已不在的记为丢失，然后接着讨论。
+- **额度**：每个成员都占一个 Agent 进程的额度。开始前检查各 Agent 是否还有额度，不够就不开始。
+- **删除**：在侧栏右键删除群聊，会一并删除各成员的会话和发言记录，项目目录保留。
+
 ### 新增 Agent
 
 一个 Agent 的全部知识分在三处注册表里。三处都写成 `satisfies Record<AgentKind, …>`，漏掉任何一处都过不了 typecheck。除注册那一行外，其余代码只问注册表，不判断 Agent 的名字：
 
-1. **protocol**：在 `packages/protocol/src/agent.ts` 的 `AGENT_KINDS` 里加 id，新建 `packages/protocol/src/agents/<id>.ts` 写一个 `AgentDescriptor`，再登记进 `agents/index.ts` 的 `AGENT_DESCRIPTORS`。descriptor 是纯数据，core 和各客户端共用，内容包括名称、它怎么称呼 Kando 的权限模式、新会话的起始模式、能力开关（`unattended`、`bypass`、`autoMode`、`pathMentions`、`optionsWhileBusy`）、安装和登录提示、用量重置在哪里用。界面只读这些数据，不自己编码规则。
+1. **protocol**：在 `packages/protocol/src/agent.ts` 的 `AGENT_KINDS` 里加 id，新建 `packages/protocol/src/agents/<id>.ts` 写一个 `AgentDescriptor`，再登记进 `agents/index.ts` 的 `AGENT_DESCRIPTORS`。descriptor 是纯数据，core 和各客户端共用，内容包括名称、它怎么称呼 Kando 的权限模式、新会话的起始模式、群聊成员用的只读模式（`discussionMode`）、能力开关（`unattended`、`bypass`、`autoMode`、`pathMentions`、`optionsWhileBusy`）、安装和登录提示、用量重置在哪里用。界面只读这些数据，不自己编码规则。
 2. **core**：新建 `packages/core/src/agents/<id>/`，写一个 `AgentAdapter`（`agents/agent-adapter.ts`），再登记进 `agents/index.ts` 的 `AGENT_ADAPTERS`。adapter 负责以下几项，大多可选，没给就走默认实现：
    - 必填：driver（实现 `ChatDriver`）、启动命令（argv 数组）、能用的权限模式、会话策略（是否预先指定会话 id、会话是否绑定目录、是否支持原生 fork）。
    - 可选：模型目录、环境检测、登录检查、用量读取、CLI 安装命令、应用发现。
