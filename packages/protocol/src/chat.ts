@@ -192,7 +192,10 @@ export const ChatItem = z.discriminatedUnion('kind', [
     // What a subagent did, once it reports back: its calls, tokens and time. Older cores leave it out.
     metrics: z.object({ tools: z.number(), tokens: z.number(), durationMs: z.number() }).nullable().optional(),
     // Images the call returned (a browser screenshot), from core's attachment store. Older cores leave it out.
-    images: z.array(ChatImage).optional()
+    images: z.array(ChatImage).optional(),
+    // How the agent names an MCP tool for people, and the service it comes from (Claude Code's
+    // tool_use_meta: "Get issue" from "Atlassian"). Absent where the agent says nothing.
+    display: z.object({ name: z.string(), server: z.string().nullable() }).nullable().optional()
   }),
   Base.extend({
     kind: z.literal('approval'),

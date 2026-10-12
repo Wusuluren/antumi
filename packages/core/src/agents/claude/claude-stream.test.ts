@@ -124,6 +124,23 @@ describe('ClaudeStream', () => {
     expect(driver.activity()).toBe('idle')
   })
 
+  it('names an MCP tool as Claude Code does for people, and a call it says nothing of by its own name', () => {
+    const at = 1_790_000_000_000
+    const records: ChatRecord[] = [
+      { dir: 'out', at, frame: { type: 'user', message: { role: 'user', content: '看下工单' } }, ref: 'ref-1' },
+      { dir: 'in', at, frame: { type: 'system', subtype: 'init', session_id: 's-1' } },
+      { dir: 'in', at, frame: { type: 'assistant', message: { id: 'm1', content: [
+        { type: 'tool_use', id: 'J1', name: 'mcp__claude_ai_Atlassian__getJiraIssue', input: { cloudId: 'chowbus.atlassian.net', issueIdOrKey: 'IN-1' } },
+        { type: 'tool_use', id: 'J2', name: 'mcp__notes__find', input: {} }
+      ] }, tool_use_meta: [{ id: 'J1', display_name: 'Get issue', server_display_name: 'Atlassian', icon_url: 'https://example.com/a.png' }] } },
+      // The result rebuilds the call's item, which keeps its name.
+      { dir: 'in', at, frame: { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'J1', content: [{ type: 'text', text: '{}' }] }] } } }
+    ]
+    const [jira, notes] = ofKind(replay(records).items.list(), 'tool')
+    expect(jira).toMatchObject({ name: 'mcp__claude_ai_Atlassian__getJiraIssue', display: { name: 'Get issue', server: 'Atlassian' } })
+    expect(notes?.display).toBeUndefined()
+  })
+
   it('records one user and one final assistant message per turn under keys a replay repeats', () => {
     const messages = replay(fixture('claude-session.jsonl')).takeMessages()
     expect(messages.filter((message) => message.role === 'user').map((message) => message.eventKey))

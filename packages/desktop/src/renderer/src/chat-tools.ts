@@ -53,14 +53,26 @@ const BROWSER_LABEL: Record<BrowserToolKind, string> = {
 // An agent's own terminals in the app's panel.
 const TERMINAL_LABEL: Record<TerminalToolKind, string> = { run: '在终端运行', read: '读终端', stop: '停终端' }
 
-export function toolLabel(name: string): string {
+type ToolDisplay = { name: string; server: string | null }
+
+// An MCP tool as the agent names it for people ("Atlassian · Get issue"); where it says nothing, by
+// its server and its own name read off mcp__<server>__<tool>, the claude.ai connector prefix left off.
+const MCP_TOOL = /^mcp__(.+?)__(.+)$/
+function mcpToolLabel(name: string, display: ToolDisplay | null | undefined): string | null {
+  if (display) return display.server ? `${display.server} · ${display.name}` : display.name
+  const match = MCP_TOOL.exec(name)
+  if (!match?.[1] || !match[2]) return null
+  return `${match[1].replace(/^claude_ai_/, '').replace(/_/g, ' ')} · ${match[2]}`
+}
+
+export function toolLabel(name: string, display?: ToolDisplay | null): string {
   if (isPreviewTool(name)) return '预览'
   if (name === TERMINAL_RUN_TOOL) return TERMINAL_LABEL.run
   const terminal = terminalToolKind(name)
   if (terminal) return TERMINAL_LABEL[terminal]
   const browser = browserToolKind(name)
   if (browser) return BROWSER_LABEL[browser]
-  return TOOL_LABEL[name] ?? name
+  return TOOL_LABEL[name] ?? mcpToolLabel(name, display) ?? name
 }
 
 export type ToolIconKind = 'read' | 'edit' | 'terminal' | 'search' | 'browser' | 'image' | 'agent' | 'list' | 'tool'
@@ -110,12 +122,12 @@ const TOOL_KIND: Record<string, { kind: string; say: (count: number) => string }
 // A burst of clicks, typing and waiting reads as one thing done in the browser.
 const BROWSER_RUN = { kind: 'browser', say: (count: number) => `浏览器操作 ${count} 次` }
 
-export function runSummary(tools: readonly Pick<ToolItem, 'name'>[]): string {
+export function runSummary(tools: readonly Pick<ToolItem, 'name' | 'display'>[]): string {
   const counts = new Map<string, { count: number; say: (count: number) => string }>()
   for (const tool of tools) {
     const known = TOOL_KIND[tool.name] ?? (isBrowserTool(tool.name) ? BROWSER_RUN : undefined)
     const kind = known?.kind ?? `tool:${tool.name}`
-    const say = known?.say ?? ((count: number) => `${toolLabel(tool.name)} ${count} 次`)
+    const say = known?.say ?? ((count: number) => `${toolLabel(tool.name, tool.display)} ${count} 次`)
     const current = counts.get(kind)
     counts.set(kind, { count: (current?.count ?? 0) + 1, say })
   }

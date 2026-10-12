@@ -49,12 +49,22 @@ describe('toolIconKind', () => {
 
   it('recognizes the kinds Cursor names its calls by', () => {
     expect(['read', 'search', 'fetch', 'delete', 'move'].map(toolIconKind)).toEqual(['read', 'search', 'browser', 'edit', 'edit'])
-    expect(['read', 'search', 'fetch'].map(toolLabel)).toEqual(['读取', '搜索', '读取网页'])
+    expect(['read', 'search', 'fetch'].map((name) => toolLabel(name))).toEqual(['读取', '搜索', '读取网页'])
     expect(runSummary(['read', 'read', 'search'].map((name) => ({ name })))).toBe('读取 2 个文件，搜索 1 次')
   })
 
   it('keeps unfamiliar third-party tools recognizable as tools', () => {
     expect(toolIconKind('mcp__github__create_pull_request')).toBe('tool')
+  })
+
+  it('names an MCP tool as the agent does for people, else by its server and its own name', () => {
+    expect(toolLabel('mcp__claude_ai_Atlassian__getJiraIssue', { name: 'Get issue', server: 'Atlassian' })).toBe('Atlassian · Get issue')
+    expect(toolLabel('mcp__claude_ai_Atlassian__getJiraIssue')).toBe('Atlassian · getJiraIssue')
+    expect(toolLabel('mcp__plugin_figma_figma__get_screenshot')).toBe('plugin figma figma · get_screenshot')
+    // Kando's own keep their names, and so do the agent's built-in tools.
+    expect(toolLabel('mcp__kando__show_preview')).toBe('预览')
+    expect(toolLabel('Bash')).toBe(toolLabel('Bash', { name: 'ignored', server: null }))
+    expect(runSummary([{ name: 'mcp__x__y', display: { name: 'Y', server: 'X' } }, { name: 'mcp__x__y', display: { name: 'Y', server: 'X' } }])).toBe('X · Y 2 次')
   })
 })
 
@@ -74,7 +84,7 @@ describe('toolInputLanguage', () => {
 describe('runSummary', () => {
   it('counts a run of calls by kind, in the order each first came up', () => {
     const names = ['Read', 'Grep', 'Read', 'Bash', 'Glob', 'mcp__kando__read_task_details']
-    expect(runSummary(names.map((name) => ({ name })))).toBe('读取 2 个文件，搜索 2 次，运行 1 个命令，mcp__kando__read_task_details 1 次')
+    expect(runSummary(names.map((name) => ({ name })))).toBe('读取 2 个文件，搜索 2 次，运行 1 个命令，kando · read_task_details 1 次')
   })
 
   it('counts the browser tools together, by either agent\'s name for them', () => {

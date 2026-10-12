@@ -126,9 +126,16 @@ const StreamFrame = z.looseObject({
     delta: z.looseObject({ type: z.string(), text: z.string().optional(), thinking: z.string().optional() }).optional()
   })
 })
+// Claude Code's own names for the MCP tools a message calls, by call id: "Get issue" from "Atlassian".
+const ToolUseMeta = z.array(z.looseObject({
+  id: z.string(),
+  display_name: z.string().optional(),
+  server_display_name: z.string().optional()
+})).catch([])
 const AssistantFrame = z.looseObject({
   parent_tool_use_id: Subagent,
-  message: z.looseObject({ id: z.string(), content: Blocks.catch([]), usage: Usage.optional().catch(undefined) })
+  message: z.looseObject({ id: z.string(), content: Blocks.catch([]), usage: Usage.optional().catch(undefined) }),
+  tool_use_meta: ToolUseMeta.optional()
 })
 const UserFrame = z.looseObject({
   parent_tool_use_id: Subagent,
@@ -844,6 +851,8 @@ export class ClaudeStream implements ChatDriver {
       return
     }
     const { id: message, content, usage } = parsed.data.message
+    const named = new Map((parsed.data.tool_use_meta ?? []).flatMap((meta) =>
+      meta.display_name ? [[meta.id, { name: meta.display_name, server: meta.server_display_name ?? null }] as const] : []))
     const uuid = Reflect.get(parsed.data, 'uuid')
     if (this.turn && typeof uuid === 'string') this.turn.uuid = uuid
     // What the latest request sent is what the conversation now fills of the context.
@@ -864,7 +873,7 @@ export class ClaudeStream implements ChatDriver {
         const text = block.thinking ?? ''
         if (text.trim() || this.items.get(id)) this.items.put({ id, kind: 'reasoning', text, streaming: false }, at)
       } else if ((block.type === 'tool_use' || block.type === 'server_tool_use') && block.id) {
-        this.toolUse(block, at)
+        this.toolUse(block, at, named.get(block.id) ?? null)
       }
     }
   }
@@ -878,7 +887,7 @@ export class ClaudeStream implements ChatDriver {
     if (this.turn && text.trim()) this.turn.assistant = text
   }
 
-  private toolUse(block: Block, at: number): void {
+  private toolUse(block: Block, at: number, display: { name: string; server: string | null } | null = null): void {
     const id = `t:${block.id}`
     const name = block.name ?? 'tool'
     if (HIDDEN_TOOLS.has(name)) {
@@ -904,7 +913,8 @@ export class ClaudeStream implements ChatDriver {
       status: earlier?.status ?? 'running',
       output: earlier?.output ?? null,
       diffs: inputDiffs(name, input),
-      ...(earlier?.images?.length ? { images: earlier.images } : {})
+      ...(earlier?.images?.length ? { images: earlier.images } : {}),
+      ...((display ?? earlier?.display) ? { display: display ?? earlier?.display } : {})
     }, at)
   }
 
@@ -985,7 +995,8 @@ export class ClaudeStream implements ChatDriver {
         output: output ? clip(output) : null,
         diffs: status === 'done' ? resultDiffs(tool.diffs, parsed.data.tool_use_result) : tool.diffs,
         ...(metrics ? { metrics } : {}),
-        ...(images?.length ? { images } : {})
+        ...(images?.length ? { images } : {}),
+        ...('display' in tool && tool.display ? { display: tool.display } : {})
       }, at)
     }
   }

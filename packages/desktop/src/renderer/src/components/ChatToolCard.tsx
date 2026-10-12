@@ -148,7 +148,7 @@ function ToolLine({ tool }: { tool: ToolItem }) {
           <span className="chat-tool-description" title={tool.title}>{tool.description}</span>
         ) : (
           <>
-            <span className="chat-tool-name">{toolLabel(tool.name)}</span>
+            <span className="chat-tool-name">{toolLabel(tool.name, tool.display)}</span>
             <span className="chat-tool-title mono" data-file-path={fileReference(tool.title)?.path} title={tool.title}>{shorten(tool.title)}</span>
           </>
         )}
@@ -219,7 +219,7 @@ export function ChatToolCard({ item }: { item: ToolItem }) {
         onClick={() => setOpen(!open)}
       >
         <ChatToolIcon name={item.name} status={status} />
-        <span className="chat-tool-name">{toolLabel(item.name)}:</span>
+        <span className="chat-tool-name">{toolLabel(item.name, item.display)}:</span>
         {item.diffs.length > 0 && <FileExt path={item.diffs[0]?.path ?? item.title} />}
         <span className="chat-tool-title" data-file-path={item.diffs[0]?.path ?? fileReference(item.title)?.path} title={item.title}>{shorten(item.title)}</span>
         <DiffCount diffs={item.diffs} />
