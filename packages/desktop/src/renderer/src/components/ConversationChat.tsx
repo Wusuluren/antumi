@@ -2,7 +2,7 @@ import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutE
 import { cursorProviderError, isBrowserTool, isPlanApproval, isPreviewTool, toolImagePath, type AgentKind, type ChatItem, type Conversation, type ConversationStage } from '@kando/protocol'
 import { firstBrowserCall, shouldOpenBrowser } from '../browser-state'
 import { ChatBrowserCard, ChatBrowserRun, ChatShotCard } from './ChatBrowserCard'
-import { foldRowKeys, chatBlocks, dropChat, finalReplies, itemKey, pathShortener, prependChatPage, previousTodos, setChatPage, thoughtDurations, timeline, useChat, type ChatBlock, type TimelineEntry, type TurnFile } from '../chat-state'
+import { foldRowKeys, chatBlocks, dropChat, finalReplies, itemKey, pathShortener, prependChatPage, previousTodos, setChatPage, stageAgents, thoughtDurations, timeline, useChat, type ChatBlock, type TimelineEntry, type TurnAgent, type TurnFile } from '../chat-state'
 import { ChatDisclosureScope, setOpened, useDisclosure } from '../chat-disclosure'
 import { isCompaction, noticeSummary, readableNotice } from '../chat-notices'
 import { parseQuotes, withoutQuoteMarkers } from '../chat-quotes'
@@ -320,14 +320,18 @@ function Item({ conversationId, item, completedAt, blockKey }: { conversationId:
   }
 }
 
-// Who answers and on what: for the head that opens each of the agent's turns.
-const ChatAgent = createContext<{ agent: Conversation['agent']; model: string | null; effort: string | null }>({ agent: 'claude', model: null, effort: null })
+// Who answers and on what, for the head that opens each of the agent's turns: the stage the turn ran
+// in, for an earlier one (another agent's, before a handoff); the conversation as it is now for the
+// latest, or for a stage not known yet.
+type ChatAgents = { current: TurnAgent; byStage: ReadonlyMap<string, TurnAgent>; latest: string | null }
+const ChatAgent = createContext<ChatAgents>({ current: { agent: 'claude', model: null, effort: null }, byStage: new Map(), latest: null })
 
 // Opens the agent's turn under the user's message: its icon and name, the model it runs and how
 // hard it reasons, and when the message it answers came in. While that turn runs, a ring turns around the icon; one waiting
 // on the user holds it still, in the colour of the request.
-function TurnHead({ at, messageKey, live }: { at: number; messageKey: string; live: 'running' | 'awaiting' | null }) {
-  const { agent, model, effort } = useContext(ChatAgent)
+function TurnHead({ at, stageId, messageKey, live }: { at: number; stageId: string; messageKey: string; live: 'running' | 'awaiting' | null }) {
+  const { current, byStage, latest } = useContext(ChatAgent)
+  const { agent, model, effort } = (stageId !== latest && byStage.get(stageId)) || current
   return (
     <div className="chat-turn-head" data-relay-for={messageKey}>
       <span className="chat-turn-head-icon" data-live={live ?? undefined} aria-hidden="true"><AgentIcon agent={agent} /></span>
@@ -340,9 +344,13 @@ function TurnHead({ at, messageKey, live }: { at: number; messageKey: string; li
 }
 
 // The user's message a block is, if it is one: the head goes under it.
-function userAt(block: ChatBlock): number | null {
+function userItem(block: ChatBlock): Extract<ChatItem, { kind: 'user' }> | null {
   const item = block.kind === 'entry' && block.entry.kind === 'item' ? block.entry.item : null
-  return item?.kind === 'user' ? item.at : null
+  return item?.kind === 'user' ? item : null
+}
+
+function userAt(block: ChatBlock): number | null {
+  return userItem(block)?.at ?? null
 }
 
 // The user's own messages are what ↑ steps back through.
@@ -740,10 +748,11 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
   const modelId = state?.model ?? conversation.chatOptions?.model ?? null
   // The effort the same way; left out where the agent runs its default without saying which.
   const effort = state?.effort ?? conversation.chatOptions?.effort ?? null
-  const agentInfo = useMemo(
-    () => ({ agent: conversation.agent, model: modelId ? (state?.models.find((each) => each.id === modelId)?.label ?? modelId) : null, effort }),
-    [conversation.agent, modelId, state?.models, effort]
-  )
+  const agentInfo = useMemo(() => ({
+    current: { agent: conversation.agent, model: modelId ? (state?.models.find((each) => each.id === modelId)?.label ?? modelId) : null, effort },
+    byStage: stageAgents(stages, items),
+    latest: stages.at(-1)?.id ?? null
+  }), [conversation.agent, modelId, state?.models, effort, stages, items])
   // A turn runs from the message that set it going.
   const since = useMemo(() => items.findLast((item) => item.kind === 'user')?.at ?? null, [items])
   const beginRelay = useMessageRelay(view, list, items, id)
@@ -783,7 +792,8 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
         {!page && !initialMessage && <ChatSkeleton />}
         {blocks.map((block, index) => {
           const next = blocks[index + 1]
-          const sentAt = userAt(block)
+          const message = userItem(block)
+          const sentAt = message?.at ?? null
           const entering = entered.current.has(block.key)
           // The head under the latest message is the running turn's, while it runs.
           const live = (turn === 'running' || turn === 'awaiting') && block.key === lastUserKey ? turn : null
@@ -793,7 +803,7 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
           return (
             <Fragment key={block.key}>
               <Block conversationId={id} block={block} task={Boolean(conversation.taskId)} replies={replies} fresh={entering} />
-              {head && <div className="chat-entry" data-fresh={entering || undefined}><TurnHead at={sentAt} messageKey={block.key} live={live} /></div>}
+              {head && message && <div className="chat-entry" data-fresh={entering || undefined}><TurnHead at={message.at} stageId={message.stageId} messageKey={block.key} live={live} /></div>}
             </Fragment>
           )
         })}

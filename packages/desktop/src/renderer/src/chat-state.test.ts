@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ChatItem, ConversationStage } from '@kando/protocol'
+import { ChatItem, type ConversationStage } from '@kando/protocol'
 import {
   appendText,
   chatBlocks,
@@ -16,6 +16,7 @@ import {
   receiveChatDelta,
   receiveChatItems,
   setChatPage,
+  stageAgents,
   timeline,
   useChat
 } from './chat-state'
@@ -85,6 +86,24 @@ describe('streamed deltas', () => {
     receiveChatDelta('c', 'chat-stage', 'a', '!')
     flushChatDeltas()
     expect(useChat.getState().c?.items[0]).toEqual(text('a', 'hello, revised!', 'chat-stage', 2))
+  })
+})
+
+describe('stageAgents', () => {
+  const state = (stageId: string, model: string | null, effort: string | null) => ChatItem.parse({
+    id: 'state', stageId, revision: 1, at: 0, kind: 'state', permissionMode: null, permissionModes: [], model, effort, queued: null,
+    models: [{ id: 'claude-haiku-4-5', label: 'Haiku 4.5', description: null, efforts: [], isDefault: false }], context: null, todos: [], activity: null
+  })
+
+  it('names each stage by the agent that ran it and the model it last reported, by label', () => {
+    const codex = { ...stage('s2', 2), agent: 'codex' as const }
+    const agents = stageAgents([stage('s1', 1), codex], [state('s1', 'claude-haiku-4-5', null), state('s2', 'gpt-6', 'high')])
+    expect(agents.get('s1')).toEqual({ agent: 'claude', model: 'Haiku 4.5', effort: null })
+    expect(agents.get('s2')).toEqual({ agent: 'codex', model: 'gpt-6', effort: 'high' })
+  })
+
+  it('knows a stage that reported no state by its agent alone', () => {
+    expect(stageAgents([stage('s1', 1)], []).get('s1')).toEqual({ agent: 'claude', model: null, effort: null })
   })
 })
 

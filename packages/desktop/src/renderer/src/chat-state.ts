@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { create } from 'zustand'
 import { isCompaction } from './chat-notices'
 import { diffCounts, isSubagent } from './chat-tools'
-import { type ChatDiff, type ChatItem, type ChatQuestion, type ChatTodo, type ConversationStage, browserToolKind, isPlanApproval, isPreviewTool, toolImagePath, terminalToolKind } from '@kando/protocol'
+import { type AgentKind, type ChatDiff, type ChatItem, type ChatQuestion, type ChatTodo, type ConversationStage, browserToolKind, isPlanApproval, isPreviewTool, toolImagePath, terminalToolKind } from '@kando/protocol'
 
 // A conversation's chat items as this window holds them, in the order core first saw them;
 // `before` pages further back, null when nothing older is left.
@@ -141,6 +141,22 @@ export function dropChat(conversationId: string): void {
     const { [conversationId]: _dropped, ...rest } = state
     return rest
   }, true)
+}
+
+// Who answers in a turn: the agent, and the model (by its label where the agent gives one) and
+// effort it ran.
+export type TurnAgent = { agent: AgentKind; model: string | null; effort: string | null }
+
+// Each stage's, from the stage and the state it last reported: a conversation handed from one agent
+// to another keeps the earlier turns under the agent and model that wrote them.
+export function stageAgents(stages: readonly ConversationStage[], items: readonly ChatItem[]): ReadonlyMap<string, TurnAgent> {
+  const states = new Map<string, Extract<ChatItem, { kind: 'state' }>>()
+  for (const item of items) if (item.kind === 'state') states.set(item.stageId, item)
+  return new Map(stages.map((stage) => {
+    const state = states.get(stage.id)
+    const model = state?.model ? (state.models.find((each) => each.id === state.model)?.label ?? state.model) : null
+    return [stage.id, { agent: stage.agent, model, effort: model ? (state?.effort ?? null) : null }]
+  }))
 }
 
 export type TimelineEntry =
