@@ -8327,7 +8327,8 @@ body.side-panel-resizing * {
 }
 .request-popup-label { flex-shrink: 0; color: var(--accent); font-weight: 600; }
 .request-popup-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
-.request-popup-agent { flex-shrink: 0; color: var(--text-3); }
+.request-popup-agent { flex-shrink: 0; display: grid; place-items: center; color: var(--text-3); }
+.request-popup-agent .agent-mark { width: 16px; height: 16px; }
 .request-popup-spacer { flex: 1; }
 .request-popup-pager { display: flex; flex-shrink: 0; align-items: center; gap: 4px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .request-popup-header .link-button { flex-shrink: 0; margin-left: 4px; }
