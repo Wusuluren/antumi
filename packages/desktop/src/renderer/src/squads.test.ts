@@ -5,7 +5,7 @@ import { Squad, SquadRun, Task, createRpcClient, type Conversation, type RpcConn
 import { actionableItems, attentionCount, noticesBetween } from './attention'
 import { openAttentionItem, selectSquad, useCore } from './core-store'
 import { saveSquad } from './squads'
-import { SidebarSquads, SquadsView } from './components/Squads'
+import { SquadsEntry, SquadsView } from './components/Squads'
 import { SquadWorkPanel } from './components/SquadWorkPanel'
 
 vi.mock('./core-store', async (importOriginal) => {
@@ -43,13 +43,20 @@ describe('development squad user paths', () => {
     const client = createRpcClient(() => {})
     const rpc: RpcConnection = { ...client, features: ['squads'], close: () => {}, closed: new Promise(() => {}) }
     useCore.setState({ rpc, squads: { [squad.id]: squad } })
+    selectSquad(null)
+    // The sidebar holds an entry only; the squads are listed on their page.
+    const sidebar = renderToStaticMarkup(createElement(SquadsEntry))
+    expect(sidebar).toContain('研发小队')
+    expect(sidebar).not.toContain('Delivery')
+    const list = renderToStaticMarkup(createElement(SquadsView))
+    expect(list).toContain('Delivery')
+    expect(list).toContain('由 Lead（Claude Code）带队')
     selectSquad(squad.id)
-    const sidebar = renderToStaticMarkup(createElement(SidebarSquads))
-    expect(sidebar).toContain('开发小队')
-    expect(sidebar).toContain('Delivery')
-    const editor = renderToStaticMarkup(createElement(SquadsView))
-    expect(editor).toContain('角色说明')
-    expect(editor).toContain('implement and test')
+    const overview = renderToStaticMarkup(createElement(SquadsView))
+    expect(overview).toContain('队长 · 只读')
+    expect(overview).toContain('开发 / 测试')
+    expect(overview).toContain('implement and test')
+    expect(overview).toContain('编辑')
     const panel = renderToStaticMarkup(createElement(SquadWorkPanel, { runs: [run], onConversation: () => {} }))
     expect(panel).toContain('等你回答')
     expect(panel).toContain('查看成员会话')

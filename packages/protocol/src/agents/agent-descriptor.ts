@@ -17,6 +17,9 @@ export type AgentDescriptor = {
   // What it runs in as a member of a group chat: it reads the projects and answers in words, and
   // changes nothing.
   discussionMode: ChatPermissionMode
+  // What it works in as a squad's leader or read-only member: its folders stay read-only whatever
+  // the mode, so not a planning mode, in which it would propose a plan rather than do the work.
+  readOnlyMode: ChatPermissionMode
   capabilities: {
     // Runs with nobody there: schedules and routines.
     unattended: boolean

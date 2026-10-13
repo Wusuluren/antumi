@@ -470,7 +470,7 @@ export class CodexAppServer implements ChatDriver {
     this.kando = new KandoRequests(this.items)
     this.state = new StageState(this.items)
     // A stage that only plans runs every turn in plan mode, whatever was remembered.
-    this.chosen = { ...options.preferred, ...(options.planOnly ? { permissionMode: PLAN_MODE } : {}) }
+    this.chosen = { ...options.preferred, ...(options.planOnly ? { permissionMode: PLAN_MODE } : options.readOnly ? { permissionMode: 'readOnly' } : {}) }
   }
 
   apply(record: ChatRecord): void {
@@ -635,7 +635,7 @@ export class CodexAppServer implements ChatDriver {
         return [this.turnStart(this.threadId, answer.message ? `继续规划：${answer.message}` : '继续规划：请完善这个计划后再给我。', PLAN_MODE)]
       }
       // Its checkout stays read-only however the plan is answered.
-      if (this.options.planOnly) throw new Rejection('plan-only', 'this stage may only plan')
+      if (this.options.planOnly || this.options.readOnly) throw new Rejection('plan-only', 'this stage may only plan')
       const mode = answer.mode ?? (answer.decision === 'allowForSession' ? 'acceptEdits' : 'ask')
       if (mode === PLAN_MODE || !this.state.current.permissionModes.includes(mode)) {
         throw new Rejection('chat-option-invalid', `this stage offers no permission mode ${mode} to carry out a plan in`)
@@ -811,7 +811,7 @@ export class CodexAppServer implements ChatDriver {
       // A thread on its model's default effort reports none.
       effort: this.effort ?? current?.defaultReasoningEffort ?? null,
       permissionMode: this.planning ? PLAN_MODE : codexMode(this.approvalPolicy, this.sandbox),
-      permissionModes: this.options.planOnly ? [PLAN_MODE] : ['ask', 'acceptEdits', PLAN_MODE, 'readOnly', ...(this.options.allowBypass ? ['bypass'] : [])]
+      permissionModes: this.options.planOnly ? [PLAN_MODE] : this.options.readOnly ? ['readOnly'] : ['ask', 'acceptEdits', PLAN_MODE, 'readOnly', ...(this.options.allowBypass ? ['bypass'] : [])]
     })
   }
 

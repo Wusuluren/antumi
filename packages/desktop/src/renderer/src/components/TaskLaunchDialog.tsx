@@ -103,7 +103,7 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
           <button type="button" className="icon-button modal-close" aria-label="关闭" disabled={busy} onClick={closeTaskLaunch}><CloseIcon /></button>
         </header>
         <p className="task-launch-name">{task.title}</p>
-        {squadsSupported && <button type="button" className="link-button" disabled={busy} onClick={onSquad}>交给开发小队</button>}
+        {squadsSupported && <button type="button" className="link-button" disabled={busy} onClick={onSquad}>交给研发小队</button>}
         <fieldset className="task-launch-fields" disabled={busy}>
           <label className="task-launch-field"><span>Agent</span>
             <select className="input" value={agent ?? ''} onChange={(event) => {

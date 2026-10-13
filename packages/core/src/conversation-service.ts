@@ -59,11 +59,14 @@ export type TaskChatLaunch = TaskLaunchOptions & {
   allowBypass?: boolean
   // What the user adds for the next agent when the task's agent changes on the way.
   handoffNote?: string
+  // The stage's first message. An agent going on from a handoff reads it there, in the turn the
+  // handoff opens; otherwise it is sent once the agent is up.
+  opening?: { text: string; imageIds: readonly string[] }
 }
 
 // What a stage's start takes beyond the agent: see TaskChatLaunch; moved says the agent works
 // somewhere else than its last stage did.
-type StageLaunch = { fresh?: boolean; moved?: boolean; planOnly?: boolean; readable?: readonly string[]; fork?: ForkPoint }
+type StageLaunch = { fresh?: boolean; moved?: boolean; planOnly?: boolean; readable?: readonly string[]; fork?: ForkPoint; opening?: string }
 // The provider session another conversation's stage ran, taken over through the turn `at` names;
 // neither null means a session the agent can fork, else the fork starts afresh.
 type ForkPoint = { providerSessionId: string | null; at: string | null }
@@ -115,6 +118,8 @@ export class ConversationService {
   private promptSuggestions = false
   private userBrowser: boolean | undefined
   private readonly launching = new Map<string, AgentKind>()
+  // Conversations whose last start took its opening into the handoff it began from.
+  private readonly openedInHandoff = new Set<string>()
   private readonly gitSending = new Map<string, number>()
   private gitPreparation: (<T>(dirs: readonly string[], run: () => Promise<T>) => Promise<T>) | null = null
   setGitPreparation(prepare: <T>(dirs: readonly string[], run: () => Promise<T>) => Promise<T>): void { this.gitPreparation = prepare }
@@ -491,15 +496,19 @@ export class ConversationService {
     if (regrouped) this.store.moveWorkspace(id, cwd, projectPaths)
     if (conversation.title !== task.title) this.store.update(id, { title: task.title })
     if (launch.allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass: launch.allowBypass })
-    // A stage of its own plans first; one going on keeps the mode it was left in.
-    if (launch.session === 'new') this.store.setChatOptions(id, { permissionMode: launch.permissionMode ?? 'plan' })
+    // A stage of its own plans first; one going on keeps the mode it was left in, unless it is given
+    // one, as a squad's leader is when it goes on from planning to leading.
+    if (launch.session === 'new' || launch.permissionMode) this.store.setChatOptions(id, { permissionMode: launch.permissionMode ?? 'plan' })
     this.pickModel(id, task.agent, launch)
-    return this.start(id, task.agent, launch.handoffNote ?? '', switched, {
+    const started = await this.start(id, task.agent, launch.handoffNote ?? '', switched, {
       fresh: launch.session === 'new',
       moved,
       planOnly: launch.planOnly,
-      readable: launch.readable
+      readable: launch.readable,
+      opening: launch.opening?.text
     })
+    if (launch.opening && !this.openedInHandoff.delete(id)) await this.send(id, launch.opening.text, launch.opening.imageIds)
+    return started
   }
 
   planForTransfer(id: string, stageId: string, requestId: string): { markdown: string; agent: AgentKind } {
@@ -700,6 +709,11 @@ export class ConversationService {
         handoff ? this.store.messages(id, previous?.receivedSequence ?? 0) : []
       const needsHandoff = handoff || (missingNativeSession && messages.length > 0)
       let handoffPath: string | null = null
+      this.openedInHandoff.delete(id)
+      if (needsHandoff && launch.opening) {
+        note = note ? `${note}\n\n${launch.opening}` : launch.opening
+        this.openedInHandoff.add(id)
+      }
       if (needsHandoff) {
         const directory = path.join(this.sessionsRoot, id, 'handoffs')
         await mkdir(directory, { recursive: true, mode: 0o700 })
@@ -756,6 +770,7 @@ export class ConversationService {
       preferred: options.preferred,
       allowBypass: options.allowBypass,
       planOnly: options.planOnly ? { dirs: [options.cwd, ...options.extraDirs] } : undefined,
+      readOnly: options.readOnly ? { dirs: [options.cwd, ...options.extraDirs] } : undefined,
       readable,
       forkAt,
       ...(this.mcp ? { mcp: this.mcp(id) } : {}),
@@ -832,7 +847,8 @@ export class ConversationService {
         resume: stage.providerSessionId,
         fork: forkAt,
         // Both constraints survive a restart; coordination is not task planning.
-        planOnly: Boolean(stage.planOnly || conversation.workspaceReadOnly),
+        planOnly: Boolean(stage.planOnly),
+        readOnly: !stage.planOnly && Boolean(conversation.workspaceReadOnly),
         allowBypass: !stage.planOnly && !conversation.workspaceReadOnly && (chosen.allowBypass ?? false),
         promptSuggestions: this.promptSuggestions,
         preferred: { permissionMode, ...chosen[stage.agent] },

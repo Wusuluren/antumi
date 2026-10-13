@@ -713,6 +713,8 @@ export class ClaudeStream implements ChatDriver {
   // where the stage was started to allow it, and only planning in a stage that may only plan.
   private offeredModes(): string[] {
     if (this.options.planOnly) return ['plan']
+    // A read-only worker keeps the mode it was given: planning would have it propose, not work.
+    if (this.options.readOnly) return [this.options.preferred?.permissionMode ?? 'ask']
     return ['ask', 'acceptEdits', 'plan', ...(this.currentModel()?.supportsAutoMode ? ['auto'] : []), ...(this.options.allowBypass ? ['bypass'] : [])]
   }
 
@@ -743,7 +745,7 @@ export class ClaudeStream implements ChatDriver {
         return { behavior: 'deny', message: answer.message ? `Keep planning. ${answer.message}` : 'Keep planning: revise the plan and present it again.' }
       }
       // Its checkout stays read-only however the plan is answered.
-      if (this.options.planOnly) throw new Rejection('plan-only', 'this stage may only plan')
+      if (this.options.planOnly || this.options.readOnly) throw new Rejection('plan-only', 'this stage may only plan')
       // Carried out in the mode asked for, one the stage offers; without one, as the decision says.
       if (answer.mode && (answer.mode === 'plan' || !this.offeredModes().includes(answer.mode))) {
         throw new Rejection('chat-option-invalid', `this stage offers no permission mode ${answer.mode} to carry out a plan in`)

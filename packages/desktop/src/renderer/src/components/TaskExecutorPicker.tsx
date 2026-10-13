@@ -15,7 +15,7 @@ export function TaskExecutorPicker({ task }: { task: Task }) {
     }}>
       <option value="">以后再选</option>
       <optgroup label="单 Agent">{agents.map((agent) => <option key={agent} value={agent}>{agentLabel(agent)}</option>)}</optgroup>
-      <optgroup label="开发小队">{Object.values(squads).filter((each) => each.archivedAt === null || each.id === task.squadId).map((each) => <option key={each.id} value={`squad:${each.id}`}>{each.name}{each.archivedAt !== null ? '（已归档）' : ''}</option>)}{task.squadId && !squad && <option value={`squad:${task.squadId}`}>开发小队</option>}</optgroup>
+      <optgroup label="研发小队">{Object.values(squads).filter((each) => each.archivedAt === null || each.id === task.squadId).map((each) => <option key={each.id} value={`squad:${each.id}`}>{each.name}{each.archivedAt !== null ? '（已归档）' : ''}</option>)}{task.squadId && !squad && <option value={`squad:${task.squadId}`}>研发小队</option>}</optgroup>
     </select>
   </label>
 }

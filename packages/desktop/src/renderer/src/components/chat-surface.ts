@@ -25,8 +25,10 @@ export type ChatSurface = {
   prepareSend(stopped: boolean): Promise<boolean>
   // Why nothing can be sent now, or null.
   sendBlocker: string | null
-  // Keeps a plan for later, where the chat may only plan; null elsewhere.
   handoffPlan?: (item: PlanItem) => void
+  // Where a squad's leader planned the task: starts the squad on the plan, the leader leading it.
+  squadStart?: { name: string; start(item: PlanItem): Promise<void> }
+  // Keeps a plan for later, where the chat may only plan; null elsewhere.
   savePlan: ((item: PlanItem) => Promise<void>) | null
   // A word on a plan the chat's owner kept, or null.
   planNote(item: PlanItem): string | null

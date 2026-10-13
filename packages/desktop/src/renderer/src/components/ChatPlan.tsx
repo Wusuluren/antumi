@@ -139,15 +139,15 @@ export function ChatPlanLine({ item }: { item: PlanItem }) {
 // button picks, or send it back with a note; where the chat may only plan, keep it for later
 // instead. An older core carries a plan out only asking about edits or accepting them. Or stop:
 // the turn ends with nothing carried out and nothing replanned, and the next word is the user's.
-type PlanChoice = 'run' | 'allow' | 'allowForSession' | 'save' | 'revise' | 'stop'
-const CHOICE_LABEL: Record<Exclude<PlanChoice, 'revise'>, string> = {
+type PlanChoice = 'run' | 'allow' | 'allowForSession' | 'squad' | 'save' | 'revise' | 'stop'
+const CHOICE_LABEL: Record<Exclude<PlanChoice, 'revise' | 'squad'>, string> = {
   run: '按计划执行',
   allow: '按计划执行，改文件、跑命令前逐项确认',
   allowForSession: '按计划执行，文件改动自动接受',
   save: '先保存计划，等依赖的任务完成后再执行',
   stop: '不执行，先停下'
 }
-const SUBMIT_LABEL: Record<PlanChoice, string> = { run: '执行', allow: '执行', allowForSession: '执行', save: '保存计划', revise: '继续规划', stop: '停下' }
+const SUBMIT_LABEL: Record<PlanChoice, string> = { run: '执行', allow: '执行', allowForSession: '执行', squad: '开始小队开发', save: '保存计划', revise: '继续规划', stop: '停下' }
 const PREVIEW_LINES = 12
 
 export function ChatPlanCard({ conversationId, item, modes }: { conversationId: string; item: PlanItem; modes: readonly string[] }) {
@@ -156,7 +156,7 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [open, setOpen] = useState(false)
-  const { savePlan } = surface
+  const { savePlan, squadStart } = surface
   // Not in a routine's chat, whose follow-ups nobody is told of (ChatComposer).
   const routine = useCore((s) => Boolean(s.conversations[conversationId]?.routineId))
   const agent = useCore((s) => s.conversations[conversationId]?.agent ?? 'claude')
@@ -165,7 +165,7 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
   const picked = usePreferences((s) => s.planRunMode)
   const runMode: RunMode = runModes.includes(picked) ? picked : runModes.includes('auto') ? 'auto' : runModes[0] ?? 'ask'
   const modesSupported = usePlanModesSupported() && runModes.length > 0
-  const choices: PlanChoice[] = savePlan ? ['save', 'revise', 'stop'] : modesSupported ? ['run', 'revise', 'stop'] : ['allow', 'allowForSession', 'revise', 'stop']
+  const choices: PlanChoice[] = squadStart ? (savePlan ? ['squad', 'save', 'revise', 'stop'] : ['squad', 'revise', 'stop']) : savePlan ? ['save', 'revise', 'stop'] : modesSupported ? ['run', 'revise', 'stop'] : ['allow', 'allowForSession', 'revise', 'stop']
   const [choice, setChoice] = useState<PlanChoice>(choices[0] ?? 'revise')
   const noteInput = useRef<HTMLInputElement>(null)
   const long = (item.detail ?? '').split('\n').length > PREVIEW_LINES
@@ -190,6 +190,11 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
     if (busy || saving) return
     if (choice === 'stop') {
       await stop()
+    } else if (choice === 'squad') {
+      if (!squadStart) return
+      setSaving(true)
+      await squadStart.start(item)
+      setSaving(false)
     } else if (choice === 'save') {
       if (!savePlan) return
       setSaving(true)
@@ -241,7 +246,9 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
         {surface.handoffPlan && <button type="button" className="link-button" disabled={busy || saving} onClick={() => surface.handoffPlan?.(item)}>交给小队执行</button>}
         {schedulable && <SchedulePlanButton conversationId={conversationId} />}
       </div>
-      {savePlan && <p className="chat-request-detail muted">依赖的任务还没完成：现在只能保存计划，等它们完成后开始执行时再按计划做。</p>}
+      {squadStart
+        ? <p className="chat-request-detail muted">批准后，队长按这份计划给「{squadStart.name}」的成员派活。</p>
+        : savePlan && <p className="chat-request-detail muted">依赖的任务还没完成：现在只能保存计划，等它们完成后开始执行时再按计划做。</p>}
       {item.detail && !inView && (
         <div className="chat-plan-preview" data-clipped={(long && !open) || undefined}>
           <ChatMarkdown text={item.detail} />
@@ -277,7 +284,7 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
                 onChange={(event) => setNote(event.target.value)}
               />
             ) : (
-              <span>{CHOICE_LABEL[each]}</span>
+              <span>{each === 'squad' ? `交给「${squadStart?.name ?? '小队'}」按计划开发` : each === 'save' && squadStart ? '先保存计划，稍后再交给小队' : CHOICE_LABEL[each]}</span>
             )}
           </div>
         ))}

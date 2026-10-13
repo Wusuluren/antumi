@@ -8577,14 +8577,69 @@ body.side-panel-resizing * {
 .discussion-draft input[type='checkbox'] { accent-color: var(--accent); }
 
 /* Squad configuration and task work reuse the workspace's surfaces and rhythm. */
-.squad-editor-body { display: flex; flex-direction: column; gap: 16px; padding: 24px; overflow: auto; max-width: 960px; width: 100%; margin: 0 auto; }
-.squad-fields, .squad-member-fields { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.squad-member-fields { padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
-.squad-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
-.squad-member-heading, .squad-member-options, .squad-run-heading, .squad-run-actions, .squad-work header, .task-executor-picker, .squad-member-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.squad-member-heading > svg, .squad-roster svg { width: 20px; height: 20px; flex-shrink: 0; }
-.squad-member-options .squad-field { min-width: 120px; }
-.squad-editor-footer { display: flex; justify-content: flex-end; }
+.squad-run-heading, .squad-run-actions, .squad-work header, .task-executor-picker, .squad-member-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* 研发小队: a page like the routines', listing the squads; a squad reads as its leader, then its
+   members one line each, opened in place to edit. */
+.sidebar-squads { margin: 0 8px 4px; }
+.squads-page .worktrees-header > .tool-button:first-child { margin-left: -6px; }
+.squad-roster svg { width: 20px; height: 20px; flex-shrink: 0; }
+.squad-list { overflow: hidden; }
+.squad-row + .squad-row { border-top: 1px solid var(--border); }
+.squad-row-open { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.squad-row-open:hover { background: var(--surface-muted); }
+.squad-row-open:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.squad-row-open > svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-3); }
+.squad-row-icon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: var(--fill); color: var(--text-muted); }
+.squad-row-icon svg { width: 18px; height: 18px; }
+.squad-row-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.squad-row-title { font-weight: 600; font-size: 14px; }
+.squad-row-description, .squad-row-meta { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.squad-row-meta { color: var(--text-3); }
+.squad-row-agents { display: flex; gap: 4px; flex-shrink: 0; }
+.squad-row-agents svg { width: 16px; height: 16px; }
+.squad-row[data-archived] .squad-row-title { color: var(--text-muted); }
+
+.squad-page-body { display: flex; flex-direction: column; gap: 20px; max-width: 880px; }
+.squad-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.squad-header-actions .button svg { width: 14px; height: 14px; }
+.squad-block { display: flex; flex-direction: column; gap: 6px; }
+.squad-block h3 { margin: 0; font-size: 13px; font-weight: 600; }
+.squad-block h3 .muted { font-weight: 400; margin-left: 2px; }
+.squad-block-hint { margin: 0 0 4px; font-size: 12px; line-height: 1.6; }
+.squad-instructions { margin: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.squad-footnote { margin: 0; font-size: 12px; }
+
+.squad-member-lines { margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.squad-member-lines > li + li { border-top: 1px solid var(--border); }
+.squad-member-line { display: flex; align-items: center; gap: 10px; padding: 10px 12px; min-width: 0; }
+.squad-member-icon { display: grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; }
+.squad-member-icon svg { width: 18px; height: 18px; }
+.squad-member-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; color: var(--text); text-align: left; font: inherit; }
+button.squad-member-main { cursor: pointer; }
+.squad-member-title { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; }
+.squad-member-title strong { font-weight: 600; white-space: nowrap; }
+.squad-member-engine { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.squad-member-role { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.squad-tag { flex-shrink: 0; padding: 1px 6px; border-radius: var(--radius-xs); background: var(--fill); color: var(--text-muted); font-size: 11px; line-height: 16px; white-space: nowrap; }
+.squad-tag[data-kind='leader'] { background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--text); }
+.squad-tag[data-kind='develop'] { background: var(--accent-bg); color: var(--accent); }
+.squad-member-toggle { display: grid; place-items: center; width: 18px; height: 18px; margin-right: -4px; padding: 0; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-3); cursor: pointer; flex-shrink: 0; }
+.squad-member-toggle svg { width: 12px; height: 12px; transition: transform 0.12s ease; }
+.squad-member-edit[data-open] .squad-member-toggle svg { transform: rotate(90deg); }
+.squad-member-actions { display: flex; gap: 12px; flex-shrink: 0; font-size: 12px; }
+.squad-member-fields { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 4px 12px 14px 60px; border: 0; min-width: 0; }
+.squad-member-options { display: flex; flex-wrap: wrap; gap: 10px; }
+.squad-member-options .squad-field { flex: 1 1 140px; }
+.squad-fields { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.squad-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 12px; color: var(--text-muted); }
+.squad-field .input { color: var(--text); font-size: 13px; }
+.squad-field b { color: var(--text); font-weight: 600; font-size: 13px; }
+.squad-add { align-self: flex-start; margin-top: 2px; font-size: 12px; }
+.squad-editor-footer { display: flex; justify-content: flex-end; gap: 8px; }
+.squad-launch-ways { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; }
+.squad-launch-ways label { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; cursor: pointer; }
+.squad-launch-ways input { margin-top: 3px; }
+.squad-launch-ways .muted { display: block; font-size: 12px; }
 .squad-work-panel { display: flex; flex-direction: column; gap: 24px; padding: 16px; overflow: auto; }
 .squad-run { display: flex; flex-direction: column; gap: 12px; }
 .squad-run-heading { justify-content: space-between; }

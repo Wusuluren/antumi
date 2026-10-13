@@ -7,7 +7,7 @@ import { SourceInboxView } from './components/SourceInboxView'
 import { SourceLoginDialog } from './components/SourceLoginDialog'
 import { TaskDetail } from './components/TaskDetail'
 import { TaskBoard } from './components/TaskBoard'
-import { SidebarSquads, SquadsView } from './components/Squads'
+import { SquadsEntry, SquadsView } from './components/Squads'
 import { SidebarTasks } from './components/SidebarTasks'
 import { TaskChat } from './components/TaskChat'
 import { ConversationList } from './components/ConversationList'
@@ -153,9 +153,9 @@ export function App() {
               <AttentionEntry />
               <DashboardEntry />
               <RoutinesEntry />
+              <SquadsEntry />
               <EnvironmentNotice />
               <SidebarTasks />
-              <SidebarSquads />
               <SidebarDiscussions />
               <ConversationList />
             </Sidebar>

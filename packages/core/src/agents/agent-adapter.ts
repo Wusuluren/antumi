@@ -14,6 +14,8 @@ export type AgentLaunch = {
   allowBypass?: boolean
   // Plans only, read-only in these folders: plan mode, their files never editable, no bypass.
   planOnly?: { dirs: readonly string[] }
+  // Works read-only in these folders, in the mode it was given: their files never editable, no bypass.
+  readOnly?: { dirs: readonly string[] }
   // Files the agent may read without asking, such as a task's images.
   readable?: readonly string[]
   // Resume only through this message (its uuid), as a new session: a fork of the one resumed.

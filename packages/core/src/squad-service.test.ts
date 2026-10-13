@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { Squad, SquadRun, SquadWork } from '@kando/protocol'
+import { agentDescriptor, type Squad, type SquadRun, type SquadWork } from '@kando/protocol'
 import { AttachmentStore } from './attachment-store'
 import { ConversationService } from './conversation-service'
 import { ConversationStore } from './conversation-store'
@@ -81,6 +81,9 @@ describe('squad execution', () => {
     expect(chats.get(leaderId())).toMatchObject({ taskId, workspaceReadOnly: true, planOnly: false })
     expect(squads.roster(leaderId())?.leaderConversationId).toBe(leaderId())
     expect(daemon.spawns[0]?.args).toContain('--disallowedTools')
+    // Read-only, yet not in plan mode, where Claude would propose a plan instead of handing work out.
+    const args = daemon.spawns[0]?.args ?? []
+    expect(args[args.indexOf('--permission-mode') + 1]).toBe('manual')
     expect(daemon.spawns[0]?.args).not.toContain('--allow-dangerously-skip-permissions')
     await expect(chats.setOption(leaderId(), 'permissionMode', 'acceptEdits')).rejects.toMatchObject({ reason: 'squad-managed' })
     await expect(chats.setOption(leaderId(), 'model', 'haiku')).rejects.toMatchObject({ reason: 'squad-managed' })
@@ -214,6 +217,73 @@ describe('squad execution', () => {
     expect(chats.get(conversationId).workspaceReadOnly).toBe(true)
     expect(daemon.killed.some((entry) => entry.sessionId === session)).toBe(true)
     expect(daemon.written(session).filter((frame) => JSON.stringify(frame).includes('"behavior":"allow"'))).toEqual([])
+  })
+
+  it('has the leader plan with the user first, then lead on from that same planning', async () => {
+    const planned = await squads.start(taskId, false, { permissionMode: 'acceptEdits' }, squad.id, undefined, true)
+    expect(planned).toMatchObject({ status: 'pending', squadId: squad.id, agent: 'claude', launch: { permissionMode: 'acceptEdits' } })
+    expect(squads.runs(taskId)).toEqual([])
+    const conversationId = leaderId()
+    expect(chats.get(conversationId)).toMatchObject({ planOnly: true, agent: 'claude' })
+    // No run yet: the planning leader has no squad tools to hand work out with.
+    expect(squads.roster(conversationId)).toBeNull()
+    const planning = chats.get(conversationId).sessionId!
+    const brief = JSON.stringify(daemon.written(planning))
+    expect(brief).toContain('你是队长')
+    expect(brief).toContain('Second build')
+    const planningArgs = daemon.spawns.at(-1)!.args
+    const providerSession = planningArgs[planningArgs.indexOf('--session-id') + 1]
+    daemon.emit(planning, { type: 'assistant', uuid: 'a-plan', message: { id: 'm-plan', content: [{ type: 'text', text: 'Read the code; here is the split.' }] }, parent_tool_use_id: null })
+    daemon.emit(planning, { type: 'control_request', request_id: 'leader-plan', request: {
+      subtype: 'can_use_tool', tool_name: 'ExitPlanMode', input: { plan: '# Build does it, Review checks it' }, tool_use_id: 'plan-tool'
+    } })
+    await waitFor(() => chats.get(conversationId).chat?.turn === 'awaiting')
+    expect(service.get(taskId).awaitingInput).toBe(true)
+    const item = chats.chatPage(conversationId).items.find((entry) => entry.kind === 'approval' && entry.requestId === 'leader-plan')!
+    const started = await squads.start(taskId, false, { permissionMode: 'acceptEdits' }, squad.id, { stageId: item.stageId, requestId: 'leader-plan' })
+    expect(started).toMatchObject({ status: 'running', conversationId, plan: { approved: true, markdown: '# Build does it, Review checks it' } })
+    expect(current()).toMatchObject({ state: 'running', leaderConversationId: conversationId, permissionMode: 'acceptEdits' })
+    expect(chats.get(conversationId)).toMatchObject({ workspaceReadOnly: true, planOnly: false, chatOptions: { permissionMode: agentDescriptor('claude').readOnlyMode } })
+    // The leader goes on from its own planning session rather than a fresh one.
+    const leading = daemon.spawns.at(-1)!.args
+    expect(leading.slice(leading.indexOf('--resume'), leading.indexOf('--resume') + 2)).toEqual(['--resume', providerSession])
+    await waitFor(() => JSON.stringify(daemon.written(chats.get(conversationId).sessionId!)).includes('只负责协调'))
+    expect(daemon.written(planning).filter((frame) => JSON.stringify(frame).includes('"behavior":"allow"'))).toEqual([])
+  })
+
+  it('hands a leader that moves into the worktree its planning together with its brief', async () => {
+    const repo = path.join(root, 'git-project')
+    execFileSync('git', ['init', '-q', '-b', 'main', repo])
+    execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'init'])
+    taskId = service.create({ title: 'Moved', details: 'Acceptance criteria', repos: [repo], squadId: squad.id }).id
+    await squads.start(taskId, false, { permissionMode: 'ask' }, squad.id, undefined, true)
+    const conversationId = leaderId()
+    const planning = chats.get(conversationId).sessionId!
+    daemon.emit(planning, { type: 'assistant', uuid: 'a-moved', message: { id: 'm-moved', content: [{ type: 'text', text: 'Split: Build, then Review.' }] }, parent_tool_use_id: null })
+    daemon.emit(planning, { type: 'control_request', request_id: 'moved-plan', request: {
+      subtype: 'can_use_tool', tool_name: 'ExitPlanMode', input: { plan: '# Build, then Review' }, tool_use_id: 'plan-tool'
+    } })
+    await waitFor(() => chats.get(conversationId).chat?.turn === 'awaiting')
+    const item = chats.chatPage(conversationId).items.find((entry) => entry.kind === 'approval' && entry.requestId === 'moved-plan')!
+    await squads.start(taskId, false, { permissionMode: 'ask' }, squad.id, { stageId: item.stageId, requestId: 'moved-plan' })
+    expect(current().state).toBe('running')
+    const leading = chats.get(conversationId).sessionId!
+    expect(chats.get(conversationId).workspacePath).not.toBe(realpathSync(repo))
+    // One turn: the handoff of its planning, with the brief in it, so it leads rather than plans again.
+    const sent = daemon.written(leading).filter((frame) => JSON.stringify(frame).includes('"type":"user"'))
+    expect(sent).toHaveLength(1)
+    expect(JSON.stringify(sent[0])).toContain('handoffs')
+    expect(JSON.stringify(sent[0])).toContain('只负责协调')
+  })
+
+  it('picks a stopped planning leader up again as planning, not as a squad run', async () => {
+    await squads.start(taskId, false, { permissionMode: 'ask' }, squad.id, undefined, true)
+    const conversationId = leaderId()
+    await chats.stop(conversationId)
+    const resumed = await service.resumeChat(taskId)
+    expect(resumed.status).toBe('pending')
+    expect(chats.get(conversationId)).toMatchObject({ planOnly: true, workspaceReadOnly: false })
+    expect(squads.runs(taskId)).toEqual([])
   })
 
   it('coordinates a Codex developer from a Claude leader through their native protocols', async () => {

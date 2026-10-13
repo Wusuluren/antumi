@@ -72,6 +72,9 @@ export type ChatStageOptions = {
   // The stage may only plan: read-only in its folders, and its plan kept rather than carried out,
   // whatever the agent or a client asks.
   planOnly?: boolean
+  // The stage works read-only in its folders, in the agent's readOnlyMode: a squad's leader or a
+  // read-only member, which does its work rather than plans it.
+  readOnly?: boolean
   // Whether the agent, one that can, suggests the user's next message after each turn.
   promptSuggestions?: boolean
   // Stores an image a tool result carries in its bytes (base64), for the chat to show; null when it

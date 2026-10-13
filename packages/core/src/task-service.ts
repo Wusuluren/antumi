@@ -39,7 +39,7 @@ import {
   type TaskStatus,
   type UnattendedMode
 } from '@kando/protocol'
-import { agentPrompt, chatPlanPrompt, chatStartPrompt, type PreviousAttempt, type PromptImages } from './agent-prompt'
+import { agentPrompt, chatPlanPrompt, chatStartPrompt, leaderStartPrompt, type PlanBrief, type PreviousAttempt, type PromptImages } from './agent-prompt'
 import type { AgentRunStore } from './agent-run-store'
 import type { AttachmentStore } from './attachment-store'
 import type { ConversationService, ModelChoice } from './conversation-service'
@@ -419,7 +419,9 @@ export class TaskService {
   // are accepted, the task can only plan read-only. Resolves once the first message is on its way.
   // unattended: a scheduled run, which carries the task out in that mode without planning first.
   // What `options` leaves out comes from the task's launch, which a start by hand then keeps.
-  async start(id: string, allowBypass?: boolean, unattended?: UnattendedMode, options: TaskLaunchOptions = {}, coordinator?: string): Promise<Task> {
+  // coordinator: a squad leader's brief; resume, when the leader planned the task itself, goes on
+  // from that planning with what it read and settled instead of starting over.
+  async start(id: string, allowBypass?: boolean, unattended?: UnattendedMode, options: TaskLaunchOptions = {}, coordinator?: string, resume = false): Promise<Task> {
     if (this.get(id).squadId && !coordinator) {
       if (unattended) throw new Rejection('squad-schedule-unsupported')
       return this.requireSquads().start(id, allowBypass, options)
@@ -459,15 +461,21 @@ export class TaskService {
       const workspace = await prepareWorkspace(await this.withSlug(task), dependencies, this.worktreesRoot)
       this.store.update(task.id, { repos: workspace.repos })
       const conversation = await chats.startForTask({ id: task.id, title: task.title, agent }, {
-        cwd: workspace.cwd, extraDirs: workspace.extraDirs, planOnly: false, session: 'new', readable: images.readable,
+        cwd: workspace.cwd, extraDirs: workspace.extraDirs, planOnly: false, session: coordinator && resume ? 'resume' : 'new', readable: images.readable,
         allowBypass: coordinator ? false : unattended === 'bypass' || allowBypass, ...launch,
-        permissionMode: coordinator ? agentDescriptor(agent).discussionMode : permissionMode, workspaceReadOnly: Boolean(coordinator)
+        permissionMode: coordinator ? agentDescriptor(agent).readOnlyMode : permissionMode, workspaceReadOnly: Boolean(coordinator),
+        // A leader going on from its planning reads its brief first, in a handoff if it moved.
+        ...(coordinator && resume ? { opening: { text: leaderStartPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, task.plan, coordinator), imageIds } } : {})
       })
       // The planning agent stopped for the new stage, so nothing reads there any more.
       await removePlanningCheckouts(task.id, this.worktreesRoot)
       this.save(task.id, { status: 'running', awaitingInput: false })
-      const prompt = chatStartPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, task.plan, unattended !== undefined, permissionMode)
-      await chats.send(conversation.id, coordinator ? `${prompt}\n\n${coordinator}` : prompt, imageIds)
+      if (!(coordinator && resume)) {
+        const prompt = coordinator
+          ? leaderStartPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, task.plan, coordinator)
+          : chatStartPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, task.plan, unattended !== undefined, permissionMode)
+        await chats.send(conversation.id, prompt, imageIds)
+      }
       return this.changed(this.get(task.id))
     })
   }
@@ -483,7 +491,8 @@ export class TaskService {
   // finished task goes back to running, as continuing it does.
   async resumeChat(id: string, allowBypass?: boolean): Promise<Task> {
     const task = this.get(id)
-    if (task.squadId) return this.requireSquads().resume(id, allowBypass)
+    // Before its squad runs, the leader plans as any task's agent does.
+    if (task.squadId && task.status !== 'pending') return this.requireSquads().resume(id, allowBypass)
     const dependencies = this.dependenciesOf(task)
     const blocker = checkChatResume(task, dependencies)
     if (blocker) {
@@ -574,7 +583,7 @@ export class TaskService {
       return
     }
     const turn = conversation.chat?.turn ?? null
-    const waiting = task.squadId ? (this.squads?.awaiting(task.id) ?? false) : task.status === 'running' ? turn !== 'running' : task.status === 'pending' && (turn === 'idle' || turn === 'awaiting')
+    const waiting = task.squadId && task.status !== 'pending' ? (this.squads?.awaiting(task.id) ?? false) : task.status === 'running' ? turn !== 'running' : task.status === 'pending' && (turn === 'idle' || turn === 'awaiting')
     if (task.awaitingInput !== waiting) {
       this.changed(this.store.update(task.id, { awaitingInput: waiting }))
     }
@@ -589,8 +598,32 @@ export class TaskService {
     return { readable: images.readable, text: `${agentPrompt(task, { cwd, extraDirs: entries.slice(1).map((entry) => entry.dir), multi: entries.length > 1, entries, repos: task.repos }, this.dependenciesOf(task), this.previousAttempt(task), images.prompt)}${task.plan ? `\n\n已确认规划：\n${task.plan.markdown}` : ''}` }
   }
 
-  assignSquad(id: string, squadId: string, agent: AgentKind): Task {
-    return this.changed(this.store.update(id, { squadId, agent, status: 'pending' }))
+  // launch: the mode the squad will develop in, kept while its leader plans.
+  assignSquad(id: string, squadId: string, agent: AgentKind, launch?: TaskLaunchOptions): Task {
+    return this.changed(this.store.update(id, { squadId, agent, status: 'pending', ...(launch ? { launch } : {}) }))
+  }
+
+  // A squad's leader plans the task with the user first, read-only, on its own model; the plan it
+  // settles on is carried out when the squad starts (SquadService.start), by the same leader.
+  async planForSquad(id: string, choice: ModelChoice, brief: PlanBrief): Promise<Task> {
+    const chats = this.requireChats()
+    const task = this.get(id)
+    if (task.status !== 'pending') throw new Rejection('not-pending')
+    if (!task.repos.length) throw new Rejection('missing-repo')
+    const { agent } = task
+    if (!agent) throw new Rejection('invalid-task')
+    if (!chats.capacityAvailable(agent, task.conversationId)) throw new Rejection('agent-capacity')
+    return this.launchChat(task, async () => {
+      const dependencies = this.dependenciesOf(task)
+      const images = await this.images(task)
+      const workspace = await prepareRefineWorkspace(task, dependencies, this.worktreesRoot)
+      const conversation = await chats.startForTask({ id: task.id, title: task.title, agent }, {
+        cwd: workspace.cwd, extraDirs: workspace.dirs.filter((dir) => dir !== workspace.cwd), planOnly: true, session: 'new',
+        readable: images.readable, allowBypass: false, permissionMode: 'plan', ...choice
+      })
+      await chats.send(conversation.id, chatPlanPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, brief), this.chatImageIds(task, images.prompt))
+      return this.changed(this.get(task.id))
+    })
   }
 
   keepSquadPlan(id: string, plan: NonNullable<Task['plan']>): void {

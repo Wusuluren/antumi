@@ -107,7 +107,7 @@ export function createRpcHandlers(
     'squads.archive': ({ id, archived }) => squadService().archive(id, archived),
     'squads.activeRuns': () => squadService().activeRuns(),
     'squads.runs': ({ id }) => squadService().runs(id),
-    'squads.start': ({ id, squadId, plan, permissionMode, allowBypass }) => squadService().start(id, allowBypass, { permissionMode }, squadId, plan),
+    'squads.start': ({ id, squadId, plan, planFirst, permissionMode, allowBypass }) => squadService().start(id, allowBypass, { permissionMode }, squadId, plan, planFirst),
     'squads.control': ({ id, action }) => squadService().control(id, action),
     'squads.retry': ({ id, workId }) => squadService().retry(id, workId),
     'squads.roster': ({ id }) => squadService().roster(id),

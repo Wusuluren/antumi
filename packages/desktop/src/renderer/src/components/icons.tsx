@@ -392,6 +392,20 @@ export function InfoIcon() {
 }
 
 // A group chat: two speech bubbles, one behind the other.
+// A small team: one in front, two behind.
+export function SquadIcon() {
+  return (
+    <svg {...stroked}>
+      <circle cx="10" cy="7.2" r="2.4" />
+      <path d="M5.6 16.2c.4-2.6 2.2-4.1 4.4-4.1s4 1.5 4.4 4.1" />
+      <circle cx="4.6" cy="8.6" r="1.7" />
+      <path d="M2.3 14.6c.3-1.6 1.2-2.6 2.5-2.9" />
+      <circle cx="15.4" cy="8.6" r="1.7" />
+      <path d="M17.7 14.6c-.3-1.6-1.2-2.6-2.5-2.9" />
+    </svg>
+  )
+}
+
 export function GroupChatIcon() {
   return (
     <svg {...stroked}>

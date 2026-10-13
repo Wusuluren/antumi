@@ -29,7 +29,7 @@ export function TaskPlanCard({ task }: { task: Task }) {
           {!plan.approved && ' · 开始执行时交给 Agent'}
         </span>
       </header>
-      {supported && task.status === 'pending' && !task.squadId && <button type="button" className="link-button" onClick={() => useCore.setState({ taskLaunchId: task.id, squadPlan: null, squadLaunch: true })}>选择开发小队</button>}
+      {supported && task.status === 'pending' && !task.squadId && <button type="button" className="link-button" onClick={() => useCore.setState({ taskLaunchId: task.id, squadPlan: null, squadLaunch: true })}>选择研发小队</button>}
       {open && (
         <MarkdownEditor key={plan.createdAt} value={plan.markdown} onSave={ignore} label={title} hint="" readOnly />
       )}

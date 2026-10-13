@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { checkChatResume, shortTaskId, type Task } from '@kando/protocol'
+import { checkChatResume, shortTaskId, type Squad, type Task } from '@kando/protocol'
 import { usePlans, type PlanItem } from '../chat-state'
 import { loadConversation, perform, showBrowserPanel, showInspectorFile, showTaskChanges, showTaskPlan, useChatOptionsSupported, useCore, useWireLogShown } from '../core-store'
 import { locateInspectorFile } from '../inspector-file'
@@ -28,13 +28,13 @@ import { useTaskHandoff } from './TaskHandoff'
 function planNote(task: Task, item: PlanItem): string | null {
   const { plan } = task
   const kept = plan && plan.stageId === item.stageId && plan.requestId === item.requestId
-  return kept ? plan.approved && task.squadId ? '已交给开发小队执行' : !plan.approved ? '已保存，依赖完成后执行' : null : null
+  return kept ? plan.approved && task.squadId ? '已交给研发小队执行' : !plan.approved ? '已保存，依赖完成后执行' : null : null
 }
 
 // A message to a task's chat goes through the task first unless its agent is at work: the task checks
 // what it may do, lays its worktrees out and goes back to running. A planning agent is checked every
 // time, as the task's projects may change while it plans and it should follow them.
-function taskSurface(task: Task, dependencies: readonly Task[], planOnly: boolean, bypassable: boolean, handoff: (() => void) | null): ChatSurface {
+function taskSurface(task: Task, dependencies: readonly Task[], planOnly: boolean, bypassable: boolean, handoff: (() => void) | null, squad: Squad | null): ChatSurface {
   const blocker = checkChatResume(task, dependencies)
   return {
     inspector: 'task',
@@ -58,6 +58,20 @@ function taskSurface(task: Task, dependencies: readonly Task[], planOnly: boolea
     },
     sendBlocker: blocker && reasonText(blocker, blocker),
     handoffPlan: !task.squadId && useCore.getState().rpc?.features.includes('squads') ? (item) => useCore.setState({ taskLaunchId: task.id, squadPlan: { stageId: item.stageId, requestId: item.requestId } }) : undefined,
+    // The squad's own leader planned it: approving starts the squad on the plan, in the mode picked
+    // when planning began, the leader going on from there.
+    squadStart: squad && task.status === 'pending' && planOnly && dependencies.every((dependency) => dependency.status === 'done')
+      ? {
+          name: squad.name,
+          start: async (item) => {
+            const started = await perform((rpc) => rpc.call('squads.start', {
+              id: task.id, squadId: squad.id, permissionMode: task.launch.permissionMode ?? 'ask', allowBypass: usePreferences.getState().allowBypass,
+              plan: { stageId: item.stageId, requestId: item.requestId }
+            }))
+            if (started) useCore.setState({ inspectorOpen: true, taskInspectorTab: 'squad' })
+          }
+        }
+      : undefined,
     savePlan: planOnly
       ? async (item) => {
           await perform((rpc) => rpc.call('tasks.savePlan', { id: task.id, stageId: item.stageId, requestId: item.requestId }))
@@ -106,9 +120,10 @@ export function TaskChat({ taskId }: { taskId: string }) {
     () => (task ? task.dependsOn.map((id) => tasks[id]).filter((dependency) => dependency !== undefined) : []),
     [task, tasks]
   )
+  const squad = useCore((s) => (task?.squadId ? s.squads[task.squadId] ?? null : null))
   const surface = useMemo(
-    () => (task ? taskSurface(task, dependencies, conversation?.planOnly ?? false, bypassable, handoffNow ? () => openHandoff() : null) : null),
-    [task, dependencies, conversation?.planOnly, bypassable, handoffNow, openHandoff]
+    () => (task ? taskSurface(task, dependencies, conversation?.planOnly ?? false, bypassable, handoffNow ? () => openHandoff() : null, squad) : null),
+    [task, dependencies, conversation?.planOnly, bypassable, handoffNow, openHandoff, squad]
   )
   if (!task || !surface) {
     return null
@@ -138,7 +153,7 @@ export function TaskChat({ taskId }: { taskId: string }) {
           <TaskAlerts task={task} />
           <span className="muted mono">{shortTaskId(task.id)}</span>
           <SourceLink task={task} />
-          {conversation?.planOnly && <span className="task-tag task-tag-refining">只读规划</span>}
+          {conversation?.planOnly && <span className="task-tag task-tag-refining">{task.squadId ? '队长规划中' : '只读规划'}</span>}
         </div>
         <TaskToolbar task={task} view="chat" />
       </header>

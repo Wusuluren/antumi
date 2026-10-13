@@ -27,8 +27,10 @@ export const GIT_READ_TOOLS = ['Bash(git log:*)', 'Bash(git diff:*)', 'Bash(git 
 
 // Claude Code in print mode, speaking stream-json both ways.
 export function claudeCommand(launch: AgentLaunch): AgentCommand {
-  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readable = [], mcp, forkAt, userBrowser } = launch
-  const allowBypass = (launch.allowBypass ?? false) && !planOnly
+  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readOnly, readable = [], mcp, forkAt, userBrowser } = launch
+  // Folders it may read but never edit: a plan-only stage's, or a read-only worker's.
+  const fenced = planOnly ?? readOnly
+  const allowBypass = (launch.allowBypass ?? false) && !fenced
   // A remembered bypass needs the user's say-so for this start too. Asking goes by manual on
   // the command line, and is passed too, so Claude Code's own default mode cannot override it.
   const chosen = preferred.permissionMode && (preferred.permissionMode !== 'bypass' || allowBypass) ? preferred.permissionMode : undefined
@@ -38,7 +40,7 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     ...(handoffPath ? [`Read(/${handoffPath})`] : []),
     ...claudeReadRules(readable),
     // Planning around what dependencies left on their branches means reading git history.
-    ...(planOnly ? GIT_READ_TOOLS : []),
+    ...(fenced ? GIT_READ_TOOLS : []),
     // Showing a file the agent wrote asks nothing of the user, nor does reading the browser's
     // page; opening and acting on a page go through Claude's own confirmation. (Codex asks
     // nothing for MCP tools, so for it the site gate in core is the only check.)
@@ -47,7 +49,7 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     // history, which only reads and is there only where the user allows it, asks nothing.
     ...(mcp ? [...Object.values(SQUAD_TOOL_NAMES), SHOW_PREVIEW_TOOL, ...BROWSER_READ_TOOLS, terminalToolName('read'), terminalToolName('stop'), ...HISTORY_TOOLS.map(historyToolName)].map((tool) => `mcp__kando__${tool}`) : [])
   ]
-  const denials = planOnly ? claudeEditDenials(planOnly.dirs) : []
+  const denials = fenced ? claudeEditDenials(fenced.dirs) : []
   return { command: 'claude', args: [
     '-p', '--verbose', '--output-format', 'stream-json', '--input-format', 'stream-json',
     '--include-partial-messages', '--permission-prompt-tool', 'stdio',

@@ -232,17 +232,40 @@ export function chatStartPrompt(
   return sections.filter((section) => section !== null).join('\n\n')
 }
 
+// A squad's leader starting on the task: the task and its folders as any agent gets them, the plan
+// the user approved as what it hands out, then its brief (squadLeaderPrompt). It implements nothing.
+export function leaderStartPrompt(
+  task: Pick<Task, 'title' | 'details' | 'source' | 'sourceSnapshot'>,
+  workspace: Workspace,
+  dependencies: readonly Pick<Task, 'id' | 'title' | 'repos'>[],
+  previous: PreviousAttempt | null,
+  images: PromptImages,
+  plan: Pick<TaskPlan, 'markdown'> | null,
+  brief: string
+): string {
+  return [
+    agentPrompt(task, workspace, dependencies, previous, images),
+    plan ? `这是用户已经确认的计划，照它分工派活，不要再提交计划：\n<approved-plan>\n${plan.markdown.trim()}\n</approved-plan>` : null,
+    brief
+  ].filter((section) => section !== null).join('\n\n')
+}
+
 // Planning a task whose dependencies are unfinished: read-only in the projects as they are, the plan
 // kept on the task for when it can run. The dependencies' plans go inline.
+// Why the task is planned before it runs, and what the plan settles on, where that is not the
+// unfinished dependencies: a squad's leader plans the work it then hands out.
+export type PlanBrief = { opening: string; settle: string }
+
 export function chatPlanPrompt(
   task: Pick<Task, 'title' | 'details' | 'source' | 'sourceSnapshot'>,
   workspace: RefineWorkspace,
   dependencies: readonly Dependency[],
   previous: PreviousAttempt | null = null,
-  images: PromptImages = NO_IMAGES
+  images: PromptImages = NO_IMAGES,
+  brief: PlanBrief | null = null
 ): string {
   const sections = [
-    '这个任务依赖的任务还没完成，现在先一起规划，等它们完成后再执行。这次只读代码、讨论和规划，不要修改任何文件。',
+    brief?.opening ?? '这个任务依赖的任务还没完成，现在先一起规划，等它们完成后再执行。这次只读代码、讨论和规划，不要修改任何文件。',
     `任务：${task.title}`,
     `现在的详情：\n${task.details.trim() || '（还没有详情）'}`,
     imageSection(images.attached),
@@ -254,7 +277,7 @@ export function chatPlanPrompt(
       '请这样进行：',
       '1. 先阅读相关代码，了解现状。',
       '2. 有不清楚的地方先问我，每次问几个最关键的问题。',
-      '3. 我们达成一致后，给出完整的实现计划：目标、实现方案、涉及的文件、验收标准。我保存后，它会在依赖完成、开始执行时交给执行的 agent。'
+      brief?.settle ?? '3. 我们达成一致后，给出完整的实现计划：目标、实现方案、涉及的文件、验收标准。我保存后，它会在依赖完成、开始执行时交给执行的 agent。'
     ].join('\n')
   ]
   return sections.filter((section) => section !== null).join('\n\n')

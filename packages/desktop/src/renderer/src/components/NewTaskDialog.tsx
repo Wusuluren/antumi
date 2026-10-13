@@ -223,7 +223,7 @@ export function NewTaskDialog() {
           />
           <label className="new-task-agent-chip">
             <AgentIcon agent={agent} />
-            <span>{squadId ? squads[squadId]?.name ?? '开发小队' : agent ? agentLabel(agent) : '选择 Agent'}</span>
+            <span>{squadId ? squads[squadId]?.name ?? '研发小队' : agent ? agentLabel(agent) : '选择 Agent'}</span>
             <select
               aria-label="选择 Agent"
               value={squadId ? `squad:${squadId}` : agent ?? ''}

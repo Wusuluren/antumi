@@ -223,6 +223,7 @@ export class AcpDriver implements ChatDriver {
 
   private change(option: ChatOption, value: string, id: string): unknown {
     if (option === 'permissionMode' && this.options.planOnly && value !== 'plan') throw new Rejection('plan-only', '此阶段只能规划')
+    if (option === 'permissionMode' && this.options.readOnly && value !== 'readOnly') throw new Rejection('plan-only', '只读成员不能换模式')
     if (option === 'effort') return this.changeEffort(value, id)
     const category = option === 'permissionMode' ? 'mode' : 'model'
     const config = this.config.find((entry) => entry.category === category)
@@ -266,7 +267,7 @@ export class AcpDriver implements ChatDriver {
     }
     if (answer.saved) return this.cancelFrames()
     if (answer.decision === 'deny') return [result(pending.rawId, { outcome: { outcome: 'rejected' } })]
-    if (this.options.planOnly) throw new Rejection('plan-only', '此阶段只能规划，请先保存计划')
+    if (this.options.planOnly || this.options.readOnly) throw new Rejection('plan-only', '此阶段只能规划，请先保存计划')
     const plan = this.dialect.requests?.plan
     const runMode = plan?.runMode ?? 'ask'
     if (answer.mode && answer.mode !== runMode) throw new Rejection('chat-option-invalid', `${this.name} 的计划只能在 ${plan?.runModeLabel ?? runMode} 模式执行`)
@@ -400,7 +401,7 @@ export class AcpDriver implements ChatDriver {
       if (!this.session) { this.startError = `${this.name} 没有返回会话 ID`; return }
       this.catalog(opened.data)
       this.setup = true
-      const preferred = { ...this.options.preferred, ...(this.options.planOnly ? { permissionMode: 'plan' } : {}) }
+      const preferred = { ...this.options.preferred, ...(this.options.planOnly ? { permissionMode: 'plan' } : this.options.readOnly ? { permissionMode: 'readOnly' } : {}) }
       this.initialChoices = (['permissionMode', 'model', 'effort'] as const).flatMap((option) => preferred[option] ? [{ option, value: preferred[option] }] : [])
       // A log from before the catalog came second has it already.
       if (this.modelsRead) this.nextInitial(at)
@@ -510,7 +511,7 @@ export class AcpDriver implements ChatDriver {
     const effort = this.config.find((entry) => entry.category === 'thought_level')
     this.state.set({
       permissionMode: mode ? this.kandoMode(mode.currentValue) : null,
-      permissionModes: mode ? valuesOf(mode).flatMap((entry) => { const mapped = this.kandoMode(entry.value); return mapped && (!this.options.planOnly || mapped === 'plan') ? [mapped] : [] }) : [],
+      permissionModes: mode ? valuesOf(mode).flatMap((entry) => { const mapped = this.kandoMode(entry.value); return mapped && (!this.options.planOnly || mapped === 'plan') && (!this.options.readOnly || mapped === 'readOnly') ? [mapped] : [] }) : [],
       model: model?.currentValue ?? null,
       models: model ? valuesOf(model).map((entry) => ({ id: entry.value, label: entry.name, description: entry.description ?? null, efforts: this.models.find((one) => one.id === entry.value)?.efforts ?? (entry.value === model.currentValue && effort ? valuesOf(effort).map((one) => one.value) : []), isDefault: entry.value === model.currentValue })) : [],
       effort: effort?.currentValue ?? null
