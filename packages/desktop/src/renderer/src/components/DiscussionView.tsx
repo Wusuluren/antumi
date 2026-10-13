@@ -14,6 +14,7 @@ import { TitleEditor } from './TitleEditor'
 import { useDiscussionMentionMenu } from './DiscussionMentions'
 import { AddMemberButton } from './DiscussionMemberForm'
 import { ArchivedBar } from './ArchivedBar'
+import { CopyButton } from './CopyButton'
 
 const ACTIONS: Array<{ action: DiscussionAction; label: string; hint: string }> = [
   { action: 'pause', label: '暂停', hint: '这一轮说完后先停下' },
@@ -161,6 +162,7 @@ function Post({ post, discussion, topic }: { post: DiscussionPost; discussion: D
         <span className="discussion-face discussion-face-me" aria-hidden="true">我</span>
         <div className="discussion-msg-body">
           <div className="discussion-bubble"><MentionedText text={post.text} names={discussion.members.map((member) => member.name)} /></div>
+          <PostActions text={post.text} />
         </div>
       </div>
     )
@@ -193,9 +195,16 @@ function Post({ post, discussion, topic }: { post: DiscussionPost; discussion: D
             )}
           </div>
         )}
+        {post.state !== 'pending' && <PostActions text={post.text} />}
       </div>
     </article>
   )
+}
+
+// Under a post, on hover as under a chat reply: copying what was said, as Markdown for a member's.
+function PostActions({ text }: { text: string }) {
+  if (!text.trim()) return null
+  return <div className="discussion-msg-actions"><CopyButton text={text} label="复制发言" /></div>
 }
 
 // Posts by round, each opened by a note in the middle. The first round's independent answers go one

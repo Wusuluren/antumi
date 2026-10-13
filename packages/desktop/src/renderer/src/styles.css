@@ -8422,6 +8422,13 @@ body.side-panel-resizing * {
    chat app's short bubble. */
 .discussion-msg-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; max-width: 100%; }
 .discussion-msg[data-mine] .discussion-msg-body { align-items: flex-end; max-width: min(78%, 640px); }
+/* A member's post leaves the right-hand column the user's face takes, so the two sides mirror;
+   side by side, each opening has its own column and takes it whole. */
+.discussion-msg:not([data-mine]) .discussion-msg-body { max-width: calc(100% - 46px); }
+.discussion-openings[data-side-by-side] .discussion-msg-body { max-width: 100%; }
+.discussion-msg-actions { display: flex; gap: 2px; height: 22px; margin: -2px 0 0 -6px; opacity: 0; transition: opacity 0.12s; }
+.discussion-msg[data-mine] .discussion-msg-actions { margin: -2px -6px 0 0; }
+.discussion-msg:hover .discussion-msg-actions, .discussion-msg-actions:focus-within { opacity: 1; }
 .discussion-msg-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: var(--chat-font-small); color: var(--text-3); }
 .discussion-msg-name { color: var(--text-muted); font-weight: 500; }
 .discussion-msg-time { font-variant-numeric: tabular-nums; }
