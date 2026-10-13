@@ -1290,31 +1290,6 @@ button.task-tag:hover {
   display: none;
 }
 
-.agent-button {
-  display: inline-flex;
-  width: auto;
-  gap: 1px;
-  padding: 0 3px 0 6px;
-}
-
-.agent-button[aria-disabled='true'] {
-  cursor: not-allowed;
-}
-
-.agent-button[aria-disabled='true'] .agent-button-chevron {
-  visibility: hidden;
-}
-
-.agent-button-chevron {
-  display: grid;
-  color: var(--text-muted);
-}
-
-.tool-button .agent-button-chevron svg {
-  width: 12px;
-  height: 12px;
-}
-
 .agent-mark {
   flex-shrink: 0;
 }
@@ -1510,19 +1485,6 @@ button.task-tag:hover {
   background: var(--fill);
   border-color: var(--border-2);
   color: var(--text-muted);
-}
-
-.button.agent-button-labelled[aria-disabled='true'] {
-  cursor: not-allowed;
-}
-
-.agent-button-labelled .agent-button-chevron svg {
-  width: 12px;
-  height: 12px;
-}
-
-.agent-button-labelled[aria-disabled='true'] .agent-button-chevron {
-  display: none;
 }
 
 .button.task-scheduled svg {
@@ -7076,9 +7038,12 @@ body.side-panel-resizing * {
 /* An agent picked to hand the chat to: the next send goes to it. */
 .chat-picker[data-tone='handoff'] { color: var(--accent); font-weight: 600; }
 /* Beside the task's buttons: a button's height, edge and type. */
-.chat-picker[data-size='large'] { max-width: 280px; height: 32px; padding: 0 8px 0 12px; gap: 6px; border: 1px solid var(--border-2); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 13px; }
-.chat-picker[data-size='large']:hover:not(:disabled),
-.chat-picker[data-size='large'][aria-expanded='true'] { background: var(--fill); }
+.chat-picker:is([data-size='large'], [data-size='field']) { max-width: 280px; height: 32px; padding: 0 8px 0 12px; gap: 6px; border: 1px solid var(--border-2); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 13px; }
+.chat-picker:is([data-size='large'], [data-size='field']):hover:not(:disabled),
+.chat-picker:is([data-size='large'], [data-size='field'])[aria-expanded='true'] { background: var(--fill); }
+/* A labelled field: the form's width, the value at the start and the arrow at the end, as an input. */
+.chat-picker[data-size='field'] { width: 100%; max-width: none; justify-content: space-between; }
+.chat-picker[data-size='field'] .chat-picker-value { flex: 1; text-align: left; }
 
 .chat-picker-heading {
   padding: 4px 8px 2px;
@@ -8300,11 +8265,8 @@ body.side-panel-resizing * {
 .task-quick-add-title { padding: 0; border: 0; outline: 0; resize: none; overflow: hidden; background: transparent; color: var(--text); font: inherit; font-weight: 500; line-height: 1.5; }
 .task-quick-add-title::placeholder { color: var(--text-3); font-weight: 400; }
 .task-quick-add-picks { display: flex; flex-wrap: wrap; gap: 4px; }
-.task-quick-add-pick { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius-sm); background: var(--fill); color: var(--text-muted); font: inherit; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.task-quick-add-pick:hover, .task-quick-add-pick[aria-expanded='true'] { background: var(--fill-2); color: var(--text); }
-.task-quick-add-pick[data-empty] { color: var(--text-3); }
-.task-quick-add-pick svg { width: 14px; height: 14px; flex-shrink: 0; }
-.task-quick-add-agent { display: grid; place-items: center; width: 14px; height: 14px; }
+/* The app's pickers, on a wash so they read as choices inside the field. */
+.task-quick-add-picks .chat-picker { background: var(--fill); }
 .task-quick-add-hint { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--text-3); }
 .task-card-title { padding: 0; border: 0; background: none; color: var(--text); font: inherit; font-weight: 500; text-align: left; cursor: pointer; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .task-card-title:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-xs); }
@@ -8656,7 +8618,6 @@ button.squad-member-main { cursor: pointer; }
 .squad-work-instruction { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .squad-work details, .squad-run details { overflow-wrap: anywhere; }
 .squad-member-nav { padding: 8px 16px; border-bottom: 1px solid var(--border); }
-.task-executor-picker .input { width: auto; max-width: 240px; }
 
 /* To-dos in the inspector: a group a hairline card, its heading on a wash, items as rows. Colour
    only for the boxes ticked; a finished group folds under 已完成. */

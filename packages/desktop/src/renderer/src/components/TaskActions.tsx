@@ -650,7 +650,7 @@ export function TaskSteps({ task, labelled = false }: { task: Task; labelled?: b
   // message takes the new one, which a chat already begun is handed to.
   const handsOff = task.status === 'running' && handoff.available
   const squadsSupported = useCore((state) => state.rpc?.features.includes('squads') ?? false)
-  const agent = (squadsSupported && (task.status === 'pending' || task.squadId) ? <TaskExecutorPicker task={task} /> :
+  const agent = (squadsSupported && (task.status === 'pending' || task.squadId) ? <TaskExecutorPicker task={task} size={labelled ? 'large' : undefined} /> :
     <AgentPicker
       agent={task.agent}
       locked={task.status === 'abandoned' || (task.status === 'running' && !handsOff)}

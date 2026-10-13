@@ -7,8 +7,8 @@ import { canPickFolder, pickFolder } from '../desktop-bridge'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
 import { latestProjects } from '../task-board'
-import { ContextMenu, MenuRadioItem, type MenuPoint } from './ContextMenu'
-import { AgentIcon, ChevronDownIcon, FolderIcon } from './icons'
+import { ChatPicker } from './ChatPicker'
+import { AgentIcon, FolderIcon } from './icons'
 import { parentDir, projectName, projectNames } from './ProjectPicker'
 
 // What is being written, kept while the board is away so a half-written title is still there.
@@ -118,110 +118,53 @@ export function TaskQuickAdd({ onCreated }: { onCreated: (id: string) => void })
   )
 }
 
-function useMenuAt() {
-  const button = useRef<HTMLButtonElement>(null)
-  const [at, setAt] = useState<MenuPoint | null>(null)
-  const close = useCallback(() => setAt(null), [])
-  const toggle = () => {
-    const box = button.current?.getBoundingClientRect()
-    if (box) setAt((current) => (current ? null : { x: box.left, y: box.bottom + 4 }))
-  }
-  return { button, at, close, toggle }
-}
-
 // One project for the new task, from those used lately; several, or none, in the full dialog too.
+// What it has now stays a choice, even several at once, as the latest task may have left it.
 function ProjectPick({ repos }: { repos: readonly string[] }) {
-  const { button, at, close, toggle } = useMenuAt()
   const [recent, setRecent] = useState<readonly string[]>([])
-  const choose = (next: readonly string[]) => {
-    useQuickAdd.setState({ repos: next })
-    close()
-  }
+  useEffect(() => {
+    void perform((rpc) => rpc.call('projects.recent', {})).then((found) => setRecent(found ?? []))
+  }, [])
+  const current = repos.join('\n')
   const browse = async () => {
-    close()
     const picked = await pickFolder(repos[0] ? parentDir(repos[0]) : undefined)
     if (picked) useQuickAdd.setState({ repos: [picked] })
   }
-  const choices = [...new Set([...repos, ...recent])]
+  const folder = <FolderIcon />
+  const singles = [...new Set([...repos, ...recent])]
   return (
-    <>
-      <button
-        ref={button}
-        type="button"
-        className="task-quick-add-pick"
-        aria-haspopup="menu"
-        aria-expanded={at !== null}
-        data-empty={repos.length === 0 || undefined}
-        title={repos.join('\n') || undefined}
-        onClick={() => {
-          toggle()
-          if (!at) void perform((rpc) => rpc.call('projects.recent', {})).then((found) => setRecent(found ?? []))
-        }}
-      >
-        <FolderIcon />
-        {repos.length ? projectNames(repos) : '选择项目'}
-        <ChevronDownIcon />
-      </button>
-      {at && (
-        <ContextMenu at={at} trigger={button.current} label="新任务的项目" onClose={close}>
-          {choices.map((each) => (
-            <button
-              key={each}
-              type="button"
-              role="menuitemradio"
-              aria-checked={repos.length === 1 && repos[0] === each}
-              className="menu-item"
-              title={each}
-              onClick={() => choose([each])}
-            >
-              <span className="menu-item-name">{projectName(each)}</span>
-              <span className="menu-item-path mono">{each}</span>
-            </button>
-          ))}
-          {canPickFolder() && (
-            <button type="button" role="menuitem" className="menu-item" onClick={() => void browse()}>选择文件夹…</button>
-          )}
-          <div className="menu-separator" role="separator" />
-          <MenuRadioItem label="无项目，之后再选" checked={repos.length === 0} onSelect={() => choose([])} />
-        </ContextMenu>
-      )}
-    </>
+    <ChatPicker
+      label="新任务的项目"
+      value={current}
+      placeholder="选择项目"
+      placement="below"
+      options={[
+        ...(repos.length > 1 ? [{ value: current, label: projectNames(repos), description: repos.join('、'), icon: folder }] : []),
+        ...singles.map((each) => ({ value: each, label: projectName(each), description: each, icon: folder })),
+        { value: '', label: '无项目，之后再选', icon: folder }
+      ]}
+      onChange={(value) => useQuickAdd.setState({ repos: value ? value.split('\n') : [] })}
+      footer={canPickFolder() ? (close) => (
+        <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); void browse() }}>选择文件夹…</button>
+      ) : undefined}
+    />
   )
 }
 
 function AgentPick({ agent }: { agent: AgentKind | null }) {
-  const { button, at, close, toggle } = useMenuAt()
   const installed = useInstalledAgents()
   const choices = agent && !installed.includes(agent) ? [...installed, agent] : installed
   return (
-    <>
-      <button
-        ref={button}
-        type="button"
-        className="task-quick-add-pick"
-        aria-haspopup="menu"
-        aria-expanded={at !== null}
-        data-empty={agent === null || undefined}
-        onClick={toggle}
-      >
-        <span className="task-quick-add-agent"><AgentIcon agent={agent} /></span>
-        {agent ? agentLabel(agent) : '选择 Agent'}
-        <ChevronDownIcon />
-      </button>
-      {at && (
-        <ContextMenu at={at} trigger={button.current} label="新任务的 Agent" onClose={close}>
-          {choices.map((each) => (
-            <MenuRadioItem key={each} label={agentLabel(each)} checked={each === agent} onSelect={() => {
-              useQuickAdd.setState({ agent: each })
-              close()
-            }} />
-          ))}
-          <MenuRadioItem label="之后再选" checked={agent === null} onSelect={() => {
-            useQuickAdd.setState({ agent: null })
-            close()
-          }} />
-        </ContextMenu>
-      )}
-    </>
+    <ChatPicker
+      label="新任务的 Agent"
+      value={agent ?? ''}
+      placeholder="选择 Agent"
+      placement="below"
+      options={[
+        ...choices.map((each) => ({ value: each, label: agentLabel(each), icon: <AgentIcon agent={each} />, description: installed.includes(each) ? null : '未安装' })),
+        { value: '', label: '之后再选', icon: <AgentIcon agent={null} /> }
+      ]}
+      onChange={(value) => useQuickAdd.setState({ agent: choices.find((each) => each === value) ?? null })}
+    />
   )
 }

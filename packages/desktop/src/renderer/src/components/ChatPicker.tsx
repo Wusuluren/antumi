@@ -4,6 +4,7 @@ import { CheckIcon, ChevronDownIcon } from './icons'
 
 // `icon`: a mark before the label, in the menu and on the button, as an agent's.
 export type PickerOption = { value: string; label: string; description?: string | null; disabled?: boolean; icon?: ReactNode }
+export type PickerSize = 'large' | 'field'
 
 // A choice in the composer's toolbar: its value as a small button as wide as its words, and a menu
 // above it. A native select is as wide as its longest option, which left most values far from their
@@ -18,8 +19,9 @@ function PickerShell({ label, spoken, tone, disabled, title, align, placement = 
   align: 'start' | 'end'
   // Above in the composer, where below is the rest of it; below for one at the top of a panel.
   placement?: 'above' | 'below'
-  // Large: as tall as a button, for a row of buttons rather than the composer's toolbar.
-  size?: 'large'
+  // Large: as tall as a button, for a row of buttons rather than the composer's toolbar. Field: as
+  // large, and as wide as its form, for a labelled field in a dialog or editor.
+  size?: PickerSize
   value: ReactNode
   onClose?: () => void
   children: (close: () => void) => ReactNode
@@ -82,7 +84,7 @@ export function PickerItem({ option, checked, onSelect }: { option: PickerOption
 }
 
 // One setting: its options listed with what each means, the current one checked.
-export function ChatPicker({ label, value, placeholder, options, onChange, disabled = false, title, tone, align = 'start', placement }: {
+export function ChatPicker({ label, value, placeholder, options, onChange, disabled = false, title, tone, align = 'start', placement, size, footer }: {
   label: string
   value: string | null
   placeholder: string
@@ -94,12 +96,15 @@ export function ChatPicker({ label, value, placeholder, options, onChange, disab
   tone?: string
   align?: 'start' | 'end'
   placement?: 'above' | 'below'
+  size?: PickerSize
+  // What else the menu offers below the choices, as a folder picker beside recent projects.
+  footer?: (close: () => void) => ReactNode
 }) {
   const picked = options.find((option) => option.value === value)
   const current = picked?.label ?? placeholder
   const shown = picked?.icon ? <><span className="chat-picker-icon" aria-hidden="true">{picked.icon}</span>{current}</> : current
   return (
-    <PickerShell label={label} spoken={`${label}：${current}`} tone={tone} disabled={disabled} title={title} align={align} placement={placement} value={shown}>
+    <PickerShell label={label} spoken={`${label}：${current}`} tone={tone} disabled={disabled} title={title} align={align} placement={placement} size={size} value={shown}>
       {(close) => (
         <>
           <div className="chat-picker-heading">{label}</div>
@@ -114,6 +119,7 @@ export function ChatPicker({ label, value, placeholder, options, onChange, disab
               }}
             />
           ))}
+          {footer && <><div className="menu-separator" role="separator" />{footer(close)}</>}
         </>
       )}
     </PickerShell>
@@ -135,7 +141,7 @@ export function ChatModelPicker({ models, model, effort, onModel, onEffort, disa
   title?: string
   align?: 'start' | 'end'
   placement?: 'above' | 'below'
-  size?: 'large'
+  size?: PickerSize
 }) {
   // A switch a running agent has yet to confirm: its efforts show, but wait for it.
   const [picked, setPicked] = useState<string | null>(null)

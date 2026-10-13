@@ -9,8 +9,9 @@ import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { boardColumns, boardProjects, type BoardColumn, type BoardFilter, type TaskSort } from '../task-board'
 import { waitingOn } from '../task-waiting'
 import { saveTaskText } from '../unsaved-edits'
-import { ContextMenu, menuPoint, MenuRadioItem, type MenuPoint } from './ContextMenu'
-import { AgentIcon, ChevronDownIcon, InboxIcon } from './icons'
+import { ChatPicker } from './ChatPicker'
+import { menuPoint, type MenuPoint } from './ContextMenu'
+import { AgentIcon, InboxIcon } from './icons'
 import { projectName, projectNames } from './ProjectPicker'
 import { StatusIcon } from './StatusIcon'
 import { cardAction, TaskContextMenu, useChatTurn } from './TaskActions'
@@ -28,7 +29,7 @@ export function BoardCrumb() {
   )
 }
 
-const SORT_LABEL: Record<TaskSort, string> = { recent: '最近活动', created: '创建时间', title: '标题' }
+const SORT_LABEL: Record<TaskSort, string> = { recent: '按最近活动', created: '按创建时间', title: '按标题' }
 
 // Kept while a task is open, so going back finds the board as it was left.
 const useBoardFilter = create<BoardFilter & { allDone: boolean }>(() => ({ query: '', project: null, agent: null, allDone: false }))
@@ -211,68 +212,19 @@ function TaskCard({ task, tasks, now, fresh, renaming, menuOpen, onRenamed, onMe
   )
 }
 
-// A chip that opens a list of choices, as the filters and the sort are.
-function ChoiceMenu<T>({ label, value, text, choices, describe, onPick, pressed }: {
-  label: string
-  value: T
-  // What the chip says, when it is more than the choice's name.
-  text?: string
-  choices: readonly T[]
-  describe: (choice: T) => string
-  onPick: (choice: T) => void
-  pressed: boolean
-}) {
-  const button = useRef<HTMLButtonElement>(null)
-  const [at, setAt] = useState<MenuPoint | null>(null)
-  const close = useCallback(() => setAt(null), [])
-  return (
-    <>
-      <button
-        ref={button}
-        type="button"
-        className="task-board-chip"
-        aria-haspopup="menu"
-        aria-expanded={at !== null}
-        aria-pressed={pressed}
-        onClick={() => {
-          const box = button.current?.getBoundingClientRect()
-          if (box) setAt((current) => (current ? null : { x: box.left, y: box.bottom + 4 }))
-        }}
-      >
-        {text ?? describe(value)}
-        <ChevronDownIcon />
-      </button>
-      {at && (
-        <ContextMenu at={at} trigger={button.current} label={label} onClose={close}>
-          {choices.map((choice, index) => (
-            <MenuRadioItem
-              key={index}
-              label={describe(choice)}
-              checked={choice === value}
-              onSelect={() => {
-                onPick(choice)
-                close()
-              }}
-            />
-          ))}
-        </ContextMenu>
-      )}
-    </>
-  )
-}
-
+// The board's filters and sort are the app's pickers, as wide as what they say and opening below.
 function ProjectFilter({ tasks, value }: { tasks: readonly Task[]; value: string | null }) {
   const projects = useMemo(() => boardProjects(tasks), [tasks])
   if (projects.length < 2 && value === null) return null
-  const describe = (project: string | null) => (project === null ? '全部项目' : projectName(project))
   return (
-    <ChoiceMenu
+    <ChatPicker
       label="按项目筛选"
-      value={value}
-      choices={[null, ...projects]}
-      describe={describe}
-      pressed={value !== null}
-      onPick={(project) => useBoardFilter.setState({ project })}
+      value={value ?? ''}
+      placeholder="全部项目"
+      options={[{ value: '', label: '全部项目' }, ...projects.map((project) => ({ value: project, label: projectName(project), description: project }))]}
+      size="large"
+      placement="below"
+      onChange={(project) => useBoardFilter.setState({ project: project || null })}
     />
   )
 }
@@ -280,29 +232,33 @@ function ProjectFilter({ tasks, value }: { tasks: readonly Task[]; value: string
 function AgentFilter({ tasks, value }: { tasks: readonly Task[]; value: AgentKind | null }) {
   const used = AGENT_KINDS.filter((agent) => tasks.some((task) => task.agent === agent))
   if (used.length < 2 && value === null) return null
-  const describe = (agent: AgentKind | null) => (agent === null ? '全部 Agent' : agentLabel(agent))
   return (
-    <ChoiceMenu
+    <ChatPicker
       label="按 Agent 筛选"
-      value={value}
-      choices={[null, ...used]}
-      describe={describe}
-      pressed={value !== null}
-      onPick={(agent) => useBoardFilter.setState({ agent })}
+      value={value ?? ''}
+      placeholder="全部 Agent"
+      options={[{ value: '', label: '全部 Agent' }, ...used.map((agent) => ({ value: agent, label: agentLabel(agent), icon: <AgentIcon agent={agent} /> }))]}
+      size="large"
+      placement="below"
+      onChange={(picked) => useBoardFilter.setState({ agent: AGENT_KINDS.find((agent) => agent === picked) ?? null })}
     />
   )
 }
 
 function SortButton({ value }: { value: TaskSort }) {
   return (
-    <ChoiceMenu
+    <ChatPicker
       label="排序方式"
       value={value}
-      text={`排序：${SORT_LABEL[value]}`}
-      choices={TASK_SORTS}
-      describe={(sort) => SORT_LABEL[sort]}
-      pressed={false}
-      onPick={(sort) => setPreference('taskSort', sort)}
+      placeholder={SORT_LABEL[value]}
+      options={TASK_SORTS.map((sort) => ({ value: sort, label: SORT_LABEL[sort] }))}
+      size="large"
+      placement="below"
+      align="end"
+      onChange={(picked) => {
+        const sort = TASK_SORTS.find((each) => each === picked)
+        if (sort) setPreference('taskSort', sort)
+      }}
     />
   )
 }
