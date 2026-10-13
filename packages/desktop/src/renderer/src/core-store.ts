@@ -816,6 +816,10 @@ export function useBrowserSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('browser') ?? false)
 }
 
+export function useKnowledgeBaseSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('knowledge-base') ?? false)
+}
+
 export function useUsageLimitSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('usage-limit') ?? false)
 }

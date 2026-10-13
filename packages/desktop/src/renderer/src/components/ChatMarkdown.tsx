@@ -163,9 +163,10 @@ function LinkedImages({ node }: { node: HastElement | undefined }) {
 }
 
 // react-markdown drops what it cannot tell is safe, a.ts:12 and file:// among it; a file is shown
-// by Kando rather than followed, so its link is kept.
+// by Kando rather than followed, so its link is kept, as is a note's, which main opens in Obsidian.
 function urlTransform(url: string): string {
-  return linkTarget(url)?.kind === 'file' ? url : defaultUrlTransform(url)
+  const kind = linkTarget(url)?.kind
+  return kind === 'file' || kind === 'app' ? url : defaultUrlTransform(url)
 }
 
 function languageOf(code: HastElement | undefined): string | null {

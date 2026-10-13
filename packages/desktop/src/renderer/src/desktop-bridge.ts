@@ -8,7 +8,9 @@ declare global {
       platform: string
       onFullScreenChange(listener: (fullScreen: boolean) => void): () => void
       getCoreEndpoint(): Promise<unknown>
-      pickFolder(defaultPath?: string): Promise<unknown>
+      // title: the dialog's, where it is not a code repository being picked; a main older than the
+      // renderer ignores it.
+      pickFolder(defaultPath?: string, title?: string): Promise<unknown>
       setTheme(theme: string): Promise<unknown>
       // Absent from a main older than the renderer.
       revealFile?(candidates: string[]): Promise<unknown>
@@ -50,8 +52,8 @@ export function canPickFolder(): boolean {
   return window.kando !== undefined
 }
 
-export async function pickFolder(defaultPath?: string): Promise<string | null> {
-  const picked = await window.kando?.pickFolder(defaultPath)
+export async function pickFolder(defaultPath?: string, title?: string): Promise<string | null> {
+  const picked = await window.kando?.pickFolder(defaultPath, title)
   return typeof picked === 'string' && picked !== '' ? picked : null
 }
 

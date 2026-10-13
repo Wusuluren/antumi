@@ -104,10 +104,11 @@ function loadRenderer(win: BrowserWindow, hash?: string): void {
       event.preventDefault()
     }
   })
-  // A link in a reply: a web page goes to the browser (a dev server's http:// too); nothing else
-  // may open a window, or start an app through its scheme.
+  // A link in a reply: a web page goes to the browser (a dev server's http:// too), and a note to
+  // Obsidian, whose scheme only opens, searches or makes notes in the user's own vaults; nothing
+  // else may open a window, or start an app through its scheme.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//i.test(url)) {
+    if (/^https?:\/\//i.test(url) || /^obsidian:/i.test(url)) {
       void shell.openExternal(url)
     }
     return { action: 'deny' }
@@ -163,9 +164,9 @@ ipcMain.handle('kando:set-theme', (_event, theme: unknown) => {
   }
 })
 
-ipcMain.handle('kando:pick-folder', async (event, defaultPath: unknown) => {
+ipcMain.handle('kando:pick-folder', async (event, defaultPath: unknown, title: unknown) => {
   const options: OpenDialogOptions = {
-    title: '选择代码仓库',
+    title: typeof title === 'string' && title ? title : '选择代码仓库',
     properties: ['openDirectory'],
     defaultPath: typeof defaultPath === 'string' ? defaultPath : undefined
   }

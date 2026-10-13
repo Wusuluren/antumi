@@ -2,7 +2,7 @@ import type { BrowserStatus, WireUsage } from '@kando/protocol'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { AGENT_KINDS, agentDescriptor, LANGUAGE_NAMES, PROTOCOL_VERSION, quickModel, TRANSLATE_LANGUAGES, UNATTENDED_MODES, type AgentKind, type SourceDescriptor } from '@kando/protocol'
 import packageJson from '../../../../package.json'
-import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
+import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
 import { setPreference, usePreferences } from '../preferences'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { UNATTENDED_LABEL } from '../schedules'
@@ -18,6 +18,7 @@ import {
   AgentIcon,
   ArrowLeftIcon,
   BellIcon,
+  BookIcon,
   BugIcon,
   ChatIcon,
   ContrastIcon,
@@ -32,6 +33,7 @@ import {
 } from './icons'
 import { AgentStatsSettings } from './AgentStatsSettings'
 import { ChatCommandSettings } from './ChatCommandSettings'
+import { KnowledgeBaseSettings } from './KnowledgeBaseSettings'
 import { CopyButton } from './CopyButton'
 import { checkStatusText, GIT_INSTALL_HINT } from '../environment-text'
 import { settingsSectionOf } from './SourceInboxView'
@@ -657,6 +659,17 @@ const DEBUG_SECTION: Section = {
   Body: DebugSettings
 }
 
+// The user's Obsidian vault, on a core that hands it to agents; it sits before the browser.
+const KNOWLEDGE_SECTION: Section = {
+  id: 'knowledge',
+  group: '集成',
+  title: '知识库',
+  description: '你的 Obsidian 库：Agent 启动时拿到它，让它把总结、结论和笔记直接写进去。',
+  keywords: ['知识库', 'obsidian', 'vault', '笔记', '总结', '记录', 'markdown', '双链', '集成'],
+  Icon: BookIcon,
+  Body: KnowledgeBaseSettings
+}
+
 // The browser Kando hosts for chat agents, where core offers one; it follows the task sources.
 const BROWSER_SECTION: Section = {
   id: 'browser',
@@ -690,14 +703,15 @@ export function SettingsPage() {
   useOccludesBrowser()
   const sources = useCore((s) => s.sources)
   const browser = useBrowserSupported()
+  const knowledge = useKnowledgeBaseSupported()
   const chatCommands = useChatCommandsSupported()
   const wireLog = useWireLogSupported()
   const sections = useMemo(() => {
     const about = SECTIONS.filter((section) => section.id === 'about')
     const own = SECTIONS.filter((section) => section.id !== 'about' && (section.id !== 'notifications' || canNotify() || canShowRequestPopup()))
       .flatMap((section) => (section.id === 'agents' && chatCommands ? [section, CHAT_COMMANDS_SECTION] : [section]))
-    return [...own, ...sourceSections(sources ?? []), ...(browser ? [BROWSER_SECTION] : []), ...(wireLog ? [DEBUG_SECTION] : []), ...about]
-  }, [sources, browser, chatCommands, wireLog])
+    return [...own, ...sourceSections(sources ?? []), ...(knowledge ? [KNOWLEDGE_SECTION] : []), ...(browser ? [BROWSER_SECTION] : []), ...(wireLog ? [DEBUG_SECTION] : []), ...about]
+  }, [sources, browser, knowledge, chatCommands, wireLog])
   const [activeId, setActiveId] = useState(() => useCore.getState().settingsSection ?? SECTIONS[0]?.id ?? '')
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()

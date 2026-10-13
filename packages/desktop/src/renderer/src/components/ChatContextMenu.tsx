@@ -33,7 +33,7 @@ export function useChatContextMenu(list: RefObject<HTMLDivElement | null>, scope
     const state: Menu = {
       at, selection: selectedChatText(list.current), text: copyRegionText(target, list.current) ?? '',
       code: code?.textContent?.replace(/\n$/, '') ?? null,
-      href: href && linkTarget(href)?.kind === 'web' ? href : null,
+      href: href && ['web', 'app'].includes(linkTarget(href)?.kind ?? '') ? href : null,
       reference, file: null, resolving: reference !== null && filePreviewSupported(), error: null
     }
     const current = ++sequence.current

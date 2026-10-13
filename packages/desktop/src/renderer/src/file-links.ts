@@ -38,12 +38,14 @@ export function fileCandidates(path: string, roots: readonly string[]): string[]
   return [...new Set(roots.map((root) => joined(root, path)))]
 }
 
-// What a link in a reply leads to: a page for the browser, or a file on this machine. Anything
-// else (mailto:, an anchor, an app's own scheme) is neither.
-export type LinkTarget = { kind: 'web'; href: string } | ({ kind: 'file' } & FileReference)
+// What a link in a reply leads to: a page for the browser, a file on this machine, or a note in
+// Obsidian, the one app whose scheme a reply may open (the user's own knowledge base). Anything
+// else (mailto:, an anchor, another app's scheme) is none of these.
+export type LinkTarget = { kind: 'web'; href: string } | { kind: 'app'; href: string } | ({ kind: 'file' } & FileReference)
 
 export function linkTarget(href: string): LinkTarget | null {
   if (/^https?:\/\//i.test(href)) return { kind: 'web', href }
+  if (/^obsidian:/i.test(href)) return { kind: 'app', href }
   let path = href
   if (/^file:\/\//i.test(href)) {
     try {

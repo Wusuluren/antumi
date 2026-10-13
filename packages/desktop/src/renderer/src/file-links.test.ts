@@ -48,10 +48,11 @@ describe('linkTarget', () => {
     expect(linkTarget('C:/repo/a.ts')).toEqual({ kind: 'file', path: 'C:/repo/a.ts', line: null })
   })
 
-  it('leaves anchors and other schemes alone', () => {
+  it('leaves anchors and other schemes alone, but opens a note in Obsidian', () => {
     for (const href of ['#usage', 'mailto:me@example.com', 'vscode://file/a.ts', 'javascript:alert(1)']) {
       expect(linkTarget(href)).toBeNull()
     }
+    expect(linkTarget('obsidian://open?vault=notes&file=Daily%2F2026-10-13')).toEqual({ kind: 'app', href: 'obsidian://open?vault=notes&file=Daily%2F2026-10-13' })
   })
 })
 

@@ -669,6 +669,7 @@ span.chat-translate .spinner { width: 12px; height: 12px; }
 .quick-model .agent-mark { width: 14px; height: 14px; }
 .quick-model .chat-picker { max-width: 360px; }
 .settings-note { margin: 0; padding: 4px 0 14px; color: var(--text-muted); font-size: 12px; line-height: 1.6; }
+.settings-note.warning { color: var(--warning); }
 
 /* What the user put away: a word beside its title, and where its input was, the way back. */
 .archived-tag { flex-shrink: 0; padding: 0 6px; border-radius: 999px; background: var(--fill-2); color: var(--text-muted); font-size: 12px; font-weight: 400; }
