@@ -8,6 +8,7 @@ declare global {
       platform: string
       onFullScreenChange(listener: (fullScreen: boolean) => void): () => void
       getCoreEndpoint(): Promise<unknown>
+      pickPlugin?(kind: 'directory' | 'zip'): Promise<unknown>
       pickFolder(defaultPath?: string): Promise<unknown>
       setTheme(theme: string): Promise<unknown>
       // Absent from a main older than the renderer.
@@ -170,4 +171,9 @@ export function onBrowserShortcut(listener: (kind: 'toggle-browser' | 'settings'
 // Without the bridge (plain browser) the page still themes itself via data-theme.
 export function setNativeTheme(theme: 'system' | 'light' | 'dark'): void {
   void window.kando?.setTheme(theme).catch(() => {})
+}
+
+export async function pickPlugin(kind: 'directory' | 'zip'): Promise<string | null> {
+  const picked = await window.kando?.pickPlugin?.(kind)
+  return typeof picked === 'string' && picked ? picked : null
 }

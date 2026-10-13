@@ -71,6 +71,12 @@ export class LoginFlows {
     this.abort(this.owned(owner, flowId), new SourceError('login-cancelled', 'sign-in cancelled'))
   }
 
+  cancelProvider(provider: string): void {
+    for (const flow of this.flows.values()) {
+      if (flow.provider === provider) this.abort(flow, new SourceError('login-cancelled', 'source changed'))
+    }
+  }
+
   private owned(owner: FlowOwner, flowId: string): Flow {
     const flow = this.flows.get(flowId)
     if (!flow || flow.owner !== owner) {

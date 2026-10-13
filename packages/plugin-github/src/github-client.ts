@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { SourceIssue } from '@kando/protocol'
+import { MAX_ISSUE_TITLE_LENGTH, type SourceIssue } from '@kando/protocol'
 import { SourceError } from './source-error'
 
 export const GITHUB_KEY_PATTERN = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)#([1-9][0-9]*)$/
@@ -131,7 +131,7 @@ function summarize(repository: string, row: z.infer<typeof IssueRow>): SourceIss
   const priority = issueLabels.find((label) => /^p[0-4]$/i.test(label) || /^priority(?:\s*[:=-]|$)/i.test(label)) ?? null
   return {
     key: `${repository}#${row.number}`,
-    title: row.title ?? '',
+    title: (row.title ?? '').slice(0, MAX_ISSUE_TITLE_LENGTH),
     url: row.html_url,
     status: row.state_reason ?? row.state,
     statusCategory: row.state === 'open' ? 'todo' : 'done',

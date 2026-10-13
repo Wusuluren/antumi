@@ -9,6 +9,7 @@ import { UNATTENDED_LABEL } from '../schedules'
 import { useInstalledAgents } from '../installed-agents'
 import { useAgentCatalog } from '../agent-models'
 import { ChatPicker } from './ChatPicker'
+import { PluginSettings } from './PluginSettings'
 import { InstalledAgentsSettings } from './InstalledAgentsSettings'
 import { ChatFontPicker } from './ChatFontPicker'
 import { agentLabel } from '../labels'
@@ -668,6 +669,16 @@ const BROWSER_SECTION: Section = {
   Body: BrowserRows
 }
 
+const PLUGINS_SECTION: Section = {
+  id: 'plugins',
+  group: '集成',
+  title: '插件',
+  description: '安装和管理任务来源插件。登录和筛选条件在对应的集成页面设置。',
+  keywords: ['插件', '安装', '更新', '卸载', 'GitHub', 'ZIP'],
+  Icon: FolderIcon,
+  Body: PluginSettings
+}
+
 // One section per task source, from what its provider declares; they sit before 关于.
 function sourceSections(sources: readonly SourceDescriptor[]): Section[] {
   return sources.map((source) => ({
@@ -689,6 +700,7 @@ function matches(section: Section, needle: string): boolean {
 export function SettingsPage() {
   useOccludesBrowser()
   const sources = useCore((s) => s.sources)
+  const plugins = useCore((s) => s.rpc?.features.includes('plugins') ?? false)
   const browser = useBrowserSupported()
   const chatCommands = useChatCommandsSupported()
   const wireLog = useWireLogSupported()
@@ -696,8 +708,8 @@ export function SettingsPage() {
     const about = SECTIONS.filter((section) => section.id === 'about')
     const own = SECTIONS.filter((section) => section.id !== 'about' && (section.id !== 'notifications' || canNotify() || canShowRequestPopup()))
       .flatMap((section) => (section.id === 'agents' && chatCommands ? [section, CHAT_COMMANDS_SECTION] : [section]))
-    return [...own, ...sourceSections(sources ?? []), ...(browser ? [BROWSER_SECTION] : []), ...(wireLog ? [DEBUG_SECTION] : []), ...about]
-  }, [sources, browser, chatCommands, wireLog])
+    return [...own, ...(plugins ? [PLUGINS_SECTION] : []), ...sourceSections(sources ?? []), ...(browser ? [BROWSER_SECTION] : []), ...(wireLog ? [DEBUG_SECTION] : []), ...about]
+  }, [sources, browser, chatCommands, wireLog, plugins])
   const [activeId, setActiveId] = useState(() => useCore.getState().settingsSection ?? SECTIONS[0]?.id ?? '')
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()

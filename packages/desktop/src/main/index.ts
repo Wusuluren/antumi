@@ -163,6 +163,16 @@ ipcMain.handle('kando:set-theme', (_event, theme: unknown) => {
   }
 })
 
+ipcMain.handle('kando:pick-plugin', async (event, kind: unknown) => {
+  if (kind !== 'directory' && kind !== 'zip') return null
+  const options: OpenDialogOptions = kind === 'directory'
+    ? { title: '选择插件目录', properties: ['openDirectory'] }
+    : { title: '选择插件 ZIP', properties: ['openFile'], filters: [{ name: '插件 ZIP', extensions: ['zip'] }] }
+  const window = BrowserWindow.fromWebContents(event.sender)
+  const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
+  return result.canceled ? null : (result.filePaths[0] ?? null)
+})
+
 ipcMain.handle('kando:pick-folder', async (event, defaultPath: unknown) => {
   const options: OpenDialogOptions = {
     title: '选择代码仓库',

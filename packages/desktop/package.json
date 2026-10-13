@@ -10,7 +10,7 @@
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "install-electron && electron-vite dev",
-    "build": "electron-vite build",
+    "build": "node ../../scripts/build-plugins.mjs && electron-vite build",
     "preview": "install-electron && electron-vite preview",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
     "bundle:backend": "node scripts/bundle-backend.mjs",

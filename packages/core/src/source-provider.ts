@@ -27,9 +27,9 @@ export type SourceProvider = {
   readonly name: string
   readonly settings: readonly SettingField[]
   // Checks and canonicalizes settings before they are saved; throws SourceError('invalid-settings').
-  normalizeSettings(values: SourceSettings): Record<string, string>
+  normalizeSettings(values: SourceSettings): Record<string, string> | Promise<Record<string, string>>
   // Lets users type a key loosely (lower case, spaces); core validates the result.
-  normalizeKey?(key: string): string
+  normalizeKey?(key: string): string | Promise<string>
   // A credential from the environment, for machines without a UI; applies to the default instance.
   envCredential?(env: NodeJS.ProcessEnv): SourceCredential | null
   // Asks the user through `session` and returns only a credential it has verified.

@@ -14,7 +14,8 @@ import { watchBrowserHostFile } from './browser-host-file'
 import { BrowserService, WATCH_ALL } from './browser-service'
 import { CredentialStore } from './credential-store'
 import { DaemonClient } from './daemon-client'
-import { githubProvider } from './github-provider'
+import { PluginService } from './plugin-service'
+import { bundledGitHub } from './bundled-plugin'
 import { jiraProvider } from './jira-provider'
 import { createRpcHandlers } from './rpc-handlers'
 import { SquadService } from './squad-service'
@@ -171,10 +172,15 @@ await credentials.load()
 await migrateLegacyJira(paths.legacyJiraConfig, sourceConfig, credentials).catch((error: unknown) =>
   console.error('[kando-core] migrating jira.json failed; it stays in place:', error)
 )
-const sources = new SourceService([jiraProvider(), githubProvider()], sourceConfig, credentials, new LoginFlows(), service, store, attachments, {
+const builtinSources = [jiraProvider()]
+const sources = new SourceService(builtinSources, sourceConfig, credentials, new LoginFlows(), service, store, attachments, {
   inboxChanged: (inbox) => server?.broadcast('sources.inboxChanged', { inbox }),
   listChanged: (list) => server?.broadcast('sources.listChanged', { sources: list })
 })
+
+const plugins = new PluginService(path.join(paths.home, 'plugins'), packageJson.version, sources, sourceConfig, builtinSources,
+  (plugins) => server?.broadcast('plugins.changed', { plugins }))
+await plugins.load(bundledGitHub())
 
 const usageSources: Partial<Record<AgentKind, UsageSource>> = {}
 const signedIn: Partial<Record<AgentKind, () => Promise<boolean>>> = {}
@@ -311,7 +317,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, plugins)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()
@@ -344,6 +350,8 @@ async function shutdown(): Promise<void> {
   await squads.close()
   discussions.close()
   sources.stop()
+  await plugins.close()
+  await sources.pause(sources.list().map((source) => source.provider))
   awake?.stop()
   daemon.stop()
   await server?.close()

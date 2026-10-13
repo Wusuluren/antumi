@@ -8652,3 +8652,12 @@ button.squad-member-main { cursor: pointer; }
 .squad-work details, .squad-run details { overflow-wrap: anywhere; }
 .squad-member-nav { padding: 8px 16px; border-bottom: 1px solid var(--border); }
 .task-executor-picker .input { width: auto; max-width: 240px; }
+
+.plugin-install { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+.plugin-install > .button { align-self: flex-start; }
+.plugin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.plugin-actions > .input { width: auto; }
+.plugin-trust { display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
+.plugin-row { padding: 16px 0; border-top: 1px solid var(--border); }
+.plugin-row .settings-row { border: 0; }
+.plugin-row .settings-row-description { overflow-wrap: anywhere; }

@@ -3,6 +3,7 @@ import { GitTarget, GitStatus, GitHistory, GitDetail, GitComparison, GitAction, 
 import { AgentKind, MAX_DETAILS_LENGTH, MAX_TASK_REPOS, RepoStartOptions, Task, TaskStatus } from './task'
 import { ATTACHMENT_CHUNK_BYTES, AttachmentId, AttachmentInfo, Base64Chunk, ImageRef, MAX_ATTACHMENT_BYTES, MAX_CHAT_IMAGES, MAX_TASK_IMAGES } from './attachments'
 import { LoginNotice, LoginPrompt, SourceDescriptor, SourceId, SourceInbox, SourceProblem } from './source'
+import { PluginId, PluginInfo, PluginInstallSource, PluginVersion } from './plugin'
 import { AgentUsage } from './usage'
 import { AgentStats, ConversationStats } from './agent-stats'
 import { DashboardParams, DashboardStats } from './dashboard'
@@ -68,7 +69,7 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // git-commit-branches: core lists the branches holding a commit (git.containing).
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
 // handoff-model: a handoff takes the model and effort the agent starts in (conversations.handoff, tasks.handoff).
-export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning'] as const
+export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning'] as const
 // task-launch-options: tasks.start accepts the first stage's mode, model and reasoning effort.
 // task-launch: a task keeps them (Task.launch, set by tasks.update and by each start by hand).
 // discussion-members: members join and leave a group chat midway; discussion-projects: its projects but the first change.
@@ -94,6 +95,12 @@ const BrowserConversationRef = z.object({ conversationId: z.string().uuid() })
 const BrowserTabRef = BrowserConversationRef.extend({ tabId: BrowserTabId })
 
 export const rpcMethods = {
+  'plugins.list': { params: z.object({}), result: z.array(PluginInfo) },
+  'plugins.install': { params: z.object({ source: PluginInstallSource }), result: PluginInfo },
+  'plugins.update': { params: z.object({ id: PluginId }), result: PluginInfo },
+  'plugins.setEnabled': { params: z.object({ id: PluginId, enabled: z.boolean() }), result: PluginInfo },
+  'plugins.rollback': { params: z.object({ id: PluginId, version: PluginVersion }), result: PluginInfo },
+  'plugins.uninstall': { params: z.object({ id: PluginId }), result: Ok },
   'squads.list': { params: z.object({}), result: z.array(Squad) },
   'squads.create': { params: SquadFields, result: Squad },
   'squads.update': { params: SquadFields.safeExtend({ id: z.string().uuid() }), result: Squad },
@@ -600,6 +607,7 @@ export const rpcNotifications = {
   'browser.tabsChanged': z.object({ conversationId: z.string().nullable(), tabs: z.array(BrowserTab) }),
   // Worktrees were cleaned, or their sizes counted: list them again.
   'worktrees.changed': z.object({}),
+  'plugins.changed': z.object({ plugins: z.array(PluginInfo) }),
   'sources.listChanged': z.object({ sources: z.array(SourceDescriptor) }),
   'sources.inboxChanged': z.object({ inbox: SourceInbox }),
   // Sent only to the connection that started the flow.

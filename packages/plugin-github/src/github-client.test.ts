@@ -49,6 +49,12 @@ function search(route: (q: string, page: string | null) => Response): Route {
 const searched = (calls: { url: URL }[]) => calls.map((call) => [call.url.searchParams.get('q'), call.url.searchParams.get('page')])
 
 describe('GitHubClient', () => {
+  it('bounds titles before they cross the plugin protocol', async () => {
+    const { fetch } = fakeFetch(search(() => json({ items: [row(1, { title: 'x'.repeat(256) })] })))
+    const found = await new GitHubClient(credentials, fetch, base).search('is:issue', signal)
+    expect(found[0]?.title).toHaveLength(200)
+  })
+
   it('authenticates with a bearer token and returns the current login', async () => {
     const { fetch, calls } = fakeFetch((url) => (url.pathname === '/user' ? json({ login: 'qingfei' }) : undefined))
     expect(await new GitHubClient(credentials, fetch, base).myself(signal)).toEqual({ login: 'qingfei' })

@@ -11,6 +11,7 @@ import { findFiles, searchFiles } from './file-search'
 import { ConversationFiles } from './conversation-files'
 import type { ProjectRegistry } from './project-registry'
 import { Rejection } from './rejection'
+import type { PluginService } from './plugin-service'
 import type { SourceService } from './source-service'
 import type { RpcHandlers } from './rpc-server'
 import type { TaskService } from './task-service'
@@ -64,7 +65,8 @@ export function createRpcHandlers(
   discussions: DiscussionService,
   wire: WireLog,
   gitChanged: () => void = () => {},
-  squads?: SquadService
+  squads?: SquadService,
+  plugins?: PluginService
 ): RpcHandlers {
   const git = new GitService(service, conversations, gitChanged)
   conversations.setGitGuard((dirs) => git.guardAgent(dirs))
@@ -100,7 +102,17 @@ export function createRpcHandlers(
     if (!squads) throw new Rejection('squad-unavailable')
     return squads
   }
+  const pluginService = () => {
+    if (!plugins) throw new Rejection('plugins-unavailable', '当前 core 不支持插件')
+    return plugins
+  }
   return {
+    'plugins.list': () => pluginService().list(),
+    'plugins.install': ({ source }) => pluginService().install(source),
+    'plugins.update': ({ id }) => pluginService().update(id),
+    'plugins.setEnabled': ({ id, enabled }) => pluginService().setEnabled(id, enabled),
+    'plugins.rollback': ({ id, version }) => pluginService().rollback(id, version),
+    'plugins.uninstall': async ({ id }) => { await pluginService().uninstall(id); return OK },
     'squads.list': () => squadService().list(),
     'squads.create': (fields) => squadService().create(fields),
     'squads.update': ({ id, ...fields }) => squadService().update(id, fields),
@@ -125,7 +137,7 @@ export function createRpcHandlers(
       const answer = await quick.ask(agent, commitMessagePrompt(await commitContext(dir)), model)
       return { message: cleanCommitMessage(answer.text), model: answer.model }
     },
-    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => feature !== 'squads' || Boolean(squads)) }),
+    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'squads' || Boolean(squads)) && (feature !== 'plugins' || Boolean(plugins))) }),
     'files.resolve': ({ conversationId, path }) => files.resolve(conversationId, path),
     'files.read': ({ conversationId, path }) => files.read(conversationId, path),
     'system.awakeStatus': () => awake.status(),

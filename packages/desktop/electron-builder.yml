@@ -13,6 +13,8 @@ extraResources:
   - from: out/backend
     to: backend
     filter: ['*.mjs']
+  - from: out/backend/plugins
+    to: backend/plugins
   - from: out/backend/node_modules/node-pty
     to: backend/node_modules/node-pty
 # All native code arrives prebuilt (node-pty via bundle-backend); nothing to rebuild.
