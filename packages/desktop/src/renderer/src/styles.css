@@ -8583,21 +8583,33 @@ body.side-panel-resizing * {
 .sidebar-squads { margin: 0 8px 4px; }
 .squads-page .worktrees-header > .tool-button:first-child { margin-left: -6px; }
 .squad-roster svg { width: 20px; height: 20px; flex-shrink: 0; }
-.squad-list { overflow: hidden; }
-.squad-row + .squad-row { border-top: 1px solid var(--border); }
-.squad-row-open { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
-.squad-row-open:hover { background: var(--surface-muted); }
-.squad-row-open:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.squad-row-open > svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-3); }
-.squad-row-icon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: var(--fill); color: var(--text-muted); }
-.squad-row-icon svg { width: 18px; height: 18px; }
-.squad-row-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.squad-row-title { font-weight: 600; font-size: 14px; }
-.squad-row-description, .squad-row-meta { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.squad-row-meta { color: var(--text-3); }
-.squad-row-agents { display: flex; gap: 4px; flex-shrink: 0; }
-.squad-row-agents svg { width: 16px; height: 16px; }
-.squad-row[data-archived] .squad-row-title { color: var(--text-muted); }
+.squad-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.squad-cards > li { display: flex; }
+.squad-card { flex: 1; min-width: 0; min-height: 168px; display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.squad-card:hover { border-color: var(--border-2); box-shadow: var(--shadow); background: linear-gradient(var(--fill), var(--fill)), var(--surface); }
+.squad-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.squad-card[data-archived] { opacity: 0.7; }
+.squad-card-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.squad-card-icon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: var(--radius); background: var(--accent-bg); color: var(--accent); }
+.squad-card-icon svg { width: 18px; height: 18px; }
+.squad-card-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.squad-card-description { min-height: 3.2em; font-size: 12px; line-height: 1.6; color: var(--text-muted); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.squad-card-description[data-empty] { color: var(--text-3); }
+.squad-card-members { display: flex; flex-wrap: wrap; gap: 4px; }
+.squad-card-member { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px 0 6px; border-radius: 999px; background: var(--fill-2); font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.squad-card-member svg { width: 14px; height: 14px; }
+.squad-card-member[data-lead] { background: var(--accent-bg); color: var(--accent); }
+.squad-card-foot { margin-top: auto; display: flex; gap: 8px; font-size: 12px; color: var(--text-3); }
+.squad-card-time { margin-left: auto; white-space: nowrap; }
+.squad-card-new { align-items: center; justify-content: center; gap: 6px; border-style: dashed; border-color: var(--border-2); background: transparent; color: var(--text-muted); text-align: center; }
+.squad-card-new:hover { border-color: var(--border-2); box-shadow: none; background: var(--fill); color: var(--text); }
+.squad-card-plus { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--fill-2); }
+.squad-card-plus svg { width: 16px; height: 16px; }
+.squad-card-new-hint { font-size: 12px; color: var(--text-3); }
+.squads-tabs { margin: 0 0 12px; }
+/* Every squad page reads on one centred column, so going from the list into a squad or its editor
+   moves nothing sideways. */
+.squads-page > * { width: 100%; max-width: 880px; margin-inline: auto; }
 
 .squad-page-body { display: flex; flex-direction: column; gap: 20px; max-width: 880px; }
 .squad-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }

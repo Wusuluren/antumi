@@ -5,7 +5,8 @@ import { perform, selectSquad, useCore, useSquadsSupported } from '../core-store
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
 import { saveSquad } from '../squads'
-import { AgentIcon, ArrowLeftIcon, ChevronRightIcon, CloseIcon, PencilIcon, SquadIcon } from './icons'
+import { timeAgo } from '../conversation-state'
+import { AgentIcon, ArrowLeftIcon, ChevronRightIcon, CloseIcon, PencilIcon, PlusIcon, SquadIcon } from './icons'
 import { effortLabel } from './ChatOptionsBar'
 import { Segmented } from './SettingsControls'
 
@@ -54,36 +55,59 @@ function SquadList() {
   const [tab, setTab] = useState<Tab>('active')
   const tabsId = useId()
   const shown = tab === 'archived' ? archived : all.filter((squad) => squad.archivedAt === null)
+  // Read once a render: the cards say how long ago each changed.
+  const now = Date.now()
   return (
-    <section className="worktree-group squads-section" aria-label="研发小队列表">
-      <div className="routines-tabs">
-        {archived.length > 0 && (
-          <><span id={tabsId} className="visually-hidden">显示</span><Segmented labelId={tabsId} value={tab} options={[{ value: 'active', label: `使用中 · ${all.length - archived.length}` }, { value: 'archived', label: `已归档 · ${archived.length}` }]} onChange={setTab} /></>
-        )}
-        <button type="button" className="link-button routines-new" onClick={() => selectSquad(null, true)}>新建小队</button>
-      </div>
-      {shown.length === 0
-        ? <p className="worktrees-empty muted">{tab === 'archived' ? '没有归档的小队。' : '还没有研发小队。点「新建小队」，按 队长 / 开发 / 审查 的模板配好成员，就能把任务交给小队。'}</p>
-        : <ul className="worktree-list squad-list">{shown.map((squad) => <SquadRow key={squad.id} squad={squad} />)}</ul>}
+    <section className="squads-section" aria-label="研发小队列表">
+      {archived.length > 0 && (
+        <div className="squads-tabs">
+          <span id={tabsId} className="visually-hidden">显示</span>
+          <Segmented labelId={tabsId} value={tab} options={[{ value: 'active', label: `使用中 · ${all.length - archived.length}` }, { value: 'archived', label: `已归档 · ${archived.length}` }]} onChange={setTab} />
+        </div>
+      )}
+      {tab === 'archived' && shown.length === 0 ? <p className="worktrees-empty muted">没有归档的小队。</p> : (
+        <ul className="squad-cards">
+          {shown.map((squad) => <SquadCard key={squad.id} squad={squad} now={now} />)}
+          {/* The header's button again, where the eye ends up: with none yet, it is the page. */}
+          {tab === 'active' && (
+            <li>
+              <button type="button" className="squad-card squad-card-new" onClick={() => selectSquad(null, true)}>
+                <span className="squad-card-plus"><PlusIcon /></span>
+                新建小队
+                <span className="squad-card-new-hint">按 队长 / 开发 / 审查 预填好成员</span>
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
     </section>
   )
 }
 
-function SquadRow({ squad }: { squad: Squad }) {
+// A squad at a glance: its name, what it is for, its members leader first, and when it last changed.
+function SquadCard({ squad, now }: { squad: Squad; now: number }) {
   const leader = leaderOf(squad)
+  const members = leader ? [leader, ...squad.members.filter((member) => member !== leader)] : squad.members
   return (
-    <li className="squad-row" data-archived={squad.archivedAt !== null || undefined}>
-      <button type="button" className="squad-row-open" onClick={() => selectSquad(squad.id)}>
-        <span className="squad-row-icon"><SquadIcon /></span>
-        <span className="squad-row-main">
-          <span className="squad-row-title">{squad.name}</span>
-          {squad.description && <span className="squad-row-description">{squad.description}</span>}
-          <span className="squad-row-meta">
-            {leader && <>由 {leader.name}（{agentLabel(leader.agent)}）带队 · </>}{rosterText(squad)}
-          </span>
+    <li>
+      <button type="button" className="squad-card" data-archived={squad.archivedAt !== null || undefined} onClick={() => selectSquad(squad.id)}>
+        <span className="squad-card-top">
+          <span className="squad-card-icon" aria-hidden="true"><SquadIcon /></span>
+          <span className="squad-card-name">{squad.name}</span>
+          {squad.archivedAt !== null && <span className="squad-tag">已归档</span>}
         </span>
-        <span className="squad-row-agents" aria-hidden="true">{squad.members.map((member) => <AgentIcon key={member.id} agent={member.agent} />)}</span>
-        <ChevronRightIcon />
+        <span className="squad-card-description" data-empty={!squad.description || undefined}>{squad.description || '没有说明'}</span>
+        <span className="squad-card-members">
+          {members.map((member) => (
+            <span key={member.id} className="squad-card-member" data-lead={member === leader || undefined} title={`${member.name} · ${engineText(member)}`}>
+              <AgentIcon agent={member.agent} />{member.name}
+            </span>
+          ))}
+        </span>
+        <span className="squad-card-foot">
+          <span>{rosterText(squad)}</span>
+          <span className="squad-card-time">更新于 {timeAgo(squad.updatedAt, now)}</span>
+        </span>
       </button>
     </li>
   )
@@ -308,7 +332,8 @@ export function SquadsView() {
         <SquadPage key={squad.id} squad={squad} />
       ) : (
         <>
-          <PageHeader title="研发小队" description="一个只读的队长带几名成员：队长拆分任务、分派给成员、汇总结果。开始任务时选「交给研发小队」，或在任务的执行者里选它。" back={false} />
+          <PageHeader title="研发小队" description="一个只读的队长带几名成员：队长拆分任务、分派给成员、汇总结果。开始任务时选「交给研发小队」，或在任务的执行者里选它。" back={false}
+            actions={<button type="button" className="button primary" onClick={() => selectSquad(null, true)}><PlusIcon />新建小队</button>} />
           <SquadList />
         </>
       )}
