@@ -13,6 +13,7 @@ import { CloseIcon, HandoffIcon, InspectorIcon } from './icons'
 import { DEFAULT_SIDE_PANEL_RATIO } from './side-panel-size'
 import { EMPTY_FILE_TABS, useFileTabs } from '../file-tabs'
 import { TitleEditor } from './TitleEditor'
+import { useOpenTodoCount, useTodosSupported } from '../conversation-todos'
 
 // Where a fork came from: a way back while the source is still here.
 function ForkOrigin({ id }: { id: string }) {
@@ -40,6 +41,8 @@ export function ConversationView({ id }: { id: string }) {
   const files = useFileTabs((state) => state[id] ?? EMPTY_FILE_TABS)
   const plans = usePlans(id)
   const wire = useWireLogShown()
+  const todosShown = useTodosSupported()
+  const todoLeft = useOpenTodoCount(todosShown ? id : null)
   const routine = useCore((state) => state.routines.find((each) => each.id === conversation?.routineId) ?? null)
   const discussion = useCore((state) => (conversation?.discussionId ? state.discussions[conversation.discussionId] : undefined) ?? null)
   const routineId = conversation?.routineId ?? null
@@ -58,7 +61,7 @@ export function ConversationView({ id }: { id: string }) {
   // A managed workspace is Kando's own scratch folder: nothing of the user's to compare, but the
   // inspector still shows the agent's plans.
   const inspectable = conversation.projectPaths.length > 0
-  const hasPanel = inspectable || plans.length > 0 || wire || files.tabs.length > 0
+  const hasPanel = inspectable || plans.length > 0 || wire || files.tabs.length > 0 || todosShown
   const state = conversationState(conversation)
   const archived = conversation.archivedAt != null
   const action = async (run: () => Promise<unknown>) => {
@@ -100,12 +103,13 @@ export function ConversationView({ id }: { id: string }) {
           <button
             type="button"
             className="tool-button"
-            aria-label="检查器"
+            aria-label={todoLeft > 0 ? `检查器，${todoLeft} 项待办` : '检查器'}
             aria-pressed={inspectorOpen}
-            data-tooltip={inspectorOpen ? '收起检查器' : inspectable ? '查看改动' : plans.length > 0 ? '查看计划' : '查看原始数据'}
+            data-tooltip={inspectorOpen ? '收起检查器' : todoLeft > 0 ? `检查器 · ${todoLeft} 项待办` : inspectable ? '查看改动' : plans.length > 0 ? '查看计划' : wire ? '查看原始数据' : '查看待办'}
             onClick={() => setConversationInspectorOpen(!inspectorOpen)}
           >
             <InspectorIcon />
+            {!inspectorOpen && todoLeft > 0 && <span className="tool-button-badge" aria-hidden="true">{todoLeft}</span>}
           </button>
         )}
         <span className="toolbar-separator" aria-hidden="true" />

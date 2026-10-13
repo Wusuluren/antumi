@@ -19,6 +19,7 @@ import { jiraProvider } from './jira-provider'
 import { createRpcHandlers } from './rpc-handlers'
 import { SquadService } from './squad-service'
 import { SquadStore } from './squad-store'
+import { TodoStore } from './todo-store'
 import { DiscussionService } from './discussion-service'
 import { startRpcServer, type RpcServer } from './rpc-server'
 import { TaskService } from './task-service'
@@ -78,6 +79,9 @@ const wire = new WireLog(paths.sessions, (conversationId, stageId, entries) =>
   [...(server?.connections ?? [])].filter((c) => c.wiring.has(conversationId)).forEach((c) => c.notify('debug.wireEntries', { conversationId, stageId, entries }))
 )
 
+// Each conversation's to-dos; they go with it.
+const todos = new TodoStore(paths.database, (conversationId, groups) => server?.broadcast('todos.changed', { conversationId, groups }))
+
 // Built before the task service, which runs its chat tasks in it; each hands the other its events.
 const conversations = new ConversationService(
   conversationsStore, daemon, paths.sessions,
@@ -95,6 +99,7 @@ const conversations = new ConversationService(
     } else if (event.type === 'deleted') {
       server?.broadcast('conversations.deleted', { id: event.id })
       schedules.conversationDeleted(event.id)
+      todos.drop(event.id)
       void browser.closeForConversation(event.id)
     }
     else if (event.type === 'chatItems') {
@@ -311,7 +316,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()

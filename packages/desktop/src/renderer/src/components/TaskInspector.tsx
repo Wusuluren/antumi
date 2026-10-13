@@ -1,12 +1,14 @@
 import { SquadWorkPanel } from './SquadWorkPanel'
 import { GitInspector } from './GitInspector'
 import { useEffect, useState } from 'react'
-import type { RepoChanges, Task, SquadRun } from '@kando/protocol'
+import { openTodoCount, type RepoChanges, type Task, type SquadRun } from '@kando/protocol'
 import { pathShortener, type PlanItem } from '../chat-state'
 import { clearInspectorFile, setInspectorOpen, setTaskInspectorTab, showInspectorFile, showTaskPlan, useCore } from '../core-store'
 import { ProjectGroups, ProjectRow, useProjectHeads } from './BranchStatus'
 import { ChatPlanView } from './ChatPlan'
 import { ChangedFiles, CommitList, FileDiffView, GIT_TABS, InspectorPanel, useFocusCount, type InspectorTab } from './Inspector'
+import { TodoPanel } from './TodoPanel'
+import { useConversationTodos, useTodosSupported } from '../conversation-todos'
 import { projectName } from './ProjectPicker'
 import { WireLogView } from './WireLogView'
 import { FilePreview } from './FilePreview'
@@ -77,7 +79,9 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
   const wanted = useCore((state) => state.taskInspectorTab)
   const selectedPlan = useCore((state) => state.taskInspectorPlan)
   const worktree = task.repos.some((repo) => repo.worktreePath !== null)
-  const tabs: InspectorTab[] = [...(squadRuns.length ? ['squad' as const] : []),...(worktree ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(wire && task.conversationId ? ['wire' as const] : []), ...(files.tabs.length > 0 ? ['files' as const] : [])]
+  const todosShown = useTodosSupported() && task.conversationId !== null
+  const todos = useConversationTodos(todosShown ? task.conversationId : null)
+  const tabs: InspectorTab[] = [...(squadRuns.length ? ['squad' as const] : []),...(worktree ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(todosShown ? ['todos' as const] : []), ...(wire && task.conversationId ? ['wire' as const] : []), ...(files.tabs.length > 0 ? ['files' as const] : [])]
   const tab = tabs.includes(wanted) ? wanted : (tabs[0] ?? 'changes')
   useEffect(() => {
     if (wanted !== 'files') updateFileTabs(conversationId, (state) => state.maximized ? { ...state, maximized: false } : state)
@@ -109,11 +113,14 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
       tab={tab}
       onTab={setTaskInspectorTab}
       fileCount={fileCount}
+      todoCount={openTodoCount(todos)}
       onRefresh={() => setRefreshCount((count) => count + 1)}
       onClose={() => setInspectorOpen(false)}
     >
       {tab === 'squad' ? (
         <SquadWorkPanel runs={squadRuns} onConversation={(id) => onMemberConversation?.(id)} />
+      ) : tab === 'todos' && task.conversationId ? (
+        <TodoPanel conversationId={task.conversationId} />
       ) : tab === 'files' ? (
         <FilePreview conversationId={conversationId} updatedAt={task.updatedAt} inspector="task" onEmpty={onEmpty} />
       ) : tab === 'wire' && task.conversationId ? (

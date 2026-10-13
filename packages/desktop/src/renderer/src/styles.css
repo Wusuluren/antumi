@@ -8652,3 +8652,38 @@ button.squad-member-main { cursor: pointer; }
 .squad-work details, .squad-run details { overflow-wrap: anywhere; }
 .squad-member-nav { padding: 8px 16px; border-bottom: 1px solid var(--border); }
 .task-executor-picker .input { width: auto; max-width: 240px; }
+
+/* To-dos in the inspector: a group a hairline card, its heading on a wash, items as rows. Colour
+   only for the boxes ticked; a finished group folds under 已完成. */
+.todo-panel { display: flex; flex-direction: column; gap: 12px; }
+.todo-panel-head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+.todo-link { margin-left: auto; height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.todo-link:hover { background: var(--fill); color: var(--text); }
+.todo-empty { margin: 0; font-size: 12px; line-height: 1.7; color: var(--text-muted); }
+.todo-group { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--surface); }
+.todo-group-head { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; background: var(--fill); }
+.todo-group-title { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 13px; font-weight: 600; }
+.todo-group-note { font-size: 12px; font-weight: 400; color: var(--text-3); }
+.todo-group-count { font-size: 12px; color: var(--text-3); white-space: nowrap; line-height: 20px; }
+.todo-text-button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: text; overflow-wrap: anywhere; }
+.todo-items { margin: 0; padding: 4px 0; list-style: none; }
+.todo-item { display: flex; align-items: flex-start; gap: 8px; padding: 4px 12px; font-size: 13px; }
+.todo-item:hover { background: var(--fill); }
+.todo-item-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.todo-item[data-done] .todo-item-text { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-3); }
+.todo-item .title-editor, .todo-group-title .title-editor { flex: 1; min-width: 0; margin: -2px 0; font-size: 13px; }
+.todo-owner { flex-shrink: 0; padding: 0 6px; border-radius: var(--radius-xs); background: var(--fill-2); font-size: 12px; line-height: 20px; color: var(--text-muted); }
+.todo-group input[type='checkbox'] { width: 14px; height: 14px; margin: 3px 0 0; flex-shrink: 0; accent-color: var(--accent); cursor: pointer; }
+.todo-actions { display: none; gap: 2px; flex-shrink: 0; }
+.todo-item:hover .todo-actions, .todo-item:focus-within .todo-actions, .todo-group-head:hover .todo-actions, .todo-group-head:focus-within .todo-actions { display: flex; }
+.todo-item:hover .todo-owner { display: none; }
+.todo-actions button { height: 20px; padding: 0 6px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; }
+.todo-actions button:hover { background: var(--fill-2); color: var(--text); }
+.todo-finished summary { cursor: pointer; font-size: 12px; color: var(--text-muted); }
+.todo-finished .todo-group { margin-top: 8px; }
+.todo-new { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border-2); border-radius: var(--radius-lg); }
+.todo-new-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* How many to-dos wait, on the inspector's button while the panel is closed. */
+.tool-button:has(.tool-button-badge) { position: relative; }
+.tool-button-badge { position: absolute; top: 0; right: 0; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-size: 10px; font-weight: 600; line-height: 14px; text-align: center; pointer-events: none; }

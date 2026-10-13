@@ -2,9 +2,10 @@ import { useRef, useState } from 'react'
 
 // Edits a title in place: Electron doesn't implement window.prompt.
 // Enter or blur saves, Escape cancels; an empty or unchanged title saves nothing.
-export function TitleEditor({ title, label, onSave, onDone }: {
+export function TitleEditor({ title, label, maxLength = 200, onSave, onDone }: {
   title: string
   label: string
+  maxLength?: number
   onSave: (title: string) => void
   onDone: () => void
 }) {
@@ -22,7 +23,7 @@ export function TitleEditor({ title, label, onSave, onDone }: {
     <input
       className="input title-editor"
       value={draft}
-      maxLength={200}
+      maxLength={maxLength}
       aria-label={label}
       autoFocus
       onFocus={(event) => event.target.select()}

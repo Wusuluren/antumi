@@ -39,6 +39,7 @@ import type { InspectorTab } from './components/Inspector'
 import type { InspectorFile } from './inspector-file'
 import { resolveCoreEndpoint } from './core-endpoint'
 import { reasonText } from './labels'
+import { receiveTodos } from './conversation-todos'
 import { openUtilityPanel, visibleUtilityPanelOrder, type UtilityPanelKind, type UtilityPanelsOpen } from './utility-panel-order'
 import { exclusivePanels } from './side-panels'
 import { actionableItems, type ActionableItem } from './attention'
@@ -1016,6 +1017,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
           })
         })
         rpc.on('discussions.posts', ({ discussionId, posts }) => receiveDiscussionPosts(discussionId, posts))
+        rpc.on('todos.changed', ({ conversationId, groups }) => receiveTodos(conversationId, groups))
         rpc.on('sources.inboxChanged', ({ inbox }) =>
           useCore.setState((s) => ({ inboxes: { ...s.inboxes, [inboxKey(inbox)]: inbox } }))
         )

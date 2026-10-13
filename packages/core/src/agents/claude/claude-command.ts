@@ -1,4 +1,4 @@
-import { SQUAD_TOOL_NAMES, HISTORY_TOOLS, historyToolName, SHOW_PREVIEW_TOOL, terminalToolName } from '@kando/protocol'
+import { SQUAD_TOOL_NAMES, HISTORY_TOOLS, historyToolName, SHOW_PREVIEW_TOOL, terminalToolName, TODO_TOOLS, todoToolName } from '@kando/protocol'
 import { BROWSER_READ_TOOLS, type AgentCommand } from '../../agent-command'
 import type { AgentLaunch } from '../agent-adapter'
 import { CLAUDE_MODE_NAMES } from './claude-stream'
@@ -47,7 +47,7 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     // Reading or stopping a terminal the conversation opened itself asks nothing either; running
     // a command in one is the agent's to ask about, under the mode the user set. Reading the user's
     // history, which only reads and is there only where the user allows it, asks nothing.
-    ...(mcp ? [...Object.values(SQUAD_TOOL_NAMES), SHOW_PREVIEW_TOOL, ...BROWSER_READ_TOOLS, terminalToolName('read'), terminalToolName('stop'), ...HISTORY_TOOLS.map(historyToolName)].map((tool) => `mcp__kando__${tool}`) : [])
+    ...(mcp ? [...Object.values(SQUAD_TOOL_NAMES), SHOW_PREVIEW_TOOL, ...BROWSER_READ_TOOLS, terminalToolName('read'), terminalToolName('stop'), ...HISTORY_TOOLS.map(historyToolName), ...TODO_TOOLS.map(todoToolName)].map((tool) => `mcp__kando__${tool}`) : [])
   ]
   const denials = fenced ? claudeEditDenials(fenced.dirs) : []
   return { command: 'claude', args: [
