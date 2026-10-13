@@ -3,7 +3,6 @@ import { AgentKind, IMAGE_MIME_TYPES, type TaskImage } from '@kando/protocol'
 import { dismissError, perform, selectTask, setNewTaskOpen, useCore } from '../core-store'
 import { defaultAgent } from '../default-agent'
 import { useInstalledAgents } from '../installed-agents'
-import { agentLabel } from '../labels'
 import { PRIMARY_KEY_LABEL, hasPrimaryModifier } from '../shortcut-keys'
 import { AgentQuotaHint } from './AgentQuota'
 import { DependencyPicker } from './DependencyPicker'
@@ -11,8 +10,10 @@ import { ProjectPicker } from './ProjectPicker'
 import { ImageStrip } from './ImageStrip'
 import { ImageViewer } from './ImageViewer'
 import { imageFilesOf, uploadImageFiles } from '../attachment-images'
-import { AgentIcon, CloseIcon, MaximizeIcon, MoreIcon, RestoreIcon } from './icons'
+import { CloseIcon, MaximizeIcon, MoreIcon, RestoreIcon } from './icons'
 import { Popover } from './Popover'
+import { ChatPicker } from './ChatPicker'
+import { executorOptions } from './TaskExecutorPicker'
 import { MarkdownEditor } from './MarkdownEditor'
 import { useOccludesBrowser } from '../browser-occlusion'
 
@@ -221,26 +222,22 @@ export function NewTaskDialog() {
             onChange={setRepos}
             compact
           />
-          <label className="new-task-agent-chip">
-            <AgentIcon agent={agent} />
-            <span>{squadId ? squads[squadId]?.name ?? '研发小队' : agent ? agentLabel(agent) : '选择 Agent'}</span>
-            <select
-              aria-label="选择 Agent"
+          <span className="new-task-agent-chip">
+            <ChatPicker
+              label="执行者"
               value={squadId ? `squad:${squadId}` : agent ?? ''}
-              onChange={(e) => {
-                if (e.target.value.startsWith('squad:')) { setSquadId(e.target.value.slice(6)); return }
+              placeholder={squadId ? '研发小队' : '选择 Agent'}
+              options={executorOptions(installed, squads, squadId)}
+              size="large"
+              placement="below"
+              onChange={(value) => {
+                if (value.startsWith('squad:')) { setSquadId(value.slice(6)); return }
                 setSquadId(null)
-                const parsed = AgentKind.safeParse(e.target.value)
+                const parsed = AgentKind.safeParse(value)
                 setAgent(parsed.success ? parsed.data : null)
               }}
-            >
-              <option value="">以后再选</option>
-              {installed.map((kind) => (
-                <option key={kind} value={kind}>{agentLabel(kind)}</option>
-              ))}
-              {Object.values(squads).filter((squad) => squad.archivedAt === null).map((squad) => <option key={squad.id} value={`squad:${squad.id}`}>小队 · {squad.name}</option>)}
-            </select>
-          </label>
+            />
+          </span>
           <span className="menu-anchor">
             <button type="button" className="new-task-property-chip" aria-label="更多选项" aria-haspopup="dialog" aria-expanded={moreOpen} onClick={() => setMoreOpen((open) => !open)}>
               <MoreIcon />

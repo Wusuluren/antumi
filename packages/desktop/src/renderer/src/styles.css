@@ -3705,7 +3705,6 @@ body.side-panel-resizing * {
 }
 
 .new-task-properties .chip,
-.new-task-agent-chip,
 .new-task-property-chip {
   display: inline-flex;
   align-items: center;
@@ -3727,28 +3726,16 @@ body.side-panel-resizing * {
 }
 
 .new-task-properties .chip-add-button svg,
-.new-task-agent-chip svg,
 .new-task-property-chip svg {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
 }
 
-.new-task-agent-chip {
-  position: relative;
-  cursor: pointer;
-}
+/* The executor is the app's picker, shaped as the chips beside it. */
+.new-task-agent-chip .chat-picker { height: 36px; padding: 0 10px 0 12px; border-color: var(--border); border-radius: 999px; color: var(--text-muted); }
+.new-task-agent-chip .chat-picker-icon .agent-mark, .new-task-agent-chip .chat-picker-icon svg { width: 16px; height: 16px; }
 
-.new-task-agent-chip select {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.new-task-agent-chip:focus-within,
 .new-task-property-chip:focus-visible,
 .new-task-attach:focus-visible {
   outline: 2px solid var(--focus);

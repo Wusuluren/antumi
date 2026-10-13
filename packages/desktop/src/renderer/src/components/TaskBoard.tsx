@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { create } from 'zustand'
 import { AGENT_KINDS, type AgentKind, type Task } from '@kando/protocol'
 import { timeAgo } from '../conversation-state'

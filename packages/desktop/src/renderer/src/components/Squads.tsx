@@ -1,13 +1,15 @@
 import { useId, useState, type ReactNode } from 'react'
 import { AgentKind, SquadFields, type Squad, type SquadMember } from '@kando/protocol'
-import { resolveModel, useAgentCatalog } from '../agent-models'
+import { useAgentCatalog } from '../agent-models'
 import { perform, selectSquad, useCore, useSquadsSupported } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
 import { saveSquad } from '../squads'
 import { timeAgo } from '../conversation-state'
 import { AgentIcon, ArrowLeftIcon, ChevronRightIcon, CloseIcon, PencilIcon, PlusIcon, SquadIcon } from './icons'
+import { AgentModelPicker } from './AgentModelPicker'
 import { effortLabel } from './ChatOptionsBar'
+import { ChatPicker } from './ChatPicker'
 import { Segmented } from './SettingsControls'
 
 const MAX_MEMBERS = 5
@@ -176,7 +178,6 @@ function MemberEditor({ member, leader, open, agents, disabled, onToggle, onChan
   onToggle(): void; onChange(member: SquadMember): void; onLead(): void; onRemove(): void
 }) {
   const catalog = useAgentCatalog(member.agent, open)
-  const resolved = resolveModel(catalog, { model: member.model ?? undefined, effort: member.effort ?? undefined })
   const offered = agents.includes(member.agent) ? agents : [...agents, member.agent]
   return (
     <li className="squad-member-edit" data-open={open || undefined}>
@@ -202,17 +203,26 @@ function MemberEditor({ member, leader, open, agents, disabled, onToggle, onChan
         <fieldset className="squad-member-fields" disabled={disabled}>
           <div className="squad-member-options">
             <label className="squad-field">名称<input className="input" value={member.name} maxLength={60} required onChange={(event) => onChange({ ...member, name: event.target.value })} /></label>
-            <label className="squad-field">Agent<select className="input" value={member.agent} onChange={(event) => {
-              const parsed = AgentKind.safeParse(event.target.value)
-              if (parsed.success) onChange({ ...member, agent: parsed.data, model: null, effort: null })
-            }}>{offered.map((agent) => <option key={agent} value={agent}>{agentLabel(agent)}{agents.includes(agent) ? '' : '（未安装）'}</option>)}</select></label>
-            <label className="squad-field">模型<select className="input" value={member.model ?? ''} onChange={(event) => onChange({ ...member, model: event.target.value || null, effort: null })}>
-              <option value="">{catalog === undefined ? '正在读取…' : 'Agent 默认'}</option>
-              {member.model && !catalog?.models.some((model) => model.id === member.model) && <option value={member.model}>{member.model}</option>}
-              {catalog?.models.map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
-            </select></label>
-            {resolved.efforts.length > 0 && <label className="squad-field">推理级别<select className="input" value={member.effort ?? ''} onChange={(event) => onChange({ ...member, effort: event.target.value || null })}><option value="">模型默认</option>{resolved.efforts.map((effort) => <option key={effort} value={effort}>{effortLabel(effort)}</option>)}</select></label>}
-            {!leader && <label className="squad-field">能力<select className="input" value={member.capability} onChange={(event) => onChange({ ...member, capability: event.target.value === 'develop' ? 'develop' : 'readOnly' })}><option value="readOnly">只读分析 / 审查</option><option value="develop">开发 / 测试</option></select></label>}
+            <div className="squad-field">Agent
+              <ChatPicker label="Agent" value={member.agent} placeholder={agentLabel(member.agent)} size="field" placement="below"
+                options={offered.map((agent) => ({ value: agent, label: agentLabel(agent), icon: <AgentIcon agent={agent} />, description: agents.includes(agent) ? null : '未安装' }))}
+                onChange={(value) => {
+                  const parsed = AgentKind.safeParse(value)
+                  if (parsed.success && parsed.data !== member.agent) onChange({ ...member, agent: parsed.data, model: null, effort: null })
+                }} />
+            </div>
+            <div className="squad-field">模型
+              <AgentModelPicker catalog={catalog} choice={{ model: member.model ?? undefined, effort: member.effort ?? undefined }} size="field"
+                onChange={(next) => onChange({ ...member, model: next.model ?? null, effort: next.effort ?? null })} />
+            </div>
+            {!leader && <div className="squad-field">能力
+              <ChatPicker label="能力" value={member.capability} placeholder="只读分析 / 审查" size="field" placement="below"
+                options={[
+                  { value: 'readOnly', label: '只读分析 / 审查', description: '读代码、分析和审查，不改文件，可以几个并行' },
+                  { value: 'develop', label: '开发 / 测试', description: '改代码、跑测试，和其他开发成员依次进行' }
+                ]}
+                onChange={(value) => onChange({ ...member, capability: value === 'develop' ? 'develop' : 'readOnly' })} />
+            </div>}
           </div>
           <label className="squad-field">角色说明<textarea className="input" value={member.role} maxLength={2000} rows={2} placeholder="职责、专长与交付要求" onChange={(event) => onChange({ ...member, role: event.target.value })} /></label>
         </fieldset>

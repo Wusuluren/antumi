@@ -7,8 +7,10 @@ import { agentLabel, reasonText } from '../labels'
 import { usePreferences } from '../preferences'
 import { useOccludesBrowser } from '../browser-occlusion'
 import { AgentQuotaHint, confirmQuota, modelText } from './AgentQuota'
-import { effortLabel, modeOptions, startModes } from './ChatOptionsBar'
-import { CloseIcon } from './icons'
+import { AgentModelPicker } from './AgentModelPicker'
+import { modeOptions, startModes } from './ChatOptionsBar'
+import { ChatPicker } from './ChatPicker'
+import { AgentIcon, CloseIcon } from './icons'
 import { SquadLaunchDialog } from './SquadLaunchDialog'
 import { useEditsInPlace } from './TaskLaunch'
 
@@ -64,7 +66,7 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
   }, [])
 
   const choice = agent ? choices[agent] ?? {} : {}
-  const { defaultModel, model, modelId, efforts, effort } = resolveModel(catalog, choice)
+  const { model, modelId, effort } = resolveModel(catalog, choice)
   const offered = agent ? startModes(agent, model, allowBypass) : []
   const requestedMode = (agent ? modes[agent] : undefined) ?? 'plan'
   const mode = supported && offered.includes(requestedMode) && !checkStartMode(dependencies, requestedMode) ? requestedMode : 'plan'
@@ -105,36 +107,38 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
         <p className="task-launch-name">{task.title}</p>
         {squadsSupported && <button type="button" className="link-button" disabled={busy} onClick={onSquad}>交给研发小队</button>}
         <fieldset className="task-launch-fields" disabled={busy}>
-          <label className="task-launch-field"><span>Agent</span>
-            <select className="input" value={agent ?? ''} onChange={(event) => {
-              const next = agents.find((each) => each === event.target.value)
-              if (next) setAgent(next)
-            }}>
-              {!agent && <option value="" disabled>选择 Agent</option>}
-              {agents.map((kind) => <option key={kind} value={kind}>{agentLabel(kind)}{installed.includes(kind) ? '' : '（未安装）'}</option>)}
-            </select>
-          </label>
+          <div className="task-launch-field"><span>Agent</span>
+            <ChatPicker
+              label="Agent"
+              value={agent ?? ''}
+              placeholder="选择 Agent"
+              size="field"
+              placement="below"
+              options={agents.map((kind) => ({ value: kind, label: agentLabel(kind), icon: <AgentIcon agent={kind} />, description: installed.includes(kind) ? null : '未安装' }))}
+              onChange={(value) => {
+                const next = agents.find((each) => each === value)
+                if (next) setAgent(next)
+              }}
+            />
+          </div>
           {supported && <>
-            <label className="task-launch-field"><span>模型</span>
-              <select className="input" value={modelId ?? ''} disabled={!catalog?.models.length} onChange={(event) => choose({ model: event.target.value || undefined })}>
-                <option value="">{catalog === undefined ? '正在读取模型…' : defaultModel ? `Agent 默认 · ${defaultModel.label}` : 'Agent 默认'}</option>
-                {catalog?.models.map((each) => <option key={each.id} value={each.id}>{each.label}</option>)}
-              </select>
-            </label>
-            {efforts.length > 0 && <label className="task-launch-field"><span>推理级别</span>
-              <select className="input" value={effort ?? ''} onChange={(event) => choose({ model: modelId, effort: event.target.value || undefined })}>
-                <option value="">模型默认</option>
-                {efforts.map((each) => <option key={each} value={each}>{effortLabel(each)}</option>)}
-              </select>
-            </label>}
-            <label className="task-launch-field"><span>模式</span>
-              <select className="input" value={mode} onChange={(event) => {
-                const selected = ChatPermissionMode.safeParse(event.target.value)
-                if (agent && selected.success) setModes((known) => ({ ...known, [agent]: selected.data }))
-              }}>
-                {options.map((each) => <option key={each.value} value={each.value} disabled={each.disabled || checkStartMode(dependencies, each.value) !== null}>{each.label}</option>)}
-              </select>
-            </label>
+            <div className="task-launch-field"><span>模型</span>
+              <AgentModelPicker catalog={catalog} choice={choice} size="field" onChange={choose} />
+            </div>
+            <div className="task-launch-field"><span>模式</span>
+              <ChatPicker
+                label="模式"
+                value={mode}
+                placeholder="规划"
+                size="field"
+                placement="below"
+                options={options.map((each) => ({ ...each, disabled: each.disabled || checkStartMode(dependencies, each.value) !== null }))}
+                onChange={(value) => {
+                  const selected = ChatPermissionMode.safeParse(value)
+                  if (agent && selected.success) setModes((known) => ({ ...known, [agent]: selected.data }))
+                }}
+              />
+            </div>
           </>}
         </fieldset>
         <p className="task-launch-description muted">
