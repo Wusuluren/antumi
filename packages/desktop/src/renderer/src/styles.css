@@ -1169,6 +1169,13 @@ button.task-tag:hover {
   -webkit-app-region: no-drag;
 }
 
+/* A fullscreen window does not move, and macOS takes a drag region at its top for its title bar:
+   hovering one slides the bar down over the header. So fullscreen has none, and the bar comes only
+   from the screen's top edge, with the menu bar, as in any app. */
+[data-titlebar='inset'][data-fullscreen] :is(.sidebar, .settings-nav, .detail-header, .detail-empty, .titlebar-drag, .window-brand) {
+  -webkit-app-region: no-drag;
+}
+
 /* Drag regions ignore what's painted over them, so a modal would otherwise let
    clicks on its backdrop move the window. */
 [data-titlebar='inset']:has(dialog[open]) * {
