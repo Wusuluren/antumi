@@ -12,7 +12,8 @@ import { commitSubject, commitWithWrittenMessage, useCanWriteCommitMessage, useW
 import { GitRefLabel, GitRefName } from './GitRefLabel'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
 import { FileDiffView, FileList, useFocusCount } from './Inspector'
-import { BranchIcon, MoreIcon, MaximizeIcon, RestoreIcon, CheckIcon } from './icons'
+import { BranchIcon, MoreIcon, MaximizeIcon, RestoreIcon, CheckIcon, FolderIcon } from './icons'
+import { ChatPicker } from './ChatPicker'
 import { projectName } from './ProjectPicker'
 
 function ReadState({ error, retry, children }: { error: string | null; retry: () => void; children?: ReactNode }) {
@@ -41,9 +42,15 @@ export function GitInspector({ target, heads, updatedAt, refresh, maximized, onM
   if (!selected) return <p className="inspector-empty muted">正在读取项目…</p>
   return <div className="git-manager">
     <div className="git-project-bar">
-      <select className="input" aria-label="Git 项目" value={selected} onChange={(event) => setProject(event.target.value)}>
-        {heads.map((head, index) => <option key={head.path} value={head.path}>{index === 0 ? '主项目' : '附加项目'} · {projectName(head.path)}</option>)}
-      </select>
+      <ChatPicker
+        label="Git 项目"
+        value={selected}
+        placeholder={projectName(selected)}
+        size="large"
+        placement="below"
+        options={heads.map((head, index) => ({ value: head.path, label: `${index === 0 ? '主项目' : '附加项目'} · ${projectName(head.path)}`, description: head.path, icon: <FolderIcon /> }))}
+        onChange={setProject}
+      />
       <button className="tool-button" aria-label={maximized ? '还原 Git 面板' : '最大化 Git 面板'} title={maximized ? '还原' : '最大化'} onClick={onMaximize}>{maximized ? <RestoreIcon /> : <MaximizeIcon />}</button>
     </div>
     <GitRepository key={`${target.kind}:${target.id}:${selected}`} target={{ ...target, project: selected }} updatedAt={updatedAt} refresh={refresh} />
@@ -300,7 +307,9 @@ function CommitDetail({ target, sha, refreshKey, retry }: { target: GitTarget; s
       <div className="git-detail-meta"><button className="button mono" title="复制完整 SHA" onClick={() => void navigator.clipboard.writeText(sha)}>{sha.slice(0, 8)}</button><span>{detail.commit.author}</span><time>{new Date(detail.commit.date).toLocaleString()}</time></div>
       <CommitMessage message={detail.message} />
       <CommitBranches target={target} sha={sha} refreshKey={refreshKey} />
-      {detail.commit.parents.length > 1 && <label className="git-parent">比较父提交 <select className="input" value={detail.parent ?? ''} onChange={(event) => { setParent(event.target.value); setFile(null) }}>{detail.commit.parents.map((parent, index) => <option key={parent} value={parent}>父提交 {index + 1} · {parent.slice(0, 8)}</option>)}</select></label>}
+      {detail.commit.parents.length > 1 && <div className="git-parent">比较父提交 <ChatPicker label="比较父提交" value={detail.parent ?? ''} placeholder="父提交 1" placement="below"
+        options={detail.commit.parents.map((parent, index) => ({ value: parent, label: `父提交 ${index + 1} · ${parent.slice(0, 8)}` }))}
+        onChange={(parent) => { setParent(parent); setFile(null) }} /></div>}
       <CommitFiles files={detail.files} select={setFile} />
       {file && rpc && <FileDiffView file={file} loadKey={`${key}:${file}`} load={() => rpc.call('git.diff', { ...target, sha, base: detail.parent, file })} onBack={() => setFile(null)} />}
     </>}

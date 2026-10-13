@@ -2670,14 +2670,13 @@ body.side-panel-resizing * {
   border-bottom: 1px solid var(--border);
 }
 
-.wire-stage,
 .wire-search {
   width: auto;
   min-width: 0;
   padding: 4px 8px;
 }
 
-.wire-stage,
+.wire-toolbar .chat-picker,
 .wire-stage-text {
   flex: 1 1 120px;
 }
@@ -6972,22 +6971,6 @@ body.side-panel-resizing * {
   padding: 0 6px 6px;
 }
 
-.chat-select {
-  max-width: 180px;
-  padding: 2px 6px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-
-.chat-select:hover:not(:disabled),
-.chat-select:focus-visible { background: var(--surface-muted); color: var(--text); }
-.chat-select:disabled { cursor: default; opacity: 0.6; }
 
 /* The composer's choices: a value as wide as its words with a small chevron, opening a menu above
    it where each choice says what it means. */
@@ -7271,7 +7254,7 @@ body.side-panel-resizing * {
 .chat-plan-view-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
 .chat-plan-view-status-text { min-width: 0; }
 .chat-plan-view-status[data-waiting] > .chat-plan-view-status-text { color: var(--warning); }
-.chat-plan-view-status .chat-select { max-width: 100%; margin-left: -6px; }
+.chat-plan-view-status .chat-picker { max-width: 100%; margin-left: -8px; }
 .chat-plan-view-actions { display: flex; flex: none; align-items: center; gap: 2px; margin-left: auto; }
 .chat-plan-view-actions .tool-button { width: 24px; height: 24px; }
 .chat-plan-view-actions .tool-button svg { width: 14px; height: 14px; }
@@ -7394,7 +7377,6 @@ body.side-panel-resizing * {
   .chat-latest,
   .chat-working,
   .chat-changes,
-  .chat-select,
   .chat-picker,
   .chat-picker-chip,
   .chat-context,
@@ -8095,7 +8077,7 @@ body.side-panel-resizing * {
 .git-manager { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; container: git / inline-size; font-size: var(--chat-font-size, 14px); }
 .git-project-bar, .git-toolbar, .git-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 12px; flex-shrink: 0; }
 .git-project-bar { border-bottom: 1px solid var(--border); flex-wrap: nowrap; }
-.git-project-bar select { flex: 1; min-width: 0; }
+.git-project-bar .chat-picker { flex: 1; max-width: none; }
 .git-summary { gap: 4px 8px; font-size: var(--chat-font-small, 12px); }
 .git-summary > .mono { overflow: hidden; text-overflow: ellipsis; }
 .git-summary svg { width: 16px; height: 16px; }
@@ -8164,7 +8146,6 @@ body.side-panel-resizing * {
 .git-commit-message { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; margin: 0; padding: 8px 12px; }
 .git-commit-headline { font-weight: 600; }
 .git-parent { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 12px; font-size: var(--chat-font-small, 12px); }
-.git-parent select { min-width: 0; }
 .git-commit-files, .git-comparison-commits { padding: 8px; border-top: 1px solid var(--border); }
 .git-commit-files .changed-file { font-size: var(--chat-font-small, 12px); }
 .git-comparison-commits { font-size: var(--chat-font-small, 12px); max-height: 160px; overflow: auto; }
@@ -8514,7 +8495,7 @@ body.side-panel-resizing * {
 .discussion-draft > .discussion-draft-from { padding: 8px 12px; border-radius: var(--radius); background: var(--accent-bg); font-size: 12px; }
 .discussion-draft-options { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
 .discussion-draft-options label { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); }
-.discussion-draft-options select { padding: 2px 8px; border: 1px solid var(--border-2); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+.discussion-draft-rounds { display: inline-flex; align-items: center; gap: 2px; }
 .discussion-draft input[type='radio'],
 .discussion-draft input[type='checkbox'] { accent-color: var(--accent); }
 

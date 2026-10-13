@@ -208,13 +208,19 @@ export function DiscussionDraft({ from }: { from: Discussion | null }) {
           {clash && <p className="discussion-draft-error">有两个成员都叫「{clash}」，改一个名字，好在消息里 @ 它。</p>}
         </div>
         <div className="discussion-draft-options">
-          <label>
+          <span className="discussion-draft-rounds">
             最多
-            <select value={rounds} disabled={busy} onChange={(event) => setRounds(Number(event.target.value))}>
-              {Array.from({ length: MAX_DISCUSSION_ROUNDS }, (_, index) => index + 1).map((count) => <option key={count} value={count}>{count}</option>)}
-            </select>
-            轮（大家都维持立场时提前总结）
-          </label>
+            <ChatPicker
+              label="最多几轮"
+              value={String(rounds)}
+              placeholder={`${rounds} 轮`}
+              placement="above"
+              disabled={busy}
+              options={Array.from({ length: MAX_DISCUSSION_ROUNDS }, (_, index) => ({ value: String(index + 1), label: `${index + 1} 轮` }))}
+              onChange={(value) => setRounds(Number(value))}
+            />
+            （大家都维持立场时提前总结）
+          </span>
           <label data-tooltip="互评时只用「成员 A / B」称呼，不透露是哪个 Agent 和模型，减少对品牌的偏向">
             <input type="checkbox" checked={anonymous} disabled={busy} onChange={(event) => setAnonymous(event.target.checked)} />
             匿名互评
