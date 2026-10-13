@@ -249,6 +249,7 @@ awake = new ComputerAwakeService(daemon, new AwakeConfigStore(paths.awakeConfig)
 const chatSettings = new ChatSettingsStore(paths.chatSettings, (settings) => {
   conversations.setPromptSuggestions(settings.promptSuggestions)
   conversations.setUserBrowser(settings.userBrowser ?? true)
+  conversations.setKnowledgeBase(settings.knowledgeBase ?? null)
   conversations.setCapacity(settings, () => { void schedules.tick(); squads.tick() })
   wire.setEnabled(settings.wireLog ?? false)
   server?.broadcast('system.chatSettingsChanged', { settings })
@@ -257,6 +258,7 @@ const chatSettings = new ChatSettingsStore(paths.chatSettings, (settings) => {
 const initialChatSettings = await chatSettings.load()
 conversations.setPromptSuggestions(initialChatSettings.promptSuggestions)
 conversations.setUserBrowser(initialChatSettings.userBrowser)
+conversations.setKnowledgeBase(initialChatSettings.knowledgeBase)
 conversations.setCapacity(initialChatSettings, () => { void schedules.tick(); squads.tick() })
 wire.setEnabled(initialChatSettings.wireLog)
 

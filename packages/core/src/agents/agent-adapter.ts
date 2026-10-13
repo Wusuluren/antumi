@@ -1,4 +1,4 @@
-import type { AgentCliInstallation, AgentKind, ChatCatalog, ChatPermissionMode, EnvironmentCheck } from '@kando/protocol'
+import type { AgentCliInstallation, AgentKind, ChatCatalog, ChatPermissionMode, EnvironmentCheck, KnowledgeBase } from '@kando/protocol'
 import type { AgentCommand, McpServer } from '../agent-command'
 import type { ChatDriver, ChatPreferences, ChatStageOptions } from '../chat-driver'
 import type { UsageSource } from '../usage-source'
@@ -24,6 +24,9 @@ export type AgentLaunch = {
   mcp?: McpServer
   // Whether it may drive the user's own browser, for an agent that can; unset leaves its own default.
   userBrowser?: boolean
+  // The user's Obsidian vault: its own folder, never a project, so never fenced or given a
+  // worktree. write is already false where the stage may not edit.
+  knowledgeBase?: KnowledgeBase
 }
 
 export type AgentDetection = Omit<EnvironmentCheck, 'tool'>

@@ -201,6 +201,12 @@ export const CONTINUE_TEXT = 'I hit my usage limit while you were working, but i
 // What a scheduled message says when the user left it empty: go on with the plan the chat has.
 export const SCHEDULED_GO_TEXT = '按上面定下的计划开始实现。'
 
+// Where the user's Obsidian vault is and how to treat it, said once as the agent starts: through
+// its system prompt where it has one, else ahead of its first message.
+export function knowledgeBaseNote(vault: string): string {
+  return `用户的 Obsidian 知识库在 ${vault}。仅在用户要求时写入；只新建或追加，不删除、不改名；用 Obsidian Markdown（双链、frontmatter）。`
+}
+
 // What a scheduled run is told first: it starts with nobody there to answer.
 export const UNATTENDED_NOTE = '这是我预约的无人值守运行，现在没有人能回答你：不要停下来等我确认，直接做下去；做完后运行相关的检查和测试，总结做了什么、还有什么没做。遇到必须由我决定的问题，写清楚问题和你的建议后停下。'
 

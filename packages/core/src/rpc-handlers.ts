@@ -37,6 +37,7 @@ import { cleanSlug, slugPrompt } from './branch-slug'
 import { cleanCommitMessage, commitContext, commitMessagePrompt } from './commit-message'
 import { QuickRequests } from './quick-request'
 import { TranslationService } from './translation-service'
+import { inspectKnowledgeFolder, readObsidianVaults } from './obsidian-vaults'
 
 const OK = { ok: true } as const
 
@@ -132,6 +133,8 @@ export function createRpcHandlers(
     'system.setAwakeMode': ({ mode }) => awake.setMode(mode),
     'system.chatSettings': () => chatSettings.current(),
     'system.setChatSettings': (patch) => chatSettings.update(patch),
+    'knowledge.vaults': () => readObsidianVaults(),
+    'knowledge.inspect': ({ path }) => inspectKnowledgeFolder(path),
     'debug.wire': ({ id, stageId, before }) => {
       const known = new Map(conversations.stages(id).map((stage) => [stage.id, stage]))
       const stages = wire.stages(id)

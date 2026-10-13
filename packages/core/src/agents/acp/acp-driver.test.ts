@@ -67,6 +67,26 @@ describe('ACP without a dialect of its own', () => {
     expect(driver.takeMessages().map((each) => each.role)).toEqual(['user', 'assistant'])
   })
 
+  it('tells the agent of the user\'s vault ahead of its first prompt only, and only on the wire', () => {
+    const driver = new AcpDriver(plain, 'stage', { ...OPTIONS, knowledgeBase: { path: '/notes/vault', write: true } })
+    due(driver)
+    receive(driver, { id: 'plain-init', result: { protocolVersion: 1, agentCapabilities: { sessionCapabilities: { additionalDirectories: true } } } })
+    const [session] = due(driver)
+    expect(session).toMatchObject({ method: 'session/new', params: { additionalDirectories: ['/notes/vault'] } })
+    receive(driver, { id: 'plain-session', result: { sessionId: 'session', modes } })
+    const first = driver.send('hello')
+    expect(Request.parse(first.wire).params).toMatchObject({ prompt: [{ type: 'text', text: expect.stringMatching(/^用户的 Obsidian 知识库在 \/notes\/vault。[\s\S]*\n\nhello$/) }] })
+    expect(Request.parse(first.logged).params).toEqual({ sessionId: 'session', prompt: [{ type: 'text', text: 'hello' }] })
+    driver.apply({ dir: 'out', at: 3, frame: first.logged })
+    receive(driver, { id: 'plain-prompt-1', result: { stopReason: 'end_turn' } })
+    expect(Request.parse(driver.send('again').wire).params).toMatchObject({ prompt: [{ type: 'text', text: 'again' }] })
+    // A vault it may not write is no folder of the session: it reads the vault by its path.
+    const reading = new AcpDriver(plain, 'stage', { ...OPTIONS, knowledgeBase: { path: '/notes/vault', write: false } })
+    due(reading)
+    receive(reading, { id: 'plain-init', result: { protocolVersion: 1, agentCapabilities: { sessionCapabilities: { additionalDirectories: true } } } })
+    expect(JSON.stringify(due(reading))).not.toContain('additionalDirectories')
+  })
+
   it('refuses requests from extensions it never declared', () => {
     const driver = opened()
     const message = driver.send('hello')

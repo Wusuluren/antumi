@@ -1,4 +1,5 @@
 import type { AgentCommand } from '../../agent-command'
+import { knowledgeBaseNote } from '../../agent-prompt'
 import type { AgentLaunch } from '../agent-adapter'
 
 // The ChatGPT app's own browser, which its unified-computer-use plugin gives every Codex as the
@@ -9,10 +10,12 @@ import type { AgentLaunch } from '../agent-adapter'
 const HIDDEN_CODEX_BROWSERS: readonly string[] = ['-c', 'mcp_servers.cua_repl={command="/usr/bin/true",enabled=false}']
 
 // app-server takes the thread, sandbox and extra roots over the protocol instead; Kando's MCP
-// server goes in as a config override.
-export function codexCommand({ mcp }: AgentLaunch): AgentCommand {
+// server goes in as a config override, as does the note on the user's vault (the vault itself is a
+// writable root of each turn, see CodexAppServer). A JSON string is a TOML basic string.
+export function codexCommand({ mcp, knowledgeBase }: AgentLaunch): AgentCommand {
   return { command: 'codex', args: [
     'app-server',
-    ...(mcp ? ['-c', `mcp_servers.kando.command=${JSON.stringify(mcp.command)}`, '-c', `mcp_servers.kando.args=${JSON.stringify(mcp.args)}`, ...HIDDEN_CODEX_BROWSERS] : [])
+    ...(mcp ? ['-c', `mcp_servers.kando.command=${JSON.stringify(mcp.command)}`, '-c', `mcp_servers.kando.args=${JSON.stringify(mcp.args)}`, ...HIDDEN_CODEX_BROWSERS] : []),
+    ...(knowledgeBase ? ['-c', `developer_instructions=${JSON.stringify(knowledgeBaseNote(knowledgeBase.path))}`] : [])
   ] }
 }

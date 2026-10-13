@@ -7,6 +7,7 @@ import { KandoRequests } from '../../kando-requests'
 import { markKeptImages, keepImageBlocks, stripImageBytes } from '../../image-frames'
 import { messageText, type ChatAnswer, type ChatDriver, type ChatImageFile, type ChatOutgoing, type ChatRecord, type ChatStageOptions, type StageMessage, type TurnSignal } from '../../chat-driver'
 import { Rejection } from '../../rejection'
+import { knowledgeBaseNote } from '../../agent-prompt'
 import type { AcpDialect } from './acp-dialect'
 import { AcpConfig, valuesOf, type AcpOptionValue } from './acp-schema'
 
@@ -162,7 +163,7 @@ export class AcpDriver implements ChatDriver {
         ...(this.options.resume ? { sessionId: this.options.resume } : {}),
         // Only where the agent says it takes them; one that does not is given them otherwise, as
         // Cursor is on its command line, and reads them by their paths either way.
-        ...(this.options.extraDirs.length && this.directories ? { additionalDirectories: this.options.extraDirs } : {}),
+        ...(this.roots().length && this.directories ? { additionalDirectories: this.roots() } : {}),
         mcpServers: mcp ? [{ name: 'kando', command: mcp.command, args: mcp.args, env: [] }] : []
       })]
     }
@@ -201,8 +202,17 @@ export class AcpDriver implements ChatDriver {
     if (images.length && !this.images) throw new Rejection('chat-images-unsupported', `此 ${this.name} CLI 不支持图片输入`)
     const base = { sessionId: this.session, prompt: [{ type: 'text', text }] }
     const logged = rpc(this.id(`prompt-${this.turns + 1}`), 'session/prompt', base)
-    const wire = rpc(this.id(`prompt-${this.turns + 1}`), 'session/prompt', { ...base, prompt: [...base.prompt, ...images.map((image) => ({ type: 'image', mimeType: image.mime, data: Buffer.from(image.read()).toString('base64') }))] })
+    // ACP has no system prompt, so the note on the user's vault goes ahead of the process's first
+    // prompt, and only on the wire: the chat, its search and its handoffs show the message alone.
+    const note = this.turns === 0 && this.options.knowledgeBase ? `${knowledgeBaseNote(this.options.knowledgeBase.path)}\n\n` : ''
+    const wire = rpc(this.id(`prompt-${this.turns + 1}`), 'session/prompt', { ...base, prompt: [{ type: 'text', text: `${note}${text}` }, ...images.map((image) => ({ type: 'image', mimeType: image.mime, data: Buffer.from(image.read()).toString('base64') }))] })
     return { wire, logged }
+  }
+
+  // The folders the session works in besides its own: the conversation's other projects, and the
+  // user's vault where the stage may write it.
+  private roots(): string[] {
+    return [...this.options.extraDirs, ...(this.options.knowledgeBase?.write ? [this.options.knowledgeBase.path] : [])]
   }
 
   setOption(option: ChatOption, value: string): unknown[] {

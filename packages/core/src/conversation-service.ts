@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { agentDescriptor, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type UnattendedMode, isKandoRequest } from '@kando/protocol'
+import { agentDescriptor, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type UnattendedMode, isKandoRequest } from '@kando/protocol'
 import type { DaemonEvent, SessionInfo } from '@kando/protocol/node'
 import type { TaskLaunchOptions } from '@kando/protocol'
 import type { RunMeasure } from './agent-run-store'
@@ -117,6 +117,7 @@ export class ConversationService {
   // Core's chat settings say; main hands them over before any stage starts.
   private promptSuggestions = false
   private userBrowser: boolean | undefined
+  private knowledgeBase: KnowledgeBase | null = null
   private readonly launching = new Map<string, AgentKind>()
   // Conversations whose last start took its opening into the handoff it began from.
   private readonly openedInHandoff = new Set<string>()
@@ -209,6 +210,22 @@ export class ConversationService {
   // Read at each start: a running agent keeps what it started with.
   setUserBrowser(enabled: boolean): void {
     this.userBrowser = enabled
+  }
+
+  // Read at each start too.
+  setKnowledgeBase(knowledgeBase: KnowledgeBase | null): void {
+    this.knowledgeBase = knowledgeBase
+  }
+
+  // The vault as this stage gets it: writable only where the stage may edit; left out where the
+  // user made the vault a project already, or where its folder is gone (Claude refuses to start
+  // on a missing --add-dir).
+  private async stageKnowledgeBase(conversation: Conversation, stage: ConversationStage): Promise<KnowledgeBase | undefined> {
+    const vault = this.knowledgeBase
+    if (!vault || !(await stat(vault.path).catch(() => null))?.isDirectory()) return undefined
+    // Projects are kept resolved; the vault is given as the user wrote it.
+    if (conversation.projectPaths.includes(await realpath(vault.path))) return undefined
+    return { path: vault.path, write: vault.write && !stage.planOnly && !conversation.workspaceReadOnly }
   }
 
   setCapacity(settings: Pick<ChatSettings, 'maxConcurrentAgents' | 'agentConcurrency'>, released: () => void): void {
@@ -763,7 +780,8 @@ export class ConversationService {
   ): Promise<Conversation> {
     const { id } = current
     const { agent } = stage
-    const { options } = this.chatStage(current, stage, forkAt)
+    const knowledgeBase = await this.stageKnowledgeBase(current, stage)
+    const { options } = this.chatStage(current, stage, forkAt, knowledgeBase)
     const { launch } = adapterOf(agent)
     const agentStage = this.agentStage(id, stage)
     const command = chatCommand(agent, stage.providerSessionId, resume, handoff?.path ?? null, options.extraDirs, {
@@ -774,7 +792,8 @@ export class ConversationService {
       readable,
       forkAt,
       ...(this.mcp ? { mcp: this.mcp(id) } : {}),
-      ...(this.userBrowser === undefined ? {} : { userBrowser: this.userBrowser })
+      ...(this.userBrowser === undefined ? {} : { userBrowser: this.userBrowser }),
+      ...(knowledgeBase ? { knowledgeBase } : {})
     })
     let sessionId: string
     try {
@@ -800,7 +819,7 @@ export class ConversationService {
     this.store.attachStage(stage.id, sessionId)
     this.changed(this.store.update(id, { agent, sessionId }))
     try {
-      await this.chats.open(this.chatStage(current, stage, forkAt), sessionId, 0, true)
+      await this.chats.open(this.chatStage(current, stage, forkAt, knowledgeBase), sessionId, 0, true)
       await launch?.ready(agentStage)
       if (handoff) await this.chats.send(id, handoffMessage(handoff.path, handoff.note))
     } catch (error) {
@@ -828,8 +847,9 @@ export class ConversationService {
   }
 
   // forkAt: only while the stage is being opened as a fork; a stage taken back later resumes the
-  // session the fork made, which the stage then holds.
-  private chatStage(conversation: Conversation, stage: ConversationStage, forkAt: string | null = null): ChatStage {
+  // session the fork made, which the stage then holds. knowledgeBase: only at a start, as its
+  // process was given the vault; a stage taken back keeps what its process started with.
+  private chatStage(conversation: Conversation, stage: ConversationStage, forkAt: string | null = null, knowledgeBase?: KnowledgeBase): ChatStage {
     const chosen = this.store.chatOptions(conversation.id)
     const mcp = this.mcp?.(conversation.id)
     let permissionMode = chosen.permissionMode
@@ -852,7 +872,8 @@ export class ConversationService {
         allowBypass: !stage.planOnly && !conversation.workspaceReadOnly && (chosen.allowBypass ?? false),
         promptSuggestions: this.promptSuggestions,
         preferred: { permissionMode, ...chosen[stage.agent] },
-        keepImage: (data) => this.keepImage(data)
+        keepImage: (data) => this.keepImage(data),
+        ...(knowledgeBase ? { knowledgeBase } : {})
       }
     }
   }

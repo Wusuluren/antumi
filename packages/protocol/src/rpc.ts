@@ -25,6 +25,7 @@ import { WireEntry, WirePage, WireUsage } from './wire'
 import { Discussion, DiscussionAction, DiscussionCreate, DiscussionList, DiscussionMemberFields, DiscussionPost } from './discussion'
 
 import { Squad, SquadFields, SquadRun, SquadWork, SquadPlanRef } from './squad'
+import { KnowledgeFolder, KnowledgeVault } from './knowledge'
 
 // Bump only for breaking changes; additive optional fields keep the version.
 export const PROTOCOL_VERSION = 12
@@ -68,7 +69,8 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // git-commit-branches: core lists the branches holding a commit (git.containing).
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
 // handoff-model: a handoff takes the model and effort the agent starts in (conversations.handoff, tasks.handoff).
-export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning'] as const
+export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'knowledge-base'] as const
+// knowledge-base: core hands agents the user's Obsidian vault (ChatSettings.knowledgeBase) and lists the vaults Obsidian knows (knowledge.*).
 // task-launch-options: tasks.start accepts the first stage's mode, model and reasoning effort.
 // task-launch: a task keeps them (Task.launch, set by tasks.update and by each start by hand).
 // discussion-members: members join and leave a group chat midway; discussion-projects: its projects but the first change.
@@ -135,6 +137,9 @@ export const rpcMethods = {
   'system.setAwakeMode': { params: z.object({ mode: ComputerAwakeMode }), result: ComputerAwakeStatus },
   'system.chatSettings': { params: z.object({}), result: ChatSettings },
   'system.setChatSettings': { params: ChatSettings.partial(), result: ChatSettings },
+  // The vaults Obsidian's registry lists on this machine, the open one first; none headless.
+  'knowledge.vaults': { params: z.object({}), result: z.array(KnowledgeVault) },
+  'knowledge.inspect': { params: z.object({ path: z.string().min(1).max(32_768) }), result: KnowledgeFolder },
   // What of git and the agent CLIs core finds on its path; the last answer, unless asked to look again.
   'system.environment': { params: z.object({ refresh: z.boolean().optional() }), result: Environment },
   'system.installAgentCli': { params: z.object({ agent: AgentKind }), result: Terminal },

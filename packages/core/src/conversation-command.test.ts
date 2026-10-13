@@ -43,6 +43,24 @@ describe('chatCommand', () => {
     expect(chatCommand('codex', null, false, null, [], { userBrowser: true }).args).toEqual(['app-server'])
   })
 
+  it('gives each agent the user\'s vault as its own folder, writable where the stage may write, and says where it is', () => {
+    const vault = { path: '/notes/vault', write: true }
+    const claude = chatCommand('claude', 's', false, null, ['/code/web'], { knowledgeBase: vault }).args
+    expect(claude).toEqual(expect.arrayContaining(['--add-dir', '/code/web', '--add-dir', '/notes/vault', '--append-system-prompt', expect.stringContaining('/notes/vault')]))
+    expect(claude).not.toContain('--allowedTools')
+    // Where it may not write, the vault is readable without asking, and not a working folder.
+    const fenced = chatCommand('claude', 's', false, null, [], { planOnly: { dirs: ['/code/app'] }, knowledgeBase: { ...vault, write: false } }).args
+    expect(fenced).not.toContain('--add-dir')
+    expect(fenced[fenced.indexOf('--allowedTools') + 1]).toContain('Read(//notes/vault/**)')
+    expect(fenced).toEqual(expect.arrayContaining(['--append-system-prompt', expect.stringContaining('/notes/vault')]))
+    // Codex hears of it in its config; the root itself goes with each turn.
+    expect(chatCommand('codex', null, false, null, [], { knowledgeBase: vault }).args).toEqual(['app-server', '-c', expect.stringMatching(/^developer_instructions=".*\/notes\/vault.*"$/)])
+    expect(chatCommand('cursor', null, false, null, ['/code/web'], { knowledgeBase: vault }).args).toEqual(['--add-dir', '/code/web', '--add-dir', '/notes/vault', 'acp'])
+    expect(chatCommand('cursor', null, false, null, [], { knowledgeBase: { ...vault, write: false } }).args).toEqual(['acp'])
+    // Without one, nothing changes.
+    expect(chatCommand('claude', 's', false, null, []).args).not.toContain('--append-system-prompt')
+  })
+
   it('starts a Claude stage that may only plan in plan mode, its folders not editable and no bypass', () => {
     const args = chatCommand('claude', 's', false, null, ['/code/web'], {
       preferred: { permissionMode: 'acceptEdits' },

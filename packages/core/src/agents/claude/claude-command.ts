@@ -1,5 +1,6 @@
 import { SQUAD_TOOL_NAMES, HISTORY_TOOLS, historyToolName, SHOW_PREVIEW_TOOL, terminalToolName } from '@kando/protocol'
 import { BROWSER_READ_TOOLS, type AgentCommand } from '../../agent-command'
+import { knowledgeBaseNote } from '../../agent-prompt'
 import type { AgentLaunch } from '../agent-adapter'
 import { CLAUDE_MODE_NAMES } from './claude-stream'
 
@@ -27,7 +28,7 @@ export const GIT_READ_TOOLS = ['Bash(git log:*)', 'Bash(git diff:*)', 'Bash(git 
 
 // Claude Code in print mode, speaking stream-json both ways.
 export function claudeCommand(launch: AgentLaunch): AgentCommand {
-  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readOnly, readable = [], mcp, forkAt, userBrowser } = launch
+  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readOnly, readable = [], mcp, forkAt, userBrowser, knowledgeBase } = launch
   // Folders it may read but never edit: a plan-only stage's, or a read-only worker's.
   const fenced = planOnly ?? readOnly
   const allowBypass = (launch.allowBypass ?? false) && !fenced
@@ -41,6 +42,9 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     ...claudeReadRules(readable),
     // Planning around what dependencies left on their branches means reading git history.
     ...(fenced ? GIT_READ_TOOLS : []),
+    // The vault it may not write is readable without asking, and without being a working
+    // folder: as one, Claude would load the vault's own skills too.
+    ...(knowledgeBase && !knowledgeBase.write ? claudeReadRules([`${knowledgeBase.path}/**`]) : []),
     // Showing a file the agent wrote asks nothing of the user, nor does reading the browser's
     // page; opening and acting on a page go through Claude's own confirmation. (Codex asks
     // nothing for MCP tools, so for it the site gate in core is the only check.)
@@ -60,6 +64,9 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     ...(preferred.effort ? ['--effort', preferred.effort] : []),
     ...(resume && providerSessionId ? ['--resume', providerSessionId, ...(forkAt ? ['--resume-session-at', forkAt, '--fork-session'] : [])] : providerSessionId ? ['--session-id', providerSessionId] : []),
     ...extraProjects.flatMap((project) => ['--add-dir', project]),
+    // A vault it may write is a working folder, edits in it going by the mode as a project's do.
+    ...(knowledgeBase?.write ? ['--add-dir', knowledgeBase.path] : []),
+    ...(knowledgeBase ? ['--append-system-prompt', knowledgeBaseNote(knowledgeBase.path)] : []),
     ...(denials.length ? ['--disallowedTools', denials.join(',')] : []),
     ...(reads.length ? ['--allowedTools', reads.join(',')] : []),
     ...(mcp ? ['--mcp-config', JSON.stringify({ mcpServers: { kando: { type: 'stdio', command: mcp.command, args: mcp.args } } })] : []),

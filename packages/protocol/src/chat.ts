@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { AttachmentId } from './attachments'
 import { AgentKind } from './agent'
+import { KnowledgeBase } from './knowledge'
 
 // idle: the agent waits for a message · running: a turn is under way · awaiting: the turn waits
 // on the user to approve or answer something
@@ -30,7 +31,10 @@ export const ChatSettings = z.object({
   userBrowser: z.boolean().optional(),
   // Whether agents get the tools that read the user's conversations, tasks and group chats in
   // Kando (see HISTORY_TOOLS), from their next start. Older cores omit it.
-  readHistory: z.boolean().optional()
+  readHistory: z.boolean().optional(),
+  // The user's Obsidian vault, given to agents from their next start; null is none. Nullable so a
+  // client can clear it through a partial update. Older cores omit it.
+  knowledgeBase: KnowledgeBase.nullable().optional()
 })
 export type ChatSettings = z.infer<typeof ChatSettings>
 

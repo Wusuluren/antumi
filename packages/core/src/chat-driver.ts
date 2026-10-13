@@ -1,4 +1,4 @@
-import type { ChatDecision, ChatImage, ChatItem, ChatOption, ChatPermissionMode, ChatTurnActivity } from '@kando/protocol'
+import type { ChatDecision, ChatImage, ChatItem, ChatOption, ChatPermissionMode, ChatTurnActivity, KnowledgeBase } from '@kando/protocol'
 import type { AttachmentFile } from './attachment-store'
 import type { ChatItems } from './chat-items'
 import type { UsageReport } from './usage-source'
@@ -80,6 +80,9 @@ export type ChatStageOptions = {
   // Stores an image a tool result carries in its bytes (base64), for the chat to show; null when it
   // cannot. Without it, such an image shows as a placeholder.
   keepImage?: (data: string) => ChatImage | null
+  // The user's Obsidian vault, for a driver that gives roots over its protocol: writable only
+  // where the stage may edit (write is false otherwise).
+  knowledgeBase?: KnowledgeBase
 }
 
 export type ChatPreferences = { permissionMode?: string; model?: string; effort?: string }

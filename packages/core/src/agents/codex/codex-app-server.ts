@@ -833,8 +833,10 @@ export class CodexAppServer implements ChatDriver {
       : {}
     return {
       approvalPolicy,
-      // The conversation's other projects are writable too, as --add-dir makes them in the TUI.
-      sandboxPolicy: sandboxPolicy(sandbox, this.options.extraDirs, network),
+      // The conversation's other projects are writable too, as --add-dir makes them in the TUI,
+      // and the user's vault where the stage may write it. A read-only sandbox takes no roots, so
+      // there the vault, like everything, is only read.
+      sandboxPolicy: sandboxPolicy(sandbox, [...this.options.extraDirs, ...(this.options.knowledgeBase?.write ? [this.options.knowledgeBase.path] : [])], network),
       ...(this.chosen.model ? { model: this.chosen.model } : {}),
       ...(this.chosen.effort ? { effort: this.chosen.effort } : {}),
       ...collaboration

@@ -233,6 +233,27 @@ describe('ConversationService', () => {
     await expect(service.create('codex', [first, first])).rejects.toThrow('duplicate-project')
   })
 
+  it('hands every start the user\'s vault as its own folder, writable only where the stage may write', async () => {
+    const vault = path.join(root, 'vault')
+    mkdirSync(vault)
+    service.setKnowledgeBase({ path: vault, write: true })
+    const created = await service.create('claude', [root])
+    expect(created.projectPaths).toEqual([realpathSync(root)])
+    expect(daemon.spawns.at(-1)?.args).toEqual(expect.arrayContaining(['--add-dir', vault, '--append-system-prompt', expect.stringContaining(vault)]))
+    // A plan-only task stage may read it, as it may its projects, but not write it.
+    await service.startForTask({ id: 'task-1', title: 'Plan', agent: 'claude' }, { cwd: root, extraDirs: [], planOnly: true, session: 'new' })
+    const planning = daemon.spawns.at(-1)!.args
+    expect(planning).not.toContain('--add-dir')
+    expect(planning[planning.indexOf('--allowedTools') + 1]).toContain(`Read(/${vault}/**)`)
+    // The vault the user made a project is given as one, and not again.
+    await service.create('claude', [vault])
+    expect(daemon.spawns.at(-1)?.args).not.toContain('--append-system-prompt')
+    // One whose folder is gone is left out rather than failing the start.
+    service.setKnowledgeBase({ path: path.join(root, 'gone'), write: true })
+    await service.create('claude', [root])
+    expect(daemon.spawns.at(-1)?.args).not.toContain('--append-system-prompt')
+  })
+
   it('works in a worktree of each project on a branch of its own, leaving the projects as they were', async () => {
     const repo = (name: string) => {
       const dir = path.join(root, name)

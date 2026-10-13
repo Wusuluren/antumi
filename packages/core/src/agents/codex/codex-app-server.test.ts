@@ -575,6 +575,15 @@ describe('CodexAppServer commands', () => {
     })
   })
 
+  it('makes the user\'s vault a writable root of each turn, but only where the stage may write it', () => {
+    const writable = new CodexAppServer('stage-1', { ...OPTIONS, extraDirs: ['/work/web'], knowledgeBase: { path: '/notes/vault', write: true } })
+    handshake(writable)
+    expect(writable.send('go').wire).toMatchObject({ params: { sandboxPolicy: { type: 'workspaceWrite', writableRoots: ['/work/web', '/notes/vault'] } } })
+    const reading = new CodexAppServer('stage-1', { ...OPTIONS, knowledgeBase: { path: '/notes/vault', write: false } })
+    handshake(reading)
+    expect(reading.send('go').wire).toMatchObject({ params: { sandboxPolicy: { type: 'workspaceWrite', writableRoots: [] } } })
+  })
+
   it('denies with decline where Codex offers it and with cancel where it does not', () => {
     const driver = new CodexAppServer('stage-1', OPTIONS)
     handshake(driver)
