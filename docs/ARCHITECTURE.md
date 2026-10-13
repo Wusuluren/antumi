@@ -46,7 +46,7 @@
 | `packages/daemon` | 进程宿主，独立进程：Agent 跑在 stdio 管道上，终端面板的 shell 跑在 PTY 里；缓存最近输出，供重新连接时回放 |
 | `packages/desktop` | Electron 桌面端：看板、详情编辑、聊天界面、终端面板；主进程还持有内置浏览器的标签页，并用 playwright-core 替 Agent 驱动它们 |
 
-运行时数据在 `~/.kando/`（可用 `KANDO_HOME` 覆盖）：`kando.db`、`core.json`（端口与 token，权限 0600）、`worktrees/`、`sessions/`、`browser/`（`host.json`，桌面端写的浏览器宿主地址）。
+运行时数据在 `~/.kando/`（可用 `KANDO_HOME` 覆盖）：`kando.db`、`core.json`（端口与 token，权限 0600）、`worktrees/`、`sessions/`、`browser/`（`host.json`，桌面端写的浏览器宿主地址）、`skills/`（技能库：`skills.json` 锁文件、`repos/` 里的 git 克隆、`bundles/` 里交给 Agent 的目录）。
 
 ### 进程边界
 
@@ -253,6 +253,22 @@ Claude Code 以 `claude -p --input-format stream-json --output-format stream-jso
 说 ACP 的 Agent 不用另写 driver：`agents/acp/acp-driver.ts` 讲标准协议，Agent 自己的部分写成一份 `AcpDialect`，然后用 `new AcpDriver(dialect, …)` 创建 driver。dialect 至少要有显示名、请求 id 前缀（会写进日志，定下后不能改）和权限模式映射；扩展认证方式、模型列表、提问、计划审批、子 Agent、工具命名、写进回复的传输错误等，都按需声明。Cursor 的 dialect（`agents/cursor/cursor-dialect.ts`）可以作参照。`agents/acp/acp-driver.test.ts` 用一个什么扩展都不带的 dialect 跑完一整个回合，新 dialect 可以从它开始。
 
 `agents/agent-registry.test.ts` 检查每个 adapter 提供的权限模式和 descriptor 里写的完全一致，并检查声明的 hooks 都有对应实现。
+
+### 知识库（Obsidian）
+
+设置 → 集成 → 知识库 里选一个 Obsidian 库（core 读 Obsidian 自己的注册表列出它打开过的库，也可以选任意文件夹），存在聊天设置的 `knowledgeBase`（路径和是否允许写入）。之后每次启动 Agent，core 都把库的**原目录**交给它：不算项目，不进 `projectPaths`，任务里也不建 worktree，所以 Agent 写进去的笔记 Obsidian 立刻能看到。只在普通阶段可写：规划、只读和群聊阶段只读。各家 adapter 自己决定怎么交（`AgentLaunch.knowledgeBase`）：
+
+- Claude Code：可写时 `--add-dir`，只读时加一条 `Read(//库/**)` 允许规则（不作为工作目录，就不会连带加载库里的 `.claude/skills`）；路径和「只新建或追加、不删除、不改名」的规则用 `--append-system-prompt` 告诉它。
+- Codex：可写时作为每个回合 `sandboxPolicy` 的可写根；只读沙箱不收可写根，所以规划和只读阶段写不了。规则用 `-c developer_instructions=…` 传入。
+- Cursor：可写时 `--add-dir`；ACP 没有系统提示词，规则拼在进程第一条提示的 `wire` 上，`logged` 不带，聊天记录、搜索和移交都看不到。
+
+回复里的 `obsidian://` 链接由桌面端主进程用 `shell.openExternal` 打开，是回复里唯一允许启动的应用协议。
+
+### 技能库
+
+设置 → 任务 → 技能 管理 Agent Skills（`SKILL.md` 目录）。core 从 https 地址 `git clone` 到 `~/.kando/skills/repos/<id>/`，固定在安装时的提交（detached HEAD），把扫描到的技能写进 `skills.json`；「检查更新」只 fetch 并从 git 对象里读新版本的技能列表，用户确认后才移动 pin，并记住上一个提交供回退。不改用户自己的 `~/.claude`、`~/.codex`。
+
+交给 Agent 的是**bundle**（`bundles/<key>/`）：按需要的技能从各仓库复制出来（只复制 `skills/<名字>/`，跳过软链接，限 32 MiB），同时写成 Claude Code 插件（`.claude-plugin/plugin.json` + `skills/`）和 `.agents/skills/` 两种布局；`key` 是技能及其提交的哈希，同样的选择得到同一个目录，提示词缓存得以保温，更新或回退后自然换新目录。descriptor 的 `capabilities.skills` 说明这个 Agent 能否接收 bundle，adapter 决定怎么交（`AgentLaunch.skills`）：Claude Code 用 `--plugin-dir`，Cursor 用 `--add-dir`；Codex 只读固定目录，暂不支持。第一版的选择是全局的：知识库打开时，交出推荐仓库 kepano/obsidian-skills 里的 `obsidian-markdown`（见 `skills-recommended.ts`）。bundle 建不出来只记进 wire log，不阻止 Agent 启动。
 
 ## 5. 内置浏览器
 

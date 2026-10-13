@@ -2,7 +2,7 @@ import type { BrowserStatus, WireUsage } from '@kando/protocol'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { AGENT_KINDS, agentDescriptor, LANGUAGE_NAMES, PROTOCOL_VERSION, quickModel, TRANSLATE_LANGUAGES, UNATTENDED_MODES, type AgentKind, type SourceDescriptor } from '@kando/protocol'
 import packageJson from '../../../../package.json'
-import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
+import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
 import { setPreference, usePreferences } from '../preferences'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { UNATTENDED_LABEL } from '../schedules'
@@ -34,6 +34,7 @@ import {
 import { AgentStatsSettings } from './AgentStatsSettings'
 import { ChatCommandSettings } from './ChatCommandSettings'
 import { KnowledgeBaseSettings } from './KnowledgeBaseSettings'
+import { SkillsSettingsSection } from './SkillsSettingsSection'
 import { CopyButton } from './CopyButton'
 import { checkStatusText, GIT_INSTALL_HINT } from '../environment-text'
 import { settingsSectionOf } from './SourceInboxView'
@@ -648,6 +649,17 @@ const CHAT_COMMANDS_SECTION: Section = {
   Body: ChatCommandSettings
 }
 
+// On a core with a skills library: the Agent Skills it installs for agents; it follows 聊天命令.
+const SKILLS_SECTION: Section = {
+  id: 'skills',
+  group: '任务',
+  title: '技能',
+  description: '给 Agent 安装 Agent Skills（SKILL.md）：从 Git 仓库装一次，固定在安装时的提交，启动时交给 Claude Code 和 Cursor。',
+  keywords: ['技能', 'skill', 'skills', '插件', 'plugin', 'obsidian', 'markdown', '安装', '更新', '回退', '仓库', 'git', ...AGENT_KINDS],
+  Icon: SparkIcon,
+  Body: SkillsSettingsSection
+}
+
 // On a core that keeps a wire log: whether it does, and what it holds.
 const DEBUG_SECTION: Section = {
   id: 'debug',
@@ -704,14 +716,15 @@ export function SettingsPage() {
   const sources = useCore((s) => s.sources)
   const browser = useBrowserSupported()
   const knowledge = useKnowledgeBaseSupported()
+  const skills = useSkillsSupported()
   const chatCommands = useChatCommandsSupported()
   const wireLog = useWireLogSupported()
   const sections = useMemo(() => {
     const about = SECTIONS.filter((section) => section.id === 'about')
     const own = SECTIONS.filter((section) => section.id !== 'about' && (section.id !== 'notifications' || canNotify() || canShowRequestPopup()))
-      .flatMap((section) => (section.id === 'agents' && chatCommands ? [section, CHAT_COMMANDS_SECTION] : [section]))
+      .flatMap((section) => (section.id === 'agents' ? [section, ...(chatCommands ? [CHAT_COMMANDS_SECTION] : []), ...(skills ? [SKILLS_SECTION] : [])] : [section]))
     return [...own, ...sourceSections(sources ?? []), ...(knowledge ? [KNOWLEDGE_SECTION] : []), ...(browser ? [BROWSER_SECTION] : []), ...(wireLog ? [DEBUG_SECTION] : []), ...about]
-  }, [sources, browser, knowledge, chatCommands, wireLog])
+  }, [sources, browser, knowledge, skills, chatCommands, wireLog])
   const [activeId, setActiveId] = useState(() => useCore.getState().settingsSection ?? SECTIONS[0]?.id ?? '')
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()

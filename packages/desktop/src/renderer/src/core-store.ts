@@ -19,6 +19,7 @@ import {
   type Terminal,
   type TerminalCommand,
   type SavedChatCommand,
+  type SkillRepo,
   type Conversation,
   type ComputerAwakeStatus,
   type ChatSettings,
@@ -164,6 +165,8 @@ export type CoreState = {
   terminalCommands: TerminalCommand[]
   // The user's own chat commands, oldest first; empty from a core that keeps none.
   chatCommands: SavedChatCommand[]
+  // The skills repositories core installed; empty from a core without a library.
+  skillRepos: SkillRepo[]
   login: LoginState | null
 }
 
@@ -235,6 +238,7 @@ export const useCore = create<CoreState>()(() => ({
   activeTerminalId: null,
   terminalCommands: [],
   chatCommands: [],
+  skillRepos: [],
   login: null
 }))
 
@@ -820,6 +824,10 @@ export function useKnowledgeBaseSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('knowledge-base') ?? false)
 }
 
+export function useSkillsSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('skills-library') ?? false)
+}
+
 export function useUsageLimitSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('usage-limit') ?? false)
 }
@@ -999,6 +1007,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         )
         rpc.on('terminalCommands.changed', ({ commands }) => useCore.setState({ terminalCommands: commands }))
         rpc.on('chatCommands.changed', ({ commands }) => useCore.setState({ chatCommands: commands }))
+        rpc.on('skills.changed', ({ repos }) => useCore.setState({ skillRepos: repos }))
         rpc.on('schedules.changed', ({ runs }) => {
           if (!initialized) changedSchedules = runs
           useCore.setState({ schedules: runs })
@@ -1051,6 +1060,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         const squads = full && rpc.features.includes('squads') ? await rpc.call('squads.list', {}) : []
         const discussions = full && rpc.features.includes('discussions') ? await rpc.call('discussions.list', {}).catch(() => []) : []
         if (full && rpc.features.includes('chat-commands')) void rpc.call('chatCommands.list', {}).then((chatCommands) => useCore.setState({ chatCommands })).catch(() => {})
+        if (full && rpc.features.includes('skills-library')) void rpc.call('skills.list', {}).then((skillRepos) => useCore.setState({ skillRepos })).catch(() => {})
         if (full && rpc.features.includes('environment')) void rpc.call('system.environment', {}).then((environment) => useCore.setState({ environment })).catch(() => {})
         useCore.setState((s) => ({
           rpc,

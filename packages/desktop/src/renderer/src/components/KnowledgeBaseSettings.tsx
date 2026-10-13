@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { KnowledgeFolder, KnowledgeVault } from '@kando/protocol'
-import { perform, setChatSettings, useCore } from '../core-store'
+import { perform, setChatSettings, useCore, useSkillsSupported } from '../core-store'
 import { canPickFolder, pickFolder } from '../desktop-bridge'
 import { projectName } from './ProjectPicker'
 import { SettingsRow, Toggle } from './SettingsControls'
@@ -10,6 +10,8 @@ import { SettingsRow, Toggle } from './SettingsControls'
 export function KnowledgeBaseSettings() {
   const connected = useCore((s) => s.connection === 'connected')
   const chatSettings = useCore((s) => s.chatSettings)
+  const skillsSupported = useSkillsSupported()
+  const hasObsidianSkills = useCore((s) => s.skillRepos.some((repo) => repo.skills.some((skill) => skill.name === 'obsidian-markdown' && skill.problem === null)))
   const chosen = chatSettings?.knowledgeBase ?? null
   const chosenPath = chosen?.path ?? null
   const [vaults, setVaults] = useState<KnowledgeVault[] | null>(null)
@@ -57,6 +59,9 @@ export function KnowledgeBaseSettings() {
             </li>
           </ul>
           {notice && <p className="settings-note">{notice}</p>}
+          {skillsSupported && !hasObsidianSkills && (
+            <p className="settings-note">在 设置 → 技能 里安装推荐的 Obsidian 技能后，Agent 会按 Obsidian 的 Markdown（双链、属性）写笔记。</p>
+          )}
           {folder && folder.skillDirs.length > 0 && (
             <p className="settings-note warning">
               库里有 {folder.skillDirs.join('、')}：Claude Code 和 Cursor 会把里面的技能一并加载，每次启动多花 token。不需要的话把它们移出知识库。
