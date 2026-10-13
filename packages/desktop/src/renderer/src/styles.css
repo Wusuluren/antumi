@@ -8458,6 +8458,7 @@ body.side-panel-resizing * {
    side by side, each opening has its own column and takes it whole. */
 .discussion-msg:not([data-mine]) .discussion-msg-body { max-width: calc(100% - 46px); }
 .discussion-openings[data-side-by-side] .discussion-msg-body { max-width: 100%; }
+.discussion-reply-foot { display: flex; justify-content: flex-end; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-2); font-size: var(--chat-font-small); }
 .discussion-msg-actions { display: flex; gap: 2px; height: 22px; margin: -2px 0 0 -6px; opacity: 0; transition: opacity 0.12s; }
 .discussion-msg[data-mine] .discussion-msg-actions { margin: -2px -6px 0 0; }
 .discussion-msg:hover .discussion-msg-actions, .discussion-msg-actions:focus-within { opacity: 1; }

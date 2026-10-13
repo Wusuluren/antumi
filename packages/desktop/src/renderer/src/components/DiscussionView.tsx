@@ -49,6 +49,18 @@ async function taskFromSummary(discussion: Discussion, topic: string, summary: D
   if (task) selectTask(task.id)
 }
 
+// A member's answer to the user as a task's details: what was asked, and what it answered. Named
+// after the question, as the task is what it asked for.
+async function taskFromReply(discussion: Discussion, member: DiscussionMember | undefined, question: DiscussionPost | undefined, reply: DiscussionPost): Promise<void> {
+  const asked = question?.text.replace(/@\S+/g, '').trim() ?? ''
+  const name = member?.name ?? '成员'
+  const title = (asked.split('\n').find((line) => line.trim()) ?? discussion.title).trim().slice(0, 80) || discussion.title
+  const details = [`来自群聊「${discussion.title}」里 ${name} 对你的回答。`, ...(asked ? ['', '## 你的问题', asked] : []), '', `## ${name} 的回答`, reply.text]
+    .join('\n').slice(0, MAX_DETAILS_LENGTH)
+  const task = await perform((rpc) => rpc.call('tasks.create', { title, details, repos: discussion.projectPaths }))
+  if (task) selectTask(task.id)
+}
+
 const LEAVE_BLOCKER: Record<'too-few' | 'chair' | 'busy', string> = {
   'too-few': '至少要留 2 位成员',
   chair: '主持人要写总结，不能离开',
@@ -154,7 +166,7 @@ function PendingPost({ member }: { member: DiscussionMember | undefined }) {
 
 // One post, as a chat app lays a group out: a member's on the left, its face beside a bubble under
 // its name; the user's on the right; Kando's own notes in the middle; the summary as a card.
-function Post({ post, discussion, topic }: { post: DiscussionPost; discussion: Discussion; topic: Topic }) {
+function Post({ post, discussion, topic, question }: { post: DiscussionPost; discussion: Discussion; topic: Topic; question?: DiscussionPost }) {
   if (post.kind === 'notice') return <p className="discussion-system">{post.text}</p>
   if (post.kind === 'user') {
     return (
@@ -193,6 +205,11 @@ function Post({ post, discussion, topic }: { post: DiscussionPost; discussion: D
                 {post.state === 'failed' && <FailedPost error={post.error} />}
               </>
             )}
+            {post.kind === 'reply' && post.state === 'done' && post.text.trim() && (
+              <div className="discussion-reply-foot">
+                <button type="button" className="link-button" onClick={() => void taskFromReply(discussion, member, question, post)}>从回答新建任务</button>
+              </div>
+            )}
           </div>
         )}
         {post.state !== 'pending' && <PostActions text={post.text} />}
@@ -205,6 +222,11 @@ function Post({ post, discussion, topic }: { post: DiscussionPost; discussion: D
 function PostActions({ text }: { text: string }) {
   if (!text.trim()) return null
   return <div className="discussion-msg-actions"><CopyButton text={text} label="复制发言" /></div>
+}
+
+// What a member's reply answers: the user's latest post before it that named the member.
+function askedOf(posts: readonly DiscussionPost[], reply: DiscussionPost): DiscussionPost | undefined {
+  return posts.findLast((post) => post.kind === 'user' && post.sequence < reply.sequence && reply.memberId !== null && post.mentions.includes(reply.memberId))
 }
 
 // Posts by round, each opened by a note in the middle. The first round's independent answers go one
@@ -252,7 +274,7 @@ function Rounds({ discussion, posts }: { discussion: Discussion; posts: readonly
             {rest.map((post) => (
               <Fragment key={post.id}>
                 {post.kind === 'summary' && <p className="discussion-system">讨论结束 · {chair ? `${chair.name} 总结` : '总结'}</p>}
-                <Post post={post} discussion={discussion} topic={topic} />
+                <Post post={post} discussion={discussion} topic={topic} question={post.kind === 'reply' ? askedOf(posts, post) : undefined} />
               </Fragment>
             ))}
           </section>
