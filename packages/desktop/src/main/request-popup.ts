@@ -60,10 +60,12 @@ export class RequestPopup {
     this.window = window
     // Above other apps' windows. On macOS a panel also floats over a full-screen app, on every
     // Space. Wayland lets no app place or raise its own window: there the card is a plain window
-    // wherever the compositor puts it.
+    // wherever the compositor puts it. Left to itself, Electron turns the whole app into a UI
+    // element to reach full-screen Spaces, and does not always turn it back: the app lost its Dock
+    // icon. A panel reaches them as it is, so the app's type is left alone.
     if (process.platform === 'darwin') {
       window.setAlwaysOnTop(true, 'floating')
-      window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+      window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true })
     } else {
       window.setAlwaysOnTop(true)
     }
