@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "esbuild": "0.25.12",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

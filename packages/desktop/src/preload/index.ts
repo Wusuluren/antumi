@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('kando', {
     return () => ipcRenderer.removeListener('kando:full-screen', handler)
   },
   getCoreEndpoint: (): Promise<unknown> => ipcRenderer.invoke('kando:core-endpoint'),
+  pickPlugin: (kind: 'directory' | 'zip'): Promise<unknown> => ipcRenderer.invoke('kando:pick-plugin', kind),
   pickFolder: (defaultPath?: string, title?: string): Promise<unknown> => ipcRenderer.invoke('kando:pick-folder', defaultPath, title),
   setTheme: (theme: string): Promise<unknown> => ipcRenderer.invoke('kando:set-theme', theme),
   revealFile: (candidates: string[]): Promise<unknown> => ipcRenderer.invoke('kando:reveal-file', candidates),

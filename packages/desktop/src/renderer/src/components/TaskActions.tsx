@@ -36,6 +36,7 @@ import { StatusIcon } from './StatusIcon'
 import { useTaskHandoff, type TaskHandoff } from './TaskHandoff'
 import { launchOptions, TaskModelPicker, useEditsInPlace, useTaskLaunch, type TaskLaunch } from './TaskLaunch'
 import { createSchedule, openRunForTask, scheduleState } from '../schedules'
+import { useOpenTodoCount, useTodosSupported } from '../conversation-todos'
 
 function blockerText(blocker: string, waitingOn: readonly Task[]): string {
   if (blocker === 'blocked' && waitingOn.length > 0) {
@@ -594,22 +595,24 @@ function ViewToggle({ view }: { view: TaskView }) {
 }
 
 // The inspector sits beside the chat, so from the details the button switches over to open it.
-function InspectorToggle({ view }: { view: TaskView }) {
+function InspectorToggle({ view, conversationId }: { view: TaskView; conversationId: string }) {
   const open = useCore((s) => s.inspectorOpen)
   const pressed = view === 'chat' && open
+  const todoLeft = useOpenTodoCount(useTodosSupported() ? conversationId : null)
   return (
     <button
       type="button"
       className="tool-button"
-      aria-label="检查器"
+      aria-label={todoLeft > 0 ? `检查器，${todoLeft} 项待办` : '检查器'}
       aria-pressed={pressed}
-      data-tooltip={pressed ? '收起检查器' : '查看改动'}
+      data-tooltip={pressed ? '收起检查器' : todoLeft > 0 ? `检查器 · ${todoLeft} 项待办` : '查看改动'}
       onClick={() => {
         setInspectorOpen(!pressed)
         if (view !== 'chat') showView('chat')
       }}
     >
       <InspectorIcon />
+      {!pressed && todoLeft > 0 && <span className="tool-button-badge" aria-hidden="true">{todoLeft}</span>}
     </button>
   )
 }
@@ -647,7 +650,7 @@ export function TaskSteps({ task, labelled = false }: { task: Task; labelled?: b
   // message takes the new one, which a chat already begun is handed to.
   const handsOff = task.status === 'running' && handoff.available
   const squadsSupported = useCore((state) => state.rpc?.features.includes('squads') ?? false)
-  const agent = (squadsSupported && (task.status === 'pending' || task.squadId) ? <TaskExecutorPicker task={task} /> :
+  const agent = (squadsSupported && (task.status === 'pending' || task.squadId) ? <TaskExecutorPicker task={task} size={labelled ? 'large' : undefined} /> :
     <AgentPicker
       agent={task.agent}
       locked={task.status === 'abandoned' || (task.status === 'running' && !handsOff)}
@@ -701,10 +704,11 @@ export function TaskToolbar({ task, view }: { task: Task; view: TaskView }) {
   const worktree = task.repos.some((repo) => repo.worktreePath !== null)
   const hasFiles = useFileTabs((state) => (state[task.conversationId ?? '']?.tabs.length ?? 0) > 0)
   const wire = useWireLogShown()
+  const todosShown = useTodosSupported()
   return (
     <div className="toolbar">
       {view === 'chat' && <TaskSteps task={task} />}
-      {task.conversationId && (worktree || wire || hasFiles) && <InspectorToggle view={view} />}
+      {task.conversationId && (worktree || wire || hasFiles || todosShown) && <InspectorToggle view={view} conversationId={task.conversationId} />}
       {task.conversationId && <ViewToggle view={view} />}
       <MoreMenu task={task} />
       <span className="toolbar-separator" aria-hidden="true" />

@@ -373,4 +373,81 @@ describe('SourceService', () => {
     })
     expect(service.inbox('demo', 'default')).toMatchObject({ active: false, items: [] })
   })
+
+  it('rejects an import finishing after its provider is paused', async () => {
+    await setUp()
+    let started = false
+    let finish = () => {}
+    const waiting = new Promise<void>((resolve) => { finish = resolve })
+    demo.fetch = async (_settings, _credential, key) => {
+      started = true
+      await waiting
+      return { ...issue(key), markdown: 'stale' }
+    }
+    const importing = service.import('demo', 'default', 'D-1', null)
+    const rejected = expect(importing).rejects.toMatchObject({ reason: 'source-changed' })
+    await until(() => started || undefined)
+    const paused = service.pause(['demo'])
+    finish()
+    await paused
+    await rejected
+    service.replaceProviders([], ['demo'])
+    expect(tasks.importedKeys('demo', 'default').size).toBe(0)
+  })
+
+  it('does not replace a snapshot with a result from a disabled provider', async () => {
+    await setUp()
+    const task = await service.import('demo', 'default', 'D-1', null)
+    let started = false
+    let finish = () => {}
+    const waiting = new Promise<void>((resolve) => { finish = resolve })
+    demo.fetch = async (_settings, _credential, key) => {
+      started = true
+      await waiting
+      return { ...issue(key), markdown: 'stale' }
+    }
+    const rejected = expect(service.resync(task.id)).rejects.toMatchObject({ reason: 'source-changed' })
+    await until(() => started || undefined)
+    const paused = service.pause(['demo'])
+    finish()
+    await paused
+    await rejected
+    service.replaceProviders([], ['demo'])
+    expect(tasks.get(task.id).sourceSnapshot).toEqual(task.sourceSnapshot)
+  })
+
+  it('does not save credentials returned by a cancelled plugin login', async () => {
+    await setUp()
+    let started = false
+    let finish = () => {}
+    const waiting = new Promise<void>((resolve) => { finish = resolve })
+    demo.login = async () => {
+      started = true
+      await waiting
+      return { credential: { kind: 'token', payload: { token: 'stale' } }, account: 'Stale' }
+    }
+    const flowId = service.login(client, 'demo', 'default', randomUUID())
+    await until(() => started || undefined)
+    const paused = service.pause(['demo'])
+    finish()
+    await paused
+    await until(() => client.last('sources.loginFinished')?.flowId === flowId || undefined)
+    expect(credentials.get('demo', 'default')?.payload.token).toBe('good')
+    service.replaceProviders([], ['demo'])
+  })
+
+  it('rejects settings normalization that finishes during a provider switch', async () => {
+    await setUp()
+    let finish = () => {}
+    const waiting = new Promise<void>((resolve) => { finish = resolve })
+    demo.normalizeSettings = async () => { await waiting; return { site: 'https://changed.test', query: 'mine' } }
+    const rejected = expect(service.saveSettings({ provider: 'demo', instance: 'default', settings: {} })).rejects.toMatchObject({ reason: 'source-changed' })
+    const paused = service.pause(['demo'])
+    finish()
+    await paused
+    await rejected
+    expect(config.get('demo', 'default')?.settings.site).toBe('https://demo.test')
+    service.replaceProviders([demo], ['demo'])
+  })
+
 })

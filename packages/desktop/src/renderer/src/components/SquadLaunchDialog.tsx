@@ -5,7 +5,8 @@ import { usePreferences } from '../preferences'
 import { useOccludesBrowser } from '../browser-occlusion'
 import { reasonText } from '../labels'
 import { useEditsInPlace } from './TaskLaunch'
-import { CloseIcon } from './icons'
+import { ChatPicker } from './ChatPicker'
+import { CloseIcon, SquadIcon } from './icons'
 
 export function SquadLaunchDialog({ task, onSingle }: { task: Task; onSingle(): void }) {
   useOccludesBrowser()
@@ -47,10 +48,15 @@ export function SquadLaunchDialog({ task, onSingle }: { task: Task; onSingle(): 
       <p className="task-launch-name">{task.title}</p>
       {!plan && <button type="button" className="link-button" disabled={busy} onClick={onSingle}>改用单 Agent</button>}
       <fieldset className="task-launch-fields" disabled={busy}>
-        <label className="task-launch-field">研发小队<select className="input" value={squadId} onChange={(event) => setSquadId(event.target.value)}><option value="" disabled>选择小队</option>{available.map((each) => <option key={each.id} value={each.id}>{each.name}</option>)}</select></label>
-        <label className="task-launch-field">开发权限<select className="input" value={mode} onChange={(event) => { const parsed = ChatPermissionMode.safeParse(event.target.value); if (parsed.success) setRequested(parsed.data) }}>
-          {modes.map((each) => <option key={each} value={each}>{each === 'ask' ? '逐项确认' : each === 'acceptEdits' ? '自动接受编辑' : each === 'bypass' ? '全部放行' : '自动判断'}</option>)}
-        </select></label>
+        <div className="task-launch-field"><span>研发小队</span>
+          <ChatPicker label="研发小队" value={squadId} placeholder="选择小队" size="field" placement="below" onChange={setSquadId}
+            options={available.map((each) => ({ value: each.id, label: each.name, description: each.description || `${each.members.length - 1} 名成员`, icon: <SquadIcon /> }))} />
+        </div>
+        <div className="task-launch-field"><span>开发权限</span>
+          <ChatPicker label="开发权限" value={mode} placeholder="逐项确认" size="field" placement="below"
+            options={modes.map((each) => ({ value: each, label: each === 'ask' ? '逐项确认' : each === 'acceptEdits' ? '自动接受编辑' : each === 'bypass' ? '全部放行' : '自动判断' }))}
+            onChange={(value) => { const parsed = ChatPermissionMode.safeParse(value); if (parsed.success) setRequested(parsed.data) }} />
+        </div>
       </fieldset>
       {leaderPlans && (
         <fieldset className="squad-launch-ways" disabled={busy}>

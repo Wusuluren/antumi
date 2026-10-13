@@ -1,0 +1,33 @@
+{
+  "id": "kando.github",
+  "version": "1.0.0",
+  "engines": {
+    "kando": ">=0.15.11 <1.0.0"
+  },
+  "contributes": {
+    "sources": [
+      {
+        "id": "github",
+        "name": "GitHub",
+        "settings": [
+          {
+            "key": "query",
+            "type": "text",
+            "label": "筛选条件",
+            "required": true,
+            "default": "assignee:@me is:open",
+            "mono": true,
+            "hint": "GitHub 搜索条件。默认同步分配给你的开放 issue 和 PR；可以加 org:组织名、label:bug 或 is:pr。每 15 分钟按更新时间同步。"
+          }
+        ]
+      }
+    ]
+  },
+  "entry": {
+    "runtime": "node",
+    "main": "main.mjs"
+  },
+  "env": [
+    "KANDO_GITHUB_TOKEN"
+  ]
+}

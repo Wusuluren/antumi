@@ -14,11 +14,13 @@ import { watchBrowserHostFile } from './browser-host-file'
 import { BrowserService, WATCH_ALL } from './browser-service'
 import { CredentialStore } from './credential-store'
 import { DaemonClient } from './daemon-client'
-import { githubProvider } from './github-provider'
+import { PluginService } from './plugin-service'
+import { bundledGitHub } from './bundled-plugin'
 import { jiraProvider } from './jira-provider'
 import { createRpcHandlers } from './rpc-handlers'
 import { SquadService } from './squad-service'
 import { SquadStore } from './squad-store'
+import { TodoStore } from './todo-store'
 import { DiscussionService } from './discussion-service'
 import { startRpcServer, type RpcServer } from './rpc-server'
 import { TaskService } from './task-service'
@@ -81,6 +83,9 @@ const wire = new WireLog(paths.sessions, (conversationId, stageId, entries) =>
   [...(server?.connections ?? [])].filter((c) => c.wiring.has(conversationId)).forEach((c) => c.notify('debug.wireEntries', { conversationId, stageId, entries }))
 )
 
+// Each conversation's to-dos; they go with it.
+const todos = new TodoStore(paths.database, (conversationId, groups) => server?.broadcast('todos.changed', { conversationId, groups }))
+
 // Built before the task service, which runs its chat tasks in it; each hands the other its events.
 const conversations = new ConversationService(
   conversationsStore, daemon, paths.sessions,
@@ -98,6 +103,7 @@ const conversations = new ConversationService(
     } else if (event.type === 'deleted') {
       server?.broadcast('conversations.deleted', { id: event.id })
       schedules.conversationDeleted(event.id)
+      todos.drop(event.id)
       void browser.closeForConversation(event.id)
     }
     else if (event.type === 'chatItems') {
@@ -174,10 +180,15 @@ await credentials.load()
 await migrateLegacyJira(paths.legacyJiraConfig, sourceConfig, credentials).catch((error: unknown) =>
   console.error('[kando-core] migrating jira.json failed; it stays in place:', error)
 )
-const sources = new SourceService([jiraProvider(), githubProvider()], sourceConfig, credentials, new LoginFlows(), service, store, attachments, {
+const builtinSources = [jiraProvider()]
+const sources = new SourceService(builtinSources, sourceConfig, credentials, new LoginFlows(), service, store, attachments, {
   inboxChanged: (inbox) => server?.broadcast('sources.inboxChanged', { inbox }),
   listChanged: (list) => server?.broadcast('sources.listChanged', { sources: list })
 })
+
+const plugins = new PluginService(path.join(paths.home, 'plugins'), packageJson.version, sources, sourceConfig, builtinSources,
+  (plugins) => server?.broadcast('plugins.changed', { plugins }))
+await plugins.load(bundledGitHub())
 
 const usageSources: Partial<Record<AgentKind, UsageSource>> = {}
 const signedIn: Partial<Record<AgentKind, () => Promise<boolean>>> = {}
@@ -325,7 +336,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, skills)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()
@@ -358,6 +369,8 @@ async function shutdown(): Promise<void> {
   await squads.close()
   discussions.close()
   sources.stop()
+  await plugins.close()
+  await sources.pause(sources.list().map((source) => source.provider))
   awake?.stop()
   daemon.stop()
   await server?.close()

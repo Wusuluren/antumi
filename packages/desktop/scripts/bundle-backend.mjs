@@ -11,9 +11,11 @@ import { build } from 'esbuild'
 const desktop = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
 const repo = path.resolve(desktop, '../..')
 const out = path.join(desktop, 'out', 'backend')
+await import('../../../scripts/build-plugins.mjs')
 
 rmSync(out, { recursive: true, force: true })
 mkdirSync(out, { recursive: true })
+cpSync(path.join(repo, 'packages/plugin-github/dist'), path.join(out, 'plugins/github'), { recursive: true })
 
 // Some bundled CJS dependencies call require() at runtime; give the ESM output one.
 const banner = `import { createRequire as __kandoRequire } from 'node:module';\nconst require = __kandoRequire(import.meta.url);\n`

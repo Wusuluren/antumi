@@ -1,7 +1,7 @@
 import { GitHubClient, GITHUB_KEY_PATTERN, type GitHubApi, type GitHubCredentials } from './github-client'
 import { githubIssueSnapshot } from './github-snapshot'
 import { SourceError } from './source-error'
-import type { SourceCredential, SourceProvider } from './source-provider'
+import type { SourceCredential, SourceProvider } from '../../core/src/source-provider'
 
 export const DEFAULT_GITHUB_QUERY = 'assignee:@me is:open'
 
@@ -16,7 +16,7 @@ function githubCredentials(credential: SourceCredential): GitHubCredentials {
   return { token }
 }
 
-export function githubProvider(connect: (credentials: GitHubCredentials) => GitHubApi = (c) => new GitHubClient(c)): SourceProvider {
+export function githubProvider(connect: (credentials: GitHubCredentials) => GitHubApi = (c) => new GitHubClient(c)) {
   const clients = new Map<string, GitHubApi>()
   const client = (credentials: GitHubCredentials): GitHubApi => {
     const cached = clients.get(credentials.token)
@@ -74,5 +74,5 @@ export function githubProvider(connect: (credentials: GitHubCredentials) => GitH
       const issue = await client(githubCredentials(credential)).issue(key, signal)
       return { ...issue, markdown: githubIssueSnapshot(issue) }
     }
-  }
+  } satisfies SourceProvider
 }

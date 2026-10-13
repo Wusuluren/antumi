@@ -132,7 +132,7 @@
 ### 任务来源与收件箱
 
 
-任务除了手写，也可以从 issue 系统导入。每种系统是一个**任务来源**，目前内置 Jira 和 GitHub；来源的接口是通用的，以后可以补充禅道等更多来源，下一步会开放成外部插件。
+任务除了手写，也可以从 issue 系统导入。每种系统是一个**任务来源**，目前 Jira 为内置来源，GitHub 通过随应用提供的外置插件接入；更多来源可以通过「设置 → 插件」安装。插件只提供来源，不扩展 Agent 或界面，见 [任务来源插件](PLUGINS.md)。
 
 1. **设置**：在 设置 → 集成 → Jira 里填站点（如 `your-team.atlassian.net`）和 JQL（默认是分给你、还没完成的 issue），保存。
 2. **登录**：点「登录」，按提示输入邮箱和 [API token](https://id.atlassian.com/manage-profile/security/api-tokens)（只需要读权限）。登录流程由来源驱动，界面按来源给出的提示一步步渲染。
@@ -200,7 +200,7 @@ Claude Code 以 `claude -p --input-format stream-json --output-format stream-jso
 - **下一步建议**：Claude Code 回复完后，输入框里用灰字显示它预测的你下一句话，按 Tab 或 → 填入，直接打字就忽略。生成建议要再发一次简短请求（复用对话缓存，花费很少，但计入用量），在 设置 → 智能体 →「回合结束后建议下一步」里可以关掉。Codex 没有这个功能。
 - **发消息**：Enter 发送，Shift+Enter 换行，Esc 或输入框右下角的按钮中断当前回合。Agent 处理时按 Enter，消息会排到这个回合结束后再发（再写一条会接在后面），发出前可以编辑或取消；回合被中断或失败时它不会自动发出，等你决定发还是不发。
 - **权限模式、模型和推理强度**：在输入框下方切换。Claude Code 有逐项确认、自动接受编辑、规划和自动判断（模型支持时）；Codex 有逐项确认（`untrusted` 审批）、自动（`on-request` 审批加 `workspace-write` 沙箱，并且允许联网，和 Claude Code 一致）、规划（Codex 自己的 plan 模式，配 `read-only` 沙箱）和只读（`read-only` 沙箱）。权限模式随时可换，模型和推理强度要等回合结束。会话沿用它最后所处的权限模式（比如按计划执行后的「自动接受编辑」），以及你选过的模型和推理强度；Agent 进程不在时也可以改，下次发消息启动时生效。Codex 不继承 `config.toml` 里的审批和沙箱设置，会话的其他项目作为可写目录。
-- **Cursor**：需要已登录且支持 ACP 的 CLI，最低接受版本为 `2026.10.01`，已实测 `2026.10.01-e373342`。先按官方说明安装 CLI 并运行 `agent login`，再「重新检测」。提供原生 Agent / Plan / Ask；模型与模型对应的推理强度来自 CLI 实时接口。Ask / Plan 是 Cursor 的原生行为，不代表 Kando 提供操作系统沙箱；不提供自动接受编辑、全部放行、用量轮询或无人值守预约与例程。Kando MCP 通过 `session/new` / `session/load` 的 `mcpServers` 逐会话注入，不改项目或用户的 MCP 配置；未成功加载时启动会明确失败。仅规划阶段的 Kando MCP 只提供读取工具。
+- **Cursor**：需要已登录且支持 ACP 的 CLI，最低接受版本为 `2026.10.01`，已实测 `2026.10.01-e373342`。先按官方说明安装 CLI 并运行 `agent login`，再「重新检测」。提供原生 Agent / Plan / Ask；模型与模型对应的推理强度来自 CLI 实时接口。Ask / Plan 是 Cursor 的原生行为，不代表 Kando 提供操作系统沙箱；不提供自动接受编辑、全部放行、用量轮询或无人值守预约与例程。Kando MCP 通过 `session/new` / `session/load` 的 `mcpServers` 逐会话注入，不改项目或用户的 MCP 配置；未成功加载时启动会明确失败。仅规划阶段的 Kando MCP 只提供读取工具（外加待办，见「待办」）。
 - **全部放行**：默认不提供。在 设置 → 智能体 打开「允许『全部放行』」后，之后启动的聊天会话才多出这个模式，对应 Claude Code 的 `bypassPermissions`，以及 Codex 的 `never` 审批加 `danger-full-access` 沙箱：Agent 不再请求确认，也不受沙箱限制。
 - **规划**：Agent 在规划模式下拿出计划时，右侧的检查器会自动打开到「计划」页显示全文，每一版计划和它的处理结果都留在那里；输入框上方可以按计划执行（之后自动接受编辑，或者逐项确认），也可以附上意见让它继续规划。Cursor 使用原生 `cursor/create_plan` 审批，确认后等待 Agent 模式切换成功再接受计划。Cursor 的分叉会复制可见历史并新建会话，不使用原生 fork。Codex 的计划在回合结束时交出，按计划执行就是用选定的模式（自动或逐项确认）接着发一回合；直接发消息算作继续规划。
 - **上下文**：输入框右下角的圆环显示上下文窗口用了多少，超过 60% 变黄，超过 85% 变红。
@@ -222,6 +222,12 @@ Claude Code 以 `claude -p --input-format stream-json --output-format stream-jso
 「移交」会先在 Agent 工作时请你确认停止，然后启动另一种 Agent。Kando 将已记录的可见用户消息、最终回复和本次补充说明写入 `sessions/<id>/handoffs/`，提示新 Agent 阅读文件并检查当前目录、Git 状态和测试。切回曾用过的 Agent 时，恢复它原来的 provider 对话（Claude session / Codex thread / Cursor session），并补上它离开期间的结构化历史。隐藏推理、未暴露上下文及 provider 专属能力无法移交。
 
 在会话列表里右键选「删除会话」。删除会删除数据库记录、结构化消息、交接文件和聊天记录，但**无论外部还是 Kando 托管的工作目录都会保留**，因为其中可能有唯一的工作成果。
+
+### 待办
+
+每条会话（任务的聊天也一样）有一份**待办**，在检查器的「待办」里：一组一个标题，下面是具体几项，每项标明「需要你」还是「Agent 可做」。勾组的框就是整组完成或全部取消，部分完成时显示半选；全部做完的组折进「已完成」。可以自己添加、改标题和内容、删除，一项上的「交给 Agent」把它作为引用放进输入框。
+
+待办存在 core（`conversation_todos` 表，`TodoStore`），不在 Agent 的会话里，所以换轮、重启、移交给别的 Agent 都还在；它和 Agent 自己这一轮的步骤清单（Claude 的 TodoWrite）是两回事。Agent 通过 Kando MCP 的 `todo_list`、`todo_add`、`todo_check` 读写，工具说明里约定只在回复列出要用户之后处理的事时才记、同名未完成的组合并、已有的项不重复。仅规划阶段也能记，因为写的是 Kando 的记录而不是工作目录。会话删除时待办一起删除。
 
 ### 群聊
 

@@ -11,6 +11,7 @@ import { findFiles, searchFiles } from './file-search'
 import { ConversationFiles } from './conversation-files'
 import type { ProjectRegistry } from './project-registry'
 import { Rejection } from './rejection'
+import type { PluginService } from './plugin-service'
 import type { SourceService } from './source-service'
 import type { RpcHandlers } from './rpc-server'
 import type { TaskService } from './task-service'
@@ -27,6 +28,7 @@ import type { EnvironmentService } from './environment-check'
 import type { ScheduleService } from './schedule-service'
 import type { RoutineService } from './routine-service'
 import type { SquadService } from './squad-service'
+import type { TodoStore } from './todo-store'
 import type { DiscussionService } from './discussion-service'
 import { AgentTerminals } from './agent-terminals'
 import { AgentCliInstaller } from './agent-cli-installation'
@@ -67,6 +69,8 @@ export function createRpcHandlers(
   wire: WireLog,
   gitChanged: () => void = () => {},
   squads?: SquadService,
+  todos?: TodoStore,
+  plugins?: PluginService,
   skills?: SkillsLibrary
 ): RpcHandlers {
   const git = new GitService(service, conversations, gitChanged)
@@ -107,7 +111,23 @@ export function createRpcHandlers(
     if (!skills) throw new Rejection('skills-unavailable')
     return skills
   }
+  const pluginService = () => {
+    if (!plugins) throw new Rejection('plugins-unavailable', '当前 core 不支持插件')
+    return plugins
+  }
+  // A conversation's to-dos, once it is known to be one.
+  const todosOf = (id: string) => {
+    if (!todos) throw new Rejection('todos-unavailable')
+    conversations.get(id)
+    return todos
+  }
   return {
+    'plugins.list': () => pluginService().list(),
+    'plugins.install': ({ source }) => pluginService().install(source),
+    'plugins.update': ({ id }) => pluginService().update(id),
+    'plugins.setEnabled': ({ id, enabled }) => pluginService().setEnabled(id, enabled),
+    'plugins.rollback': ({ id, version }) => pluginService().rollback(id, version),
+    'plugins.uninstall': async ({ id }) => { await pluginService().uninstall(id); return OK },
     'squads.list': () => squadService().list(),
     'squads.create': (fields) => squadService().create(fields),
     'squads.update': ({ id, ...fields }) => squadService().update(id, fields),
@@ -132,7 +152,7 @@ export function createRpcHandlers(
       const answer = await quick.ask(agent, commitMessagePrompt(await commitContext(dir)), model)
       return { message: cleanCommitMessage(answer.text), model: answer.model }
     },
-    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'squads' || Boolean(squads)) && (feature !== 'skills-library' || Boolean(skills))) }),
+    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'squads' || Boolean(squads)) && (feature !== 'plugins' || Boolean(plugins)) && (feature !== 'skills-library' || Boolean(skills))) }),
     'files.resolve': ({ conversationId, path }) => files.resolve(conversationId, path),
     'files.read': ({ conversationId, path }) => files.read(conversationId, path),
     'system.awakeStatus': () => awake.status(),
@@ -219,6 +239,11 @@ export function createRpcHandlers(
     'conversations.setAdditionalProjects': ({ id, projectPaths }) => conversations.setAdditionalProjects(id, projectPaths),
     'conversations.rename': ({ id, title }) => conversations.rename(id, title),
     'conversations.setPinned': ({ id, pinned }) => conversations.setPinned(id, pinned),
+    'todos.list': ({ id }) => todosOf(id).list(id),
+    'todos.add': ({ id, ...group }) => todosOf(id).add(id, group),
+    'todos.check': ({ id, groupId, itemId, done }) => todosOf(id).check(id, groupId, itemId, done),
+    'todos.edit': ({ id, groupId, itemId, text }) => todosOf(id).edit(id, groupId, itemId, text),
+    'todos.remove': ({ id, groupId, itemId }) => todosOf(id).remove(id, groupId, itemId),
     'conversations.setArchived': ({ id, archived }) => conversations.setArchived(id, archived),
     'conversations.continue': ({ id, allowBypass }) => userActed(id, () => { squads?.guardUser(id, true); return conversations.continue(id, allowBypass) }),
     'conversations.handoff': ({ id, agent, note, stopRunning, allowBypass, model, effort }) => conversations.handoff(id, agent, note, stopRunning, allowBypass, { model, effort }),

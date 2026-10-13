@@ -1,4 +1,4 @@
-import { BROWSER_HOST_TOOL, browserToolKind, historyToolKind, isBrowserTool, isPreviewTool, TERMINAL_RUN_TOOL, terminalToolKind, type BrowserToolKind, type ChatDiff, type ChatItem, type ChatToolStatus, type TerminalToolKind } from '@kando/protocol'
+import { BROWSER_HOST_TOOL, browserToolKind, historyToolKind, isBrowserTool, isPreviewTool, TERMINAL_RUN_TOOL, terminalToolKind, todoToolKind, type TodoToolKind, type BrowserToolKind, type ChatDiff, type ChatItem, type ChatToolStatus, type TerminalToolKind } from '@kando/protocol'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 
@@ -65,8 +65,12 @@ function mcpToolLabel(name: string, display: ToolDisplay | null | undefined): st
   return `${match[1].replace(/^claude_ai_/, '').replace(/_/g, ' ')} · ${match[2]}`
 }
 
+const TODO_LABEL: Record<TodoToolKind, string> = { list: '查看待办', add: '记下待办', check: '勾掉待办' }
+
 export function toolLabel(name: string, display?: ToolDisplay | null): string {
   if (isPreviewTool(name)) return '预览'
+  const todo = todoToolKind(name)
+  if (todo) return TODO_LABEL[todo]
   const history = historyToolKind(name)
   if (history) return history === 'list' ? '查看 Kando 记录' : '读取 Kando 记录'
   if (name === TERMINAL_RUN_TOOL) return TERMINAL_LABEL.run
@@ -94,6 +98,7 @@ export function toolIconKind(name: string): ToolIconKind {
   if (isBrowserTool(name)) return 'browser'
   const history = historyToolKind(name)
   if (history) return history === 'list' ? 'list' : 'read'
+  if (todoToolKind(name)) return 'list'
   return TOOL_ICONS[name] ?? 'tool'
 }
 

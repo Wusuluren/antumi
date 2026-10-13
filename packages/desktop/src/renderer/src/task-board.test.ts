@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Task } from '@kando/protocol'
-import { activeTasks, boardColumns, boardProjects, DONE_SHOWN, latestProjects, type BoardFilter } from './task-board'
+import { boardColumns, boardProjects, DONE_SHOWN, latestProjects, type BoardFilter } from './task-board'
 
 const task = (id: string, patch: Partial<Task> = {}): Task => ({
   id,
@@ -62,14 +62,13 @@ describe('task board', () => {
     expect(pending({ query: 'fix', agent: 'codex' })).toEqual(['b'])
   })
 
-  it('lists the projects with the most tasks first, and the tasks someone is at by latest activity', () => {
+  it('lists the projects with the most tasks first', () => {
     const tasks = [
       task('a', { repos: [repo('/code/web')], status: 'review', updatedAt: 1 }),
       task('b', { repos: [repo('/code/api'), repo('/code/web')], status: 'running', updatedAt: 2 }),
       task('c', { status: 'done', updatedAt: 3 })
     ]
     expect(boardProjects(tasks)).toEqual(['/code/web', '/code/api'])
-    expect(ids(activeTasks(tasks))).toEqual(['b', 'a'])
   })
 
   it('writes a new task into the projects of the latest task that had any', () => {

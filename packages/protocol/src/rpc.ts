@@ -3,6 +3,7 @@ import { GitTarget, GitStatus, GitHistory, GitDetail, GitComparison, GitAction, 
 import { AgentKind, MAX_DETAILS_LENGTH, MAX_TASK_REPOS, RepoStartOptions, Task, TaskStatus } from './task'
 import { ATTACHMENT_CHUNK_BYTES, AttachmentId, AttachmentInfo, Base64Chunk, ImageRef, MAX_ATTACHMENT_BYTES, MAX_CHAT_IMAGES, MAX_TASK_IMAGES } from './attachments'
 import { LoginNotice, LoginPrompt, SourceDescriptor, SourceId, SourceInbox, SourceProblem } from './source'
+import { PluginId, PluginInfo, PluginInstallSource, PluginVersion } from './plugin'
 import { AgentUsage } from './usage'
 import { AgentStats, ConversationStats } from './agent-stats'
 import { DashboardParams, DashboardStats } from './dashboard'
@@ -27,6 +28,7 @@ import { Discussion, DiscussionAction, DiscussionCreate, DiscussionList, Discuss
 import { Squad, SquadFields, SquadRun, SquadWork, SquadPlanRef } from './squad'
 import { KnowledgeFolder, KnowledgeVault } from './knowledge'
 import { CommitSha, RecommendedSkillRepo, SkillRepo, SkillRepoId, SkillUpdateCheck } from './skills'
+import { TodoList, TodoOwner, TodoText, TodoTitle } from './todos'
 
 // Bump only for breaking changes; additive optional fields keep the version.
 export const PROTOCOL_VERSION = 12
@@ -70,7 +72,8 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // git-commit-branches: core lists the branches holding a commit (git.containing).
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
 // handoff-model: a handoff takes the model and effort the agent starts in (conversations.handoff, tasks.handoff).
-export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'knowledge-base', 'skills-library'] as const
+// conversation-todos: core keeps each conversation's to-dos, which its agent writes too (todos.*).
+export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'skills-library'] as const
 // knowledge-base: core hands agents the user's Obsidian vault (ChatSettings.knowledgeBase) and lists the vaults Obsidian knows (knowledge.*).
 // skills-library: core installs Agent Skills repositories pinned to a commit and hands bundles of them to agents (skills.*).
 // task-launch-options: tasks.start accepts the first stage's mode, model and reasoning effort.
@@ -98,6 +101,12 @@ const BrowserConversationRef = z.object({ conversationId: z.string().uuid() })
 const BrowserTabRef = BrowserConversationRef.extend({ tabId: BrowserTabId })
 
 export const rpcMethods = {
+  'plugins.list': { params: z.object({}), result: z.array(PluginInfo) },
+  'plugins.install': { params: z.object({ source: PluginInstallSource }), result: PluginInfo },
+  'plugins.update': { params: z.object({ id: PluginId }), result: PluginInfo },
+  'plugins.setEnabled': { params: z.object({ id: PluginId, enabled: z.boolean() }), result: PluginInfo },
+  'plugins.rollback': { params: z.object({ id: PluginId, version: PluginVersion }), result: PluginInfo },
+  'plugins.uninstall': { params: z.object({ id: PluginId }), result: Ok },
   'squads.list': { params: z.object({}), result: z.array(Squad) },
   'squads.create': { params: SquadFields, result: Squad },
   'squads.update': { params: SquadFields.safeExtend({ id: z.string().uuid() }), result: Squad },
@@ -257,6 +266,22 @@ export const rpcMethods = {
   'conversations.rename': { params: ConversationRef.extend({ title: z.string().trim().min(1).max(200) }), result: Conversation },
   // Keeps it at the top of the conversation list, without counting as activity.
   'conversations.setPinned': { params: ConversationRef.extend({ pinned: z.boolean() }), result: Conversation },
+  // A conversation's to-dos (see todos.ts). add starts a group, or adds to the open group of that
+  // title (or the one named), skipping items it already holds; check and remove take a whole group
+  // when no item is named. Each answers with the list as it now stands.
+  'todos.list': { params: ConversationRef, result: TodoList },
+  'todos.add': {
+    params: ConversationRef.extend({
+      title: TodoTitle,
+      note: z.string().trim().max(120).nullable().optional(),
+      groupId: z.string().optional(),
+      items: z.array(z.object({ text: TodoText, owner: TodoOwner.default('user') })).min(1).max(30)
+    }),
+    result: TodoList
+  },
+  'todos.check': { params: ConversationRef.extend({ groupId: z.string(), itemId: z.string().optional(), done: z.boolean() }), result: TodoList },
+  'todos.edit': { params: ConversationRef.extend({ groupId: z.string(), itemId: z.string().optional(), text: TodoText }), result: TodoList },
+  'todos.remove': { params: ConversationRef.extend({ groupId: z.string(), itemId: z.string().optional() }), result: TodoList },
   // Puts a free conversation away, read-only, or takes it out again. Its agent must be idle, and is
   // let go. Needs conversation-archive.
   'conversations.setArchived': { params: ConversationRef.extend({ archived: z.boolean() }), result: Conversation },
@@ -602,6 +627,8 @@ export const rpcNotifications = {
   'discussions.posts': z.object({ discussionId: z.string(), posts: z.array(DiscussionPost) }),
   'conversations.changed': z.object({ conversation: Conversation }),
   'conversations.deleted': ConversationRef,
+  // A conversation's to-dos as they now stand; to every connection, as they are few and short.
+  'todos.changed': z.object({ conversationId: z.string(), groups: TodoList }),
   // Items added or changed, newest revision each; only to connections watching the conversation.
   'conversations.chatItems': z.object({ conversationId: z.string(), items: ChatItemList }),
   // Text streamed onto an assistant or reasoning item the client already holds. Item ids are
@@ -621,6 +648,7 @@ export const rpcNotifications = {
   'browser.tabsChanged': z.object({ conversationId: z.string().nullable(), tabs: z.array(BrowserTab) }),
   // Worktrees were cleaned, or their sizes counted: list them again.
   'worktrees.changed': z.object({}),
+  'plugins.changed': z.object({ plugins: z.array(PluginInfo) }),
   'sources.listChanged': z.object({ sources: z.array(SourceDescriptor) }),
   'sources.inboxChanged': z.object({ inbox: SourceInbox }),
   // Sent only to the connection that started the flow.
