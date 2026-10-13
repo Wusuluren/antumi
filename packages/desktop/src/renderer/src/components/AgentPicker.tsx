@@ -1,86 +1,55 @@
-import { useCallback, useState } from 'react'
-import type { AgentKind } from '@kando/protocol'
+import { quotaVerdict, type AgentKind } from '@kando/protocol'
+import { useCore } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
-import { AgentQuotaHint } from './AgentQuota'
-import { AgentIcon, CheckIcon, ChevronDownIcon } from './icons'
-import { Popover } from './Popover'
+import { usePreferences } from '../preferences'
+import { useNow } from '../usage-format'
+import { quotaText } from './AgentQuota'
+import { ChatPicker, type PickerSize } from './ChatPicker'
+import { AgentIcon } from './icons'
 
-// Locked while running (the session already started with this agent) and once abandoned.
-// `labelled` names the agent beside its mark, for a row of labelled buttons.
+// A task's agent, as the app's other pickers choose one: each with its mark and how much of its
+// quota is left. Locked while running (the session already started with this agent) and once
+// abandoned. `labelled` sits it in a row of labelled buttons, as tall as they are.
 export function AgentPicker({
   agent,
   locked,
   onChange,
-  labelled = false
+  labelled = false,
+  size = labelled ? 'large' : undefined
 }: {
   agent: AgentKind | null
   locked: boolean
   onChange: (agent: AgentKind | null) => void
   labelled?: boolean
+  size?: PickerSize
 }) {
-  const [open, setOpen] = useState(false)
-  const close = useCallback(() => setOpen(false), [])
   const installed = useInstalledAgents()
+  const usage = useCore((s) => s.usage)
+  const display = usePreferences((s) => s.usageDisplay)
+  const now = useNow(60_000)
   // The task's own agent stays in the list when it is not here, so what the task says is visible.
   const kinds = agent && !installed.includes(agent) ? [...installed, agent] : installed
-  const label = agent ? agentLabel(agent) : '未选择'
-  const pick = (next: AgentKind | null) => {
-    close()
-    if (next !== agent) {
-      onChange(next)
-    }
-  }
-
   return (
-    <span className="menu-anchor">
-      <button
-        type="button"
-        className={labelled ? 'button agent-button-labelled' : 'tool-button agent-button'}
-        aria-label={`Agent：${label}`}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-disabled={locked}
-        data-tooltip={labelled ? undefined : locked ? `Agent：${label}` : `Agent：${label}（点击切换）`}
-        onClick={() => !locked && setOpen((current) => !current)}
-      >
-        <AgentIcon agent={agent} />
-        {labelled && label}
-        <span className="agent-button-chevron">
-          <ChevronDownIcon />
-        </span>
-      </button>
-      {open && (
-        <Popover label="选择 Agent" onClose={close}>
-          {kinds.map((kind) => (
-            <button
-              key={kind}
-              type="button"
-              className="menu-item"
-              aria-pressed={kind === agent}
-              onClick={() => pick(kind)}
-            >
-              <AgentIcon agent={kind} />
-              <span className="menu-item-title">{agentLabel(kind)}</span>
-              {installed.includes(kind) ? <AgentQuotaHint agent={kind} className="menu-item-path" /> : <span className="menu-item-path">未安装</span>}
-              {kind === agent && (
-                <span className="menu-check">
-                  <CheckIcon />
-                </span>
-              )}
-            </button>
-          ))}
-          {agent && (
-            <>
-              <div className="menu-separator" />
-              <button type="button" className="menu-item" onClick={() => pick(null)}>
-                <AgentIcon agent={null} />
-                <span className="menu-item-title">不指定</span>
-              </button>
-            </>
-          )}
-        </Popover>
-      )}
-    </span>
+    <ChatPicker
+      label="Agent"
+      value={agent ?? ''}
+      placeholder="选择 Agent"
+      options={[
+        ...kinds.map((kind) => ({
+          value: kind,
+          label: agentLabel(kind),
+          icon: <AgentIcon agent={kind} />,
+          description: installed.includes(kind) ? quotaText(quotaVerdict(usage?.[kind], now), display, now) : '未安装'
+        })),
+        ...(agent ? [{ value: '', label: '不指定', icon: <AgentIcon agent={null} /> }] : [])
+      ]}
+      size={size}
+      placement="below"
+      align="end"
+      disabled={locked}
+      title={locked ? `Agent：${agent ? agentLabel(agent) : '未选择'}（这时不能换）` : undefined}
+      onChange={(value) => onChange(kinds.find((kind) => kind === value) ?? null)}
+    />
   )
 }

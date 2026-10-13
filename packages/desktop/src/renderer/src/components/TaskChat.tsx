@@ -22,6 +22,7 @@ import { TaskToolbar } from './TaskActions'
 import { Spinner } from './Spinner'
 import { BoardCrumb } from './TaskBoard'
 import { useTaskHandoff } from './TaskHandoff'
+import { useTodosSupported } from '../conversation-todos'
 
 // What the task kept of a plan in its chat: saved for when it can run. An approved one reads as its
 // answer already does, so it needs no word.
@@ -101,6 +102,7 @@ export function TaskChat({ taskId }: { taskId: string }) {
   const files = useFileTabs((state) => state[conversationId ?? ''] ?? EMPTY_FILE_TABS)
   const plans = usePlans(conversationId ?? '')
   const wire = useWireLogShown() && conversationId !== null
+  const todosShown = useTodosSupported() && conversationId !== null
   const handoff = useTaskHandoff(task)
   const { open: openHandoff } = handoff
   const handoffNow = handoff.available && handoff.blocker === null
@@ -129,7 +131,7 @@ export function TaskChat({ taskId }: { taskId: string }) {
     return null
   }
   const worktree = task.repos.some((repo) => repo.worktreePath !== null)
-  const showInspector = inspectorOpen && (worktree || runs.length > 0 || plans.length > 0 || wire || files.tabs.length > 0)
+  const showInspector = inspectorOpen && (worktree || runs.length > 0 || plans.length > 0 || wire || files.tabs.length > 0 || todosShown)
 
   return (
     <section className="detail terminal-view" aria-label={`${task.title} 的聊天`}>

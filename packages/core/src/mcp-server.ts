@@ -1,4 +1,5 @@
 import { squadToolsOverCore, type SquadTools } from './mcp-squad-tools'
+import { todoToolsOverCore } from './mcp-todo-tools'
 import readline from 'node:readline'
 import { stat } from 'node:fs/promises'
 import { extname, isAbsolute } from 'node:path'
@@ -60,6 +61,8 @@ export type McpTools = {
   // The user's conversations, tasks and group chats, read-only; there unless turned off.
   history?: HistoryTools
   squad?: SquadTools
+  // The conversation's to-dos, there when the server was started for one.
+  todo?: ReturnType<typeof todoToolsOverCore>
 }
 
 export type McpResponse = {
@@ -88,7 +91,7 @@ const describe = (error: unknown) => (error instanceof Error ? error.message : S
 // arguments are the model's to fix, so they come back as a tool error it can read.
 type ToolEntry = { spec: object & { name: string }; run(args: Record<string, unknown>): Promise<McpResult> }
 
-function toolTable({ preview, browser, terminal, history, squad, planOnly }: McpTools): ToolEntry[] {
+function toolTable({ preview, browser, terminal, history, squad, todo, planOnly }: McpTools): ToolEntry[] {
   const entries: ToolEntry[] = [
     {
       spec: PREVIEW_TOOL,
@@ -145,6 +148,8 @@ function toolTable({ preview, browser, terminal, history, squad, planOnly }: Mcp
     }
   }
   if (squad) entries.push(...squad)
+  // Kando's list, not the checkout: a planning agent writes to it too.
+  if (todo) entries.push(...todo)
   return entries
 }
 
@@ -233,7 +238,8 @@ export async function serveMcp(home: string | undefined, conversationId?: string
     preview: checkPreviewFile,
     ...(conversationId ? {
       browser: browserToolsOverCore(withCore, conversationId, new AttachmentStore(kandoPaths(home).attachments)),
-      terminal: terminalToolsOverCore(withCore, conversationId)
+      terminal: terminalToolsOverCore(withCore, conversationId),
+      todo: todoToolsOverCore(withCore, conversationId)
     } : {}),
     ...(history ? { history: historyToolsOverCore(withCore, conversationId ?? null) } : {})
   })

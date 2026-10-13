@@ -50,7 +50,9 @@ describe('development squad user paths', () => {
     expect(sidebar).not.toContain('Delivery')
     const list = renderToStaticMarkup(createElement(SquadsView))
     expect(list).toContain('Delivery')
-    expect(list).toContain('由 Lead（Claude Code）带队')
+    // A card a squad, its leader first and marked, and a card to start another.
+    expect(list).toContain('data-lead="true" title="Lead · Claude Code')
+    expect(list).toContain('新建小队')
     selectSquad(squad.id)
     const overview = renderToStaticMarkup(createElement(SquadsView))
     expect(overview).toContain('队长 · 只读')

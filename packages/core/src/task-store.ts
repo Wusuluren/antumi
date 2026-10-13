@@ -293,7 +293,9 @@ export const MIGRATIONS = [
    ALTER TABLE conversations ADD COLUMN workspace_read_only INTEGER NOT NULL DEFAULT 0;
    CREATE TABLE squads (id TEXT PRIMARY KEY, data TEXT NOT NULL);
    CREATE TABLE squad_runs (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, data TEXT NOT NULL);
-   CREATE INDEX squad_runs_task ON squad_runs(task_id);`
+   CREATE INDEX squad_runs_task ON squad_runs(task_id);`,
+  // A conversation's to-dos (TodoStore): its groups as one JSON list.
+  `CREATE TABLE conversation_todos (conversation_id TEXT PRIMARY KEY, groups TEXT NOT NULL);`
 ]
 
 

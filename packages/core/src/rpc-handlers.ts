@@ -28,6 +28,7 @@ import type { EnvironmentService } from './environment-check'
 import type { ScheduleService } from './schedule-service'
 import type { RoutineService } from './routine-service'
 import type { SquadService } from './squad-service'
+import type { TodoStore } from './todo-store'
 import type { DiscussionService } from './discussion-service'
 import { AgentTerminals } from './agent-terminals'
 import { AgentCliInstaller } from './agent-cli-installation'
@@ -66,6 +67,7 @@ export function createRpcHandlers(
   wire: WireLog,
   gitChanged: () => void = () => {},
   squads?: SquadService,
+  todos?: TodoStore,
   plugins?: PluginService
 ): RpcHandlers {
   const git = new GitService(service, conversations, gitChanged)
@@ -105,6 +107,12 @@ export function createRpcHandlers(
   const pluginService = () => {
     if (!plugins) throw new Rejection('plugins-unavailable', '当前 core 不支持插件')
     return plugins
+  }
+  // A conversation's to-dos, once it is known to be one.
+  const todosOf = (id: string) => {
+    if (!todos) throw new Rejection('todos-unavailable')
+    conversations.get(id)
+    return todos
   }
   return {
     'plugins.list': () => pluginService().list(),
@@ -214,6 +222,11 @@ export function createRpcHandlers(
     'conversations.setAdditionalProjects': ({ id, projectPaths }) => conversations.setAdditionalProjects(id, projectPaths),
     'conversations.rename': ({ id, title }) => conversations.rename(id, title),
     'conversations.setPinned': ({ id, pinned }) => conversations.setPinned(id, pinned),
+    'todos.list': ({ id }) => todosOf(id).list(id),
+    'todos.add': ({ id, ...group }) => todosOf(id).add(id, group),
+    'todos.check': ({ id, groupId, itemId, done }) => todosOf(id).check(id, groupId, itemId, done),
+    'todos.edit': ({ id, groupId, itemId, text }) => todosOf(id).edit(id, groupId, itemId, text),
+    'todos.remove': ({ id, groupId, itemId }) => todosOf(id).remove(id, groupId, itemId),
     'conversations.setArchived': ({ id, archived }) => conversations.setArchived(id, archived),
     'conversations.continue': ({ id, allowBypass }) => userActed(id, () => { squads?.guardUser(id, true); return conversations.continue(id, allowBypass) }),
     'conversations.handoff': ({ id, agent, note, stopRunning, allowBypass, model, effort }) => conversations.handoff(id, agent, note, stopRunning, allowBypass, { model, effort }),

@@ -5,6 +5,7 @@ import { canRevealFile, revealFile } from '../desktop-bridge'
 import { agentLabel } from '../labels'
 import { formatBytes, groupWireEntries, isWireStream, mergeWireEntries, streamLabel, streamText, totalSize, WIRE_DIR_LABEL, WIRE_MARK, wireDetail, wireJsonl, wireLabel, wireMatches, wireSize, wireTime } from '../wire-entries'
 import { CopyButton } from './CopyButton'
+import { ChatPicker } from './ChatPicker'
 import { FolderIcon } from './icons'
 
 // A live stage of a chatty agent outgrows what a list should hold; the oldest go, and paging
@@ -191,15 +192,15 @@ export function WireLogView({ conversationId }: { conversationId: string }) {
     <div className="wire-log">
       <div className="wire-toolbar">
         {shown.stages.length > 1 ? (
-          <select
-            className="input wire-stage"
-            aria-label="Agent 的哪一段"
+          <ChatPicker
+            label="Agent 的哪一段"
             value={chosen ?? ''}
-            onChange={(event) => setChosen(event.target.value || null)}
-          >
-            <option value="">最新一段</option>
-            {shown.stages.map((each) => <option key={each.stageId} value={each.stageId}>{stageText(each)}</option>)}
-          </select>
+            placeholder="最新一段"
+            size="large"
+            placement="below"
+            options={[{ value: '', label: '最新一段' }, ...shown.stages.map((each) => ({ value: each.stageId, label: stageText(each) }))]}
+            onChange={(value) => setChosen(value || null)}
+          />
         ) : (
           stage && <span className="wire-stage-text muted">{stageText(stage)}</span>
         )}

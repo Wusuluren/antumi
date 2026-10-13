@@ -1,12 +1,15 @@
 import { useId, useState, type ReactNode } from 'react'
 import { AgentKind, SquadFields, type Squad, type SquadMember } from '@kando/protocol'
-import { resolveModel, useAgentCatalog } from '../agent-models'
+import { useAgentCatalog } from '../agent-models'
 import { perform, selectSquad, useCore, useSquadsSupported } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
 import { saveSquad } from '../squads'
-import { AgentIcon, ArrowLeftIcon, ChevronRightIcon, CloseIcon, PencilIcon, SquadIcon } from './icons'
+import { timeAgo } from '../conversation-state'
+import { AgentIcon, ArrowLeftIcon, ChevronRightIcon, CloseIcon, PencilIcon, PlusIcon, SquadIcon } from './icons'
+import { AgentModelPicker } from './AgentModelPicker'
 import { effortLabel } from './ChatOptionsBar'
+import { ChatPicker } from './ChatPicker'
 import { Segmented } from './SettingsControls'
 
 const MAX_MEMBERS = 5
@@ -54,36 +57,59 @@ function SquadList() {
   const [tab, setTab] = useState<Tab>('active')
   const tabsId = useId()
   const shown = tab === 'archived' ? archived : all.filter((squad) => squad.archivedAt === null)
+  // Read once a render: the cards say how long ago each changed.
+  const now = Date.now()
   return (
-    <section className="worktree-group squads-section" aria-label="研发小队列表">
-      <div className="routines-tabs">
-        {archived.length > 0 && (
-          <><span id={tabsId} className="visually-hidden">显示</span><Segmented labelId={tabsId} value={tab} options={[{ value: 'active', label: `使用中 · ${all.length - archived.length}` }, { value: 'archived', label: `已归档 · ${archived.length}` }]} onChange={setTab} /></>
-        )}
-        <button type="button" className="link-button routines-new" onClick={() => selectSquad(null, true)}>新建小队</button>
-      </div>
-      {shown.length === 0
-        ? <p className="worktrees-empty muted">{tab === 'archived' ? '没有归档的小队。' : '还没有研发小队。点「新建小队」，按 队长 / 开发 / 审查 的模板配好成员，就能把任务交给小队。'}</p>
-        : <ul className="worktree-list squad-list">{shown.map((squad) => <SquadRow key={squad.id} squad={squad} />)}</ul>}
+    <section className="squads-section" aria-label="研发小队列表">
+      {archived.length > 0 && (
+        <div className="squads-tabs">
+          <span id={tabsId} className="visually-hidden">显示</span>
+          <Segmented labelId={tabsId} value={tab} options={[{ value: 'active', label: `使用中 · ${all.length - archived.length}` }, { value: 'archived', label: `已归档 · ${archived.length}` }]} onChange={setTab} />
+        </div>
+      )}
+      {tab === 'archived' && shown.length === 0 ? <p className="worktrees-empty muted">没有归档的小队。</p> : (
+        <ul className="squad-cards">
+          {shown.map((squad) => <SquadCard key={squad.id} squad={squad} now={now} />)}
+          {/* The header's button again, where the eye ends up: with none yet, it is the page. */}
+          {tab === 'active' && (
+            <li>
+              <button type="button" className="squad-card squad-card-new" onClick={() => selectSquad(null, true)}>
+                <span className="squad-card-plus"><PlusIcon /></span>
+                新建小队
+                <span className="squad-card-new-hint">按 队长 / 开发 / 审查 预填好成员</span>
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
     </section>
   )
 }
 
-function SquadRow({ squad }: { squad: Squad }) {
+// A squad at a glance: its name, what it is for, its members leader first, and when it last changed.
+function SquadCard({ squad, now }: { squad: Squad; now: number }) {
   const leader = leaderOf(squad)
+  const members = leader ? [leader, ...squad.members.filter((member) => member !== leader)] : squad.members
   return (
-    <li className="squad-row" data-archived={squad.archivedAt !== null || undefined}>
-      <button type="button" className="squad-row-open" onClick={() => selectSquad(squad.id)}>
-        <span className="squad-row-icon"><SquadIcon /></span>
-        <span className="squad-row-main">
-          <span className="squad-row-title">{squad.name}</span>
-          {squad.description && <span className="squad-row-description">{squad.description}</span>}
-          <span className="squad-row-meta">
-            {leader && <>由 {leader.name}（{agentLabel(leader.agent)}）带队 · </>}{rosterText(squad)}
-          </span>
+    <li>
+      <button type="button" className="squad-card" data-archived={squad.archivedAt !== null || undefined} onClick={() => selectSquad(squad.id)}>
+        <span className="squad-card-top">
+          <span className="squad-card-icon" aria-hidden="true"><SquadIcon /></span>
+          <span className="squad-card-name">{squad.name}</span>
+          {squad.archivedAt !== null && <span className="squad-tag">已归档</span>}
         </span>
-        <span className="squad-row-agents" aria-hidden="true">{squad.members.map((member) => <AgentIcon key={member.id} agent={member.agent} />)}</span>
-        <ChevronRightIcon />
+        <span className="squad-card-description" data-empty={!squad.description || undefined}>{squad.description || '没有说明'}</span>
+        <span className="squad-card-members">
+          {members.map((member) => (
+            <span key={member.id} className="squad-card-member" data-lead={member === leader || undefined} title={`${member.name} · ${engineText(member)}`}>
+              <AgentIcon agent={member.agent} />{member.name}
+            </span>
+          ))}
+        </span>
+        <span className="squad-card-foot">
+          <span>{rosterText(squad)}</span>
+          <span className="squad-card-time">更新于 {timeAgo(squad.updatedAt, now)}</span>
+        </span>
       </button>
     </li>
   )
@@ -152,7 +178,6 @@ function MemberEditor({ member, leader, open, agents, disabled, onToggle, onChan
   onToggle(): void; onChange(member: SquadMember): void; onLead(): void; onRemove(): void
 }) {
   const catalog = useAgentCatalog(member.agent, open)
-  const resolved = resolveModel(catalog, { model: member.model ?? undefined, effort: member.effort ?? undefined })
   const offered = agents.includes(member.agent) ? agents : [...agents, member.agent]
   return (
     <li className="squad-member-edit" data-open={open || undefined}>
@@ -178,17 +203,26 @@ function MemberEditor({ member, leader, open, agents, disabled, onToggle, onChan
         <fieldset className="squad-member-fields" disabled={disabled}>
           <div className="squad-member-options">
             <label className="squad-field">名称<input className="input" value={member.name} maxLength={60} required onChange={(event) => onChange({ ...member, name: event.target.value })} /></label>
-            <label className="squad-field">Agent<select className="input" value={member.agent} onChange={(event) => {
-              const parsed = AgentKind.safeParse(event.target.value)
-              if (parsed.success) onChange({ ...member, agent: parsed.data, model: null, effort: null })
-            }}>{offered.map((agent) => <option key={agent} value={agent}>{agentLabel(agent)}{agents.includes(agent) ? '' : '（未安装）'}</option>)}</select></label>
-            <label className="squad-field">模型<select className="input" value={member.model ?? ''} onChange={(event) => onChange({ ...member, model: event.target.value || null, effort: null })}>
-              <option value="">{catalog === undefined ? '正在读取…' : 'Agent 默认'}</option>
-              {member.model && !catalog?.models.some((model) => model.id === member.model) && <option value={member.model}>{member.model}</option>}
-              {catalog?.models.map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
-            </select></label>
-            {resolved.efforts.length > 0 && <label className="squad-field">推理级别<select className="input" value={member.effort ?? ''} onChange={(event) => onChange({ ...member, effort: event.target.value || null })}><option value="">模型默认</option>{resolved.efforts.map((effort) => <option key={effort} value={effort}>{effortLabel(effort)}</option>)}</select></label>}
-            {!leader && <label className="squad-field">能力<select className="input" value={member.capability} onChange={(event) => onChange({ ...member, capability: event.target.value === 'develop' ? 'develop' : 'readOnly' })}><option value="readOnly">只读分析 / 审查</option><option value="develop">开发 / 测试</option></select></label>}
+            <div className="squad-field">Agent
+              <ChatPicker label="Agent" value={member.agent} placeholder={agentLabel(member.agent)} size="field" placement="below"
+                options={offered.map((agent) => ({ value: agent, label: agentLabel(agent), icon: <AgentIcon agent={agent} />, description: agents.includes(agent) ? null : '未安装' }))}
+                onChange={(value) => {
+                  const parsed = AgentKind.safeParse(value)
+                  if (parsed.success && parsed.data !== member.agent) onChange({ ...member, agent: parsed.data, model: null, effort: null })
+                }} />
+            </div>
+            <div className="squad-field">模型
+              <AgentModelPicker catalog={catalog} choice={{ model: member.model ?? undefined, effort: member.effort ?? undefined }} size="field"
+                onChange={(next) => onChange({ ...member, model: next.model ?? null, effort: next.effort ?? null })} />
+            </div>
+            {!leader && <div className="squad-field">能力
+              <ChatPicker label="能力" value={member.capability} placeholder="只读分析 / 审查" size="field" placement="below"
+                options={[
+                  { value: 'readOnly', label: '只读分析 / 审查', description: '读代码、分析和审查，不改文件，可以几个并行' },
+                  { value: 'develop', label: '开发 / 测试', description: '改代码、跑测试，和其他开发成员依次进行' }
+                ]}
+                onChange={(value) => onChange({ ...member, capability: value === 'develop' ? 'develop' : 'readOnly' })} />
+            </div>}
           </div>
           <label className="squad-field">角色说明<textarea className="input" value={member.role} maxLength={2000} rows={2} placeholder="职责、专长与交付要求" onChange={(event) => onChange({ ...member, role: event.target.value })} /></label>
         </fieldset>
@@ -308,7 +342,8 @@ export function SquadsView() {
         <SquadPage key={squad.id} squad={squad} />
       ) : (
         <>
-          <PageHeader title="研发小队" description="一个只读的队长带几名成员：队长拆分任务、分派给成员、汇总结果。开始任务时选「交给研发小队」，或在任务的执行者里选它。" back={false} />
+          <PageHeader title="研发小队" description="一个只读的队长带几名成员：队长拆分任务、分派给成员、汇总结果。开始任务时选「交给研发小队」，或在任务的执行者里选它。" back={false}
+            actions={<button type="button" className="button primary" onClick={() => selectSquad(null, true)}><PlusIcon />新建小队</button>} />
           <SquadList />
         </>
       )}

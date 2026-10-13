@@ -1,11 +1,13 @@
 import { GitInspector } from './GitInspector'
 import { useEffect, useState } from 'react'
-import type { Conversation, FolderChanges } from '@kando/protocol'
+import { openTodoCount, type Conversation, type FolderChanges } from '@kando/protocol'
 import { pathShortener, usePlans } from '../chat-state'
 import { clearInspectorFile, setConversationInspectorOpen, setConversationInspectorTab, showConversationPlan, showInspectorFile, useCore } from '../core-store'
 import { ProjectGroups, ProjectRow, useProjectHeads } from './BranchStatus'
 import { ChatPlanView } from './ChatPlan'
 import { ChangedFiles, CommitList, FileDiffView, GIT_TABS, InspectorPanel, useFocusCount, type InspectorTab } from './Inspector'
+import { TodoPanel } from './TodoPanel'
+import { useConversationTodos, useTodosSupported } from '../conversation-todos'
 import { projectName } from './ProjectPicker'
 import { WireLogView } from './WireLogView'
 import { FilePreview } from './FilePreview'
@@ -71,7 +73,9 @@ export function ConversationInspector({ conversation, widthRatio, onWidthRatioCh
   const wanted = useCore((state) => state.conversationInspectorTab)
   const selectedPlan = useCore((state) => state.conversationPlan)
   const plans = usePlans(conversation.id)
-  const tabs: InspectorTab[] = [...(conversation.projectPaths.length > 0 ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(wire ? ['wire' as const] : []), ...(files.tabs.length > 0 ? ['files' as const] : [])]
+  const todosShown = useTodosSupported()
+  const todos = useConversationTodos(todosShown ? conversation.id : null)
+  const tabs: InspectorTab[] = [...(conversation.projectPaths.length > 0 ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(todosShown ? ['todos' as const] : []), ...(wire ? ['wire' as const] : []), ...(files.tabs.length > 0 ? ['files' as const] : [])]
   const tab = tabs.includes(wanted) ? wanted : (tabs[0] ?? 'changes')
   useEffect(() => {
     if (wanted !== 'files') updateFileTabs(conversationId, (state) => state.maximized ? { ...state, maximized: false } : state)
@@ -102,10 +106,13 @@ export function ConversationInspector({ conversation, widthRatio, onWidthRatioCh
       tab={tab}
       onTab={setConversationInspectorTab}
       fileCount={fileCount}
+      todoCount={openTodoCount(todos)}
       onRefresh={() => setRefreshCount((count) => count + 1)}
       onClose={() => setConversationInspectorOpen(false)}
     >
-      {tab === 'files' ? (
+      {tab === 'todos' ? (
+        <TodoPanel conversationId={conversation.id} />
+      ) : tab === 'files' ? (
         <FilePreview conversationId={conversationId} updatedAt={conversation.updatedAt} inspector="conversation" onEmpty={onEmpty} />
       ) : tab === 'wire' ? (
         <WireLogView conversationId={conversation.id} />

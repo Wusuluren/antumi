@@ -13,7 +13,7 @@ import { ChatRoots } from './ChatMarkdown'
 import type { RequestItem } from './ChatRequestCards'
 import { ChatPaths } from './ChatToolCard'
 import { scheduleErrorToastDismiss } from './ErrorToast'
-import { ChevronRightIcon, CloseIcon } from './icons'
+import { AgentIcon, ChevronRightIcon, CloseIcon } from './icons'
 
 type StateItem = Extract<ChatItem, { kind: 'state' }>
 
@@ -147,7 +147,7 @@ export function RequestPopup() {
         <header className="request-popup-header">
           <span className="request-popup-label">{popupLabel(entry.request)}</span>
           <span className="request-popup-title" title={entry.title}>{entry.title}</span>
-          <span className="request-popup-agent">{agentLabel(conversation.agent)}</span>
+          <span className="request-popup-agent" role="img" aria-label={agentLabel(conversation.agent)} title={agentLabel(conversation.agent)}><AgentIcon agent={conversation.agent} /></span>
           <span className="request-popup-spacer" />
           {queue.length > 1 && (
             <span className="request-popup-pager">

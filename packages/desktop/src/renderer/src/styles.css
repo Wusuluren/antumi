@@ -1290,31 +1290,6 @@ button.task-tag:hover {
   display: none;
 }
 
-.agent-button {
-  display: inline-flex;
-  width: auto;
-  gap: 1px;
-  padding: 0 3px 0 6px;
-}
-
-.agent-button[aria-disabled='true'] {
-  cursor: not-allowed;
-}
-
-.agent-button[aria-disabled='true'] .agent-button-chevron {
-  visibility: hidden;
-}
-
-.agent-button-chevron {
-  display: grid;
-  color: var(--text-muted);
-}
-
-.tool-button .agent-button-chevron svg {
-  width: 12px;
-  height: 12px;
-}
-
 .agent-mark {
   flex-shrink: 0;
 }
@@ -1510,19 +1485,6 @@ button.task-tag:hover {
   background: var(--fill);
   border-color: var(--border-2);
   color: var(--text-muted);
-}
-
-.button.agent-button-labelled[aria-disabled='true'] {
-  cursor: not-allowed;
-}
-
-.agent-button-labelled .agent-button-chevron svg {
-  width: 12px;
-  height: 12px;
-}
-
-.agent-button-labelled[aria-disabled='true'] .agent-button-chevron {
-  display: none;
 }
 
 .button.task-scheduled svg {
@@ -2708,14 +2670,13 @@ body.side-panel-resizing * {
   border-bottom: 1px solid var(--border);
 }
 
-.wire-stage,
 .wire-search {
   width: auto;
   min-width: 0;
   padding: 4px 8px;
 }
 
-.wire-stage,
+.wire-toolbar .chat-picker,
 .wire-stage-text {
   flex: 1 1 120px;
 }
@@ -3743,7 +3704,6 @@ body.side-panel-resizing * {
 }
 
 .new-task-properties .chip,
-.new-task-agent-chip,
 .new-task-property-chip {
   display: inline-flex;
   align-items: center;
@@ -3765,28 +3725,16 @@ body.side-panel-resizing * {
 }
 
 .new-task-properties .chip-add-button svg,
-.new-task-agent-chip svg,
 .new-task-property-chip svg {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
 }
 
-.new-task-agent-chip {
-  position: relative;
-  cursor: pointer;
-}
+/* The executor is the app's picker, shaped as the chips beside it. */
+.new-task-agent-chip .chat-picker { height: 36px; padding: 0 10px 0 12px; border-color: var(--border); border-radius: 999px; color: var(--text-muted); }
+.new-task-agent-chip .chat-picker-icon .agent-mark, .new-task-agent-chip .chat-picker-icon svg { width: 16px; height: 16px; }
 
-.new-task-agent-chip select {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.new-task-agent-chip:focus-within,
 .new-task-property-chip:focus-visible,
 .new-task-attach:focus-visible {
   outline: 2px solid var(--focus);
@@ -5383,6 +5331,7 @@ body.side-panel-resizing * {
   font-family: var(--mono);
   font-size: 0.92em;
   padding: 0 4px;
+  border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   background: var(--fill);
 }
@@ -5393,7 +5342,34 @@ body.side-panel-resizing * {
   border-radius: var(--radius-sm);
   background: var(--fill);
 }
-.chat-markdown pre code { padding: 0; background: none; }
+.chat-markdown pre code { padding: 0; border: 0; background: none; }
+/* A reply's structure in type alone: headings a step or two over the text, markers and quotes a
+   shade under it, rules and tables in hairlines. Colour is left to links, code and alerts. */
+.chat-markdown :is(h1, h2, h3, h4, h5, h6) { margin: 1em 0 0.4em; color: var(--text); font-weight: 600; line-height: 1.35; }
+.chat-markdown h1 { font-size: 1.25em; }
+.chat-markdown h2 { font-size: 1.15em; }
+.chat-markdown h3 { font-size: 1.05em; }
+.chat-markdown :is(h4, h5, h6) { font-size: 1em; }
+.chat-markdown :is(ul, ol) { padding-left: 1.4em; }
+.chat-markdown li { margin: 0.2em 0; }
+.chat-markdown li::marker { color: var(--text-3); }
+.chat-markdown blockquote { margin: 0.6em 0; padding: 0 0 0 12px; border-left: 3px solid var(--border-2); color: var(--text-muted); }
+.chat-markdown hr { margin: 1.2em 0; border: 0; border-top: 1px solid var(--border); }
+.chat-markdown .contains-task-list { padding-left: 0.2em; list-style: none; }
+.chat-markdown .task-list-item input { margin: 0 0.45em 0 0; vertical-align: -1px; accent-color: var(--accent); }
+/* GitHub's alerts ([!NOTE] and the rest): a bar and a faint wash in the colour of the kind, its
+   name above the text. */
+.chat-markdown .chat-alert { --alert: var(--info); padding: 6px 12px; border-left-color: var(--alert); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: color-mix(in srgb, var(--alert) 8%, transparent); color: var(--text); }
+.chat-markdown .chat-alert::before { display: block; margin-bottom: 2px; color: var(--alert); font-weight: 600; }
+.chat-markdown .chat-alert[data-alert='note']::before { content: '说明'; }
+.chat-markdown .chat-alert[data-alert='tip'] { --alert: var(--status-done); }
+.chat-markdown .chat-alert[data-alert='tip']::before { content: '提示'; }
+.chat-markdown .chat-alert[data-alert='important'] { --alert: var(--accent); }
+.chat-markdown .chat-alert[data-alert='important']::before { content: '重要'; }
+.chat-markdown .chat-alert[data-alert='warning'] { --alert: var(--warning); }
+.chat-markdown .chat-alert[data-alert='warning']::before { content: '警告'; }
+.chat-markdown .chat-alert[data-alert='caution'] { --alert: var(--danger); }
+.chat-markdown .chat-alert[data-alert='caution']::before { content: '注意'; }
 /* A file a reply names: its code, underlined, showing the file in the file manager. */
 .chat-file-link {
   display: inline;
@@ -5516,9 +5492,12 @@ body.side-panel-resizing * {
 .chat-entry:hover > .chat-user-footer,
 .chat-user-footer:focus-within { opacity: 1; }
 .chat-message-time { align-self: center; margin-left: 2px; color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
-.chat-markdown table { border-collapse: collapse; }
+/* A block so a wide table scrolls by itself; as wide as its columns, so the frame hugs them. */
+.chat-markdown table { display: block; width: max-content; max-width: 100%; margin: 0.6em 0; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); border-collapse: separate; border-spacing: 0; }
 .chat-markdown th,
-.chat-markdown td { padding: 2px 8px; border: 1px solid var(--border); }
+.chat-markdown td { padding: 6px 12px; text-align: left; vertical-align: top; }
+.chat-markdown th { background: var(--fill); font-weight: 600; }
+.chat-markdown td { border-top: 1px solid var(--border); }
 .chat-markdown a { color: var(--accent); }
 
 /* The thought itself: quieter than the reply it leads to, and no taller than a screen's share.
@@ -7023,22 +7002,6 @@ body.side-panel-resizing * {
   padding: 0 6px 6px;
 }
 
-.chat-select {
-  max-width: 180px;
-  padding: 2px 6px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-
-.chat-select:hover:not(:disabled),
-.chat-select:focus-visible { background: var(--surface-muted); color: var(--text); }
-.chat-select:disabled { cursor: default; opacity: 0.6; }
 
 /* The composer's choices: a value as wide as its words with a small chevron, opening a menu above
    it where each choice says what it means. */
@@ -7076,9 +7039,12 @@ body.side-panel-resizing * {
 /* An agent picked to hand the chat to: the next send goes to it. */
 .chat-picker[data-tone='handoff'] { color: var(--accent); font-weight: 600; }
 /* Beside the task's buttons: a button's height, edge and type. */
-.chat-picker[data-size='large'] { max-width: 280px; height: 32px; padding: 0 8px 0 12px; gap: 6px; border: 1px solid var(--border-2); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 13px; }
-.chat-picker[data-size='large']:hover:not(:disabled),
-.chat-picker[data-size='large'][aria-expanded='true'] { background: var(--fill); }
+.chat-picker:is([data-size='large'], [data-size='field']) { max-width: 280px; height: 32px; padding: 0 8px 0 12px; gap: 6px; border: 1px solid var(--border-2); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 13px; }
+.chat-picker:is([data-size='large'], [data-size='field']):hover:not(:disabled),
+.chat-picker:is([data-size='large'], [data-size='field'])[aria-expanded='true'] { background: var(--fill); }
+/* A labelled field: the form's width, the value at the start and the arrow at the end, as an input. */
+.chat-picker[data-size='field'] { width: 100%; max-width: none; justify-content: space-between; }
+.chat-picker[data-size='field'] .chat-picker-value { flex: 1; text-align: left; }
 
 .chat-picker-heading {
   padding: 4px 8px 2px;
@@ -7319,7 +7285,7 @@ body.side-panel-resizing * {
 .chat-plan-view-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
 .chat-plan-view-status-text { min-width: 0; }
 .chat-plan-view-status[data-waiting] > .chat-plan-view-status-text { color: var(--warning); }
-.chat-plan-view-status .chat-select { max-width: 100%; margin-left: -6px; }
+.chat-plan-view-status .chat-picker { max-width: 100%; margin-left: -8px; }
 .chat-plan-view-actions { display: flex; flex: none; align-items: center; gap: 2px; margin-left: auto; }
 .chat-plan-view-actions .tool-button { width: 24px; height: 24px; }
 .chat-plan-view-actions .tool-button svg { width: 14px; height: 14px; }
@@ -7442,7 +7408,6 @@ body.side-panel-resizing * {
   .chat-latest,
   .chat-working,
   .chat-changes,
-  .chat-select,
   .chat-picker,
   .chat-picker-chip,
   .chat-context,
@@ -8143,7 +8108,7 @@ body.side-panel-resizing * {
 .git-manager { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; container: git / inline-size; font-size: var(--chat-font-size, 14px); }
 .git-project-bar, .git-toolbar, .git-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 12px; flex-shrink: 0; }
 .git-project-bar { border-bottom: 1px solid var(--border); flex-wrap: nowrap; }
-.git-project-bar select { flex: 1; min-width: 0; }
+.git-project-bar .chat-picker { flex: 1; max-width: none; }
 .git-summary { gap: 4px 8px; font-size: var(--chat-font-small, 12px); }
 .git-summary > .mono { overflow: hidden; text-overflow: ellipsis; }
 .git-summary svg { width: 16px; height: 16px; }
@@ -8212,7 +8177,6 @@ body.side-panel-resizing * {
 .git-commit-message { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; margin: 0; padding: 8px 12px; }
 .git-commit-headline { font-weight: 600; }
 .git-parent { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 12px; font-size: var(--chat-font-small, 12px); }
-.git-parent select { min-width: 0; }
 .git-commit-files, .git-comparison-commits { padding: 8px; border-top: 1px solid var(--border); }
 .git-commit-files .changed-file { font-size: var(--chat-font-small, 12px); }
 .git-comparison-commits { font-size: var(--chat-font-small, 12px); max-height: 160px; overflow: auto; }
@@ -8300,11 +8264,8 @@ body.side-panel-resizing * {
 .task-quick-add-title { padding: 0; border: 0; outline: 0; resize: none; overflow: hidden; background: transparent; color: var(--text); font: inherit; font-weight: 500; line-height: 1.5; }
 .task-quick-add-title::placeholder { color: var(--text-3); font-weight: 400; }
 .task-quick-add-picks { display: flex; flex-wrap: wrap; gap: 4px; }
-.task-quick-add-pick { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius-sm); background: var(--fill); color: var(--text-muted); font: inherit; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.task-quick-add-pick:hover, .task-quick-add-pick[aria-expanded='true'] { background: var(--fill-2); color: var(--text); }
-.task-quick-add-pick[data-empty] { color: var(--text-3); }
-.task-quick-add-pick svg { width: 14px; height: 14px; flex-shrink: 0; }
-.task-quick-add-agent { display: grid; place-items: center; width: 14px; height: 14px; }
+/* The app's pickers, on a wash so they read as choices inside the field. */
+.task-quick-add-picks .chat-picker { background: var(--fill); }
 .task-quick-add-hint { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--text-3); }
 .task-card-title { padding: 0; border: 0; background: none; color: var(--text); font: inherit; font-weight: 500; text-align: left; cursor: pointer; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .task-card-title:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-xs); }
@@ -8335,19 +8296,12 @@ body.side-panel-resizing * {
 .board-crumb-link:hover { color: var(--text); }
 .board-crumb-sep { color: var(--text-3); }
 
-/* The sidebar's way to the board, and under it the tasks someone is at. */
-.sidebar-tasks { flex: 0 1 auto; min-height: 0; max-height: 45%; display: flex; flex-direction: column; margin-bottom: 4px; }
+/* The sidebar's way to the board, with what is running and waiting counted on it. */
+.sidebar-tasks { flex: 0 0 auto; margin-bottom: 4px; }
 .sidebar-tasks-entry { position: relative; display: flex; }
 .sidebar-tasks-entry .inbox-entry { margin: 0 8px; padding-right: 40px; }
 .sidebar-tasks-add { position: absolute; top: 50%; right: 14px; transform: translateY(-50%); }
 .sidebar-tasks-counts { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--text-muted); white-space: nowrap; }
-/* Lined up with the conversations' rows: the 任务 heading above says whose they are. */
-/* Six one-line rows at most (a line, 10px of padding and the border each), then it scrolls: the
-   board holds the rest, and the conversations keep their room. */
-.sidebar-tasks-active { min-height: 0; max-height: calc(6 * (1.5em + 12px)); overflow-y: auto; margin: 2px 8px 0; padding: 0; list-style: none; }
-.sidebar-tasks-active .task-row { grid-template-columns: 16px minmax(0, 1fr) auto; padding: 5px 12px; }
-.sidebar-tasks-active .task-row-tags { grid-column: 2 / span 2; }
-.active-task-awaiting { width: 6px; height: 6px; margin-top: 7px; border-radius: 50%; background: var(--accent); }
 
 /* The card of waiting requests, alone in its own window at the top of the screen (main's
    request-popup.ts). The window is clear: the card draws its edge and shadow inside a margin, and
@@ -8373,7 +8327,8 @@ body.side-panel-resizing * {
 }
 .request-popup-label { flex-shrink: 0; color: var(--accent); font-weight: 600; }
 .request-popup-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
-.request-popup-agent { flex-shrink: 0; color: var(--text-3); }
+.request-popup-agent { flex-shrink: 0; display: grid; place-items: center; color: var(--text-3); }
+.request-popup-agent .agent-mark { width: 16px; height: 16px; }
 .request-popup-spacer { flex: 1; }
 .request-popup-pager { display: flex; flex-shrink: 0; align-items: center; gap: 4px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .request-popup-header .link-button { flex-shrink: 0; margin-left: 4px; }
@@ -8499,6 +8454,14 @@ body.side-panel-resizing * {
    chat app's short bubble. */
 .discussion-msg-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; max-width: 100%; }
 .discussion-msg[data-mine] .discussion-msg-body { align-items: flex-end; max-width: min(78%, 640px); }
+/* A member's post leaves the right-hand column the user's face takes, so the two sides mirror;
+   side by side, each opening has its own column and takes it whole. */
+.discussion-msg:not([data-mine]) .discussion-msg-body { max-width: calc(100% - 46px); }
+.discussion-openings[data-side-by-side] .discussion-msg-body { max-width: 100%; }
+.discussion-reply-foot { display: flex; justify-content: flex-end; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-2); font-size: var(--chat-font-small); }
+.discussion-msg-actions { display: flex; gap: 2px; height: 22px; margin: -2px 0 0 -6px; opacity: 0; transition: opacity 0.12s; }
+.discussion-msg[data-mine] .discussion-msg-actions { margin: -2px -6px 0 0; }
+.discussion-msg:hover .discussion-msg-actions, .discussion-msg-actions:focus-within { opacity: 1; }
 .discussion-msg-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: var(--chat-font-small); color: var(--text-3); }
 .discussion-msg-name { color: var(--text-muted); font-weight: 500; }
 .discussion-msg-time { font-variant-numeric: tabular-nums; }
@@ -8572,7 +8535,7 @@ body.side-panel-resizing * {
 .discussion-draft > .discussion-draft-from { padding: 8px 12px; border-radius: var(--radius); background: var(--accent-bg); font-size: 12px; }
 .discussion-draft-options { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
 .discussion-draft-options label { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); }
-.discussion-draft-options select { padding: 2px 8px; border: 1px solid var(--border-2); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+.discussion-draft-rounds { display: inline-flex; align-items: center; gap: 2px; }
 .discussion-draft input[type='radio'],
 .discussion-draft input[type='checkbox'] { accent-color: var(--accent); }
 
@@ -8583,21 +8546,33 @@ body.side-panel-resizing * {
 .sidebar-squads { margin: 0 8px 4px; }
 .squads-page .worktrees-header > .tool-button:first-child { margin-left: -6px; }
 .squad-roster svg { width: 20px; height: 20px; flex-shrink: 0; }
-.squad-list { overflow: hidden; }
-.squad-row + .squad-row { border-top: 1px solid var(--border); }
-.squad-row-open { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
-.squad-row-open:hover { background: var(--surface-muted); }
-.squad-row-open:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.squad-row-open > svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-3); }
-.squad-row-icon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: var(--fill); color: var(--text-muted); }
-.squad-row-icon svg { width: 18px; height: 18px; }
-.squad-row-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.squad-row-title { font-weight: 600; font-size: 14px; }
-.squad-row-description, .squad-row-meta { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.squad-row-meta { color: var(--text-3); }
-.squad-row-agents { display: flex; gap: 4px; flex-shrink: 0; }
-.squad-row-agents svg { width: 16px; height: 16px; }
-.squad-row[data-archived] .squad-row-title { color: var(--text-muted); }
+.squad-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.squad-cards > li { display: flex; }
+.squad-card { flex: 1; min-width: 0; min-height: 168px; display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.squad-card:hover { border-color: var(--border-2); box-shadow: var(--shadow); background: linear-gradient(var(--fill), var(--fill)), var(--surface); }
+.squad-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.squad-card[data-archived] { opacity: 0.7; }
+.squad-card-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.squad-card-icon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: var(--radius); background: var(--accent-bg); color: var(--accent); }
+.squad-card-icon svg { width: 18px; height: 18px; }
+.squad-card-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.squad-card-description { min-height: 3.2em; font-size: 12px; line-height: 1.6; color: var(--text-muted); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.squad-card-description[data-empty] { color: var(--text-3); }
+.squad-card-members { display: flex; flex-wrap: wrap; gap: 4px; }
+.squad-card-member { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px 0 6px; border-radius: 999px; background: var(--fill-2); font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.squad-card-member svg { width: 14px; height: 14px; }
+.squad-card-member[data-lead] { background: var(--accent-bg); color: var(--accent); }
+.squad-card-foot { margin-top: auto; display: flex; gap: 8px; font-size: 12px; color: var(--text-3); }
+.squad-card-time { margin-left: auto; white-space: nowrap; }
+.squad-card-new { align-items: center; justify-content: center; gap: 6px; border-style: dashed; border-color: var(--border-2); background: transparent; color: var(--text-muted); text-align: center; }
+.squad-card-new:hover { border-color: var(--border-2); box-shadow: none; background: var(--fill); color: var(--text); }
+.squad-card-plus { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--fill-2); }
+.squad-card-plus svg { width: 16px; height: 16px; }
+.squad-card-new-hint { font-size: 12px; color: var(--text-3); }
+.squads-tabs { margin: 0 0 12px; }
+/* Every squad page reads on one centred column, so going from the list into a squad or its editor
+   moves nothing sideways. */
+.squads-page > * { width: 100%; max-width: 880px; margin-inline: auto; }
 
 .squad-page-body { display: flex; flex-direction: column; gap: 20px; max-width: 880px; }
 .squad-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
@@ -8651,7 +8626,41 @@ button.squad-member-main { cursor: pointer; }
 .squad-work-instruction { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .squad-work details, .squad-run details { overflow-wrap: anywhere; }
 .squad-member-nav { padding: 8px 16px; border-bottom: 1px solid var(--border); }
-.task-executor-picker .input { width: auto; max-width: 240px; }
+
+/* To-dos in the inspector: a group a hairline card, its heading on a wash, items as rows. Colour
+   only for the boxes ticked; a finished group folds under 已完成. */
+.todo-panel { display: flex; flex-direction: column; gap: 12px; }
+.todo-panel-head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+.todo-link { margin-left: auto; height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.todo-link:hover { background: var(--fill); color: var(--text); }
+.todo-empty { margin: 0; font-size: 12px; line-height: 1.7; color: var(--text-muted); }
+.todo-group { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--surface); }
+.todo-group-head { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; background: var(--fill); }
+.todo-group-title { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 13px; font-weight: 600; }
+.todo-group-note { font-size: 12px; font-weight: 400; color: var(--text-3); }
+.todo-group-count { font-size: 12px; color: var(--text-3); white-space: nowrap; line-height: 20px; }
+.todo-text-button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: text; overflow-wrap: anywhere; }
+.todo-items { margin: 0; padding: 4px 0; list-style: none; }
+.todo-item { display: flex; align-items: flex-start; gap: 8px; padding: 4px 12px; font-size: 13px; }
+.todo-item:hover { background: var(--fill); }
+.todo-item-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.todo-item[data-done] .todo-item-text { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-3); }
+.todo-item .title-editor, .todo-group-title .title-editor { flex: 1; min-width: 0; margin: -2px 0; font-size: 13px; }
+.todo-owner { flex-shrink: 0; padding: 0 6px; border-radius: var(--radius-xs); background: var(--fill-2); font-size: 12px; line-height: 20px; color: var(--text-muted); }
+.todo-group input[type='checkbox'] { width: 14px; height: 14px; margin: 3px 0 0; flex-shrink: 0; accent-color: var(--accent); cursor: pointer; }
+.todo-actions { display: none; gap: 2px; flex-shrink: 0; }
+.todo-item:hover .todo-actions, .todo-item:focus-within .todo-actions, .todo-group-head:hover .todo-actions, .todo-group-head:focus-within .todo-actions { display: flex; }
+.todo-item:hover .todo-owner { display: none; }
+.todo-actions button { height: 20px; padding: 0 6px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; }
+.todo-actions button:hover { background: var(--fill-2); color: var(--text); }
+.todo-finished summary { cursor: pointer; font-size: 12px; color: var(--text-muted); }
+.todo-finished .todo-group { margin-top: 8px; }
+.todo-new { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border-2); border-radius: var(--radius-lg); }
+.todo-new-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* How many to-dos wait, on the inspector's button while the panel is closed. */
+.tool-button:has(.tool-button-badge) { position: relative; }
+.tool-button-badge { position: absolute; top: 0; right: 0; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-size: 10px; font-weight: 600; line-height: 14px; text-align: center; pointer-events: none; }
 
 .plugin-install { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
 .plugin-install > .button { align-self: flex-start; }

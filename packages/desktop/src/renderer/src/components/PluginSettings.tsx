@@ -3,6 +3,7 @@ import type { PluginInfo, PluginInstallSource } from '@kando/protocol'
 import { perform, useCore } from '../core-store'
 import { pickPlugin } from '../desktop-bridge'
 import { Toggle } from './SettingsControls'
+import { ChatPicker } from './ChatPicker'
 
 export function PluginSettings() {
   const ids = useId()
@@ -98,9 +99,9 @@ export function PluginSettings() {
           <div className="plugin-actions">
             {plugin.origin.kind !== 'bundled' && <button className="button" disabled={busy} onClick={() => { void run((connection) => connection.call('plugins.update', { id: plugin.id }), '已检查并应用可用更新') }}>检查并更新</button>}
             {plugin.problem && <button className="button" disabled={busy} onClick={() => { void run((connection) => connection.call('plugins.setEnabled', { id: plugin.id, enabled: true }), '插件已重新加载') }}>重试加载</button>}
-            {plugin.versions.length > 1 && <select className="input" aria-label={`${plugin.id} 切换版本`} value={plugin.version} disabled={busy} onChange={(event) => { void run((connection) => connection.call('plugins.rollback', { id: plugin.id, version: event.target.value }), '插件版本已切换') }}>
-              {plugin.versions.map((version) => <option key={version} value={version}>{version}{version === plugin.version ? '（当前）' : ''}</option>)}
-            </select>}
+            {plugin.versions.length > 1 && <ChatPicker label={`${plugin.id} 切换版本`} value={plugin.version} placeholder="选择版本" size="large" placement="below" disabled={busy}
+              options={plugin.versions.map((version) => ({ value: version, label: `${version}${version === plugin.version ? '（当前）' : ''}` }))}
+              onChange={(version) => { void run((connection) => connection.call('plugins.rollback', { id: plugin.id, version }), '插件版本已切换') }} />}
             <button className="button ghost" disabled={busy} onClick={() => setRemove(plugin.id)}>卸载</button>
           </div>
           {remove === plugin.id && <div className="plugin-actions">

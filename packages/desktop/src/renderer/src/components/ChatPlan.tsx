@@ -7,6 +7,7 @@ import { PlanComments } from './PlanComments'
 import { useChatSurface } from './chat-surface'
 import { ChatMarkdown } from './ChatMarkdown'
 import { useResponder } from './ChatRequestCards'
+import { ChatPicker } from './ChatPicker'
 import { SchedulePicker } from './SchedulePicker'
 import { perform, useCore, usePlanModesSupported, useSchedulesSupported } from '../core-store'
 import { setPreference, usePreferences, type Preferences } from '../preferences'
@@ -361,9 +362,14 @@ export function ChatPlanView({ conversationId, plans, selected, onSelect, note =
       <div className="chat-plan-view-status" data-waiting={plan.resolution === null || undefined}>
         <div className="chat-plan-view-status-text">
           {plans.length > 1 ? (
-            <select className="chat-select" aria-label="计划的版本" value={itemKey(plan)} onChange={(event) => onSelect(event.target.value)}>
-              {plans.map((each, index) => <option key={itemKey(each)} value={itemKey(each)}>第 {index + 1} 版 · {said(each)}</option>)}
-            </select>
+            <ChatPicker
+              label="计划的版本"
+              value={itemKey(plan)}
+              placeholder={`第 ${version} 版`}
+              placement="below"
+              options={plans.map((each, index) => ({ value: itemKey(each), label: `第 ${index + 1} 版 · ${said(each)}` }))}
+              onChange={onSelect}
+            />
           ) : said(plan)}
           {plan.resolution === null && <span className="muted"> · 在对话下方确认</span>}
         </div>
