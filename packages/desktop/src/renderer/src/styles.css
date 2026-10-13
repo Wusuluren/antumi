@@ -52,6 +52,12 @@
   --shadow-float: 0 6px 20px light-dark(rgb(0 0 0 / 16%), transparent);
   --font: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Page widths on a wide window, by what a page is for (DESIGN.md, 页面宽度): what is read keeps
+     to a measure, a form or a page about one thing a little wider, an overview wider still. Lists
+     and the board take the whole pane. */
+  --page-reading: 800px;
+  --page-form: 896px;
+  --page-wide: 1152px;
   color-scheme: light;
 }
 
@@ -1441,7 +1447,8 @@ button.task-tag:hover {
 .task-detail-layout {
   flex: 1 0 auto;
   width: 100%;
-  max-width: 1100px;
+  /* The main column at the reading width, beside the 260px aside and the gap. */
+  max-width: calc(var(--page-reading) + 300px);
   margin-inline: auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 260px;
@@ -3573,6 +3580,15 @@ body.side-panel-resizing * {
   height: calc(100vh - 32px);
 }
 
+/* Grown to the window, what is written still keeps to the reading measure; the header and the
+   footer stay at the edges, as a toolbar does. */
+.new-task-dialog[data-expanded] :is(.new-task-editor, .new-task-images) {
+  padding-inline: max(28px, calc((100% - var(--page-reading)) / 2));
+}
+.new-task-dialog[data-expanded] .new-task-properties {
+  padding-inline: max(24px, calc((100% - var(--page-reading)) / 2 - 4px));
+}
+
 .new-task-body {
   height: 100%;
   min-height: 0;
@@ -4024,7 +4040,7 @@ body.side-panel-resizing * {
 }
 
 .settings-inner {
-  max-width: 760px;
+  max-width: var(--page-form);
   margin: 0 auto;
   padding: 40px 32px 96px;
 }
@@ -5178,7 +5194,7 @@ body.side-panel-resizing * {
    lies on the page as the content, and the composer's own box sets it apart from the messages. */
 .chat-view {
   position: relative;
-  --chat-width: 800px;
+  --chat-width: var(--page-reading);
   --chat-font-size: 14px;
   /* Two steps only, base and small: in-between sizes read as drift. */
   --chat-font-compact: var(--chat-font-size);
@@ -7952,6 +7968,7 @@ body.side-panel-resizing * {
 /* Dashboard: one surface per panel with a hairline border; series in --info, task runs solid and
    conversation turns a lighter step of it, so the two read apart without a second hue. */
 .dashboard-page { --series-runs: var(--info); --series-turns: color-mix(in srgb, var(--info) 35%, transparent); --heat-cell: 11px; }
+.dashboard-page > * { width: 100%; max-width: var(--page-wide); margin-inline: auto; }
 .dashboard-page .worktrees-header { align-items: center; }
 .dashboard-refresh { display: grid; }
 .dashboard-refresh[data-loading] svg { animation: spin 1s linear infinite; }
@@ -8222,14 +8239,10 @@ body.side-panel-resizing * {
    one raised thing on it, a hairline each; colour goes only to the step a card offers and to an
    agent waiting for the user. */
 .task-board { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--surface); container-type: inline-size; }
-/* Header and columns share one rail, capped and centred as Orca's agent board is: past four
-   readable columns more width only stretches the cards. Below the cap it is the whole pane. */
-.task-board-header, .task-board-columns { width: 100%; max-width: 1440px; margin-inline: auto; }
 .task-board-header { display: flex; align-items: center; gap: 8px; padding: 16px 20px 12px; flex-wrap: wrap; }
 .task-board-header h2 { margin: 0 8px 0 0; font-size: 18px; }
-/* With the sidebar away the header shares the window's corner with the app's name and switch, and
-   keeps clear of them by what the rail's centring leaves short. */
-.app[data-sidebar-hidden] .task-board-header { padding-left: max(20px, calc(var(--window-brand-end) - max(0px, (100cqw - 1440px) / 2))); }
+/* With the sidebar away the header shares the window's corner with the app's name and switch. */
+.app[data-sidebar-hidden] .task-board-header { padding-left: max(20px, var(--window-brand-end)); }
 .task-board-search { flex: 0 1 220px; min-width: 120px; width: auto; height: 28px; padding: 0 10px; font-size: 12px; }
 .task-board-spacer { flex: 1; }
 .task-board-chip { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border: 1px solid var(--border-2); border-radius: var(--radius); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; }
@@ -8239,9 +8252,11 @@ body.side-panel-resizing * {
 .task-board-chip .inbox-entry-count, .task-board-chip .inbox-entry-alert { margin-left: 4px; min-width: 18px; line-height: 18px; }
 .task-board-new { height: 28px; font-size: 12px; }
 .task-board-key { opacity: 0.7; }
-/* The columns share the width down to a readable one, past which the board scrolls sideways; each
-   scrolls down by itself, so a long done column does not push the others out of view. */
-.task-board-columns { flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 1fr); gap: 12px; padding: 4px 20px 20px; overflow-x: auto; overflow-y: hidden; }
+/* The board takes the whole pane, as a list does. The columns share it between a readable width,
+   past which the board scrolls sideways, and a card's, past which more room is left over rather
+   than stretching the cards. Each scrolls down by itself, so a long done column does not push the
+   others out of view. */
+.task-board-columns { flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 400px); gap: 12px; padding: 4px 20px 20px; overflow-x: auto; overflow-y: hidden; }
 /* Each column a wash of its status colour, as Multica's board has, the cards sitting on it. The
    sticky title lays the same wash over the surface, so it stays opaque over cards scrolling under. */
 .task-board-column { --column-tint: color-mix(in srgb, var(--status-pending) 7%, transparent); min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 8px 8px; border-radius: var(--radius-lg); background: var(--column-tint); }
@@ -8502,7 +8517,7 @@ body.side-panel-resizing * {
 .discussion-summary-body { padding: 8px 12px; }
 .discussion-summary-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 12px; border-top: 1px solid var(--border); font-size: var(--chat-font-small); color: var(--text-3); }
 
-.discussion-draft { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px max(24px, calc((100% - 960px) / 2)) 24px; background: var(--surface); }
+.discussion-draft { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px max(24px, calc((100% - var(--page-form)) / 2)) 24px; background: var(--surface); }
 .discussion-draft > p { margin: 0; }
 .discussion-draft-field { display: flex; flex-direction: column; gap: 8px; }
 .discussion-draft-field > span { font-weight: 600; font-size: 12px; color: var(--text-muted); }
@@ -8579,9 +8594,9 @@ body.side-panel-resizing * {
 .squads-tabs { margin: 0 0 12px; }
 /* Every squad page reads on one centred column, so going from the list into a squad or its editor
    moves nothing sideways. */
-.squads-page > * { width: 100%; max-width: 880px; margin-inline: auto; }
+.squads-page > * { width: 100%; max-width: var(--page-form); margin-inline: auto; }
 
-.squad-page-body { display: flex; flex-direction: column; gap: 20px; max-width: 880px; }
+.squad-page-body { display: flex; flex-direction: column; gap: 20px; }
 .squad-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .squad-header-actions .button svg { width: 14px; height: 14px; }
 .squad-block { display: flex; flex-direction: column; gap: 6px; }
