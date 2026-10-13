@@ -38,6 +38,7 @@ import { cleanCommitMessage, commitContext, commitMessagePrompt } from './commit
 import { QuickRequests } from './quick-request'
 import { TranslationService } from './translation-service'
 import { inspectKnowledgeFolder, readObsidianVaults } from './obsidian-vaults'
+import type { SkillsLibrary } from './skills-library'
 
 const OK = { ok: true } as const
 
@@ -65,7 +66,8 @@ export function createRpcHandlers(
   discussions: DiscussionService,
   wire: WireLog,
   gitChanged: () => void = () => {},
-  squads?: SquadService
+  squads?: SquadService,
+  skills?: SkillsLibrary
 ): RpcHandlers {
   const git = new GitService(service, conversations, gitChanged)
   conversations.setGitGuard((dirs) => git.guardAgent(dirs))
@@ -101,6 +103,10 @@ export function createRpcHandlers(
     if (!squads) throw new Rejection('squad-unavailable')
     return squads
   }
+  const skillsLibrary = () => {
+    if (!skills) throw new Rejection('skills-unavailable')
+    return skills
+  }
   return {
     'squads.list': () => squadService().list(),
     'squads.create': (fields) => squadService().create(fields),
@@ -126,7 +132,7 @@ export function createRpcHandlers(
       const answer = await quick.ask(agent, commitMessagePrompt(await commitContext(dir)), model)
       return { message: cleanCommitMessage(answer.text), model: answer.model }
     },
-    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => feature !== 'squads' || Boolean(squads)) }),
+    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'squads' || Boolean(squads)) && (feature !== 'skills-library' || Boolean(skills))) }),
     'files.resolve': ({ conversationId, path }) => files.resolve(conversationId, path),
     'files.read': ({ conversationId, path }) => files.read(conversationId, path),
     'system.awakeStatus': () => awake.status(),
@@ -135,6 +141,14 @@ export function createRpcHandlers(
     'system.setChatSettings': (patch) => chatSettings.update(patch),
     'knowledge.vaults': () => readObsidianVaults(),
     'knowledge.inspect': ({ path }) => inspectKnowledgeFolder(path),
+    'skills.list': () => [...skillsLibrary().list()],
+    'skills.recommended': () => [...skillsLibrary().recommended()],
+    'skills.install': ({ url }) => skillsLibrary().install(url),
+    'skills.readme': async ({ id }) => ({ text: await skillsLibrary().readme(id) }),
+    'skills.checkUpdate': ({ id }) => skillsLibrary().checkUpdate(id),
+    'skills.update': ({ id, commit }) => skillsLibrary().update(id, commit),
+    'skills.rollback': ({ id }) => skillsLibrary().rollback(id),
+    'skills.remove': async ({ id }) => { await skillsLibrary().remove(id); return OK },
     'debug.wire': ({ id, stageId, before }) => {
       const known = new Map(conversations.stages(id).map((stage) => [stage.id, stage]))
       const stages = wire.stages(id)

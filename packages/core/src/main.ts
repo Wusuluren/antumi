@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { AGENT_KINDS, PROTOCOL_VERSION, usageReadable, type AgentKind, type ChatItem } from '@kando/protocol'
+import { AGENT_KINDS, agentDescriptor, PROTOCOL_VERSION, usageReadable, type AgentKind, type ChatItem } from '@kando/protocol'
 import packageJson from '../package.json' with { type: 'json' }
 import { removeCoreEndpoint, kandoPaths, writeCoreEndpoint } from '@kando/protocol/node'
 import { adapterOf } from './agents'
@@ -43,6 +43,8 @@ import { WorktreeService } from './worktree-service'
 import { AwakeConfigStore } from './awake-config'
 import { ComputerAwakeService } from './computer-awake-service'
 import { ChatSettingsStore } from './chat-settings'
+import { SkillsLibrary } from './skills-library'
+import { KNOWLEDGE_BASE_SKILLS } from './skills-recommended'
 import { WireLog } from './wire-log'
 import { timestampConsole } from './log-timestamps'
 
@@ -53,6 +55,7 @@ await mkdir(paths.worktrees, { recursive: true })
 await mkdir(paths.attachments, { recursive: true, mode: 0o700 })
 await mkdir(paths.sessions, { recursive: true, mode: 0o700 })
 await mkdir(paths.browser, { recursive: true, mode: 0o700 })
+await mkdir(paths.skills, { recursive: true, mode: 0o700 })
 
 // TaskStore first: its migrations create every table the other stores read.
 const store = new TaskStore(paths.database)
@@ -255,6 +258,15 @@ const chatSettings = new ChatSettingsStore(paths.chatSettings, (settings) => {
   server?.broadcast('system.chatSettingsChanged', { settings })
 })
 // Before the daemon connects: a chat stage it still runs is taken back with these settings.
+const skills = new SkillsLibrary(paths.skills, (repos) => server?.broadcast('skills.changed', { repos: [...repos] }))
+await skills.load()
+// An agent that loads skills gets the knowledge base's, where the user turned writing on and has
+// the repository installed; the bundle is the same folder start after start while nothing moved.
+conversations.setSkillsProvider(async (agent) =>
+  agentDescriptor(agent).capabilities.skills && chatSettings.current().knowledgeBase?.write
+    ? await skills.bundleFor(KNOWLEDGE_BASE_SKILLS).then((bundle) => (bundle ? { dir: bundle.dir } : null))
+    : null
+)
 const initialChatSettings = await chatSettings.load()
 conversations.setPromptSuggestions(initialChatSettings.promptSuggestions)
 conversations.setUserBrowser(initialChatSettings.userBrowser)
@@ -313,7 +325,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, skills)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()

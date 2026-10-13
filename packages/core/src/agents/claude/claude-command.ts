@@ -28,7 +28,7 @@ export const GIT_READ_TOOLS = ['Bash(git log:*)', 'Bash(git diff:*)', 'Bash(git 
 
 // Claude Code in print mode, speaking stream-json both ways.
 export function claudeCommand(launch: AgentLaunch): AgentCommand {
-  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readOnly, readable = [], mcp, forkAt, userBrowser, knowledgeBase } = launch
+  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readOnly, readable = [], mcp, forkAt, userBrowser, knowledgeBase, skills } = launch
   // Folders it may read but never edit: a plan-only stage's, or a read-only worker's.
   const fenced = planOnly ?? readOnly
   const allowBypass = (launch.allowBypass ?? false) && !fenced
@@ -67,6 +67,8 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     // A vault it may write is a working folder, edits in it going by the mode as a project's do.
     ...(knowledgeBase?.write ? ['--add-dir', knowledgeBase.path] : []),
     ...(knowledgeBase ? ['--append-system-prompt', knowledgeBaseNote(knowledgeBase.path)] : []),
+    // Kando's skills as a plugin: read, not a working folder.
+    ...(skills ? ['--plugin-dir', skills.dir] : []),
     ...(denials.length ? ['--disallowedTools', denials.join(',')] : []),
     ...(reads.length ? ['--allowedTools', reads.join(',')] : []),
     ...(mcp ? ['--mcp-config', JSON.stringify({ mcpServers: { kando: { type: 'stdio', command: mcp.command, args: mcp.args } } })] : []),

@@ -61,6 +61,15 @@ describe('chatCommand', () => {
     expect(chatCommand('claude', 's', false, null, []).args).not.toContain('--append-system-prompt')
   })
 
+  it('hands Kando\'s skills to the agents that load a folder of them, each its own way', () => {
+    const skills = { dir: '/kando/skills/bundles/abc' }
+    expect(chatCommand('claude', 's', false, null, [], { skills }).args).toEqual(expect.arrayContaining(['--plugin-dir', '/kando/skills/bundles/abc']))
+    expect(chatCommand('claude', 's', false, null, [], { skills }).args).not.toContain('--add-dir')
+    expect(chatCommand('cursor', null, false, null, ['/code/web'], { skills }).args).toEqual(['--add-dir', '/code/web', '--add-dir', '/kando/skills/bundles/abc', 'acp'])
+    expect(chatCommand('codex', null, false, null, [], { skills }).args).toEqual(['app-server'])
+    expect(chatCommand('claude', 's', false, null, []).args).not.toContain('--plugin-dir')
+  })
+
   it('starts a Claude stage that may only plan in plan mode, its folders not editable and no bypass', () => {
     const args = chatCommand('claude', 's', false, null, ['/code/web'], {
       preferred: { permissionMode: 'acceptEdits' },

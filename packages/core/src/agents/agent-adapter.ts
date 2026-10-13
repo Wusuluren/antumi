@@ -27,6 +27,9 @@ export type AgentLaunch = {
   // The user's Obsidian vault: its own folder, never a project, so never fenced or given a
   // worktree. write is already false where the stage may not edit.
   knowledgeBase?: KnowledgeBase
+  // A folder of Agent Skills built for this start (the skills library): its adapter hands it over
+  // the way its CLI takes one, and one that cannot ignores it. Not a project: never fenced.
+  skills?: { dir: string }
 }
 
 export type AgentDetection = Omit<EnvironmentCheck, 'tool'>

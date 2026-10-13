@@ -26,6 +26,7 @@ import { Discussion, DiscussionAction, DiscussionCreate, DiscussionList, Discuss
 
 import { Squad, SquadFields, SquadRun, SquadWork, SquadPlanRef } from './squad'
 import { KnowledgeFolder, KnowledgeVault } from './knowledge'
+import { CommitSha, RecommendedSkillRepo, SkillRepo, SkillRepoId, SkillUpdateCheck } from './skills'
 
 // Bump only for breaking changes; additive optional fields keep the version.
 export const PROTOCOL_VERSION = 12
@@ -69,8 +70,9 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // git-commit-branches: core lists the branches holding a commit (git.containing).
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
 // handoff-model: a handoff takes the model and effort the agent starts in (conversations.handoff, tasks.handoff).
-export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'knowledge-base'] as const
+export const CORE_FEATURES = ['chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'knowledge-base', 'skills-library'] as const
 // knowledge-base: core hands agents the user's Obsidian vault (ChatSettings.knowledgeBase) and lists the vaults Obsidian knows (knowledge.*).
+// skills-library: core installs Agent Skills repositories pinned to a commit and hands bundles of them to agents (skills.*).
 // task-launch-options: tasks.start accepts the first stage's mode, model and reasoning effort.
 // task-launch: a task keeps them (Task.launch, set by tasks.update and by each start by hand).
 // discussion-members: members join and leave a group chat midway; discussion-projects: its projects but the first change.
@@ -140,6 +142,18 @@ export const rpcMethods = {
   // The vaults Obsidian's registry lists on this machine, the open one first; none headless.
   'knowledge.vaults': { params: z.object({}), result: z.array(KnowledgeVault) },
   'knowledge.inspect': { params: z.object({ path: z.string().min(1).max(32_768) }), result: KnowledgeFolder },
+  'skills.list': { params: z.object({}), result: z.array(SkillRepo) },
+  'skills.recommended': { params: z.object({}), result: z.array(RecommendedSkillRepo) },
+  // Clones the repository and pins it at its head; https only.
+  'skills.install': { params: z.object({ url: z.string().trim().min(1).max(500) }), result: SkillRepo },
+  // The README at the pinned commit, for the user to read before relying on third-party skills.
+  'skills.readme': { params: z.object({ id: SkillRepoId }), result: z.object({ text: z.string().nullable() }) },
+  // Fetches and tells what an update would bring, without moving the pin.
+  'skills.checkUpdate': { params: z.object({ id: SkillRepoId }), result: SkillUpdateCheck },
+  // Moves the pin to the commit the user saw in the check.
+  'skills.update': { params: z.object({ id: SkillRepoId, commit: CommitSha }), result: SkillRepo },
+  'skills.rollback': { params: z.object({ id: SkillRepoId }), result: SkillRepo },
+  'skills.remove': { params: z.object({ id: SkillRepoId }), result: Ok },
   // What of git and the agent CLIs core finds on its path; the last answer, unless asked to look again.
   'system.environment': { params: z.object({ refresh: z.boolean().optional() }), result: Environment },
   'system.installAgentCli': { params: z.object({ agent: AgentKind }), result: Terminal },
@@ -570,6 +584,8 @@ export const rpcNotifications = {
   'git.changed': z.object({}),
   'system.awakeChanged': z.object({ status: ComputerAwakeStatus }),
   'system.chatSettingsChanged': z.object({ settings: ChatSettings }),
+  // Every installed skills repository (skills.list) after one is installed, updated, rolled back or removed.
+  'skills.changed': z.object({ repos: z.array(SkillRepo) }),
   'system.environmentChanged': z.object({ environment: Environment }),
   // Entries just added to a stage's wire log; only to connections watching the conversation's.
   'debug.wireEntries': z.object({ conversationId: z.string(), stageId: z.string(), entries: z.array(WireEntry) }),

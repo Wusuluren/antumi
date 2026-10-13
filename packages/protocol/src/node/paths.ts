@@ -33,6 +33,9 @@ export type KandoPaths = {
   // connect to. Earlier versions kept a Chromium download and profile here too.
   browser: string
   browserHostFile: string
+  // Agent Skills Kando installed: their repositories, the lock that pins them, and the bundles
+  // built from them for agents.
+  skills: string
 }
 
 export function kandoPaths(home: string = kandoHome()): KandoPaths {
@@ -50,7 +53,8 @@ export function kandoPaths(home: string = kandoHome()): KandoPaths {
     attachments: path.join(home, 'attachments'),
     sessions: path.join(home, 'sessions'),
     browser: path.join(home, 'browser'),
-    browserHostFile: path.join(home, 'browser', 'host.json')
+    browserHostFile: path.join(home, 'browser', 'host.json'),
+    skills: path.join(home, 'skills')
   }
 }
 

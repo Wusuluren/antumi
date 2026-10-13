@@ -24,4 +24,8 @@ describe('home directory', () => {
   it('defaults to ~/.kando', () => {
     expect(kandoHome({}, '/home/me')).toBe(path.join('/home/me', '.kando'))
   })
+
+  it('keeps installed skills under home', () => {
+    expect(kandoPaths('/home/me/.kando').skills).toBe(path.join('/home/me/.kando', 'skills'))
+  })
 })

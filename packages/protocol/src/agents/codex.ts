@@ -15,7 +15,9 @@ export const codex: AgentDescriptor = {
   defaultStartMode: 'acceptEdits',
   discussionMode: 'readOnly',
   readOnlyMode: 'readOnly',
-  capabilities: { unattended: true, bypass: true, autoMode: false, pathMentions: false, optionsWhileBusy: true },
+  // skills: it reads only .agents/skills under the working folder and ~/.agents/skills, neither of
+  // which Kando writes; whether skills.config or skills/list can add a folder is unverified.
+  capabilities: { unattended: true, bypass: true, autoMode: false, pathMentions: false, optionsWhileBusy: true, skills: false },
   environment: {
     role: '聊天界面以 `codex app-server` 运行它；没装也可以使用其他 Agent。',
     install: 'npm install -g @openai/codex',

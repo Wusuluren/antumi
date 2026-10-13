@@ -12,8 +12,10 @@ export const cursor: AgentAdapter = {
   createDriver: (stageId, options) => new CursorAcp(stageId, options),
   // Its ACP session takes no extra folders, but the CLI does, as workspace roots whose rules and
   // skills it loads: every release Kando runs (2026.10.01 on) has --add-dir. The user's vault is
-  // one where the stage may write it; the note on it rides on the first prompt (AcpDriver).
-  command: (launch) => ({ command: 'cursor-agent', args: [...[...launch.extraProjects, ...(launch.knowledgeBase?.write ? [launch.knowledgeBase.path] : [])].flatMap((dir) => ['--add-dir', dir]), 'acp'] }),
+  // one where the stage may write it; the note on it rides on the first prompt (AcpDriver). So is
+  // Kando's skills bundle, whose .agents/skills it reads; that it could write there is harmless,
+  // as Kando builds bundles afresh.
+  command: (launch) => ({ command: 'cursor-agent', args: [...[...launch.extraProjects, ...(launch.knowledgeBase?.write ? [launch.knowledgeBase.path] : []), ...(launch.skills ? [launch.skills.dir] : [])].flatMap((dir) => ['--add-dir', dir]), 'acp'] }),
   permissionModes: Object.keys(CURSOR_MODES),
   // Kando sets the mode over ACP, so a stage always starts in one Cursor has.
   fallbackMode: 'ask',

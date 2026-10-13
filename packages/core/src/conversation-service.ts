@@ -217,6 +217,13 @@ export class ConversationService {
     this.knowledgeBase = knowledgeBase
   }
 
+  // The skills bundle an agent's start gets, from the library, or null for none; asked at each
+  // start. A bundle that cannot be built keeps no agent from starting: it is noted and left out.
+  private skillsFor: ((agent: AgentKind) => Promise<{ dir: string } | null>) | null = null
+  setSkillsProvider(provider: (agent: AgentKind) => Promise<{ dir: string } | null>): void {
+    this.skillsFor = provider
+  }
+
   // The vault as this stage gets it: writable only where the stage may edit; left out where the
   // user made the vault a project already, or where its folder is gone (Claude refuses to start
   // on a missing --add-dir).
@@ -781,6 +788,10 @@ export class ConversationService {
     const { id } = current
     const { agent } = stage
     const knowledgeBase = await this.stageKnowledgeBase(current, stage)
+    const skills = await this.skillsFor?.(agent).catch((error: unknown) => {
+      this.wire?.record(id, stage.id, [{ dir: 'note', text: JSON.stringify({ event: 'skills-unavailable', error: error instanceof Error ? error.message : String(error) }) }])
+      return null
+    }) ?? null
     const { options } = this.chatStage(current, stage, forkAt, knowledgeBase)
     const { launch } = adapterOf(agent)
     const agentStage = this.agentStage(id, stage)
@@ -793,7 +804,8 @@ export class ConversationService {
       forkAt,
       ...(this.mcp ? { mcp: this.mcp(id) } : {}),
       ...(this.userBrowser === undefined ? {} : { userBrowser: this.userBrowser }),
-      ...(knowledgeBase ? { knowledgeBase } : {})
+      ...(knowledgeBase ? { knowledgeBase } : {}),
+      ...(skills ? { skills } : {})
     })
     let sessionId: string
     try {

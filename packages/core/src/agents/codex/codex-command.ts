@@ -11,7 +11,9 @@ const HIDDEN_CODEX_BROWSERS: readonly string[] = ['-c', 'mcp_servers.cua_repl={c
 
 // app-server takes the thread, sandbox and extra roots over the protocol instead; Kando's MCP
 // server goes in as a config override, as does the note on the user's vault (the vault itself is a
-// writable root of each turn, see CodexAppServer). A JSON string is a TOML basic string.
+// writable root of each turn, see CodexAppServer). A JSON string is a TOML basic string. A skills
+// bundle (AgentLaunch.skills) is not given: Codex reads skills from fixed folders only; the places
+// to try are skills.config in its config and the cwds of skills/list (CodexAppServer).
 export function codexCommand({ mcp, knowledgeBase }: AgentLaunch): AgentCommand {
   return { command: 'codex', args: [
     'app-server',

@@ -31,6 +31,8 @@ export type AgentDescriptor = {
     pathMentions: boolean
     // Takes a mode, model or effort switch while a turn runs.
     optionsWhileBusy: boolean
+    // Loads a folder of Agent Skills Kando built for its start (the skills library).
+    skills: boolean
   }
   // A plan it approves runs on in one of its own modes, named as the agent names them, rather than
   // in Kando's run modes.
