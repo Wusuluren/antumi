@@ -149,6 +149,22 @@ describe('ChatHost', () => {
     expect(recorded.activity()).toBeGreaterThan(told)
   })
 
+  it('tells what a running turn is on, and tells again when it moves on', async () => {
+    const recorded = recordingSink()
+    const { host, sessionId } = await started(recorded.sink)
+    const toolUse = (id: string, command: string) => ({ type: 'assistant', message: { id: `m-${id}`, content: [{ type: 'tool_use', id, name: 'Bash', input: { command } }] } })
+    daemon.reply = (id) => daemon.emit(id, toolUse('toolu_1', 'pnpm test'))
+    await host.send(STAGE.conversationId, 'run the tests')
+    await flushMicrotasks()
+    expect(host.activity(STAGE.conversationId)).toBe('running')
+    expect(host.doing(STAGE.conversationId)).toEqual({ tool: 'Bash', title: 'pnpm test' })
+    const told = recorded.activity()
+    daemon.emit(sessionId, toolUse('toolu_2', 'pnpm lint'))
+    await flushMicrotasks()
+    expect(host.doing(STAGE.conversationId)).toEqual({ tool: 'Bash', title: 'pnpm lint' })
+    expect(recorded.activity()).toBeGreaterThan(told)
+  })
+
   it('holds output that arrives while it reads the buffer, and feeds it once, in order', async () => {
     const host = new ChatHost(daemon, root, attachments, recordingSink().sink)
     const { sessionId } = await daemon.request('spawnPipe', { command: 'claude', args: [], cwd: '/work/repo', env: {} })

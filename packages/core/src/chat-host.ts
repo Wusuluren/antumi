@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { agentDescriptor, type AgentKind, type ChatImage, type ChatItem, type ChatOption, type ChatQueued, type ChatTurnActivity, type ConversationRequest } from '@kando/protocol'
+import { agentDescriptor, type AgentKind, type ChatImage, type ChatItem, type ChatOption, type ChatQueued, type ChatTurnActivity, type ConversationDoing, type ConversationRequest } from '@kando/protocol'
 import type { AttachmentStore } from './attachment-store'
 import type { ChatAnswer, ChatDriver, ChatImageFile, ChatOutgoing, ChatRecord, ChatStageOptions, StageMessage } from './chat-driver'
 import { ChatLog, type LoggedRecord } from './chat-log'
+import { clip } from './chat-items'
 import type { KandoAsk, KandoResolution } from './kando-requests'
 import { adapterOf } from './agents'
 import type { SessionHost } from './daemon-client'
@@ -60,6 +61,8 @@ type Live = ChatStage & {
   suggestion: string | null
   // The open requests while the turn awaits them, by id, as last told to the sink.
   requests: string
+  // What the running turn is doing, as last told to the sink.
+  doing: string
   provider: string | null
   started: { resolve(): void; reject(error: Error): void } | null
   // When anything last went either way, or the user last changed something.
@@ -82,6 +85,17 @@ type OpenRequest = Extract<ChatItem, { kind: 'approval' | 'question' }>
 
 function openRequests(driver: ChatDriver): OpenRequest[] {
   return driver.items.list().filter((item): item is OpenRequest => (item.kind === 'approval' || item.kind === 'question') && item.resolution === null)
+}
+
+// The call a running turn is on, its latest first; else what the agent says it is doing.
+function doingOf(driver: ChatDriver): ConversationDoing | null {
+  const items = driver.items.list()
+  for (let index = items.length - 1; index >= 0; index--) {
+    const item = items[index]
+    if (item?.kind === 'tool' && item.status === 'running') return { tool: item.name, title: clip(item.title, 200) }
+  }
+  const state = items.find((item) => item.kind === 'state')
+  return state?.kind === 'state' && state.activity ? { tool: null, title: clip(state.activity, 200) } : null
 }
 
 function asksOf(driver: ChatDriver): OpenRequest[] {
@@ -131,6 +145,7 @@ export class ChatHost {
       activity: driver.activity(),
       suggestion: driver.suggestion?.() ?? null,
       requests: '',
+      doing: '',
       provider: null,
       started: null,
       lastActive: records.at(-1)?.at ?? this.now(),
@@ -210,6 +225,11 @@ export class ChatHost {
 
   activity(conversationId: string): ChatTurnActivity | null {
     return this.liveOf(conversationId)?.driver.activity() ?? null
+  }
+
+  doing(conversationId: string): ConversationDoing | null {
+    const live = this.liveOf(conversationId)
+    return live?.driver.activity() === 'running' ? doingOf(live.driver) : null
   }
 
   suggestion(conversationId: string): string | null {
@@ -545,10 +565,12 @@ export class ChatHost {
     const activity = live.driver.activity()
     const suggestion = live.driver.suggestion?.() ?? null
     const requests = [...(activity === 'awaiting' ? openRequests(live.driver).map((item) => item.requestId) : []), ...asksOf(live.driver).map((item) => item.requestId)].join(' ')
-    if (activity !== live.activity || suggestion !== live.suggestion || requests !== live.requests) {
+    const doing = activity === 'running' ? JSON.stringify(doingOf(live.driver)) : ''
+    if (activity !== live.activity || suggestion !== live.suggestion || requests !== live.requests || doing !== live.doing) {
       live.activity = activity
       live.suggestion = suggestion
       live.requests = requests
+      live.doing = doing
       this.sink.activity(live.conversationId)
     }
     if (live.driver.ready()) {

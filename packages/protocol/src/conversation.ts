@@ -16,6 +16,11 @@ export const ConversationRequest = z.object({
 })
 export type ConversationRequest = z.infer<typeof ConversationRequest>
 
+// What a running turn is doing right now: the call it waits on (its tool and title, as on its chat
+// item), or what the agent says it is doing, with tool null.
+export const ConversationDoing = z.object({ tool: z.string().nullable(), title: z.string() })
+export type ConversationDoing = z.infer<typeof ConversationDoing>
+
 export const Conversation = z.object({
   id: z.string().uuid(),
   title: z.string(),
@@ -44,7 +49,9 @@ export const Conversation = z.object({
   chat: z.object({
     turn: ChatTurnActivity.catch('idle'),
     suggestion: z.string().nullable().optional(),
-    request: ConversationRequest.nullable().optional()
+    request: ConversationRequest.nullable().optional(),
+    // While the turn runs. Older cores leave it out.
+    doing: ConversationDoing.nullable().optional()
   }).nullable().optional(),
   // What the next chat stage starts with, as chosen or as the last stage left it: the permission
   // mode, and the model and effort of the conversation's agent. Older cores leave it out.

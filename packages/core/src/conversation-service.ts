@@ -1435,7 +1435,8 @@ export class ConversationService {
     // A suggestion is for the idle composer; one the settings turned off since is not shown.
     const suggestion = turn === 'idle' && this.promptSuggestions ? this.chats.suggestion(conversation.id) : null
     const request = turn ? this.chats.request(conversation.id) : null
-    return { ...conversation, starting: this.launching.has(conversation.id), chat: turn ? { turn, ...(suggestion ? { suggestion } : {}), ...(request ? { request } : {}) } : null, chatOptions }
+    const doing = turn === 'running' ? this.chats.doing(conversation.id) : null
+    return { ...conversation, starting: this.launching.has(conversation.id), chat: turn ? { turn, ...(suggestion ? { suggestion } : {}), ...(request ? { request } : {}), ...(doing ? { doing } : {}) } : null, chatOptions }
   }
 
   private changed(value: Conversation): Conversation {
