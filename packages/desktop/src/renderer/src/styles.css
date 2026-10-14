@@ -6849,9 +6849,9 @@ body.side-panel-resizing * {
 .chat-quote-remove svg { width: 12px; height: 12px; }
 .chat-quote-remove:hover { background: var(--fill-2); color: var(--text); }
 
-/* Comments on a plan: a box over the passage selected, the passage marked while it is written,
-   and every passage commented on marked after. */
-.plan-comment-box {
+/* A comment on text selected in a plan or a reply (SelectionComment): a box over the passage, the
+   passage marked while it is written, and every passage commented on marked while its quote waits. */
+.selection-comment-box {
   position: fixed;
   z-index: 50;
   display: flex;
@@ -6867,7 +6867,7 @@ body.side-panel-resizing * {
   transform: translateX(-50%);
 }
 
-.plan-comment-input {
+.selection-comment-input {
   flex: 1;
   min-width: 0;
   padding: 0;
@@ -6879,9 +6879,9 @@ body.side-panel-resizing * {
   font-size: 14px;
 }
 
-.plan-comment-input::placeholder { color: var(--text-3); }
+.selection-comment-input::placeholder { color: var(--text-3); }
 
-.plan-comment-save {
+.selection-comment-save {
   flex-shrink: 0;
   display: grid;
   place-items: center;
@@ -6895,11 +6895,11 @@ body.side-panel-resizing * {
   cursor: pointer;
 }
 
-.plan-comment-save svg { width: 18px; height: 18px; }
-.plan-comment-save:hover { background: var(--fill-2); color: var(--text); }
+.selection-comment-save svg { width: 18px; height: 18px; }
+.selection-comment-save:hover { background: var(--fill-2); color: var(--text); }
 
-::highlight(kando-plan-draft) { background-color: var(--accent-bg); }
-::highlight(kando-plan-comments) { background-color: color-mix(in srgb, var(--warning) 22%, transparent); }
+::highlight(kando-plan-draft), ::highlight(kando-reply-draft) { background-color: var(--accent-bg); }
+::highlight(kando-plan-comments), ::highlight(kando-reply-comments) { background-color: color-mix(in srgb, var(--warning) 22%, transparent); }
 
 .chat-plan-view-hint { margin: 0; color: var(--text-3); font-size: 12px; }
 /* The plan card's title row: what waits, where the plan is, and at its far end, approving later
@@ -6934,30 +6934,6 @@ body.side-panel-resizing * {
   background: var(--surface);
 }
 
-/* The button over text selected in a reply, which quotes it into the input. */
-.chat-quote-pick {
-  position: fixed;
-  z-index: 50;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 10px 0 8px;
-  border: 1px solid var(--border-2);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 12px;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
-  transform: translate(-50%, calc(-100% - 6px));
-  cursor: pointer;
-}
-
-.chat-quote-pick[data-below] { transform: translate(-50%, 6px); }
-.chat-quote-pick svg { width: 13px; height: 13px; color: var(--text-muted); }
-/* --fill-2 is translucent, so it goes over the surface rather than in place of it: the button
-   floats over the reply's text, which would otherwise show through. */
-.chat-quote-pick:hover { background: linear-gradient(var(--fill-2), var(--fill-2)), var(--surface); }
 
 /* In a sent message, the passages it quotes sit over what it says, each opening its reply. */
 .chat-user-quotes {

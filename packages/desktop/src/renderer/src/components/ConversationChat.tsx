@@ -29,7 +29,7 @@ import { ChatWorking, type WorkingPhase } from './ChatWorking'
 import { CopyButton } from './CopyButton'
 import { ChatEditsCard, ChatPaths, ChatToolCard, ChatToolRun } from './ChatToolCard'
 import { ChatPreviewCard } from './ChatPreviewCard'
-import { ChatQuotePicker } from './ChatQuotePicker'
+import { SelectionComment } from './SelectionComment'
 import { effortLabel } from './ChatOptionsBar'
 import { ChatMessageRelay, useMessageRelay } from './chat-message-relay'
 import { cssFontFamily } from '../system-fonts'
@@ -923,7 +923,16 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
         )}
       </div>
       <ChatDock conversation={conversation} state={state} pending={pending} tools={tools} finishedCalls={finishedCalls} onPrevious={previous} sent={sent} onJump={jump} />
-      <ChatQuotePicker conversationId={id} list={list} enabled={!contextMenu.open} />
+      <SelectionComment
+        conversationId={id}
+        container={list}
+        region=".chat-assistant"
+        sourceOf={(reply) => reply.closest<HTMLElement>('[data-entry-key]')?.dataset.entryKey ?? null}
+        name="reply"
+        label="评论这段回复"
+        hidden={contextMenu.open}
+        onAdded={() => list.current?.closest('.chat-view')?.querySelector<HTMLTextAreaElement>('.chat-input')?.focus()}
+      />
       {contextMenu.menu}
     </div>
     </ChatMessageRelay.Provider>
