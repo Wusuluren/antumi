@@ -48,7 +48,7 @@ import { actionableItems, type ActionableItem } from './attention'
 import { overview, type Overview } from './overview'
 import { attentionSummaryMode, fetchAttentionSummaries, replaySummaryChanges, type AttentionSummaryMode } from './attention-summaries'
 
-export type OverviewFilter = null | 'mine' | 'running' | 'next'
+export type OverviewFilter = null | 'mine' | 'running' | 'next' | 'unread'
 
 export type ConnectionState = 'waiting-for-core' | 'connecting' | 'connected'
 

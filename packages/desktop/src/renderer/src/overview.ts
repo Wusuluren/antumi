@@ -300,3 +300,30 @@ export function overview(input: OverviewInput): Overview {
       next: byTime.length + byCondition.length + later.length, unread: unread.size }
   }
 }
+
+// What waits on the user, by kind, for the overview's head: "3 等回复 · 1 待验收".
+export function waitBreakdown(rows: readonly OverviewRow[]): string {
+  const counts = { 等确认: 0, 等回答: 0, 等回复: 0, 待验收: 0, 异常: 0 }
+  for (const row of rows) {
+    const reason = row.attention?.primaryReason
+    const label = row.failed || reason === 'crashed' ? '异常'
+      : reason === 'awaiting' ? (row.attention?.request?.kind === 'question' ? '等回答' : '等确认')
+      : reason === 'reply' ? '等回复' : reason === 'review' ? '待验收' : null
+    if (label) counts[label] += row.waits
+  }
+  return Object.entries(counts).filter(([, count]) => count > 0).map(([label, count]) => `${count} ${label}`).join(' · ')
+}
+
+// What comes due after today, a run of rows per day: 明天, then the date.
+export function laterByDay(rows: readonly OverviewRow[], now: number): { day: string; rows: OverviewRow[] }[] {
+  const days: { day: string; rows: OverviewRow[] }[] = []
+  const today = new Date(now).setHours(0, 0, 0, 0)
+  for (const row of rows) {
+    const date = new Date(row.at)
+    const day = Math.round((new Date(row.at).setHours(0, 0, 0, 0) - today) / 86_400_000) === 1 ? '明天' : `${date.getMonth() + 1}月${date.getDate()}日`
+    const last = days.at(-1)
+    if (last?.day === day) last.rows.push(row)
+    else days.push({ day, rows: [row] })
+  }
+  return days
+}

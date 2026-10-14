@@ -226,6 +226,10 @@ function clock(date: Date): string {
   return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
+export function timeOfDay(ms: number): string {
+  return clock(new Date(ms))
+}
+
 // "9月25日 09:28": this app's timestamps are recent enough that the year is noise.
 export function dayAndTime(ms: number): string {
   const date = new Date(ms)
@@ -244,4 +248,19 @@ export function chatDayAndTime(ms: number, now = Date.now()): string {
 export function messageTime(ms: number, now = Date.now()): string {
   const date = new Date(ms)
   return date.toDateString() === new Date(now).toDateString() ? clock(date) : chatDayAndTime(ms, now)
+}
+
+// How long ago, in a list that only needs to say roughly: past a month the day itself reads better.
+export function agoText(ms: number, now = Date.now()): string {
+  const minutes = Math.floor((now - ms) / 60_000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes} 分钟前`
+  const days = Math.round((new Date(now).setHours(0, 0, 0, 0) - new Date(ms).setHours(0, 0, 0, 0)) / 86_400_000)
+  if (days === 0) return `${Math.floor(minutes / 60)} 小时前`
+  if (days === 1) return '昨天'
+  if (days < 7) return `${days} 天前`
+  if (days < 28) return `${Math.floor(days / 7)} 周前`
+  const date = new Date(ms)
+  const day = `${date.getMonth() + 1}月${date.getDate()}日`
+  return date.getFullYear() === new Date(now).getFullYear() ? day : `${date.getFullYear()}年${day}`
 }

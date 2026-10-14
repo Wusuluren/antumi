@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Squad, SquadRun, Task, type Conversation, type Routine, type ScheduledRun } from '@kando/protocol'
 import { actionableItems } from './attention'
-import { overview, type OverviewInput } from './overview'
+import { laterByDay, overview, waitBreakdown, type OverviewInput } from './overview'
 
 const id = (n: number) => `${String(n).padStart(8, '0')}-0000-4000-8000-000000000000`
 const at = (day: number, hour: number, minute = 0) => new Date(2026, 9, day, hour, minute).getTime()
@@ -276,5 +276,23 @@ describe('overview limited cores and purity', () => {
     const before = structuredClone(data)
     expect(overview(data)).toEqual(overview(data))
     expect(data).toEqual(before)
+  })
+})
+
+describe('overview head and timeline', () => {
+  it('breaks what waits on the user down by kind, counting each squad member', () => {
+    const { squadRun, squadTask, leader, member } = squadFixture()
+    const question = conversation(id(11), { chat: { turn: 'awaiting', request: { kind: 'question', requestId: 'q', tool: null, title: '选哪个？', decisions: [], open: 1 } } })
+    const result = overview(input({ tasks: { [squadTask.id]: squadTask, review: task('review', { status: 'review' }) },
+      conversations: { [leader.id]: leader, [member.id]: member, [id(11)]: question }, squadRuns: { [squadRun.id]: squadRun }, schedules: [run(id(12), { status: 'failed' })] }))
+    expect(waitBreakdown(result.mine)).toBe('2 等确认 · 1 等回答 · 1 待验收 · 1 异常')
+    expect(waitBreakdown([])).toBe('')
+  })
+
+  it('puts later rows under tomorrow, then under their date', () => {
+    const result = overview(input({ schedules: [run(id(1), { notBefore: at(15, 9) }), run(id(2), { notBefore: at(15, 20) }), run(id(3), { notBefore: at(17, 8) })] }))
+    expect(laterByDay(result.next.later, now).map(({ day, rows }) => [day, rows.map((row) => row.scheduleId)])).toEqual([
+      ['明天', [id(1), id(2)]], ['10月17日', [id(3)]]
+    ])
   })
 })

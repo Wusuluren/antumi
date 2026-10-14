@@ -138,13 +138,13 @@ describe('overview page', () => {
     connect()
     useCore.setState({ tasks: { task: task(), review: task({ id: 'review', status: 'review', title: '待验收' }) }, schedules: [run()], conversations: { [id(1)]: chat() }, unseen: { [id(1)]: true } })
     expect(render()).toContain('aria-label="未读"')
-    for (const [label, range, section] of [['等我 1', 'mine', '需要我'], ['在跑 1', 'running', '进行中'], ['接下来 1', 'next', '接下来']] as const) {
+    for (const [label, range, section] of [['等我 1', 'mine', '需要我'], ['在跑 1', 'running', '进行中'], ['接下来 1', 'next', '接下来'], ['未读 1', 'unread', '未读']] as const) {
       render()
       click(label)
       expect(useCore.getState().overviewFilter).toBe(range)
       const filtered = render()
       expect(filtered).toContain(`aria-label="${section}"`)
-      expect(filtered).not.toContain('aria-label="未读"')
+      expect(filtered).not.toContain(`aria-label="${section === '未读' ? '需要我' : '未读'}"`)
       expect(filtered).toContain('aria-pressed="true"')
       click(label)
       expect(useCore.getState().overviewFilter).toBeNull()
@@ -155,6 +155,21 @@ describe('overview page', () => {
     scroll({ currentTarget: { scrollTop: 420 } })
     click('打开：提交修复')
     expect(useCore.getState()).toMatchObject({ overviewOpen: false, overviewScroll: 420, selectedConversationId: id(1) })
+  })
+
+  it('says in the head what waits, who works and what comes next', () => {
+    connect()
+    useCore.setState({
+      tasks: { review: task({ id: 'review', status: 'review', title: '待验收' }) },
+      conversations: { [id(1)]: chat({ chat: { turn: 'running', doing: { tool: 'Bash', title: 'pnpm test' } } }) },
+      schedules: [run({ notBefore: now + 3600_000 })]
+    })
+    const markup = render()
+    expect(markup).toContain('1 待验收')
+    expect(markup).toContain('Claude Code 工作中')
+    expect(markup).toContain('下一个 13:00')
+    expect(markup).toContain('都看过了')
+    expect(markup).toContain('data-next=""')
   })
 
   it('restores the saved scroll when the overview mounts again', () => {
@@ -188,7 +203,7 @@ describe('overview page', () => {
     useCore.setState({ schedules: [run({ status: 'failed' })], routines: [routine({ unread: 1, lastRun: run({ status: 'failed' }) })] })
     const markup = render()
     expect(markup.match(/data-reason="crashed"/g)).toHaveLength(2)
-    expect(markup).toContain('role="img" aria-label="预约"')
+    expect(markup).toContain('role="img" aria-label="预约 · Codex"')
     expect(markup).toContain('role="img" aria-label="定时任务"')
     expect(markup).toContain('aria-hidden="true"')
     click('查看失败的预约：预约工作')

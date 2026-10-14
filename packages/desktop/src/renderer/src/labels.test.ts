@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chatDayAndTime, messageTime } from './labels'
+import { agoText, chatDayAndTime, messageTime } from './labels'
 
 describe('messageTime', () => {
   const now = new Date(2026, 9, 3, 10, 30).getTime()
@@ -22,5 +22,25 @@ describe('chatDayAndTime', () => {
   it('always says the day, and the year only for an earlier one', () => {
     expect(chatDayAndTime(new Date(2026, 9, 3, 9, 41).getTime(), now)).toBe('10月3日 09:41')
     expect(chatDayAndTime(new Date(2025, 7, 29, 10, 42).getTime(), now)).toBe('2025年8月29日 10:42')
+  })
+})
+
+describe('agoText', () => {
+  const now = new Date(2026, 9, 14, 15, 30).getTime()
+  const at = (...parts: [number, number, number, number, number]) => new Date(...parts).getTime()
+
+  it('counts minutes, then hours within today', () => {
+    expect(agoText(now - 20_000, now)).toBe('刚刚')
+    expect(agoText(at(2026, 9, 14, 15, 27), now)).toBe('3 分钟前')
+    expect(agoText(at(2026, 9, 14, 13, 10), now)).toBe('2 小时前')
+    expect(agoText(at(2026, 9, 14, 0, 5), now)).toBe('15 小时前')
+  })
+
+  it('counts days and weeks by the calendar, then gives the day', () => {
+    expect(agoText(at(2026, 9, 13, 23, 50), now)).toBe('昨天')
+    expect(agoText(at(2026, 9, 10, 9, 0), now)).toBe('4 天前')
+    expect(agoText(at(2026, 8, 29, 11, 57), now)).toBe('2 周前')
+    expect(agoText(at(2026, 7, 2, 8, 0), now)).toBe('8月2日')
+    expect(agoText(at(2025, 11, 31, 8, 0), now)).toBe('2025年12月31日')
   })
 })
