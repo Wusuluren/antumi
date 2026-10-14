@@ -46,7 +46,7 @@
 | `packages/daemon` | 进程宿主，独立进程：Agent 跑在 stdio 管道上，终端面板的 shell 跑在 PTY 里；缓存最近输出，供重新连接时回放 |
 | `packages/desktop` | Electron 桌面端：看板、详情编辑、聊天界面、终端面板；主进程还持有内置浏览器的标签页，并用 playwright-core 替 Agent 驱动它们 |
 
-运行时数据在 `~/.kando/`（可用 `KANDO_HOME` 覆盖）：`kando.db`、`core.json`（端口与 token，权限 0600）、`worktrees/`、`sessions/`、`browser/`（`host.json`，桌面端写的浏览器宿主地址）、`skills/`（技能库：`skills.json` 锁文件、`repos/` 里的 git 克隆、`bundles/` 里交给 Agent 的目录）。
+运行时数据在 `~/.kando/`（可用 `KANDO_HOME` 覆盖）：`kando.db`、`core.json`（端口与 token，权限 0600）、`worktrees/`、`sessions/`、`browser/`（`host.json`，桌面端写的浏览器宿主地址）、`skills/`（技能库：`skills.json` 锁文件、`repos/` 里的 git 克隆、`bundles/` 里交给 Agent 的目录）、`mcp-servers.json`（用户的 MCP 服务器，不含密钥）、`credentials.json`（任务来源和 MCP 服务器的密钥，权限 0600）。
 
 ### 进程边界
 
@@ -278,6 +278,17 @@ Claude Code 以 `claude -p --input-format stream-json --output-format stream-jso
 
 交给 Agent 的是**bundle**（`bundles/<key>/`）：按需要的技能从各仓库复制出来（只复制 `skills/<名字>/`，跳过软链接，限 32 MiB），同时写成 Claude Code 插件（`.claude-plugin/plugin.json` + `skills/`）和 `.agents/skills/` 两种布局；`key` 是技能及其提交的哈希，同样的选择得到同一个目录，提示词缓存得以保温，更新或回退后自然换新目录。descriptor 的 `capabilities.skills` 说明这个 Agent 能否接收 bundle，adapter 决定怎么交（`AgentLaunch.skills`）：Claude Code 用 `--plugin-dir`，Cursor 用 `--add-dir`；Codex 只读固定目录，暂不支持。第一版的选择是全局的：Obsidian 知识库允许写入时，交出推荐仓库 kepano/obsidian-skills 里的 `obsidian-markdown`（见 `skills-recommended.ts`）；Markdown 文件夹不自动加载该技能。bundle 建不出来只记进 wire log，不阻止 Agent 启动。
 
+### 用户的 MCP 服务器
+
+设置 → 任务 → MCP 维护一份全局的 MCP 服务器列表（`mcp-servers.ts`）：本地命令（stdio）或远程地址（streamable HTTP，远程只接受 https），每个选好交给哪些 Agent，可以单独停用。设置存在 `mcp-servers.json`；环境变量和请求头的值都当密钥，存进 `credentials.json`（`mcp/<名字>`），客户端只看得到键名。名字 `kando` 留给 Kando 自己的服务器（工具名靠它识别）。
+
+和技能库一样，**每次启动时注入，不改 Agent 自己的配置**：descriptor 的 `capabilities.userMcp` 说明能不能接，adapter 用交 Kando MCP 的同一条路交出去（`AgentLaunch.userMcp`）——Claude Code 合进 `--mcp-config`（仍不加 `--strict-mcp-config`，用户自己配的照常加载），Codex 是整条 `-c mcp_servers.<名字>={...}`（同名时盖过 config.toml 里的那条），Cursor 进 ACP `session/new` 的 `mcpServers`。有密钥的服务器交出去的是 Kando 的启动器（`mcp-main --run <名字>`，`user-mcp-launch.ts`）：它启动时才从 Kando 的文件读出密钥，命令带上环境变量直接接管 stdio，远程地址则由它在 stdio 和 HTTP 之间转发（`mcp-http.ts`），所以密钥不进 Agent 的命令行、配置和 Kando 的日志；没有密钥的远程地址直接交给 Agent。改动从下次启动 Agent 起生效。
+
+- **测试连接**（`mcpServers.probe`，`mcp-probe.ts`）：像 Agent 一样连上去 `initialize` → `tools/list`，命令在独立进程组里跑、结束即杀，60 秒超时，失败时带上 stderr。
+- **没连上**：Claude 的 init 里 `source: dynamic` 且失败的、Codex 的 `mcpServer/startupStatus/updated` 里失败的用户服务器，聊天里各出一行提示；记进日志的帧带着这个判断，重放结果一致。
+- **审批**：Claude 和 Cursor 的 MCP 工具本来就走审批卡；Codex 对它认为会影响外部的工具发 `mcpServer/elicitation/request`（`_meta.codex_approval_kind: mcp_tool_call`），Kando 接成审批卡：允许一次、本次运行内不再问（`persist: session`）、拒绝；「永远允许」不提供，那会写进 Codex 自己的配置。
+- **导入**（`mcp-import.ts`）：读 `~/.claude.json`、`~/.cursor/mcp.json` 和 `codex mcp list --json`（跳过 ChatGPT 应用和 Codex 插件自带的、已停用的），列表只给键名；导入时 core 重读一遍连同值一起存，默认不再交给它原来所在的 Agent，免得启动两份。SSE 和 Codex 从环境变量取令牌的不能导入。
+
 ## 5. 内置浏览器
 
 
@@ -289,7 +300,7 @@ Claude Code 以 `claude -p --input-format stream-json --output-format stream-jso
 - **浏览器面板**：状态栏右下角的浏览器按钮（或 Ctrl+Shift+`）打开右侧的浏览器面板，和终端面板一样可以拖宽、最大化。它列出所有会话的标签页（标签上带会话名），也能用「＋」开你自己的标签页：这种标签页不属于任何会话，Agent 看不到，打开什么站点也不会问你。Agent 打开页面时，对话里出现一张页面卡片（标题、地址、「打开」按钮），浏览器在后台跑，点「打开」才展开面板并选中那个标签页；在 设置 → 集成 → 浏览器 里可以改成 Agent 第一次用浏览器时自动打开。
 - **页面**：面板里直接显示选中的标签页本身，铺满面板，和普通浏览器一样可以点击、输入（Esc 回到应用，Shift+Esc 把 Esc 发给页面）、改地址、后退刷新，也能关标签页、截图存成图片。地址栏右侧可以把页面固定成手机、平板等尺寸，固定尺寸的页面在面板里等比居中显示；Agent 调用 `browser_navigate` 或 `browser_tabs new` 时也可以传 `viewport`，之后一直保持到再改。你操作时标签页标为「你在操作」，Agent 对它的调用会被拒绝并被告知等待，5 秒没动作或点「交还给 Agent」后恢复。
 - **升级**：早期版本下载到 `~/.kando/browser/` 的 Chromium 和 profile，在新版 core 第一次启动时自动删除；网站需要重新登录。
-- **Codex**：Codex 对 MCP 工具不弹自己的确认，所以站点确认是它唯一的闸；Claude Code 对打开页面和点击、输入会弹它自己的确认，只读的快照、截图、滚动、等待、控制台和标签页列表已放行。
+- **Codex**：Codex 对 Kando 的 MCP 工具不弹自己的确认，所以站点确认是它唯一的闸；Claude Code 对打开页面和点击、输入会弹它自己的确认，只读的快照、截图、滚动、等待、控制台和标签页列表已放行。
 
 ## 6. 终端与端口
 
