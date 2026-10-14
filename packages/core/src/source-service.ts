@@ -1,4 +1,5 @@
 import {
+  agentDescriptor,
   DEFAULT_INSTANCE,
   MAX_IMAGE_NAME_LENGTH,
   MAX_ISSUE_TITLE_LENGTH,
@@ -398,7 +399,9 @@ export class SourceService {
     const images = await Promise.all(snapshot.images.map(async (image) => ({ name: image.name, path: await this.attachments.pathOf(image.id) })))
     const { agent, projectPaths, allowBypass, note, ...start } = options
     const title = issue.title.trim() || issue.key
-    const conversation = await conversations.investigate(agent, projectPaths, allowBypass, start, {
+    // Unless asked otherwise, it only reads: a finding first, then the user decides on a fix.
+    const permissionMode = start.permissionMode ?? agentDescriptor(agent).discussionMode
+    const conversation = await conversations.investigate(agent, projectPaths, allowBypass, { ...start, permissionMode }, {
       source,
       title,
       brief: investigationBrief(source, snapshot, images),

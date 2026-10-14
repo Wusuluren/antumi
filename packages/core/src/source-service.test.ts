@@ -369,7 +369,9 @@ describe('SourceService', () => {
     expect(inboxes.at(-1)).toEqual(inbox)
 
     await service.investigate('demo', 'default', 'D-1', { agent: 'claude', projectPaths: [], note: '  先看日志  ' })
-    expect(opened[1]?.note).toBe('先看日志')
+    expect(opened[1]).toMatchObject({ note: '先看日志', start: { permissionMode: 'plan' } })
+    await service.investigate('demo', 'default', 'D-2', { agent: 'codex', projectPaths: [] })
+    expect(opened[2]?.start).toMatchObject({ permissionMode: 'readOnly' })
   })
 
   it('stops and empties the inbox when disabled, ignoring a refresh still under way', async () => {
