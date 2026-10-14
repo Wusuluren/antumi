@@ -202,6 +202,8 @@ const McpToolApproval = z.looseObject({
   })
 })
 const Decision = z.looseObject({ decision: z.unknown().optional(), answers: z.record(z.string(), z.unknown()).optional() })
+// userMcp: Kando's mark, in the log, that the server was one of the user's it handed Codex.
+const McpStartup = z.looseObject({ name: z.string(), status: z.string(), userMcp: z.boolean().optional() })
 const Answers = z.looseObject({ answers: z.array(z.string()).catch([]) })
 
 type Pending = {
@@ -727,8 +729,18 @@ export class CodexAppServer implements ChatDriver {
       const counts = ({ totalTokens, inputTokens, outputTokens }: z.infer<typeof TokenCount>) => ({ totalTokens, inputTokens, outputTokens })
       return { method, params: { turnId: usage.data.turnId, tokenUsage: { last: counts(last), total: total ? counts(total) : undefined, modelContextWindow } } }
     }
+    if (method === 'mcpServer/startupStatus/updated') {
+      const startup = McpStartup.safeParse(parsed.data.params)
+      return startup.success && this.unreachableUserMcp(startup.data) ? { method, params: { name: startup.data.name, status: startup.data.status, userMcp: true } } : null
+    }
     const kept = ['thread/started', 'turn/started', 'turn/completed', 'turn/plan/updated', 'item/started', 'item/completed', 'serverRequest/resolved', 'error']
     return kept.includes(method) ? stripImageBytes(this.withKeptImages(parsed.data)) : null
+  }
+
+  // Codex reports every server it starts, its own config's too; only the user's that Kando handed
+  // it are Kando's to point out, which a stage rebuilt from its log knows by the mark.
+  private unreachableUserMcp(startup: z.infer<typeof McpStartup>): boolean {
+    return startup.status === 'failed' && (startup.userMcp === true || (this.options.userMcp ?? []).some((server) => server.name === startup.name))
   }
 
   // Stores the pictures an MCP result carries in its bytes (a screenshot), for the card to show.
@@ -987,6 +999,11 @@ export class CodexAppServer implements ChatDriver {
       case 'thread/started': {
         const thread = ThreadEvent.safeParse(params)
         if (thread.success && !this.threadId) this.threadId = thread.data.thread.id
+        return
+      }
+      case 'mcpServer/startupStatus/updated': {
+        const startup = McpStartup.safeParse(params)
+        if (startup.success && this.unreachableUserMcp(startup.data)) this.items.mcpUnreachable(startup.data.name, at)
         return
       }
       case 'turn/started': {

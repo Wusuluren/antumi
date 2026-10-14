@@ -50,3 +50,14 @@ export const McpServerInput = z.object({
   transport: McpTransportInput
 })
 export type McpServerInput = z.infer<typeof McpServerInput>
+
+// What connecting to a server found: its tools, or why it could not be reached, and what the
+// command printed on stderr either way.
+export const McpProbe = z.object({
+  ok: z.boolean(),
+  tools: z.array(z.object({ name: z.string(), description: z.string() })),
+  error: z.string().nullable(),
+  stderr: z.string().nullable(),
+  at: z.number()
+})
+export type McpProbe = z.infer<typeof McpProbe>

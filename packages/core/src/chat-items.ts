@@ -64,6 +64,12 @@ export class ChatItems {
     }
   }
 
+  // One of the user's MCP servers the agent could not start or reach: once per server, however
+  // often the agent says so.
+  mcpUnreachable(name: string, at: number): void {
+    this.notice('warning', `MCP 服务器 ${name} 没连上，这个会话用不了它的工具。可以在 设置 → MCP 里测试连接看原因。`, at, { id: `mcp:${name}` })
+  }
+
   notice(
     level: 'info' | 'warning' | 'error',
     text: string,

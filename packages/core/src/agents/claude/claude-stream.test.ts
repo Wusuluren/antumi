@@ -73,6 +73,22 @@ describe('ClaudeStream', () => {
     expect(driver.providerSessionId()).toBe('6f81960b-d2d8-4380-a15d-efb1386b5db5')
   })
 
+  it('says which of the user\'s MCP servers did not start, once, the same when rebuilt from its log', () => {
+    const at = 1_790_000_000_000
+    const init = { type: 'system', subtype: 'init', session_id: 's-1', mcp_servers: [
+      { name: 'kando', status: 'failed', source: 'dynamic' },
+      { name: 'github', status: 'failed', source: 'dynamic' },
+      { name: 'docs', status: 'connected', source: 'dynamic' },
+      { name: 'own', status: 'failed', source: 'user' }
+    ] }
+    const live = replay([{ dir: 'in', at, frame: init }, { dir: 'in', at, frame: init }])
+    const notices = ofKind(live.items.list(), 'notice')
+    expect(notices).toMatchObject([{ id: 'mcp:github', level: 'warning', text: expect.stringContaining('MCP 服务器 github 没连上') }])
+    const logged = live.logged(init)
+    expect(logged).toMatchObject({ mcp_servers: [{ name: 'github', status: 'failed', source: 'dynamic' }] })
+    expect(shown(ofKind(replay([{ dir: 'in', at, frame: logged }]).items.list(), 'notice'))).toEqual(shown(notices))
+  })
+
   it('keeps a background subagent running until it reports, and opens the turn the CLI starts for it', () => {
     const at = 1_790_000_000_000
     const tool = (id: string, input: Record<string, unknown>) => ({ type: 'tool_use', id, name: 'Agent', input })

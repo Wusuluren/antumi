@@ -1,8 +1,9 @@
 import path from 'node:path'
 import { z } from 'zod'
-import { McpServer, type AgentKind, type McpSecretInput, type McpServerInput, type McpTransport } from '@kando/protocol'
+import { McpServer, type AgentKind, type McpProbe, type McpSecretInput, type McpServerInput, type McpTransport } from '@kando/protocol'
 import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
 import type { CredentialStore } from './credential-store'
+import { probeMcpServer } from './mcp-probe'
 import { Rejection } from './rejection'
 
 const Saved = z.object({ version: z.literal(1), servers: z.array(McpServer) })
@@ -69,6 +70,14 @@ export class McpServerStore {
         ? { type: 'stdio', command: transport.command, args: transport.args, cwd: transport.cwd, env: pick(transport.envKeys, envKey) }
         : { type: 'http', url: transport.url, headers: pick(transport.headerKeys, headerKey) }
     }
+  }
+
+  // Reached as an agent would reach it, with its secrets.
+  probe(name: string): Promise<McpProbe> {
+    this.require(name)
+    const server = this.resolve(name)
+    if (!server) throw new Rejection('mcp-unknown', '没有这个 MCP 服务器')
+    return probeMcpServer(server)
   }
 
   private serially<T>(action: () => Promise<T>): Promise<T> {

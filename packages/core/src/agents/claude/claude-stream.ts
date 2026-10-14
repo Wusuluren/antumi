@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { browserToolKind, ChatPermissionMode, CONTEXT_COMPACTED, takeImageMarkers, toolImagePath, type ChatCommand, type ChatDiff, type ChatImage, type ChatModel, type ChatOption, type ChatTurnActivity, type ChatTurnState } from '@kando/protocol'
+import { browserToolKind, ChatPermissionMode, CONTEXT_COMPACTED, RESERVED_MCP_SERVER_NAME, takeImageMarkers, toolImagePath, type ChatCommand, type ChatDiff, type ChatImage, type ChatModel, type ChatOption, type ChatTurnActivity, type ChatTurnState } from '@kando/protocol'
 import { offeredCommand } from '../../agent-commands'
 import { claudeBashRules, claudeChoices, claudeGrants } from '../../approval-choices'
 import { describeBrowserTool, showBrowserInput } from '../../browser-tools'
@@ -80,8 +80,15 @@ const SystemFrame = z.looseObject({
   // task_summary: what the agent is doing right now, null once it stops.
   detail: z.string().nullish(),
   // compact_boundary: how much of the context the summary left filled.
-  compact_metadata: z.looseObject({ post_tokens: z.number().optional() }).optional().catch(undefined)
+  compact_metadata: z.looseObject({ post_tokens: z.number().optional() }).optional().catch(undefined),
+  // init: the MCP servers and how starting each went; dynamic ones came in --mcp-config, from Kando.
+  mcp_servers: z.array(z.looseObject({ name: z.string(), status: z.string().optional(), source: z.string().optional() }).catch({ name: '' })).optional().catch(undefined)
 })
+
+// The servers Kando handed Claude that did not start, Kando's own aside: the user's.
+function unreachableMcp(servers: z.infer<typeof SystemFrame>['mcp_servers']) {
+  return (servers ?? []).filter((server) => server.status === 'failed' && server.source === 'dynamic' && server.name && server.name !== RESERVED_MCP_SERVER_NAME)
+}
 // What the CLI says of work it keeps in the background: a task started (a command run with
 // run_in_background is local_bash, a subagent local_agent), and one done, with how it ended.
 const TaskFrame = z.looseObject({
@@ -599,8 +606,11 @@ export class ClaudeStream implements ChatDriver {
       case 'system': {
         const system = SystemFrame.safeParse(frame)
         if (!system.success) return null
-        const { subtype, session_id, model, permissionMode } = system.data
-        if (subtype === 'init') return { type: 'system', subtype, session_id, model, permissionMode }
+        const { subtype, session_id, model, permissionMode, mcp_servers } = system.data
+        if (subtype === 'init') {
+          const unreachable = unreachableMcp(mcp_servers)
+          return { type: 'system', subtype, session_id, model, permissionMode, ...(unreachable.length ? { mcp_servers: unreachable } : {}) }
+        }
         if (subtype === 'task_started' || subtype === 'task_notification') {
           const task = TaskFrame.safeParse(frame)
           if (!task.success) return null
@@ -807,8 +817,9 @@ export class ClaudeStream implements ChatDriver {
   private system(frame: unknown, at: number): void {
     const system = SystemFrame.safeParse(frame)
     if (!system.success) return
-    const { subtype, session_id, model, permissionMode, detail, compact_metadata } = system.data
+    const { subtype, session_id, model, permissionMode, detail, compact_metadata, mcp_servers } = system.data
     if (subtype === 'init' && session_id) this.sessionId = session_id
+    if (subtype === 'init') unreachableMcp(mcp_servers).forEach((server) => this.items.mcpUnreachable(server.name, at))
     if (subtype === 'init' && model) this.reportedModel = model
     // After the first turn, an init with no message before it is the CLI starting a turn of its
     // own: a subagent left working in the background has reported back.

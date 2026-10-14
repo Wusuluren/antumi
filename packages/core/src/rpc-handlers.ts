@@ -179,6 +179,7 @@ export function createRpcHandlers(
     'mcpServers.save': (input) => mcpServerStore().save(input),
     'mcpServers.setEnabled': ({ name, enabled }) => mcpServerStore().setEnabled(name, enabled),
     'mcpServers.remove': async ({ name }) => { await mcpServerStore().remove(name); return OK },
+    'mcpServers.probe': ({ name }) => mcpServerStore().probe(name),
     'debug.wire': ({ id, stageId, before }) => {
       const known = new Map(conversations.stages(id).map((stage) => [stage.id, stage]))
       const stages = wire.stages(id)

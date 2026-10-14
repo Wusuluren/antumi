@@ -668,6 +668,18 @@ describe('CodexAppServer commands', () => {
     expect(driver.respond('0', { decision: 'deny' })).toEqual([{ id: 0, result: { action: 'decline', content: null, _meta: null } }])
   })
 
+  it('says which of the user\'s MCP servers did not start, and still does when rebuilt from its log', () => {
+    const driver = new CodexAppServer('stage-1', { ...OPTIONS, userMcp: [{ name: 'github', type: 'stdio', command: 'node', args: [] }] })
+    handshake(driver)
+    const status = (name: string, state: string) => ({ method: 'mcpServer/startupStatus/updated', params: { threadId: 'thread-1', name, status: state, error: null, failureReason: null } })
+    const frames = [status('github', 'starting'), status('github', 'failed'), status('codex_apps', 'failed')]
+    frames.forEach((frame) => driver.apply({ dir: 'in', at, frame }))
+    expect(ofKind(driver.items.list(), 'notice')).toMatchObject([{ id: 'mcp:github', text: expect.stringContaining('github') }])
+    const logged = frames.map((frame) => driver.logged(frame)).filter((frame) => frame !== null)
+    expect(logged).toEqual([{ method: 'mcpServer/startupStatus/updated', params: { name: 'github', status: 'failed', userMcp: true } }])
+    expect(ofKind(replay(logged.map((frame) => ({ dir: 'in' as const, at, frame }))).items.list(), 'notice')).toMatchObject([{ id: 'mcp:github' }])
+  })
+
   it('answers a request it does not handle with an error, once', () => {
     const driver = new CodexAppServer('stage-1', OPTIONS)
     handshake(driver)
