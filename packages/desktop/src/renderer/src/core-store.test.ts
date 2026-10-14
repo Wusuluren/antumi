@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { Task, createRpcClient, type Conversation, type RpcConnection } from '@kando/protocol'
 import { actionableItems } from './attention'
 import {
-  openAttentionItem, openConversationDraft, openInbox, selectConversation, selectTask, setAttentionOpen,
+  openAttentionItem, openConversationDraft, openInbox, selectConversation, selectTask, setOverviewOpen, setOverviewFilter, setOverviewScroll,
   refreshAttentionSummaries, setDashboardOpen, setTaskStarting, openChatWhileStarting, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, useCore,
   clearInspectorFile, installAgentCli, showConversationChanges, showInspectorFile, showTaskChanges
 } from './core-store'
@@ -85,15 +85,26 @@ describe('inspector file navigation', () => {
   })
 })
 
-describe('attention navigation', () => {
+describe('overview navigation', () => {
+  it('opens on every launch and remembers the range and scroll while visiting a conversation', () => {
+    expect(useCore.getState().overviewOpen).toBe(true)
+    setOverviewFilter('mine')
+    setOverviewScroll(240)
+    selectConversation('chat')
+    setOverviewOpen(true)
+    expect(useCore.getState()).toMatchObject({ overviewOpen: true, overviewFilter: 'mine', overviewScroll: 240 })
+    setOverviewFilter(null)
+    expect(useCore.getState().overviewScroll).toBe(0)
+  })
+
   it('closes every other main page when the aggregate opens', () => {
     useCore.setState({
       selectedId: 'task', selectedConversationId: 'chat', section: 'conversations', conversationDraft: true,
       settingsOpen: true, dashboardOpen: true, schedulesOpen: true, worktreesOpen: true, inboxOpen: true
     })
-    setAttentionOpen(true)
+    setOverviewOpen(true)
     expect(useCore.getState()).toMatchObject({
-      attentionOpen: true, selectedId: null, selectedConversationId: null, section: 'tasks', conversationDraft: false,
+      overviewOpen: true, selectedId: null, selectedConversationId: null, section: 'tasks', conversationDraft: false,
       settingsOpen: false, dashboardOpen: false, schedulesOpen: false, worktreesOpen: false, inboxOpen: false
     })
   })
@@ -104,9 +115,9 @@ describe('attention navigation', () => {
     ['dashboard', () => setDashboardOpen(true)], ['schedules', () => setSchedulesOpen(true)],
     ['worktrees', () => setWorktreesOpen(true)]
   ])('closes the aggregate when opening %s', (_label, open) => {
-    setAttentionOpen(true)
+    setOverviewOpen(true)
     open()
-    expect(useCore.getState().attentionOpen).toBe(false)
+    expect(useCore.getState().overviewOpen).toBe(false)
   })
 
   it('opens the task chat and changes inspector for review, without resolving any reason', () => {
@@ -114,9 +125,9 @@ describe('attention navigation', () => {
     const items = actionableItems(useCore.getState())
     const item = items[0]
     if (!item) throw new Error('expected a review item')
-    setAttentionOpen(true)
+    setOverviewOpen(true)
     openAttentionItem(item)
-    expect(useCore.getState()).toMatchObject({ attentionOpen: false, selectedId: task.id, view: 'chat', inspectorOpen: true, taskInspectorTab: 'changes' })
+    expect(useCore.getState()).toMatchObject({ overviewOpen: false, selectedId: task.id, view: 'chat', inspectorOpen: true, taskInspectorTab: 'changes' })
     expect(actionableItems(useCore.getState())).toEqual(items)
   })
 
@@ -131,21 +142,21 @@ describe('attention navigation', () => {
     useCore.setState({ tasks: {}, conversations: { chat: free }, unseen: { chat: true } })
     const item = actionableItems(useCore.getState())[0]
     if (!item) throw new Error('expected an approval item')
-    setAttentionOpen(true)
+    setOverviewOpen(true)
     openAttentionItem(item)
-    expect(useCore.getState()).toMatchObject({ section: 'conversations', selectedConversationId: 'chat', attentionOpen: false, unseen: {} })
+    expect(useCore.getState()).toMatchObject({ section: 'conversations', selectedConversationId: 'chat', overviewOpen: false, unseen: {} })
     expect(actionableItems(useCore.getState())).toEqual([item])
   })
 
   it('does not navigate to a task deleted or finished since its row rendered', () => {
     const item = actionableItems({ tasks: { task }, conversations: {} })[0]
     if (!item) throw new Error('expected a review item')
-    setAttentionOpen(true)
+    setOverviewOpen(true)
     openAttentionItem(item)
-    expect(useCore.getState().attentionOpen).toBe(true)
+    expect(useCore.getState().overviewOpen).toBe(true)
     useCore.setState({ tasks: { task: { ...task, status: 'done' } } })
     openAttentionItem(item)
-    expect(useCore.getState().attentionOpen).toBe(true)
+    expect(useCore.getState().overviewOpen).toBe(true)
   })
 })
 

@@ -4519,8 +4519,8 @@ body.side-panel-resizing * {
 /* Above the lists, the dashboard's entry keeps the lists' own inset and a little air below. */
 .sidebar-dashboard { margin: 8px 8px 4px; }
 .sidebar-routines { margin: 0 8px 4px; }
-.sidebar-attention { margin: 8px 8px 0; gap: 8px; }
-.inbox-entry.sidebar-attention[aria-current='true'] { box-shadow: none; }
+.overview-entry { margin: 8px 8px 0; gap: 8px; }
+.inbox-entry.overview-entry[aria-current='true'] { box-shadow: none; }
 
 .inbox-entry svg {
   width: 16px;
@@ -8028,30 +8028,51 @@ body.side-panel-resizing * {
 .environment-search-path summary { cursor: pointer; }
 .environment-search-path ul { margin: 6px 0 0; padding-left: 18px; font-size: 11px; line-height: 1.7; }
 
-/* Attention: one row per subject, with all its current reasons kept together. */
+/* Overview: work gets two lines, with a separate time and action column. */
 .attention-list { margin: 0; padding: 0; list-style: none; }
-.attention-row { display: flex; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--border); }
-.attention-row:first-child { border-top: 1px solid var(--border); }
+.attention-row { display: flex; align-items: center; gap: 16px; padding: 16px 0; }
+.overview-item { border-bottom: 1px solid var(--border); }
+.overview-item:first-child { border-top: 1px solid var(--border); }
 .attention-row-content { flex: 1; min-width: 0; }
-.attention-row-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.attention-row-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .attention-row-heading h3 { margin: 0; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
-.attention-reason { padding: 0 8px; border-radius: var(--radius-xs); background: var(--fill); color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.attention-reason { padding: 0 8px; border-radius: var(--radius-xs); background: var(--fill); color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
 .attention-reason[data-reason='awaiting'] { color: var(--accent); }
 .attention-reason[data-reason='crashed'] { color: var(--danger); }
 .attention-row-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 12px; color: var(--text-3); }
 .attention-project { overflow-wrap: anywhere; }
-.attention-row-actions { display: flex; flex-shrink: 0; gap: 8px; }
-.attention-request { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-top: 8px; font-size: 12px; }
-.attention-request-tool { flex-shrink: 0; color: var(--text-muted); }
-.attention-request code { min-width: 0; overflow: hidden; padding: 1px 6px; border-radius: var(--radius-xs); background: var(--fill); font-family: var(--mono); color: var(--text); text-overflow: ellipsis; white-space: nowrap; }
-.attention-request-more { flex-shrink: 0; color: var(--text-3); }
+.attention-row-actions { display: flex; flex-shrink: 0; flex-wrap: wrap; gap: 8px; }
+.attention-row-actions:empty { display: none; }
 .attention-notice { margin: 0 0 16px; font-size: 12px; }
 .attention-error { display: flex; align-items: center; gap: 12px; color: var(--danger); }
 .attention-error > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .attention-error .muted { display: block; margin-top: 4px; }
 .attention-empty { margin: 0; padding: 32px 0; font-size: 14px; }
-@container worktrees (max-width: 440px) {
-  .attention-row { align-items: flex-start; flex-direction: column; gap: 12px; }
+.overview-page { padding: 20px 24px 32px; }
+.overview-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.overview-switches { display: inline-flex; gap: 4px; padding: 4px; border-radius: var(--radius); background: var(--fill); }
+.overview-switches button { padding: 4px 12px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.overview-switches button[aria-pressed='true'] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.overview-switches button:focus-visible, .attention-row[role='button']:focus-visible { outline: 2px solid var(--focus); }
+.overview-unread { color: var(--text-3); font-size: 12px; }
+.overview-group + .overview-group { margin-top: 32px; }
+.overview-group-title { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
+.overview-next-group + .overview-next-group { margin-top: 24px; }
+.overview-next-group h4 { margin: 0 0 8px; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+.overview-kind { display: inline-flex; flex-shrink: 0; }
+.overview-kind svg { width: 16px; height: 16px; }
+.attention-row[role='button'] { cursor: pointer; }
+.attention-row[role='button']:hover { background: var(--fill); }
+.overview-time { flex-shrink: 0; text-align: right; font-size: 12px; color: var(--text-3); }
+.overview-disclosure, .overview-members summary { padding: 12px 0; cursor: pointer; font-size: 12px; color: var(--text-muted); }
+.overview-disclosure { border: 0; background: transparent; font-family: var(--font); }
+.overview-members { padding-left: 24px; }
+.overview-member { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); font-size: 12px; }
+@container worktrees (max-width: 640px) {
+  .attention-row { flex-wrap: wrap; gap: 12px; }
+  .attention-row-content { flex-basis: 100%; }
+  .overview-time { margin-left: auto; }
+  .attention-row-actions { justify-content: flex-end; }
 }
 
 /* Dashboard: one surface per panel with a hairline border; series in --info, task runs solid and

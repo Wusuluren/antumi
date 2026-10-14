@@ -27,8 +27,8 @@ import { RoutinesEntry } from './components/RoutinesEntry'
 import { SidebarDiscussions } from './components/SidebarDiscussions'
 import { DiscussionView } from './components/DiscussionView'
 import { DiscussionDraft } from './components/DiscussionDraft'
-import { AttentionEntry } from './components/AttentionEntry'
-import { AttentionView } from './components/AttentionView'
+import { OverviewEntry } from './components/OverviewEntry'
+import { OverviewView } from './components/OverviewView'
 import { WindowBrand } from './components/WindowBrand'
 import { ErrorToast } from './components/ErrorToast'
 import { TaskLaunchDialog } from './components/TaskLaunchDialog'
@@ -40,7 +40,7 @@ import { usePortPolling } from './port-state'
 function leavesTask(event: KeyboardEvent): boolean {
   const s = useCore.getState()
   if (event.defaultPrevented || s.section !== 'tasks' || (s.selectedId === null && !s.inboxOpen)) return false
-  if (s.settingsOpen || s.newTaskOpen || s.taskLaunchId || s.worktreesOpen || s.schedulesOpen || s.routinesOpen || s.dashboardOpen || s.attentionOpen) return false
+  if (s.settingsOpen || s.newTaskOpen || s.taskLaunchId || s.worktreesOpen || s.schedulesOpen || s.routinesOpen || s.dashboardOpen || s.overviewOpen) return false
   const typing = event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"], .xterm, [role="menu"], dialog')
   return !typing && !document.querySelector('dialog[open]')
 }
@@ -63,7 +63,7 @@ export function App() {
   const schedulesOpen = useCore((s) => s.schedulesOpen)
   const routinesOpen = useCore((s) => s.routinesOpen)
   const dashboardOpen = useCore((s) => s.dashboardOpen)
-  const attentionOpen = useCore((s) => s.attentionOpen)
+  const overviewOpen = useCore((s) => s.overviewOpen)
   const inboxOpen = useCore((s) => s.inboxOpen)
   const loginOpen = useCore((s) => s.login !== null)
   const terminalPanelOpen = useCore((s) => s.terminalPanelOpen)
@@ -150,7 +150,7 @@ export function App() {
         ) : (
           <>
             <Sidebar hidden={sidebarHidden}>
-              <AttentionEntry />
+              <OverviewEntry />
               <DashboardEntry />
               <RoutinesEntry />
               <SquadsEntry />
@@ -159,8 +159,8 @@ export function App() {
               <SidebarDiscussions />
               <ConversationList />
             </Sidebar>
-            {attentionOpen ? (
-              <AttentionView />
+            {overviewOpen ? (
+              <OverviewView />
             ) : worktreesOpen ? (
               <WorktreeManager />
             ) : schedulesOpen ? (
