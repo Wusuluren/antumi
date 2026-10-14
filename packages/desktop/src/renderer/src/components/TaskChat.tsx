@@ -23,6 +23,8 @@ import { Spinner } from './Spinner'
 import { BoardCrumb } from './TaskBoard'
 import { useTaskHandoff } from './TaskHandoff'
 import { useTodosSupported } from '../conversation-todos'
+import { WorkingSummary } from './WorkingSummary'
+import { useTaskActivity } from '../work-activity'
 
 // What the task kept of a plan in its chat: saved for when it can run. An approved one reads as its
 // answer already does, so it needs no word.
@@ -90,6 +92,7 @@ export function TaskChat({ taskId }: { taskId: string }) {
   const task = useCore((s) => s.tasks[taskId])
   const tasks = useCore((s) => s.tasks)
   const runs = useSquadRuns(taskId)
+  const activity = useTaskActivity(task)
   const memberChatId = useCore((state) => state.taskMemberConversationId)
   const setMemberChatId = (id: string | null) => useCore.setState({ taskMemberConversationId: id })
   const memberConversation = useCore((state) => memberChatId ? state.conversations[memberChatId] : undefined)
@@ -157,6 +160,11 @@ export function TaskChat({ taskId }: { taskId: string }) {
           <SourceLink task={task} />
           {conversation?.planOnly && <span className="task-tag task-tag-refining">{task.squadId ? '队长规划中' : '只读规划'}</span>}
         </div>
+        {task.squadId && activity && (
+          <button type="button" className="working-chip" title="在检查器里看小队" onClick={() => useCore.setState({ inspectorOpen: true, taskInspectorTab: 'squad' })}>
+            <WorkingSummary activity={activity} detail={false} />
+          </button>
+        )}
         <TaskToolbar task={task} view="chat" />
       </header>
       {memberChatId && <div className="squad-member-nav"><button type="button" className="button ghost" onClick={() => setMemberChatId(null)}>返回队长</button><span>{memberConversation?.title ?? '正在读取成员会话…'}</span></div>}

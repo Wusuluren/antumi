@@ -18,6 +18,8 @@ import { cardAction, TaskContextMenu, useChatTurn } from './TaskActions'
 import { TaskAlerts } from './TaskAlerts'
 import { openQuickAdd, TaskQuickAdd } from './TaskQuickAdd'
 import { TitleEditor } from './TitleEditor'
+import { WorkingSummary } from './WorkingSummary'
+import { useTaskActivity } from '../work-activity'
 
 // The way back from a task to the board, at the start of its header; Esc goes there too.
 export function BoardCrumb() {
@@ -154,6 +156,7 @@ function TaskCard({ task, tasks, now, fresh, renaming, menuOpen, onRenamed, onMe
   onMenu: (at: MenuPoint) => void
 }) {
   const turn = useChatTurn(task)
+  const activity = useTaskActivity(task)
   const dependencies = task.dependsOn.map((id) => tasks[id]).filter((dependency) => dependency !== undefined)
   const action = cardAction(task, dependencies, turn)
   // A chat task that has not started its work: planning, or holding the plan it saved.
@@ -186,8 +189,7 @@ function TaskCard({ task, tasks, now, fresh, renaming, menuOpen, onRenamed, onMe
         </span>
       )}
       <TaskAlerts task={task} />
-      {turn === 'running' && <span className="task-card-activity" data-turn="running">{agent} 工作中</span>}
-      {turn === 'awaiting' && <span className="task-card-activity" data-turn="awaiting">等你确认或回答</span>}
+      {activity && <WorkingSummary activity={activity} />}
       <span className="task-card-meta">
         <span className="task-card-agent" title={agent}><AgentIcon agent={task.agent} /></span>
         <span className="task-card-project">{projectNames(task.repos.map((repo) => repo.path))}</span>

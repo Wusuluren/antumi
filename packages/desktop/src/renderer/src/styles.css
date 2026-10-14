@@ -846,6 +846,34 @@ span.chat-translate .spinner { width: 12px; height: 12px; }
   white-space: nowrap;
 }
 
+/* Who is at work (WorkingSummary), the same on the board and in a squad task's header: their icons
+   overlapped, then who works, shimmering while they do, or that the user is waited on, still in the
+   warning colour, then what they are on. */
+.working-summary { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12px; color: var(--text-muted); }
+.working-stack { display: inline-flex; flex-shrink: 0; }
+.working-stack > svg { width: 14px; height: 14px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 1.5px var(--surface); }
+.working-stack > svg + svg { margin-left: -4px; }
+.working-label { flex-shrink: 0; white-space: nowrap; }
+.working-summary[data-state='running'] .working-label {
+  color: transparent;
+  background: linear-gradient(90deg, var(--status-running) 40%, color-mix(in srgb, var(--status-running) 35%, transparent) 50%, var(--status-running) 60%) 0 0 / 200% 100%;
+  background-clip: text;
+  animation: working-shimmer 2.2s linear infinite;
+}
+.working-summary[data-state='awaiting'] .working-label { color: var(--warning); }
+.working-detail { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.working-detail::before { content: '· '; }
+/* On a card, narrow, what they are on takes a line of its own. */
+.task-card .working-summary { flex-wrap: wrap; row-gap: 2px; }
+.task-card .working-detail { flex-basis: 100%; }
+.task-card .working-detail::before { content: none; }
+@keyframes working-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .working-summary[data-state='running'] .working-label { animation: none; color: var(--status-running); background: none; } }
+.working-chip { display: inline-flex; align-items: center; height: 26px; padding: 0 10px 0 6px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--status-running) 8%, transparent); font: inherit; cursor: pointer; }
+.working-chip:has([data-state='awaiting']) { background: color-mix(in srgb, var(--warning) 12%, transparent); }
+.working-chip:hover { filter: brightness(0.97); }
+.conversation-live[data-state='awaiting'] { color: var(--warning); }
+
 /* A conversation's row says, right of its name, how long ago it last changed. */
 .conversation-row { grid-template-columns: 16px minmax(0, 1fr) auto; }
 .conversation-row .task-row-meta,
@@ -8406,13 +8434,7 @@ body.side-panel-resizing * {
 .task-card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .task-card-tags .task-tag:not(.task-tag-refining) { background: var(--fill-2); color: var(--text-muted); }
 .task-card-tags .mono { font-family: var(--mono); }
-.task-card-activity { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
-.task-card-activity::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--status-running); flex-shrink: 0; }
-.task-card-activity[data-turn='running']::before { animation: task-card-pulse 1.4s ease-in-out infinite; }
-.task-card-activity[data-turn='awaiting'] { color: var(--accent); }
-.task-card-activity[data-turn='awaiting']::before { background: var(--accent); }
-@keyframes task-card-pulse { 50% { opacity: 0.3; } }
-@media (prefers-reduced-motion: reduce) { .task-card-activity[data-turn='running']::before, .task-card[data-fresh] { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .task-card[data-fresh] { animation: none; } }
 .task-card-meta { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; color: var(--text-muted); }
 .task-card-agent { display: grid; place-items: center; width: 16px; height: 16px; flex-shrink: 0; }
 .task-card-agent svg { width: 14px; height: 14px; }

@@ -6,6 +6,7 @@ import { agentLabel } from '../labels'
 import { CONVERSATION_GROUPS, CONVERSATION_SORTS, setPreference, usePreferences, type Preferences } from '../preferences'
 import { beginHandoff, ConversationContextMenu, newConversation, renameConversation } from './ConversationActions'
 import { ConversationStatus } from './ConversationStatus'
+import { conversationActivity } from '../work-activity'
 import { ContextMenu, menuPoint, MenuRadioItem, MenuSubmenu, type MenuPoint } from './ContextMenu'
 import { AgentIcon, ChatIcon, ChevronDownIcon, PlusIcon, SlidersIcon } from './icons'
 import { primaryProjectName, projectName, projectNames } from './ProjectPicker'
@@ -107,12 +108,17 @@ function Highlighted({ text, query }: { text: string; query: string }) {
 
 // The agent by its mark, which reads faster than its name and leaves room for the project; the name
 // is its label and tooltip.
+// Its agent and projects, then how it stands: while its agent works, what it is on; while it waits
+// on the user, what it asked.
 function ConversationMeta({ conversation }: { conversation: Conversation }) {
   const agent = agentLabel(conversation.agent)
+  const activity = conversationActivity(conversation, conversation.agent)
+  const state = activity?.detail ?? conversationState(conversation).label
   return (
     <>
       <span className="conversation-agent" role="img" aria-label={agent} title={agent}><AgentIcon agent={conversation.agent} /></span>
-      {`${projectNames(conversation.projectPaths)} · ${conversationState(conversation).label}`}
+      {projectNames(conversation.projectPaths)}{' · '}
+      <span className="conversation-live" data-state={activity?.state}>{state}</span>
     </>
   )
 }
