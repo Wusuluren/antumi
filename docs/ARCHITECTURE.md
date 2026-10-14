@@ -192,6 +192,14 @@ core 启动后会在自己的 PATH 里找 `git`、`claude`、`codex` 和 Cursor 
 
 输入框里可以粘贴、拖入图片，或点输入框下方的「＋」选「添加图片」（PNG、JPEG、GIF、WebP，一条消息最多 10 张，上传后先显示缩略图，发送时一起发出）：Claude Code 在消息里直接收到图片，Codex 收到图片文件的路径，Cursor 在 ACP 声明支持图片时收到图片内容；超过 4MB 的大图会先缩到 2000px 以内，Claude Code 只接受 5MB 以内的图片。排队的消息也带着图片。发出的图片显示在自己的消息里，点开可以放大；图片和任务附件存在同一个 `~/.kando/attachments/` 里，移交给另一个 Agent 时它只知道那条消息附了几张图片。
 
+**小助手**
+
+普通会话和任务聊天可以在检查器的「小助手」标签里开一段独立对话，也可以划词后右键「交给小助手」：选中文字先放进小助手输入框上方的引用，第一条消息发送时才启动 Agent。小助手沿用父会话的 Agent、工作目录和项目（任务聊天用当前 worktree），模型默认来自设置里的「轻量任务用的模型」，未指定时用 `quickModel`。紧凑聊天显示右侧用户气泡、无 Agent 标题的回复和可展开的「处理了 N 秒」；回复能引用回主会话。
+
+`Conversation.helperOf` / SQLite 的 `helper_of` 记录父会话，唯一索引保证一个父会话只有一条小助手。core 验证父会话存在且为普通或任务会话，拒绝群聊成员、小队成员、定时会话、小助手和已归档会话；标题固定为「小助手」，权限固定为 `ask`，不提供 bypass、持续授权、移交或无人值守执行。小助手持久化到清空（`conversations.delete`），删除或归档父会话时一起删除，项目文件保留。
+
+小助手不进入会话列表、全文搜索、未读和全局待处理/通知/请求弹窗/总览；它通过 `conversations.helper { id: 父会话 }` 恢复，等待批准只在小助手标签和父会话检查器按钮上亮点。`listAll()`、git 忙碌判断和 Agent 并发计数仍包含它。协议通过 `conversation-helper` feature 控制入口，老 core 没有这个标签。
+
 会话不需要「停止」：发消息就会接着聊，状态只有运行中、等待确认和空闲。Agent 空闲 30 分钟后（没有回合在跑、没有等你处理的请求、没有排队的消息），Kando 会结束它的进程，下次发消息时再接着同一个会话启动，这一次要多等几秒。进程异常退出时，会话显示「异常退出」，发消息会重新启动它。
 
 Claude Code 以 `claude -p --input-format stream-json --output-format stream-json` 运行，Codex 以 `codex app-server` 运行，Cursor 以 `cursor-agent acp` 或 `agent acp` 运行。它们由 daemon 托管：关闭窗口、重启 core 都不会中断 Agent，core 重启后会接着读它的输出，没回答的确认请求也还在。
