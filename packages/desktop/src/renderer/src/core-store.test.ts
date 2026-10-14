@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { Task, createRpcClient, type Conversation, type RpcConnection } from '@kando/protocol'
 import { actionableItems } from './attention'
 import {
-  openAttentionItem, openConversationDraft, openInbox, selectConversation, selectTask, setOverviewOpen, setOverviewFilter, setOverviewScroll,
-  refreshAttentionSummaries, setDashboardOpen, setTaskStarting, openChatWhileStarting, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, useCore,
+  openAttentionItem, openConversationDraft, selectConversation, selectTask, setOverviewOpen, setOverviewFilter, setOverviewScroll,
+  refreshAttentionSummaries, setDashboardOpen, setInboxOpen, setTaskStarting, openChatWhileStarting, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, useCore,
   clearInspectorFile, installAgentCli, showConversationChanges, showInspectorFile, showTaskChanges
 } from './core-store'
 import { conversationSurface } from './components/chat-surface'
@@ -111,13 +111,25 @@ describe('overview navigation', () => {
 
   it.each([
     ['task', () => selectTask('task')], ['conversation', () => selectConversation('chat')],
-    ['draft', openConversationDraft], ['inbox', openInbox], ['settings', () => setSettingsOpen(true)],
+    ['draft', openConversationDraft], ['inbox', () => setInboxOpen(true)], ['settings', () => setSettingsOpen(true)],
     ['dashboard', () => setDashboardOpen(true)], ['schedules', () => setSchedulesOpen(true)],
     ['worktrees', () => setWorktreesOpen(true)]
   ])('closes the aggregate when opening %s', (_label, open) => {
     setOverviewOpen(true)
     open()
     expect(useCore.getState().overviewOpen).toBe(false)
+  })
+
+  it.each([
+    ['task', () => selectTask('task')], ['conversation', () => selectConversation('chat')],
+    ['draft', openConversationDraft], ['overview', () => setOverviewOpen(true)],
+    ['dashboard', () => setDashboardOpen(true)], ['schedules', () => setSchedulesOpen(true)],
+    ['worktrees', () => setWorktreesOpen(true)]
+  ])('closes the inbox, a page of its own, when opening %s', (_label, open) => {
+    setInboxOpen(true)
+    expect(useCore.getState()).toMatchObject({ inboxOpen: true, overviewOpen: false, selectedId: null, selectedConversationId: null })
+    open()
+    expect(useCore.getState().inboxOpen).toBe(false)
   })
 
   it('opens the task chat and changes inspector for review, without resolving any reason', () => {

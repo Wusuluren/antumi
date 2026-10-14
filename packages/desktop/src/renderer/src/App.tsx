@@ -4,6 +4,7 @@ import { selectTask, setNewTaskOpen, setSettingsOpen, toggleBrowserPanel, toggle
 import { NewTaskDialog } from './components/NewTaskDialog'
 import { SettingsPage } from './components/SettingsPage'
 import { SourceInboxView } from './components/SourceInboxView'
+import { InboxEntry } from './components/InboxEntry'
 import { SourceLoginDialog } from './components/SourceLoginDialog'
 import { TaskDetail } from './components/TaskDetail'
 import { TaskBoard } from './components/TaskBoard'
@@ -35,12 +36,12 @@ import { TaskLaunchDialog } from './components/TaskLaunchDialog'
 import { usePreferences } from './preferences'
 import { usePortPolling } from './port-state'
 
-// Esc goes from a task or the inbox back to the board, unless it is meant for what has the focus:
+// Esc goes from a task back to the board, unless it is meant for what has the focus:
 // typing (the composer interrupts the agent with it), a terminal, or a menu or dialog, which close first.
 function leavesTask(event: KeyboardEvent): boolean {
   const s = useCore.getState()
-  if (event.defaultPrevented || s.section !== 'tasks' || (s.selectedId === null && !s.inboxOpen)) return false
-  if (s.settingsOpen || s.newTaskOpen || s.taskLaunchId || s.worktreesOpen || s.schedulesOpen || s.routinesOpen || s.dashboardOpen || s.overviewOpen) return false
+  if (event.defaultPrevented || s.section !== 'tasks' || s.selectedId === null) return false
+  if (s.settingsOpen || s.newTaskOpen || s.taskLaunchId || s.worktreesOpen || s.schedulesOpen || s.routinesOpen || s.dashboardOpen || s.overviewOpen || s.inboxOpen) return false
   const typing = event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"], .xterm, [role="menu"], dialog')
   return !typing && !document.querySelector('dialog[open]')
 }
@@ -151,6 +152,7 @@ export function App() {
           <>
             <Sidebar hidden={sidebarHidden}>
               <OverviewEntry />
+              <InboxEntry />
               <DashboardEntry />
               <RoutinesEntry />
               <SquadsEntry />
@@ -161,6 +163,8 @@ export function App() {
             </Sidebar>
             {overviewOpen ? (
               <OverviewView />
+            ) : inboxOpen ? (
+              <SourceInboxView />
             ) : worktreesOpen ? (
               <WorktreeManager />
             ) : schedulesOpen ? (
@@ -179,8 +183,6 @@ export function App() {
               selectedConversationId ? <ConversationView key={selectedConversationId} id={selectedConversationId} /> :
                 conversationDraft ? <ConversationDraft /> :
                 <section className="detail-empty">选择或新建一条会话</section>
-            ) : inboxOpen ? (
-              <SourceInboxView />
             ) : selectedId && view === 'chat' ? (
               <TaskChat key={selectedId} taskId={selectedId} />
             ) : selectedId ? (

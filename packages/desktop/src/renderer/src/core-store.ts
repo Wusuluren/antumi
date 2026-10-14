@@ -489,7 +489,7 @@ export function setBrowserMaximized(maximized: boolean): void {
 export function selectConversation(id: string | null): void {
   useCore.setState((s) => {
     const { [id ?? '']: _seen, ...unseen } = s.unseen
-    return { selectedConversationId: id, section: 'conversations', inspectorFile: s.section === 'conversations' && s.selectedConversationId === id ? s.inspectorFile : null, settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false, conversationDraft: false, unseen }
+    return { selectedConversationId: id, section: 'conversations', inspectorFile: s.section === 'conversations' && s.selectedConversationId === id ? s.inspectorFile : null, settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: false, unseen }
   })
   if (id) markRoutineRunSeen(id)
 }
@@ -517,7 +517,7 @@ export type DraftIssue = { provider: string; instance: string; key: string; titl
 // `projects`: what the page starts with, as from a project's group; without, it starts with none.
 // `issue`: the inbox issue the conversation is opened to look into.
 export function openConversationDraft(projects?: readonly string[], issue: DraftIssue | null = null): void {
-  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false, conversationDraft: true, conversationDraftProjects: projects ? { paths: [...projects] } : null, conversationDraftIssue: issue })
+  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: true, conversationDraftProjects: projects ? { paths: [...projects] } : null, conversationDraftIssue: issue })
 }
 
 export function useSourceInvestigateSupported(): boolean {
@@ -528,7 +528,7 @@ export function closeConversationDraft(): void {
   useCore.setState({ conversationDraft: false })
 }
 
-const PAGES_CLOSED = { settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false } as const
+const PAGES_CLOSED = { settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false, inboxOpen: false } as const
 
 export function selectSquad(id: string | null, draft = false): void {
   useCore.setState({ section: 'squads', selectedSquadId: id, squadDraft: draft, ...PAGES_CLOSED })
@@ -603,20 +603,26 @@ export function useDiscussionTopicsSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('discussion-topics') ?? false)
 }
 
-// The sidebar entry shows a failure in place of the count, so opening it then shows that failure.
-export function openInbox(): void {
-  useCore.setState((s) => ({
-    section: 'tasks',
-    inboxOpen: true,
-    inboxTab: activeInboxes(s.sources, s.inboxes).find((entry) => entry.inbox.problem)?.key ?? s.inboxTab,
-    selectedId: null,
-    settingsOpen: false,
-    worktreesOpen: false,
-    schedulesOpen: false,
-    routinesOpen: false,
-    dashboardOpen: false,
-    overviewOpen: false
-  }))
+// A page of its own, as the overview is: an issue may become a task or be looked into in a
+// conversation, so the inbox belongs to neither. The sidebar entry shows a failure in place of the
+// count, so opening it then shows that failure.
+export function setInboxOpen(open: boolean): void {
+  useCore.setState((s) => open
+    ? {
+        inboxOpen: true,
+        inboxTab: activeInboxes(s.sources, s.inboxes).find((entry) => entry.inbox.problem)?.key ?? s.inboxTab,
+        section: 'tasks',
+        selectedId: null,
+        selectedConversationId: null,
+        conversationDraft: false,
+        settingsOpen: false,
+        worktreesOpen: false,
+        schedulesOpen: false,
+        routinesOpen: false,
+        dashboardOpen: false,
+        overviewOpen: false
+      }
+    : { inboxOpen: false })
 }
 
 export function setInboxTab(key: string): void {
@@ -655,15 +661,15 @@ export function setSettingsOpen(open: boolean, section: string | null = null): v
 }
 
 export function setWorktreesOpen(open: boolean): void {
-  useCore.setState({ worktreesOpen: open, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false, settingsOpen: false })
+  useCore.setState({ worktreesOpen: open, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
 }
 
 export function setSchedulesOpen(open: boolean): void {
-  useCore.setState({ schedulesOpen: open, routinesOpen: false, worktreesOpen: false, dashboardOpen: false, overviewOpen: false, settingsOpen: false })
+  useCore.setState({ schedulesOpen: open, routinesOpen: false, worktreesOpen: false, dashboardOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
 }
 
 export function setRoutinesOpen(open: boolean): void {
-  useCore.setState({ routinesOpen: open, schedulesOpen: false, worktreesOpen: false, dashboardOpen: false, overviewOpen: false, settingsOpen: false })
+  useCore.setState({ routinesOpen: open, schedulesOpen: false, worktreesOpen: false, dashboardOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
 }
 
 // Opened from the task list, so it takes the place of the selected task as the inbox does.

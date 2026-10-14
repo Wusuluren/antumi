@@ -1,11 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { SourceInbox, SourceIssue, Task } from '@kando/protocol'
-import { openConversationDraft, perform, selectConversation, selectTask, setInboxTab, setSettingsOpen, useCore, useSourceInvestigateSupported } from '../core-store'
+import { openConversationDraft, perform, selectConversation, selectTask, setInboxOpen, setInboxTab, setSettingsOpen, useCore, useSourceInvestigateSupported } from '../core-store'
 import { defaultAgent } from '../default-agent'
 import { sourceProblemText } from '../labels'
 import { activeInboxes, inboxKey, inboxTab, investigationProjects, type ActiveInbox } from '../source-inboxes'
 import { CloseIcon, GearIcon, InboxIcon, RefreshIcon } from './icons'
-import { BoardCrumb } from './TaskBoard'
 
 const clock = (ms: number) =>
   new Date(ms).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -191,14 +190,13 @@ function InboxSection({
 }
 
 // Every task source that is set up and signed in: one section, or a tab each once there are two.
-// Opened from the task board, so it leads back there, as a task's header does.
+// A page of its own, opened from the sidebar, so it closes as the overview does.
 function InboxHeader() {
   return (
     <header className="detail-header">
-      <BoardCrumb />
       <h2 className="inbox-title">收件箱</h2>
       <span className="toolbar">
-        <button type="button" className="tool-button" aria-label="关闭" data-tooltip="回到任务看板 Esc" onClick={() => selectTask(null)}>
+        <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => setInboxOpen(false)}>
           <CloseIcon />
         </button>
       </span>

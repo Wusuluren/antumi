@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { create } from 'zustand'
 import { AGENT_KINDS, type AgentKind, type Task } from '@kando/protocol'
 import { timeAgo } from '../conversation-state'
-import { openInbox, selectTask, setNewTaskOpen, useCore } from '../core-store'
+import { selectTask, setNewTaskOpen, useCore } from '../core-store'
 import { agentLabel, STATUS_LABEL } from '../labels'
 import { setPreference, TASK_SORTS, usePreferences } from '../preferences'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
@@ -11,7 +11,7 @@ import { waitingOn } from '../task-waiting'
 import { saveTaskText } from '../unsaved-edits'
 import { ChatPicker } from './ChatPicker'
 import { menuPoint, type MenuPoint } from './ContextMenu'
-import { AgentIcon, InboxIcon } from './icons'
+import { AgentIcon } from './icons'
 import { projectName, projectNames } from './ProjectPicker'
 import { StatusIcon } from './StatusIcon'
 import { cardAction, TaskContextMenu, useChatTurn } from './TaskActions'
@@ -85,7 +85,6 @@ export function TaskBoard() {
         <ProjectFilter tasks={list} value={filter.project} />
         <AgentFilter tasks={list} value={filter.agent} />
         <span className="task-board-spacer" />
-        <InboxButton />
         <button
           type="button"
           className="task-board-chip"
@@ -265,22 +264,3 @@ function SortButton({ value }: { value: TaskSort }) {
   )
 }
 
-// Issues waiting to come in as tasks; a failed sync shows in place of the count.
-function InboxButton() {
-  const sources = useCore((s) => s.sources)
-  const inboxes = useCore((s) => s.inboxes)
-  const active = Object.values(inboxes).filter((inbox) => inbox.active)
-  if (active.length === 0) return null
-  const waiting = active.reduce((sum, inbox) => sum + inbox.items.length, 0)
-  // Named after its source while there is only one, as it will be for most people.
-  const only = active.length === 1 ? sources?.find((source) => source.provider === active[0]?.provider) : undefined
-  return (
-    <button type="button" className="task-board-chip" onClick={openInbox}>
-      <InboxIcon />
-      {only ? `${only.name} 收件箱` : '收件箱'}
-      {active.some((inbox) => inbox.problem)
-        ? <span className="inbox-entry-alert" aria-label="同步失败">!</span>
-        : waiting > 0 && <span className="inbox-entry-count">{waiting}</span>}
-    </button>
-  )
-}
