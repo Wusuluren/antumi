@@ -43,6 +43,12 @@ try {
   for (const width of [320, 736, 1280]) {
     await page.setViewportSize({ width, height: 520 })
     if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error(`overflow at ${width}`)
+    const centered = await page.locator('.chat-browser-activity').evaluate((element) => {
+      const panel = element.getBoundingClientRect()
+      const parent = element.parentElement.getBoundingClientRect()
+      return Math.abs(panel.left + panel.width / 2 - parent.left - parent.width / 2) < 1
+    })
+    if (!centered) throw new Error(`browser activity not centered at ${width}`)
   }
   await page.getByRole('button', { name: 'click', exact: true }).click()
   await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' })

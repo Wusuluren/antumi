@@ -7876,7 +7876,7 @@ body.side-panel-resizing * {
 
 /* A page the agent opened, as a card: title, where it is, and the button to the browser panel. */
 .chat-browser-work { display: flex; flex-direction: column; gap: 8px; }
-.chat-browser-activity { max-width: 248px; min-width: 0; margin: 0 12px 8px 36px; color: var(--accent); }
+.chat-browser-activity { width: 100%; max-width: 248px; min-width: 0; margin: 0 auto 8px; color: var(--accent); }
 .chat-browser-activity[data-status='done'] { color: var(--status-done); }
 .chat-browser-activity:is([data-status='failed'], [data-status='denied']) { color: var(--danger); }
 .chat-browser-activity[data-status='interrupted'] { color: var(--text-muted); }
