@@ -1,6 +1,6 @@
-import { useId, useState } from 'react'
+import { useContext, useId, useState } from 'react'
 import type { ChatItem } from '@kando/protocol'
-import { useChosen } from '../chat-disclosure'
+import { ChatFindExpansion, useChosen } from '../chat-disclosure'
 import { itemKey } from '../chat-state'
 import { formatTokens, subagentBrief } from '../chat-tools'
 import { durationText } from '../stat-format'
@@ -114,6 +114,7 @@ function wirePath(index: number, count: number): string {
 // each of them on the right, and under it all the one the user opened. `fresh` is a fan that
 // arrived while the chat was open: it unfolds lane by lane.
 export function ChatSubagents({ tools, fresh }: { tools: readonly ToolItem[]; fresh?: boolean }) {
+  const searching = useContext(ChatFindExpansion)
   const keys = tools.map((tool) => `agent:${itemKey(tool)}`)
   const [chosen, choose] = useChosen(keys)
   const [hovered, setHovered] = useState<number | null>(null)
@@ -151,8 +152,8 @@ export function ChatSubagents({ tools, fresh }: { tools: readonly ToolItem[]; fr
                 key={tool.id}
                 tool={tool}
                 lane={index}
-                open={open === tool}
-                panel={panel}
+                open={searching || open === tool}
+                panel={searching ? `${panel}-${index}` : panel}
                 onToggle={() => choose(open === tool ? null : keys[index] ?? null)}
                 onHover={(on) => setHovered((was) => (on ? index : was === index ? null : was))}
               />
@@ -160,7 +161,7 @@ export function ChatSubagents({ tools, fresh }: { tools: readonly ToolItem[]; fr
           </div>
         </div>
       </div>
-      {open && <SubagentDetail tool={open} id={panel} />}
+      {searching ? tools.map((tool, index) => <SubagentDetail key={itemKey(tool)} tool={tool} id={`${panel}-${index}`} />) : open && <SubagentDetail tool={open} id={panel} />}
     </div>
   )
 }

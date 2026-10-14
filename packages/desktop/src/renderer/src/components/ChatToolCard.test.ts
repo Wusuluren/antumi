@@ -3,9 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChatItem } from '@kando/protocol'
 import { ChatToolCard, ChatToolRun } from './ChatToolCard'
+import { ChatFindExpansion } from '../chat-disclosure'
 
 const opened = vi.hoisted(() => new Set<string>())
-vi.mock('../chat-disclosure', () => ({ useDisclosure: (key: string) => [opened.has(key), () => {}] }))
+vi.mock('../chat-disclosure', async (original) => ({ ...await original<typeof import('../chat-disclosure')>(), useDisclosure: (key: string) => [opened.has(key), () => {}] }))
 vi.mock('../core-store', () => ({ showTerminal: vi.fn() }))
 beforeEach(() => opened.clear())
 
@@ -17,6 +18,16 @@ const tool = (id: string, changes: Partial<ToolItem> = {}): ToolItem => ({
 const run = (tools: ToolItem[]) => renderToStaticMarkup(createElement(ChatToolRun, { tools }))
 
 describe('command cards', () => {
+  it('exposes full output only while searching for both grouped and standalone calls', () => {
+    const command = tool('long', { output: 'x'.repeat(5000) + 'unique tail' })
+    opened.add('call:stage/long')
+    opened.add('card:stage/long')
+    for (const card of [createElement(ChatToolCard, { item: command }), createElement(ChatToolRun, { tools: [command] })]) {
+      expect(renderToStaticMarkup(card)).not.toContain('unique tail')
+      expect(renderToStaticMarkup(createElement(ChatFindExpansion.Provider, { value: true }, card))).toContain('unique tail')
+    }
+  })
+
   it.each([[19, 1], [21, 3]])('keeps the collapsed %i-command group quiet with %i nonzero exits', (count, exits) => {
     const tools = Array.from({ length: count }, (_, index) => tool(String(index), index < exits ? {} : {
       status: 'done', execution: { status: 'completed', exitCode: 0 }

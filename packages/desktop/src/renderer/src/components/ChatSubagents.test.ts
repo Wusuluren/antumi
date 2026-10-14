@@ -3,9 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import type { ChatItem } from '@kando/protocol'
 import { ChatSubagents } from './ChatSubagents'
+import { ChatFindExpansion } from '../chat-disclosure'
 
-vi.mock('../chat-disclosure', () => ({ useChosen: () => [null, () => {}] }))
-vi.mock('./ChatMarkdown', () => ({ ChatMarkdown: () => null }))
+vi.mock('../chat-disclosure', async (original) => ({ ...await original<typeof import('../chat-disclosure')>(), useChosen: () => [null, () => {}] }))
+vi.mock('./ChatMarkdown', () => ({ ChatMarkdown: ({ text }: { text: string }) => text }))
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 
@@ -29,6 +30,17 @@ describe('subagent card', () => {
 describe('subagent fan', () => {
   const fan = (tools: ToolItem[]) => renderToStaticMarkup(createElement(ChatSubagents, { tools }))
   const count = (html: string, needle: string) => html.split(needle).length - 1
+
+  it('temporarily exposes all subagent reports while searching', () => {
+    const tools = [{ ...subagent(null, 'a'), output: 'first report' }, { ...subagent(null, 'b'), output: 'second report' }]
+    const card = createElement(ChatSubagents, { tools })
+    expect(renderToStaticMarkup(card)).not.toContain('first report')
+    const html = renderToStaticMarkup(createElement(ChatFindExpansion.Provider, { value: true }, card))
+    expect(html).toContain('first report')
+    expect(html).toContain('second report')
+    expect(count(html, 'aria-expanded="true"')).toBe(2)
+    expect(count(html, 'class="chat-subagent-body"')).toBe(2)
+  })
 
   it('draws a wire and a card for each subagent sent off together', () => {
     const html = fan([subagent(null, 'a'), subagent(null, 'b', 'running'), subagent(null, 'c', 'failed')])

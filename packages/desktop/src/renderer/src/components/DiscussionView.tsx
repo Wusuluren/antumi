@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { checkDiscussionAction, checkEditDiscussionProjects, checkNewDiscussionTopic, checkRemoveDiscussionMember, currentTopic, MAX_DETAILS_LENGTH, memberLetter, type Discussion, type DiscussionAction, type DiscussionMember, type DiscussionPost } from '@kando/protocol'
 import { loadConversation, openDiscussionDraft, perform, selectConversation, selectDiscussion, selectTask, useCore, useDiscussionMembersSupported, useDiscussionProjectsSupported, useDiscussionTopicsSupported } from '../core-store'
 import { archiveDiscussion, controlDiscussion, discussionProgress, EVERYONE, loadDiscussionPosts, newDiscussionTopic, removeDiscussionMember, setDiscussionProjects, MEMBER_STATUS_LABEL, mentionedMembers, postToDiscussion, renameDiscussion, useDiscussionPosts } from '../discussions'
@@ -15,6 +15,7 @@ import { useDiscussionMentionMenu } from './DiscussionMentions'
 import { AddMemberButton } from './DiscussionMemberForm'
 import { ArchivedBar } from './ArchivedBar'
 import { CopyButton } from './CopyButton'
+import { ChatFind, useChatFindState } from './ChatFind'
 
 const ACTIONS: Array<{ action: DiscussionAction; label: string; hint: string }> = [
   { action: 'pause', label: '暂停', hint: '这一轮说完后先停下' },
@@ -305,14 +306,17 @@ export function DiscussionView({ id }: { id: string }) {
   const projectsEditable = useDiscussionProjectsSupported() && (discussion?.projectPaths.length ?? 0) > 0 && !archived
   const projectsBlocked = discussion ? checkEditDiscussionProjects(discussion) !== null : true
   const list = useRef<HTMLDivElement>(null)
+  const view = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
+  const find = useChatFindState(id)
+  const findOpened = useCallback(() => { pinned.current = false }, [])
 
   useEffect(() => { if (!posts) void loadDiscussionPosts(id) }, [id, posts])
   // Follows new posts while the user is at the bottom; leaves them be once they scroll up.
   useLayoutEffect(() => {
     const element = list.current
-    if (element && pinned.current) element.scrollTop = element.scrollHeight
-  }, [posts])
+    if (element && !find.open && pinned.current) element.scrollTop = element.scrollHeight
+  }, [posts, find.open])
 
   if (!discussion) return null
   const mentions = asTopic ? [] : mentionedMembers(text, discussion.members)
@@ -375,7 +379,8 @@ export function DiscussionView({ id }: { id: string }) {
         </div>
       </header>
       <div className="terminal-body">
-        <div className="chat-view discussion-body" data-width={width} data-font-size={fontSize} data-font={font}>
+        <div ref={view} className="chat-view discussion-body" data-width={width} data-font-size={fontSize} data-font={font}>
+          <ChatFind key={id} state={find} scope={view} container={list} onOpen={findOpened} />
           <ul className="discussion-members" aria-label="成员">
             {discussion.members.map((member) => {
               const blocked = checkRemoveDiscussionMember(discussion, member.id)
@@ -407,7 +412,7 @@ export function DiscussionView({ id }: { id: string }) {
             className="chat-list discussion-list"
             onScroll={(event) => {
               const element = event.currentTarget
-              pinned.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48
+              pinned.current = !find.open && element.scrollHeight - element.scrollTop - element.clientHeight < 48
             }}
           >
             <div className="discussion-topic">

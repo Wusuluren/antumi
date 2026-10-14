@@ -3,9 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { describeBrowserPage, type ChatItem } from '@kando/protocol'
 import { ChatBrowserCard, ChatBrowserRun } from './ChatBrowserCard'
+import { ChatFindExpansion } from '../chat-disclosure'
 
 const opened = vi.hoisted(() => new Set<string>())
-vi.mock('../chat-disclosure', () => ({ useDisclosure: (key: string) => [opened.has(key), () => {}] }))
+vi.mock('../chat-disclosure', async (original) => ({ ...await original<typeof import('../chat-disclosure')>(), useDisclosure: (key: string) => [opened.has(key), () => {}] }))
 vi.mock('../core-store', () => ({
   useCore: () => false, showBrowserTab: vi.fn(), showTerminal: vi.fn()
 }))
@@ -25,6 +26,14 @@ const call = (id: string, changes: Partial<ToolItem> = {}): ToolItem => ({
 const render = (tools: ToolItem[]) => renderToStaticMarkup(createElement(ChatBrowserRun, { tools }))
 
 describe('browser work', () => {
+  it('exposes the entire page snapshot while searching', () => {
+    const page = call('long', { output: describeBrowserPage({ id: tabId, title: 'Long page', url: 'http://localhost/' }, 'x'.repeat(5000) + 'unique tail') })
+    opened.add('card:stage/long')
+    const card = createElement(ChatBrowserCard, { item: page })
+    expect(renderToStaticMarkup(card)).not.toContain('unique tail')
+    expect(renderToStaticMarkup(createElement(ChatFindExpansion.Provider, { value: true }, card))).toContain('unique tail')
+  })
+
   it('renders a collapsed history and just one latest page for a repeated tab', () => {
     const html = render([call('first'), call('refresh'), call('click', { name: 'kando.browser_click' })])
     expect(html).toContain('浏览器操作 3 次')

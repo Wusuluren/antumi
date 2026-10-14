@@ -3,7 +3,7 @@ import { cursorProviderError, isBrowserTool, isPlanApproval, isPreviewTool, pars
 import { firstBrowserCall, shouldOpenBrowser } from '../browser-state'
 import { ChatBrowserCard, ChatBrowserRun, ChatShotCard } from './ChatBrowserCard'
 import { foldRowKeys, chatBlocks, dropChat, finalReplies, itemKey, pathShortener, prependChatPage, previousTodos, saidText, setChatPage, stageAgents, thoughtDurations, timeline, useChat, type ChatBlock, type TimelineEntry, type TurnAgent, type TurnFile } from '../chat-state'
-import { ChatDisclosureScope, setOpened, useDisclosure } from '../chat-disclosure'
+import { ChatDisclosureScope, ChatFindExpansion, setOpened, useDisclosure } from '../chat-disclosure'
 import { isCompaction, noticeSummary, readableNotice } from '../chat-notices'
 import { parseQuotes, withoutQuoteMarkers } from '../chat-quotes'
 import { formatTokens, isSubagent, thoughtFor, workedFor } from '../chat-tools'
@@ -36,6 +36,7 @@ import { cssFontFamily } from '../system-fonts'
 import { freshKeys } from '../chat-motion'
 import { acknowledgeInitialMessage, sendInitialMessage, useInitialMessages, type InitialMessage } from '../initial-messages'
 import { Spinner } from './Spinner'
+import { ChatFind, useChatFindState, type ChatHistoryResult } from './ChatFind'
 import { ArrowDownIcon, ChevronDownIcon, ChevronRightIcon, FileChangesIcon, AgentIcon, ForkIcon, TranslateIcon } from './icons'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
@@ -95,6 +96,7 @@ type ReasoningItem = Extract<ChatItem, { kind: 'reasoning' }>
 // user opens or closes it, it stays as they left it.
 function Reasoning({ item }: { item: ReasoningItem }) {
   const took = useContext(Thoughts).get(itemKey(item))
+  const searching = useContext(ChatFindExpansion)
   // Open while it streams and a moment after; open for good once the user opens it.
   const [kept, keep] = useDisclosure(`thought:${itemKey(item)}`)
   const [streaming, setStreaming] = useState(item.streaming)
@@ -121,6 +123,7 @@ function Reasoning({ item }: { item: ReasoningItem }) {
         className="chat-fold-header"
         aria-expanded={open}
         onClick={() => {
+          if (searching) return
           keep(!open)
           if (open) setStreaming(false)
         }}
@@ -608,6 +611,9 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
   const [stages, setStages] = useState<ConversationStage[]>([])
   const list = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
+  const find = useChatFindState(id)
+  const findOpened = useCallback(() => { pinned.current = false }, [])
+  const olderRequest = useRef<{ id: string; promise: Promise<ChatHistoryResult> } | null>(null)
   const [away, setAway] = useState(false)
   // Every block shown so far, so one that arrives while the chat is open can enter with a motion;
   // older history loaded on request is simply there.
@@ -763,19 +769,19 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
   const turnState = conversation.chat?.turn
   useLayoutEffect(() => {
     const element = list.current
-    if (element && pinned.current) element.scrollTop = element.scrollHeight
-  }, [entries, turnState])
+    if (element && !find.open && pinned.current) element.scrollTop = element.scrollHeight
+  }, [entries, turnState, find.open])
 
   // A request docking below makes the list shorter; one pinned to the end stays there.
   useEffect(() => {
     const element = list.current
     if (!element) return
     const observer = new ResizeObserver(() => {
-      if (pinned.current) element.scrollTop = element.scrollHeight
+      if (!find.open && pinned.current) element.scrollTop = element.scrollHeight
     })
     observer.observe(element)
     return () => observer.disconnect()
-  }, [])
+  }, [find.open])
 
   // Scrolls to the nearest of the user's messages above what is in view.
   const previous = () => {
@@ -801,16 +807,23 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
     setTimeout(() => delete target.dataset.flash, 1500)
   }
 
-  const loadOlder = async () => {
-    if (!page?.before) return
-    const before = page.before
-    const older = await perform((connection) => connection.call('conversations.chatItems', { id, before }))
-    if (older) {
+  const loadOlder = useCallback((): Promise<ChatHistoryResult> => {
+    if (olderRequest.current?.id === id) return olderRequest.current.promise
+    const load = async (): Promise<ChatHistoryResult> => {
+      const before = useChat.getState()[id]?.before
+      if (!before) return 'done'
+      const older = await perform((connection) => connection.call('conversations.chatItems', { id, before }))
+      if (!useChat.getState()[id]) return 'done'
+      if (!older || older.before === before) return 'failed'
       pinned.current = false
       olderLoaded.current = true
       prependChatPage(id, older)
+      return 'loaded'
     }
-  }
+    const promise = load().finally(() => { if (olderRequest.current?.promise === promise) olderRequest.current = null })
+    olderRequest.current = { id, promise }
+    return promise
+  }, [id])
 
   const roots = useMemo(
     () => (conversation.projectPaths.length ? conversation.projectPaths : [conversation.workspacePath]),
@@ -860,11 +873,13 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
     <Endings.Provider value={endings}>
     <MergedTurns.Provider value={mergedTurns}>
     <ChatDisclosureScope.Provider value={id}>
+    <ChatFindExpansion.Provider value={find.searching}>
     <Folds.Provider value={folds}>
     <TodoHistory.Provider value={todoHistory}>
     <JumpToEntry.Provider value={jumpTo}>
     <ChatMessageRelay.Provider value={beginRelay}>
-    <div className="chat-view" ref={view} data-width={width} data-font-size={fontSize} data-font={font === 'custom' && !fontFamily ? 'system' : font}>
+    <div className="chat-view" ref={view} data-searching={find.searching || undefined} data-width={width} data-font-size={fontSize} data-font={font === 'custom' && !fontFamily ? 'system' : font}>
+      <ChatFind key={id} state={find} scope={view} container={list} onOpen={findOpened} hasOlder={Boolean(page?.before)} loadOlder={loadOlder} />
       <div
         className="chat-list"
         ref={list}
@@ -874,7 +889,7 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
         onScroll={(event) => {
           const element = event.currentTarget
           const below = element.scrollHeight - element.scrollTop - element.clientHeight
-          pinned.current = below < PINNED_SLACK
+          pinned.current = !find.open && below < PINNED_SLACK
           setAway(below > AWAY_SLACK)
         }}
       >
@@ -939,6 +954,7 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
     </JumpToEntry.Provider>
     </TodoHistory.Provider>
     </Folds.Provider>
+    </ChatFindExpansion.Provider>
     </ChatDisclosureScope.Provider>
     </MergedTurns.Provider>
     </Endings.Provider>

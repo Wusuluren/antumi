@@ -3,7 +3,7 @@ import { browserToolKind, parseBrowserPage, toolImagePath, type ChatItem } from 
 import { useImageUrl } from '../attachment-images'
 import { useNearView } from '../near-view'
 import { useBrowserTabs, ALL_TABS } from '../browser-state'
-import { useDisclosure } from '../chat-disclosure'
+import { ChatFindExpansion, useDisclosure } from '../chat-disclosure'
 import { itemKey } from '../chat-state'
 import { latestBrowserPages } from '../chat-browser'
 import { toolLabel, toolRunStatus } from '../chat-tools'
@@ -86,6 +86,7 @@ function hostLine(url: string): string {
 // the background; 打开 brings the panel up on this tab. A navigation that did not come to a page
 // (the user was asked, or refused) says so instead.
 function ChatPageCard({ item, disclosureKey = itemKey(item) }: { item: ToolItem; disclosureKey?: string }) {
+  const searching = useContext(ChatFindExpansion)
   const page = item.output ? parseBrowserPage(item.output) : null
   const open = useCore((s) => s.browserPanelOpen)
   const shown = useBrowserTabs((s) => s[ALL_TABS]?.selectedId)
@@ -108,7 +109,7 @@ function ChatPageCard({ item, disclosureKey = itemKey(item) }: { item: ToolItem;
       {item.output && page && (
         <button type="button" className="chat-page-more link-button" aria-expanded={viewing} onClick={() => setViewing(!viewing)}>{viewing ? '收起快照' : '页面快照'}</button>
       )}
-      {viewing && item.output && <pre className="chat-tool-io">{clipped(item.output)}</pre>}
+      {viewing && item.output && <pre className="chat-tool-io">{searching ? item.output : clipped(item.output)}</pre>}
     </div>
   )
 }
@@ -139,6 +140,7 @@ export function ChatBrowserCard({ item }: { item: ToolItem }) {
 // read is mostly the agent checking its own work, often shown again as a preview, so it waits
 // behind a click and is only loaded once opened.
 export function ChatShotCard({ item }: { item: ToolItem }) {
+  const searching = useContext(ChatFindExpansion)
   const [open, setOpen] = useDisclosure(`card:${itemKey(item)}`)
   const [viewing, setViewing] = useState<number | null>(null)
   const shorten = useContext(ChatPaths)
@@ -159,7 +161,7 @@ export function ChatShotCard({ item }: { item: ToolItem }) {
       {images.map((image, index) => <BrowserShot key={image.id} image={image} onOpen={() => setViewing(index)} />)}
       {open && path && <FileShot path={path} />}
       {open && item.input && <ChatToolInput name={item.name} input={item.input} />}
-      {open && output && <pre className="chat-tool-io">{clipped(output)}</pre>}
+      {open && output && <pre className="chat-tool-io">{searching ? output : clipped(output)}</pre>}
       {viewing !== null && images.length > 0 && (
         <ImageViewer
           images={images.map((image) => ({ ...image, name: '' }))}

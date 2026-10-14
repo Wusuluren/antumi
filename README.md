@@ -218,6 +218,7 @@ pnpm dist:mac     # 产物在 packages/desktop/dist/Kando-<版本>-arm64.dmg
 | <kbd>Ctrl</kbd> <kbd>`</kbd> | 打开 / 关闭终端面板 |
 | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>`</kbd> | 打开 / 关闭浏览器面板 |
 | <kbd>⌘</kbd> <kbd>,</kbd> | 设置 |
+| <kbd>⌘</kbd> / <kbd>Ctrl</kbd> <kbd>F</kbd> | 搜索当前聊天；Enter / Shift+Enter 跳到下一个 / 上一个结果，Esc 关闭搜索 |
 | <kbd>Enter</kbd> / <kbd>Shift</kbd> <kbd>Enter</kbd> | 发送 / 换行；Agent 忙时 Enter 会把消息排队 |
 | <kbd>Tab</kbd> 或 <kbd>→</kbd> | 采用 Claude Code 预测的下一句 |
 | <kbd>Esc</kbd> | 中断当前回合；在任务页里回到看板 |

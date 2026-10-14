@@ -5292,6 +5292,19 @@ body.side-panel-resizing * {
 .chat-view[data-width='medium'] { --chat-width: 1200px; }
 .chat-view[data-width='full'] { --chat-width: 100%; }
 
+.chat-find { flex-shrink: 0; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.chat-find-bar { display: flex; align-items: center; gap: 8px; }
+.chat-find-bar > svg { flex-shrink: 0; width: 16px; height: 16px; color: var(--text-muted); }
+.chat-find-input { flex: 1; min-width: 0; width: 100%; padding: 4px 8px; border: 1px solid var(--border-2); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; font-size: var(--chat-font-small); }
+.chat-find-input:focus-visible { outline: 2px solid var(--focus); outline-offset: -1px; }
+.chat-find-count { flex-shrink: 0; font-size: var(--chat-font-small); color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chat-find-bar > .tool-button { flex-shrink: 0; }
+.chat-find-previous svg { transform: rotate(180deg); }
+.chat-find-error { display: flex; align-items: center; gap: 8px; padding-top: 4px; color: var(--text-muted); font-size: var(--chat-font-small); }
+.chat-view[data-searching] .chat-fold-bar { display: none; }
+::highlight(kando-chat-find) { background: color-mix(in srgb, var(--warning) 30%, transparent); color: var(--text); }
+::highlight(kando-chat-find-current) { background: color-mix(in srgb, var(--warning) 70%, var(--surface)); color: var(--text); text-decoration: underline; }
+
 .chat-list {
   --chat-fade: 24px;
   /* Shorter at the top, where the header already sets the list off. */

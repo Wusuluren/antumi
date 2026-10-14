@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { terminalToolKind, type ChatDiff, type ChatItem, type ChatToolStatus } from '@kando/protocol'
-import { useDisclosure } from '../chat-disclosure'
+import { ChatFindExpansion, useDisclosure } from '../chat-disclosure'
 import { itemKey } from '../chat-state'
 import { showTerminal } from '../core-store'
 import { commandExitCode, diffCounts, elapsedText, runHeadline, toolDisplayStatus, toolLabel, toolRunStatus } from '../chat-tools'
@@ -126,6 +126,7 @@ export function ChatEditsCard({ path, tools }: { path: string; tools: readonly T
 
 // One call as a flat line: what it is and what it was given, opening onto its input and output.
 function ToolLine({ tool }: { tool: ToolItem }) {
+  const searching = useContext(ChatFindExpansion)
   const [open, setOpen] = useDisclosure(`call:${itemKey(tool)}`)
   const shorten = useContext(ChatPaths)
   const code = commandExitCode(tool)
@@ -157,7 +158,7 @@ function ToolLine({ tool }: { tool: ToolItem }) {
       </button>
       {open && <CommandExit tool={tool} />}
       {open && tool.input && <ChatToolInput name={tool.name} input={tool.input} />}
-      {open && tool.output && <ChatCopyRegion text={tool.output}><pre className="chat-tool-io">{clipped(tool.output)}</pre></ChatCopyRegion>}
+      {open && tool.output && <ChatCopyRegion text={tool.output}><pre className="chat-tool-io">{searching ? tool.output : clipped(tool.output)}</pre></ChatCopyRegion>}
     </div>
     </ChatCopyRegion>
   )
@@ -201,6 +202,7 @@ export function ChatToolRun({ tools, summary }: { tools: readonly ToolItem[]; su
 const TERMINAL_ID = /标签 id：([0-9a-f-]{36})/
 
 export function ChatToolCard({ item }: { item: ToolItem }) {
+  const searching = useContext(ChatFindExpansion)
   const [open, setOpen] = useDisclosure(`card:${itemKey(item)}`)
   const shorten = useContext(ChatPaths)
   const code = commandExitCode(item)
@@ -234,7 +236,7 @@ export function ChatToolCard({ item }: { item: ToolItem }) {
       {open && <CommandExit tool={item} />}
       {open && item.diffs.length > 0 && <ChatDiffs diffs={item.diffs} />}
       {open && item.input && <ChatToolInput name={item.name} input={item.input} />}
-      {open && item.output && <ChatCopyRegion text={item.output}><pre className="chat-tool-io">{clipped(item.output)}</pre></ChatCopyRegion>}
+      {open && item.output && <ChatCopyRegion text={item.output}><pre className="chat-tool-io">{searching ? item.output : clipped(item.output)}</pre></ChatCopyRegion>}
     </div>
   )
 }
