@@ -77,6 +77,136 @@ describe('ConversationService', () => {
     rmSync(root, { recursive: true, force: true })
   })
 
+  it('creates a deferred helper in the parent workspace, with a locked title and ask permissions', async () => {
+    const parent = await service.create('claude', [], true, { deferStart: true })
+    const helper = await service.create('claude', ['/ignored'], undefined, { helperOf: parent.id, deferStart: true })
+    expect(helper).toMatchObject({ helperOf: parent.id, title: '小助手', titleLocked: true,
+      workspacePath: parent.workspacePath, projectPaths: parent.projectPaths, sessionId: null,
+      chatOptions: { permissionMode: 'ask' } })
+    expect(store.chatOptions(helper.id).allowBypass).toBe(false)
+    expect(daemon.spawns).toHaveLength(0)
+    expect(service.helper(parent.id)?.id).toBe(helper.id)
+    const reopened = new ConversationStore(path.join(root, 'kando.db'))
+    expect(reopened.helper(parent.id)?.id).toBe(helper.id)
+    reopened.close()
+    expect(() => service.rename(helper.id, 'renamed')).toThrow()
+    await expect(service.setOption(helper.id, 'permissionMode', 'bypass')).rejects.toMatchObject({ reason: 'chat-option-invalid' })
+    await expect(service.setOption(helper.id, 'permissionMode', 'acceptEdits')).rejects.toMatchObject({ reason: 'chat-option-invalid' })
+    await expect(service.respond(helper.id, 'request', { decision: 'allowForSession' })).rejects.toMatchObject({ reason: 'chat-option-invalid' })
+    await service.continue(helper.id, true)
+    expect(store.chatOptions(helper.id).allowBypass).toBe(false)
+    expect(service.get(helper.id).chatOptions?.permissionMode).toBe('ask')
+  })
+
+  it('lets a deferred helper choose its model and effort before its first stage', async () => {
+    const parent = await service.create('claude', [], false, { deferStart: true })
+    const helper = await service.create('claude', [], false, { helperOf: parent.id, deferStart: true, model: 'haiku' })
+    await service.setOption(helper.id, 'model', 'sonnet')
+    await service.setOption(helper.id, 'effort', 'high')
+    expect(service.get(helper.id).chatOptions).toMatchObject({ permissionMode: 'ask', model: 'sonnet', effort: 'high' })
+    await expect(service.setOption(helper.id, 'model', 'unknown')).rejects.toMatchObject({ reason: 'chat-option-invalid' })
+    await service.setOption(helper.id, 'model', 'haiku')
+    expect(service.get(helper.id).chatOptions).toMatchObject({ model: 'haiku', effort: null })
+    expect(service.stages(helper.id)).toEqual([])
+  })
+
+  it.each(['delete', 'archive'] as const)('does not create an orphan helper while its parent is being %s', async (action) => {
+    const parent = await service.create('claude', [], false, { deferStart: true })
+    const creating = service.create('claude', [], false, { helperOf: parent.id, deferStart: true })
+    const retiring = action === 'delete' ? service.delete(parent.id) : service.setArchived(parent.id, true)
+    await expect(creating).rejects.toMatchObject({ reason: 'invalid-params' })
+    await retiring
+    expect(store.helper(parent.id)).toBeNull()
+  })
+
+  it('takes the current parent workspace if it moves while helper creation validates', async () => {
+    const parent = await service.create('claude', [root], false, { deferStart: true })
+    const creating = service.create('claude', [], false, { helperOf: parent.id, deferStart: true })
+    const worktree = path.join(root, 'worktree')
+    mkdirSync(worktree)
+    store.moveWorkspace(parent.id, worktree, [worktree])
+    expect(await creating).toMatchObject({ workspacePath: worktree, projectPaths: [worktree] })
+  })
+
+  it('inherits a task conversation worktree and projects, then deletes its helper with the task', async () => {
+    const owner = tasks.create('Task')
+    const workspace = path.join(root, 'task-worktree')
+    mkdirSync(workspace)
+    const parent = store.create('claude', workspace, [workspace, root], undefined, {}, { id: owner.id, title: owner.title })
+    const helper = await service.create('claude', [], false, { helperOf: parent.id, deferStart: true })
+    expect(helper.workspacePath).toBe(parent.workspacePath)
+    expect(helper.projectPaths).toEqual(parent.projectPaths)
+    await service.deleteForTask(owner.id)
+    expect(store.get(helper.id)).toBeNull()
+    expect(store.get(parent.id)).toBeNull()
+    expect(existsSync(workspace)).toBe(true)
+  })
+
+  it('rejects missing, nested, group, squad, routine and archived helper parents', async () => {
+    const parent = await service.create('claude', [], false, { deferStart: true })
+    const helper = await service.create('claude', [], false, { helperOf: parent.id, deferStart: true })
+    const group = store.create('claude', root, [root], undefined, {}, null, null, { id: randomUUID(), title: 'Member' })
+    const routine = store.create('claude', root, [root], undefined, {}, null, { id: randomUUID(), title: 'Routine' })
+    const squad = store.create('claude', root, [root])
+    store.setSquad(squad.id, randomUUID(), false)
+    const archived = await service.create('claude', [], false, { deferStart: true })
+    await service.setArchived(archived.id, true)
+    for (const id of [randomUUID(), helper.id, group.id, squad.id, routine.id, archived.id]) {
+      await expect(service.create('claude', [], false, { helperOf: id, deferStart: true })).rejects.toThrow()
+    }
+    await expect(service.create('claude', [], true, { helperOf: parent.id, deferStart: true })).rejects.toMatchObject({ reason: 'chat-option-invalid' })
+    await expect(service.create('claude', [], false, { helperOf: parent.id, permissionMode: 'bypass', deferStart: true })).rejects.toMatchObject({ reason: 'chat-option-invalid' })
+  })
+
+  it('allows only one helper even when created concurrently, and allows a new one after clearing', async () => {
+    const parent = await service.create('claude', [], false, { deferStart: true })
+    const results = await Promise.allSettled([
+      service.create('claude', [], false, { helperOf: parent.id, deferStart: true }),
+      service.create('claude', [], false, { helperOf: parent.id, deferStart: true })
+    ])
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1)
+    const helper = service.helper(parent.id)!
+    await service.delete(helper.id)
+    const next = await service.create('claude', [], false, { helperOf: parent.id, deferStart: true })
+    expect(next.id).not.toBe(helper.id)
+    expect(store.get(parent.id)).not.toBeNull()
+  })
+
+  it('keeps helpers out of lists and search, but includes them in git and capacity accounting', async () => {
+    const parent = await service.create('claude', [root], false, { deferStart: true })
+    const helper = await service.create('claude', [], false, { helperOf: parent.id, deferStart: true })
+    store.startStage(parent.id, 'claude', null, 0)
+    store.startStage(helper.id, 'claude', null, 0)
+    say(parent.id, 'user', 'needle in main')
+    say(helper.id, 'user', 'needle in helper')
+    expect(service.list(true, true).map((conversation) => conversation.id)).toEqual([parent.id])
+    expect(service.listAll().map((conversation) => conversation.id)).toContain(helper.id)
+    expect(service.search('needle')).toEqual([{ conversationId: parent.id, snippet: 'needle in main' }])
+    service.setCapacity({ maxConcurrentAgents: 1, agentConcurrency: { claude: 1 } }, () => {})
+    await service.continue(helper.id)
+    expect(service.capacityAvailable('claude')).toBe(false)
+    await expect(service.continue(parent.id)).rejects.toMatchObject({ reason: 'agent-capacity' })
+  })
+
+  it.each(['delete', 'archive'] as const)('removes the helper when its parent is %s, leaving project files', async (action) => {
+    const parent = await service.create('claude', [root], false, { deferStart: true })
+    const helper = await service.create('claude', [], false, { helperOf: parent.id, deferStart: true })
+    const file = path.join(root, 'keep.txt')
+    writeFileSync(file, 'keep')
+    await service.continue(helper.id)
+    if (action === 'delete') await service.delete(parent.id)
+    else await service.setArchived(parent.id, true)
+    expect(store.get(helper.id)).toBeNull()
+    if (action === 'archive') {
+      expect(service.helper(parent.id)).toBeNull()
+      await service.setArchived(parent.id, false)
+      expect((await service.create('claude', [], false, { helperOf: parent.id, deferStart: true })).helperOf).toBe(parent.id)
+    }
+    expect(readFileSync(file, 'utf8')).toBe('keep')
+    expect(daemon.killed).toHaveLength(1)
+  })
+
   it('does not start or send an agent turn while Git holds its repository', async () => {
     const created = await service.create('claude', [], false, { deferStart: true })
     service.setGitGuard(async () => { throw new Error('Git is busy') })

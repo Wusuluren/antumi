@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { agentDescriptor, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isKandoRequest } from '@kando/protocol'
+import { canHaveHelper, isHelper, agentDescriptor, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isKandoRequest } from '@kando/protocol'
 import type { DaemonEvent, SessionInfo } from '@kando/protocol/node'
 import type { TaskLaunchOptions } from '@kando/protocol'
 import type { RunMeasure } from './agent-run-store'
@@ -119,6 +119,7 @@ export class ConversationService {
   private promptSuggestions = false
   private userBrowser: boolean | undefined
   private knowledgeBase: KnowledgeBase | null = null
+  private readonly retiring = new Set<string>()
   private readonly launching = new Map<string, AgentKind>()
   // Conversations whose last start took its opening into the handoff it began from.
   private readonly openedInHandoff = new Set<string>()
@@ -266,9 +267,15 @@ export class ConversationService {
   // Task summaries are opt-in; older clients expect only free conversations. A group chat's members
   // are never listed: a client that does not know group chats would show them as its own.
   list(includeTasks = false, includeSquads = false): Conversation[] {
-    return this.store.list().filter((conversation) => (includeTasks || !conversation.taskId) && !conversation.discussionId && (includeSquads || !conversation.squadRunId)).map((conversation) => this.withChat(conversation))
+    return this.store.list().filter((conversation) => (includeTasks || !conversation.taskId) && !isHelper(conversation) && !conversation.discussionId && (includeSquads || !conversation.squadRunId)).map((conversation) => this.withChat(conversation))
   }
-  // Every conversation, a group chat's members too: who else works in a folder.
+  helper(parentId: string): Conversation | null {
+    this.get(parentId)
+    const helper = this.store.helper(parentId)
+    return helper ? this.withChat(helper) : null
+  }
+
+  // Every conversation, including helpers and group members: who else works in a folder.
   listAll(): Conversation[] {
     return this.store.list().map((conversation) => this.withChat(conversation))
   }
@@ -405,12 +412,27 @@ export class ConversationService {
     agent: AgentKind,
     projectPaths: readonly string[],
     allowBypass?: boolean,
-    start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string; deferStart?: boolean } = {},
+    start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string; deferStart?: boolean; helperOf?: string } = {},
     routine: { id: string; title: string } | null = null,
     id: string = randomUUID(),
     discussion: { id: string; title: string } | null = null,
     squad: { runId: string; readOnly: boolean } | null = null
   ): Promise<Conversation> {
+    if (start.helperOf) {
+      const parent = this.get(start.helperOf)
+      if (this.retiring.has(parent.id) || !canHaveHelper(parent) || routine || discussion || squad || start.worktree || start.branch) throw new Rejection('invalid-params', '这个会话不能创建小助手')
+      if (allowBypass || (start.permissionMode && start.permissionMode !== 'ask')) throw new Rejection('chat-option-invalid', '小助手的写操作需要逐次批准')
+      if (this.store.helper(parent.id)) throw new Rejection('invalid-params', '这个会话已有小助手')
+      if (!start.deferStart && !this.capacityAvailable(agent)) throw new Rejection('agent-capacity')
+      await this.validateStartOptions(agent, { ...start, permissionMode: 'ask' })
+      // Recheck after catalog discovery: concurrent creates must not open two helpers.
+      const currentParent = this.get(parent.id)
+      if (this.retiring.has(parent.id) || !canHaveHelper(currentParent) || this.store.helper(parent.id)) throw new Rejection('invalid-params', '不能创建小助手或已有小助手')
+      this.store.create(agent, currentParent.workspacePath, currentParent.projectPaths, id, this.store.projectStarts(parent.id), null, null, null, parent.id)
+      this.store.setChatOptions(id, { permissionMode: 'ask', allowBypass: false, [agent]: { model: start.model, effort: start.effort } })
+      this.changed(this.get(id))
+      return start.deferStart ? this.get(id) : this.start(id, agent, '', false)
+    }
     if (projectPaths.length > MAX_TASK_REPOS) throw new Rejection('too-many-projects')
     const { permissionMode, model, effort, worktree = false, branch } = start
     const worktreesRoot = worktree ? this.worktreesRoot : null
@@ -565,7 +587,7 @@ export class ConversationService {
   }
 
   rename(id: string, title: string): Conversation {
-    this.get(id)
+    if (isHelper(this.get(id))) throw new Rejection('invalid-params', '小助手的标题固定')
     return this.changed(this.store.update(id, { title: title.trim(), titleLocked: true }))
   }
 
@@ -591,7 +613,13 @@ export class ConversationService {
     if (archived) {
       if (this.launching.has(id)) throw new Rejection('conversation-running')
       if (current.sessionId && !this.chats.idle(id)) throw new Rejection('chat-busy', 'the agent is still working')
-      if (current.sessionId) await this.stop(id)
+      this.retiring.add(id)
+      try {
+        if (current.sessionId) await this.stop(id)
+        const helper = this.store.helper(id)
+        if (helper) await this.remove(helper.id)
+        return this.changed(this.store.setArchived(id, archived))
+      } finally { this.retiring.delete(id) }
     }
     return this.changed(this.store.setArchived(id, archived))
   }
@@ -609,7 +637,7 @@ export class ConversationService {
     const current = this.free(id)
     if (this.launching.has(id)) throw new Rejection('conversation-running')
     if (current.sessionId && this.chats.activity(id) !== null) return current
-    if (allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass })
+    if (allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass: isHelper(current) ? false : allowBypass })
     if (current.sessionId) await this.stop(id)
     return this.start(id, current.agent, '', false, { readable })
   }
@@ -618,6 +646,7 @@ export class ConversationService {
     this.writable(id)
     const current = this.free(id)
     // A group chat's member is the agent the group chat names; another would speak in its place.
+    if (isHelper(current)) throw new Rejection('invalid-params', '小助手不能移交')
     if (current.squadRunId) throw new Rejection('squad-managed')
     if (current.discussionId) throw new Rejection('discussion-member', 'a group chat member keeps its agent')
     if (agent === current.agent) throw new Rejection('conversation-same-agent')
@@ -685,6 +714,7 @@ export class ConversationService {
 
   async fork(sourceId: string, stageId: string, itemId: string): Promise<Conversation> {
     const source = this.free(sourceId)
+    if (isHelper(source)) throw new Rejection('invalid-params', '小助手不能 fork')
     if (source.squadRunId) throw new Rejection('squad-managed')
     const stages = this.store.stages(sourceId)
     const index = stages.findIndex((stage) => stage.id === stageId)
@@ -912,7 +942,7 @@ export class ConversationService {
   private chatStage(conversation: Conversation, stage: ConversationStage, forkAt: string | null = null, knowledgeBase?: KnowledgeBase, userMcp: readonly AgentMcpServer[] = []): ChatStage {
     const chosen = this.store.chatOptions(conversation.id)
     const mcp = this.mcp?.(conversation.id)
-    let permissionMode = chosen.permissionMode
+    let permissionMode = isHelper(conversation) ? 'ask' : chosen.permissionMode
     const { fallbackMode, permissionModes, launch } = adapterOf(stage.agent)
     if (fallbackMode && (!permissionMode || !permissionModes.includes(permissionMode))) permissionMode = fallbackMode
     return {
@@ -929,7 +959,7 @@ export class ConversationService {
         // Both constraints survive a restart; coordination is not task planning.
         planOnly: Boolean(stage.planOnly),
         readOnly: !stage.planOnly && Boolean(conversation.workspaceReadOnly),
-        allowBypass: !stage.planOnly && !conversation.workspaceReadOnly && (chosen.allowBypass ?? false),
+        allowBypass: !isHelper(conversation) && !stage.planOnly && !conversation.workspaceReadOnly && (chosen.allowBypass ?? false),
         promptSuggestions: this.promptSuggestions,
         preferred: { permissionMode, ...chosen[stage.agent] },
         keepImage: (data) => this.keepImage(data),
@@ -949,7 +979,16 @@ export class ConversationService {
   async setOption(id: string, option: ChatOption, value: string): Promise<void> {
     const conversation = this.get(id)
     if (conversation.squadRunId || conversation.workspaceReadOnly) throw new Rejection('squad-managed', '本次运行沿用小队配置')
+    if (isHelper(conversation) && option === 'permissionMode' && value !== 'ask') throw new Rejection('chat-option-invalid', '小助手的写操作需要逐次批准')
     const { agent } = conversation
+    if (isHelper(conversation) && this.chats.activity(id) === null && this.store.stages(id).length === 0) {
+      const chosen = this.store.chatOptions(id)[conversation.agent] ?? {}
+      const choice = option === 'model' ? { model: value } : option === 'effort' ? { ...chosen, effort: value } : chosen
+      await this.validateStartOptions(conversation.agent, choice)
+      this.store.setChatOptions(id, { [conversation.agent]: choice })
+      this.changed(this.get(id))
+      return
+    }
     if (this.chats.activity(id) === null) {
       this.chooseForNextStart(conversation, option, value)
       return
@@ -1039,7 +1078,8 @@ export class ConversationService {
   // accepted leaves the conversation in acceptEdits, not in the plan mode the user picked.
   private rememberMode(conversationId: string, items: readonly ChatItem[]): void {
     const mode = items.findLast((item) => item.kind === 'state')
-    if (mode?.kind !== 'state' || !mode.permissionMode) return
+    const conversation = this.store.get(conversationId)
+    if (!conversation || isHelper(conversation) || mode?.kind !== 'state' || !mode.permissionMode) return
     if (this.store.chatOptions(conversationId).permissionMode !== mode.permissionMode) {
       this.store.setChatOptions(conversationId, { permissionMode: mode.permissionMode })
     }
@@ -1085,6 +1125,7 @@ export class ConversationService {
   // images go with the text; a message of pictures alone is sent as it is, not as the go-ahead.
   async runScheduled(id: string, text: string, images: readonly string[], mode: UnattendedMode, ready: () => Promise<unknown>, ref: string): Promise<void> {
     const conversation = this.get(id)
+    if (isHelper(conversation)) throw new Rejection('chat-option-invalid', '小助手不能无人值守执行')
     checkUnattended(conversation.agent)
     const plan = this.waitingPlan(conversation)
     if (plan) {
@@ -1198,6 +1239,12 @@ export class ConversationService {
 
   async respond(id: string, requestId: string, answer: ChatAnswer): Promise<void> {
     const conversation = this.get(id)
+    if (isHelper(conversation)) {
+      const stage = this.store.activeStage(id)
+      const request = stage ? this.chats.items(this.chatStage(conversation, stage)).find((item) => item.kind === 'approval' && item.requestId === requestId) : null
+      const choice = request?.kind === 'approval' ? request.choices?.find((item) => item.id === answer.choice) : null
+      if (answer.decision === 'allowForSession' || (answer.mode && answer.mode !== 'ask') || choice?.grants.some((grant) => grant.behavior === 'allow')) throw new Rejection('chat-option-invalid', '小助手的写操作需要逐次批准')
+    }
     if (isKandoRequest(requestId)) {
       const resolution = answer.decision === 'allow' ? 'allowed' : answer.decision === 'allowForSession' ? 'allowedForSession' : 'denied'
       this.chats.answer(id, requestId, resolution, answer.message)
@@ -1363,16 +1410,21 @@ export class ConversationService {
 
   private async remove(id: string): Promise<void> {
     if (this.launching.has(id)) throw new Rejection('conversation-running')
-    const current = this.get(id)
-    if (current.sessionId) await this.stop(id)
-    const directory = path.join(this.sessionsRoot, id)
-    await rm(path.join(directory, 'handoffs'), { recursive: true, force: true })
-    await rm(path.join(directory, 'stages'), { recursive: true, force: true })
-    await rm(WireLog.directory(this.sessionsRoot, id), { recursive: true, force: true })
-    // The folder goes too, unless it still holds the workspace Kando made, which stays.
-    await rmdir(directory).catch(() => {})
-    this.store.delete(id)
-    this.emit({ type: 'deleted', id })
+    this.retiring.add(id)
+    try {
+      const current = this.get(id)
+      const helper = this.store.helper(id)
+      if (helper) await this.remove(helper.id)
+      if (current.sessionId) await this.stop(id)
+      const directory = path.join(this.sessionsRoot, id)
+      await rm(path.join(directory, 'handoffs'), { recursive: true, force: true })
+      await rm(path.join(directory, 'stages'), { recursive: true, force: true })
+      await rm(WireLog.directory(this.sessionsRoot, id), { recursive: true, force: true })
+      // The folder goes too, unless it still holds the workspace Kando made, which stays.
+      await rmdir(directory).catch(() => {})
+      this.store.delete(id)
+      this.emit({ type: 'deleted', id })
+    } finally { this.retiring.delete(id) }
   }
 
   // The message itself, then what it says about the rest.

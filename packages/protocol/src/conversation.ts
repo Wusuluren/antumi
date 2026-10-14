@@ -80,6 +80,7 @@ export const Conversation = z.object({
   // the group chat. Older cores leave it out.
   discussionId: z.string().uuid().nullable().optional(),
   squadRunId: z.string().uuid().nullable().optional(),
+  helperOf: z.string().uuid().nullable().optional(),
   workspaceReadOnly: z.boolean().optional(),
   // The issue it was opened to look into, from the inbox. Older cores leave it out.
   source: TaskSource.nullable().optional()
@@ -184,4 +185,12 @@ export function checkEditAdditionalProjects(
   if (conversation.taskId) return 'task-conversation'
   if (conversation.managedWorkspace) return 'managed-workspace'
   return checkSwitchBranch(conversation)
+}
+
+export function isHelper(conversation: Pick<Conversation, 'helperOf'>): boolean {
+  return conversation.helperOf != null
+}
+
+export function canHaveHelper(conversation: Conversation): boolean {
+  return !isHelper(conversation) && !conversation.discussionId && !conversation.squadRunId && !conversation.routineId && conversation.archivedAt == null
 }

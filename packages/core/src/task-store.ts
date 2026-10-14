@@ -299,7 +299,9 @@ export const MIGRATIONS = [
   // NULL keeps the legacy defaults; an explicit empty string removes extra discussion requirements.
   `ALTER TABLE discussions ADD COLUMN requirements TEXT;`,
   // The inbox issue a conversation was opened to look into (a TaskSource as JSON).
-  `ALTER TABLE conversations ADD COLUMN source TEXT;`
+  `ALTER TABLE conversations ADD COLUMN source TEXT;`,
+  `ALTER TABLE conversations ADD COLUMN helper_of TEXT;
+   CREATE UNIQUE INDEX conversations_helper ON conversations(helper_of) WHERE helper_of IS NOT NULL;`
 ]
 
 

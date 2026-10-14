@@ -74,7 +74,7 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
 // handoff-model: a handoff takes the model and effort the agent starts in (conversations.handoff, tasks.handoff).
 // conversation-todos: core keeps each conversation's to-dos, which its agent writes too (todos.*).
-export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate'] as const
+export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'conversation-helper'] as const
 // knowledge-base: core hands agents the user's local knowledge base and lists the vaults Obsidian knows (knowledge.*).
 // knowledge-base-kind: Markdown folders and Obsidian use their own prompts and skills; missing kind means Obsidian.
 // skills-library: core installs Agent Skills repositories pinned to a commit and hands bundles of them to agents (skills.*).
@@ -242,6 +242,8 @@ export const rpcMethods = {
   'tasks.diff': { params: TaskRef.extend({ repo: z.string().min(1), file: z.string().min(1) }), result: FileDiff },
   'conversations.list': { params: z.object({ includeTasks: z.boolean().optional(), includeSquads: z.boolean().optional() }), result: z.array(Conversation) },
   'conversations.get': { params: ConversationRef, result: Conversation },
+  // A parent's helper, reached here because list and search exclude it. Needs conversation-helper.
+  'conversations.helper': { params: ConversationRef, result: Conversation.nullable() },
   'conversations.create': {
     // permissionMode, model and effort: what the first start begins with, from what the agent has.
     params: z.object({
@@ -259,6 +261,7 @@ export const rpcMethods = {
       allowBypass: AllowBypass,
       permissionMode: ChatPermissionMode.optional(),
       deferStart: z.boolean().optional(),
+      helperOf: z.string().uuid().optional(),
       model: z.string().trim().min(1).max(200).optional(),
       effort: z.string().trim().min(1).max(200).optional()
     }),

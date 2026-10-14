@@ -11,7 +11,7 @@ const SELECT = `SELECT id, title, title_locked AS titleLocked, agent, workspace_
   updated_at AS updatedAt, ${lastEnded('exit_code')} AS lastExitCode, ${lastEnded('ended_at')} AS lastExitAt,
   (SELECT plan_only FROM conversation_stages WHERE conversation_id = conversations.id ORDER BY started_at DESC, rowid DESC LIMIT 1) AS planOnly,
   task_id AS taskId, pinned_at AS pinnedAt, archived_at AS archivedAt, routine_id AS routineId, forked_from_id AS forkedFromId,
-  discussion_id AS discussionId, squad_run_id AS squadRunId, workspace_read_only AS workspaceReadOnly, source
+  discussion_id AS discussionId, squad_run_id AS squadRunId, workspace_read_only AS workspaceReadOnly, helper_of AS helperOf, source
   FROM conversations`
 const STAGE_SELECT = `SELECT id, conversation_id AS conversationId, agent, provider_session_id AS providerSessionId,
   session_id AS sessionId, received_sequence AS receivedSequence, started_at AS startedAt,
@@ -65,6 +65,11 @@ export class ConversationStore {
     return this.db.prepare(`${SELECT} ORDER BY updated_at DESC`).all().map(conversation)
   }
 
+  helper(parentId: string): Conversation | null {
+    const row = this.db.prepare(`${SELECT} WHERE helper_of = ?`).get(parentId)
+    return row ? conversation(row) : null
+  }
+
   byTask(taskId: string): Conversation | null {
     const row = this.db.prepare(`${SELECT} WHERE task_id = ? ORDER BY created_at DESC LIMIT 1`).get(taskId)
     return row ? conversation(row) : null
@@ -86,16 +91,17 @@ export class ConversationStore {
     // conversation is never named after its first message, which is the standing instruction.
     routine: { id: string; title: string } | null = null,
     // The group chat it is a member's part of, likewise named for good.
-    discussion: { id: string; title: string } | null = null
+    discussion: { id: string; title: string } | null = null,
+    helperOf: string | null = null
   ): Conversation {
     const now = this.now()
     // A task's conversation is named after it for good: its title is the task's.
-    const named = task ?? routine ?? discussion
+    const named = task ?? routine ?? discussion ?? (helperOf ? { title: '小助手' } : null)
     this.db.prepare(`INSERT INTO conversations
-      (id, title, title_locked, agent, workspace_path, project_paths, project_starts, managed_workspace, task_id, routine_id, discussion_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      (id, title, title_locked, agent, workspace_path, project_paths, project_starts, managed_workspace, task_id, routine_id, discussion_id, helper_of, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
       id, named?.title ?? '新会话', Number(named !== null), agent, workspacePath, JSON.stringify(projectPaths), JSON.stringify(projectStarts),
-      Number(projectPaths.length === 0), task?.id ?? null, routine?.id ?? null, discussion?.id ?? null, now, now)
+      Number(projectPaths.length === 0), task?.id ?? null, routine?.id ?? null, discussion?.id ?? null, helperOf, now, now)
     return this.get(id)!
   }
 
@@ -277,7 +283,7 @@ export class ConversationStore {
   searchMessages(query: string): Array<{ conversationId: string; text: string }> {
     return this.db.prepare(`SELECT conversation_id AS conversationId, text, MAX(sequence) AS sequence
       FROM conversation_messages WHERE instr(lower(text), lower(?)) > 0
-      AND conversation_id IN (SELECT id FROM conversations WHERE task_id IS NULL AND discussion_id IS NULL AND squad_run_id IS NULL) GROUP BY conversation_id`)
+      AND conversation_id IN (SELECT id FROM conversations WHERE task_id IS NULL AND discussion_id IS NULL AND squad_run_id IS NULL AND helper_of IS NULL) GROUP BY conversation_id`)
       .all(query).map((row) => ({ conversationId: String(row.conversationId), text: String(row.text) }))
   }
 
