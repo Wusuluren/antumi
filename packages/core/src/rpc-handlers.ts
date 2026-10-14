@@ -41,6 +41,7 @@ import { QuickRequests } from './quick-request'
 import { TranslationService } from './translation-service'
 import { inspectKnowledgeFolder, readObsidianVaults } from './obsidian-vaults'
 import type { SkillsLibrary } from './skills-library'
+import type { McpServerStore } from './mcp-servers'
 
 const OK = { ok: true } as const
 
@@ -71,7 +72,8 @@ export function createRpcHandlers(
   squads?: SquadService,
   todos?: TodoStore,
   plugins?: PluginService,
-  skills?: SkillsLibrary
+  skills?: SkillsLibrary,
+  mcpServers?: McpServerStore
 ): RpcHandlers {
   const git = new GitService(service, conversations, gitChanged)
   conversations.setGitGuard((dirs) => git.guardAgent(dirs))
@@ -110,6 +112,10 @@ export function createRpcHandlers(
   const skillsLibrary = () => {
     if (!skills) throw new Rejection('skills-unavailable')
     return skills
+  }
+  const mcpServerStore = () => {
+    if (!mcpServers) throw new Rejection('mcp-unavailable')
+    return mcpServers
   }
   const pluginService = () => {
     if (!plugins) throw new Rejection('plugins-unavailable', '当前 core 不支持插件')
@@ -152,7 +158,7 @@ export function createRpcHandlers(
       const answer = await quick.ask(agent, commitMessagePrompt(await commitContext(dir)), model)
       return { message: cleanCommitMessage(answer.text), model: answer.model }
     },
-    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'squads' || Boolean(squads)) && (feature !== 'plugins' || Boolean(plugins)) && (feature !== 'skills-library' || Boolean(skills))) }),
+    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'squads' || Boolean(squads)) && (feature !== 'plugins' || Boolean(plugins)) && (feature !== 'skills-library' || Boolean(skills)) && (feature !== 'mcp-servers' || Boolean(mcpServers))) }),
     'files.resolve': ({ conversationId, path }) => files.resolve(conversationId, path),
     'files.read': ({ conversationId, path }) => files.read(conversationId, path),
     'system.awakeStatus': () => awake.status(),
@@ -169,6 +175,10 @@ export function createRpcHandlers(
     'skills.update': ({ id, commit }) => skillsLibrary().update(id, commit),
     'skills.rollback': ({ id }) => skillsLibrary().rollback(id),
     'skills.remove': async ({ id }) => { await skillsLibrary().remove(id); return OK },
+    'mcpServers.list': () => [...mcpServerStore().list()],
+    'mcpServers.save': (input) => mcpServerStore().save(input),
+    'mcpServers.setEnabled': ({ name, enabled }) => mcpServerStore().setEnabled(name, enabled),
+    'mcpServers.remove': async ({ name }) => { await mcpServerStore().remove(name); return OK },
     'debug.wire': ({ id, stageId, before }) => {
       const known = new Map(conversations.stages(id).map((stage) => [stage.id, stage]))
       const stages = wire.stages(id)

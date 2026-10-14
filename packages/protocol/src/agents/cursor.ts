@@ -13,7 +13,7 @@ export const cursor: AgentDescriptor = {
   defaultStartMode: 'ask',
   discussionMode: 'readOnly',
   readOnlyMode: 'readOnly',
-  capabilities: { unattended: false, bypass: false, autoMode: false, pathMentions: false, optionsWhileBusy: false, skills: true },
+  capabilities: { unattended: false, bypass: false, autoMode: false, pathMentions: false, optionsWhileBusy: false, skills: true, userMcp: true },
   nativePlanRun: { hint: '使用 Cursor 原生 Agent 模式执行' },
   environment: {
     role: '聊天界面以 Cursor CLI 的 ACP 模式运行它；仅安装 Cursor 编辑器还不能执行任务。',

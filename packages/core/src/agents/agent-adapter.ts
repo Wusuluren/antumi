@@ -1,5 +1,5 @@
 import type { AgentCliInstallation, AgentKind, ChatCatalog, ChatPermissionMode, EnvironmentCheck, KnowledgeBase } from '@kando/protocol'
-import type { AgentCommand, McpServer } from '../agent-command'
+import type { AgentCommand, AgentMcpServer, McpServer } from '../agent-command'
 import type { ChatDriver, ChatPreferences, ChatStageOptions } from '../chat-driver'
 import type { UsageSource } from '../usage-source'
 
@@ -22,6 +22,8 @@ export type AgentLaunch = {
   forkAt?: string | null
   // Kando's own tools for the agent (showing a file it wrote); none for an older setup.
   mcp?: McpServer
+  // The user's MCP servers picked for this agent, beside Kando's: never named kando.
+  userMcp?: readonly AgentMcpServer[]
   // Whether it may drive the user's own browser, for an agent that can; unset leaves its own default.
   userBrowser?: boolean
   // The user's Obsidian vault: its own folder, never a project, so never fenced or given a

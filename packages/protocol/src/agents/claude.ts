@@ -14,7 +14,7 @@ export const claude: AgentDescriptor = {
   defaultStartMode: 'auto',
   discussionMode: 'plan',
   readOnlyMode: 'ask',
-  capabilities: { unattended: true, bypass: true, autoMode: true, pathMentions: true, optionsWhileBusy: true, skills: true },
+  capabilities: { unattended: true, bypass: true, autoMode: true, pathMentions: true, optionsWhileBusy: true, skills: true, userMcp: true },
   environment: {
     role: '聊天界面以 `claude -p` 运行它；没装也可以只用 Codex。',
     install: 'npm install -g @anthropic-ai/claude-code',

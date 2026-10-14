@@ -15,7 +15,7 @@ import { ConversationStore } from './conversation-store'
 import { folderChanges, folderDiff, folderHead } from './conversation-changes'
 import { adapterOf, checkUnattended } from './agents'
 import type { AgentStage, CancelGrace } from './agents/agent-adapter'
-import type { McpServer } from './agent-command'
+import type { AgentMcpServer, McpServer } from './agent-command'
 import { chatCommand } from './conversation-command'
 import { searchSnippet } from './conversation-search'
 import { buildHandoff } from './conversation-handoff'
@@ -220,6 +220,11 @@ export class ConversationService {
   // The skills bundle an agent's start gets, from the library, or null for none; asked at each
   // start. A bundle that cannot be built keeps no agent from starting: it is noted and left out.
   private skillsFor: ((agent: AgentKind) => Promise<{ dir: string } | null>) | null = null
+  // The user's MCP servers an agent's start gets beside Kando's; asked at each start, like skills.
+  private userMcpFor: ((agent: AgentKind) => AgentMcpServer[]) | null = null
+  setUserMcpProvider(provider: (agent: AgentKind) => AgentMcpServer[]): void {
+    this.userMcpFor = provider
+  }
   setSkillsProvider(provider: (agent: AgentKind) => Promise<{ dir: string } | null>): void {
     this.skillsFor = provider
   }
@@ -792,7 +797,13 @@ export class ConversationService {
       this.wire?.record(id, stage.id, [{ dir: 'note', text: JSON.stringify({ event: 'skills-unavailable', error: error instanceof Error ? error.message : String(error) }) }])
       return null
     }) ?? null
-    const { options } = this.chatStage(current, stage, forkAt, knowledgeBase)
+    let userMcp: AgentMcpServer[] = []
+    try {
+      userMcp = this.userMcpFor?.(agent) ?? []
+    } catch (error) {
+      this.wire?.record(id, stage.id, [{ dir: 'note', text: JSON.stringify({ event: 'user-mcp-unavailable', error: error instanceof Error ? error.message : String(error) }) }])
+    }
+    const { options } = this.chatStage(current, stage, forkAt, knowledgeBase, userMcp)
     const { launch } = adapterOf(agent)
     const agentStage = this.agentStage(id, stage)
     const command = chatCommand(agent, stage.providerSessionId, resume, handoff?.path ?? null, options.extraDirs, {
@@ -803,6 +814,7 @@ export class ConversationService {
       readable,
       forkAt,
       ...(this.mcp ? { mcp: this.mcp(id) } : {}),
+      ...(userMcp.length ? { userMcp } : {}),
       ...(this.userBrowser === undefined ? {} : { userBrowser: this.userBrowser }),
       ...(knowledgeBase ? { knowledgeBase } : {}),
       ...(skills ? { skills } : {})
@@ -831,7 +843,7 @@ export class ConversationService {
     this.store.attachStage(stage.id, sessionId)
     this.changed(this.store.update(id, { agent, sessionId }))
     try {
-      await this.chats.open(this.chatStage(current, stage, forkAt, knowledgeBase), sessionId, 0, true)
+      await this.chats.open(this.chatStage(current, stage, forkAt, knowledgeBase, userMcp), sessionId, 0, true)
       await launch?.ready(agentStage)
       if (handoff) await this.chats.send(id, handoffMessage(handoff.path, handoff.note))
     } catch (error) {
@@ -859,9 +871,9 @@ export class ConversationService {
   }
 
   // forkAt: only while the stage is being opened as a fork; a stage taken back later resumes the
-  // session the fork made, which the stage then holds. knowledgeBase: only at a start, as its
-  // process was given the vault; a stage taken back keeps what its process started with.
-  private chatStage(conversation: Conversation, stage: ConversationStage, forkAt: string | null = null, knowledgeBase?: KnowledgeBase): ChatStage {
+  // session the fork made, which the stage then holds. knowledgeBase and userMcp: only at a start,
+  // as its process was given them; a stage taken back keeps what its process started with.
+  private chatStage(conversation: Conversation, stage: ConversationStage, forkAt: string | null = null, knowledgeBase?: KnowledgeBase, userMcp: readonly AgentMcpServer[] = []): ChatStage {
     const chosen = this.store.chatOptions(conversation.id)
     const mcp = this.mcp?.(conversation.id)
     let permissionMode = chosen.permissionMode
@@ -885,7 +897,8 @@ export class ConversationService {
         promptSuggestions: this.promptSuggestions,
         preferred: { permissionMode, ...chosen[stage.agent] },
         keepImage: (data) => this.keepImage(data),
-        ...(knowledgeBase ? { knowledgeBase } : {})
+        ...(knowledgeBase ? { knowledgeBase } : {}),
+        ...(userMcp.length ? { userMcp } : {})
       }
     }
   }

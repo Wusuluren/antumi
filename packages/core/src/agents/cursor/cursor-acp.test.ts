@@ -111,6 +111,17 @@ describe('Cursor ACP', () => {
     expect(due(driver)).toMatchObject([{ method: 'session/new', params: { cwd: '/work/repo', mcpServers: [{ name: 'kando', command: 'node', args: OPTIONS.mcp?.args, env: [] }] } }])
   })
 
+  it('opens the session with the user\'s MCP servers beside Kando\'s', () => {
+    const driver = new CursorAcp('stage', { ...OPTIONS, userMcp: [{ name: 'github', type: 'stdio', command: 'node', args: ['mcp.mjs', '--run', 'github'] }, { name: 'docs', type: 'http', url: 'https://mcp.example.com/mcp' }] })
+    due(driver)
+    receive(driver, { id: 'cursor-init', result: { protocolVersion: 1 } })
+    expect(due(driver)).toMatchObject([{ method: 'session/new', params: { mcpServers: [
+      { name: 'kando' },
+      { name: 'github', command: 'node', args: ['mcp.mjs', '--run', 'github'], env: [] },
+      { type: 'http', name: 'docs', url: 'https://mcp.example.com/mcp', headers: [] }
+    ] } }])
+  })
+
   it('authenticates using the advertised Cursor method and surfaces an authentication failure', () => {
     const driver = new CursorAcp('stage', OPTIONS)
     due(driver)

@@ -23,6 +23,29 @@ describe('chatCommand', () => {
     expect(chatCommand('claude', 's', false, null, []).args).not.toContain('--permission-mode')
   })
 
+  it('gives each agent the user\'s MCP servers beside Kando\'s, asking about their tools as for any other', () => {
+    const userMcp = [
+      { name: 'github', type: 'stdio' as const, command: 'node', args: ['mcp.mjs', '--run', 'github'] },
+      { name: 'docs', type: 'http' as const, url: 'https://mcp.example.com/mcp' }
+    ]
+    const mcp = { command: 'node', args: ['mcp.mjs'] }
+    const claude = chatCommand('claude', 's', false, null, [], { mcp, userMcp }).args
+    expect(JSON.parse(claude[claude.indexOf('--mcp-config') + 1] ?? '{}')).toEqual({ mcpServers: {
+      kando: { type: 'stdio', command: 'node', args: ['mcp.mjs'] },
+      github: { type: 'stdio', command: 'node', args: ['mcp.mjs', '--run', 'github'] },
+      docs: { type: 'http', url: 'https://mcp.example.com/mcp' }
+    } })
+    expect(claude).not.toContain('--strict-mcp-config')
+    expect(claude[claude.indexOf('--allowedTools') + 1]).not.toContain('github')
+    // Without Kando's server the user's still go.
+    expect(chatCommand('claude', 's', false, null, [], { userMcp }).args).toContain('--mcp-config')
+    expect(chatCommand('codex', null, false, null, [], { userMcp }).args).toEqual([
+      'app-server',
+      '-c', 'mcp_servers.github={command="node",args=["mcp.mjs","--run","github"]}',
+      '-c', 'mcp_servers.docs={url="https://mcp.example.com/mcp"}'
+    ])
+  })
+
   it('lets Claude show a file, read its own terminals and the user\'s history without asking', () => {
     const args = chatCommand('claude', 's', false, null, [], { mcp: { command: 'node', args: ['mcp.mjs'] } }).args
     const allowed = args[args.indexOf('--allowedTools') + 1]?.split(',') ?? []

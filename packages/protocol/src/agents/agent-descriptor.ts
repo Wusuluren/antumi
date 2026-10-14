@@ -33,6 +33,8 @@ export type AgentDescriptor = {
     optionsWhileBusy: boolean
     // Loads a folder of Agent Skills Kando built for its start (the skills library).
     skills: boolean
+    // Takes the user's MCP servers at its start, beside Kando's (Settings → MCP).
+    userMcp: boolean
   }
   // A plan it approves runs on in one of its own modes, named as the agent names them, rather than
   // in Kando's run modes.

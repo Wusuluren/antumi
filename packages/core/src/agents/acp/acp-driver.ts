@@ -164,7 +164,12 @@ export class AcpDriver implements ChatDriver {
         // Only where the agent says it takes them; one that does not is given them otherwise, as
         // Cursor is on its command line, and reads them by their paths either way.
         ...(this.roots().length && this.directories ? { additionalDirectories: this.roots() } : {}),
-        mcpServers: mcp ? [{ name: 'kando', command: mcp.command, args: mcp.args, env: [] }] : []
+        mcpServers: [
+          ...(mcp ? [{ name: 'kando', command: mcp.command, args: mcp.args, env: [] }] : []),
+          ...(this.options.userMcp ?? []).map((server) => server.type === 'stdio'
+            ? { name: server.name, command: server.command, args: server.args, env: [] }
+            : { type: 'http', name: server.name, url: server.url, headers: [] })
+        ]
       })]
     }
     // Asked once the session is open, the catalog takes about a second; asked first, it also

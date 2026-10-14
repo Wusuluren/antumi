@@ -2,7 +2,7 @@ import type { ChatDecision, ChatImage, ChatItem, ChatOption, ChatPermissionMode,
 import type { AttachmentFile } from './attachment-store'
 import type { ChatItems } from './chat-items'
 import type { UsageReport } from './usage-source'
-import type { McpServer } from './agent-command'
+import type { AgentMcpServer, McpServer } from './agent-command'
 
 // What happened in a chat stage, in order: a frame from the agent or to it, a note Kando made,
 // the process ending. A stage's log holds these, and replaying them rebuilds the stage.
@@ -58,6 +58,8 @@ export type ChatAnswer = { decision: ChatDecision; choice?: string; mode?: ChatP
 export type ChatStageOptions = {
   cwd: string
   mcp?: McpServer
+  // The user's MCP servers, for a driver that gives MCP servers over its protocol.
+  userMcp?: readonly AgentMcpServer[]
   // The conversation's other projects, which the agent may also write to.
   extraDirs: readonly string[]
   // The provider session (Claude session, Codex thread) to continue, if any.

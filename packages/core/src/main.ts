@@ -31,7 +31,7 @@ import { ScheduleService } from './schedule-service'
 import { RoutineService } from './routine-service'
 import { UsageService } from './usage-service'
 import type { UsageSource } from './usage-source'
-import { kandoChatMcpServer } from './kando-mcp-server'
+import { kandoChatMcpServer, userMcpServer } from './kando-mcp-server'
 import { SourceConfigStore } from './source-config'
 import { LoginFlows } from './source-login-flow'
 import { migrateLegacyJira } from './source-migration'
@@ -46,6 +46,7 @@ import { AwakeConfigStore } from './awake-config'
 import { ComputerAwakeService } from './computer-awake-service'
 import { ChatSettingsStore } from './chat-settings'
 import { SkillsLibrary } from './skills-library'
+import { McpServerStore } from './mcp-servers'
 import { knowledgeBaseSkills } from './skills-recommended'
 import { WireLog } from './wire-log'
 import { timestampConsole } from './log-timestamps'
@@ -271,6 +272,10 @@ const chatSettings = new ChatSettingsStore(paths.chatSettings, (settings) => {
 // Before the daemon connects: a chat stage it still runs is taken back with these settings.
 const skills = new SkillsLibrary(paths.skills, (repos) => server?.broadcast('skills.changed', { repos: [...repos] }))
 await skills.load()
+const mcpServers = new McpServerStore(paths.mcpServers, credentials, (servers) => server?.broadcast('mcpServers.changed', { servers: [...servers] }))
+await mcpServers.load()
+// Handed through Kando's launcher, so no secret is in an agent's command line or Kando's logs.
+conversations.setUserMcpProvider((agent) => agentDescriptor(agent).capabilities.userMcp ? mcpServers.forAgent(agent).map((server) => userMcpServer(paths.home, server)) : [])
 // An agent that loads skills gets Obsidian's, where the user turned writing on and has
 // the repository installed; the bundle is the same folder start after start while nothing moved.
 conversations.setSkillsProvider(async (agent) => {
@@ -337,7 +342,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()

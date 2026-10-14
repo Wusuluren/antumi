@@ -36,6 +36,8 @@ export type KandoPaths = {
   // Agent Skills Kando installed: their repositories, the lock that pins them, and the bundles
   // built from them for agents.
   skills: string
+  // The user's MCP servers; their secrets are in credentials.
+  mcpServers: string
 }
 
 export function kandoPaths(home: string = kandoHome()): KandoPaths {
@@ -54,7 +56,8 @@ export function kandoPaths(home: string = kandoHome()): KandoPaths {
     sessions: path.join(home, 'sessions'),
     browser: path.join(home, 'browser'),
     browserHostFile: path.join(home, 'browser', 'host.json'),
-    skills: path.join(home, 'skills')
+    skills: path.join(home, 'skills'),
+    mcpServers: path.join(home, 'mcp-servers.json')
   }
 }
 

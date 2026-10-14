@@ -28,7 +28,7 @@ export const GIT_READ_TOOLS = ['Bash(git log:*)', 'Bash(git diff:*)', 'Bash(git 
 
 // Claude Code in print mode, speaking stream-json both ways.
 export function claudeCommand(launch: AgentLaunch): AgentCommand {
-  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readOnly, readable = [], mcp, forkAt, userBrowser, knowledgeBase, skills } = launch
+  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readOnly, readable = [], mcp, userMcp = [], forkAt, userBrowser, knowledgeBase, skills } = launch
   // Folders it may read but never edit: a plan-only stage's, or a read-only worker's.
   const fenced = planOnly ?? readOnly
   const allowBypass = (launch.allowBypass ?? false) && !fenced
@@ -54,6 +54,10 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     ...(mcp ? [...Object.values(SQUAD_TOOL_NAMES), SHOW_PREVIEW_TOOL, ...BROWSER_READ_TOOLS, terminalToolName('read'), terminalToolName('stop'), ...HISTORY_TOOLS.map(historyToolName), ...TODO_TOOLS.map(todoToolName)].map((tool) => `mcp__kando__${tool}`) : [])
   ]
   const denials = fenced ? claudeEditDenials(fenced.dirs) : []
+  const servers = {
+    ...(mcp ? { kando: { type: 'stdio', command: mcp.command, args: mcp.args } } : {}),
+    ...Object.fromEntries(userMcp.map((server) => [server.name, server.type === 'stdio' ? { type: 'stdio', command: server.command, args: server.args } : { type: 'http', url: server.url }]))
+  }
   return { command: 'claude', args: [
     '-p', '--verbose', '--output-format', 'stream-json', '--input-format', 'stream-json',
     '--include-partial-messages', '--permission-prompt-tool', 'stdio',
@@ -71,7 +75,8 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     ...(skills ? ['--plugin-dir', skills.dir] : []),
     ...(denials.length ? ['--disallowedTools', denials.join(',')] : []),
     ...(reads.length ? ['--allowedTools', reads.join(',')] : []),
-    ...(mcp ? ['--mcp-config', JSON.stringify({ mcpServers: { kando: { type: 'stdio', command: mcp.command, args: mcp.args } } })] : []),
+    // Beside the user's own MCP configuration, which Claude still loads: not --strict-mcp-config.
+    ...(Object.keys(servers).length ? ['--mcp-config', JSON.stringify({ mcpServers: servers })] : []),
     // Claude in Chrome, either way, so Kando's setting wins over Claude Code's own default.
     ...(userBrowser === undefined ? [] : [userBrowser ? '--chrome' : '--no-chrome'])
   ] }
