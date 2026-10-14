@@ -1,10 +1,12 @@
-// Where the comment box sits beside a selected passage. A right-click menu opens on that same
-// passage and would cover the box, so the box takes the other side and, if it still meets the
-// menu, moves clear of it.
+// Where the comment box sits beside a selected passage: over it, covering what was read already
+// rather than what comes next, unless the window has no room there. A right-click menu opens on
+// that same passage and would cover the box, so the box takes the other side and, if it still
+// meets the menu, moves clear of it.
 
 export type Bounds = { left: number; top: number; right: number; bottom: number }
 
-export const PLAN_COMMENT_BOX = { width: 300, height: 48 } as const
+// The widest the box grows as a comment is written, and its height, a tool row's.
+export const PLAN_COMMENT_BOX = { width: 360, height: 32 } as const
 // One「复制」row, as .context-menu is sized. Close enough to choose a side before the menu paints.
 export const PLAN_SELECTION_MENU = { width: 180, height: 44 } as const
 
@@ -57,7 +59,7 @@ export function placeCommentBox({ passage, anchorX, panel, viewport, menu }: {
   const min = (panel?.left ?? 0) + half
   const max = (panel?.right ?? viewport.width) - half
   const left = Math.min(Math.max(anchorX, min), max)
-  let above = !fits(beside(passage, false), viewport.height)
+  let above = fits(beside(passage, true), viewport.height)
   if (menu) {
     const placed = placedMenu(menu.at, menu.width, menu.height, viewport)
     const opensDown = placed.top >= menu.at.y

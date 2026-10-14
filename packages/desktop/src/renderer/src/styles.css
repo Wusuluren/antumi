@@ -6856,19 +6856,24 @@ body.side-panel-resizing * {
   z-index: 50;
   display: flex;
   align-items: center;
-  gap: 4px;
-  width: 300px;
-  height: 48px;
-  padding: 0 8px 0 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  gap: 6px;
+  width: max-content;
+  min-width: 240px;
+  max-width: 360px;
+  height: 32px;
+  padding: 0 4px 0 10px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
   transform: translateX(-50%);
 }
 
+.selection-comment-box > svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-3); }
+
+/* As wide as what is written, so the box grows with the comment up to its widest. */
 .selection-comment-input {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   padding: 0;
   border: 0;
@@ -6876,26 +6881,28 @@ body.side-panel-resizing * {
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
+  field-sizing: content;
 }
 
 .selection-comment-input::placeholder { color: var(--text-3); }
 
+/* The Enter it takes, as a key: saving with the mouse too. */
 .selection-comment-save {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-3);
+  font: 12px var(--mono);
   cursor: pointer;
 }
 
-.selection-comment-save svg { width: 18px; height: 18px; }
 .selection-comment-save:hover { background: var(--fill-2); color: var(--text); }
 
 ::highlight(kando-plan-draft), ::highlight(kando-reply-draft) { background-color: var(--accent-bg); }

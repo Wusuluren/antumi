@@ -4,7 +4,7 @@ import { addQuote, useQuotes } from '../chat-quotes'
 import { PLAN_SELECTION_MENU, placeCommentBox } from '../plan-comment-place'
 import { selectedTextIn, type SelectedText } from '../text-selection'
 import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
-import { CommentAddIcon } from './icons'
+import { ChatIcon } from './icons'
 import { useOccludesBrowser } from '../browser-occlusion'
 
 // Where each comment's passage lies, by conversation and quote id, for its highlight. A range lasts
@@ -179,13 +179,14 @@ export function SelectionComment({ conversationId, container, region, sourceOf, 
     <>
       {draft && place && !hidden && createPortal(
         <div className="selection-comment-box" style={{ left: place.left, top: place.top }} role="dialog" aria-label={label}>
+          <ChatIcon />
           <input
             ref={input}
             className="selection-comment-input"
             autoFocus={focus && !menu}
             value={comment}
-            placeholder="评论这段，回车加入引用"
-            aria-label="评论"
+            placeholder="评论这段…"
+            aria-label="评论这段，回车加入引用"
             onChange={(event) => setComment(event.target.value)}
             onKeyDown={(event) => {
               if (event.nativeEvent.isComposing) return
@@ -199,7 +200,7 @@ export function SelectionComment({ conversationId, container, region, sourceOf, 
             }}
           />
           <button type="button" className="selection-comment-save" aria-label="加入引用" data-tooltip="加入引用（Enter）" data-tooltip-side="top-end" onMouseDown={(event) => event.preventDefault()} onClick={add}>
-            <CommentAddIcon />
+            ↵
           </button>
         </div>,
         document.body
