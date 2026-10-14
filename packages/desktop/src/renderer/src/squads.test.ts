@@ -61,7 +61,7 @@ describe('development squad user paths', () => {
     expect(overview).toContain('编辑')
     const panel = renderToStaticMarkup(createElement(SquadWorkPanel, { runs: [run], onConversation: () => {} }))
     expect(panel).toContain('等你回答')
-    expect(panel).toContain('查看成员会话')
+    expect(panel).toContain('看会话')
     expect(panel).toContain('Implement export')
   })
   it('routes member approvals to the task and opens the exact member conversation', () => {
