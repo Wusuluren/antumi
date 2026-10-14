@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { Discussion, DiscussionCreate, DiscussionPost } from '@kando/protocol'
+import { DEFAULT_DISCUSSION_REQUIREMENTS, type Discussion, type DiscussionCreate, type DiscussionPost } from '@kando/protocol'
+import { DatabaseSync } from 'node:sqlite'
 import { AttachmentStore } from './attachment-store'
 import { ConversationService } from './conversation-service'
 import { ConversationStore } from './conversation-store'
@@ -141,6 +142,38 @@ describe('DiscussionService', () => {
     }
     expect(conversations.list(true)).toEqual([])
     expect(conversations.search('Should the cache')).toEqual([])
+  })
+
+  it.each(['请用表格比较方案，不限制字数。', ''])('persists requirements (%j) and sends them to every member and the chair', async (requirements) => {
+    const discussion = await discussions.create(fields({ requirements }))
+    await until(() => state(discussion.id) === 'done')
+    expect(discussions.get(discussion.id).requirements).toBe(requirements)
+    for (const member of discussion.members) {
+      expect(conversations.get(member.conversationId).chatOptions?.permissionMode).toBe('plan')
+      for (const prompt of prompts(discussion, member.name)) {
+        expect(prompt).toContain('这是只读讨论')
+        expect(prompt).not.toContain('600 字')
+        expect(prompt).not.toContain('不要写标题或署名')
+        if (requirements) expect(prompt).toContain(requirements)
+        else expect(prompt).not.toContain('## 用户的讨论要求')
+      }
+    }
+    discussions.close()
+    serve()
+    expect(discussions.get(discussion.id).requirements).toBe(requirements)
+    expect(discussions.list().find((group) => group.id === discussion.id)?.requirements).toBe(requirements)
+  })
+
+  it('uses defaults for older clients and legacy rows, keeping an explicit empty value distinct', async () => {
+    const discussion = await discussions.create(fields({ requirements: '' }))
+    await until(() => state(discussion.id) === 'done')
+    expect(discussions.get(discussion.id).requirements).toBe('')
+    const db = new DatabaseSync(path.join(root, 'kando.db'))
+    try { db.prepare('UPDATE discussions SET requirements = NULL WHERE id = ?').run(discussion.id) } finally { db.close() }
+    expect(discussions.get(discussion.id).requirements).toBe(DEFAULT_DISCUSSION_REQUIREMENTS)
+    const omitted = await discussions.create(fields())
+    await until(() => state(omitted.id) === 'done')
+    expect(discussions.get(omitted.id).requirements).toBe(DEFAULT_DISCUSSION_REQUIREMENTS)
   })
 
   it('sums up early once every member holds its position', async () => {

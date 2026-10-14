@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { DEFAULT_DISCUSSION_ROUNDS, MAX_DISCUSSION_MEMBERS, MAX_DISCUSSION_ROUNDS, MIN_DISCUSSION_MEMBERS, type AgentKind, type Discussion } from '@kando/protocol'
+import { DEFAULT_DISCUSSION_REQUIREMENTS, DEFAULT_DISCUSSION_ROUNDS, MAX_DISCUSSION_MEMBERS, MAX_DISCUSSION_ROUNDS, MIN_DISCUSSION_MEMBERS, type AgentKind, type Discussion } from '@kando/protocol'
 import { resolveModel, useAgentCatalog } from '../agent-models'
-import { closeDiscussionDraft, selectDiscussion } from '../core-store'
+import { closeDiscussionDraft, selectDiscussion, useDiscussionRequirementsSupported } from '../core-store'
 import { createDiscussion, defaultMemberName, loadDiscussionPosts } from '../discussions'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
@@ -9,6 +9,7 @@ import { effortLabel } from './ChatOptionsBar'
 import { ChatModelPicker, ChatPicker } from './ChatPicker'
 import { AgentIcon, CloseIcon } from './icons'
 import { ProjectPicker } from './ProjectPicker'
+import { DiscussionRequirements } from './DiscussionRequirements'
 
 // A member as picked: name is null while it follows the agent and model.
 type Draft = { key: string; agent: AgentKind; model?: string; effort?: string; name: string | null; role: string }
@@ -92,6 +93,8 @@ function MemberRow({ member, index, agents, chair, busy, removable, onChange, on
 export function DiscussionDraft({ from }: { from: Discussion | null }) {
   const installed = useInstalledAgents()
   const [topic, setTopic] = useState('')
+  const requirementsSupported = useDiscussionRequirementsSupported()
+  const [requirements, setRequirements] = useState(() => from?.requirements ?? DEFAULT_DISCUSSION_REQUIREMENTS)
   const [projectPaths, setProjectPaths] = useState<string[]>(() => from?.projectPaths ?? [])
   const [members, setMembers] = useState<Draft[]>(() => {
     if (from) {
@@ -127,6 +130,7 @@ export function DiscussionDraft({ from }: { from: Discussion | null }) {
     setBusy(true)
     const created = await createDiscussion({
       topic: topic.trim(),
+      ...(requirementsSupported ? { requirements: requirements.trim() } : {}),
       projectPaths,
       members: members.map((member, index) => ({
         agent: member.agent,
@@ -156,7 +160,7 @@ export function DiscussionDraft({ from }: { from: Discussion | null }) {
       <div className="discussion-draft">
         {from && <p className="discussion-draft-from">沿用群聊「{from.title}」的成员、项目和设置，各成员从头开始，不带之前的讨论。</p>}
         <p className="muted">
-          几个 Agent 先各自独立作答，再一轮轮看彼此的观点、反驳或修正，最后由主持人总结共识和分歧。讨论只读：成员可以读所选项目的代码来佐证，但不会改动文件。
+          几个 Agent 先各自独立作答，再一轮轮看彼此的观点、反驳或修正，最后由主持人总结共识和分歧。讨论始终只读：成员可以读所选项目的代码来佐证，不修改文件、不执行计划。
         </p>
         <label className="discussion-draft-field">
           <span>主题</span>
@@ -170,6 +174,7 @@ export function DiscussionDraft({ from }: { from: Discussion | null }) {
             onChange={(event) => setTopic(event.target.value)}
           />
         </label>
+        {requirementsSupported && <DiscussionRequirements value={requirements} onChange={setRequirements} disabled={busy} />}
         <div className="discussion-draft-field">
           <span>项目（可不选）</span>
           <ProjectPicker projects={projectPaths.map((path) => ({ path, worktreePath: null }))} onChange={setProjectPaths} locked={busy} />

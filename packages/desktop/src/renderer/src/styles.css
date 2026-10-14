@@ -8637,6 +8637,7 @@ body.side-panel-resizing * {
 .discussion-draft-field { display: flex; flex-direction: column; gap: 8px; }
 .discussion-draft-field > span { font-weight: 600; font-size: 12px; color: var(--text-muted); }
 .discussion-draft-topic,
+.discussion-draft-requirements,
 .discussion-draft-name,
 .discussion-draft-role {
   padding: 8px 12px;
@@ -8646,10 +8647,15 @@ body.side-panel-resizing * {
   color: var(--text);
   font: inherit;
 }
-.discussion-draft-topic { resize: vertical; min-height: 96px; border-radius: var(--radius-lg); }
+.discussion-draft-topic,
+.discussion-draft-requirements { resize: vertical; min-height: 96px; border-radius: var(--radius-lg); }
 .discussion-draft-topic:focus-visible,
+.discussion-draft-requirements:focus-visible,
 .discussion-draft-name:focus-visible,
 .discussion-draft-role:focus-visible { outline: 2px solid var(--focus); outline-offset: -1px; }
+.discussion-draft-requirements-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.discussion-draft-requirements-head > label { font-weight: 600; font-size: 12px; color: var(--text-muted); }
+.discussion-draft-requirements-hint { margin: 0; font-size: 12px; }
 .discussion-draft-members { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 /* One column per field, the same in every row and in the head above them. */
 .discussion-draft-member { display: grid; grid-template-columns: 20px minmax(96px, 132px) minmax(96px, 140px) minmax(100px, 150px) minmax(120px, 1fr) auto 24px; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); }

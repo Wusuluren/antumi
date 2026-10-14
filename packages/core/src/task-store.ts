@@ -295,7 +295,9 @@ export const MIGRATIONS = [
    CREATE TABLE squad_runs (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, data TEXT NOT NULL);
    CREATE INDEX squad_runs_task ON squad_runs(task_id);`,
   // A conversation's to-dos (TodoStore): its groups as one JSON list.
-  `CREATE TABLE conversation_todos (conversation_id TEXT PRIMARY KEY, groups TEXT NOT NULL);`
+  `CREATE TABLE conversation_todos (conversation_id TEXT PRIMARY KEY, groups TEXT NOT NULL);`,
+  // NULL keeps the legacy defaults; an explicit empty string removes extra discussion requirements.
+  `ALTER TABLE discussions ADD COLUMN requirements TEXT;`
 ]
 
 

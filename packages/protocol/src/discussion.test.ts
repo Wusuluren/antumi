@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { checkAddDiscussionMember, checkDiscussionAction, checkEditDiscussionProjects, checkArchiveDiscussion, checkNewDiscussionTopic, checkRemoveDiscussionMember, currentTopic, memberLetter } from './discussion'
+import { DEFAULT_DISCUSSION_REQUIREMENTS, DiscussionCreate, MAX_DISCUSSION_REQUIREMENTS, checkAddDiscussionMember, checkDiscussionAction, checkEditDiscussionProjects, checkArchiveDiscussion, checkNewDiscussionTopic, checkRemoveDiscussionMember, currentTopic, memberLetter } from './discussion'
+
+describe('discussion requirements', () => {
+  const create = { topic: 'Compare caches', projectPaths: [], members: [{ agent: 'claude', name: 'Ann' }, { agent: 'codex', name: 'Bob' }], chair: 0 }
+
+  it('keeps older requests valid and distinguishes omitted from explicitly empty requirements', () => {
+    expect(DiscussionCreate.parse(create).requirements).toBe(DEFAULT_DISCUSSION_REQUIREMENTS)
+    expect(DiscussionCreate.parse({ ...create, requirements: '   ' }).requirements).toBe('')
+    expect(DiscussionCreate.parse({ ...create, requirements: '  Use tables.  ' }).requirements).toBe('Use tables.')
+  })
+
+  it('rejects oversized or malformed requirements before starting agents', () => {
+    expect(DiscussionCreate.safeParse({ ...create, requirements: 'x'.repeat(MAX_DISCUSSION_REQUIREMENTS + 1) }).success).toBe(false)
+    expect(DiscussionCreate.safeParse({ ...create, requirements: null }).success).toBe(false)
+  })
+})
 
 describe('checkDiscussionAction', () => {
   it('pauses and stops only what runs, and not the summary', () => {

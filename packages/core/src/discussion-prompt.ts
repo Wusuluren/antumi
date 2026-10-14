@@ -1,4 +1,4 @@
-import { agentDescriptor, memberLetter, type Discussion, type DiscussionMember, type DiscussionPost } from '@kando/protocol'
+import { agentDescriptor, DEFAULT_DISCUSSION_REQUIREMENTS, memberLetter, type Discussion, type DiscussionMember, type DiscussionPost } from '@kando/protocol'
 
 // What each member of a group chat is sent. A member keeps its own agent session, so after the
 // first message it is sent only what was said since it last spoke.
@@ -6,10 +6,16 @@ import { agentDescriptor, memberLetter, type Discussion, type DiscussionMember, 
 type Members = Pick<Discussion, 'members' | 'formerMembers' | 'anonymous' | 'chairId'>
 
 const CLOSING_TAG = /<\/discussion-post/gi
-// Each round opens with a heading, which members take up for their own posts ("## A社 · 第二轮"),
-// though the chat already shows who speaks and in which round.
-const NO_HEADING = '发言开头不要写标题或署名（如「某某 · 第 2 轮」）：界面已经显示你的名字和轮次，直接写内容。'
 const HOLDS = /^立场[:：]\s*维持/
+
+function rules(discussion: Pick<Discussion, 'requirements'>): string[] {
+  const requirements = (discussion.requirements ?? DEFAULT_DISCUSSION_REQUIREMENTS).trim()
+  return [
+    '## 规则',
+    '- 这是只读讨论：可以阅读项目代码、运行只读命令来佐证；不要修改任何文件，不要提交计划或请求执行计划，直接用文字回答。',
+    ...(requirements ? ['', '## 用户的讨论要求', requirements] : [])
+  ]
+}
 
 // How the others are named to a member: by code when anonymous, so no one leans on a brand. A
 // member's code is its letter, which stays when another leaves.
@@ -66,11 +72,7 @@ export function openingPrompt(discussion: Discussion, member: DiscussionMember, 
     '## 相关项目',
     projects,
     '',
-    '## 规则',
-    '- 这是只读讨论：可以阅读项目代码、运行只读命令来佐证，引用时写出 `文件:行`；不要修改任何文件，不要提交计划或请求执行计划，直接用文字回答。',
-    '- 观点要具体，给出理由；不确定的地方直接说不确定。',
-    '- 每次发言尽量控制在 600 字以内，除非主题确实需要更多。',
-    `- ${NO_HEADING}`,
+    ...rules(discussion),
     ...(userPosts.length > 0 ? ['', '## 用户的补充', ...userPosts.map((post) => post.text)] : []),
     ...(background.length > 0 ? ['', '## 之前议题的讨论（只作背景）', ...since(discussion, background)] : []),
     '',
@@ -93,7 +95,9 @@ export function roundPrompt(discussion: Discussion, round: number, unseen: reado
     ...since(discussion, unseen),
     '',
     '请先点名回应你同意和不同意的观点，说明理由；再给出你现在的立场。只重复别人已经说过的话没有意义。',
-    NO_HEADING,
+    '',
+    ...rules(discussion),
+    '',
     '最后单独一行写「立场：维持」或「立场：已修改」。'
   ].join('\n')
 }
@@ -108,7 +112,9 @@ export function topicPrompt(discussion: Discussion, topic: string, unseen: reado
     topic,
     ...(unseen.length > 0 ? ['', '你上次发言以来的其他新内容（背景）：', '', ...since(discussion, unseen)] : []),
     '',
-    '请独立给出你对新议题的看法。这一轮你看不到其他成员的回答，他们也看不到你的。'
+    '请独立给出你对新议题的看法。这一轮你看不到其他成员的回答，他们也看不到你的。',
+    '',
+    ...rules(discussion)
   ].join('\n')
 }
 
@@ -118,13 +124,11 @@ export function summaryPrompt(discussion: Discussion, unseen: readonly Discussio
     '讨论到此结束。你是主持人，请为用户写总结。' + (unseen.length > 0 ? '下面是你上次发言以来的新内容：' : ''),
     ...(unseen.length > 0 ? ['', ...since(discussion, unseen)] : []),
     '',
-    '按下面几个小节写，每条注明是哪位成员的观点：',
-    '## 共识',
-    '## 分歧（各方观点和理由）',
-    '## 建议',
-    '## 待决问题',
+    '总结应覆盖共识、分歧（各方观点和理由）、建议和待决问题；具体格式遵循用户的讨论要求。',
     '只总结讨论里出现过的内容，不要加入新的结论。',
-    ...(discussion.topicStart > 0 ? ['这次只总结新议题的讨论，之前议题的内容不必再写。'] : [])
+    ...(discussion.topicStart > 0 ? ['这次只总结新议题的讨论，之前议题的内容不必再写。'] : []),
+    '',
+    ...rules(discussion)
   ].join('\n')
 }
 
@@ -136,7 +140,9 @@ export function replyPrompt(discussion: Discussion, ask: DiscussionPost, unseen:
     ask.text,
     ...(others.length > 0 ? ['', '你上次发言以来的其他新内容：', '', ...since(discussion, others)] : []),
     '',
-    '请直接回答用户。'
+    '请直接回答用户。',
+    '',
+    ...rules(discussion)
   ].join('\n')
 }
 

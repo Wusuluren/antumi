@@ -9,6 +9,7 @@ import {
   checkNewDiscussionTopic,
   checkRemoveDiscussionMember,
   currentTopic,
+  DEFAULT_DISCUSSION_REQUIREMENTS,
   Discussion,
   DiscussionCreate,
   DiscussionMemberFields,
@@ -29,7 +30,7 @@ const REF_PREFIX = 'discussion:'
 const TURN_PREFIX = `turn:${REF_PREFIX}`
 const PLAN_DENIAL = '这是只读讨论，不执行计划。请不要提交计划，直接把你的看法作为文字回答写出来。'
 
-const DISCUSSION_SELECT = `SELECT id, title, topic, project_paths AS projectPaths, chair_id AS chairId, max_rounds AS maxRounds,
+const DISCUSSION_SELECT = `SELECT id, title, topic, requirements, project_paths AS projectPaths, chair_id AS chairId, max_rounds AS maxRounds,
   anonymous, state, step, round, last_round AS lastRound, topic_start AS topicStart, pinned_at AS pinnedAt, archived_at AS archivedAt, created_at AS createdAt, updated_at AS updatedAt
   FROM discussions`
 const MEMBER_SELECT = `SELECT id, discussion_id AS discussionId, conversation_id AS conversationId, agent, model, effort, name, role,
@@ -119,9 +120,9 @@ export class DiscussionService {
     const title = parsed.title || titleOf(parsed.topic)
     const members = parsed.members.map((member) => ({ ...member, id: randomUUID(), conversationId: randomUUID() }))
     const chairId = members[parsed.chair]!.id
-    this.db.prepare(`INSERT INTO discussions (id, title, topic, project_paths, chair_id, max_rounds, anonymous, state, step, round, last_round, pinned_at, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'running', NULL, 0, ?, NULL, ?, ?)`)
-      .run(id, title, parsed.topic, JSON.stringify(parsed.projectPaths), chairId, parsed.maxRounds, Number(parsed.anonymous), parsed.maxRounds, at, at)
+    this.db.prepare(`INSERT INTO discussions (id, title, topic, requirements, project_paths, chair_id, max_rounds, anonymous, state, step, round, last_round, pinned_at, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'running', NULL, 0, ?, NULL, ?, ?)`)
+      .run(id, title, parsed.topic, parsed.requirements, JSON.stringify(parsed.projectPaths), chairId, parsed.maxRounds, Number(parsed.anonymous), parsed.maxRounds, at, at)
     const insert = this.db.prepare(`INSERT INTO discussion_members (id, discussion_id, position, conversation_id, agent, model, effort, name, role)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     members.forEach((member, position) => insert.run(member.id, id, position, member.conversationId, member.agent, member.model ?? null, member.effort ?? null, member.name, member.role))
@@ -601,7 +602,8 @@ export class DiscussionService {
     const member = ({ removedAt: _removedAt, ...fields }: Record<string, unknown>) => ({ ...fields, status: this.statusOf(String(fields.id), this.conversation(String(fields.conversationId))) })
     const members = rows.filter((row) => row.removedAt === null).map(member)
     const formerMembers = rows.filter((row) => row.removedAt !== null).map((row) => ({ ...member(row), status: 'idle' }))
-    return Discussion.parse({ ...row, projectPaths: JSON.parse(String(row.projectPaths)), anonymous: Boolean(row.anonymous), members, formerMembers })
+    return Discussion.parse({ ...row, requirements: row.requirements ?? DEFAULT_DISCUSSION_REQUIREMENTS,
+      projectPaths: JSON.parse(String(row.projectPaths)), anonymous: Boolean(row.anonymous), members, formerMembers })
   }
 
   private write(id: string, values: Record<string, SQLInputValue>): void {

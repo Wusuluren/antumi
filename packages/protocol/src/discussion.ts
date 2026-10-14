@@ -10,6 +10,11 @@ export const MIN_DISCUSSION_MEMBERS = 2
 export const MAX_DISCUSSION_MEMBERS = 5
 export const MAX_DISCUSSION_ROUNDS = 5
 export const DEFAULT_DISCUSSION_ROUNDS = 3
+export const MAX_DISCUSSION_REQUIREMENTS = 10000
+export const DEFAULT_DISCUSSION_REQUIREMENTS = [
+  '- 观点要具体，给出理由；不确定的地方直接说不确定。',
+  '- 每次发言尽量控制在 600 字以内，除非主题确实需要更多。'
+].join('\n')
 
 export const DiscussionMemberFields = z.object({
   agent: AgentKind,
@@ -55,6 +60,8 @@ export const Discussion = z.object({
   id: z.string().uuid(),
   title: z.string(),
   topic: z.string(),
+  // Shared instructions for every turn; omitted by older cores, empty for no extra requirements.
+  requirements: z.string().optional(),
   projectPaths: z.array(z.string()),
   members: z.array(DiscussionMember),
   // Members taken out, for the names on what they said. Older cores leave it out.
@@ -111,6 +118,7 @@ export type DiscussionPost = z.infer<typeof DiscussionPost>
 export const DiscussionCreate = z.object({
   title: z.string().trim().max(200).optional(),
   topic: z.string().trim().min(1).max(20000),
+  requirements: z.string().trim().max(MAX_DISCUSSION_REQUIREMENTS).default(DEFAULT_DISCUSSION_REQUIREMENTS),
   projectPaths: z.array(z.string().trim().min(1)).max(MAX_TASK_REPOS),
   members: z.array(DiscussionMemberFields).min(MIN_DISCUSSION_MEMBERS).max(MAX_DISCUSSION_MEMBERS),
   // Which of members sums up.

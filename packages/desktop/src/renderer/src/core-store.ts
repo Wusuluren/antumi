@@ -554,6 +554,10 @@ export function useDiscussionProjectsSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('discussion-projects') ?? false)
 }
 
+export function useDiscussionRequirementsSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('discussion-requirements') ?? false)
+}
+
 // Whether core writes a commit message with the target's agent (git.commitMessage).
 export function useCommitMessageSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('commit-message') ?? false)
