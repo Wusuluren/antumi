@@ -96,6 +96,8 @@ export type CoreState = {
   // The projects the new-conversation page was last asked to start with; a new object each time, so
   // asking again applies again.
   conversationDraftProjects: { paths: readonly string[] } | null
+  // The inbox issue the new conversation is to look into; null for an ordinary one.
+  conversationDraftIssue: DraftIssue | null
   taskMemberConversationId: string | null
   selectedId: string | null
   view: TaskView
@@ -189,6 +191,7 @@ export const useCore = create<CoreState>()(() => ({
   selectedConversationId: null,
   conversationDraft: false,
   conversationDraftProjects: null,
+  conversationDraftIssue: null,
   squads: {},
   squadRuns: {},
   selectedSquadId: null,
@@ -508,9 +511,17 @@ function finishedUnseen(s: CoreState, previous: Conversation | undefined, next: 
   return working && next.chat?.turn !== 'running' && next.chat?.turn !== 'awaiting' && !looking
 }
 
+// An issue as the new-conversation page shows it: which inbox it is in, and what to call it.
+export type DraftIssue = { provider: string; instance: string; key: string; title: string; url: string; source: string }
+
 // `projects`: what the page starts with, as from a project's group; without, it starts with none.
-export function openConversationDraft(projects?: readonly string[]): void {
-  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false, conversationDraft: true, conversationDraftProjects: projects ? { paths: [...projects] } : null })
+// `issue`: the inbox issue the conversation is opened to look into.
+export function openConversationDraft(projects?: readonly string[], issue: DraftIssue | null = null): void {
+  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false, conversationDraft: true, conversationDraftProjects: projects ? { paths: [...projects] } : null, conversationDraftIssue: issue })
+}
+
+export function useSourceInvestigateSupported(): boolean {
+  return useCore((state) => state.rpc?.features.includes('source-investigate') ?? false)
 }
 
 export function closeConversationDraft(): void {

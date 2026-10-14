@@ -107,7 +107,7 @@ function TaskDetailBody({ task }: { task: Task }) {
         <BoardCrumb />
         <span className="muted mono">{shortTaskId(task.id)}</span>
         <TaskAlerts task={task} />
-        <SourceLink task={task} />
+        <SourceLink source={task.source} />
         <SaveIndicator taskId={task.id} />
         <TaskToolbar task={task} view="detail" />
       </header>

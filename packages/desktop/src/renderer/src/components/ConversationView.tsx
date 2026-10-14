@@ -5,6 +5,7 @@ import { conversationState } from '../conversation-state'
 import { agentLabel } from '../labels'
 import { primaryProjectName } from './ProjectPicker'
 import { BranchStatus } from './BranchStatus'
+import { SourceLink } from './SourceLink'
 import { ConversationChat } from './ConversationChat'
 import { ConversationInspector } from './ConversationInspector'
 import { ConversationStatus } from './ConversationStatus'
@@ -84,6 +85,7 @@ export function ConversationView({ id }: { id: string }) {
         <span className={state.failed ? 'conversation-exit-failed' : 'muted'} title={state.detail ?? undefined}>{state.label}</span>
         {archived && <span className="archived-tag">已归档</span>}
         {conversation.forkedFromId && <ForkOrigin id={conversation.forkedFromId} />}
+        {conversation.source && <span className="muted conversation-origin">排查 {conversation.source.name}<SourceLink source={conversation.source} /></span>}
         {conversation.routineId && (
           <span className="muted conversation-origin">
             来自定时任务{routine ? `「${routine.title}」` : ''} ·

@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { SourceInbox, SourceIssue, Task } from '@kando/protocol'
-import { perform, selectTask, setInboxTab, setSettingsOpen, useCore } from '../core-store'
+import { openConversationDraft, perform, selectConversation, selectTask, setInboxTab, setSettingsOpen, useCore, useSourceInvestigateSupported } from '../core-store'
 import { defaultAgent } from '../default-agent'
 import { sourceProblemText } from '../labels'
-import { activeInboxes, inboxTab, type ActiveInbox } from '../source-inboxes'
+import { activeInboxes, inboxKey, inboxTab, investigationProjects, type ActiveInbox } from '../source-inboxes'
 import { CloseIcon, GearIcon, InboxIcon, RefreshIcon } from './icons'
 import { BoardCrumb } from './TaskBoard'
 
@@ -18,7 +18,7 @@ function updatedOn(ms: number): string {
 
 export const settingsSectionOf = (provider: string) => `source-${provider}`
 
-function IssueRow({ issue, name, busy, children }: { issue: SourceIssue; name: string; busy: boolean; children: ReactNode }) {
+function IssueRow({ issue, name, busy, investigating = false, children }: { issue: SourceIssue; name: string; busy: boolean; investigating?: boolean; children: ReactNode }) {
   return (
     <li className="inbox-row" aria-busy={busy || undefined}>
       <div className="inbox-row-text">
@@ -32,6 +32,7 @@ function IssueRow({ issue, name, busy, children }: { issue: SourceIssue; name: s
             {issue.status}
           </span>
           {issue.updatedAt !== null && <span>更新于 {updatedOn(issue.updatedAt)}</span>}
+          {investigating && <span className="inbox-investigating">排查中</span>}
         </div>
         <div className="inbox-row-title">{issue.title}</div>
       </div>
@@ -56,8 +57,8 @@ function InboxTabs({ active, selected }: { active: readonly ActiveInbox[]; selec
   )
 }
 
-// One source instance's share of the inbox; each issue either becomes a task or is set aside.
-// Under tabs, the tabs take the place of its name.
+// One source instance's share of the inbox; each issue becomes a task, is looked into in a
+// conversation first, or is set aside. Under tabs, the tabs take the place of its name.
 function InboxSection({
   inbox,
   name,
@@ -70,6 +71,8 @@ function InboxSection({
   onImported: (task: Task) => void
 }) {
   const tasks = useCore((s) => s.tasks)
+  const conversations = useCore((s) => s.conversations)
+  const investigateSupported = useSourceInvestigateSupported()
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [showDismissed, setShowDismissed] = useState(false)
   const target = { provider: inbox.provider, instance: inbox.instance }
@@ -86,6 +89,11 @@ function InboxSection({
         onImported(task)
       }
     })
+  // The new-conversation page, with the issue on it: the agent, projects and mode are picked there.
+  const investigate = (issue: SourceIssue) => openConversationDraft(investigationProjects(inboxKey(inbox)),
+    { provider: inbox.provider, instance: inbox.instance, key: issue.key, title: issue.title, url: issue.url, source: name })
+  // The conversation looking into it, while it is still here to open.
+  const lookedInto = (issue: SourceIssue) => (issue.conversationId && conversations[issue.conversationId] ? issue.conversationId : null)
   const dismiss = (key: string) => act(key, () => perform((rpc) => rpc.call('sources.dismiss', { ...target, key })))
   const restore = (key: string) => act(key, () => perform((rpc) => rpc.call('sources.restore', { ...target, key })))
   const refresh = () => void perform((rpc) => rpc.call('sources.refresh', target))
@@ -125,16 +133,29 @@ function InboxSection({
 
         {inbox.items.length > 0 ? (
           <ul className="inbox-list">
-            {inbox.items.map((issue) => (
-              <IssueRow key={issue.key} issue={issue} name={name} busy={busyKey === issue.key}>
-                <button type="button" className="button primary" disabled={busyKey !== null} onClick={() => void importIssue(issue.key)}>
+            {inbox.items.map((issue) => {
+              const conversationId = lookedInto(issue)
+              return (
+              <IssueRow key={issue.key} issue={issue} name={name} busy={busyKey === issue.key} investigating={conversationId !== null}>
+                {conversationId && (
+                  <button type="button" className="button primary" onClick={() => selectConversation(conversationId)}>
+                    看会话
+                  </button>
+                )}
+                <button type="button" className={conversationId ? 'button' : 'button primary'} disabled={busyKey !== null} onClick={() => void importIssue(issue.key)}>
                   导入
                 </button>
+                {investigateSupported && !conversationId && (
+                  <button type="button" className="button" disabled={busyKey !== null} data-tooltip="开一个只读会话查清原因，确认后可以就在会话里修" onClick={() => investigate(issue)}>
+                    排查
+                  </button>
+                )}
                 <button type="button" className="button ghost" disabled={busyKey !== null} onClick={() => void dismiss(issue.key)}>
                   忽略
                 </button>
               </IssueRow>
-            ))}
+              )
+            })}
           </ul>
         ) : (
           <p className="inbox-empty">

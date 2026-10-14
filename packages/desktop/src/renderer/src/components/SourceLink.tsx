@@ -1,14 +1,14 @@
-import type { Task } from '@kando/protocol'
+import type { TaskSource } from '@kando/protocol'
 import { ExternalIcon } from './icons'
 
-// The issue an imported task came from, one click from the task itself.
-export function SourceLink({ task }: { task: Task }) {
-  if (!task.source) {
+// The issue an imported task, or a conversation looking into it, came from, one click away.
+export function SourceLink({ source }: { source: TaskSource | null | undefined }) {
+  if (!source) {
     return null
   }
   return (
-    <a className="source-link" href={task.source.url} target="_blank" rel="noreferrer" data-tooltip={`在 ${task.source.name} 中打开`} data-tooltip-align="start">
-      {task.source.key}
+    <a className="source-link" href={source.url} target="_blank" rel="noreferrer" data-tooltip={`在 ${source.name} 中打开`} data-tooltip-align="start">
+      {source.key}
       <ExternalIcon />
     </a>
   )

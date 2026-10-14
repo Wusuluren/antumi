@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SourceDescriptor, SourceInbox, SourceIssue } from '@kando/protocol'
-import { activeInboxes, inboxTab } from './source-inboxes'
+import { activeInboxes, inboxTab, investigationProjects, rememberInvestigationProjects } from './source-inboxes'
 
 const issue = (key: string): SourceIssue => ({
   key, title: key, url: `https://demo.test/${key}`, status: 'Open', statusCategory: 'todo', type: 'Bug', priority: null, updatedAt: null
@@ -45,5 +45,15 @@ describe('source inboxes', () => {
     expect(inboxTab(active, 'github/gone')).toBe('github/default')
     expect(inboxTab(active.slice(0, 1), null)).toBe('jira/default')
     expect(inboxTab([], 'jira/default')).toBeNull()
+  })
+})
+
+describe('investigation projects', () => {
+  it('remembers per inbox where its issues were last looked into', () => {
+    expect(investigationProjects('github/default')).toEqual([])
+    rememberInvestigationProjects('github/default', ['/code/app', '/code/lib'])
+    rememberInvestigationProjects('jira/default', ['/code/api'])
+    expect(investigationProjects('github/default')).toEqual(['/code/app', '/code/lib'])
+    expect(investigationProjects('jira/default')).toEqual(['/code/api'])
   })
 })

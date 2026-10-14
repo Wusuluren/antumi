@@ -157,7 +157,7 @@ export function TaskChat({ taskId }: { taskId: string }) {
           </span>
           <TaskAlerts task={task} />
           <span className="muted mono">{shortTaskId(task.id)}</span>
-          <SourceLink task={task} />
+          <SourceLink source={task.source} />
           {conversation?.planOnly && <span className="task-tag task-tag-refining">{task.squadId ? '队长规划中' : '只读规划'}</span>}
         </div>
         {task.squadId && activity && (

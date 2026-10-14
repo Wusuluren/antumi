@@ -4697,6 +4697,14 @@ body.side-panel-resizing * {
   color: var(--status-done);
 }
 
+/* Being looked into in a conversation: a fact about the issue, not a state it moves through. */
+.inbox-investigating {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--info) 12%, transparent);
+  color: var(--info);
+}
+
 .inbox-row-title {
   margin-top: 2px;
   font-weight: 500;
@@ -7418,7 +7426,12 @@ body.side-panel-resizing * {
 }
 .chat-draft-agent:disabled { cursor: default; opacity: 0.7; }
 .chat-draft-agent .agent-mark { width: 28px; height: 28px; }
-.chat-draft-hint { margin: 0; font-size: 12px; }
+.chat-draft-hint { margin: 0; max-width: 520px; font-size: 12px; }
+/* The issue a new conversation is to look into, above the agents to start it with. */
+.chat-draft-issue { display: flex; align-items: center; gap: 8px; max-width: 100%; padding: 4px 4px 4px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: 13px; }
+.chat-draft-issue-key { flex-shrink: 0; color: var(--text); font-family: var(--mono); font-size: 12px; text-decoration: none; }
+.chat-draft-issue-key:hover { color: var(--accent); text-decoration: underline; }
+.chat-draft-issue-title { min-width: 0; overflow: hidden; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .chat-draft-projects { flex-wrap: wrap; font-size: 12px; }
 /* Opens into the page: below it is only the input and the window's edge. */
 .chat-draft-projects .menu { top: auto; bottom: calc(100% + 4px); }

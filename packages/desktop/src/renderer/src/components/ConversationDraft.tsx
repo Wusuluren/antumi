@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChatPermissionMode, type AgentKind, type ChatCatalog } from '@kando/protocol'
-import { closeConversationDraft, perform, selectConversation, useChatImagesSupported, useChatOptionsSupported, useConversationWorktreesSupported, useCore, useStartBranchSupported } from '../core-store'
+import { agentDescriptor, ChatPermissionMode, type AgentKind, type ChatCatalog } from '@kando/protocol'
+import { closeConversationDraft, perform, selectConversation, useChatImagesSupported, useChatOptionsSupported, useConversationWorktreesSupported, useCore, useSourceInvestigateSupported, useStartBranchSupported } from '../core-store'
 import { defaultAgent } from '../default-agent'
 import { currentInstalledAgents, useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
@@ -21,9 +21,12 @@ import { ProjectPicker } from './ProjectPicker'
 import { DraftBranchPicker, useProjectBranches } from './DraftBranchPicker'
 import { composerDraft, EMPTY_DRAFT, saveComposerDraft } from '../composer-drafts'
 import { keepInitialMessage, sendInitialMessage } from '../initial-messages'
+import { inboxKey, rememberInvestigationProjects } from '../source-inboxes'
 
 // A new conversation while chats are the default: the agent and projects are picked on the page,
 // and the first message creates the conversation and starts the agent, so none is left empty.
+// Opened on an inbox issue, it looks into that issue: the agent reads it first, in a mode that only
+// reads and plans unless another is picked, and the message is what the user adds, if anything.
 export function ConversationDraft() {
   const tasks = useCore((s) => s.tasks)
   const conversations = useCore((s) => s.conversations)
@@ -38,6 +41,9 @@ export function ConversationDraft() {
   const requested = useCore((s) => s.conversationDraftProjects)
   const [projectPaths, setProjectPaths] = useState<string[]>(() => [...(requested?.paths ?? [])])
   useEffect(() => { if (requested) setProjectPaths([...requested.paths]) }, [requested])
+  const investigateSupported = useSourceInvestigateSupported()
+  const draftIssue = useCore((s) => s.conversationDraftIssue)
+  const issue = investigateSupported ? draftIssue : null
   const [worktree, setWorktree] = useState(false)
   const [draft] = useState(() => composerDraft(null))
   const { value, setText, setValue } = useMentionedText({ text: draft.text, mentions: draft.mentions })
@@ -69,7 +75,7 @@ export function ConversationDraft() {
   const width = usePreferences((s) => s.chatWidth)
   const fontSize = usePreferences((s) => s.chatFontSize)
   const font = usePreferences((s) => s.chatFont)
-  const canSend = agent !== null && !busy && attached.uploading === 0 && (text.trim() !== '' || attached.images.length > 0)
+  const canSend = agent !== null && !busy && attached.uploading === 0 && (issue !== null || text.trim() !== '' || attached.images.length > 0)
   // Only the user's own commands: the agent has not started to say what it takes.
   const chatCommands = useCore((s) => s.chatCommands)
   const commandEntries = useMemo(() => kandoEntries(chatCommands, projectPaths), [chatCommands, projectPaths])
@@ -96,7 +102,9 @@ export function ConversationDraft() {
   // A mode the model or settings no longer allow falls back to that agent's available default.
   const offeredModes = agent ? startModes(agent, model, allowBypass) : []
   const chosenMode = agent ? modes[agent] : undefined
-  const mode = agent ? (chosenMode && offeredModes.includes(chosenMode) ? chosenMode : defaultStartMode(agent, offeredModes)) : null
+  // Looking into an issue starts where the agent only reads, as a group chat member does.
+  const reading = agent && issue && offeredModes.includes(agentDescriptor(agent).discussionMode) ? agentDescriptor(agent).discussionMode : null
+  const mode = agent ? (chosenMode && offeredModes.includes(chosenMode) ? chosenMode : reading ?? defaultStartMode(agent, offeredModes)) : null
   const effort = pick.effort && efforts.includes(pick.effort) ? pick.effort : null
   // The model a start would run, as quota windows name models; unknown until its catalog is in.
   const modelFor = (kind: AgentKind) => {
@@ -108,13 +116,32 @@ export function ConversationDraft() {
     if (agent) setPicks({ ...picks, [agent]: next })
   }
 
+  const chosen = optionsSupported
+    ? { permissionMode: mode ?? undefined, ...(pick.model ? { model: pick.model } : {}), ...(effort ? { effort } : {}) }
+    : {}
+  const where = { projectPaths, ...(inWorktree ? { worktree: true } : {}), ...(startBranch ? { branch: startBranch } : {}) }
   // The page is how a chat start begins, as settings choose; a terminal start has its dialog.
   const create = () => {
     if (!agent || !confirmQuota(agent, modelFor(agent))) return Promise.resolve(null)
-    const chosen = optionsSupported
-      ? { permissionMode: mode ?? undefined, ...(pick.model ? { model: pick.model } : {}), ...(effort ? { effort } : {}) }
-      : {}
-    return perform((rpc) => rpc.call('conversations.create', { agent, projectPaths, ...(deferStart ? { deferStart: true } : {}), ...(inWorktree ? { worktree: true } : {}), ...(startBranch ? { branch: startBranch } : {}), ...startOptions(), ...chosen }))
+    return perform((rpc) => rpc.call('conversations.create', { agent, ...where, ...(deferStart ? { deferStart: true } : {}), ...startOptions(), ...chosen }))
+  }
+  // Core fetches the issue and starts the agent on it before answering, so the page waits.
+  const investigate = async () => {
+    if (!agent || !issue || !confirmQuota(agent, modelFor(agent))) return
+    setBusy(true)
+    const note = written.trim()
+    const opened = await perform((rpc) => rpc.call('sources.investigate', {
+      provider: issue.provider, instance: issue.instance, key: issue.key, agent, ...where, ...(note ? { note } : {}), ...startOptions(), ...chosen
+    }))
+    if (!opened) {
+      setBusy(false)
+      return
+    }
+    rememberInvestigationProjects(inboxKey(issue), projectPaths)
+    // Images go nowhere here, so any already attached wait for the next new conversation.
+    saveComposerDraft(null, { ...EMPTY_DRAFT, images: attached.images })
+    useCore.setState((state) => ({ conversations: { ...state.conversations, [opened.id]: opened }, conversationDraftIssue: null }))
+    selectConversation(opened.id)
   }
   // Open before launching; the first message keeps its own delivery and retry state.
   const send = async () => {
@@ -124,6 +151,7 @@ export function ConversationDraft() {
       return
     }
     if (!canSend) return
+    if (issue) return investigate()
     setBusy(true)
     const created = await create()
     if (created) {
@@ -146,7 +174,7 @@ export function ConversationDraft() {
   return (
     <section className="detail terminal-view conversation-view" aria-label="新会话">
       <header className="detail-header conversation-header">
-        <span className="terminal-view-title">新会话</span>
+        <span className="terminal-view-title">{issue ? '排查 issue' : '新会话'}</span>
         <div className="toolbar">
           <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={closeConversationDraft}><CloseIcon /></button>
         </div>
@@ -155,6 +183,15 @@ export function ConversationDraft() {
         <div className="chat-view" data-width={width} data-font-size={fontSize} data-font={font}>
           <div className="chat-list chat-draft">
             <div className="chat-draft-start">
+              {issue && (
+                <div className="chat-draft-issue">
+                  <span className="muted">排查 {issue.source}</span>
+                  <a className="chat-draft-issue-key" href={issue.url} target="_blank" rel="noreferrer" data-tooltip={`在 ${issue.source} 中打开`}>{issue.key}</a>
+                  <span className="chat-draft-issue-title" title={issue.title}>{issue.title}</span>
+                  <button type="button" className="tool-button" aria-label="不排查这个 issue" data-tooltip="改成普通会话" disabled={busy}
+                    onClick={() => useCore.setState({ conversationDraftIssue: null })}><CloseIcon /></button>
+                </div>
+              )}
               <h2 className="chat-draft-title">用哪个 Agent 开始</h2>
               <div className="chat-draft-agents" role="radiogroup" aria-label="agent">
                 {installed.map((kind) => (
@@ -173,7 +210,11 @@ export function ConversationDraft() {
                   </button>
                 ))}
               </div>
-              <p className="chat-draft-hint muted">发出第一条消息时创建会话并启动 Agent。</p>
+              <p className="chat-draft-hint muted">
+                {issue
+                  ? 'Agent 先读这个 issue 的原文，只读排查，给出原因和修复方案后停下；确认后可以切换模式，就在这个会话里修。'
+                  : '发出第一条消息时创建会话并启动 Agent。'}
+              </p>
             </div>
           </div>
           <div className="chat-dock">
@@ -210,7 +251,7 @@ export function ConversationDraft() {
             >
               {commandMenu.menu}
               {mentionMenu.menu}
-              {imagesSupported && <ChatImageStrip images={attached.images} uploading={attached.uploading} onRemove={attached.remove} />}
+              {imagesSupported && !issue && <ChatImageStrip images={attached.images} uploading={attached.uploading} onRemove={attached.remove} />}
               <MentionField value={value} input={mentionMenu.inputProps.ref}>
                 <textarea
                   className="chat-input"
@@ -221,7 +262,7 @@ export function ConversationDraft() {
                   autoFocus
                   readOnly={busy}
                   aria-label="第一条消息"
-                  placeholder={agent ? `给 ${agentLabel(agent)} 发第一条消息，Enter 发送，Shift+Enter 换行` : '先在上面选一个 Agent'}
+                  placeholder={!agent ? '先在上面选一个 Agent' : issue ? '补充说明（可选），Enter 开始排查' : `给 ${agentLabel(agent)} 发第一条消息，Enter 发送，Shift+Enter 换行`}
                   onChange={(event) => setText(event.target.value, event.target.selectionEnd)}
                   onPaste={imagesSupported ? attached.handlers.onPaste : undefined}
                   onKeyDown={(event) => {
@@ -232,7 +273,7 @@ export function ConversationDraft() {
                 />
               </MentionField>
               <div className="chat-options">
-                {imagesSupported && <ChatAddMenu disabled={busy} onAdd={attached.add} />}
+                {imagesSupported && !issue && <ChatAddMenu disabled={busy} onAdd={attached.add} />}
                 {agent && optionsSupported && (
                   <>
                     <ChatPicker
@@ -269,7 +310,7 @@ export function ConversationDraft() {
                   type="button"
                   className="chat-input-button" data-tooltip-side="top-end"
                   aria-label="发送（Enter）"
-                  data-tooltip={busy && agent ? (inWorktree ? `正在建 worktree 并启动 ${agentLabel(agent)}…` : `正在启动 ${agentLabel(agent)}…`) : '发送（Enter）'}
+                  data-tooltip={busy && agent ? (issue ? `正在读取 issue 并启动 ${agentLabel(agent)}…` : inWorktree ? `正在建 worktree 并启动 ${agentLabel(agent)}…` : `正在启动 ${agentLabel(agent)}…`) : issue ? '开始排查（Enter）' : '发送（Enter）'}
                   disabled={!canSend}
                   onClick={() => void send()}
                 >
