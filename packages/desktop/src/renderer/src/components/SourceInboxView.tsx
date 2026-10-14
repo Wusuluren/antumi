@@ -142,11 +142,11 @@ function InboxSection({
                   </button>
                 )}
                 <button type="button" className={conversationId ? 'button' : 'button primary'} disabled={busyKey !== null} onClick={() => void importIssue(issue.key)}>
-                  导入
+                  导入任务
                 </button>
                 {investigateSupported && !conversationId && (
                   <button type="button" className="button" disabled={busyKey !== null} data-tooltip="开一个只读会话查清原因，确认后可以就在会话里修" onClick={() => investigate(issue)}>
-                    排查
+                    会话排查
                   </button>
                 )}
                 <button type="button" className="button ghost" disabled={busyKey !== null} onClick={() => void dismiss(issue.key)}>

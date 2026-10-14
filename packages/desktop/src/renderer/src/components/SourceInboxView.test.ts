@@ -43,18 +43,18 @@ describe('source inbox', () => {
     connect(['source-investigate'])
     useCore.setState({ conversations: { [conversationId]: Conversation.parse({ id: conversationId, title: 'Bug 2', titleLocked: true, agent: 'claude', workspacePath: '/w', projectPaths: [], managedWorkspace: false, sessionId: null, createdAt: 0, updatedAt: 0 }) } })
     const html = render()
-    expect(row(html, '1')).toContain('>排查</button>')
+    expect(row(html, '1')).toContain('>会话排查</button>')
     expect(row(html, '1')).not.toContain('排查中')
     expect(row(html, '2')).toContain('排查中')
     expect(row(html, '2')).toContain('>看会话</button>')
-    expect(row(html, '2')).not.toContain('>排查</button>')
+    expect(row(html, '2')).not.toContain('>会话排查</button>')
   })
 
   it('treats an issue whose conversation is gone as not looked into, and offers nothing new to an older core', () => {
     connect(['source-investigate'])
-    expect(row(render(), '2')).toContain('>排查</button>')
+    expect(row(render(), '2')).toContain('>会话排查</button>')
     connect([])
-    expect(render()).not.toContain('>排查</button>')
+    expect(render()).not.toContain('>会话排查</button>')
   })
 
   it('opens the new-conversation page on the issue, with the projects asked for', () => {
