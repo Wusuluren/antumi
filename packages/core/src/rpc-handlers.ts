@@ -180,6 +180,8 @@ export function createRpcHandlers(
     'mcpServers.setEnabled': ({ name, enabled }) => mcpServerStore().setEnabled(name, enabled),
     'mcpServers.remove': async ({ name }) => { await mcpServerStore().remove(name); return OK },
     'mcpServers.probe': ({ name }) => mcpServerStore().probe(name),
+    'mcpServers.importable': () => mcpServerStore().importable(),
+    'mcpServers.import': ({ items, agents }) => mcpServerStore().import(items, agents),
     'debug.wire': ({ id, stageId, before }) => {
       const known = new Map(conversations.stages(id).map((stage) => [stage.id, stage]))
       const stages = wire.stages(id)

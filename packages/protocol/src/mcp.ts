@@ -61,3 +61,19 @@ export const McpProbe = z.object({
   at: z.number()
 })
 export type McpProbe = z.infer<typeof McpProbe>
+
+// A server one of the agents is set up with in its own configuration, as Kando could take it in:
+// the name Kando would give it, and, where it cannot, why not. Its secret values stay where they
+// are until it is imported, which core reads again.
+export const McpImportSource = AgentKind
+export const McpImportCandidate = z.object({
+  source: McpImportSource,
+  name: z.string(),
+  suggestedName: McpServerName.nullable(),
+  transport: McpTransport,
+  problem: z.string().nullable()
+})
+export type McpImportCandidate = z.infer<typeof McpImportCandidate>
+
+export const McpImportItem = z.object({ source: McpImportSource, name: z.string().max(200), as: McpServerName })
+export type McpImportItem = z.infer<typeof McpImportItem>

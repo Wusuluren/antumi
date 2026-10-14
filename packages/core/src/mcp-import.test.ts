@@ -1,0 +1,59 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { CredentialStore } from './credential-store'
+import { findAgentMcpServers, importCandidate, suggestedMcpName } from './mcp-import'
+import { McpServerStore } from './mcp-servers'
+
+let home: string
+beforeEach(() => { home = mkdtempSync(path.join(os.tmpdir(), 'kando-mcp-import-')) })
+afterEach(() => rmSync(home, { recursive: true, force: true }))
+
+const codexList = (home: string) => JSON.stringify([
+  { name: 'linear', enabled: true, transport: { type: 'streamable_http', url: 'https://mcp.linear.app/mcp', http_headers: { Authorization: 'Bearer lin' }, bearer_token_env_var: null, env_http_headers: null } },
+  { name: 'sentry', enabled: true, transport: { type: 'streamable_http', url: 'https://mcp.sentry.dev/mcp', http_headers: null, bearer_token_env_var: 'SENTRY_TOKEN', env_http_headers: null } },
+  { name: 'code-review', enabled: false, transport: { type: 'stdio', command: '/bin/sh', args: [], env: null, cwd: path.join(home, '.codex', 'plugins', 'cache', 'x') } },
+  { name: 'node_repl', enabled: true, transport: { type: 'stdio', command: 'node', args: [], env: { CODEX_HOME: '/x' }, cwd: null } }
+])
+
+describe('the agents\' own MCP servers', () => {
+  it('reads Claude\'s, Codex\'s and Cursor\'s, values and all, leaving what the apps bundle', async () => {
+    writeFileSync(path.join(home, '.claude.json'), JSON.stringify({ mcpServers: {
+      github: { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'], env: { GITHUB_TOKEN: 'ghp' } },
+      Old: { type: 'sse', url: 'https://old.example.com/sse' }
+    } }))
+    mkdirSync(path.join(home, '.cursor'))
+    writeFileSync(path.join(home, '.cursor', 'mcp.json'), JSON.stringify({ mcpServers: { 'Context7.Docs': { url: 'https://mcp.context7.com/mcp' } } }))
+    const found = await findAgentMcpServers({ env: {}, homedir: home, codex: async () => codexList(home) })
+    expect(found).toEqual([
+      { source: 'claude', name: 'github', transport: { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'], cwd: null, env: { GITHUB_TOKEN: 'ghp' } }, problem: null },
+      { source: 'claude', name: 'Old', transport: null, problem: 'Kando 不支持 SSE 传输' },
+      { source: 'codex', name: 'linear', transport: { type: 'http', url: 'https://mcp.linear.app/mcp', headers: { Authorization: 'Bearer lin' } }, problem: null },
+      { source: 'codex', name: 'sentry', transport: null, problem: '令牌从环境变量读取，请在 Kando 里手动添加' },
+      { source: 'cursor', name: 'Context7.Docs', transport: { type: 'http', url: 'https://mcp.context7.com/mcp', headers: {} }, problem: null }
+    ])
+  })
+
+  it('finds none where nothing is installed', async () => {
+    expect(await findAgentMcpServers({ env: {}, homedir: home, codex: async () => { throw new Error('codex: not found') } })).toEqual([])
+  })
+
+  it('shows keys, never values, and a name Kando can take', () => {
+    const candidate = importCandidate({ source: 'cursor', name: 'Context7.Docs', transport: { type: 'http', url: 'https://mcp.context7.com/mcp', headers: { Authorization: 'Bearer x' } }, problem: null }, [])
+    expect(candidate).toEqual({ source: 'cursor', name: 'Context7.Docs', suggestedName: 'context7-docs', transport: { type: 'http', url: 'https://mcp.context7.com/mcp', headerKeys: ['Authorization'] }, problem: null })
+    expect(suggestedMcpName('kando')).toBeNull()
+    expect(suggestedMcpName('我的')).toBeNull()
+  })
+
+  it('takes a server in with its values, for the agents the user picked', async () => {
+    const credentials = new CredentialStore(path.join(home, 'credentials.json'))
+    const found = async () => findAgentMcpServers({ env: {}, homedir: home, codex: async () => codexList(home) })
+    const store = new McpServerStore(path.join(home, 'mcp-servers.json'), credentials, () => {}, found)
+    const [saved] = await store.import([{ source: 'codex', name: 'linear', as: 'linear' }], ['claude', 'cursor'])
+    expect(saved).toMatchObject({ name: 'linear', agents: ['claude', 'cursor'], transport: { type: 'http', headerKeys: ['Authorization'] } })
+    expect(store.resolve('linear')?.transport).toMatchObject({ headers: { Authorization: 'Bearer lin' } })
+    expect((await store.importable()).find((each) => each.name === 'linear')?.suggestedName).toBeNull()
+    await expect(store.import([{ source: 'codex', name: 'sentry', as: 'sentry' }], ['claude'])).rejects.toMatchObject({ reason: 'mcp-import-unsupported' })
+  })
+})

@@ -1,8 +1,9 @@
 import path from 'node:path'
 import { z } from 'zod'
-import { McpServer, type AgentKind, type McpProbe, type McpSecretInput, type McpServerInput, type McpTransport } from '@kando/protocol'
+import { McpServer, type AgentKind, type McpImportCandidate, type McpImportItem, type McpProbe, type McpSecretInput, type McpServerInput, type McpTransport } from '@kando/protocol'
 import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
 import type { CredentialStore } from './credential-store'
+import { findAgentMcpServers, importCandidate, importInput, type FoundMcpServer } from './mcp-import'
 import { probeMcpServer } from './mcp-probe'
 import { Rejection } from './rejection'
 
@@ -32,7 +33,9 @@ export class McpServerStore {
   constructor(
     private readonly file: string,
     private readonly credentials: CredentialStore,
-    private readonly changed: (servers: readonly McpServer[]) => void = () => {}
+    private readonly changed: (servers: readonly McpServer[]) => void = () => {},
+    // Where the agents' own servers are read from; tests give their own.
+    private readonly find: () => Promise<FoundMcpServer[]> = () => findAgentMcpServers()
   ) {}
 
   async load(): Promise<void> {
@@ -70,6 +73,23 @@ export class McpServerStore {
         ? { type: 'stdio', command: transport.command, args: transport.args, cwd: transport.cwd, env: pick(transport.envKeys, envKey) }
         : { type: 'http', url: transport.url, headers: pick(transport.headerKeys, headerKey) }
     }
+  }
+
+  async importable(): Promise<McpImportCandidate[]> {
+    return (await this.find()).map((found) => importCandidate(found, this.servers))
+  }
+
+  // Each one read again from its agent's configuration, values and all, and saved in turn: the
+  // ones before a refusal stay.
+  async import(items: readonly McpImportItem[], agents: readonly AgentKind[]): Promise<McpServer[]> {
+    const found = await this.find()
+    const saved: McpServer[] = []
+    for (const item of items) {
+      const server = found.find((each) => each.source === item.source && each.name === item.name)
+      if (!server) throw new Rejection('mcp-import-gone', `${item.name} 已经不在 ${item.source} 的配置里了`)
+      saved.push(await this.save(importInput(server, item, agents)))
+    }
+    return saved
   }
 
   // Reached as an agent would reach it, with its secrets.

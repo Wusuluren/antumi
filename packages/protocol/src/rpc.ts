@@ -29,7 +29,7 @@ import { Squad, SquadFields, SquadRun, SquadWork, SquadPlanRef } from './squad'
 import { KnowledgeFolder, KnowledgeVault } from './knowledge'
 import { CommitSha, RecommendedSkillRepo, SkillRepo, SkillRepoId, SkillUpdateCheck } from './skills'
 import { TodoList, TodoOwner, TodoText, TodoTitle } from './todos'
-import { McpProbe, McpServer, McpServerInput, McpServerName } from './mcp'
+import { McpImportCandidate, McpImportItem, McpProbe, McpServer, McpServerInput, McpServerName } from './mcp'
 
 // Bump only for breaking changes; additive optional fields keep the version.
 export const PROTOCOL_VERSION = 12
@@ -173,6 +173,9 @@ export const rpcMethods = {
   'mcpServers.remove': { params: z.object({ name: McpServerName }), result: Ok },
   // Connects to a saved server as an agent would and lists its tools.
   'mcpServers.probe': { params: z.object({ name: McpServerName }), result: McpProbe },
+  // The servers Claude, Codex and Cursor have in their own configuration, and taking some in.
+  'mcpServers.importable': { params: z.object({}), result: z.array(McpImportCandidate) },
+  'mcpServers.import': { params: z.object({ items: z.array(McpImportItem).min(1).max(64), agents: z.array(AgentKind) }), result: z.array(McpServer) },
   // What of git and the agent CLIs core finds on its path; the last answer, unless asked to look again.
   'system.environment': { params: z.object({ refresh: z.boolean().optional() }), result: Environment },
   'system.installAgentCli': { params: z.object({ agent: AgentKind }), result: Terminal },
