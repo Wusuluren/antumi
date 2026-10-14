@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { ChatDecision, ChatTurnActivity } from './chat'
+import { TaskSource } from './source'
 import { AgentKind } from './task'
 
 export const ConversationRequest = z.object({
@@ -79,7 +80,9 @@ export const Conversation = z.object({
   // the group chat. Older cores leave it out.
   discussionId: z.string().uuid().nullable().optional(),
   squadRunId: z.string().uuid().nullable().optional(),
-  workspaceReadOnly: z.boolean().optional()
+  workspaceReadOnly: z.boolean().optional(),
+  // The issue it was opened to look into, from the inbox. Older cores leave it out.
+  source: TaskSource.nullable().optional()
 })
 export type Conversation= z.infer<typeof Conversation>
 

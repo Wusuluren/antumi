@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { agentDescriptor, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type UnattendedMode, isKandoRequest } from '@kando/protocol'
+import { agentDescriptor, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isKandoRequest } from '@kando/protocol'
 import type { DaemonEvent, SessionInfo } from '@kando/protocol/node'
 import type { TaskLaunchOptions } from '@kando/protocol'
 import type { RunMeasure } from './agent-run-store'
@@ -66,7 +66,8 @@ export type TaskChatLaunch = TaskLaunchOptions & {
 
 // What a stage's start takes beyond the agent: see TaskChatLaunch; moved says the agent works
 // somewhere else than its last stage did.
-type StageLaunch = { fresh?: boolean; moved?: boolean; planOnly?: boolean; readable?: readonly string[]; fork?: ForkPoint; opening?: string }
+// brief: a file written for the first stage to read before anything else, sent as a handoff is.
+type StageLaunch = { fresh?: boolean; moved?: boolean; planOnly?: boolean; readable?: readonly string[]; fork?: ForkPoint; opening?: string; brief?: string }
 // The provider session another conversation's stage ran, taken over through the turn `at` names;
 // neither null means a session the agent can fork, else the fork starts afresh.
 type ForkPoint = { providerSessionId: string | null; at: string | null }
@@ -648,6 +649,40 @@ export class ConversationService {
   // message, which the client puts back in the input. The chat logs are copied and cut, so the new
   // conversation reads as the old one did at that point; the agent's own session is forked at
   // the same turn where it can be, so it remembers just that much.
+  // A conversation opened to look into an inbox issue: named after the issue, it reads the brief
+  // (the issue's text and how to go about it) first, the way a handoff is read, so the chat shows
+  // only what the user added. readable: the issue's images, which the brief points at.
+  async investigate(
+    agent: AgentKind,
+    projectPaths: readonly string[],
+    allowBypass: boolean | undefined,
+    start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string },
+    issue: { source: TaskSource; title: string; brief: string; readable: readonly string[] },
+    note: string
+  ): Promise<Conversation> {
+    if (!this.capacityAvailable(agent)) throw new Rejection('agent-capacity', 'Agent 运行数量已达到上限，请等待其他会话结束，或预约稍后执行')
+    const { id } = await this.create(agent, projectPaths, allowBypass, { ...start, deferStart: true })
+    this.store.setSource(id, issue.source)
+    this.store.update(id, { title: issue.title, titleLocked: true })
+    const directory = path.join(this.sessionsRoot, id, 'handoffs')
+    await mkdir(directory, { recursive: true, mode: 0o700 })
+    const brief = path.join(directory, `${randomUUID()}.md`)
+    await writeFile(brief, issue.brief, { mode: 0o600 })
+    return this.start(id, agent, note, false, { brief, readable: issue.readable })
+  }
+
+  // The latest conversation opened for each issue of a source instance, by issue key.
+  investigations(provider: string, instance: string): Map<string, string> {
+    const latest = new Map<string, Conversation>()
+    for (const conversation of this.store.list()) {
+      const { source } = conversation
+      if (source?.provider !== provider || source.instance !== instance) continue
+      const known = latest.get(source.key)
+      if (!known || conversation.createdAt > known.createdAt) latest.set(source.key, conversation)
+    }
+    return new Map([...latest].map(([key, conversation]) => [key, conversation.id]))
+  }
+
   async fork(sourceId: string, stageId: string, itemId: string): Promise<Conversation> {
     const source = this.free(sourceId)
     if (source.squadRunId) throw new Rejection('squad-managed')
@@ -749,6 +784,7 @@ export class ConversationService {
         handoffPath = path.join(directory, `${randomUUID()}.md`)
         await writeFile(handoffPath, buildHandoff(current, messages, note, current.agent, agent), { mode: 0o600 })
       }
+      if (launch.brief) handoffPath = launch.brief
       const stageId = randomUUID()
       const stage = this.store.startStage(id, agent, providerSessionId, this.store.maxSequence(id), stageId, launch.planOnly ?? false)
       return { ...await this.startChat(current, stage, saved !== null, handoffPath === null ? null : { path: handoffPath, note }, launch.readable ?? []), starting: false }

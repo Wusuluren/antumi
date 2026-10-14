@@ -74,7 +74,7 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
 // handoff-model: a handoff takes the model and effort the agent starts in (conversations.handoff, tasks.handoff).
 // conversation-todos: core keeps each conversation's to-dos, which its agent writes too (todos.*).
-export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers'] as const
+export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate'] as const
 // knowledge-base: core hands agents the user's local knowledge base and lists the vaults Obsidian knows (knowledge.*).
 // knowledge-base-kind: Markdown folders and Obsidian use their own prompts and skills; missing kind means Obsidian.
 // skills-library: core installs Agent Skills repositories pinned to a commit and hands bundles of them to agents (skills.*).
@@ -613,6 +613,23 @@ export const rpcMethods = {
   'sources.refresh': { params: InstanceRef, result: SourceInbox },
   // Turns an issue into a pending task that carries the issue's text as a snapshot.
   'sources.import': { params: IssueRef.extend({ agent: AgentKind.nullable().optional() }), result: Task },
+  // Opens a conversation to look into an issue, handed the issue's text the way a handoff is, in
+  // a mode that reads and plans unless another is asked for.
+  'sources.investigate': {
+    params: IssueRef.extend({
+      agent: AgentKind,
+      projectPaths: z.array(z.string().trim().min(1)).max(MAX_TASK_REPOS),
+      worktree: z.boolean().optional(),
+      branch: z.string().trim().min(1).max(500).optional(),
+      // What the user adds, shown as their first message.
+      note: z.string().trim().max(100000).optional(),
+      allowBypass: AllowBypass,
+      permissionMode: ChatPermissionMode.optional(),
+      model: z.string().trim().min(1).max(200).optional(),
+      effort: z.string().trim().min(1).max(200).optional()
+    }),
+    result: Conversation
+  },
   'sources.dismiss': { params: IssueRef, result: SourceInbox },
   'sources.restore': { params: IssueRef, result: SourceInbox },
   // Fetches the task's issue again and replaces its snapshot.

@@ -7,6 +7,7 @@ import {
   SOURCE_KEY_PATTERN,
   SourceIssue,
   type AgentKind,
+  type Conversation,
   type CredentialStatus,
   type RpcParsedParams,
   type SourceDescriptor,
@@ -19,6 +20,7 @@ import {
 } from '@kando/protocol'
 import type { AttachmentStore } from './attachment-store'
 import type { CredentialStore } from './credential-store'
+import { investigationBrief } from './investigation-brief'
 import { Rejection } from './rejection'
 import type { SourceConfigStore } from './source-config'
 import { sourceProblem, sourceRejection } from './source-error'
@@ -45,6 +47,21 @@ export type SourceDismissals = {
   dismissIssue(provider: string, instance: string, key: string): void
   restoreIssue(provider: string, instance: string, key: string): void
 }
+
+// Where an issue is looked into before, or instead of, becoming a task.
+export type SourceConversations = {
+  investigations(provider: string, instance: string): Map<string, string>
+  investigate(
+    agent: AgentKind,
+    projectPaths: readonly string[],
+    allowBypass: boolean | undefined,
+    start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string },
+    issue: { source: TaskSource; title: string; brief: string; readable: readonly string[] },
+    note: string
+  ): Promise<Conversation>
+}
+
+export type InvestigateOptions = Omit<RpcParsedParams<'sources.investigate'>, 'provider' | 'instance' | 'key'>
 
 export type SourceEvents = {
   inboxChanged(inbox: SourceInbox): void
@@ -95,6 +112,7 @@ export class SourceService {
   private readonly paused = new Set<string>()
   private readonly operations = new Map<string, Set<Promise<unknown>>>()
   private timer: ReturnType<typeof setInterval> | undefined
+  private conversations: SourceConversations | null = null
 
   constructor(
     private providers: readonly SourceProvider[],
@@ -265,6 +283,11 @@ export class SourceService {
     this.reset(id, instance)
   }
 
+  // Set once conversations exist; until then no issue is being looked into.
+  setConversations(conversations: SourceConversations): void {
+    this.conversations = conversations
+  }
+
   inboxes(): SourceInbox[] {
     return this.list().flatMap((descriptor) =>
       descriptor.instances.map((entry) => this.inbox(descriptor.provider, entry.instance))
@@ -275,7 +298,9 @@ export class SourceService {
     const state = this.state(id, instance)
     const imported = this.tasks.importedKeys(id, instance)
     const dismissed = this.dismissals.dismissedIssues(id, instance)
+    const looked = this.conversations?.investigations(id, instance) ?? new Map<string, string>()
     const waiting = state.found.filter((issue) => !imported.has(issue.key))
+      .map((issue) => ({ ...issue, conversationId: looked.get(issue.key) ?? null }))
     return {
       provider: id,
       instance,
@@ -355,6 +380,34 @@ export class SourceService {
     return task
   }
 
+  investigate(id: string, instance: string, rawKey: string, options: InvestigateOptions): Promise<Conversation> {
+    return this.track(id, () => this.investigateInner(id, instance, rawKey, options))
+  }
+
+  // The issue is fetched in full, as for an import, and handed to a new conversation to read first.
+  private async investigateInner(id: string, instance: string, rawKey: string, options: InvestigateOptions): Promise<Conversation> {
+    const conversations = this.conversations
+    if (!conversations) throw new Rejection('source-investigate-unavailable', 'conversations are not ready yet')
+    const check = this.guard(id, instance)
+    const ready = this.requireReady(id, instance)
+    const key = await this.checkedKey(ready.provider, rawKey)
+    check()
+    const { issue, snapshot } = await this.fetch(ready, key, this.state(id, instance).controller.signal)
+    check()
+    const source: TaskSource = { provider: id, instance, name: ready.provider.name, key: issue.key, url: issue.url }
+    const images = await Promise.all(snapshot.images.map(async (image) => ({ name: image.name, path: await this.attachments.pathOf(image.id) })))
+    const { agent, projectPaths, allowBypass, note, ...start } = options
+    const title = issue.title.trim() || issue.key
+    const conversation = await conversations.investigate(agent, projectPaths, allowBypass, start, {
+      source,
+      title,
+      brief: investigationBrief(source, snapshot, images),
+      readable: images.flatMap((image) => (image.path ? [image.path] : []))
+    }, note?.trim() || `排查 ${source.name} ${source.key}：${title}`)
+    this.emitInbox(id, instance)
+    return conversation
+  }
+
   resync(taskId: string): Promise<Task> {
     const id = this.tasks.get(taskId).source?.provider ?? ''
     return this.track(id, () => this.resyncInner(taskId))
@@ -384,7 +437,7 @@ export class SourceService {
     return this.emitInbox(id, instance)
   }
 
-  // Deleting a task puts its issue back in its inbox.
+  // Deleting a task puts its issue back in its inbox; deleting a conversation, out of looking into.
   tasksChanged(): void {
     this.inboxes().forEach((inbox) => this.events.inboxChanged(inbox))
   }

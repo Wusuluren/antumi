@@ -297,7 +297,9 @@ export const MIGRATIONS = [
   // A conversation's to-dos (TodoStore): its groups as one JSON list.
   `CREATE TABLE conversation_todos (conversation_id TEXT PRIMARY KEY, groups TEXT NOT NULL);`,
   // NULL keeps the legacy defaults; an explicit empty string removes extra discussion requirements.
-  `ALTER TABLE discussions ADD COLUMN requirements TEXT;`
+  `ALTER TABLE discussions ADD COLUMN requirements TEXT;`,
+  // The inbox issue a conversation was opened to look into (a TaskSource as JSON).
+  `ALTER TABLE conversations ADD COLUMN source TEXT;`
 ]
 
 

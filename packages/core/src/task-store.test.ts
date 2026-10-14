@@ -268,4 +268,21 @@ describe('TaskStore migrations', () => {
     expect(conversations.get('22222222-2222-4222-8222-222222222222')?.routineId).toBeNull()
     conversations.close()
   })
+
+  it('keeps the issue a conversation looks into, and reads an unreadable one as none', () => {
+    new TaskStore(file).close()
+    const conversations = new ConversationStore(file)
+    const id = '33333333-3333-4333-8333-333333333333'
+    expect(conversations.create('claude', '/code/app', ['/code/app'], id).source).toBeNull()
+    const issue = { provider: 'github', instance: 'default', name: 'GitHub', key: 'acme/app#12', url: 'https://github.com/acme/app/issues/12' }
+    conversations.setSource(id, issue)
+    expect(conversations.get(id)?.source).toEqual(issue)
+    conversations.close()
+    const raw = new DatabaseSync(file)
+    raw.prepare('UPDATE conversations SET source = ? WHERE id = ?').run('{"provider":', id)
+    raw.close()
+    const reopened = new ConversationStore(file)
+    expect(reopened.get(id)?.source).toBeNull()
+    reopened.close()
+  })
 })

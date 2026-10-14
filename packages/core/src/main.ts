@@ -104,6 +104,7 @@ const conversations = new ConversationService(
     } else if (event.type === 'deleted') {
       server?.broadcast('conversations.deleted', { id: event.id })
       schedules.conversationDeleted(event.id)
+      sources.tasksChanged()
       todos.drop(event.id)
       void browser.closeForConversation(event.id)
     }
@@ -186,6 +187,7 @@ const sources = new SourceService(builtinSources, sourceConfig, credentials, new
   inboxChanged: (inbox) => server?.broadcast('sources.inboxChanged', { inbox }),
   listChanged: (list) => server?.broadcast('sources.listChanged', { sources: list })
 })
+sources.setConversations(conversations)
 
 const plugins = new PluginService(path.join(paths.home, 'plugins'), packageJson.version, sources, sourceConfig, builtinSources,
   (plugins) => server?.broadcast('plugins.changed', { plugins }))

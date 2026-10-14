@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { z } from 'zod'
-import { AgentKind, Conversation, ConversationMessage, ConversationStage } from '@kando/protocol'
+import { AgentKind, Conversation, ConversationMessage, ConversationStage, TaskSource } from '@kando/protocol'
 
 const lastEnded = (column: string) => `(SELECT ${column} FROM conversation_stages
   WHERE conversation_id = conversations.id AND ended_at IS NOT NULL ORDER BY started_at DESC, rowid DESC LIMIT 1)`
@@ -11,7 +11,7 @@ const SELECT = `SELECT id, title, title_locked AS titleLocked, agent, workspace_
   updated_at AS updatedAt, ${lastEnded('exit_code')} AS lastExitCode, ${lastEnded('ended_at')} AS lastExitAt,
   (SELECT plan_only FROM conversation_stages WHERE conversation_id = conversations.id ORDER BY started_at DESC, rowid DESC LIMIT 1) AS planOnly,
   task_id AS taskId, pinned_at AS pinnedAt, archived_at AS archivedAt, routine_id AS routineId, forked_from_id AS forkedFromId,
-  discussion_id AS discussionId, squad_run_id AS squadRunId, workspace_read_only AS workspaceReadOnly
+  discussion_id AS discussionId, squad_run_id AS squadRunId, workspace_read_only AS workspaceReadOnly, source
   FROM conversations`
 const STAGE_SELECT = `SELECT id, conversation_id AS conversationId, agent, provider_session_id AS providerSessionId,
   session_id AS sessionId, received_sequence AS receivedSequence, started_at AS startedAt,
@@ -28,9 +28,19 @@ const ChatOptions = z.object({
 }).and(z.partialRecord(AgentKind, AgentChoice)).catch({})
 export type ChatOptions = z.infer<typeof ChatOptions>
 
+// An unreadable source is dropped rather than losing the conversation with it.
+function source(raw: unknown): TaskSource | null {
+  if (typeof raw !== 'string') return null
+  try {
+    return TaskSource.safeParse(JSON.parse(raw)).data ?? null
+  } catch {
+    return null
+  }
+}
+
 function conversation(row: Record<string, unknown>): Conversation {
   const { lastExitCode, lastExitAt, ...rest } = row
-  return Conversation.parse({ ...rest, projectPaths: JSON.parse(String(row.projectPaths)),
+  return Conversation.parse({ ...rest, source: source(row.source), projectPaths: JSON.parse(String(row.projectPaths)),
     titleLocked: Boolean(row.titleLocked), managedWorkspace: Boolean(row.managedWorkspace), planOnly: Boolean(row.planOnly), workspaceReadOnly: Boolean(row.workspaceReadOnly),
     lastExit: lastExitAt === null ? null : { code: lastExitCode, at: lastExitAt } })
 }
@@ -95,6 +105,10 @@ export class ConversationStore {
 
   setWorkspaceReadOnly(id: string, readOnly: boolean): void {
     this.db.prepare('UPDATE conversations SET workspace_read_only = ? WHERE id = ?').run(Number(readOnly), id)
+  }
+
+  setSource(id: string, issue: TaskSource): void {
+    this.db.prepare('UPDATE conversations SET source = ? WHERE id = ?').run(JSON.stringify(issue), id)
   }
 
   setForkedFrom(id: string, sourceId: string): void {

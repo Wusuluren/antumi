@@ -537,6 +537,18 @@ describe('ConversationService', () => {
     expect(service.get(created.id).title).not.toContain('Kando')
   })
 
+  it('opens a conversation on an issue: named after it, reading the brief first, the note alone as said', async () => {
+    const source = { provider: 'demo', instance: 'default', name: 'Demo', key: 'D-1', url: 'https://demo.test/issues/D-1' }
+    const opened = await service.investigate('claude', [], undefined, { permissionMode: 'plan' },
+      { source, title: 'Login fails', brief: '# 待排查的问题\nthe brief', readable: [] }, '排查 Demo D-1：Login fails')
+    expect(opened).toMatchObject({ title: 'Login fails', titleLocked: true, source, chatOptions: { permissionMode: 'plan' } })
+    expect(handoffFile(opened.sessionId!)).toBe('# 待排查的问题\nthe brief')
+    await settle()
+    expect(service.messages(opened.id).filter((message) => message.role === 'user').map((message) => message.text)).toEqual(['排查 Demo D-1：Login fails'])
+    expect(service.investigations('demo', 'default')).toEqual(new Map([['D-1', opened.id]]))
+    expect(service.investigations('demo', 'other').size).toBe(0)
+  })
+
   it('keeps nothing as said for a handoff without a note', async () => {
     const created = await codexOpens(service.create('codex', []))
     await service.stop(created.id)

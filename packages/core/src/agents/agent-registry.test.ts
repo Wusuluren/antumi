@@ -11,6 +11,8 @@ describe('agent registry', () => {
     expect(Object.keys(descriptor.modes).sort()).toEqual([...adapter.permissionModes].sort())
     expect(descriptor.startModes.every((mode) => adapter.permissionModes.includes(mode))).toBe(true)
     expect(adapter.permissionModes.includes(descriptor.defaultStartMode)).toBe(true)
+    // An inbox issue's conversation starts in it, as a new conversation would.
+    expect(descriptor.startModes).toContain(descriptor.discussionMode)
     expect(adapter.permissionModes.includes('bypass')).toBe(descriptor.capabilities.bypass)
     expect(adapter.permissionModes.includes('auto')).toBe(descriptor.capabilities.autoMode)
     if (adapter.fallbackMode) expect(adapter.permissionModes).toContain(adapter.fallbackMode)

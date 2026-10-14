@@ -109,7 +109,10 @@ export const SourceIssue = z.object({
   statusCategory: z.enum(ISSUE_STATUS_CATEGORIES),
   type: z.string().max(100),
   priority: z.string().max(100).nullable(),
-  updatedAt: z.number().nullable()
+  updatedAt: z.number().nullable(),
+  // The latest conversation opened to look into it, while that conversation is kept. Older cores
+  // leave it out.
+  conversationId: z.string().uuid().nullable().optional()
 })
 export type SourceIssue = z.infer<typeof SourceIssue>
 
