@@ -1,3 +1,4 @@
+import { useHelper, useHelperSupported } from '../helper-conversations'
 import { useCallback, useState, type ReactElement } from 'react'
 import {
   agentDescriptor,
@@ -596,6 +597,9 @@ function ViewToggle({ view }: { view: TaskView }) {
 
 // The inspector sits beside the chat, so from the details the button switches over to open it.
 function InspectorToggle({ view, conversationId }: { view: TaskView; conversationId: string }) {
+  const parent = useCore((state) => state.conversations[conversationId])
+  const helperSupported = useHelperSupported(parent)
+  const helper = useHelper(helperSupported ? conversationId : null)
   const open = useCore((s) => s.inspectorOpen)
   const pressed = view === 'chat' && open
   const todoLeft = useOpenTodoCount(useTodosSupported() ? conversationId : null)
@@ -612,6 +616,7 @@ function InspectorToggle({ view, conversationId }: { view: TaskView; conversatio
       }}
     >
       <InspectorIcon />
+      {helper?.chat?.turn === 'awaiting' && <span className="helper-attention-dot tool-button-dot" role="img" aria-label="小助手等你处理" />}
       {!pressed && todoLeft > 0 && <span className="tool-button-badge" aria-hidden="true">{todoLeft}</span>}
     </button>
   )
@@ -701,6 +706,8 @@ export function TaskSteps({ task, labelled = false }: { task: Task; labelled?: b
 // details have theirs under the title. Where to look and closing end the row in both panes, so
 // switching between them never moves those.
 export function TaskToolbar({ task, view }: { task: Task; view: TaskView }) {
+  const parent = useCore((state) => state.conversations[task.conversationId ?? ''])
+  const helperSupported = useHelperSupported(parent)
   const worktree = task.repos.some((repo) => repo.worktreePath !== null)
   const hasFiles = useFileTabs((state) => (state[task.conversationId ?? '']?.tabs.length ?? 0) > 0)
   const wire = useWireLogShown()
@@ -708,7 +715,7 @@ export function TaskToolbar({ task, view }: { task: Task; view: TaskView }) {
   return (
     <div className="toolbar">
       {view === 'chat' && <TaskSteps task={task} />}
-      {task.conversationId && (worktree || wire || hasFiles || todosShown) && <InspectorToggle view={view} conversationId={task.conversationId} />}
+      {task.conversationId && (helperSupported || worktree || wire || hasFiles || todosShown) && <InspectorToggle view={view} conversationId={task.conversationId} />}
       {task.conversationId && <ViewToggle view={view} />}
       <MoreMenu task={task} />
       <span className="toolbar-separator" aria-hidden="true" />

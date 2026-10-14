@@ -1,3 +1,5 @@
+import { HelperPanel } from './HelperPanel'
+import { useHelper, useHelperSupported } from '../helper-conversations'
 import { SquadWorkPanel } from './SquadWorkPanel'
 import { GitInspector } from './GitInspector'
 import { useEffect, useState } from 'react'
@@ -73,6 +75,9 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
   wire?: boolean
 }) {
   const conversationId = task.conversationId ?? ''
+  const parent = useCore((state) => state.conversations[conversationId])
+  const helperSupported = useHelperSupported(parent)
+  const helper = useHelper(helperSupported ? conversationId : null)
   const files = useFileTabs((state) => state[conversationId] ?? EMPTY_FILE_TABS)
   const gitRevision = useCore((state) => state.gitRevision)
   const rpc = useCore((state) => state.rpc)
@@ -81,7 +86,7 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
   const worktree = task.repos.some((repo) => repo.worktreePath !== null)
   const todosShown = useTodosSupported() && task.conversationId !== null
   const todos = useConversationTodos(todosShown ? task.conversationId : null)
-  const tabs: InspectorTab[] = [...(squadRuns.length ? ['squad' as const] : []),...(worktree ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(todosShown ? ['todos' as const] : []), ...(wire && task.conversationId ? ['wire' as const] : []), ...(files.tabs.length > 0 ? ['files' as const] : [])]
+  const tabs: InspectorTab[] = [...(helperSupported ? ['helper' as const] : []),...(squadRuns.length ? ['squad' as const] : []),...(worktree ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(todosShown ? ['todos' as const] : []), ...(wire && task.conversationId ? ['wire' as const] : []), ...(files.tabs.length > 0 ? ['files' as const] : [])]
   const tab = tabs.includes(wanted) ? wanted : (tabs[0] ?? 'changes')
   useEffect(() => {
     if (wanted !== 'files') updateFileTabs(conversationId, (state) => state.maximized ? { ...state, maximized: false } : state)
@@ -112,12 +117,15 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
       tabs={tabs}
       tab={tab}
       onTab={setTaskInspectorTab}
+      helperAwaiting={helper?.chat?.turn === 'awaiting'}
       fileCount={fileCount}
       todoCount={openTodoCount(todos)}
       onRefresh={() => setRefreshCount((count) => count + 1)}
       onClose={() => setInspectorOpen(false)}
     >
-      {tab === 'squad' ? (
+      {tab === 'helper' && parent ? (
+        <HelperPanel key={parent.id} parent={parent} />
+      ) : tab === 'squad' ? (
         <SquadWorkPanel runs={squadRuns} onConversation={(id) => onMemberConversation?.(id)} />
       ) : tab === 'todos' && task.conversationId ? (
         <TodoPanel conversationId={task.conversationId} />

@@ -401,7 +401,7 @@ function AgentSettings() {
       />
       <SettingsRow
         label="轻量任务用的模型"
-        description="翻译回复、生成提交信息时用会话里同一个 Agent 的这个模型。不选就自动用它最便宜的模型（Haiku、Luna、Flash 一类），没有就用默认模型。"
+        description="小助手、翻译回复、生成提交信息时用会话里同一个 Agent 的这个模型。不选就自动用它最便宜的模型（Haiku、Luna、Flash 一类），没有就用默认模型。"
         control={() => (
           <span className="quick-models">
             {installed.map((agent) => <QuickModelPicker key={agent} agent={agent} />)}

@@ -62,7 +62,7 @@ const Preferences = z.object({
   // comes into view rather than when asked.
   translateTo: TranslateLanguage.catch('zh-CN'),
   autoTranslate: z.boolean().catch(false),
-  // The model each agent does small jobs with (translating a reply, writing a commit message), where
+  // The model each agent does small jobs with (helpers, translation, commit messages), where
   // the user picked one; otherwise its cheapest.
   quickModels: z.partialRecord(AgentKind, z.string().min(1)).catch({})
 })

@@ -1,3 +1,4 @@
+import { HelperStartOptions } from './HelperModelPicker'
 import { useCallback, useContext, useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 import { agentDescriptor, type ChatImage, type ChatItem, type ChatQueued, type Conversation } from '@kando/protocol'
 import { perform, useChatImagesSupported, useChatOptionsSupported, useCore, useFileMentionsSupported, useScheduleImagesSupported, useSchedulesSupported } from '../core-store'
@@ -203,7 +204,7 @@ function QueuedList({ queue, held, steerable, ...actions }: {
 // running, it starts one on the same session first. The corner button sends, or stops the turn.
 // Images pasted, dropped or picked from the ＋ below sit above the text until it goes. `state` is
 // the running stage's, for the options row.
-export function ChatComposer({ conversation, state }: { conversation: Conversation; state: StateItem | null }) {
+export function ChatComposer({ conversation, state, compact = false }: { conversation: Conversation; state: StateItem | null; compact?: boolean }) {
   const { id } = conversation
   const initialMessage = useInitialMessages((messages) => messages[id])
   const surface = useChatSurface()
@@ -365,7 +366,8 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
           {...commandMenu.inputProps}
           {...mentionMenu.inputProps}
           readOnly={starting}
-          placeholder={
+          autoFocus={compact}
+          placeholder={compact ? '交给小助手…' :
             handingOff ? `交给 ${agentLabel(handingOff)} 接着做：写下要它做的事，也可以不写，直接按 Enter 移交`
             : surface.sendBlocker ?? initialHint ?? suggestion ?? (idle || stopped ? `给 Agent 发消息，Enter 发送，Shift+Enter 换行${commandEntries.length > 0 ? '，/ 选命令' : ''}${mentionsSupported ? '，@ 引用文件' : ''}`
               : queueable ? `${turn === 'awaiting' ? '先回答上面的请求，' : ''}也可以写下一条，Enter 排到回合结束后发送${steerable ? '，⌘Enter 立刻插入' : ''}；Esc 中断`
@@ -400,13 +402,13 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
       {/* Under the input, inside its box: what goes with the message, how the agent runs, and send. */}
       <div className="chat-options">
         {imagesSupported && <ChatAddMenu disabled={starting} onAdd={attached.add} />}
-        {handoff.targets.length > 0 && <HandoffAgentPicker conversationId={id} handoff={handoff} disabled={busy || starting} />}
+        {!compact && handoff.targets.length > 0 && <HandoffAgentPicker conversationId={id} handoff={handoff} disabled={busy || starting} />}
         {handingOff ? (
           <>
             <span className="chat-dock-spacer" />
             <HandoffModelPicker conversationId={id} agent={handingOff} />
           </>
-        ) : optionsSupported && state && <ChatOptionsBar conversation={conversation} state={state} />}
+        ) : optionsSupported && state ? <ChatOptionsBar compact={compact} conversation={conversation} state={state} /> : compact ? <HelperStartOptions conversation={conversation} /> : null}
         {suggestion && (
           <span className="chat-suggestion-hint" aria-hidden="true">
             <kbd>Tab</kbd> 填入建议
@@ -414,7 +416,7 @@ export function ChatComposer({ conversation, state }: { conversation: Conversati
         )}
         {/* A routine's chat is out of the list and its follow-ups light nothing: a run scheduled
             here would finish unseen. Running again belongs to the routine's own schedule. */}
-        {!handingOff && schedulesSupported && agentDescriptor(conversation.agent).capabilities.unattended && !conversation.routineId && (
+        {!handingOff && schedulesSupported && agentDescriptor(conversation.agent).capabilities.unattended && !conversation.routineId && !conversation.helperOf && (
           <ScheduleSendButton
             conversationId={id}
             text={written}

@@ -1,3 +1,4 @@
+import { isHelper } from '@kando/protocol'
 import { useEffect, useMemo, useState } from 'react'
 import { create } from 'zustand'
 import {
@@ -505,7 +506,7 @@ export function markRoutineRunSeen(conversationId: string): void {
 // A turn that was going and is now over, in a conversation the user is not looking at. A
 // routine's conversation is left out: core keeps whether its run was looked at.
 function finishedUnseen(s: CoreState, previous: Conversation | undefined, next: Conversation): boolean {
-  if (next.routineId || next.discussionId || next.squadRunId) return false
+  if (isHelper(next) || next.routineId || next.discussionId || next.squadRunId) return false
   const working = previous?.chat?.turn === 'running' || previous?.chat?.turn === 'awaiting'
   const looking = s.section === 'conversations' && s.selectedConversationId === next.id
   return working && next.chat?.turn !== 'running' && next.chat?.turn !== 'awaiting' && !looking

@@ -1,3 +1,4 @@
+import { isHelper } from '@kando/protocol'
 import type { AgentKind, Conversation, Routine, ScheduledRun, SquadRun, Task } from '@kando/protocol'
 import { actionableItems, type ActionableItem, type ActionableReason, type Snapshot } from './attention'
 import { runOutcomeText } from './routines'
@@ -264,7 +265,7 @@ export function overview(input: OverviewInput): Overview {
     }
   }
   for (const conversation of Object.values(conversations)) {
-    if (conversation.chat?.turn !== 'running' || taskOwners.has(conversation.id) || conversation.taskId || conversation.squadRunId || conversation.discussionId || routineOwners.has(conversation.id)) continue
+    if (isHelper(conversation) || conversation.chat?.turn !== 'running' || taskOwners.has(conversation.id) || conversation.taskId || conversation.squadRunId || conversation.discussionId || routineOwners.has(conversation.id)) continue
     const row = conversationRow(conversation)
     if (mine.has(row.key)) continue
     row.reason = '进行中'
@@ -273,7 +274,7 @@ export function overview(input: OverviewInput): Overview {
   const upcoming = new Set([...byTime, ...byCondition, ...later].map((row) => row.key))
   for (const id of Object.keys(unseen)) {
     const conversation = conversations[id]
-    if (!conversation || routineOwners.has(id)) continue
+    if (!conversation || isHelper(conversation) || routineOwners.has(id)) continue
     const row = rowForConversation(conversation)
     if (mine.has(row.key) || running.has(row.key) || upcoming.has(row.key)) continue
     row.reason = '未读'

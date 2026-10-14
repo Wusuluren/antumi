@@ -1,3 +1,5 @@
+import { HelperPanel } from './HelperPanel'
+import { useHelper, useHelperSupported } from '../helper-conversations'
 import { GitInspector } from './GitInspector'
 import { useEffect, useState } from 'react'
 import { openTodoCount, type Conversation, type FolderChanges } from '@kando/protocol'
@@ -66,6 +68,8 @@ export function ConversationInspector({ conversation, widthRatio, onWidthRatioCh
   onWidthRatioChange: (ratio: number) => void
   wire?: boolean
 }) {
+  const helperSupported = useHelperSupported(conversation)
+  const helper = useHelper(helperSupported ? conversation.id : null)
   const conversationId = conversation.id
   const files = useFileTabs((state) => state[conversationId] ?? EMPTY_FILE_TABS)
   const gitRevision = useCore((state) => state.gitRevision)
@@ -75,7 +79,7 @@ export function ConversationInspector({ conversation, widthRatio, onWidthRatioCh
   const plans = usePlans(conversation.id)
   const todosShown = useTodosSupported()
   const todos = useConversationTodos(todosShown ? conversation.id : null)
-  const tabs: InspectorTab[] = [...(conversation.projectPaths.length > 0 ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(todosShown ? ['todos' as const] : []), ...(wire ? ['wire' as const] : []), ...(files.tabs.length > 0 ? ['files' as const] : [])]
+  const tabs: InspectorTab[] = [...(helperSupported ? ['helper' as const] : []),...(conversation.projectPaths.length > 0 ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(todosShown ? ['todos' as const] : []), ...(wire ? ['wire' as const] : []), ...(files.tabs.length > 0 ? ['files' as const] : [])]
   const tab = tabs.includes(wanted) ? wanted : (tabs[0] ?? 'changes')
   useEffect(() => {
     if (wanted !== 'files') updateFileTabs(conversationId, (state) => state.maximized ? { ...state, maximized: false } : state)
@@ -105,12 +109,15 @@ export function ConversationInspector({ conversation, widthRatio, onWidthRatioCh
       tabs={tabs}
       tab={tab}
       onTab={setConversationInspectorTab}
+      helperAwaiting={helper?.chat?.turn === 'awaiting'}
       fileCount={fileCount}
       todoCount={openTodoCount(todos)}
       onRefresh={() => setRefreshCount((count) => count + 1)}
       onClose={() => setConversationInspectorOpen(false)}
     >
-      {tab === 'todos' ? (
+      {tab === 'helper' ? (
+        <HelperPanel key={conversation.id} parent={conversation} />
+      ) : tab === 'todos' ? (
         <TodoPanel conversationId={conversation.id} />
       ) : tab === 'files' ? (
         <FilePreview conversationId={conversationId} updatedAt={conversation.updatedAt} inspector="conversation" onEmpty={onEmpty} />

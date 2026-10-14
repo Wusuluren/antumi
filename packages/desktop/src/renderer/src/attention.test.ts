@@ -246,3 +246,19 @@ describe('noticesBetween', () => {
     ])
   })
 })
+
+describe('helper attention', () => {
+  it('excludes helper approvals, failures, unread turns and completion notices', () => {
+    const before = snapshot([conversation('helper', { helperOf: 'parent', chat: { turn: 'running' } })])
+    for (const patch of [
+      { chat: { turn: 'awaiting' as const } },
+      { sessionId: null, lastExit: { code: 1, at: 1 } },
+      { chat: { turn: 'idle' as const } }
+    ]) {
+      const after = snapshot([conversation('helper', { helperOf: 'parent', ...patch })], [], ['helper'])
+      expect(actionableItems(after)).toEqual([])
+      expect(attentionCount(after)).toBe(0)
+      expect(noticesBetween(before, after)).toEqual([])
+    }
+  })
+})

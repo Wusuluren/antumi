@@ -1,0 +1,75 @@
+import { useState } from 'react'
+import type { Conversation } from '@kando/protocol'
+import { perform, useCore } from '../core-store'
+import { ensureHelper, helperModel, useHelper } from '../helper-conversations'
+import { keepInitialMessage, sendInitialMessage } from '../initial-messages'
+import { useChat } from '../chat-state'
+import { setQuotes, useQuotes } from '../chat-quotes'
+import { usePreferences } from '../preferences'
+import { confirmQuota } from './AgentQuota'
+import { ConversationChat } from './ConversationChat'
+import { conversationSurface } from './chat-surface'
+import { HelperModelPicker, useHelperCatalog } from './HelperModelPicker'
+import { sendsMessage } from './ChatComposer'
+import { composerDraft, saveComposerDraft, EMPTY_DRAFT } from '../composer-drafts'
+
+function HelperDraft({ parent }: { parent: Conversation }) {
+  const [text, setText] = useState(() => composerDraft(`helper:${parent.id}`).text)
+  const [choice, setChoice] = useState<{ model: string | null; effort: string | null } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const rpc = useCore((state) => state.rpc)
+  const catalog = useHelperCatalog(parent.agent)
+  const preference = usePreferences((state) => state.quickModels[parent.agent])
+  const model = choice?.model ?? (preference || helperModel(parent, catalog ?? null))
+  const effort = choice?.effort ?? null
+  const send = async () => {
+    if (busy || !text.trim() || !rpc || catalog === undefined || !confirmQuota(parent.agent, model)) return
+    setBusy(true)
+    const helper = await ensureHelper(parent, { model, effort })
+    if (helper) {
+      keepInitialMessage(helper.id, text.trim(), [])
+      saveComposerDraft(`helper:${parent.id}`, EMPTY_DRAFT)
+      void sendInitialMessage(helper.id, rpc)
+    }
+    setBusy(false)
+  }
+  return <div className="helper-draft chat-view" data-variant="compact">
+    <p className="helper-empty muted">把选中的内容交给一个小模型去问或去办，不占主会话的上下文。</p>
+    <div className="chat-dock"><div className="chat-input-card">
+      <textarea className="chat-input" aria-label="交给小助手" placeholder="交给小助手…" autoFocus value={text} disabled={busy} onChange={(event) => {
+        setText(event.target.value)
+        saveComposerDraft(`helper:${parent.id}`, { ...EMPTY_DRAFT, text: event.target.value })
+      }} onKeyDown={(event) => { if (sendsMessage(event)) { event.preventDefault(); void send() } }} />
+      <div className="chat-options">
+        <HelperModelPicker catalog={catalog} model={model} effort={effort} disabled={busy} onModel={(model) => setChoice({ model, effort: null })} onEffort={(effort) => setChoice({ model, effort })} />
+        <span className="chat-dock-spacer" />
+        <button type="button" className="button" disabled={busy || !text.trim() || catalog === undefined} onClick={() => void send()}>发送</button>
+      </div>
+    </div></div>
+  </div>
+}
+
+export function HelperPanel({ parent }: { parent: Conversation }) {
+  const helper = useHelper(parent.id)
+  const [busy, setBusy] = useState(false)
+  const quotes = useQuotes(helper?.id ?? `helper:${parent.id}`)
+  const page = useChat((state) => helper ? state[helper.id] : undefined)
+  const reset = async () => {
+    if (!helper || busy) return
+    const hasContent = Boolean(quotes.length || composerDraft(helper.id).text.trim() || helper.sessionId || helper.lastExit || helper.starting || page?.items.some((item) => item.kind === 'user'))
+    if (hasContent && !window.confirm('清空小助手的聊天记录，开始一段新对话？')) return
+    setBusy(true)
+    const deleted = await perform((rpc) => rpc.call('conversations.delete', { id: helper.id }))
+    if (deleted) {
+      setQuotes(helper.id, [])
+      saveComposerDraft(helper.id, EMPTY_DRAFT)
+      saveComposerDraft(`helper:${parent.id}`, EMPTY_DRAFT)
+    }
+    setBusy(false)
+  }
+  const base = helper ? conversationSurface(helper) : null
+  return <section className="helper-panel" aria-label="小助手">
+    <header className="helper-header"><span className="muted">写操作需要逐次批准</span><button type="button" className="button ghost" disabled={!helper || busy} onClick={() => void reset()}>新对话</button></header>
+    {helper && base ? <ConversationChat key={helper.id} conversation={helper} variant="compact" surface={{ ...base, fork: null, handoff: null, changes: null, showPlan: () => {}, showBrowser: () => {}, showChanges: () => {}, showFileChange: () => {} }} /> : <HelperDraft key={parent.id} parent={parent} />}
+  </section>
+}

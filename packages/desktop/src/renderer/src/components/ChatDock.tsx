@@ -85,7 +85,7 @@ export function PendingRequests({ conversation, pending, tools, modes }: { conve
         ? <ChatQuestionCard key={itemKey(shown)} conversationId={conversation.id} item={shown} />
         : isPlanApproval(shown)
           ? <ChatPlanCard key={itemKey(shown)} conversationId={conversation.id} item={shown} modes={modes} />
-          : <ChatApprovalCard key={itemKey(shown)} conversationId={conversation.id} item={shown} tool={shown.toolItemId ? tools.get(shown.toolItemId) : undefined} />}
+          : <ChatApprovalCard singleApproval={Boolean(conversation.helperOf)} key={itemKey(shown)} conversationId={conversation.id} item={shown} tool={shown.toolItemId ? tools.get(shown.toolItemId) : undefined} />}
     </div>
   )
 }
@@ -112,7 +112,8 @@ function ChatSchedules({ conversationId }: { conversationId: string }) {
 }
 
 // Everything that waits on the user sits here, above the composer, so it cannot scroll out of view.
-export function ChatDock({ conversation, state, pending, tools, finishedCalls, onPrevious, sent, onJump }: {
+export function ChatDock({ conversation, state, pending, tools, finishedCalls, onPrevious, sent, onJump, compact = false }: {
+  compact?: boolean
   conversation: Conversation
   // The running stage's state; null for an older core or before the stage reports one.
   state: StateItem | null
@@ -129,7 +130,7 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
   const archived = conversation.archivedAt != null
   return (
     <div className="chat-dock">
-      <div className="chat-dock-header">
+      {!compact && <div className="chat-dock-header">
         <ChatProjects conversation={conversation} />
         {running && state && <ChatTodosChip todos={state.todos} />}
         {inspectable && <ChangesChip conversation={conversation} finishedCalls={finishedCalls} />}
@@ -138,13 +139,13 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
         <button type="button" className="tool-button" aria-label="上一条消息" data-tooltip="上一条消息" onClick={onPrevious}>
           <ArrowUpIcon />
         </button>
-      </div>
+      </div>}
       <ChatSchedules conversationId={conversation.id} />
-      {waiting && <PendingRequests conversation={conversation} pending={pending} tools={tools} modes={state?.permissionModes ?? []} />}
+      {waiting && <PendingRequests conversation={conversation} pending={pending} tools={tools} modes={conversation.helperOf ? ['ask'] : state?.permissionModes ?? []} />}
       {archived && <ArchivedBar what="会话" onRestore={() => archiveConversation(conversation.id, false)} />}
       {/* The composer stays mounted while a request or the archive takes its place, so a draft is not lost. */}
       <div className="chat-dock-composer" hidden={waiting || archived}>
-        <ChatComposer conversation={conversation} state={state} />
+        <ChatComposer compact={compact} conversation={conversation} state={state} />
       </div>
     </div>
   )

@@ -159,7 +159,7 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
   const [open, setOpen] = useState(false)
   const { savePlan, squadStart } = surface
   // Not in a routine's chat, whose follow-ups nobody is told of (ChatComposer).
-  const routine = useCore((s) => Boolean(s.conversations[conversationId]?.routineId))
+  const routine = useCore((s) => Boolean(s.conversations[conversationId]?.routineId || s.conversations[conversationId]?.helperOf))
   const agent = useCore((s) => s.conversations[conversationId]?.agent ?? 'claude')
   const schedulable = useSchedulesSupported() && agentDescriptor(agent).capabilities.unattended && !savePlan && !routine
   const runModes = RUN_MODES.filter((mode) => modes.includes(mode))

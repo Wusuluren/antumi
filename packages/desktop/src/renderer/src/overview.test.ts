@@ -296,3 +296,9 @@ describe('overview head and timeline', () => {
     ])
   })
 })
+
+it('keeps helper running turns and stale unread markers out of the overview', () => {
+  const helper = conversation(id(99), { helperOf: id(98), chat: { turn: 'running' } })
+  const actual = overview(input({ conversations: { [helper.id]: helper }, unseen: { [helper.id]: true } }))
+  expect(actual).toEqual(overview(input()))
+})

@@ -114,10 +114,10 @@ function approvalOptions(item: ApprovalItem): ApprovalOption[] {
   }))
 }
 
-export function ChatApprovalCard({ conversationId, item, tool }: { conversationId: string; item: ApprovalItem; tool: ToolItem | undefined }) {
+export function ChatApprovalCard({ conversationId, item, tool, singleApproval = false }: { conversationId: string; item: ApprovalItem; tool: ToolItem | undefined; singleApproval?: boolean }) {
   const { busy, respond } = useResponder(conversationId, item.requestId)
   const [reason, setReason] = useState('')
-  const options = approvalOptions(item)
+  const options = approvalOptions(item).filter((option) => !singleApproval || (option.decision !== 'allowForSession' && !item.choices?.find((choice) => choice.id === option.choice)?.grants.some((grant) => grant.behavior === 'allow')))
   const [picked, setPicked] = useState(options[0]?.key ?? '')
   const current = options.find((option) => option.key === picked) ?? options[0]
   // Nothing here remembers anything, so the same kind of call will ask again.
@@ -215,7 +215,7 @@ export function ChatApprovalCard({ conversationId, item, tool }: { conversationI
           </div>
         ))}
       </div>
-      {remembersNothing && <p className="chat-request-detail muted">这次没有能记住的规则，同类调用之后还会问；想少问几次，可以在输入框下方换个权限模式。</p>}
+      {!singleApproval && remembersNothing && <p className="chat-request-detail muted">这次没有能记住的规则，同类调用之后还会问；想少问几次，可以在输入框下方换个权限模式。</p>}
       <div className="chat-approve-footer">
         <span className="chat-approve-hint">数字键选择 · Enter 提交</span>
         <button type="button" className="button primary" disabled={busy || !current} onClick={submit}>

@@ -8923,3 +8923,20 @@ button.squad-member-main { cursor: pointer; }
 .plugin-row { padding: 16px 0; border-top: 1px solid var(--border); }
 .plugin-row .settings-row { border: 0; }
 .plugin-row .settings-row-description { overflow-wrap: anywhere; }
+
+/* The helper gives the inspector's height to the chat's own list and dock. */
+.inspector-body:has(> .helper-panel) { display: flex; overflow: hidden; padding: 0; }
+.helper-panel { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+.helper-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: var(--chat-font-small); }
+.helper-empty { flex: 1; display: grid; place-content: center; margin: 0; padding: 24px; line-height: 1.7; }
+.helper-attention-dot { display: inline-block; flex-shrink: 0; width: 8px; height: 8px; margin-left: 4px; border-radius: 50%; background: var(--warning); }
+.tool-button-dot { position: absolute; top: 4px; right: 4px; }
+.chat-view[data-variant='compact'] { --chat-width: 100%; }
+.chat-view[data-variant='compact'] .chat-list { padding: 12px; gap: 12px; }
+.chat-view[data-variant='compact'] .chat-dock { padding: 8px 12px 12px; }
+.chat-view[data-variant='compact'] .chat-user { max-width: 90%; }
+.chat-view[data-variant='compact'] .chat-options { flex-wrap: wrap; gap: 4px; }
+.chat-view[data-variant='compact'] .chat-options > .chat-dock-spacer { display: none; }
+.chat-view[data-variant='compact'] .chat-input-button { margin-left: auto; }
+.chat-view[data-variant='compact'] .chat-message-actions { flex-wrap: wrap; }
+.helper-quote-button { flex-shrink: 0; white-space: nowrap; font-size: var(--chat-font-small); }

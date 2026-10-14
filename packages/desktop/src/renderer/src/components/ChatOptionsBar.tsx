@@ -88,7 +88,7 @@ function withCurrent(values: readonly string[], current: string | null): string[
 // the model and effort change between turns, the mode at any time. With no agent running, the
 // choices are for the next start, from what the last stage offered: as chosen since, or as that
 // stage left them.
-export function ChatOptionsBar({ conversation, state }: { conversation: Conversation; state: StateItem }) {
+export function ChatOptionsBar({ conversation, state, compact = false }: { conversation: Conversation; state: StateItem; compact?: boolean }) {
   const { id, agent, chatOptions: next } = conversation
   const managed = Boolean(conversation.squadRunId || conversation.workspaceReadOnly)
   const running = conversation.sessionId !== null
@@ -113,7 +113,7 @@ export function ChatOptionsBar({ conversation, state }: { conversation: Conversa
   const later = running ? null : '发下一条消息时按这个启动'
   return (
     <>
-      {modes.length > 0 && (
+      {!compact && modes.length > 0 && (
         <ChatPicker
           label="权限模式"
           value={permissionMode}
@@ -137,7 +137,7 @@ export function ChatOptionsBar({ conversation, state }: { conversation: Conversa
           onEffort={(value) => set('effort', value)}
         />
       )}
-      {state.context && <ContextRing context={state.context} />}
+      {!compact && state.context && <ContextRing context={state.context} />}
     </>
   )
 }

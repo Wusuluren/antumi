@@ -51,12 +51,12 @@ export function useChangedFiles(target: BranchTarget | null, updatedAt: number, 
   return files?.key === key ? files.files : null
 }
 
-export type InspectorTab = 'changes' | 'branch' | 'plan' | 'todos' | 'wire' | 'files' | 'squad'
+export type InspectorTab = 'changes' | 'branch' | 'plan' | 'todos' | 'wire' | 'files' | 'squad' | 'helper'
 
-const TAB_LABEL: Record<InspectorTab, string> = { changes: '变更', branch: '分支', plan: '计划', todos: '待办', wire: '原始数据', files: '文件', squad: '小队' }
+const TAB_LABEL: Record<InspectorTab, string> = { changes: '变更', branch: '分支', plan: '计划', todos: '待办', wire: '原始数据', files: '文件', squad: '小队', helper: '小助手' }
 export const GIT_TABS: readonly InspectorTab[] = ['changes', 'branch']
 
-export function InspectorPanel({ label, ratio, onRatioChange, tabs = GIT_TABS, tab, onTab, fileCount, todoCount = 0, onRefresh, onClose, maximized = false, children }: {
+export function InspectorPanel({ label, ratio, onRatioChange, tabs = GIT_TABS, tab, onTab, fileCount, todoCount = 0, helperAwaiting = false, onRefresh, onClose, maximized = false, children }: {
   maximized?: boolean
   label: string
   ratio: number
@@ -66,6 +66,7 @@ export function InspectorPanel({ label, ratio, onRatioChange, tabs = GIT_TABS, t
   onTab: (tab: InspectorTab) => void
   fileCount: number
   // To-dos not done yet, counted on their tab.
+  helperAwaiting?: boolean
   todoCount?: number
   onRefresh: () => void
   onClose: () => void
@@ -84,12 +85,12 @@ export function InspectorPanel({ label, ratio, onRatioChange, tabs = GIT_TABS, t
           <div className="inspector-tabs" role="tablist" aria-label="检查器">
             {tabs.map((each) => (
               <button key={each} type="button" role="tab" aria-selected={tab === each} onClick={() => onTab(each)}>
-                {TAB_LABEL[each]}{each === 'changes' && fileCount > 0 && <span className="count">{fileCount}</span>}
+                {TAB_LABEL[each]}{each === 'helper' && helperAwaiting && <span className="helper-attention-dot" role="img" aria-label="小助手等你处理" />}{each === 'changes' && fileCount > 0 && <span className="count">{fileCount}</span>}
                 {each === 'todos' && todoCount > 0 && <span className="count">{todoCount}</span>}
               </button>
             ))}
           </div>
-          {tab !== 'plan' && tab !== 'wire' && tab !== 'files' && tab !== 'todos' && (
+          {tab !== 'helper' && tab !== 'plan' && tab !== 'wire' && tab !== 'files' && tab !== 'todos' && (
             <button type="button" className="tool-button inspector-refresh" aria-label="刷新" data-tooltip="刷新" onClick={onRefresh}>
               <RefreshIcon />
             </button>

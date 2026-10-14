@@ -1,3 +1,4 @@
+import { isHelper } from '@kando/protocol'
 import { PLAN_TOOLS, type Conversation, type ConversationRequest } from '@kando/protocol'
 import { actionableItems, waiting, type ActionableTarget, type Snapshot } from './attention'
 
@@ -32,6 +33,7 @@ export function popupLabel(request: ConversationRequest): string {
 // more than before. A chat seen for the first time is not news (the list arriving on connect).
 export function newlyWaiting(prev: Snapshot['conversations'], next: Snapshot['conversations']): boolean {
   return Object.values(next).some((conversation) => {
+    if (isHelper(conversation)) return false
     const before = prev[conversation.id]
     if (!before || before === conversation || !blocking(conversation)) return false
     if (!blocking(before)) return true

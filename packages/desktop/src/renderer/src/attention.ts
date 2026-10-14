@@ -1,3 +1,4 @@
+import { isHelper } from '@kando/protocol'
 import { isScheduleOpen, limitOf, PLAN_TOOLS, type AgentKind, type Conversation, type ConversationRequest, type Routine, type ScheduledRun, type SquadRun, type Task } from '@kando/protocol'
 
 // What waits on the user: a task or a conversation.
@@ -69,6 +70,7 @@ export function actionableItems(s: Pick<Snapshot, 'tasks' | 'conversations' | 's
   const owned = new Set<string>()
   const byTask = new Map<string, Conversation>()
   for (const conversation of Object.values(s.conversations)) {
+    if (isHelper(conversation)) continue
     if (conversation.taskId) {
       owned.add(conversation.id)
       byTask.set(conversation.taskId, conversation)
@@ -93,6 +95,7 @@ export function actionableItems(s: Pick<Snapshot, 'tasks' | 'conversations' | 's
     })
   }
   for (const conversation of Object.values(s.conversations)) {
+    if (isHelper(conversation)) continue
     if (owned.has(conversation.id)) continue
     if (conversation.squadRunId) {
       const run = s.squadRuns?.[conversation.squadRunId]
@@ -126,6 +129,7 @@ export function actionableItems(s: Pick<Snapshot, 'tasks' | 'conversations' | 's
 export function attentionCount(s: Snapshot): number {
   const counted = new Set<string>()
   for (const conversation of Object.values(s.conversations)) {
+    if (isHelper(conversation)) continue
     if (conversation.routineId || (conversation.squadRunId && !waitingOrAsking(conversation))) continue
     const coordinated = conversation.taskId && s.tasks[conversation.taskId]?.squadId
     if (coordinated && !waitingOrAsking(conversation)) continue
@@ -154,6 +158,7 @@ function named(conversation: Conversation, tasks: Snapshot['tasks'], runs?: Snap
 export function noticesBetween(prev: Snapshot, next: Snapshot, tellWaiting = true): Notice[] {
   const notices: Notice[] = []
   for (const conversation of Object.values(next.conversations)) {
+    if (isHelper(conversation)) continue
     const before = prev.conversations[conversation.id]
     if (!before || before === conversation || conversation.routineId) continue
     // A group chat's member finishes a turn every round: only one waiting on the user is told of.

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type RefObject } from 'react'
-import type { ResolvedFile } from '@kando/protocol'
+import { canHaveHelper, type Conversation, type ResolvedFile } from '@kando/protocol'
+import { handToHelper } from '../helper-conversations'
 import { useCore } from '../core-store'
 import { canRevealFile } from '../desktop-bridge'
 import { copyFileText, filePreviewSupported, showChatFile, type ChatFileScope } from '../file-actions'
@@ -20,6 +21,7 @@ export function selectedChatText(root: HTMLElement): string {
 }
 
 export function useChatContextMenu(list: RefObject<HTMLDivElement | null>, scope: ChatFileScope) {
+  const parent = useCore((state) => state.conversations[scope.conversationId])
   const [menu, setMenu] = useState<Menu | null>(null)
   const sequence = useRef(0)
   const close = useCallback(() => { sequence.current++; setMenu(null) }, [])
@@ -60,6 +62,7 @@ export function useChatContextMenu(list: RefObject<HTMLDivElement | null>, scope
   }
   const copy = (text: string) => { close(); void copyFileText(text) }
   const content = menu && <ContextMenu at={menu.at} scrollBoundary={list.current} label="聊天内容" onClose={close}>
+    <HandToHelperItem parent={parent} selection={menu.selection} inspector={scope.inspector} onClose={close} />
     {menu.selection && <MenuItem label="复制选中内容" onSelect={() => copy(menu.selection)} />}
     {menu.text && <MenuItem label="复制所在内容" onSelect={() => copy(menu.text)} />}
     {menu.code !== null && <MenuItem label="复制代码" onSelect={() => copy(menu.code ?? '')} />}
@@ -71,4 +74,15 @@ export function useChatContextMenu(list: RefObject<HTMLDivElement | null>, scope
     {!menu.selection && !menu.text && menu.code === null && !menu.reference && !menu.href && <MenuItem label="没有可复制的内容" disabled onSelect={close} />}
   </ContextMenu>
   return { onContextMenu, onKeyDown, onPointerDown, menu: content, open: menu !== null }
+}
+
+export function HandToHelperItem({ parent, selection, inspector, onClose }: {
+  parent: Conversation | undefined
+  selection: string
+  inspector: 'task' | 'conversation'
+  onClose: () => void
+}) {
+  const supported = useCore((state) => state.rpc?.features.includes('conversation-helper') ?? false)
+  if (!selection.trim() || !supported || !parent || !canHaveHelper(parent)) return null
+  return <MenuItem label="交给小助手" onSelect={() => { document.getSelection()?.removeAllRanges(); onClose(); void handToHelper(parent, selection, inspector) }} />
 }

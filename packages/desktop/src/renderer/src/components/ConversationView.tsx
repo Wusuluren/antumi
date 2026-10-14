@@ -1,3 +1,4 @@
+import { useHelper, useHelperSupported } from '../helper-conversations'
 import { useCallback, useEffect, useState } from 'react'
 import { usePlans } from '../chat-state'
 import { markRoutineRunSeen, selectConversation, selectDiscussion, setConversationInspectorOpen, setRoutinesOpen, useCore, useWireLogShown } from '../core-store'
@@ -30,6 +31,8 @@ function ForkOrigin({ id }: { id: string }) {
 
 export function ConversationView({ id }: { id: string }) {
   const conversation = useCore((state) => state.conversations[id])
+  const helperSupported = useHelperSupported(conversation)
+  const helper = useHelper(helperSupported ? id : null)
   // Stable, so the chat's surface is not rebuilt on every render.
   const openHandoff = useCallback(() => {
     const current = useCore.getState().conversations[id]
@@ -62,7 +65,7 @@ export function ConversationView({ id }: { id: string }) {
   // A managed workspace is Kando's own scratch folder: nothing of the user's to compare, but the
   // inspector still shows the agent's plans.
   const inspectable = conversation.projectPaths.length > 0
-  const hasPanel = inspectable || plans.length > 0 || wire || files.tabs.length > 0 || todosShown
+  const hasPanel = helperSupported || inspectable || plans.length > 0 || wire || files.tabs.length > 0 || todosShown
   const state = conversationState(conversation)
   const archived = conversation.archivedAt != null
   const action = async (run: () => Promise<unknown>) => {
@@ -111,6 +114,7 @@ export function ConversationView({ id }: { id: string }) {
             onClick={() => setConversationInspectorOpen(!inspectorOpen)}
           >
             <InspectorIcon />
+            {helper?.chat?.turn === 'awaiting' && <span className="helper-attention-dot tool-button-dot" role="img" aria-label="小助手等你处理" />}
             {!inspectorOpen && todoLeft > 0 && <span className="tool-button-badge" aria-hidden="true">{todoLeft}</span>}
           </button>
         )}

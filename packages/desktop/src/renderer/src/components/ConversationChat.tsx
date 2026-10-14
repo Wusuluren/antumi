@@ -1,3 +1,5 @@
+import { addQuote } from '../chat-quotes'
+import { focusChatInput } from '../helper-conversations'
 import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { cursorProviderError, isBrowserTool, isPlanApproval, isPreviewTool, parseHandoffMessage, toolImagePath, type AgentKind, type ChatItem, type Conversation, type ConversationStage } from '@kando/protocol'
 import { firstBrowserCall, shouldOpenBrowser } from '../browser-state'
@@ -318,6 +320,13 @@ function TranslateButton({ state, original, onTranslate, onToggle }: {
   )
 }
 
+const ChatVariant = createContext<'full' | 'compact'>('full')
+const FoldedTurns = createContext<ReadonlySet<string>>(new Set())
+
+function helperDuration(turn: TurnItem, workMs: number | null = null): string {
+  return `处理了 ${Math.max(1, Math.round((turn.durationMs ?? workMs ?? 0) / 1000))} 秒`
+}
+
 function AssistantReply({ conversationId, item, completedAt, ending, blockKey }: {
   conversationId: string
   item: Extract<ChatItem, { kind: 'assistant' }>
@@ -325,12 +334,15 @@ function AssistantReply({ conversationId, item, completedAt, ending, blockKey }:
   ending: TurnItem | undefined
   blockKey: string
 }) {
+  const compact = useContext(ChatVariant) === 'compact'
+  const foldedTurns = useContext(FoldedTurns)
   // A stored reply can still end in Cursor's raw transport error. Say what happened instead.
   const failure = item.streaming ? null : cursorProviderError(item.text)
   const text = failure ? failure.rest : item.text
   const supported = useTranslateSupported()
   const to = usePreferences((p) => p.translateTo)
   const auto = usePreferences((p) => p.autoTranslate)
+  const parentId = useCore((s) => s.conversations[conversationId]?.helperOf)
   const agent = useCore((s) => s.conversations[conversationId]?.agent)
   const model = usePreferences((p) => (agent ? p.quickModels[agent] : undefined)) ?? ''
   const finished = completedAt !== undefined && !item.streaming && text !== ''
@@ -357,11 +369,11 @@ function AssistantReply({ conversationId, item, completedAt, ending, blockKey }:
     <div ref={box} className="chat-assistant" data-streaming={item.streaming || undefined} data-translated={shown !== text || undefined}>
       {shown && <ChatMarkdown text={shown} highlight={!item.streaming} runnable={!item.streaming} />}
       {failure && <div className="chat-notice" data-level="warning">{failure.detail}</div>}
-      {completedAt !== undefined && text && (
+      {(completedAt !== undefined || (parentId && !item.streaming)) && text && (
         <div className="chat-message-actions">
           <CopyButton text={shown} label={shown !== text ? '复制译文' : '复制回复'} />
-          <MessageTime at={completedAt} />
-          {ending && <span className="chat-turn chat-turn-inline" data-state={ending.state}>{turnText(ending)}</span>}
+          {completedAt !== undefined && <MessageTime at={completedAt} />}
+          {ending && (!compact || ending.state !== 'completed' || !foldedTurns.has(itemKey(ending))) && <span className="chat-turn chat-turn-inline" data-state={ending.state}>{compact && ending.state === 'completed' ? helperDuration(ending) : turnText(ending)}</span>}
           {foreign && (
             <TranslateButton
               state={result}
@@ -374,6 +386,7 @@ function AssistantReply({ conversationId, item, completedAt, ending, blockKey }:
             />
           )}
           <ForkButton item={item} />
+          {parentId && <button type="button" className="link-button helper-quote-button" onClick={() => { addQuote(parentId, null, shown); focusChatInput(parentId) }}>引用到主会话</button>}
         </div>
       )}
     </div>
@@ -463,6 +476,7 @@ type FoldState = { reveal: (key: string | null, path: string) => void }
 const Folds = createContext<FoldState>({ reveal: () => {} })
 
 function TurnFold({ foldKey, conversationId, turn, blocks, task, replies, steps, workMs }: { foldKey: string; conversationId: string; turn: TurnItem; blocks: readonly ChatBlock[]; task: boolean; replies: ReadonlyMap<string, number>; steps: number; workMs: number | null }) {
+  const compact = useContext(ChatVariant) === 'compact'
   const [open, setOpen] = useDisclosure(foldKey)
   // Open, the work is a list of rows, each closed until asked; a second step opens them all.
   const [allOpen, setAllOpen] = useDisclosure(`all:${foldKey}`)
@@ -477,7 +491,7 @@ function TurnFold({ foldKey, conversationId, turn, blocks, task, replies, steps,
       <div className="chat-fold" data-fold={foldKey} data-open={open || undefined} data-state={turn.state}>
         <button type="button" className="chat-fold-header" aria-expanded={open} onClick={() => setOpen(!open)}>
           <span className="chat-tool-chevron" aria-hidden="true"><ChevronRightIcon /></span>
-          {foldText(steps, workMs)}
+          {compact ? helperDuration(turn, workMs) : foldText(steps, workMs)}
         </button>
         {open && (
           <div className="chat-fold-body">
@@ -564,7 +578,9 @@ function TurnChanges({ fold, files, turn, reply, collapsible }: { fold: string; 
 
 // `fresh` is a block that arrived while the chat was open: it enters with a motion.
 function Block({ conversationId, block, task, replies, fresh }: { conversationId: string; block: ChatBlock; task: boolean; replies: ReadonlyMap<string, number>; fresh?: boolean }) {
+  const compact = useContext(ChatVariant) === 'compact'
   const entering = fresh || undefined
+  if (compact && block.kind === 'changes') return null
   if (block.kind === 'browser') return <ChatCopyRegion text={block.tools.map(copyTextForItem).join('\n\n')}><div className="chat-entry" data-fresh={entering}><ChatBrowserRun tools={block.tools} /></div></ChatCopyRegion>
   if (block.kind === 'tools') return <ChatCopyRegion text={block.tools.map(copyTextForItem).join('\n\n')}><div className="chat-entry" data-fresh={entering}><ChatToolRun tools={block.tools} /></div></ChatCopyRegion>
   if (block.kind === 'agents') return <ChatCopyRegion text={block.tools.map(copyTextForItem).join('\n\n')}><div className="chat-entry" data-fresh={entering}><ChatSubagents tools={block.tools} fresh={fresh} /></div></ChatCopyRegion>
@@ -573,6 +589,7 @@ function Block({ conversationId, block, task, replies, fresh }: { conversationId
   if (block.kind === 'fold') return <TurnFold foldKey={block.key} conversationId={conversationId} turn={block.turn} blocks={block.blocks} task={task} replies={replies} steps={block.steps} workMs={block.workMs} />
   const { entry } = block
   const merged = useContext(MergedTurns)
+  if (compact && entry.kind === 'stage') return null
   if (entry.kind === 'item' && entry.item.kind === 'turn' && merged.has(block.key)) return null
   return (
     <ChatCopyRegion text={entry.kind === 'item' ? copyTextForItem(entry.item) : ''}>
@@ -587,7 +604,7 @@ function Block({ conversationId, block, task, replies, fresh }: { conversationId
 // A conversation whose latest stage runs in chat mode: every stage in order, then the composer.
 // What it does beyond itself comes from the surface it is shown on: a free conversation's own
 // unless another is given, as a task's chat does.
-export function ConversationChat({ conversation, surface, onHandoff }: { conversation: Conversation; surface?: ChatSurface; onHandoff?: () => void }) {
+export function ConversationChat({ conversation, surface, onHandoff, variant = 'full' }: { conversation: Conversation; surface?: ChatSurface; onHandoff?: () => void; variant?: 'full' | 'compact' }) {
   const { id } = conversation
   const initialMessage = useInitialMessages((messages) => messages[id])
   const width = usePreferences((s) => s.chatWidth)
@@ -679,21 +696,22 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
     })
   }, [stages, items, redoneAt])
   const foldTurns = usePreferences((s) => s.foldTurns)
-  const blocks = useMemo(() => chatBlocks(entries, { foldTurns }), [entries, foldTurns])
+  const blocks = useMemo(() => chatBlocks(entries, { foldTurns: variant === 'compact' || foldTurns }), [entries, foldTurns, variant])
   for (const key of freshKeys(seen.current, blocks.map((block) => block.key), olderLoaded.current)) entered.current.add(key)
   useEffect(() => {
     if (!page) return
     seen.current = new Set([...(seen.current ?? []), ...blocks.map((block) => block.key)])
     olderLoaded.current = false
   }, [page, blocks])
+  const foldedTurns = useMemo(() => new Set(blocks.flatMap((block) => block.kind === 'fold' ? [itemKey(block.turn)] : [])), [blocks])
   const replies = useMemo(() => {
     const found = finalReplies(entries)
     // A turn with a change card moves these actions below that card.
     for (const block of blocks) {
-      if (block.kind === 'changes' && block.reply) found.delete(block.reply.key)
+      if (variant !== 'compact' && block.kind === 'changes' && block.reply) found.delete(block.reply.key)
     }
     return found
-  }, [entries, blocks])
+  }, [entries, blocks, variant])
   // A turn's own line, when it follows the reply it closes and that reply keeps its actions, joins
   // that line instead of standing under it.
   const { endings, mergedTurns } = useMemo(() => {
@@ -863,6 +881,8 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
   const fileScope = useMemo(() => ({ conversationId: id, inspector: shown.inspector, roots }), [id, shown.inspector, roots])
   const contextMenu = useChatContextMenu(list, fileScope)
   return (
+    <ChatVariant.Provider value={variant}>
+    <FoldedTurns.Provider value={foldedTurns}>
     <ChatSurfaceContext.Provider value={shown}>
     <ChatAgent.Provider value={agentInfo}>
     <ChatPaths.Provider value={shorten}>
@@ -878,8 +898,8 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
     <TodoHistory.Provider value={todoHistory}>
     <JumpToEntry.Provider value={jumpTo}>
     <ChatMessageRelay.Provider value={beginRelay}>
-    <div className="chat-view" ref={view} data-searching={find.searching || undefined} data-width={width} data-font-size={fontSize} data-font={font === 'custom' && !fontFamily ? 'system' : font}>
-      <ChatFind key={id} state={find} scope={view} container={list} onOpen={findOpened} hasOlder={Boolean(page?.before)} loadOlder={loadOlder} />
+    <div className="chat-view" data-variant={variant} data-conversation-id={id} ref={view} data-searching={find.searching || undefined} data-width={width} data-font-size={fontSize} data-font={font === 'custom' && !fontFamily ? 'system' : font}>
+      {variant !== 'compact' && <ChatFind key={id} state={find} scope={view} container={list} onOpen={findOpened} hasOlder={Boolean(page?.before)} loadOlder={loadOlder} />}
       <div
         className="chat-list"
         ref={list}
@@ -908,7 +928,7 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
           return (
             <Fragment key={block.key}>
               <Block conversationId={id} block={block} task={Boolean(conversation.taskId)} replies={replies} fresh={entering} />
-              {head && message && <div className="chat-entry" data-fresh={entering || undefined}><TurnHead at={message.at} stageId={message.stageId} messageKey={block.key} live={live} /></div>}
+              {variant !== 'compact' && head && message && <div className="chat-entry" data-fresh={entering || undefined}><TurnHead at={message.at} stageId={message.stageId} messageKey={block.key} live={live} /></div>}
             </Fragment>
           )
         })}
@@ -937,8 +957,8 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
           </button>
         )}
       </div>
-      <ChatDock conversation={conversation} state={state} pending={pending} tools={tools} finishedCalls={finishedCalls} onPrevious={previous} sent={sent} onJump={jump} />
-      <SelectionComment
+      <ChatDock compact={variant === 'compact'} conversation={conversation} state={state} pending={pending} tools={tools} finishedCalls={finishedCalls} onPrevious={previous} sent={sent} onJump={jump} />
+      {variant !== 'compact' && <SelectionComment
         conversationId={id}
         container={list}
         region=".chat-assistant"
@@ -947,7 +967,7 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
         label="评论这段回复"
         hidden={contextMenu.open}
         onAdded={() => list.current?.closest('.chat-view')?.querySelector<HTMLTextAreaElement>('.chat-input')?.focus()}
-      />
+      />}
       {contextMenu.menu}
     </div>
     </ChatMessageRelay.Provider>
@@ -965,5 +985,7 @@ export function ConversationChat({ conversation, surface, onHandoff }: { convers
     </ChatPaths.Provider>
     </ChatAgent.Provider>
     </ChatSurfaceContext.Provider>
+    </FoldedTurns.Provider>
+    </ChatVariant.Provider>
   )
 }

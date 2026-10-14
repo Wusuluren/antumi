@@ -116,3 +116,10 @@ describe('newlyWaiting', () => {
     expect(newlyWaiting(byId([running]), byId([passing]))).toBe(false)
   })
 })
+
+it('never opens a global request popup for a helper', () => {
+  const prev = byId([conversation('helper', { helperOf: 'parent' })])
+  const next = byId([awaiting('helper', request('r'), { helperOf: 'parent' })])
+  expect(newlyWaiting(prev, next)).toBe(false)
+  expect(popupQueue({ tasks: {}, conversations: next }, new Set())).toEqual([])
+})

@@ -1,3 +1,4 @@
+import { useHelperSupported } from '../helper-conversations'
 import { useEffect, useMemo, useState } from 'react'
 import { checkChatResume, shortTaskId, type Squad, type Task } from '@kando/protocol'
 import { usePlans, type PlanItem } from '../chat-state'
@@ -98,6 +99,7 @@ export function TaskChat({ taskId }: { taskId: string }) {
   const memberConversation = useCore((state) => memberChatId ? state.conversations[memberChatId] : undefined)
   const conversationId = task?.conversationId ?? null
   const conversation = useCore((s) => (conversationId ? s.conversations[conversationId] : undefined))
+  const helperSupported = useHelperSupported(conversation)
   const inspectorOpen = useCore((s) => s.inspectorOpen)
   const starting = useCore((s) => s.startingTasks.includes(taskId))
   const bypassable = useChatOptionsSupported()
@@ -134,7 +136,7 @@ export function TaskChat({ taskId }: { taskId: string }) {
     return null
   }
   const worktree = task.repos.some((repo) => repo.worktreePath !== null)
-  const showInspector = inspectorOpen && (worktree || runs.length > 0 || plans.length > 0 || wire || files.tabs.length > 0 || todosShown)
+  const showInspector = inspectorOpen && (helperSupported || worktree || runs.length > 0 || plans.length > 0 || wire || files.tabs.length > 0 || todosShown)
 
   return (
     <section className="detail terminal-view" aria-label={`${task.title} 的聊天`}>

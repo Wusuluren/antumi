@@ -27,3 +27,17 @@ describe('approval card', () => {
     expect(render(tool)).toContain('<pre>rg -n session</pre>')
   })
 })
+
+it('offers only one-time approval for the helper, without suggesting a permission mode switch', () => {
+  const item: ApprovalItem = { ...approval, decisions: ['allow', 'allowForSession', 'deny'], choices: [
+    { id: 'once', decision: 'allow', label: '允许一次', grants: [] },
+    { id: 'session', decision: 'allowForSession', label: '本会话都允许', grants: [] },
+    { id: 'rule', decision: 'allow', label: '保存规则', grants: [{ kind: 'rules', scope: 'local', behavior: 'allow', values: ['rm'] }] },
+    { id: 'deny', decision: 'deny', grants: [] }
+  ] }
+  const html = renderToStaticMarkup(createElement(ChatApprovalCard, { conversationId: 'helper', item, tool: undefined, singleApproval: true }))
+  expect(html).toContain('允许一次')
+  expect(html).not.toContain('本会话都允许')
+  expect(html).not.toContain('保存规则')
+  expect(html).not.toContain('换个权限模式')
+})
