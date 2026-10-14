@@ -18,6 +18,6 @@ export function codexCommand({ mcp, knowledgeBase }: AgentLaunch): AgentCommand 
   return { command: 'codex', args: [
     'app-server',
     ...(mcp ? ['-c', `mcp_servers.kando.command=${JSON.stringify(mcp.command)}`, '-c', `mcp_servers.kando.args=${JSON.stringify(mcp.args)}`, ...HIDDEN_CODEX_BROWSERS] : []),
-    ...(knowledgeBase ? ['-c', `developer_instructions=${JSON.stringify(knowledgeBaseNote(knowledgeBase.path))}`] : [])
+    ...(knowledgeBase ? ['-c', `developer_instructions=${JSON.stringify(knowledgeBaseNote(knowledgeBase))}`] : [])
   ] }
 }

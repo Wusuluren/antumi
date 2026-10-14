@@ -233,18 +233,30 @@ describe('ConversationService', () => {
     await expect(service.create('codex', [first, first])).rejects.toThrow('duplicate-project')
   })
 
-  it('hands every start the user\'s vault as its own folder, writable only where the stage may write', async () => {
+  it.each(['markdown', 'obsidian'] as const)('hands every start the %s knowledge base, writable only where the stage may write', async (kind) => {
     const vault = path.join(root, 'vault')
     mkdirSync(vault)
-    service.setKnowledgeBase({ path: vault, write: true })
+    service.setKnowledgeBase({ path: vault, write: true, kind })
+    const format = kind === 'markdown' ? '普通 Markdown' : 'Obsidian Markdown'
     const created = await service.create('claude', [root])
     expect(created.projectPaths).toEqual([realpathSync(root)])
     expect(daemon.spawns.at(-1)?.args).toEqual(expect.arrayContaining(['--add-dir', vault, '--append-system-prompt', expect.stringContaining(vault)]))
+    expect(daemon.spawns.at(-1)?.args).toContainEqual(expect.stringContaining(format))
     // A plan-only task stage may read it, as it may its projects, but not write it.
     await service.startForTask({ id: 'task-1', title: 'Plan', agent: 'claude' }, { cwd: root, extraDirs: [], planOnly: true, session: 'new' })
     const planning = daemon.spawns.at(-1)!.args
     expect(planning).not.toContain('--add-dir')
     expect(planning[planning.indexOf('--allowedTools') + 1]).toContain(`Read(/${vault}/**)`)
+    expect(planning).toContainEqual(expect.stringContaining(format))
+    await service.startForTask({ id: 'task-read-only', title: 'Read', agent: 'claude' }, { cwd: root, extraDirs: [], planOnly: false, workspaceReadOnly: true, session: 'new' })
+    const reading = daemon.spawns.at(-1)!.args
+    expect(reading).not.toContain('--add-dir')
+    expect(reading[reading.indexOf('--allowedTools') + 1]).toContain(`Read(/${vault}/**)`)
+    expect(reading).toContainEqual(expect.stringContaining(format))
+    service.setKnowledgeBase({ path: vault, write: false, kind })
+    await service.create('claude', [root])
+    expect(daemon.spawns.at(-1)?.args).not.toContain('--add-dir')
+    expect(daemon.spawns.at(-1)?.args).toContainEqual(expect.stringContaining(format))
     // The vault the user made a project is given as one, and not again.
     await service.create('claude', [vault])
     expect(daemon.spawns.at(-1)?.args).not.toContain('--append-system-prompt')

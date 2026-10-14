@@ -46,7 +46,7 @@ import { AwakeConfigStore } from './awake-config'
 import { ComputerAwakeService } from './computer-awake-service'
 import { ChatSettingsStore } from './chat-settings'
 import { SkillsLibrary } from './skills-library'
-import { KNOWLEDGE_BASE_SKILLS } from './skills-recommended'
+import { knowledgeBaseSkills } from './skills-recommended'
 import { WireLog } from './wire-log'
 import { timestampConsole } from './log-timestamps'
 
@@ -271,13 +271,14 @@ const chatSettings = new ChatSettingsStore(paths.chatSettings, (settings) => {
 // Before the daemon connects: a chat stage it still runs is taken back with these settings.
 const skills = new SkillsLibrary(paths.skills, (repos) => server?.broadcast('skills.changed', { repos: [...repos] }))
 await skills.load()
-// An agent that loads skills gets the knowledge base's, where the user turned writing on and has
+// An agent that loads skills gets Obsidian's, where the user turned writing on and has
 // the repository installed; the bundle is the same folder start after start while nothing moved.
-conversations.setSkillsProvider(async (agent) =>
-  agentDescriptor(agent).capabilities.skills && chatSettings.current().knowledgeBase?.write
-    ? await skills.bundleFor(KNOWLEDGE_BASE_SKILLS).then((bundle) => (bundle ? { dir: bundle.dir } : null))
-    : null
-)
+conversations.setSkillsProvider(async (agent) => {
+  const selected = knowledgeBaseSkills(chatSettings.current().knowledgeBase ?? null)
+  if (!agentDescriptor(agent).capabilities.skills || selected.length === 0) return null
+  const bundle = await skills.bundleFor(selected)
+  return bundle ? { dir: bundle.dir } : null
+})
 const initialChatSettings = await chatSettings.load()
 conversations.setPromptSuggestions(initialChatSettings.promptSuggestions)
 conversations.setUserBrowser(initialChatSettings.userBrowser)

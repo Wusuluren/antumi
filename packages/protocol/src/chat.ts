@@ -32,7 +32,7 @@ export const ChatSettings = z.object({
   // Whether agents get the tools that read the user's conversations, tasks and group chats in
   // Kando (see HISTORY_TOOLS), from their next start. Older cores omit it.
   readHistory: z.boolean().optional(),
-  // The user's Obsidian vault, given to agents from their next start; null is none. Nullable so a
+  // The user's local knowledge base, given to agents from their next start; null is none. Nullable so a
   // client can clear it through a partial update. Older cores omit it.
   knowledgeBase: KnowledgeBase.nullable().optional()
 })

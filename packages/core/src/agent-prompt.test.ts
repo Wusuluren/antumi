@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Task } from '@kando/protocol'
-import { agentPrompt, chatPlanPrompt, chatStartPrompt } from './agent-prompt'
+import { agentPrompt, chatPlanPrompt, chatStartPrompt, knowledgeBaseNote } from './agent-prompt'
 import type { RefineWorkspace, Workspace } from './workspace'
 
 const workspace: Workspace = {
@@ -10,6 +10,24 @@ const workspace: Workspace = {
   entries: [{ name: 'app', source: '/code/app', dir: '/wt/app', branch: 'kando/b-use', base: 'kando/a-add', startRef: null, start: null }],
   repos: []
 }
+
+describe('knowledge base instructions', () => {
+  it('keeps the Obsidian format for explicit and legacy vaults', () => {
+    const legacy = { path: '/notes/vault', write: true }
+    expect(knowledgeBaseNote(legacy)).toBe(knowledgeBaseNote({ ...legacy, kind: 'obsidian' }))
+    expect(knowledgeBaseNote(legacy)).toContain('Obsidian Markdown（双链、frontmatter）')
+  })
+
+  it('uses portable links and existing conventions for Markdown folders', () => {
+    const note = knowledgeBaseNote({ path: '/notes/plain', write: true, kind: 'markdown' })
+    expect(note).toContain('/notes/plain')
+    expect(note).toContain('普通 Markdown')
+    expect(note).toContain('相对路径链接')
+    expect(note).toContain('遵循已有笔记格式')
+    expect(note).toContain('仅在用户要求时写入；只新建或追加，不删除、不改名')
+    expect(note).not.toMatch(/Obsidian|双链|frontmatter/)
+  })
+})
 
 const refining = (landed: string[] = []): RefineWorkspace => ({
   cwd: '/code/app',

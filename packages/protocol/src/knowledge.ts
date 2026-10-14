@@ -1,9 +1,17 @@
 import { z } from 'zod'
 
-// The user's Obsidian vault, handed to every agent from its next start: its own folder, never a
+export const KnowledgeBaseKind = z.enum(['markdown', 'obsidian'])
+export type KnowledgeBaseKind = z.infer<typeof KnowledgeBaseKind>
+
+// The user's local notes, handed to every agent from its next start: their own folder, never a
 // project of the conversation. write: whether agents may change it where their stage may edit.
-export const KnowledgeBase = z.object({ path: z.string().min(1), write: z.boolean() })
+export const KnowledgeBase = z.object({ path: z.string().min(1), write: z.boolean(), kind: KnowledgeBaseKind.optional() })
 export type KnowledgeBase = z.infer<typeof KnowledgeBase>
+
+// Missing on saved settings and clients from before Markdown folders were supported.
+export function knowledgeBaseKind(base: KnowledgeBase): KnowledgeBaseKind {
+  return base.kind ?? 'obsidian'
+}
 
 // Folders inside a vault that Claude Code and Cursor load as skills when given the vault, at a
 // cost in tokens on every start.

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { ChatSettings } from '@kando/protocol'
+import { ChatSettings, knowledgeBaseKind } from '@kando/protocol'
 import { ChatSettingsStore } from './chat-settings'
 
 describe('ChatSettingsStore', () => {
@@ -69,5 +69,36 @@ describe('ChatSettingsStore', () => {
     expect((await store.load()).wireLog).toBe(false)
     await store.update({ wireLog: true })
     expect((await new ChatSettingsStore(file, () => {}).load()).wireLog).toBe(true)
+  })
+
+  it('loads the existing knowledge base as Obsidian', async () => {
+    writeFileSync(file, JSON.stringify({ knowledgeBase: { path: '/notes/vault', write: true } }))
+    const settings = await new ChatSettingsStore(file, () => {}).load()
+    expect(settings.knowledgeBase).toEqual({ path: '/notes/vault', write: true })
+    expect(knowledgeBaseKind(settings.knowledgeBase!)).toBe('obsidian')
+  })
+
+  it.each(['markdown', 'obsidian'] as const)('persists %s mode and keeps it for an older client changing write access', async (kind) => {
+    const store = new ChatSettingsStore(file, () => {})
+    await store.load()
+    await store.update({ knowledgeBase: { path: '/notes', write: true, kind } })
+    expect((await new ChatSettingsStore(file, () => {}).load()).knowledgeBase).toEqual({ path: '/notes', write: true, kind })
+    await store.update({ knowledgeBase: { path: '/notes', write: false } })
+    expect(store.current().knowledgeBase).toEqual({ path: '/notes', write: false, kind })
+    expect((await new ChatSettingsStore(file, () => {}).load()).knowledgeBase).toEqual({ path: '/notes', write: false, kind })
+    await store.update({ knowledgeBase: { path: '/other', write: true } })
+    expect(knowledgeBaseKind(store.current().knowledgeBase!)).toBe('obsidian')
+    await store.update({ knowledgeBase: null })
+    expect((await new ChatSettingsStore(file, () => {}).load()).knowledgeBase).toBeNull()
+  })
+
+  it('switches formats without losing the folder or read-only choice', async () => {
+    const store = new ChatSettingsStore(file, () => {})
+    await store.load()
+    await store.update({ knowledgeBase: { path: '/notes', write: false, kind: 'obsidian' } })
+    await store.update({ knowledgeBase: { ...store.current().knowledgeBase!, kind: 'markdown' } })
+    expect(store.current().knowledgeBase).toEqual({ path: '/notes', write: false, kind: 'markdown' })
+    await store.update({ userBrowser: false })
+    expect((await new ChatSettingsStore(file, () => {}).load()).knowledgeBase).toEqual({ path: '/notes', write: false, kind: 'markdown' })
   })
 })

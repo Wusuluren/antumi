@@ -55,6 +55,11 @@ export class ChatSettingsStore {
   }
 
   async update(patch: Partial<ChatSettings>): Promise<Required<ChatSettings>> {
+    let knowledgeBase = patch.knowledgeBase === undefined ? this.settings.knowledgeBase : patch.knowledgeBase
+    // Older clients send only path and write when changing the write toggle.
+    if (knowledgeBase && knowledgeBase.kind === undefined && knowledgeBase.path === this.settings.knowledgeBase?.path && this.settings.knowledgeBase.kind !== undefined) {
+      knowledgeBase = { ...knowledgeBase, kind: this.settings.knowledgeBase.kind }
+    }
     const next: Required<ChatSettings> = {
       promptSuggestions: patch.promptSuggestions ?? this.settings.promptSuggestions,
       unattendedMode: patch.unattendedMode ?? this.settings.unattendedMode,
@@ -63,8 +68,7 @@ export class ChatSettingsStore {
       wireLog: patch.wireLog ?? this.settings.wireLog,
       userBrowser: patch.userBrowser ?? this.settings.userBrowser,
       readHistory: patch.readHistory ?? this.settings.readHistory,
-      // null clears it, so only an absent field keeps the current one.
-      knowledgeBase: patch.knowledgeBase === undefined ? this.settings.knowledgeBase : patch.knowledgeBase
+      knowledgeBase
     }
     await writePrivateJson(this.file, { version: 1, ...next })
     this.settings = next

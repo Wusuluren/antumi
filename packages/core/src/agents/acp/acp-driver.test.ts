@@ -96,6 +96,22 @@ describe('ACP without a dialect of its own', () => {
     expect(due(driver)).toContainEqual(expect.objectContaining({ id: 8, error: expect.objectContaining({ code: -32601 }) }))
   })
 
+  it('passes Markdown conventions only on the first wire prompt', () => {
+    const driver = new AcpDriver(plain, 'stage', { ...OPTIONS, knowledgeBase: { path: '/notes/plain', write: true, kind: 'markdown' } })
+    due(driver)
+    receive(driver, { id: 'plain-init', result: { protocolVersion: 1 } })
+    due(driver)
+    receive(driver, { id: 'plain-session', result: { sessionId: 'session', modes } })
+    const first = driver.send('hello')
+    expect(JSON.stringify(first.wire)).toContain('普通 Markdown')
+    expect(JSON.stringify(first.wire)).toContain('相对路径链接')
+    expect(JSON.stringify(first.wire)).not.toContain('Obsidian')
+    expect(JSON.stringify(first.logged)).not.toContain('知识库')
+    driver.apply({ dir: 'out', at: 3, frame: first.logged })
+    receive(driver, { id: 'plain-prompt-1', result: { stopReason: 'end_turn' } })
+    expect(JSON.stringify(driver.send('again').wire)).not.toContain('知识库')
+  })
+
   it('switches modes by the ids its dialect maps Kando\'s to', () => {
     const driver = opened()
     expect(Request.parse(driver.setOption('permissionMode', 'plan')[0])).toMatchObject({ method: 'session/set_mode', params: { modeId: 'plan' } })

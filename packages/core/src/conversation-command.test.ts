@@ -70,6 +70,15 @@ describe('chatCommand', () => {
     expect(chatCommand('claude', 's', false, null, []).args).not.toContain('--plugin-dir')
   })
 
+  it.each(['markdown', 'obsidian'] as const)('passes %s instructions to Claude and Codex without changing folder access', (kind) => {
+    const base = { path: '/notes', write: true, kind }
+    const format = kind === 'markdown' ? '普通 Markdown' : 'Obsidian Markdown'
+    const claude = chatCommand('claude', null, false, null, [], { knowledgeBase: base }).args
+    expect(claude).toEqual(expect.arrayContaining(['--add-dir', '/notes', '--append-system-prompt', expect.stringContaining(format)]))
+    const codex = chatCommand('codex', null, false, null, [], { knowledgeBase: base }).args
+    expect(codex).toEqual(['app-server', '-c', expect.stringContaining(format)])
+  })
+
   it('starts a Claude stage that may only plan in plan mode, its folders not editable and no bypass', () => {
     const args = chatCommand('claude', 's', false, null, ['/code/web'], {
       preferred: { permissionMode: 'acceptEdits' },

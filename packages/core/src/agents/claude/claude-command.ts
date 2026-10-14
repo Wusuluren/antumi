@@ -66,7 +66,7 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     ...extraProjects.flatMap((project) => ['--add-dir', project]),
     // A vault it may write is a working folder, edits in it going by the mode as a project's do.
     ...(knowledgeBase?.write ? ['--add-dir', knowledgeBase.path] : []),
-    ...(knowledgeBase ? ['--append-system-prompt', knowledgeBaseNote(knowledgeBase.path)] : []),
+    ...(knowledgeBase ? ['--append-system-prompt', knowledgeBaseNote(knowledgeBase)] : []),
     // Kando's skills as a plugin: read, not a working folder.
     ...(skills ? ['--plugin-dir', skills.dir] : []),
     ...(denials.length ? ['--disallowedTools', denials.join(',')] : []),

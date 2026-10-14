@@ -232,7 +232,7 @@ export class ConversationService {
     if (!vault || !(await stat(vault.path).catch(() => null))?.isDirectory()) return undefined
     // Projects are kept resolved; the vault is given as the user wrote it.
     if (conversation.projectPaths.includes(await realpath(vault.path))) return undefined
-    return { path: vault.path, write: vault.write && !stage.planOnly && !conversation.workspaceReadOnly }
+    return { ...vault, write: vault.write && !stage.planOnly && !conversation.workspaceReadOnly }
   }
 
   setCapacity(settings: Pick<ChatSettings, 'maxConcurrentAgents' | 'agentConcurrency'>, released: () => void): void {

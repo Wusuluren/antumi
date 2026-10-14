@@ -672,12 +672,12 @@ const DEBUG_SECTION: Section = {
   Body: DebugSettings
 }
 
-// The user's Obsidian vault, on a core that hands it to agents; it sits before the browser.
+// The user's local notes, on a core that hands them to agents; it sits before the browser.
 const KNOWLEDGE_SECTION: Section = {
   id: 'knowledge',
   group: '集成',
   title: '知识库',
-  description: '你的 Obsidian 库：Agent 启动时拿到它，让它把总结、结论和笔记直接写进去。',
+  description: '连接 Markdown 文件夹或 Obsidian 库，让 Agent 读取资料、保存总结和笔记。',
   keywords: ['知识库', 'obsidian', 'vault', '笔记', '总结', '记录', 'markdown', '双链', '集成'],
   Icon: BookIcon,
   Body: KnowledgeBaseSettings
