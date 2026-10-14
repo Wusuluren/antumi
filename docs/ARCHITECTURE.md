@@ -136,9 +136,11 @@
 
 1. **设置**：在 设置 → 集成 → Jira 里填站点（如 `your-team.atlassian.net`）和 JQL（默认是分给你、还没完成的 issue），保存。
 2. **登录**：点「登录」，按提示输入邮箱和 [API token](https://id.atlassian.com/manage-profile/security/api-tokens)（只需要读权限）。登录流程由来源驱动，界面按来源给出的提示一步步渲染。
-3. **收件箱**：core 每 15 分钟同步一次，结果出现在任务看板顶部的收件箱里。每个 issue 可以**导入**成一个「未执行」任务，或者**忽略**（之后在「已忽略」里可以恢复）。
+3. **收件箱**：core 每 15 分钟同步一次，结果出现在任务看板顶部的收件箱里。每个 issue 可以**导入**成一个「未执行」任务，先开会话**排查**，或者**忽略**（之后在「已忽略」里可以恢复）。
 
 GitHub 在 设置 → 集成 → GitHub 中登录，登录时输入 Personal access token。筛选条件的写法和 GitHub 网页上的搜索一样，默认是 `assignee:@me is:open`，即 token 可访问范围内、分配给当前账号且仍开放的 Issues 和 Pull Requests；条件里没写 `is:issue` 或 `is:pr` 时两种都同步，结果按更新时间排序。导入项使用 `owner/repository#number` 作为来源编号，并保存正文、标签和最近 20 条评论的快照。
+
+**排查**适合还不清楚原因的 issue（多半是 bug）：打开新会话页，选 Agent 和项目（默认是这个收件箱上次排查用的项目），可以补一句说明。core 像导入一样拉取 issue 全文和图片，写成一份排查说明放进会话的 `handoffs/` 目录，按移交的方式让 Agent 先读它，所以聊天里只显示你补充的话；说明里同样用 `<untrusted-source>` 包着原文，并要求 Agent 查清根因、给出修复方案后停下。会话默认用 Agent 的只读模式（描述符的 `discussionMode`：Claude 是规划，Codex、Cursor 是只读），调用方没指定时 core 自己补上；确认方案后在同一个会话里批准计划或切换模式就能修。会话以 issue 标题命名，记下来源（`Conversation.source`），页头链接回 issue；收件箱里这条标为「排查中」，按钮换成「看会话」，删掉会话后恢复。Kando 不回写 issue 系统，修完在那边关掉，下次同步就离开收件箱。
 
 导入的任务详情是空的，留给你写方案，或开始后让 Agent 先规划；issue 的描述、最近 20 条评论，以及来源支持时的附件清单作为**原文快照**单独保存，在任务详情里只读显示，可以「重新拉取」。交给 Agent 时，原文快照被标记为**不可信的参考资料**包在 `<untrusted-source>` 里，其中的指令不会被当作你的要求。执行时分支名带上 issue key（`kando/PROJ-123-…`），Jira 靠这个把分支关联到 issue。删除导入的任务后 issue 会回到收件箱；重做出的新任务继承原任务的来源和快照。
 
