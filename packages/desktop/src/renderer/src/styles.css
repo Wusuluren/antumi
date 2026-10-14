@@ -4273,6 +4273,21 @@ body.side-panel-resizing * {
 .settings-skill-install .input { flex: 1; min-width: 0; }
 .settings-note .button { margin-left: 8px; }
 
+/* The user's MCP servers (Settings → MCP). */
+.mcp-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mcp-agents { display: flex; flex-wrap: wrap; gap: 16px; }
+.mcp-agent { display: inline-flex; align-items: center; gap: 6px; }
+.mcp-agent input, .mcp-candidate > input[type='checkbox'] { accent-color: var(--accent); }
+.chat-command-field > .segmented { align-self: flex-start; }
+.mcp-secret { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto; gap: 8px; }
+.mcp-args { resize: vertical; min-height: 64px; line-height: 1.5; }
+.mcp-json-toggle { align-self: flex-start; }
+.mcp-probe { padding: 4px 0 8px; }
+.mcp-probe-output { margin: 0; padding: 8px 12px; max-height: 160px; overflow: auto; border-radius: var(--radius-sm); background: var(--fill-2); font: 12px var(--mono); white-space: pre-wrap; }
+.mcp-tools { margin: 0; padding: 0 0 0 16px; font-size: 12px; line-height: 1.7; }
+.mcp-candidate { flex-wrap: wrap; }
+.mcp-candidate-name { width: 160px; }
+
 .chat-command-summary {
   flex: 1;
   min-width: 0;

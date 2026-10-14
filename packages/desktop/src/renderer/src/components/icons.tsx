@@ -544,6 +544,15 @@ export function ImageIcon() {
   )
 }
 
+// A plug: an MCP server plugged into the agents.
+export function PlugIcon() {
+  return (
+    <svg {...stroked}>
+      <path d="M7.2 2.8v3.4M12.8 2.8v3.4M5 6.2h10v2.6a5 5 0 0 1-10 0zM10 13.8v3.4" />
+    </svg>
+  )
+}
+
 export function TagIcon() {
   return (
     <svg {...stroked}>

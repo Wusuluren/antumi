@@ -2,7 +2,7 @@ import type { BrowserStatus, WireUsage } from '@kando/protocol'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { AGENT_KINDS, agentDescriptor, LANGUAGE_NAMES, PROTOCOL_VERSION, quickModel, TRANSLATE_LANGUAGES, UNATTENDED_MODES, type AgentKind, type SourceDescriptor } from '@kando/protocol'
 import packageJson from '../../../../package.json'
-import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
+import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useMcpServersSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
 import { setPreference, usePreferences } from '../preferences'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { UNATTENDED_LABEL } from '../schedules'
@@ -28,6 +28,7 @@ import {
   GlobeIcon,
   InboxIcon,
   InfoIcon,
+  PlugIcon,
   SearchIcon,
   SparkIcon,
   TranslateIcon
@@ -36,6 +37,7 @@ import { AgentStatsSettings } from './AgentStatsSettings'
 import { ChatCommandSettings } from './ChatCommandSettings'
 import { KnowledgeBaseSettings } from './KnowledgeBaseSettings'
 import { SkillsSettingsSection } from './SkillsSettingsSection'
+import { McpSettingsSection } from './McpSettingsSection'
 import { CopyButton } from './CopyButton'
 import { checkStatusText, GIT_INSTALL_HINT } from '../environment-text'
 import { settingsSectionOf } from './SourceInboxView'
@@ -606,7 +608,7 @@ const SECTIONS: readonly Section[] = [
     group: '任务',
     title: '智能体',
     description: '这台电脑上的 Agent：是否安装、版本和登录状态（缺什么会给出命令），以及新任务和会话的默认行为。',
-    keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', 'mcp', '模型', '轻量', '提交信息', 'haiku'],
+    keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', '模型', '轻量', '提交信息', 'haiku'],
     Icon: SparkIcon,
     Body: AgentSettings
   },
@@ -659,6 +661,17 @@ const SKILLS_SECTION: Section = {
   keywords: ['技能', 'skill', 'skills', '插件', 'plugin', 'obsidian', 'markdown', '安装', '更新', '回退', '仓库', 'git', ...AGENT_KINDS],
   Icon: SparkIcon,
   Body: SkillsSettingsSection
+}
+
+// On a core that keeps them: the user's MCP servers, handed to agents at each start; it follows 技能.
+const MCP_SECTION: Section = {
+  id: 'mcp',
+  group: '任务',
+  title: 'MCP',
+  description: '在 Kando 里维护 MCP 服务器，启动时交给你选的 Agent，不改它们自己的配置；可以测试连接，也可以从 Claude、Codex、Cursor 导入。',
+  keywords: ['mcp', '服务器', 'server', '工具', 'tool', '导入', '连接', '测试', 'token', '令牌', '环境变量', '请求头', ...AGENT_KINDS],
+  Icon: PlugIcon,
+  Body: McpSettingsSection
 }
 
 // On a core that keeps a wire log: whether it does, and what it holds.
@@ -729,14 +742,15 @@ export function SettingsPage() {
   const browser = useBrowserSupported()
   const knowledge = useKnowledgeBaseSupported()
   const skills = useSkillsSupported()
+  const mcp = useMcpServersSupported()
   const chatCommands = useChatCommandsSupported()
   const wireLog = useWireLogSupported()
   const sections = useMemo(() => {
     const about = SECTIONS.filter((section) => section.id === 'about')
     const own = SECTIONS.filter((section) => section.id !== 'about' && (section.id !== 'notifications' || canNotify() || canShowRequestPopup()))
-      .flatMap((section) => (section.id === 'agents' ? [section, ...(chatCommands ? [CHAT_COMMANDS_SECTION] : []), ...(skills ? [SKILLS_SECTION] : [])] : [section]))
+      .flatMap((section) => (section.id === 'agents' ? [section, ...(chatCommands ? [CHAT_COMMANDS_SECTION] : []), ...(skills ? [SKILLS_SECTION] : []), ...(mcp ? [MCP_SECTION] : [])] : [section]))
     return [...own, ...(plugins ? [PLUGINS_SECTION] : []), ...sourceSections(sources ?? []), ...(knowledge ? [KNOWLEDGE_SECTION] : []), ...(browser ? [BROWSER_SECTION] : []), ...(wireLog ? [DEBUG_SECTION] : []), ...about]
-  }, [sources, browser, knowledge, skills, chatCommands, wireLog, plugins])
+  }, [sources, browser, knowledge, skills, mcp, chatCommands, wireLog, plugins])
   const [activeId, setActiveId] = useState(() => useCore.getState().settingsSection ?? SECTIONS[0]?.id ?? '')
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()
