@@ -87,7 +87,7 @@ export function createRpcHandlers(
   const cliInstaller = new AgentCliInstaller(environment, terminals)
   const ports = new PortService(sessions, () => ({ terminals: terminals.list(), conversations: conversations.listAll(), tasks: service.list() }))
   // An agent's own terminals: run in the conversation's folder unless it names another, and
-  // asked about in the chat where the agent asks nothing for MCP tools.
+  // asked about in the chat where the agent asks nothing for Kando's MCP tools.
   const agentTerminals = new AgentTerminals(
     (id) => {
       const conversation = conversations.get(id)

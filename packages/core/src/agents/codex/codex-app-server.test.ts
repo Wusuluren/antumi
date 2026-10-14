@@ -650,6 +650,24 @@ describe('CodexAppServer commands', () => {
     expect(ofKind(driver.items.list(), 'tool').map((tool) => tool.status)).toEqual(['failed', 'interrupted', 'interrupted'])
   })
 
+  it('asks the user before an MCP tool call, on the call\'s card, and answers as Codex expects', () => {
+    const driver = new CodexAppServer('stage-1', OPTIONS)
+    handshake(driver)
+    const call = { type: 'mcpToolCall', id: 'exec-1', server: 'slack', tool: 'post_message', status: 'inProgress', arguments: { text: 'hello' } }
+    driver.apply({ dir: 'in', at, frame: { method: 'item/started', params: { item: call } } })
+    // As Codex 0.160 sends it.
+    driver.apply({ dir: 'in', at, frame: { id: 0, method: 'mcpServer/elicitation/request', params: {
+      threadId: 'thread-1', turnId: 'turn-1', serverName: 'slack', mode: 'form', message: 'Allow the slack MCP server to run tool "post_message"?', requestedSchema: { type: 'object', properties: {} },
+      _meta: { codex_approval_kind: 'mcp_tool_call', persist: ['session', 'always'], tool_description: 'Posts a message', tool_params: { text: 'hello' }, tool_params_display: [{ name: 'text', value: 'hello', display_name: 'text' }] }
+    } } })
+    expect(driver.due()).toEqual([])
+    const [approval] = ofKind(driver.items.list(), 'approval')
+    expect(approval).toMatchObject({ requestId: '0', tool: 'mcpToolCall', title: 'slack.post_message', detail: 'text: hello', toolItemId: 't:exec-1', decisions: ['allow', 'allowForSession', 'deny'] })
+    expect(approval?.choices?.[1]?.grants).toEqual([{ kind: 'rules', values: ['slack.post_message'], scope: 'run', behavior: 'allow' }])
+    expect(driver.respond('0', { decision: 'allowForSession', choice: 'allowForSession' })).toEqual([{ id: 0, result: { action: 'accept', content: null, _meta: { persist: 'session' } } }])
+    expect(driver.respond('0', { decision: 'deny' })).toEqual([{ id: 0, result: { action: 'decline', content: null, _meta: null } }])
+  })
+
   it('answers a request it does not handle with an error, once', () => {
     const driver = new CodexAppServer('stage-1', OPTIONS)
     handshake(driver)

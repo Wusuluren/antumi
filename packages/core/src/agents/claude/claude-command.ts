@@ -47,7 +47,7 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     ...(knowledgeBase && !knowledgeBase.write ? claudeReadRules([`${knowledgeBase.path}/**`]) : []),
     // Showing a file the agent wrote asks nothing of the user, nor does reading the browser's
     // page; opening and acting on a page go through Claude's own confirmation. (Codex asks
-    // nothing for MCP tools, so for it the site gate in core is the only check.)
+    // nothing for Kando's MCP tools, so for it the site gate in core is the only check.)
     // Reading or stopping a terminal the conversation opened itself asks nothing either; running
     // a command in one is the agent's to ask about, under the mode the user set. Reading the user's
     // history, which only reads and is there only where the user allows it, asks nothing.

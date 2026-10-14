@@ -13,6 +13,8 @@ const TOOL_LABEL: Record<string, string> = {
   MultiEdit: '编辑',
   NotebookEdit: '编辑笔记本',
   fileChange: '修改文件',
+  // Codex asking before an MCP server's tool, the card titled server.tool.
+  mcpToolCall: 'MCP 工具',
   Grep: '搜索',
   Glob: '查找文件',
   WebFetch: '读取网页',

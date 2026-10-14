@@ -190,6 +190,17 @@ const UserInput = z.looseObject({
     options: z.array(z.looseObject({ label: z.string(), description: z.string().nullish() })).nullish()
   })).catch([])
 }).catch({ questions: [] })
+// Codex asks before an MCP tool call as an elicitation of its own: a form with nothing to fill,
+// told apart from a server's own elicitation by its _meta.
+const McpToolApproval = z.looseObject({
+  serverName: z.string(),
+  message: z.string().catch(''),
+  _meta: z.looseObject({
+    codex_approval_kind: z.literal('mcp_tool_call'),
+    persist: z.array(z.string()).catch([]),
+    tool_params_display: z.array(z.looseObject({ name: z.string().nullish(), display_name: z.string().nullish(), value: z.unknown() })).catch([])
+  })
+})
 const Decision = z.looseObject({ decision: z.unknown().optional(), answers: z.record(z.string(), z.unknown()).optional() })
 const Answers = z.looseObject({ answers: z.array(z.string()).catch([]) })
 
@@ -203,6 +214,8 @@ type Pending = {
   denial: 'decline' | 'cancel'
   // An approval's answers, each with the decision sent back for it.
   choices?: CodexChoice[]
+  // An MCP tool call's: each choice's raw is the whole answer (an elicitation result).
+  elicitation?: boolean
 }
 
 type Sandbox = 'workspace-write' | 'read-only' | 'danger-full-access'
@@ -437,6 +450,8 @@ export class CodexAppServer implements ChatDriver {
   // them instead (withKeptImages).
   private readonly keptImages = new Map<string, ChatImage[]>()
   private readonly unanswered = new Map<string, string | number>()
+  // The MCP tool call each server is running, to tie Codex's asking about it to its card.
+  private readonly mcpCalls = new Map<string, { itemId: string; tool: string }>()
   private turns = 0
   private interrupts = 0
   // The user asked the running turn to stop: calls that fail from here on were cut short.
@@ -876,6 +891,11 @@ export class CodexAppServer implements ChatDriver {
       return { answers: Object.fromEntries(Object.entries(answers).map(([question, labels]) => [question, { answers: labels }])) }
     }
     const choices = pending.choices ?? []
+    if (pending.elicitation) {
+      const chosen = answer.choice ? choices.find((each) => each.id === answer.choice) : choices.find((each) => each.decision === answer.decision)
+      if (!chosen) throw new Rejection('chat-option-invalid', `this request offers no choice ${answer.choice ?? answer.decision}`)
+      return chosen.raw
+    }
     if (answer.choice) {
       const choice = choices.find((each) => each.id === answer.choice)
       if (!choice) throw new Rejection('chat-option-invalid', `this request offers no choice ${answer.choice}`)
@@ -1134,6 +1154,10 @@ export class CodexAppServer implements ChatDriver {
       case 'mcpToolCall': {
         const args = z.record(z.string(), z.unknown()).catch({}).parse(item.arguments ?? {})
         const name = `${item.server ?? 'mcp'}.${item.tool ?? 'tool'}`
+        if (item.server && item.tool) {
+          if (completed) this.mcpCalls.delete(item.server)
+          else this.mcpCalls.set(item.server, { itemId: item.id, tool: item.tool })
+        }
         const browser = browserToolKind(name)
         const first = Object.values(args).find((value) => typeof value === 'string')
         const result = completed ? mcpResult(item, this.keepImages(item)) : { text: null, images: [] }
@@ -1251,9 +1275,28 @@ export class CodexAppServer implements ChatDriver {
       }))
       this.items.put({ id: itemId, kind: 'question', requestId, questions, answers: null, resolution: null }, at)
       this.pending.set(requestId, { kind: 'question', itemId, rawId, denial: 'cancel' })
+    } else if (method === 'mcpServer/elicitation/request' && McpToolApproval.safeParse(params).success) {
+      this.mcpToolApproval(requestId, rawId, McpToolApproval.parse(params), method, params, at)
     } else {
       this.unanswered.set(requestId, rawId)
     }
+  }
+
+  // Once, this run (where Codex offers to remember it for the session), or no. Remembering it
+  // always is left out: Codex would keep that in its own config, outside what Kando can show.
+  private mcpToolApproval(requestId: string, rawId: string | number, request: z.infer<typeof McpToolApproval>, method: string, params: unknown, at: number): void {
+    const call = this.mcpCalls.get(request.serverName)
+    const tool = call?.tool ?? /"([^"]+)"/.exec(request.message)?.[1] ?? null
+    const name = tool ? `${request.serverName}.${tool}` : request.serverName
+    const shown = request._meta.tool_params_display.map((param) => `${param.display_name ?? param.name ?? ''}: ${typeof param.value === 'string' ? param.value : JSON.stringify(param.value)}`)
+    const choices: CodexChoice[] = [
+      { id: 'allow', decision: 'allow', grants: [], raw: { action: 'accept', content: null, _meta: null } },
+      ...(request._meta.persist.includes('session') ? [{ id: 'allowForSession', decision: 'allowForSession' as const, grants: [{ kind: 'rules' as const, values: [name], scope: 'run' as const, behavior: 'allow' as const }], raw: { action: 'accept', content: null, _meta: { persist: 'session' } } }] : []),
+      { id: 'deny', decision: 'deny', grants: [], raw: { action: 'decline', content: null, _meta: null } }
+    ]
+    this.approval(requestId, rawId, 'mcpToolCall', name, this.requestDetail(method, params, shown.length ? clip(shown.join('\n'), 2000) : null), call?.itemId, choices, 'decline', at)
+    const pending = this.pending.get(requestId)
+    if (pending) pending.elicitation = true
   }
 
   // A subagent's request is the user's to answer too, in the chat that sent it off, said to be its.

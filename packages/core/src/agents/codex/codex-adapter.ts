@@ -10,7 +10,8 @@ export const codex: AgentAdapter = {
   permissionModes: Object.keys(CODEX_MODES),
   // A thread is Codex's own, wherever the conversation's folder moved.
   session: { preassignedId: false, folderBound: false, nativeFork: true },
-  // Codex asks nothing for MCP tools, so Kando asks in the chat.
+  // Codex asks only before a tool it reads as acting on the outside world, which Kando's own are
+  // not marked as, so Kando asks in the chat.
   mcpApproval: 'kando',
   signedIn: hasCodexCredentials,
   usage: readCodexUsage,
