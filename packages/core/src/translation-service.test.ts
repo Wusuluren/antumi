@@ -29,7 +29,7 @@ describe('translation', () => {
       run: async (command) => {
         asked.push(command)
         if (command.output === 'file') writeFileSync(command.args[command.args.indexOf('-o') + 1] ?? '', '译文（文件）\n')
-        return command.output === 'stdout' ? '  译文\n' : 'progress lines'
+        return command.output === 'stdout' ? JSON.stringify({ result: '  译文\n' }) : 'progress lines'
       }
     }))
     expect(await service.translate('claude', 'Hello', 'zh-CN')).toEqual({ text: '译文', model: 'haiku' })
@@ -46,7 +46,7 @@ describe('translation', () => {
 
   it('falls back on the cheapest when the agent no longer lists the model picked, and tries a pick it cannot check', async () => {
     let known: ChatCatalog | null = catalog('opus', 'haiku')
-    const service = new TranslationService(new QuickRequests({ catalog: async () => known, run: async (command) => command.args[command.args.indexOf('--model') + 1] ?? '' }))
+    const service = new TranslationService(new QuickRequests({ catalog: async () => known, run: async (command) => JSON.stringify({ result: command.args[command.args.indexOf('--model') + 1] ?? '' }) }))
     expect(await service.translate('claude', 'Hello', 'zh-CN', 'claude-sonnet-4-5')).toEqual({ text: 'haiku', model: 'haiku' })
     known = null
     expect(await service.translate('claude', 'Hi there', 'zh-CN', 'claude-sonnet-4-5')).toEqual({ text: 'claude-sonnet-4-5', model: 'claude-sonnet-4-5' })
@@ -64,7 +64,7 @@ describe('translation', () => {
         await new Promise((resolve) => setTimeout(resolve, 5))
         running--
         if (fail) throw new Error('boom')
-        return 'ok'
+        return JSON.stringify({ result: 'ok' })
       }
     }))
     await Promise.allSettled(['a', 'b', 'c', 'd', 'e'].map((text) => service.translate('claude', text, 'en')))

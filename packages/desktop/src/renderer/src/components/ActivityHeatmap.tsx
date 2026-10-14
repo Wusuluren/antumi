@@ -14,7 +14,7 @@ export function ActivityHeatmap({ days }: { days: readonly DashboardDay[] }) {
     <section className="dashboard-panel" aria-labelledby="dashboard-activity">
       <header className="dashboard-panel-header">
         <h3 id="dashboard-activity">活跃度</h3>
-        <span className="dashboard-panel-note">过去一年 {active} 天有运行或对话 · 最长连续 {longest} 天</span>
+        <span className="dashboard-panel-note">过去一年 {active} 天有运行、对话或轻量请求 · 最长连续 {longest} 天</span>
       </header>
       <div className="dashboard-heatmap-scroll">
         <div className="dashboard-heatmap" style={{ gridTemplateColumns: `auto repeat(${columns.length}, var(--heat-cell))` }}>
@@ -31,7 +31,7 @@ export function ActivityHeatmap({ days }: { days: readonly DashboardDay[] }) {
                     key={day.day}
                     className="dashboard-heat"
                     data-level={levels.get(day.day)}
-                    data-tooltip={`${dayLabel(day.day)} · 任务运行 ${day.runs} · 对话回合 ${day.turns}`}
+                    data-tooltip={`${dayLabel(day.day)} · 任务运行 ${day.runs} · 对话回合 ${day.turns} · 轻量请求 ${day.quickRequests ?? 0}`}
                     data-tooltip-side={index < columns.length / 2 ? 'top' : 'top-end'}
                   />
                 ) : (

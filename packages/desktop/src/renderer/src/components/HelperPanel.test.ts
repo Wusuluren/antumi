@@ -2,8 +2,9 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StateCreator } from 'zustand'
-import { createRpcClient, Task, type Conversation, type RpcConnection } from '@kando/protocol'
+import { createRpcClient, Task, ChatItem, type Conversation, type RpcConnection } from '@kando/protocol'
 import { useCore } from '../core-store'
+import { useChat } from '../chat-state'
 import { HandToHelperItem } from './ChatContextMenu'
 import { ConversationInspector } from './ConversationInspector'
 import { TaskInspector } from './TaskInspector'
@@ -38,6 +39,7 @@ const renderMenu = (selection: string, conversation: Conversation = parent) => r
 
 beforeEach(() => {
   useCore.setState(useCore.getInitialState(), true)
+  useChat.setState({}, true)
   connect()
 })
 
@@ -85,4 +87,25 @@ describe('helper UI', () => {
     const html = renderToStaticMarkup(createElement(ConversationInspector, { conversation: parent, widthRatio: 0.35, onWidthRatioChange: () => {} }))
     expect(html).not.toContain('小助手')
   })
+
+  it.each(['reply', 'work', 'empty'] as const)('shows a helper cost once for a %s turn', (shape) => {
+    useCore.setState({ conversations: { [parent.id]: parent, [helper.id]: { ...helper, chat: { turn: 'idle' } } } })
+    const base = { stageId: 'stage', revision: 1, at: 1000 }
+    const items: ChatItem[] = [ChatItem.parse({ ...base, id: 'user', kind: 'user', text: 'question' })]
+    if (shape === 'work') items.push(ChatItem.parse({ ...base, id: 'reason', kind: 'reasoning', text: 'thinking', streaming: false }))
+    if (shape !== 'empty') items.push(ChatItem.parse({ ...base, id: 'reply', kind: 'assistant', text: 'answer', streaming: false }))
+    items.push(ChatItem.parse({ ...base, id: 'turn', kind: 'turn', state: 'completed', error: null, durationMs: 2000,
+      usage: { input: 100, output: 10 }, smallModelCost: {
+        costUsd: 0.05, savedUsd: 0.63, modelDifferenceUsd: 0.15, contextSavedUsd: 0.48,
+        baseline: { model: 'claude-opus-5-5', context: 600000, price: null }, calls: 4,
+        callsEstimated: false, prices: [], completed: true
+      } }))
+    useChat.setState({ [helper.id]: { items, before: null } })
+    const html = renderToStaticMarkup(createElement(HelperPanel, { parent }))
+    expect(html.match(/class="helper-turn-cost"/g)).toHaveLength(1)
+    expect(html).toContain('花费 $0.05')
+    expect(html).toContain('约省 $0.63')
+    expect(html).toContain('处理了 2 秒')
+  })
+
 })

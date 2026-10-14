@@ -1,4 +1,5 @@
 import type { AgentDescriptor } from './agent-descriptor'
+import { CODEX_PRICES } from './model-prices'
 
 // Its default mode reads "auto" to Codex users.
 export const codex: AgentDescriptor = {
@@ -24,5 +25,6 @@ export const codex: AgentDescriptor = {
     signIn: '在终端里运行 codex login'
   },
   usageWhere: '在 Codex 的用量设置里使用',
-  quickModels: [/-luna$/, /mini/, /nano/]
+  quickModels: [/-luna$/, /mini/, /nano/],
+  prices: CODEX_PRICES
 }

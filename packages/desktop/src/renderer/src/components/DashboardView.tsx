@@ -7,6 +7,7 @@ import { percent } from '../stat-format'
 import { ActivityHeatmap } from './ActivityHeatmap'
 import { DailyBars } from './DailyBars'
 import { DashboardKpis } from './DashboardKpis'
+import { SmallModelStats } from './SmallModelStats'
 import { CloseIcon, RefreshIcon } from './icons'
 import { ModelBreakdown } from './ModelBreakdown'
 import { Segmented } from './SettingsControls'
@@ -23,7 +24,7 @@ function useDashboard(range: DashboardRange) {
   const load = useCallback(async () => {
     setLoading(true)
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const stats = await perform((rpc) => rpc.call('dashboard.stats', { range, timeZone }))
+    const stats = await perform((rpc) => rpc.call('dashboard.stats', { range, timeZone, ...(rpc.features.includes('small-model-stats') ? { includeSmallModels: true } : {}) }))
     setLoading(false)
     if (stats) setReport({ stats, at: Date.now() })
   }, [range])
@@ -71,14 +72,14 @@ export function DashboardView() {
   const [range, setRange] = useState<DashboardRange>(7)
   const { report, loading, load } = useDashboard(range)
   const days = report?.stats.days.slice(-range) ?? []
-  const empty = report !== null && report.stats.days.every((day) => day.runs === 0 && day.turns === 0)
+  const empty = report !== null && report.stats.days.every((day) => day.runs === 0 && day.turns === 0 && (day.quickRequests ?? 0) === 0)
   return (
     <section className="worktrees-page dashboard-page" aria-label="统计">
       <header className="worktrees-header">
         <div className="worktrees-heading">
           <h2>统计</h2>
           <p className="muted">
-            任务运行和对话的用量，按这台电脑的日期计{report && ` · 更新于 ${TIME.format(report.at)}`}
+            任务运行、对话和轻量请求的用量，按这台电脑的日期计{report && ` · 更新于 ${TIME.format(report.at)}`}
           </p>
         </div>
         <Segmented
@@ -100,9 +101,10 @@ export function DashboardView() {
       ) : (
         <div className="dashboard-grid">
           {empty && (
-            <p className="dashboard-empty dashboard-empty-all muted">还没有运行记录。任务执行结束、对话回合结束后会计入这里。</p>
+            <p className="dashboard-empty dashboard-empty-all muted">还没有运行记录。任务、对话回合或轻量请求结束后会计入这里。</p>
           )}
           <DashboardKpis stats={report.stats} days={days} range={range} />
+          {report.stats.smallModels && <SmallModelStats stats={report.stats.smallModels} />}
           <DailyBars days={days} />
           <ActivityHeatmap days={report.stats.days} />
           <div className="dashboard-split">

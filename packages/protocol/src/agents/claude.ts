@@ -1,4 +1,5 @@
 import type { AgentDescriptor } from './agent-descriptor'
+import { CLAUDE_PRICES } from './model-prices'
 
 export const claude: AgentDescriptor = {
   label: 'Claude Code',
@@ -21,5 +22,6 @@ export const claude: AgentDescriptor = {
     signIn: '在终端里运行 claude，按提示登录'
   },
   usageWhere: '在 claude.ai 网页版或 Claude Desktop 的 设置 → Usage 里使用',
-  quickModels: [/^haiku$/]
+  quickModels: [/^haiku$/],
+  prices: CLAUDE_PRICES
 }

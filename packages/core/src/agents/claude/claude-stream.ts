@@ -1,3 +1,5 @@
+import { ClaudeTokenUsage, claudeMetering } from '../../model-metering'
+import type { ModelMetering } from '@kando/protocol'
 import { z } from 'zod'
 import { browserToolKind, ChatPermissionMode, CONTEXT_COMPACTED, RESERVED_MCP_SERVER_NAME, takeImageMarkers, toolImagePath, type ChatCommand, type ChatDiff, type ChatImage, type ChatModel, type ChatOption, type ChatTurnActivity, type ChatTurnState } from '@kando/protocol'
 import { offeredCommand } from '../../agent-commands'
@@ -119,12 +121,8 @@ const InitResponse = z.looseObject({
 // The CLI's word that its commands changed, as skills and plugins load.
 const CommandsChanged = z.looseObject({ subtype: z.literal('commands_changed'), commands: z.array(z.unknown()).catch([]) })
 const SettingsResponse = z.looseObject({ effective: z.looseObject({ effortLevel: z.string().nullish() }).optional() })
-const Usage = z.looseObject({
-  input_tokens: z.number().optional(),
-  output_tokens: z.number().optional(),
-  cache_creation_input_tokens: z.number().optional(),
-  cache_read_input_tokens: z.number().optional()
-})
+const Usage = ClaudeTokenUsage
+
 const StreamFrame = z.looseObject({
   parent_tool_use_id: Subagent,
   event: z.looseObject({
@@ -143,7 +141,7 @@ const ToolUseMeta = z.array(z.looseObject({
 })).catch([])
 const AssistantFrame = z.looseObject({
   parent_tool_use_id: Subagent,
-  message: z.looseObject({ id: z.string(), content: Blocks.catch([]), usage: Usage.optional().catch(undefined) }),
+  message: z.looseObject({ id: z.string(), model: z.string().optional(), content: Blocks.catch([]), usage: Usage.optional().catch(undefined) }),
   tool_use_meta: ToolUseMeta.optional()
 })
 const UserFrame = z.looseObject({
@@ -382,6 +380,8 @@ export class ClaudeStream implements ChatDriver {
   private reported: BackgroundKind[] = []
   // Output tokens of the running turn's messages so far, for the working line.
   private turnOutput = 0
+  private readonly modelRequests = new Map<string, { model: string | null; input: number }>()
+  private turnMetering: ModelMetering | undefined
   // Subagents settled as finished, whether by their own report or by the CLI's count, and the last
   // thing each said while it worked (its frames come with parent_tool_use_id), which stands as its
   // report when no hand-back frame does.
@@ -496,6 +496,8 @@ export class ClaudeStream implements ChatDriver {
 
   // Between turns, subagents the agent left working in the background keep it busy: the CLI will
   // start a turn of its own when they report.
+  activeTurnRef(): string | null { return this.turn?.ref ?? null }
+
   activity(): ChatTurnActivity {
     if (this.kando.pending > 0) return 'awaiting'
     if (!this.turn) return this.backgroundAgents() + this.backgroundCommands() > 0 ? 'running' : 'idle'
@@ -713,6 +715,7 @@ export class ClaudeStream implements ChatDriver {
       commands: this.commands,
       models,
       model: current?.value ?? this.reportedModel,
+      billingModel: current?.resolvedModel ?? this.reportedModel,
       effort: this.effort,
       permissionMode: this.permissionMode,
       permissionModes: this.offeredModes()
@@ -876,7 +879,7 @@ export class ClaudeStream implements ChatDriver {
       if (text) this.subagentText.set(`t:${parsed.data.parent_tool_use_id}`, text)
       return
     }
-    const { id: message, content, usage } = parsed.data.message
+    const { id: message, content, usage, model } = parsed.data.message
     const named = new Map((parsed.data.tool_use_meta ?? []).flatMap((meta) =>
       meta.display_name ? [[meta.id, { name: meta.display_name, server: meta.server_display_name ?? null }] as const] : []))
     const uuid = Reflect.get(parsed.data, 'uuid')
@@ -884,6 +887,7 @@ export class ClaudeStream implements ChatDriver {
     // What the latest request sent is what the conversation now fills of the context.
     if (usage) {
       const used = (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0)
+      this.modelRequests.set(message, { model: model ?? this.currentModel()?.resolvedModel ?? this.reportedModel, input: used })
       this.state.setContext({ used, window: this.contextWindow ?? this.guessedWindow() })
       this.turnOutput += usage.output_tokens ?? 0
       if (this.turn) this.state.set({ turnUsage: { input: used, output: this.turnOutput } })
@@ -1096,6 +1100,7 @@ export class ClaudeStream implements ChatDriver {
     // notification and ends it at once, the report already taken: no request, nothing said. That
     // one is left out, rather than shown as a turn of its own.
     const empty = state === 'completed' && this.turn?.resumed === true && !this.turn.assistant && result.num_turns === 0
+    this.turnMetering = claudeMetering(frame, this.currentModel()?.resolvedModel ?? this.reportedModel, [...this.modelRequests.values()])
     this.endTurn(state, error, result.duration_ms ?? null, at, usage, limit, empty)
   }
 
@@ -1145,9 +1150,11 @@ export class ClaudeStream implements ChatDriver {
     for (const requestId of [...this.pending.keys()]) this.resolve(requestId, 'cancelled', null, at)
     const turn = this.turn
     const id = turn ? `turn:${turn.ref}` : `turn:result-${++this.results}`
-    if (!unseen) this.items.put({ id, kind: 'turn', state, error, durationMs, usage, ...(turn?.resumed ? { resumed: true, ...(turn.resumedBy ? { resumedBy: turn.resumedBy } : {}) } : {}), providerRef: turn?.uuid ?? null }, at)
+    if (!unseen) this.items.put({ id, kind: 'turn', state, error, durationMs, usage, ...(this.turnMetering ? { metering: this.turnMetering } : {}), ...(turn?.resumed ? { resumed: true, ...(turn.resumedBy ? { resumedBy: turn.resumedBy } : {}) } : {}), providerRef: turn?.uuid ?? null }, at)
     if (limit) this.items.usageLimit(id, limit, at)
     this.refused = null
+    this.modelRequests.clear()
+    this.turnMetering = undefined
     if (turn?.assistant) {
       this.messages.push({ role: 'assistant', text: turn.assistant, eventKey: `chat:${turn.ref}:assistant`, complete: true })
     }

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { AttachmentId } from './attachments'
 import { AgentKind } from './agent'
 import { KnowledgeBase } from './knowledge'
+import { ModelMetering, SmallModelCost } from './model-cost'
 
 // idle: the agent waits for a message · running: a turn is under way · awaiting: the turn waits
 // on the user to approve or answer something
@@ -243,6 +244,8 @@ export const ChatItem = z.discriminatedUnion('kind', [
     state: ChatTurnState.catch('completed'),
     error: z.string().nullable(),
     durationMs: z.number().nullable(),
+    metering: ModelMetering.optional(),
+    smallModelCost: SmallModelCost.optional(),
     // Tokens the turn sent and received, where the agent reports them; older cores leave it out.
     usage: z.union([
       z.object({ input: z.number(), output: z.number() }),
@@ -297,6 +300,7 @@ export const ChatItem = z.discriminatedUnion('kind', [
     permissionMode: z.string().nullable(),
     permissionModes: z.array(z.string()),
     model: z.string().nullable(),
+    billingModel: z.string().nullable().optional(),
     models: z.array(ChatModel),
     effort: z.string().nullable(),
     context: ChatContextUse.nullable(),

@@ -2,6 +2,7 @@ import type { AgentCliInstallation, AgentKind, ChatCatalog, ChatPermissionMode, 
 import type { AgentCommand, AgentMcpServer, McpServer } from '../agent-command'
 import type { ChatDriver, ChatPreferences, ChatStageOptions } from '../chat-driver'
 import type { UsageSource } from '../usage-source'
+import type { QuickAnswer } from '../model-metering'
 
 // What a chat stage's agent starts with, which its adapter turns into its own command line. The
 // stream carries every message, the handoff prompt included: none goes in argv.
@@ -111,5 +112,6 @@ export interface AgentAdapter {
   // (on its descriptor's quickModels): the command, `outputFile` where its answer goes to a file.
   readonly quick?: {
     command(prompt: string, model: string | null, outputFile: string): QuickCommand | Promise<QuickCommand>
+    parse(printed: string, model: string | null): QuickAnswer
   }
 }

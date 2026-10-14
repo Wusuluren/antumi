@@ -1,3 +1,4 @@
+import { parseCodexQuick } from '../../model-metering'
 import type { AgentAdapter } from '../agent-adapter'
 import { CODEX_MODES, CodexAppServer } from './codex-app-server'
 import { codexCommand } from './codex-command'
@@ -18,9 +19,10 @@ export const codex: AgentAdapter = {
   // At low effort, read-only, and not kept in its history. Its progress goes to stdout too, so the
   // answer comes from a file.
   quick: {
+    parse: parseCodexQuick,
     command: (prompt, model, outputFile) => ({
       command: 'codex',
-      args: ['exec', ...(model ? ['-m', model] : []), '-c', 'model_reasoning_effort="low"', '-s', 'read-only', '--skip-git-repo-check', '--ephemeral', '-o', outputFile, '-'],
+      args: ['exec', '--json', ...(model ? ['-m', model] : []), '-c', 'model_reasoning_effort="low"', '-s', 'read-only', '--skip-git-repo-check', '--ephemeral', '-o', outputFile, '--', '-'],
       stdin: prompt,
       output: 'file'
     })

@@ -1,3 +1,4 @@
+import { coverage, dollars } from '../model-cost-format'
 import type { DashboardDay, DashboardStats } from '@kando/protocol'
 import { acceptance, change, dayTokens, rateChange, type Change } from '../dashboard-model'
 import { compact, durationText, percent } from '../stat-format'
@@ -57,7 +58,7 @@ export function DashboardKpis({ stats, days, range }: { stats: DashboardStats; d
       value: durationText(current.medianRunMs),
       change: current.medianRunMs === null || previous.medianRunMs === null ? null : change(current.medianRunMs, previous.medianRunMs)
     },
-    { label: 'token 合计', title: '任务运行和对话回合读写的 token', value: compact(current.tokens), change: change(current.tokens, previous.tokens), trend: days.map(dayTokens) },
+    { label: 'token 合计', title: '任务运行、对话回合、翻译和提交说明读写的 token', value: compact(current.tokens), change: change(current.tokens, previous.tokens), trend: days.map(dayTokens) },
     { label: '对话回合', title: '对话里结束的回合，不含任务里的', value: String(current.turns), change: change(current.turns, previous.turns), trend: days.map((day) => day.turns) },
     {
       label: '失败 / 中断',
@@ -67,6 +68,11 @@ export function DashboardKpis({ stats, days, range }: { stats: DashboardStats; d
       change: null
     }
   ]
+  if (stats.smallModels) kpis.push({
+    label: '小模型省下', title: `按 API 标价折算；模型差价加避免读取主上下文的成本，逐次最低为零。${coverage(stats.smallModels.current)}`,
+    value: stats.smallModels.current.savedUsd === null ? '—' : `约 ${dollars(stats.smallModels.current.savedUsd)}`,
+    note: `可估算 ${stats.smallModels.current.estimated} / ${stats.smallModels.current.count} 次`, change: null
+  })
   return (
     <div className="dashboard-kpis">
       {kpis.map((kpi) => <KpiCell key={kpi.label} kpi={kpi} range={range} />)}

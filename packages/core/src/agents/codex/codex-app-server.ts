@@ -1,3 +1,4 @@
+import type { ModelTokens } from '@kando/protocol'
 import { z } from 'zod'
 import { browserToolKind, ChatPermissionMode, CODEX_IMAGE_VIEW, CONTEXT_COMPACTED, takeImageMarkers, type ChatDecision, type ChatDiff, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatQuestion, type ChatTodo, type ChatToolStatus, type ChatTurnActivity, type ChatTurnState } from '@kando/protocol'
 import { choiceDecisions, codexAnswerAllows, codexChoiceOf, codexChoices, type CodexChoice } from '../../approval-choices'
@@ -117,7 +118,9 @@ const TurnParams = z.looseObject({
 const TokenCount = z.looseObject({
   totalTokens: z.number(),
   inputTokens: z.number().optional(),
-  outputTokens: z.number().optional()
+  outputTokens: z.number().optional(),
+  cachedInputTokens: z.number().optional(),
+  cacheWriteInputTokens: z.number().optional()
 })
 const TokenUsage = z.looseObject({
   turnId: z.string().optional(),
@@ -446,6 +449,8 @@ export class CodexAppServer implements ChatDriver {
   private steers = 0
   // What this turn used, summed across its model calls.
   private turnUsage: { input: number; output: number } | { total: number } | null = null
+  private meteredRequests: ModelTokens[] = []
+  private readonly meteredReports = new Set<string>()
   private threadUsage: z.infer<typeof TokenCount> | null = null
   private readonly pending = new Map<string, Pending>()
   // Images an MCP result carried in its bytes and the store took, by item id, until the log names
@@ -562,6 +567,8 @@ export class CodexAppServer implements ChatDriver {
     if (this.startError) return this.startError
     return this.exited && this.threadId === null ? 'exited' : null
   }
+
+  activeTurnRef(): string | null { return this.turn?.ref ?? null }
 
   activity(): ChatTurnActivity {
     if (this.kando.pending > 0) return 'awaiting'
@@ -726,7 +733,7 @@ export class CodexAppServer implements ChatDriver {
       const usage = TokenUsage.safeParse(parsed.data.params)
       if (!usage.success) return null
       const { last, total, modelContextWindow } = usage.data.tokenUsage
-      const counts = ({ totalTokens, inputTokens, outputTokens }: z.infer<typeof TokenCount>) => ({ totalTokens, inputTokens, outputTokens })
+      const counts = ({ totalTokens, inputTokens, outputTokens, cachedInputTokens, cacheWriteInputTokens }: z.infer<typeof TokenCount>) => ({ totalTokens, inputTokens, outputTokens, cachedInputTokens, cacheWriteInputTokens })
       return { method, params: { turnId: usage.data.turnId, tokenUsage: { last: counts(last), total: total ? counts(total) : undefined, modelContextWindow } } }
     }
     if (method === 'mcpServer/startupStatus/updated') {
@@ -1069,13 +1076,27 @@ export class CodexAppServer implements ChatDriver {
         this.state.setContext({ used: last.totalTokens, window: modelContextWindow ?? null })
         // A resumed thread may first replay usage from its previous turn.
         if (!this.turn || (usage.data.turnId && usage.data.turnId !== this.turn.turnId)) return
-        const increment = (key: 'totalTokens' | 'inputTokens' | 'outputTokens'): number | undefined => {
+        const increment = (key: 'totalTokens' | 'inputTokens' | 'outputTokens' | 'cachedInputTokens' | 'cacheWriteInputTokens'): number | undefined => {
           const current = total?.[key]
           const before = previous?.[key]
           return current !== undefined && before !== undefined && current >= before ? current - before : last[key]
         }
         const input = increment('inputTokens')
         const output = increment('outputTokens')
+        const reportKey = JSON.stringify({ last, total })
+        if (!this.meteredReports.has(reportKey) && input !== undefined && output !== undefined) {
+          this.meteredReports.add(reportKey)
+          if (input > 0) this.meteredRequests.push({
+            model: this.state.current.model, input, output, cacheRead: increment('cachedInputTokens') ?? null,
+            cacheWrite: increment('cacheWriteInputTokens') ?? null, cacheWrite1h: 0, costUsd: null,
+            ...(last.inputTokens === input ? { requestInputs: [input] } : {})
+          })
+          else if (output > 0) {
+            const latest = this.meteredRequests.at(-1)
+            if (latest) latest.output += output
+          }
+        }
+
         if (input !== undefined && output !== undefined) {
           if (input === 0 && output === 0 && !this.turnUsage) return
           const before = this.turnUsage && 'input' in this.turnUsage ? this.turnUsage : null
@@ -1411,6 +1432,8 @@ export class CodexAppServer implements ChatDriver {
   private startTurn(frame: Frame, at: number, ref: string | undefined, images: readonly ChatImage[]): void {
     this.turns++
     this.turnUsage = null
+    this.meteredRequests = []
+    this.meteredReports.clear()
     this.state.set({ turnUsage: null })
     const params = TurnParams.safeParse(frame.params)
     // A command's turn runs in the thread's mode and leaves a waiting plan waiting.
@@ -1494,7 +1517,7 @@ export class CodexAppServer implements ChatDriver {
     }
     const turn = this.turn
     const id = turn ? `turn:${turn.ref}` : `turn:result-${++this.results}`
-    this.items.put({ id, kind: 'turn', state, error, durationMs, usage: this.turnUsage, providerRef: turn?.turnId ?? null }, at)
+    this.items.put({ id, kind: 'turn', state, error, durationMs, usage: this.turnUsage, ...(this.meteredRequests.length ? { metering: { models: this.meteredRequests, calls: this.meteredRequests.length, callsEstimated: true, reportedCostUsd: null } } : {}), providerRef: turn?.turnId ?? null }, at)
     if (limit) this.items.usageLimit(id, limit, at)
     this.limited = null
     this.turnUsage = null

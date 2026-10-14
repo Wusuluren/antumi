@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { canHaveHelper, isHelper, agentDescriptor, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isKandoRequest } from '@kando/protocol'
+import { canHaveHelper, isHelper, agentDescriptor, modelPrice, type CostBaseline, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isKandoRequest } from '@kando/protocol'
 import type { DaemonEvent, SessionInfo } from '@kando/protocol/node'
 import type { TaskLaunchOptions } from '@kando/protocol'
 import type { RunMeasure } from './agent-run-store'
@@ -34,6 +34,7 @@ export type ConversationEvent =
   | { type: 'changed'; conversation: Conversation }
   | { type: 'deleted'; id: string }
   | { type: 'chatItems'; conversationId: string; items: ChatItem[] }
+  | { type: 'prompt'; conversationId: string; stageId: string; ref: string }
   | { type: 'chatDelta'; conversationId: string; stageId: string; itemId: string; append: string }
   // A plan approved in a task's chat, for the task to keep as the one it carries out.
   | { type: 'planApproved'; taskId: string; plan: { markdown: string; agent: AgentKind; stageId: string; requestId: string } }
@@ -180,6 +181,7 @@ export class ConversationService {
       },
       delta: (conversationId, stageId, itemId, append) => this.emit({ type: 'chatDelta', conversationId, stageId, itemId, append }),
       messages: (stage, messages) => messages.forEach((message) => this.recordChatMessage(stage, message)),
+      prompt: (stage, ref) => this.emit({ type: 'prompt', conversationId: stage.conversationId, stageId: stage.stageId, ref }),
       provider: (stage, providerSessionId) => this.store.setProviderSession(stage.stageId, providerSessionId),
       activity: (conversationId) => {
         const current = this.store.get(conversationId)
@@ -1181,6 +1183,16 @@ export class ConversationService {
     if (!conversation || !stage) return null
     const state = this.stageChatItems(id, stageId).findLast((item) => item.kind === 'state')
     return { taskId: conversation.taskId ?? null, agent: stage.agent, model: state?.kind === 'state' ? state.model : null }
+  }
+
+  costBaseline(id: string): CostBaseline {
+    const source = this.get(id)
+    const conversation = source.helperOf ? this.get(source.helperOf) : source
+    const stage = this.store.stages(conversation.id).at(-1)
+    const state = stage ? this.stageChatItems(conversation.id, stage.id).findLast((item) => item.kind === 'state') : undefined
+    const model = state?.kind === 'state' ? state.billingModel ?? state.model : conversation.chatOptions?.model ?? null
+    const context = state?.kind === 'state' ? state.context?.used ?? null : null
+    return { model, context, price: modelPrice(agentDescriptor(conversation.agent).prices, model, Date.now()) }
   }
 
   // Every chat stage of every conversation, task chats included, oldest first.

@@ -6,6 +6,7 @@ import { codex } from './codex'
 import { cursor } from './cursor'
 
 export type { AgentDescriptor, AgentModeText } from './agent-descriptor'
+export { modelPrice } from './model-prices'
 
 // One entry per agent kind: one left out fails to compile.
 export const AGENT_DESCRIPTORS = { claude, codex, cursor } satisfies Record<AgentKind, AgentDescriptor>

@@ -25,8 +25,8 @@ export function rateChange(current: number | null, previous: number | null): Cha
   return { direction: points > 0 ? 'up' : 'down', text: `${Math.abs(points)} 个百分点` }
 }
 
-export const activity = (day: DashboardDay) => day.runs + day.turns
-export const dayTokens = (day: DashboardDay) => day.runTokens + day.turnTokens
+export const activity = (day: DashboardDay) => day.runs + day.turns + (day.quickRequests ?? 0)
+export const dayTokens = (day: DashboardDay) => day.runTokens + day.turnTokens + (day.quickTokens ?? 0)
 
 // 0 for no activity, then 1–4 by quartile of the active days, so one busy day does not wash out the rest.
 export function heatLevels(values: readonly number[]): number[] {

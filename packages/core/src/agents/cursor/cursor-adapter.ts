@@ -1,3 +1,4 @@
+import { parseCursorQuick } from '../../model-metering'
 import { Rejection } from '../../rejection'
 import type { AgentAdapter, AgentStage } from '../agent-adapter'
 import { CURSOR_MODES, CursorAcp } from './cursor-acp'
@@ -29,9 +30,10 @@ export const cursor: AgentAdapter = {
   installation: cursorInstallation,
   // Asking only: it reads nothing and changes nothing.
   quick: {
+    parse: parseCursorQuick,
     command: async (prompt, model) => ({
       command: await requireCursorCli(),
-      args: ['-p', ...(model ? ['--model', model] : []), '--output-format', 'text', '--mode', 'ask', '--trust', prompt],
+      args: ['-p', ...(model ? ['--model', model] : []), '--output-format', 'json', '--mode', 'ask', '--trust', '--', prompt],
       stdin: null,
       output: 'stdout'
     })

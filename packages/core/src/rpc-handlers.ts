@@ -1,3 +1,4 @@
+import { EMPTY_BASELINE, type SmallModelStore } from './small-model-store'
 import { GitService } from './git-service'
 import { CORE_FEATURES, PROTOCOL_VERSION, type ChatItem } from '@kando/protocol'
 import packageJson from '../package.json' with { type: 'json' }
@@ -73,7 +74,8 @@ export function createRpcHandlers(
   todos?: TodoStore,
   plugins?: PluginService,
   skills?: SkillsLibrary,
-  mcpServers?: McpServerStore
+  mcpServers?: McpServerStore,
+  smallModels?: SmallModelStore
 ): RpcHandlers {
   const git = new GitService(service, conversations, gitChanged)
   conversations.setGitGuard((dirs) => git.guardAgent(dirs))
@@ -81,7 +83,7 @@ export function createRpcHandlers(
   conversations.setGitPreparation((dirs, run) => git.withRepositories(dirs, run))
   worktrees.setGitRemoval((dirs, run) => git.withRepositoryLock(dirs, run))
   const files = new ConversationFiles((id) => conversations.get(id))
-  const quick = new QuickRequests({ catalog: (agent) => conversations.chatCatalog(agent) })
+  const quick = new QuickRequests({ catalog: (agent) => conversations.chatCatalog(agent), accounting: smallModels })
   const translations = new TranslationService(quick)
   service.setBranchNamer(async (agent, title) => cleanSlug((await quick.ask(agent, slugPrompt(title))).text))
   const cliInstaller = new AgentCliInstaller(environment, terminals)
@@ -97,7 +99,7 @@ export function createRpcHandlers(
     (id, command, cwd) => conversations.askTerminal(id, command, cwd)
   )
   // A page of chat items as clients see them: a usage limit with what core means to do about it.
-  const page = (result: { items: ChatItem[]; before: string | null }) => ({ ...result, items: limits.decorate(result.items) })
+  const page = (result: { items: ChatItem[]; before: string | null }) => ({ ...result, items: limits.decorate(smallModels?.decorate(result.items) ?? result.items) })
   // The user going on with a conversation themselves: core no longer continues it after a limit.
   const userActed = async <T>(id: string, act: () => Promise<T>): Promise<T> => {
     const since = limits.mark()
@@ -155,10 +157,15 @@ export function createRpcHandlers(
     'git.execute': ({ action, ...target }) => git.execute(target, action),
     'git.commitMessage': async ({ model, ...target }) => {
       const { agent, dir } = git.writer(target)
-      const answer = await quick.ask(agent, commitMessagePrompt(await commitContext(dir)), model)
+      const context = await commitContext(dir)
+      const conversationId = target.kind === 'conversation' ? target.id : service.get(target.id).conversationId
+      const answer = await quick.ask(agent, commitMessagePrompt(context), model, {
+        kind: 'commitMessage', conversationId,
+        baseline: () => conversationId ? conversations.costBaseline(conversationId) : EMPTY_BASELINE
+      })
       return { message: cleanCommitMessage(answer.text), model: answer.model }
     },
-    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'squads' || Boolean(squads)) && (feature !== 'plugins' || Boolean(plugins)) && (feature !== 'skills-library' || Boolean(skills)) && (feature !== 'mcp-servers' || Boolean(mcpServers))) }),
+    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'squads' || Boolean(squads)) && (feature !== 'plugins' || Boolean(plugins)) && (feature !== 'skills-library' || Boolean(skills)) && (feature !== 'mcp-servers' || Boolean(mcpServers)) && (feature !== 'small-model-stats' || Boolean(smallModels))) }),
     'files.resolve': ({ conversationId, path }) => files.resolve(conversationId, path),
     'files.read': ({ conversationId, path }) => files.read(conversationId, path),
     'system.awakeStatus': () => awake.status(),
@@ -249,7 +256,7 @@ export function createRpcHandlers(
     'conversations.create': ({ agent, projectPaths, worktree, branch, allowBypass, permissionMode, model, effort, deferStart, helperOf }) =>
       conversations.create(agent, projectPaths, allowBypass, { permissionMode, model, effort, worktree, branch, deferStart, helperOf }),
     'conversations.chatCatalog': ({ agent }) => conversations.chatCatalog(agent),
-    'conversations.translate': ({ id, text, to, model }) => translations.translate(conversations.get(id).agent, text, to, model),
+    'conversations.translate': ({ id, text, to, model }) => translations.translate(conversations.get(id).agent, text, to, model, { kind: 'translation', conversationId: id, baseline: () => conversations.costBaseline(id) }),
     'conversations.setAdditionalProjects': ({ id, projectPaths }) => conversations.setAdditionalProjects(id, projectPaths),
     'conversations.rename': ({ id, title }) => conversations.rename(id, title),
     'conversations.setPinned': ({ id, pinned }) => conversations.setPinned(id, pinned),
@@ -441,10 +448,10 @@ export function createRpcHandlers(
     'usage.refresh': async ({ windowKinds }, connection) => readableUsage(connection.usageKinds, windowKinds, await usage.refresh()),
     'agents.stats': () => runs.stats(),
     'agents.conversationStats': () => turns.stats(),
-    'dashboard.stats': (params) => {
+    'dashboard.stats': ({ includeSmallModels, ...params }) => {
       const options = { ...params, now: Date.now() }
       const since = dashboardSince(options)
-      return summarizeDashboard(runs.endedSince(since), turns.endedSince(since), options)
+      return summarizeDashboard(runs.endedSince(since), turns.endedSince(since), options, includeSmallModels ? smallModels?.statsSince(since) : undefined)
     },
     'schedules.list': () => schedules.list(),
     'schedules.create': ({ target, notBefore }) => schedules.create(target, notBefore),

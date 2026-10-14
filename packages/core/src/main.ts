@@ -8,6 +8,7 @@ import { adapterOf } from './agents'
 import { EnvironmentService } from './environment-check'
 import { AgentRunStore } from './agent-run-store'
 import { ChatTurnStore } from './chat-turn-store'
+import { SmallModelStore } from './small-model-store'
 import { AttachmentStore } from './attachment-store'
 import { AttachmentUploads } from './attachment-uploads'
 import { watchBrowserHostFile } from './browser-host-file'
@@ -72,6 +73,8 @@ const turns = new ChatTurnStore(paths.database, {
   stages: () => conversations.chatStageRefs(),
   items: (id, stageId) => conversations.stageChatItems(id, stageId)
 })
+const smallModels = new SmallModelStore(paths.database)
+smallModels.recoverQuick()
 const attachments = new AttachmentStore(paths.attachments)
 let server: RpcServer | null = null
 let awake: ComputerAwakeService | null = null
@@ -103,18 +106,27 @@ const conversations = new ConversationService(
       refreshAwake()
     } else if (event.type === 'deleted') {
       server?.broadcast('conversations.deleted', { id: event.id })
+      smallModels.interruptConversation(event.id)
       schedules.conversationDeleted(event.id)
       sources.tasksChanged()
       todos.drop(event.id)
       void browser.closeForConversation(event.id)
     }
-    else if (event.type === 'chatItems') {
+    else if (event.type === 'prompt') {
+      const helper = conversations.get(event.conversationId)
+      if (helper.helperOf) smallModels.begin({
+        id: `${event.stageId}/turn:${event.ref}`, kind: 'helper', agent: helper.agent,
+        model: helper.chatOptions?.model ?? null, conversationId: helper.id,
+        baseline: conversations.costBaseline(helper.helperOf)
+      })
+    } else if (event.type === 'chatItems') {
       limits.observe(event.conversationId, event.items)
       turns.observe(event.conversationId, event.items)
+      smallModels.observe(event.items)
       routines.observe(event.conversationId, event.items)
       discussions.observe(event.conversationId, event.items)
       squads.observe(event.conversationId, event.items)
-      notifyChatItems(event.conversationId, limits.decorate(event.items))
+      notifyChatItems(event.conversationId, limits.decorate(smallModels.decorate(event.items)))
     } else if (event.type === 'planApproved') {
       service.recordPlan(event.taskId, event.plan)
     } else if (event.type === 'usage') {
@@ -319,6 +331,7 @@ daemon.onConnect(() => {
     .request('list', {})
     .then(async ({ sessions }) => {
       await conversations.reconcile(sessions)
+      await smallModels.recoverHelpers({ stages: () => conversations.chatStageRefs(), items: (id, stageId) => conversations.stageChatItems(id, stageId) })
       terminals.reconcile(sessions)
       await discussions.reconcile()
       await squads.reconcile()
@@ -344,7 +357,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()
@@ -387,6 +400,7 @@ async function shutdown(): Promise<void> {
   conversationsStore.close()
   runs.close()
   turns.close()
+  smallModels.close()
   projects.close()
   process.exit(0)
 }

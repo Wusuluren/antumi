@@ -105,6 +105,7 @@ export interface ChatDriver {
   // Why the stage cannot start, once it is clear that it will not.
   failure(): string | null
   activity(): ChatTurnActivity
+  activeTurnRef?(): string | null
   providerSessionId(): string | null
   // Frames for the user's actions; each throws a Rejection when the stage cannot take it now.
   send(text: string, images?: readonly ChatImageFile[]): ChatOutgoing

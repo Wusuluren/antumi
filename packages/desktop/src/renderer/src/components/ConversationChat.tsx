@@ -1,3 +1,4 @@
+import { HelperTurnCost } from './HelperTurnCost'
 import { addQuote } from '../chat-quotes'
 import { focusChatInput } from '../helper-conversations'
 import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -373,7 +374,7 @@ function AssistantReply({ conversationId, item, completedAt, ending, blockKey }:
         <div className="chat-message-actions">
           <CopyButton text={shown} label={shown !== text ? '复制译文' : '复制回复'} />
           {completedAt !== undefined && <MessageTime at={completedAt} />}
-          {ending && (!compact || ending.state !== 'completed' || !foldedTurns.has(itemKey(ending))) && <span className="chat-turn chat-turn-inline" data-state={ending.state}>{compact && ending.state === 'completed' ? helperDuration(ending) : turnText(ending)}</span>}
+          {ending && (!compact || ending.state !== 'completed' || !foldedTurns.has(itemKey(ending))) && <><span className="chat-turn chat-turn-inline" data-state={ending.state}>{compact && ending.state === 'completed' ? helperDuration(ending) : turnText(ending)}</span>{compact && <HelperTurnCost turn={ending} />}</>}
           {foreign && (
             <TranslateButton
               state={result}
@@ -395,6 +396,7 @@ function AssistantReply({ conversationId, item, completedAt, ending, blockKey }:
 
 function Item({ conversationId, item, completedAt, blockKey }: { conversationId: string; item: ChatItem; completedAt: number | undefined; blockKey: string }) {
   const ending = useContext(Endings).get(blockKey)
+  const compact = useContext(ChatVariant) === 'compact'
   switch (item.kind) {
     case 'user':
       return <UserMessage item={item} />
@@ -411,7 +413,7 @@ function Item({ conversationId, item, completedAt, blockKey }: { conversationId:
     case 'question':
       return <ChatRequestLine item={item} />
     case 'turn':
-      return <div className="chat-turn" data-state={item.state}>{turnText(item)}</div>
+      return <div className="chat-turn" data-state={item.state}>{compact && item.state === 'completed' ? helperDuration(item) : turnText(item)}{compact && <HelperTurnCost turn={item} />}</div>
     case 'notice':
       return <ChatNotice conversationId={conversationId} item={item} />
     case 'todos':
@@ -492,6 +494,7 @@ function TurnFold({ foldKey, conversationId, turn, blocks, task, replies, steps,
         <button type="button" className="chat-fold-header" aria-expanded={open} onClick={() => setOpen(!open)}>
           <span className="chat-tool-chevron" aria-hidden="true"><ChevronRightIcon /></span>
           {compact ? helperDuration(turn, workMs) : foldText(steps, workMs)}
+          {compact && <HelperTurnCost turn={turn} />}
         </button>
         {open && (
           <div className="chat-fold-body">

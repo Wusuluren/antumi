@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { AgentKind } from './task'
+import { SmallModelStats } from './model-cost'
 
 // Days count as the client's calendar days, which is why it names its time zone.
 export const DASHBOARD_MAX_RANGE = 90
@@ -15,7 +16,9 @@ export const DashboardDay = z.object({
   accepted: count,
   turns: count,
   runTokens: z.number().nonnegative(),
-  turnTokens: z.number().nonnegative()
+  turnTokens: z.number().nonnegative(),
+  quickTokens: z.number().nonnegative().optional(),
+  quickRequests: count.optional()
 })
 export type DashboardDay = z.infer<typeof DashboardDay>
 
@@ -51,13 +54,16 @@ export const DashboardStats = z.object({
   current: DashboardTotals,
   previous: DashboardTotals,
   // The current range, per agent and model.
-  models: z.array(DashboardModel)
+  models: z.array(DashboardModel),
+  smallModels: SmallModelStats.optional()
 })
 export type DashboardStats = z.infer<typeof DashboardStats>
 
 export const DashboardParams = z.object({
   // The current range, today included; the previous range is as many days before it.
   range: z.number().int().min(1).max(DASHBOARD_MAX_RANGE),
+  // Older clients cannot show the new daily series; keep their original totals together.
+  includeSmallModels: z.boolean().optional(),
   timeZone: z.string().refine(isTimeZone, 'unknown time zone')
 })
 

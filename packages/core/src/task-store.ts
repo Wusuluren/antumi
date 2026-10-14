@@ -301,7 +301,13 @@ export const MIGRATIONS = [
   // The inbox issue a conversation was opened to look into (a TaskSource as JSON).
   `ALTER TABLE conversations ADD COLUMN source TEXT;`,
   `ALTER TABLE conversations ADD COLUMN helper_of TEXT;
-   CREATE UNIQUE INDEX conversations_helper ON conversations(helper_of) WHERE helper_of IS NOT NULL;`
+   CREATE UNIQUE INDEX conversations_helper ON conversations(helper_of) WHERE helper_of IS NOT NULL;`,
+  `CREATE TABLE small_model_jobs (id TEXT PRIMARY KEY, conversation_id TEXT, ended_at INTEGER, data TEXT NOT NULL);
+   CREATE INDEX small_model_jobs_ended ON small_model_jobs(ended_at);`,
+  `CREATE TABLE small_model_price_versions (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+   ALTER TABLE small_model_jobs ADD COLUMN price_version TEXT;
+   ALTER TABLE small_model_jobs ADD COLUMN stats_data TEXT;
+   CREATE INDEX small_model_jobs_unversioned ON small_model_jobs(id) WHERE price_version IS NULL;`
 ]
 
 

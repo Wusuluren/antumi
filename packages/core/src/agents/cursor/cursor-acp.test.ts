@@ -33,6 +33,17 @@ function opened(options = OPTIONS, modern = false): CursorAcp {
   return driver
 }
 
+describe('Cursor usage updates', () => {
+  it('uses ACP context information without treating it or cumulative cost as consumed tokens', () => {
+    const driver = opened()
+    update(driver, { sessionUpdate: 'usage_update', used: 53000, size: 200000, cost: { amount: 0.045, currency: 'USD' } })
+    expect(items(driver, 'state').at(-1)).toMatchObject({ context: { used: 53000, window: 200000 } })
+    expect(items(driver, 'turn')).toEqual([])
+    update(driver, { sessionUpdate: 'usage_update', used: null, size: 200000 })
+    expect(items(driver, 'state').at(-1)).toMatchObject({ context: { used: 53000, window: 200000 } })
+  })
+})
+
 function prompt(driver: CursorAcp): string {
   const message = driver.send('hello')
   send(driver, message.logged)

@@ -193,6 +193,8 @@ export class AcpDriver implements ChatDriver {
 
   ready(): boolean { return this.session !== null && this.setup && this.modelsRead && this.initial.size === 0 && !this.startError && !this.exited }
   failure(): string | null { return this.startError ?? (this.exited && !this.session ? `${this.name} 进程已退出` : null) }
+  activeTurnRef(): string | null { return this.turn?.ref ?? null }
+
   activity(): ChatTurnActivity { return this.pending.size || this.kando.pending ? 'awaiting' : this.turn || this.changing() ? 'running' : 'idle' }
   providerSessionId(): string | null { return this.session }
   canSteer(): boolean { return false }
@@ -535,6 +537,12 @@ export class AcpDriver implements ChatDriver {
   }
 
   private update(update: z.infer<typeof Update>, frame: Frame, at: number): void {
+    if (update.sessionUpdate === 'usage_update') {
+      const usage = z.object({ used: z.number().int().nonnegative(), size: z.number().int().positive() }).safeParse(update)
+      if (usage.success) this.state.setContext({ used: usage.data.used, window: usage.data.size })
+      return
+    }
+
     if (update.sessionUpdate === 'config_option_update' && update.configOptions) { this.catalog({ configOptions: update.configOptions }); return }
     if (update.sessionUpdate === 'current_mode_update' && update.currentModeId) {
       this.config = this.config.map((entry) => entry.category === 'mode' ? { ...entry, currentValue: update.currentModeId ?? entry.currentValue } : entry)

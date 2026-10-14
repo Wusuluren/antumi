@@ -11,7 +11,7 @@ const METRICS = [
 ] as const
 
 const parts = (day: DashboardDay, metric: Metric) =>
-  metric === 'tokens' ? { runs: day.runTokens, turns: day.turnTokens } : { runs: day.runs, turns: day.turns }
+  metric === 'tokens' ? { runs: day.runTokens, turns: day.turnTokens, quick: day.quickTokens ?? 0 } : { runs: day.runs, turns: day.turns, quick: day.quickRequests ?? 0 }
 
 // Labels under the first, middle and last bars; every bar gets one when there are few.
 function labelled(index: number, count: number): boolean {
@@ -21,7 +21,7 @@ function labelled(index: number, count: number): boolean {
 // Each day of the range as one bar, task runs stacked under conversation turns.
 export function DailyBars({ days }: { days: readonly DashboardDay[] }) {
   const [metric, setMetric] = useState<Metric>('tokens')
-  const max = Math.max(1, ...days.map((day) => parts(day, metric).runs + parts(day, metric).turns))
+  const max = Math.max(1, ...days.map((day) => parts(day, metric).runs + parts(day, metric).turns + parts(day, metric).quick))
   return (
     <section className="dashboard-panel" aria-labelledby="dashboard-daily">
       <header className="dashboard-panel-header">
@@ -29,6 +29,7 @@ export function DailyBars({ days }: { days: readonly DashboardDay[] }) {
         <span className="dashboard-legend">
           <span className="dashboard-swatch" data-series="runs" />任务
           <span className="dashboard-swatch" data-series="turns" />对话
+          <span className="dashboard-swatch" data-series="quick" />轻量请求
         </span>
         <Segmented labelId="dashboard-daily" value={metric} options={METRICS} onChange={setMetric} />
       </header>
@@ -36,15 +37,16 @@ export function DailyBars({ days }: { days: readonly DashboardDay[] }) {
         <span className="dashboard-bars-max">{compact(max)}</span>
         <div className="dashboard-bars" data-dense={days.length > 45 || undefined}>
           {days.map((day, index) => {
-            const { runs, turns } = parts(day, metric)
+            const { runs, turns, quick } = parts(day, metric)
             return (
               <div
                 key={day.day}
                 className="dashboard-bar"
-                data-tooltip={`${dayLabel(day.day)} · 任务 ${compact(runs)} · 对话 ${compact(turns)}`}
+                data-tooltip={`${dayLabel(day.day)} · 任务 ${compact(runs)} · 对话 ${compact(turns)} · 轻量请求 ${compact(quick)}`}
                 data-tooltip-side={index < days.length / 2 ? 'top' : 'top-end'}
               >
                 <div className="dashboard-bar-stack">
+                  <span data-series="quick" style={{ height: `${(quick / max) * 100}%` }} />
                   <span data-series="turns" style={{ height: `${(turns / max) * 100}%` }} />
                   <span data-series="runs" style={{ height: `${(runs / max) * 100}%` }} />
                 </div>

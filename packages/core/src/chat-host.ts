@@ -34,6 +34,7 @@ export type ChatSink = {
   usage(stage: ChatStage, report: UsageReport): void
   // A watched prompt with no event for a while asks the owner to tear the process down in stages.
   turnStalled?(conversationId: string, sessionId: string): void
+  prompt?(stage: ChatStage, ref: string): void
 }
 
 // A turn of an agent whose turns stall (AgentAdapter.turns.firstFrameTimeoutMs), traced to the
@@ -497,7 +498,10 @@ export class ChatHost {
       }
       const at = this.now()
       const before = live.driver.activity()
+      const previousRef = live.driver.activeTurnRef?.()
       live.driver.apply({ dir: 'in', at, frame })
+      const nextRef = live.driver.activeTurnRef?.()
+      if (live.attached && nextRef && nextRef !== previousRef) this.sink.prompt?.(live, nextRef)
       this.watchFrame(live, frame, at)
       if (before !== 'idle' && live.driver.activity() === 'idle') this.watchEnded(live, at)
       const kept = live.driver.logged(frame)
@@ -531,6 +535,7 @@ export class ChatHost {
 
   // Logged and applied before it is written, so a crash in between cannot send it twice.
   private dispatch(live: Live, message: ChatOutgoing, ref?: string, images: readonly ChatImage[] = []): Promise<unknown> {
+    if (ref && live.driver.activity() === 'idle') this.sink.prompt?.(live, ref)
     this.record(live, { dir: 'out', at: this.now(), frame: message.logged, ...(ref ? { ref } : {}), ...(images.length ? { images: [...images] } : {}) })
     const timeout = adapterOf(live.agent).turns?.firstFrameTimeoutMs
     const signal = timeout ? live.driver.turnSignal?.(message.logged, 'out') : null

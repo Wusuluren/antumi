@@ -13,7 +13,7 @@ export function ModelBreakdown({ models }: { models: readonly DashboardModel[] }
         <h3 id="dashboard-models">按 Agent 和模型</h3>
       </header>
       {models.length === 0 ? (
-        <p className="dashboard-empty muted">这段时间没有运行或对话。</p>
+        <p className="dashboard-empty muted">这段时间没有运行、对话或轻量请求。</p>
       ) : (
         <table className="dashboard-models">
           <thead>
@@ -23,7 +23,7 @@ export function ModelBreakdown({ models }: { models: readonly DashboardModel[] }
               <th scope="col" title="判定过的运行里直接接受的比例，判定太少时不算">接受率</th>
               <th scope="col" title="一次运行从开始到交付，含你中间的时间">耗时中位</th>
               <th scope="col" title="对话里结束的回合">回合</th>
-              <th scope="col" title="任务运行和对话回合读写的 token">token</th>
+              <th scope="col" title="任务运行、对话回合和轻量请求读写的 token">token</th>
             </tr>
           </thead>
           <tbody>

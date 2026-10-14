@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { LANGUAGE_NAMES, type AgentKind, type TranslateLanguage, type Translation } from '@kando/protocol'
-import type { QuickRequests } from './quick-request'
+import type { QuickRequests, QuickTracking } from './quick-request'
 
 const REMEMBERED = 200
 
@@ -27,11 +27,11 @@ export class TranslationService {
   constructor(private readonly quick: QuickRequests) {}
 
   // `model`: the user's pick for this agent; without it, its cheapest (quickModel).
-  translate(agent: AgentKind, text: string, to: TranslateLanguage, model?: string): Promise<Translation> {
+  translate(agent: AgentKind, text: string, to: TranslateLanguage, model?: string, tracking?: QuickTracking): Promise<Translation> {
     const key = createHash('sha256').update(`${agent}\n${model ?? ''}\n${to}\n${text}`).digest('hex')
     const known = this.done.get(key)
     if (known) return known
-    const work = this.quick.ask(agent, translatePrompt(text, to), model)
+    const work = this.quick.ask(agent, translatePrompt(text, to), model, tracking)
     this.done.set(key, work)
     // A failure is tried again next time; the oldest go once there are too many.
     work.catch(() => this.done.delete(key))
