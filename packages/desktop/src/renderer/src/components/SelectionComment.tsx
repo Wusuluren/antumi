@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { addQuote, useQuotes } from '../chat-quotes'
-import { PLAN_SELECTION_MENU, placeCommentBox } from '../plan-comment-place'
+import { placeCommentBox } from '../plan-comment-place'
 import { selectedTextIn, type SelectedText } from '../text-selection'
 import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
 import { ChatIcon } from './icons'
@@ -34,8 +34,9 @@ function mark(name: string, ranges: readonly Range[]): void {
 // goes on from there the same way; the passages commented on stay marked while their quotes wait.
 // name: which highlights it draws (kando-<name>-draft, kando-<name>-comments; see styles.css).
 // focus: the box takes the focus as it opens, where a selection is made to comment on; elsewhere it
-// waits for the user to type, so a selection made to copy still copies. copyMenu: right-click on
-// the passage offers copying it, for a box that took the focus and with it the live selection.
+// waits for the user to type, so a selection made to copy still copies. A right-click closes the box
+// for the menu; copyMenu: that menu is this one, copying the passage, for a box that took the focus
+// and with it the live selection.
 export function SelectionComment({ conversationId, container, region, sourceOf, name, label, focus = false, copyMenu = false, hidden = false, onAdded }: {
   conversationId: string
   container: RefObject<HTMLElement | null>
@@ -55,7 +56,6 @@ export function SelectionComment({ conversationId, container, region, sourceOf, 
   // Bumped when the container scrolls under a box being written in, which then follows its passage.
   const [, setMoved] = useState(0)
   const input = useRef<HTMLInputElement>(null)
-  const menuWasOpen = useRef(false)
   const closeMenu = useCallback(() => setMenu(null), [])
   const quotes = useQuotes(conversationId)
   const draftName = `kando-${name}-draft`
@@ -65,7 +65,8 @@ export function SelectionComment({ conversationId, container, region, sourceOf, 
   useEffect(() => {
     const element = container.current
     if (!element || draft) return
-    const settle = () => setTimeout(() => {
+    // A right button's release is the menu's, not a new selection.
+    const settle = (event: Event) => event instanceof MouseEvent && event.button !== 0 ? undefined : setTimeout(() => {
       const picked = selectedTextIn(element, region)
       if (picked) {
         setComment('')
@@ -80,14 +81,15 @@ export function SelectionComment({ conversationId, container, region, sourceOf, 
     }
   }, [container, region, draft])
 
-  // The focus in the box takes the browser's live selection; the cloned range still says what was
-  // chosen, for a right-click on it.
+  // A right-click is for the menu: the box goes and the menu shows alone. With copyMenu that menu
+  // is this one, which copies the passage; the focus the box took has the browser's live selection
+  // gone by then, so the cloned range says what was chosen.
   useEffect(() => {
     const element = container.current
-    if (!element || !copyMenu) return
+    if (!element) return
     const open = (event: MouseEvent) => {
-      const selected = selectedTextIn(element, region)
-      const picked = selected ?? (draft && containsPoint(draft.range, event.clientX, event.clientY) ? draft : null)
+      const picked = copyMenu ? selectedTextIn(element, region) ?? (draft && containsPoint(draft.range, event.clientX, event.clientY) ? draft : null) : null
+      setDraft(null)
       if (!picked) return
       event.preventDefault()
       setMenu({ at: { x: event.clientX, y: event.clientY }, text: picked.text })
@@ -130,8 +132,9 @@ export function SelectionComment({ conversationId, container, region, sourceOf, 
     if (!draft) return
     const close = () => setDraft(null)
     const outside = (event: PointerEvent) => {
-      if (event.button === 2 && containsPoint(draft.range, event.clientX, event.clientY)) return
-      if (!(event.target instanceof Element && event.target.closest('.selection-comment-box, .context-menu'))) close()
+      // A right-click in the container closes it as its menu opens (see above), knowing the passage.
+      if (event.button === 2 && event.target instanceof Node && container.current?.contains(event.target)) return
+      if (!(event.target instanceof Element && event.target.closest('.selection-comment-box'))) close()
     }
     // A box with nothing written yet goes with a scroll; one being written follows its passage.
     const scrolled = () => (comment ? setMoved((count) => count + 1) : close())
@@ -145,17 +148,6 @@ export function SelectionComment({ conversationId, container, region, sourceOf, 
       window.removeEventListener('resize', close)
     }
   }, [draft, container, comment])
-
-  // The menu takes focus while it is open. Closing it returns here, with the draft still written.
-  useEffect(() => {
-    if (menu) {
-      menuWasOpen.current = true
-      return
-    }
-    if (!menuWasOpen.current) return
-    menuWasOpen.current = false
-    input.current?.focus()
-  }, [menu])
 
   const add = () => {
     if (!draft) return
@@ -171,8 +163,7 @@ export function SelectionComment({ conversationId, container, region, sourceOf, 
     passage,
     anchorX: draft.x,
     panel: bounds ? { left: bounds.left, right: bounds.right } : null,
-    viewport: { width: window.innerWidth, height: window.innerHeight },
-    menu: menu ? { at: menu.at, ...PLAN_SELECTION_MENU } : null
+    viewport: { width: window.innerWidth, height: window.innerHeight }
   }) : null
   useOccludesBrowser(Boolean(draft && place && !hidden))
   return (
@@ -183,7 +174,7 @@ export function SelectionComment({ conversationId, container, region, sourceOf, 
           <input
             ref={input}
             className="selection-comment-input"
-            autoFocus={focus && !menu}
+            autoFocus={focus}
             value={comment}
             placeholder="评论这段…"
             aria-label="评论这段，回车加入引用"
