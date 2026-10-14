@@ -142,7 +142,7 @@ function ToolLine({ tool }: { tool: ToolItem }) {
         disabled={!details}
         onClick={() => setOpen(!open)}
       >
-        <ChatToolIcon name={tool.name} status={status} />
+        <ChatToolIcon name={tool.name} display={tool.display} status={status} />
         {tool.description ? (
           // What the agent said the call does; the command itself is a hover, or a click, away.
           <span className="chat-tool-description" title={tool.title}>{tool.description}</span>
@@ -178,7 +178,7 @@ export function ChatToolRun({ tools, summary }: { tools: readonly ToolItem[]; su
   return (
     <div className="chat-tool-run" data-open={open || undefined} data-live={Boolean(running) || finished || undefined} data-finished={finished || undefined}>
       <button type="button" className="chat-tool-row" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <ChatToolIcon name={running?.name ?? only?.name ?? ''} status={outcome.status} />
+        <ChatToolIcon name={running?.name ?? only?.name ?? ''} display={(running ?? only)?.display} status={outcome.status} />
         <span className="chat-tool-summary" title={headline.described ? running?.title : undefined}>{headline.text}</span>
         <span className="chat-tool-chevron" aria-hidden="true"><ChevronRightIcon /></span>
         {running && !headline.described && <span className="chat-tool-title mono" title={running.title}>{shorten(running.title)}</span>}
@@ -218,7 +218,7 @@ export function ChatToolCard({ item }: { item: ToolItem }) {
         disabled={!details}
         onClick={() => setOpen(!open)}
       >
-        <ChatToolIcon name={item.name} status={status} />
+        <ChatToolIcon name={item.name} display={item.display} status={status} />
         <span className="chat-tool-name">{toolLabel(item.name, item.display)}:</span>
         {item.diffs.length > 0 && <FileExt path={item.diffs[0]?.path ?? item.title} />}
         <span className="chat-tool-title" data-file-path={item.diffs[0]?.path ?? fileReference(item.title)?.path} title={item.title}>{shorten(item.title)}</span>

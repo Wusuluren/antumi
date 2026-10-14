@@ -1,4 +1,5 @@
-import { BROWSER_HOST_TOOL, browserToolKind, historyToolKind, isBrowserTool, isPreviewTool, TERMINAL_RUN_TOOL, terminalToolKind, todoToolKind, type TodoToolKind, type BrowserToolKind, type ChatDiff, type ChatItem, type ChatToolStatus, type TerminalToolKind } from '@kando/protocol'
+import { BROWSER_HOST_TOOL, browserToolKind, historyToolKind, isPreviewTool, TERMINAL_RUN_TOOL, terminalToolKind, todoToolKind, type TodoToolKind, type BrowserToolKind, type ChatDiff, type ChatItem, type ChatToolStatus, type TerminalToolKind } from '@kando/protocol'
+import { browserOperation } from './browser-activity'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 
@@ -83,7 +84,7 @@ export function toolLabel(name: string, display?: ToolDisplay | null): string {
   return TOOL_LABEL[name] ?? mcpToolLabel(name, display) ?? name
 }
 
-export type ToolIconKind = 'read' | 'edit' | 'terminal' | 'search' | 'browser' | 'image' | 'agent' | 'list' | 'tool'
+export type ToolIconKind = 'read' | 'edit' | 'terminal' | 'search' | 'browser' | 'browser-control' | 'image' | 'agent' | 'list' | 'tool'
 
 const TOOL_ICONS: Record<string, ToolIconKind> = {
   Read: 'read', Write: 'edit', Edit: 'edit', MultiEdit: 'edit', NotebookEdit: 'edit', fileChange: 'edit',
@@ -94,10 +95,10 @@ const TOOL_ICONS: Record<string, ToolIconKind> = {
   read: 'read', search: 'search', fetch: 'browser', delete: 'edit', move: 'edit'
 }
 
-export function toolIconKind(name: string): ToolIconKind {
+export function toolIconKind(name: string, display?: ToolDisplay | null): ToolIconKind {
   if (name === TERMINAL_RUN_TOOL || terminalToolKind(name)) return 'terminal'
   if (browserToolKind(name) === 'screenshot' || isPreviewTool(name)) return 'image'
-  if (isBrowserTool(name)) return 'browser'
+  if (browserOperation(name, display) !== null) return 'browser-control'
   const history = historyToolKind(name)
   if (history) return history === 'list' ? 'list' : 'read'
   if (todoToolKind(name)) return 'list'
@@ -136,7 +137,7 @@ const BROWSER_RUN = { kind: 'browser', say: (count: number) => `浏览器操作 
 export function runSummary(tools: readonly Pick<ToolItem, 'name' | 'display'>[]): string {
   const counts = new Map<string, { count: number; say: (count: number) => string }>()
   for (const tool of tools) {
-    const known = TOOL_KIND[tool.name] ?? (isBrowserTool(tool.name) ? BROWSER_RUN : undefined)
+    const known = TOOL_KIND[tool.name] ?? (browserOperation(tool.name, tool.display) !== null ? BROWSER_RUN : undefined)
     const kind = known?.kind ?? `tool:${tool.name}`
     const say = known?.say ?? ((count: number) => `${toolLabel(tool.name, tool.display)} ${count} 次`)
     const current = counts.get(kind)

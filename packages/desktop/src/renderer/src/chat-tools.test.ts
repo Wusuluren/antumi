@@ -40,15 +40,15 @@ describe('command execution presentation', () => {
 
 describe('toolIconKind', () => {
   it('recognizes both agents and Kando MCP aliases', () => {
-    expect(['Write', 'MultiEdit', 'fileChange'].map(toolIconKind)).toEqual(['edit', 'edit', 'edit'])
-    expect(['Bash', 'commandExecution', 'mcp__kando__terminal_run', 'kando.terminal_read'].map(toolIconKind)).toEqual(['terminal', 'terminal', 'terminal', 'terminal'])
-    expect(['Read', 'Grep', 'Glob', 'webSearch'].map(toolIconKind)).toEqual(['read', 'search', 'search', 'search'])
-    expect(['WebFetch', 'mcp__kando__browser_navigate', 'kando.browser_click'].map(toolIconKind)).toEqual(['browser', 'browser', 'browser'])
-    expect(['imageView', 'mcp__kando__browser_screenshot', 'kando.show_preview'].map(toolIconKind)).toEqual(['image', 'image', 'image'])
+    expect(['Write', 'MultiEdit', 'fileChange'].map((name) => toolIconKind(name))).toEqual(['edit', 'edit', 'edit'])
+    expect(['Bash', 'commandExecution', 'mcp__kando__terminal_run', 'kando.terminal_read'].map((name) => toolIconKind(name))).toEqual(['terminal', 'terminal', 'terminal', 'terminal'])
+    expect(['Read', 'Grep', 'Glob', 'webSearch'].map((name) => toolIconKind(name))).toEqual(['read', 'search', 'search', 'search'])
+    expect(['WebFetch', 'mcp__kando__browser_navigate', 'kando.browser_click'].map((name) => toolIconKind(name))).toEqual(['browser', 'browser-control', 'browser-control'])
+    expect(['imageView', 'mcp__kando__browser_screenshot', 'kando.show_preview'].map((name) => toolIconKind(name))).toEqual(['image', 'image', 'image'])
   })
 
   it('recognizes the kinds Cursor names its calls by', () => {
-    expect(['read', 'search', 'fetch', 'delete', 'move'].map(toolIconKind)).toEqual(['read', 'search', 'browser', 'edit', 'edit'])
+    expect(['read', 'search', 'fetch', 'delete', 'move'].map((name) => toolIconKind(name))).toEqual(['read', 'search', 'browser', 'edit', 'edit'])
     expect(['read', 'search', 'fetch'].map((name) => toolLabel(name))).toEqual(['读取', '搜索', '读取网页'])
     expect(runSummary(['read', 'read', 'search'].map((name) => ({ name })))).toBe('读取 2 个文件，搜索 1 次')
   })

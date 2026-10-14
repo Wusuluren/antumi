@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { create } from 'zustand'
 import { isCompaction } from './chat-notices'
 import { diffCounts, isSubagent } from './chat-tools'
+import { browserOperation } from './browser-activity'
 import { parseHandoffMessage, type AgentKind, type ChatDiff, type ChatItem, type ChatQuestion, type ChatTodo, type ConversationStage, browserToolKind, isPlanApproval, isPreviewTool, toolImagePath, terminalToolKind } from '@kando/protocol'
 
 // A conversation's chat items as this window holds them, in the order core first saw them;
@@ -434,7 +435,7 @@ export function chatBlocks(entries: readonly TimelineEntry[], { foldTurns = true
     if (entry.kind === 'item' && entry.item.kind === 'reasoning' && !entry.item.streaming && !entry.item.text.trim()) continue
     const call = entry.kind === 'item' && entry.item.kind === 'tool' ? entry.item : null
     // Pictures and diffs keep their own cards; navigation and interaction share one turn's history.
-    if (call && browserToolKind(call.name) && !call.images?.length && call.diffs.length === 0) {
+    if (call && browserOperation(call.name, call.display) !== null && !call.images?.length && call.diffs.length === 0) {
       if (browser) {
         browser.tools.push(call)
         // Keep the summary at its latest activity, so earlier narration cannot become the answer.

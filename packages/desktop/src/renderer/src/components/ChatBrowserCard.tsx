@@ -6,7 +6,7 @@ import { useBrowserTabs, ALL_TABS } from '../browser-state'
 import { useDisclosure } from '../chat-disclosure'
 import { itemKey } from '../chat-state'
 import { latestBrowserPages } from '../chat-browser'
-import { toolLabel } from '../chat-tools'
+import { toolLabel, toolRunStatus } from '../chat-tools'
 import { showBrowserTab, useCore } from '../core-store'
 import { ChatPaths, ChevronRightIcon, ToolStatus, clipped } from './chat-tool-parts'
 import { previewUrl } from '../file-links'
@@ -15,6 +15,7 @@ import { ImageViewer } from './ImageViewer'
 import { ChatToolIcon } from './ChatToolIcon'
 import { ChatToolInput } from './ChatToolInput'
 import { ChatToolRun } from './ChatToolCard'
+import { ChatBrowserActivity } from './ChatBrowserActivity'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 
@@ -115,9 +116,11 @@ function ChatPageCard({ item, disclosureKey = itemKey(item) }: { item: ToolItem;
 // A turn's browser work stays inspectable without repeating its entry point after every refresh.
 export function ChatBrowserRun({ tools }: { tools: readonly ToolItem[] }) {
   const first = tools[0]
+  const active = tools.find((tool) => tool.status === 'running') ?? tools.at(-1)
   return (
     <div className="chat-browser-work">
       <ChatToolRun tools={tools} summary={`浏览器操作 ${tools.length} 次`} />
+      {active && <ChatBrowserActivity tool={active} status={toolRunStatus(tools).status} />}
       {latestBrowserPages(tools).map(({ item, page }) => (
         <ChatPageCard key={page.id} item={item} disclosureKey={`browser:${first ? itemKey(first) : ''}:${page.id}`} />
       ))}
@@ -146,12 +149,13 @@ export function ChatShotCard({ item }: { item: ToolItem }) {
   return (
     <div className="chat-tool chat-browser" data-status={item.status}>
       <button type="button" className="chat-tool-header" aria-expanded={details ? open : undefined} disabled={!details} onClick={() => setOpen(!open)}>
-        <ChatToolIcon name={item.name} status={item.status} />
-        <span className="chat-tool-name">{toolLabel(item.name)}{item.title ? ':' : ''}</span>
+        <ChatToolIcon name={item.name} display={item.display} status={item.status} />
+        <span className="chat-tool-name">{toolLabel(item.name, item.display)}{item.title ? ':' : ''}</span>
         <span className="chat-tool-title mono" title={item.title}>{shorten(item.title)}</span>
         {details && <span className="chat-tool-chevron" aria-hidden="true"><ChevronRightIcon /></span>}
         <ToolStatus status={item.status} since={item.at} />
       </button>
+      {item.status === 'running' && <ChatBrowserActivity tool={item} />}
       {images.map((image, index) => <BrowserShot key={image.id} image={image} onOpen={() => setViewing(index)} />)}
       {open && path && <FileShot path={path} />}
       {open && item.input && <ChatToolInput name={item.name} input={item.input} />}

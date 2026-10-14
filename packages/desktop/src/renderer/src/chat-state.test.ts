@@ -219,6 +219,14 @@ describe('chatBlocks', () => {
       .toEqual(['u', 'tools:cmd', 'browser:open+click', 'answer', 'end'])
   })
 
+  it('groups third-party browser calls while keeping commands and returned screenshots separate', () => {
+    const shot = { ...tool('shot', 'playwright.browser_take_screenshot'), images: [{ id: `${'a'.repeat(64)}.png`, width: 2, height: 1 }] }
+    const display = { server: 'Cursor in Edge', name: 'Click' }
+    const items = [user('u'), tool('open', 'mcp__claude-in-chrome__navigate'), tool('cmd', 'Bash'),
+      { ...tool('click', 'other'), display }, shot, tool('text', 'codex_in_chrome.get_page_text')]
+    expect(shape(blocksOf(items))).toEqual(['u', 'tools:cmd', 'shot', 'browser:open+click+text'])
+  })
+
   it('does not promote narration before the last browser operation to the final answer', () => {
     expect(shape(blocksOf([user('u'), tool('open', 'kando.browser_navigate'), reply('checking'),
       tool('click', 'kando.browser_click'), turn('end')])))

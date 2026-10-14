@@ -1,4 +1,5 @@
-export const DEFAULT_SIDE_PANEL_RATIO = 0.42
+// Leave the conversation as the primary reading surface when the inspector first opens.
+export const DEFAULT_SIDE_PANEL_RATIO = 1 / 3
 // The terminal and browser open on a third of the window, beside the chat rather than over it.
 export const DEFAULT_UTILITY_PANEL_RATIO = 1 / 3
 export const MIN_SIDE_PANEL_RATIO = 0.25
