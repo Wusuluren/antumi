@@ -1,6 +1,6 @@
 import { ratesAt, type SmallModelCost, type SmallModelKind, type SmallModelTotals } from '@kando/protocol'
 
-export const SMALL_MODEL_LABELS: Record<SmallModelKind, string> = { translation: '翻译', commitMessage: '提交说明', helper: '小助手' }
+export const SMALL_MODEL_LABELS: Record<SmallModelKind, string> = { translation: '翻译', commitMessage: '提交说明', helper: '小助手', title: '会话标题' }
 
 export function dollars(value: number | null): string {
   if (value === null) return '—'

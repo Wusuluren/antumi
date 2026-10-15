@@ -29,6 +29,7 @@ import type { UsageReport } from './usage-source'
 import { normalizeRepoPath, prepareConversationWorktrees, projectHead } from './workspace'
 import { DEFAULT_AGENT_CONCURRENCY } from './chat-settings'
 import { WireLog } from './wire-log'
+import { ConversationTitles, type TitleGenerator } from './conversation-titles'
 
 export type ConversationEvent =
   | { type: 'changed'; conversation: Conversation }
@@ -147,6 +148,7 @@ export class ConversationService {
   private capacityReleased: (() => void) | null = null
   private readonly catalogs = new Map<AgentKind, Promise<ChatCatalog | null>>()
   private readonly chats: ChatHost
+  private readonly titles: ConversationTitles
   // Sessions being stopped on purpose: their exit reads as a stop, not a crash.
   private readonly stopping = new Set<string>()
   private readonly exitWaiters = new Map<string, () => void>()
@@ -172,7 +174,9 @@ export class ConversationService {
     // Where chat stages' raw traffic goes while the user has it on; null keeps none.
     private readonly wire: WireLog | null = null
   ) {
+    this.titles = new ConversationTitles(store, (conversation) => this.changed(conversation))
     this.chats = new ChatHost(daemon, sessionsRoot, attachments, {
+      settled: (stage, items) => this.titles.observe(stage.conversationId, items),
       items: (conversationId, items) => {
         this.rememberMode(conversationId, items)
         this.rememberCatalog(conversationId, items)
@@ -215,6 +219,9 @@ export class ConversationService {
   setUserBrowser(enabled: boolean): void {
     this.userBrowser = enabled
   }
+
+  setTitleNaming(mode: NonNullable<ChatSettings['titleNaming']>): void { this.titles.setMode(mode) }
+  setTitleGenerator(generate: TitleGenerator): void { this.titles.setGenerator(generate) }
 
   // Read at each start too.
   setKnowledgeBase(knowledgeBase: KnowledgeBase | null): void {

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AGENT_KINDS, ChatSettings, KnowledgeBase, UnattendedMode } from '@kando/protocol'
+import { AGENT_KINDS, ChatSettings, KnowledgeBase, TitleNaming, UnattendedMode } from '@kando/protocol'
 import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
 
 // Suggestions on, as in Claude Code itself; scheduled runs let edits through but still ask for
@@ -9,6 +9,8 @@ import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
 export const DEFAULT_AGENT_CONCURRENCY = 6
 const DEFAULTS = {
   promptSuggestions: true,
+  titleNaming: 'off',
+  titleModels: {},
   unattendedMode: 'acceptEdits',
   maxConcurrentAgents: 20,
   agentConcurrency: Object.fromEntries(AGENT_KINDS.map((kind) => [kind, DEFAULT_AGENT_CONCURRENCY])),
@@ -19,6 +21,8 @@ const DEFAULTS = {
 } satisfies Required<ChatSettings>
 const Saved = z.object({
   promptSuggestions: z.boolean().catch(DEFAULTS.promptSuggestions),
+  titleNaming: TitleNaming.catch(DEFAULTS.titleNaming),
+  titleModels: ChatSettings.shape.titleModels.unwrap().catch(DEFAULTS.titleModels),
   unattendedMode: UnattendedMode.catch(DEFAULTS.unattendedMode),
   maxConcurrentAgents: ChatSettings.shape.maxConcurrentAgents.unwrap().catch(DEFAULTS.maxConcurrentAgents),
   agentConcurrency: ChatSettings.shape.agentConcurrency.unwrap().catch(DEFAULTS.agentConcurrency),
@@ -62,6 +66,8 @@ export class ChatSettingsStore {
     }
     const next: Required<ChatSettings> = {
       promptSuggestions: patch.promptSuggestions ?? this.settings.promptSuggestions,
+      titleNaming: patch.titleNaming ?? this.settings.titleNaming,
+      titleModels: patch.titleModels ?? this.settings.titleModels,
       unattendedMode: patch.unattendedMode ?? this.settings.unattendedMode,
       maxConcurrentAgents: patch.maxConcurrentAgents ?? this.settings.maxConcurrentAgents,
       agentConcurrency: { ...this.settings.agentConcurrency, ...patch.agentConcurrency },

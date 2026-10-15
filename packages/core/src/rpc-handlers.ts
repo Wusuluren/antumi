@@ -85,6 +85,10 @@ export function createRpcHandlers(
   const files = new ConversationFiles((id) => conversations.get(id))
   const quick = new QuickRequests({ catalog: (agent) => conversations.chatCatalog(agent), accounting: smallModels })
   const translations = new TranslationService(quick)
+  conversations.setTitleGenerator(async (conversation, prompt) => (await quick.ask(conversation.agent, prompt,
+    chatSettings.current().titleModels[conversation.agent], {
+      kind: 'title', conversationId: conversation.id, baseline: () => conversations.costBaseline(conversation.id)
+    })).text)
   service.setBranchNamer(async (agent, title) => cleanSlug((await quick.ask(agent, slugPrompt(title))).text))
   const cliInstaller = new AgentCliInstaller(environment, terminals)
   const ports = new PortService(sessions, () => ({ terminals: terminals.list(), conversations: conversations.listAll(), tasks: service.list() }))

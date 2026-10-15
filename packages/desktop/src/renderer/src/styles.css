@@ -4145,6 +4145,9 @@ body.side-panel-resizing * {
   flex-shrink: 0;
 }
 
+.settings-row:has(.title-naming-options) { flex-wrap: wrap; }
+.settings-row:has(.title-naming-options) .settings-row-text { flex: 1 1 32ch; }
+
 .segmented {
   display: inline-flex;
   gap: 2px;

@@ -168,6 +168,24 @@ describe('small-model accounting', () => {
     expect(store.endedSince(0)).toHaveLength(1)
   })
 
+  it('accounts for title generation while keeping the new category out of older clients', async () => {
+    const quick = new QuickRequests({ accounting: store, catalog: async () => ({ models: [
+      { id: 'haiku', label: 'Haiku', description: null, efforts: [], isDefault: false }
+    ] }), run: async () => JSON.stringify({ result: '缓存优化', model: 'claude-haiku-4-5', num_turns: 1, total_cost_usd: 0.05,
+      usage: { input_tokens: 100, output_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }) })
+    await quick.ask('claude', 'summarize a title', undefined, { kind: 'title', conversationId: 'parent', baseline: () => baseline })
+    const jobs = store.statsSince(0)
+    expect(jobs).toHaveLength(1)
+    expect(jobs[0]).toMatchObject({ kind: 'title', totalTokens: 110, cost: { costUsd: 0.05 } })
+    const options = { range: 7, timeZone: 'Asia/Shanghai', now: NOW }
+    const legacy = summarizeDashboard([], [], options, jobs)
+    expect(legacy.smallModels?.kinds.map((entry) => entry.kind)).not.toContain('title')
+    expect(legacy.smallModels?.current.count).toBe(0)
+    const report = summarizeDashboard([], [], { ...options, includeTitleCosts: true }, jobs)
+    expect(report.smallModels?.kinds.find((entry) => entry.kind === 'title')).toMatchObject({ count: 1, tokens: 110 })
+    expect(report.current.tokens).toBe(110)
+  })
+
   it('keeps reported usage from a failed command and records a retry as a new execution', async () => {
     let failure = true
     const quick = new QuickRequests({ accounting: store, catalog: async () => null, run: async () => ({

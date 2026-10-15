@@ -15,11 +15,18 @@ export const UNATTENDED_MODES = ['acceptEdits', 'bypass'] as const
 export const UnattendedMode = z.enum(UNATTENDED_MODES)
 export type UnattendedMode = z.infer<typeof UnattendedMode>
 
+export const TitleNaming = z.enum(['off', 'first', 'latest'])
+export type TitleNaming = z.infer<typeof TitleNaming>
+
 // How chats run on this machine, whichever window asks; core keeps them.
 // promptSuggestions: after each turn the agent predicts the user's next message (Claude Code only).
 // unattendedMode: see UnattendedMode; older cores leave it out.
 export const ChatSettings = z.object({
   promptSuggestions: z.boolean(),
+  // Automatic titles after the first successful round, or after each round. Older cores omit it.
+  titleNaming: TitleNaming.optional(),
+  // Desktop's lightweight model choices, mirrored for background title requests without a window.
+  titleModels: z.partialRecord(AgentKind, z.string().trim().min(1).max(200)).optional(),
   unattendedMode: UnattendedMode.optional(),
   // Applies to live agent processes, including one awaiting the user's approval. Older cores
   // omit both limits; each new agent gets the default until configured.

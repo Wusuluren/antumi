@@ -12,7 +12,7 @@ const TIMEOUT_MS = 120_000
 // Opening an old conversation with translation on asks for many at once; a few run, the rest wait.
 const AT_ONCE = 2
 
-export type QuickTracking = { kind: 'translation' | 'commitMessage'; conversationId: string | null; baseline(): CostBaseline }
+export type QuickTracking = { kind: 'translation' | 'commitMessage' | 'title'; conversationId: string | null; baseline(): CostBaseline }
 type QuickOutput = { stdout: string; error: Rejection | null }
 
 export type QuickDeps = {

@@ -11,6 +11,7 @@ import { useAgentCatalog } from '../agent-models'
 import { ChatPicker } from './ChatPicker'
 import { PluginSettings } from './PluginSettings'
 import { InstalledAgentsSettings } from './InstalledAgentsSettings'
+import { TitleNamingSettings } from './TitleNamingSettings'
 import { ChatFontPicker } from './ChatFontPicker'
 import { agentLabel } from '../labels'
 import { canNotify, canShowRequestPopup } from '../desktop-bridge'
@@ -190,6 +191,9 @@ function QuickModelPicker({ agent }: { agent: AgentKind }) {
         onChange={(value) => {
           const { [agent]: _gone, ...rest } = usePreferences.getState().quickModels
           setPreference('quickModels', value ? { ...rest, [agent]: value } : rest)
+          if (useCore.getState().chatSettings?.titleModels !== undefined) {
+            void setChatSettings({ titleModels: usePreferences.getState().quickModels })
+          }
         }}
       />
     </span>
@@ -345,6 +349,7 @@ function AgentSettings() {
           )}
         />
       )}
+      <TitleNamingSettings />
       {chatSettings?.userBrowser !== undefined && (
         <SettingsRow
           label="让 Claude Code 操作你的 Chrome"
@@ -402,7 +407,7 @@ function AgentSettings() {
       />
       <SettingsRow
         label="轻量任务用的模型"
-        description="小助手、翻译回复、生成提交信息时用会话里同一个 Agent 的这个模型。不选就自动用它最便宜的模型（Haiku、Luna、Flash 一类），没有就用默认模型。"
+        description="小助手、翻译回复、生成提交信息和总结会话标题时用会话里同一个 Agent 的这个模型。不选就自动用它最便宜的模型（Haiku、Luna、Flash 一类），没有就用默认模型。"
         control={() => (
           <span className="quick-models">
             {installed.map((agent) => <QuickModelPicker key={agent} agent={agent} />)}
@@ -609,7 +614,7 @@ const SECTIONS: readonly Section[] = [
     group: '任务',
     title: '智能体',
     description: '这台电脑上的 Agent：是否安装、版本和登录状态（缺什么会给出命令），以及新任务和会话的默认行为。',
-    keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', '模型', '轻量', '提交信息', 'haiku'],
+    keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', '模型', '轻量', '提交信息', 'haiku', '标题', '命名', '重命名', '首轮', '每轮'],
     Icon: SparkIcon,
     Body: AgentSettings
   },

@@ -22,6 +22,8 @@ export type ChatStage = { conversationId: string; stageId: string; agent: AgentK
 
 // Where a chat stage's news goes: to the clients watching it, and into the conversation's records.
 export type ChatSink = {
+  // Changed items after their messages have been persisted, for background work on finished rounds.
+  settled?(stage: ChatStage, items: ChatItem[]): void
   items(conversationId: string, items: ChatItem[]): void
   delta(conversationId: string, stageId: string, itemId: string, append: string): void
   messages(stage: ChatStage, messages: StageMessage[]): void
@@ -565,6 +567,7 @@ export class ChatHost {
     }
     const messages = live.driver.takeMessages()
     if (messages.length) this.sink.messages(live, messages)
+    this.sink.settled?.(live, items)
     const usage = live.driver.takeUsage?.()
     if (usage) this.sink.usage(live, usage)
     const activity = live.driver.activity()

@@ -296,6 +296,22 @@ export class ConversationStore {
     return Number(this.db.prepare('SELECT MAX(sequence) AS sequence FROM conversation_messages WHERE conversation_id = ?').get(id)?.sequence ?? 0)
   }
 
+  titleProgress(id: string): { sequence: number; rounds: number } {
+    const row = this.db.prepare('SELECT title_sequence, title_rounds FROM conversations WHERE id = ?').get(id)
+    return { sequence: Number(row?.title_sequence ?? 0), rounds: Number(row?.title_rounds ?? 0) }
+  }
+
+  claimTitleRound(id: string, sequence: number): boolean {
+    return this.db.prepare(`UPDATE conversations SET title_sequence = ?, title_rounds = title_rounds + 1
+      WHERE id = ? AND title_sequence < ?`).run(sequence, id, sequence).changes > 0
+  }
+
+  // Naming in the background is not new activity and must not reorder conversations.
+  setGeneratedTitle(id: string, title: string): Conversation | null {
+    const result = this.db.prepare('UPDATE conversations SET title = ? WHERE id = ? AND title_locked = 0 AND archived_at IS NULL').run(title, id)
+    return result.changes ? this.get(id) : null
+  }
+
   addMessage(value: Omit<ConversationMessage, 'sequence' | 'createdAt'>): ConversationMessage | null {
     const result = this.db.prepare(`INSERT OR IGNORE INTO conversation_messages
       (conversation_id, stage_id, role, agent, text, event_key, complete, created_at)

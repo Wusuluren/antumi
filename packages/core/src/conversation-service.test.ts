@@ -627,6 +627,28 @@ describe('ConversationService', () => {
     expect(service.chatPage(created.id).items.map((item) => item.kind).filter((kind) => kind !== 'state')).toEqual(['user', 'assistant', 'turn'])
   })
 
+  it('names completed rounds only after their messages are saved, and preserves manual renaming', async () => {
+    const prompts: string[] = []
+    service.setTitleNaming('latest')
+    service.setTitleGenerator(async (_conversation, prompt) => { prompts.push(prompt); return `主题 ${prompts.length}` })
+    const created = await service.create('claude', [])
+    await service.send(created.id, 'Refactor the parser')
+    await settle()
+    expect(prompts[0]).toContain('Refactor the parser')
+    expect(prompts[0]).toContain('echo: Refactor the parser')
+    expect(service.get(created.id)).toMatchObject({ title: '主题 1', titleLocked: false })
+    await service.send(created.id, 'Check the API')
+    await settle()
+    expect(prompts).toHaveLength(2)
+    expect(prompts[1]).toContain('Check the API')
+    expect(prompts[1]).not.toContain('Refactor the parser')
+    service.rename(created.id, '我的会话')
+    await service.send(created.id, 'One more change')
+    await settle()
+    expect(prompts).toHaveLength(2)
+    expect(service.get(created.id)).toMatchObject({ title: '我的会话', titleLocked: true })
+  })
+
   it('shows a Claude chat\'s suggested next message while it is idle, as long as the settings want one', async () => {
     service.setPromptSuggestions(true)
     const echo = daemon.reply

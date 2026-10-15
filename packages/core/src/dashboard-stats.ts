@@ -6,7 +6,7 @@ import { smallModelTotals, type SmallModelSummary } from './small-model-store'
 
 const DAY_MS = 86_400_000
 
-export type DashboardOptions = { range: number; timeZone: string; now: number }
+export type DashboardOptions = { range: number; timeZone: string; now: number; includeTitleCosts?: boolean }
 
 // A task run counts on the day it ended, when its tokens were known; one still going counts nowhere.
 // Turns are free conversations' only: a task chat's turns are its run, which counts already.
@@ -17,7 +17,7 @@ export function summarizeDashboard(runs: readonly AgentRun[], turns: readonly Tu
   const current = new Set(history.slice(-options.range))
   const previous = new Set(history.slice(-options.range * 2, -options.range))
   const ended = runs.flatMap((run) => (run.endedAt === null ? [] : [{ run, day: dayOf(run.endedAt), endedAt: run.endedAt }]))
-  const jobDays = (jobs ?? []).flatMap((job) => job.endedAt === null ? [] : [{ job, day: dayOf(job.endedAt) }])
+  const jobDays = (jobs ?? []).flatMap((job) => job.endedAt === null || (job.kind === 'title' && !options.includeTitleCosts) ? [] : [{ job, day: dayOf(job.endedAt) }])
   const quick = jobDays.filter(({ job }) => job.kind !== 'helper')
   const counted = turns.map((turn) => ({ turn, day: dayOf(turn.endedAt) }))
 
@@ -58,7 +58,7 @@ export function summarizeDashboard(runs: readonly AgentRun[], turns: readonly Tu
     models: byModel(now.runs, now.turns, now.quick),
     ...(jobs ? { smallModels: {
       current: smallModelTotals(now.jobs), previous: smallModelTotals(before.jobs),
-      kinds: (['translation', 'commitMessage', 'helper'] as const).map((kind) => ({ kind, ...smallModelTotals(now.jobs.filter((job) => job.kind === kind)) }))
+      kinds: (['translation', 'commitMessage', 'helper', ...options.includeTitleCosts ? ['title'] as const : []] as const).map((kind) => ({ kind, ...smallModelTotals(now.jobs.filter((job) => job.kind === kind)) }))
     } } : {})
   }
 }

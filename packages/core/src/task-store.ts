@@ -307,7 +307,13 @@ export const MIGRATIONS = [
   `CREATE TABLE small_model_price_versions (id TEXT PRIMARY KEY, data TEXT NOT NULL);
    ALTER TABLE small_model_jobs ADD COLUMN price_version TEXT;
    ALTER TABLE small_model_jobs ADD COLUMN stats_data TEXT;
-   CREATE INDEX small_model_jobs_unversioned ON small_model_jobs(id) WHERE price_version IS NULL;`
+   CREATE INDEX small_model_jobs_unversioned ON small_model_jobs(id) WHERE price_version IS NULL;`,
+  // A watermark keeps replayed turns from requesting another title after core restarts.
+  `ALTER TABLE conversations ADD COLUMN title_sequence INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE conversations ADD COLUMN title_rounds INTEGER NOT NULL DEFAULT 0;
+   UPDATE conversations SET title_sequence = COALESCE((SELECT MAX(sequence) FROM conversation_messages
+     WHERE conversation_id = conversations.id AND role = 'assistant' AND complete = 1), 0);
+   UPDATE conversations SET title_rounds = 1 WHERE title_sequence > 0;`
 ]
 
 

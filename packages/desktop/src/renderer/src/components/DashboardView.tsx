@@ -24,7 +24,7 @@ function useDashboard(range: DashboardRange) {
   const load = useCallback(async () => {
     setLoading(true)
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const stats = await perform((rpc) => rpc.call('dashboard.stats', { range, timeZone, ...(rpc.features.includes('small-model-stats') ? { includeSmallModels: true } : {}) }))
+    const stats = await perform((rpc) => rpc.call('dashboard.stats', { range, timeZone, ...(rpc.features.includes('small-model-stats') ? { includeSmallModels: true, includeTitleCosts: true } : {}) }))
     setLoading(false)
     if (stats) setReport({ stats, at: Date.now() })
   }, [range])

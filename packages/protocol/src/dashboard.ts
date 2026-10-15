@@ -64,6 +64,8 @@ export const DashboardParams = z.object({
   range: z.number().int().min(1).max(DASHBOARD_MAX_RANGE),
   // Older clients cannot show the new daily series; keep their original totals together.
   includeSmallModels: z.boolean().optional(),
+  // Opt-in keeps the new title category out of older clients' enum schemas.
+  includeTitleCosts: z.boolean().optional(),
   timeZone: z.string().refine(isTimeZone, 'unknown time zone')
 })
 
