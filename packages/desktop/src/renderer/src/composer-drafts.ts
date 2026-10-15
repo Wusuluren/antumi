@@ -23,7 +23,7 @@ const Draft = z.object({ text: z.string(), mentions: z.array(Mention), images: z
 )
 const Drafts = z.record(z.string(), Draft)
 
-const STORAGE_KEY = 'kando.composer-drafts'
+const STORAGE_KEY = 'antumi.composer-drafts'
 const NEW_CONVERSATION = 'new-conversation'
 export type ComposerDraft = MentionedText & { images: readonly ChatImage[] }
 

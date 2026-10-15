@@ -25,7 +25,7 @@ export function inboxTab(active: readonly ActiveInbox[], wanted: string | null):
 
 // The projects an inbox's issues were last looked into in, which the next one starts with: an
 // inbox usually follows one codebase. Kept in memory, and locally where storage allows.
-const INVESTIGATED_IN = 'kando.inbox-investigation-projects'
+const INVESTIGATED_IN = 'antumi.inbox-investigation-projects'
 const Investigated = z.record(z.string(), z.array(z.string()))
 
 function loadInvestigated(): Record<string, string[]> {

@@ -1,5 +1,5 @@
-appId: dev.kando.desktop
-productName: Kando
+appId: dev.antumi.desktop
+productName: Antumi
 directories:
   output: dist
 # Everything the renderer and main need is compiled into out/; the backend ships as plain files

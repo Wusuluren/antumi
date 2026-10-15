@@ -2,10 +2,10 @@
   "name": "@antumi/desktop",
   "version": "0.16.6",
   "private": true,
-  "description": "Kando desktop client",
+  "description": "Antumi desktop client",
   "repository": {
     "type": "git",
-    "url": "https://github.com/flyhero/kando-agents.git"
+    "url": "https://github.com/flyhero/antumi.git"
   },
   "main": "./out/main/index.js",
   "scripts": {

@@ -50,7 +50,7 @@ describe('composer drafts', () => {
     })
 
     try {
-      localStorage.setItem('kando.composer-drafts', JSON.stringify({
+      localStorage.setItem('antumi.composer-drafts', JSON.stringify({
         'conversation:reloaded': { text: '窗口重开后还在', mentions: [] }
       }))
       vi.resetModules()

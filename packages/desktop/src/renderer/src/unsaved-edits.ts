@@ -14,7 +14,7 @@ const Edit = z.object({ taskId: z.string(), field: Field, value: z.string() })
 type Edit = z.infer<typeof Edit>
 export type SaveState = 'saving' | 'saved' | 'failed'
 
-const STORAGE_KEY = 'kando.unsaved-edits'
+const STORAGE_KEY = 'antumi.unsaved-edits'
 const RETRY_MS = 5000
 const SAVED_SHOWN_MS = 2000
 

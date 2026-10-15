@@ -74,7 +74,7 @@ const Preferences = z.object({
 })
 export type Preferences = z.infer<typeof Preferences>
 
-const STORAGE_KEY = 'kando.preferences'
+const STORAGE_KEY = 'antumi.preferences'
 
 // Each field falls back on its own, so one bad or outdated value never resets the rest.
 function load(): Preferences {

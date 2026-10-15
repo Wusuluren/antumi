@@ -13,7 +13,7 @@ const InitialMessage = z.object({
 })
 export type InitialMessage = z.infer<typeof InitialMessage>
 const Messages = z.record(z.string(), InitialMessage)
-const STORAGE_KEY = 'kando.initial-messages'
+const STORAGE_KEY = 'antumi.initial-messages'
 
 // A reload leaves delivery uncertain; keep the same ref for an explicit retry.
 export function restoredInitialMessages(raw: string | null): Record<string, InitialMessage> {

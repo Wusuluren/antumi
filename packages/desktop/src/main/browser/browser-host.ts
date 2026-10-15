@@ -14,7 +14,7 @@ import { applyViewport } from './viewport'
 import type { WindowSlot } from './window-slot'
 
 // One session for every tab: cookies and logins outlive the app, apart from its own UI's.
-const PARTITION = 'persist:kando-browser'
+const PARTITION = 'persist:antumi-browser'
 // Longer than the gate's wait, so a navigation held for the user is not a timeout.
 const NAVIGATION_TIMEOUT_MS = 35_000
 const READY: BrowserStatus = { state: 'ready', running: true }
