@@ -1,6 +1,5 @@
 import { agentDescriptor, agentModeText, type AgentKind, type ChatContextUse, type ChatItem, type ChatModel, type ChatOption, type ChatPermissionMode, type Conversation } from '@kando/protocol'
 import { perform } from '../core-store'
-import { usePreferences } from '../preferences'
 import { ChatModelPicker, ChatPicker, type PickerOption } from './ChatPicker'
 
 type StateItem = Extract<ChatItem, { kind: 'state' }>
@@ -30,10 +29,10 @@ export function defaultStartMode(agent: AgentKind, offered: readonly ChatPermiss
 }
 
 // What a new conversation can start in, with auto where the model takes it (as the agent's catalog
-// says) and bypass where the settings allow it, in the order a running chat lists them.
-export function startModes(agent: AgentKind, model: ChatModel | undefined, allowBypass: boolean): ChatPermissionMode[] {
+// says) and bypass where the agent has it, in the order a running chat lists them.
+export function startModes(agent: AgentKind, model: ChatModel | undefined): ChatPermissionMode[] {
   const { startModes, capabilities } = agentDescriptor(agent)
-  return [...startModes, ...(model?.autoMode && capabilities.autoMode ? ['auto' as const] : []), ...(allowBypass && capabilities.bypass ? ['bypass' as const] : [])]
+  return [...startModes, ...(model?.autoMode && capabilities.autoMode ? ['auto' as const] : []), ...(capabilities.bypass ? ['bypass' as const] : [])]
 }
 
 const EFFORT_LABEL: Record<string, string> = {
@@ -92,7 +91,6 @@ export function ChatOptionsBar({ conversation, state, compact = false }: { conve
   const { id, agent, chatOptions: next } = conversation
   const managed = Boolean(conversation.squadRunId || conversation.workspaceReadOnly)
   const running = conversation.sessionId !== null
-  const allowBypass = usePreferences((s) => s.allowBypass)
   // An older core takes options only from a running agent.
   if (!running && !next) return null
   const idle = !running || conversation.chat?.turn === 'idle'
@@ -101,10 +99,11 @@ export function ChatOptionsBar({ conversation, state, compact = false }: { conve
   const modelId = running ? state.model : (next?.model ?? state.model)
   // A model picked since takes its own default effort unless one was picked for it too.
   const effort = running ? state.effort : (next?.effort ?? (next?.model && next.model !== state.model ? null : state.effort))
-  // The next start offers bypass by the setting as it is then; a task that only plans never.
+  // The next start offers bypass where the agent has it, even if this one started without; a task
+  // that only plans never.
   const offered = running || conversation.planOnly
     ? state.permissionModes
-    : [...state.permissionModes.filter((mode) => mode !== 'bypass'), ...(allowBypass && agentDescriptor(agent).capabilities.bypass ? ['bypass'] : [])]
+    : [...state.permissionModes.filter((mode) => mode !== 'bypass'), ...(agentDescriptor(agent).capabilities.bypass ? ['bypass'] : [])]
   const model = state.models.find((each) => each.id === modelId)
   const modes = withCurrent(offered, permissionMode)
   const models = model || !modelId

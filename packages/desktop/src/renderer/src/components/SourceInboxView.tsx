@@ -83,7 +83,7 @@ function InboxSection({
   }
   const importIssue = (key: string) =>
     act(key, async () => {
-      const task = await perform((rpc) => rpc.call('sources.import', { ...target, key, agent: defaultAgent(tasks) }))
+      const task = await perform((rpc) => rpc.call('sources.import', { ...target, key, agent: defaultAgent(tasks, conversations) }))
       if (task) {
         onImported(task)
       }

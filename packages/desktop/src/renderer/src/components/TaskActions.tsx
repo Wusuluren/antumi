@@ -22,7 +22,6 @@ import { resolveModel, useAgentCatalog } from '../agent-models'
 import { reasonText, STATUS_HINT, STATUS_LABEL } from '../labels'
 import { useFileTabs } from '../file-tabs'
 import { waitingOn } from '../task-waiting'
-import { usePreferences } from '../preferences'
 import { AgentPicker } from './AgentPicker'
 import { confirmQuota, modelText } from './AgentQuota'
 import { PickerItem } from './ChatPicker'
@@ -134,7 +133,7 @@ function showChatFor(taskId: string): void {
 }
 
 function bypassOption(bypassable: boolean): { allowBypass?: boolean } {
-  return bypassable ? { allowBypass: usePreferences.getState().allowBypass } : {}
+  return bypassable ? { allowBypass: true } : {}
 }
 
 // A task's agent with its quota used up would stall at once; the user decides.
@@ -391,7 +390,7 @@ function ScheduleButton({ task, dependencies, labelled }: { task: Task; dependen
 // Started from the details as the task keeps its launch, so the dialog is not needed there.
 async function startNow(task: Task, launch: TaskLaunch): Promise<void> {
   if (!task.agent || !confirmQuota(task.agent, modelText(launch.model))) return
-  const bypass = useCore.getState().rpc?.features.includes('chat-options') ? { allowBypass: usePreferences.getState().allowBypass } : {}
+  const bypass = useCore.getState().rpc?.features.includes('chat-options') ? { allowBypass: true } : {}
   await openChatWhileStarting(task.id, () => perform((rpc) => rpc.call('tasks.start', { id: task.id, ...bypass, ...launchOptions(launch) })))
 }
 

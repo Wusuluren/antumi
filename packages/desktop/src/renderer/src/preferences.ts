@@ -1,4 +1,4 @@
-import { AGENT_KINDS, AgentKind, TranslateLanguage } from '@kando/protocol'
+import { AgentKind, TranslateLanguage } from '@kando/protocol'
 import { z } from 'zod'
 import { create } from 'zustand'
 import { PALETTES } from './palettes'
@@ -31,8 +31,6 @@ const Preferences = z.object({
   // of the screen, to answer there.
   requestPopup: z.boolean().catch(true),
   usageDisplay: z.enum(['used', 'remaining']).catch('used'),
-  // 'recent' reuses whichever agent the newest task picked.
-  defaultAgent: z.enum(['recent', ...AGENT_KINDS, 'none']).catch('recent'),
   // The permission mode a plan is carried out in, as last picked; where the stage lacks it, auto,
   // then accepting edits.
   planRunMode: z.enum(['auto', 'acceptEdits', 'ask', 'bypass']).catch('auto'),
@@ -42,8 +40,6 @@ const Preferences = z.object({
   // On, the browser panel appears with the agent's first tab; off, the page's card in the chat
   // offers to open it and the browser works in the background.
   openBrowserOnTab: z.boolean().catch(false),
-  // Off, a chat stage never offers running with nothing asked and nothing sandboxed.
-  allowBypass: z.boolean().catch(false),
   // On, the sidebar is put away and the panes take the whole window.
   sidebarHidden: z.boolean().catch(false),
   // As the user dragged it, before the cap a small window puts on it.

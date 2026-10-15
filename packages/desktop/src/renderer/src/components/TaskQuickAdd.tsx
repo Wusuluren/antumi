@@ -18,11 +18,11 @@ type QuickAdd = { open: boolean; title: string; repos: readonly string[] | null;
 const useQuickAdd = create<QuickAdd>(() => ({ open: false, title: '', repos: null, agent: undefined }))
 
 export function openQuickAdd(): void {
-  const { tasks } = useCore.getState()
+  const { tasks, conversations } = useCore.getState()
   useQuickAdd.setState((s) => ({
     open: true,
     repos: s.repos ?? latestProjects(Object.values(tasks)),
-    agent: s.agent === undefined ? defaultAgent(tasks) : s.agent
+    agent: s.agent === undefined ? defaultAgent(tasks, conversations) : s.agent
   }))
 }
 

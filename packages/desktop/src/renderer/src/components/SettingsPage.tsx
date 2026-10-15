@@ -296,8 +296,6 @@ function BrowserRows() {
 function AgentSettings() {
   const awakeSupported = useAwakeSupported()
   const awake = useCore((s) => s.awake)
-  const defaultAgent = usePreferences((s) => s.defaultAgent)
-  const allowBypass = usePreferences((s) => s.allowBypass)
   const chatSettings = useCore((s) => s.chatSettings)
   const installed = useInstalledAgents()
   return (
@@ -382,29 +380,6 @@ function AgentSettings() {
           )}
         />
       )}
-      <SettingsRow
-        label="允许「全部放行」"
-        description="权限模式里多出「全部放行」：Agent 不再请求确认，Codex 也不受沙箱限制。Claude Code 建议只在断网的沙箱里这样用。只影响之后启动的会话。"
-        control={(labelId) => (
-          <Toggle labelId={labelId} checked={allowBypass} onChange={(next) => setPreference('allowBypass', next)} />
-        )}
-      />
-      <SettingsRow
-        label="新建任务的默认 Agent"
-        description="「最近用过的」会沿用最新一个任务选的 Agent。"
-        control={(labelId) => (
-          <Segmented
-            labelId={labelId}
-            value={defaultAgent}
-            onChange={(next) => setPreference('defaultAgent', next)}
-            options={[
-              { value: 'recent', label: '最近用过的' },
-              ...installed.map((kind) => ({ value: kind, label: agentLabel(kind) })),
-              { value: 'none', label: '不指定' }
-            ]}
-          />
-        )}
-      />
       <SettingsRow
         label="轻量任务用的模型"
         description="小助手、翻译回复、生成提交信息和总结会话标题时用会话里同一个 Agent 的这个模型。不选就自动用它最便宜的模型（Haiku、Luna、Flash 一类），没有就用默认模型。"

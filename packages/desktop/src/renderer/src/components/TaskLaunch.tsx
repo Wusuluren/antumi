@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { checkStartMode, type ChatCatalog, type ChatPermissionMode, type Task, type TaskLaunchOptions } from '@kando/protocol'
 import { resolveModel, useAgentCatalog, type ResolvedModel } from '../agent-models'
 import { updateTask, useCore, useTaskLaunchSupported } from '../core-store'
-import { usePreferences } from '../preferences'
 import { ChatModelPicker } from './ChatPicker'
 import { effortLabel, startModes } from './ChatOptionsBar'
 
@@ -20,11 +19,10 @@ export type TaskLaunch = ResolvedModel & {
 // now. null when not `enabled`, when core does not keep a launch, or when there is no agent to start.
 export function useTaskLaunch(task: Task, dependencies: readonly Task[], enabled = true): TaskLaunch | null {
   const supported = useTaskLaunchSupported() && enabled
-  const allowBypass = usePreferences((s) => s.allowBypass)
   const catalog = useAgentCatalog(task.agent, supported && task.status === 'pending')
   if (!supported || !task.agent) return null
   const resolved = resolveModel(catalog, { model: task.launch.model ?? undefined, effort: task.launch.effort ?? undefined })
-  const offered = startModes(task.agent, resolved.model, allowBypass)
+  const offered = startModes(task.agent, resolved.model)
   const wanted = task.launch.permissionMode ?? 'plan'
   // Auto depends on the model, so the task's mode stands until the catalog says otherwise.
   const takes = offered.includes(wanted) || catalog === undefined

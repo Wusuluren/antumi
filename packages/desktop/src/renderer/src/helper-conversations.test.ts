@@ -37,7 +37,7 @@ function connection(features = ['conversation-helper']) {
 beforeEach(() => {
   useCore.setState(useCore.getInitialState(), true)
   setQuotes(helper.id, [])
-  usePreferences.setState({ quickModels: {}, allowBypass: true })
+  usePreferences.setState({ quickModels: {} })
   vi.stubGlobal('requestAnimationFrame', vi.fn())
 })
 afterEach(() => vi.unstubAllGlobals())

@@ -5,7 +5,6 @@ import { usePlans, type PlanItem } from '../chat-state'
 import { loadConversation, perform, showBrowserPanel, showInspectorFile, showTaskChanges, showTaskPlan, useChatOptionsSupported, useCore, useWireLogShown } from '../core-store'
 import { locateInspectorFile } from '../inspector-file'
 import { agentLabel, reasonText, STATUS_LABEL } from '../labels'
-import { usePreferences } from '../preferences'
 import { waitingOn } from '../task-waiting'
 import { confirmQuota } from './AgentQuota'
 import { BranchStatus } from './BranchStatus'
@@ -57,7 +56,7 @@ function taskSurface(task: Task, dependencies: readonly Task[], planOnly: boolea
     prepareSend: async (stopped) => {
       if (!stopped && task.status === 'running') return true
       if (stopped && task.agent && !confirmQuota(task.agent)) return false
-      const allowBypass = bypassable ? { allowBypass: usePreferences.getState().allowBypass } : {}
+      const allowBypass = bypassable ? { allowBypass: true } : {}
       return Boolean(await perform((rpc) => rpc.call('tasks.resumeChat', { id: task.id, ...allowBypass })))
     },
     sendBlocker: blocker && reasonText(blocker, blocker),
@@ -69,7 +68,7 @@ function taskSurface(task: Task, dependencies: readonly Task[], planOnly: boolea
           name: squad.name,
           start: async (item) => {
             const started = await perform((rpc) => rpc.call('squads.start', {
-              id: task.id, squadId: squad.id, permissionMode: task.launch.permissionMode ?? 'ask', allowBypass: usePreferences.getState().allowBypass,
+              id: task.id, squadId: squad.id, permissionMode: task.launch.permissionMode ?? 'ask', allowBypass: true,
               plan: { stageId: item.stageId, requestId: item.requestId }
             }))
             if (started) useCore.setState({ inspectorOpen: true, taskInspectorTab: 'squad' })

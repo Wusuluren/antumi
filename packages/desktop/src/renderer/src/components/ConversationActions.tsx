@@ -2,7 +2,6 @@ import type { AgentKind, ChatItem, Conversation } from '@kando/protocol'
 import { openConversationDraft, perform, selectConversation, selectTask, showView, useConversationArchiveSupported, useConversationPinSupported, useCore } from '../core-store'
 import { proposeHandoff } from '../chat-handoff'
 import { agentLabel } from '../labels'
-import { usePreferences } from '../preferences'
 import { offerDraft } from '../chat-drafts'
 import { saidText } from '../chat-state'
 import { confirmQuota } from './AgentQuota'
@@ -40,10 +39,10 @@ export async function forkConversation(id: string, item: ChatItem): Promise<void
   selectConversation(forked.id)
 }
 
-// What a start tells core: whether this user lets it offer bypass.
+// What a start tells core: that it may offer bypass, which an older core does not take.
 export function startOptions(): { allowBypass?: boolean } {
   const options = useCore.getState().rpc?.features.includes('chat-options') ?? false
-  return options ? { allowBypass: usePreferences.getState().allowBypass } : {}
+  return options ? { allowBypass: true } : {}
 }
 
 export function continueConversation(id: string) {

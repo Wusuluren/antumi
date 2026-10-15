@@ -10,10 +10,8 @@ import { Toggle } from './SettingsControls'
 
 // Turning one off takes it out of every choice of agent for new work; the last one on stays on.
 function setEnabled(kind: AgentKind, enabled: boolean): void {
-  const { disabledAgents, defaultAgent } = usePreferences.getState()
+  const { disabledAgents } = usePreferences.getState()
   setPreference('disabledAgents', enabled ? disabledAgents.filter((each) => each !== kind) : [...new Set([...disabledAgents, kind])])
-  // A default that can no longer be picked goes back to following the latest task.
-  if (!enabled && defaultAgent === kind) setPreference('defaultAgent', 'recent')
 }
 
 // What to type to put it right, copyable: an install for one that is not there, a sign-in for one

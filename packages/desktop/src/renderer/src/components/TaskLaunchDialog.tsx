@@ -4,7 +4,6 @@ import { resolveModel, useAgentCatalog, type ModelChoice } from '../agent-models
 import { dismissError, openChatWhileStarting, perform, updateTask, useCore } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel, reasonText } from '../labels'
-import { usePreferences } from '../preferences'
 import { useOccludesBrowser } from '../browser-occlusion'
 import { AgentQuotaHint, confirmQuota, modelText } from './AgentQuota'
 import { AgentModelPicker } from './AgentModelPicker'
@@ -37,7 +36,6 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
   const rpc = useCore((s) => s.rpc)
   const squadsSupported = rpc?.features.includes('squads') ?? false
   const supported = rpc?.features.includes('task-launch-options') ?? false
-  const allowBypass = usePreferences((s) => s.allowBypass)
   const error = useCore((s) => s.error)
   const tasks = useCore((s) => s.tasks)
   const dependencies = task.dependsOn.flatMap((id) => tasks[id] ? [tasks[id]] : [])
@@ -67,7 +65,7 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
 
   const choice = agent ? choices[agent] ?? {} : {}
   const { model, modelId, effort } = resolveModel(catalog, choice)
-  const offered = agent ? startModes(agent, model, allowBypass) : []
+  const offered = agent ? startModes(agent, model) : []
   const requestedMode = (agent ? modes[agent] : undefined) ?? 'plan'
   const mode = supported && offered.includes(requestedMode) && !checkStartMode(dependencies, requestedMode) ? requestedMode : 'plan'
   const options = agent ? modeOptions(agent, ['plan', ...offered.filter((each) => each !== 'plan')]) : []
@@ -88,7 +86,7 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
     }
     const params = {
       id: task.id,
-      ...(rpc?.features.includes('chat-options') ? { allowBypass } : {}),
+      ...(rpc?.features.includes('chat-options') ? { allowBypass: true } : {}),
       ...(supported ? { permissionMode: mode, model: modelId ?? null, effort: effort ?? null } : {})
     }
     closeTaskLaunch()

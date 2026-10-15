@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChatPermissionMode, checkSquadStart, squadModes, type Task } from '@kando/protocol'
 import { dismissError, openChatWhileStarting, perform, selectSquad, useCore } from '../core-store'
-import { usePreferences } from '../preferences'
 import { useOccludesBrowser } from '../browser-occlusion'
 import { reasonText } from '../labels'
 import { useEditsInPlace } from './TaskLaunch'
@@ -16,7 +15,6 @@ export function SquadLaunchDialog({ task, onSingle }: { task: Task; onSingle(): 
   const plan = useCore((state) => state.squadPlan)
   const inPlace = useEditsInPlace(task)
   const error = useCore((state) => state.error)
-  const allowBypass = usePreferences((state) => state.allowBypass)
   const available = Object.values(squads).filter((squad) => squad.archivedAt === null)
   const [squadId, setSquadId] = useState(task.squadId ?? available[0]?.id ?? '')
   const [requested, setRequested] = useState<ChatPermissionMode>('ask')
@@ -27,7 +25,7 @@ export function SquadLaunchDialog({ task, onSingle }: { task: Task; onSingle(): 
   const [planFirst, setPlanFirst] = useState(true)
   const planning = leaderPlans && planFirst
   const squad = squads[squadId]
-  const modes = squad ? squadModes(squad, allowBypass) : []
+  const modes = squad ? squadModes(squad, true) : []
   const mode = modes.includes(requested) ? requested : modes[0] ?? 'ask'
   const dependencies = task.dependsOn.flatMap((id) => tasks[id] ? [tasks[id]] : [])
   // Planning reads only, so it may begin before the dependencies are done.
@@ -37,7 +35,7 @@ export function SquadLaunchDialog({ task, onSingle }: { task: Task; onSingle(): 
   const start = async () => {
     if (busy || blocker || !squad || !modes.length) return
     setBusy(true); dismissError()
-    const result = await openChatWhileStarting(task.id, () => perform((rpc) => rpc.call('squads.start', { id: task.id, squadId, permissionMode: mode, allowBypass, ...(plan ? { plan } : {}), ...(planning ? { planFirst: true } : {}) })))
+    const result = await openChatWhileStarting(task.id, () => perform((rpc) => rpc.call('squads.start', { id: task.id, squadId, permissionMode: mode, allowBypass: true, ...(plan ? { plan } : {}), ...(planning ? { planFirst: true } : {}) })))
     if (result) { close(); if (!planning) useCore.setState({ inspectorOpen: true, taskInspectorTab: 'squad' }) }
     if (!result && useCore.getState().tasks[task.id]?.squadId === squadId && useCore.getState().tasks[task.id]?.status === 'running') useCore.setState({ taskLaunchId: null, squadPlan: null, squadLaunch: false, view: 'chat', inspectorOpen: true, taskInspectorTab: 'squad' })
     setBusy(false)

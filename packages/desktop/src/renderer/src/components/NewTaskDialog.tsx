@@ -38,7 +38,7 @@ export function NewTaskDialog() {
   const [draft] = useState(() => useCore.getState().newTaskDraft)
   const [title, setTitle] = useState(draft?.title ?? '')
   const [repos, setRepos] = useState<string[]>(() => [...(draft?.repos ?? [])])
-  const [agent, setAgent] = useState<AgentKind | null>(() => (draft ? draft.agent : defaultAgent(tasks)))
+  const [agent, setAgent] = useState<AgentKind | null>(() => (draft ? draft.agent : defaultAgent(tasks, useCore.getState().conversations)))
   const installed = useInstalledAgents()
   const squads = useCore((state) => state.squads)
   const [squadId, setSquadId] = useState<string | null>(null)

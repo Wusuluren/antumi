@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { agentDescriptor, ChatPermissionMode, type AgentKind, type ChatCatalog } from '@kando/protocol'
 import { closeConversationDraft, perform, selectConversation, useChatImagesSupported, useChatOptionsSupported, useConversationWorktreesSupported, useCore, useSourceInvestigateSupported, useStartBranchSupported } from '../core-store'
 import { defaultAgent } from '../default-agent'
-import { currentInstalledAgents, useInstalledAgents } from '../installed-agents'
+import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
 import { kandoEntries } from '../chat-commands'
 import { AgentQuotaHint, confirmQuota, modelText } from './AgentQuota'
@@ -28,15 +28,9 @@ import { inboxKey, rememberInvestigationProjects } from '../source-inboxes'
 // Opened on an inbox issue, it looks into that issue: the agent reads it first, in a mode that only
 // reads and plans unless another is picked, and the message is what the user adds, if anything.
 export function ConversationDraft() {
-  const tasks = useCore((s) => s.tasks)
-  const conversations = useCore((s) => s.conversations)
   const installed = useInstalledAgents()
-  // The agent the latest conversation ended with, if it is here, else a new task's default; unset
-  // when that leaves it for each start to pick.
-  const [agent, setAgent] = useState<AgentKind | null>(() => {
-    const latest = Object.values(conversations).sort((a, b) => b.updatedAt - a.updatedAt)[0]?.agent
-    return latest && currentInstalledAgents().includes(latest) ? latest : defaultAgent(tasks)
-  })
+  // Unset when nothing settles it, for each start to pick.
+  const [agent, setAgent] = useState<AgentKind | null>(() => defaultAgent(useCore.getState().tasks, useCore.getState().conversations))
   // Asked for again while the page is open (another project's ＋), it takes the new ones.
   const requested = useCore((s) => s.conversationDraftProjects)
   const [projectPaths, setProjectPaths] = useState<string[]>(() => [...(requested?.paths ?? [])])
@@ -71,7 +65,6 @@ export function ConversationDraft() {
   const startBranch = branches.options?.git ? branch : null
   const attached = useComposerImages(draft.images)
   useEffect(() => saveComposerDraft(null, { ...value, images: attached.images }), [value, attached.images])
-  const allowBypass = usePreferences((s) => s.allowBypass)
   const width = usePreferences((s) => s.chatWidth)
   const fontSize = usePreferences((s) => s.chatFontSize)
   const font = usePreferences((s) => s.chatFont)
@@ -100,7 +93,7 @@ export function ConversationDraft() {
   const model = catalog?.models.find((each) => each.id === modelId)
   const efforts = model?.efforts ?? []
   // A mode the model or settings no longer allow falls back to that agent's available default.
-  const offeredModes = agent ? startModes(agent, model, allowBypass) : []
+  const offeredModes = agent ? startModes(agent, model) : []
   const chosenMode = agent ? modes[agent] : undefined
   // Looking into an issue starts where the agent only reads, as a group chat member does.
   const reading = agent && issue && offeredModes.includes(agentDescriptor(agent).discussionMode) ? agentDescriptor(agent).discussionMode : null
