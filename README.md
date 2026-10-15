@@ -1,11 +1,11 @@
 <div align="center">
 
-# Kando
+# Antumi
 
 **把活交给 AI Agent，进度和结果你都看得到。**
 
-一块看板管理 Claude Code、Codex 和 Cursor：每个任务在独立的 worktree 里跑，<br/>
-先出计划再动手，做完交回来由你验收。
+本地优先的 AI 编程工作台。一块看板管理 Claude Code、Codex 和 Cursor：<br/>
+每个任务在独立的 Git worktree 中运行，先确认计划，再执行，最后由你验收成果。
 
 [![Version](https://img.shields.io/badge/version-0.16.5-blue?style=flat)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green?style=flat)](LICENSE)
@@ -17,20 +17,20 @@
 </div>
 
 <p align="center">
-  <img src="docs/assets/hero.png" alt="Kando 的任务看板：几个任务分别由不同的 Agent 在执行，一个在等待验收" width="100%" />
+  <img src="docs/assets/hero.png" alt="Antumi 的任务看板：几个任务分别由不同的 Agent 在执行，一个在等待验收" width="100%" />
 </p>
 
 ---
 
-## 为什么需要 Kando
+## 为什么需要 Antumi
 
 你开着三个终端：Claude Code 在修登录 bug，Codex 在写导出功能，第三个窗口你已经忘了它在干嘛。哪个在等你批准命令？哪两个改到了同一个文件？刚才顺手关掉的那个窗口，Agent 做到哪一步了？想换个 Agent 接手，又得把需求和踩过的坑从头讲一遍。
 
 Agent 加得越多，你越像在值班盯监控。
 
-Kando 把这些收进一块看板。每件事是一张卡片，交给一个 Agent，在自己的 worktree 和分支里执行，互不干扰。Agent 在做什么、是不是在等你、改了哪些文件，打开就能看到。做完了由你验收：接受、接着改，或者带上失败原因重做。
+Antumi 把这些收进一块看板。每件事是一张卡片，交给一个 Agent，在自己的 worktree 和分支里执行，互不干扰。Agent 在做什么、是不是在等你、改了哪些文件，打开就能看到。做完了由你验收：接受、接着改，或者带上失败原因重做。
 
-| 痛点 | 在终端里直接跑 Agent | 用 Kando |
+| 痛点 | 在终端里直接跑 Agent | 用 Antumi |
 |---|---|---|
 | 同时推进好几件事 | 一排标签页，挨个切过去看 | 一块看板，卡片上写着 Agent 正在做什么、是否在等你 |
 | 改动互相踩 | 几个 Agent 共用一个 checkout | 每个任务一个 worktree、一条分支，多仓库任务也一样 |
@@ -60,14 +60,14 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    subgraph board["Kando 看板"]
+    subgraph board["Antumi 看板"]
         T1["任务 A：修复登录 bug"]
         T2["任务 B：新增导出"]
         T3["任务 C：重构接口"]
     end
-    T1 --> W1["worktree kando/A<br/>Claude Code"]
-    T2 --> W2["worktree kando/B<br/>Codex"]
-    T3 --> W3["worktree kando/C<br/>Cursor"]
+    T1 --> W1["worktree antumi/A<br/>Claude Code"]
+    T2 --> W2["worktree antumi/B<br/>Codex"]
+    T3 --> W3["worktree antumi/C<br/>Cursor"]
     W1 --> R["检查器<br/>统一验收"]
     W2 --> R
     W3 --> R
@@ -154,7 +154,7 @@ Agent 能打开页面、读无障碍树、点击输入、截图、看控制台�
 
 **还有这些：**
 
-- **不在 Kando 里也能回答**：Agent 等你批准、回答或审计划时，屏幕顶部弹出卡片，直接在上面选。
+- **不在 Antumi 里也能回答**：Agent 等你批准、回答或审计划时，屏幕顶部弹出卡片，直接在上面选。
 - **定时任务与预约**：每天、工作日、每周定点开一个会话让 Agent 无人值守地做完；额度用完时预约到恢复后续跑。
 - **研发小队**：配置队长和成员的 Agent、模型与自定义角色；直接开发或在规划确认后交给小队。队长动态派活，共享任务 worktree，开发串行、只读分析并行；提交成果后由你验收。
 - **多项目任务**：一个任务跨前后端多个仓库，每个仓库各建一个 worktree，分支同名。
@@ -168,7 +168,7 @@ Agent 能打开页面、读无障碍树、点击输入、截图、看控制台�
 
 ## 支持的 Agent
 
-Kando 不自带模型，驱动的是你已经装好、登录好的 Agent CLI。
+Antumi 不自带模型，驱动的是你已经装好、登录好的 Agent CLI。
 
 | Agent | 接入方式 | 权限模式 | 计划审批 | 移交 | 定时任务 / 预约 |
 |---|---|---|:-:|:-:|:-:|
@@ -176,7 +176,7 @@ Kando 不自带模型，驱动的是你已经装好、登录好的 Agent CLI。
 | **Codex** | `codex app-server` | 逐项确认 · 自动 · 规划 · 只读 | ✓ | ✓ | ✓ |
 | **Cursor** | `cursor-agent acp` | Agent · Plan · Ask | ✓ | ✓ | — |
 
-「全部放行」默认关闭，需要在 设置 → 智能体 里手动打开。设置 → 智能体 还会列出 Kando 认识、但尚未接入的 Agent CLI。
+「全部放行」默认关闭，需要在 设置 → 智能体 里手动打开。设置 → 智能体 还会列出 Antumi 认识、但尚未接入的 Agent CLI。
 
 ---
 
@@ -189,8 +189,8 @@ Kando 不自带模型，驱动的是你已经装好、登录好的 Agent CLI。
 需要 Node ≥ 22.13 和 pnpm 12。
 
 ```bash
-git clone https://github.com/flyhero/kando-agents.git
-cd kando-agents
+git clone https://github.com/flyhero/antumi.git
+cd antumi
 pnpm install
 pnpm dev          # 同时启动 daemon、core 和桌面端
 ```
@@ -198,7 +198,7 @@ pnpm dev          # 同时启动 daemon、core 和桌面端
 ### 打包成 macOS 应用
 
 ```bash
-pnpm dist:mac     # 产物在 packages/desktop/dist/Kando-<版本>-arm64.dmg
+pnpm dist:mac     # 产物在 packages/desktop/dist/Antumi-<版本>-arm64.dmg
 ```
 
 装了 App 的机器不需要 Node 和 pnpm。产物没有签名，拷到别的机器上首次要右键「打开」。
@@ -227,7 +227,7 @@ pnpm dist:mac     # 产物在 packages/desktop/dist/Kando-<版本>-arm64.dmg
 
 ## 本地优先，成果优先
 
-- **数据在你的机器上**：任务、会话和 worktree 都在 `~/.kando/`，核心功能不依赖任何 Kando 托管服务。
+- **数据在你的机器上**：任务、会话和 worktree 都在 `~/.antumi/`，核心功能不依赖任何 Antumi 托管服务。
 - **只对本机开放**：core 只监听 `127.0.0.1`，并且每个连接都要带 token。
 - **不经过 shell**：Agent 命令以参数数组启动，prompt 前加 `--`。
 - **凭据不外泄**：Jira / GitHub 凭据单独存放（权限 600），不返回给界面，也不交给 Agent。
@@ -253,11 +253,15 @@ pnpm dist:mac     # 产物在 packages/desktop/dist/Kando-<版本>-arm64.dmg
 
 ## 现状
 
-Kando 目前是**开发者预览版**（0.16.5），主要在 macOS 上开发和测试，需要从源码运行或自行打包。接下来的重点是验收闭环：按项目配置的测试命令在 worktree 里跑，把结果作为验收证据放进检查器，再到 PR 和合并。
+Antumi 目前是**开发者预览版**（0.16.5），主要在 macOS 上开发和测试，需要从源码运行或自行打包。接下来的重点是验收闭环：按项目配置的测试命令在 worktree 里跑，把结果作为验收证据放进检查器，再到 PR 和合并。
 
-## 名字
+## 关于名字
 
-Kando 读作「看到」：交出去的每件事，进度和结果都看得到。英文读者会把它读成 *can do*，这也没错。
+**Antumi（安图米）是一个受 ant（蚂蚁）启发的自造词。** 单只蚂蚁很小，合力却能完成大活。Antumi 把不同的 AI 编程 Agent 集中到同一个工作台，让任务分头推进，进度和成果都看得清楚。
+
+吉祥物是一只叫「蚁米」的小蚂蚁。
+
+Antumi 原名 Kando。从旧版升级时，`~/.kando` 会在没有 Agent 运行的那次启动时自动迁移到 `~/.antumi`，worktree、会话和设置都会保留。`KANDO_HOME` 等旧环境变量仍然有效，新名字是 `ANTUMI_HOME`。
 
 ## 许可
 

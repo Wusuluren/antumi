@@ -1,6 +1,6 @@
-# Kando 技术架构与实现细节
+# Antumi 技术架构与实现细节
 
-这份文档写给想弄清 Kando 怎么工作、或者准备参与开发的人。产品介绍、截图和上手方式见 [README](../README.md)。
+这份文档写给想弄清 Antumi 怎么工作、或者准备参与开发的人。产品介绍、截图和上手方式见 [README](../README.md)。
 
 - [1. 总体架构](#1-总体架构)
 - [2. 任务模型](#2-任务模型)
@@ -37,7 +37,7 @@
 └────────────────────────────────────────────┘
 ```
 
-内置浏览器不在这条链上：标签页由桌面端主进程持有（Electron 的 `WebContentsView`），core 经本地 WebSocket 驱动它，地址写在 `~/.kando/browser/host.json`。
+内置浏览器不在这条链上：标签页由桌面端主进程持有（Electron 的 `WebContentsView`），core 经本地 WebSocket 驱动它，地址写在 `~/.antumi/browser/host.json`。
 
 | 包 | 职责 |
 |---|---|
@@ -46,7 +46,21 @@
 | `packages/daemon` | 进程宿主，独立进程：Agent 跑在 stdio 管道上，终端面板的 shell 跑在 PTY 里；缓存最近输出，供重新连接时回放 |
 | `packages/desktop` | Electron 桌面端：看板、详情编辑、聊天界面、终端面板；主进程还持有内置浏览器的标签页，并用 playwright-core 替 Agent 驱动它们 |
 
-运行时数据在 `~/.kando/`（可用 `KANDO_HOME` 覆盖）：`kando.db`、`core.json`（端口与 token，权限 0600）、`worktrees/`、`sessions/`、`browser/`（`host.json`，桌面端写的浏览器宿主地址）、`skills/`（技能库：`skills.json` 锁文件、`repos/` 里的 git 克隆、`bundles/` 里交给 Agent 的目录）、`mcp-servers.json`（用户的 MCP 服务器，不含密钥）、`credentials.json`（任务来源和 MCP 服务器的密钥，权限 0600）。
+运行时数据在 `~/.antumi/`（可用 `ANTUMI_HOME` 覆盖）：`antumi.db`、`core.json`（端口与 token，权限 0600）、`worktrees/`、`sessions/`、`browser/`（`host.json`，桌面端写的浏览器宿主地址）、`skills/`（技能库：`skills.json` 锁文件、`repos/` 里的 git 克隆、`bundles/` 里交给 Agent 的目录）、`mcp-servers.json`（用户的 MCP 服务器，不含密钥）、`credentials.json`（任务来源和 MCP 服务器的密钥，权限 0600）。
+
+**从 Kando 升级**：产品原名 Kando，数据在 `~/.kando/`。daemon、core 和桌面端启动时都会调用 `migrateHome`（`protocol/src/node/home-migration.ts`），由先到的一方加锁，把 `~/.kando` 整体改名为 `~/.antumi`、`kando.db` 改名为 `antumi.db`。只有在旧 daemon 的 socket 拒绝连接、旧 core 的进程已退出时才迁移；否则这次继续使用 `~/.kando`，下次启动再试。迁移后，core 启动时调用 `repairMovedHome`（`core/src/home-repair.ts`）补完剩下的工作：
+- 改写数据库里所有指向旧目录的路径；
+- 对每个 worktree 运行 `git worktree repair`；
+- 把 Claude Code 按目录保存的会话复制到新路径下，保证会话能继续。
+
+整个过程不删除任何东西。改名前留下的数据仍然可以读取，包括：
+- `KANDO_HOME` 等环境变量；
+- `mcp__kando__` 工具名和 `kando-image` 标记；
+- 未处理的 `kando:` 请求；
+- `engines.kando` 插件；
+- 项目里的 `.kando/ports.json`。
+
+已有的 `kando/` 分支保持原样。桌面端首次启动时，会把旧的 `Kando` 应用数据目录复制一份，界面状态和内置浏览器的登录态都会保留。
 
 ### 进程边界
 
@@ -79,10 +93,10 @@
 
 未执行的任务只有一个「开始」按钮：规划和执行都在任务自己的聊天里进行，界面和会话的聊天一样，头部和工具栏是任务的。开始前要填好项目和 Agent，详情可以不写（只用标题作 prompt）。
 
-- **开始执行**：依赖都已完成时，Kando 先建好 worktree 和分支，任务进入「执行中」，Agent 以规划模式在 worktree 里启动：先读代码，有疑问先问你，再拿出计划。计划显示在右侧检查器的「计划」页，按计划执行（自动接受编辑或逐项确认）之后才开始改代码。确认的计划记在任务上，详情页只读显示，你写的详情不会被改。
-- **开始规划**：还有依赖没完成时，Agent 只读规划，不建任务分支。它读的是任务分支将来拉出的起点（见「分支起点」）：Kando 把起点提交检出成一个没有分支的只读副本，放在 `~/.kando/worktrees/<任务id>/.planning/<项目名>/`；起点就是项目当前检出的分支时，直接在项目里读。Claude Code 用规划模式并禁止改动这些目录里的文件，Codex 用 plan 模式配 `read-only` 沙箱，权限模式只有「规划」。未完成依赖的详情和计划直接写在第一条消息里。拿出计划后可以继续规划，也可以「保存计划」：计划存到任务上，任务仍是「未执行」，列表里标「计划已保存」。依赖都完成后点「开始执行」，Kando 结束规划用的 Agent，在新建的 worktree 里开一个新会话，把保存的计划交给它，让它先对照当时的代码核对一遍。
+- **开始执行**：依赖都已完成时，Antumi 先建好 worktree 和分支，任务进入「执行中」，Agent 以规划模式在 worktree 里启动：先读代码，有疑问先问你，再拿出计划。计划显示在右侧检查器的「计划」页，按计划执行（自动接受编辑或逐项确认）之后才开始改代码。确认的计划记在任务上，详情页只读显示，你写的详情不会被改。
+- **开始规划**：还有依赖没完成时，Agent 只读规划，不建任务分支。它读的是任务分支将来拉出的起点（见「分支起点」）：Antumi 把起点提交检出成一个没有分支的只读副本，放在 `~/.antumi/worktrees/<任务id>/.planning/<项目名>/`；起点就是项目当前检出的分支时，直接在项目里读。Claude Code 用规划模式并禁止改动这些目录里的文件，Codex 用 plan 模式配 `read-only` 沙箱，权限模式只有「规划」。未完成依赖的详情和计划直接写在第一条消息里。拿出计划后可以继续规划，也可以「保存计划」：计划存到任务上，任务仍是「未执行」，列表里标「计划已保存」。依赖都完成后点「开始执行」，Antumi 结束规划用的 Agent，在新建的 worktree 里开一个新会话，把保存的计划交给它，让它先对照当时的代码核对一遍。
 - **提交验收**：Agent 退出不会让任务进入待验收，因为 Agent 空闲 30 分钟就会被结束，下次发消息再接着同一个会话启动。觉得做完了就点「提交验收」（Agent 正在处理时不行），检查器会打开到改动。
-- **其他**：任务的聊天不出现在「会话」列表和搜索里，从任务打开；删除任务时一并删除它的聊天记录，worktree 保留。任务的聊天有 Kando 的预览和浏览器工具。
+- **其他**：任务的聊天不出现在「会话」列表和搜索里，从任务打开；删除任务时一并删除它的聊天记录，worktree 保留。任务的聊天有 Antumi 的预览和浏览器工具。
 
 ### 验收之后
 
@@ -101,7 +115,7 @@
 
 任务交给小队时默认「先和队长规划」：小队的队长用自己的 Agent 和模型，在只读规划里和你商量出计划和分工（可以在依赖完成前开始）；你在计划卡片上选「交给小队按计划开发」后，同一个队长接着带队，规划时读过的代码和讨论都还在（能原生续接的会话直接续接，Claude 这类会话绑定目录的，从规划目录换到 worktree 时把规划记录连同带队指令一起交接给它）。也可以选「直接开始」，由队长按任务详情边做边派活；或者由单个 Agent 规划后，在规划确认处选择「交给小队执行」。交接前验证目标小队与权限，再停止原规划会话，保存所选规划并启动队长；原 Agent 不获准执行。已保存的规划也可以从任务详情交给小队。未完成的依赖仍阻止执行，小队任务首版只支持手动启动。
 
-- **core 编排**：`SquadService` 用持久化派活记录协调独立 Conversation，通过 Kando MCP 的 `kando_squad_roster`、`kando_squad_dispatch`、`kando_squad_finish` 让队长查看成员、派活和提交。成员按需启动，进程仍归 daemon；桌面端不承担调度。
+- **core 编排**：`SquadService` 用持久化派活记录协调独立 Conversation，通过 Antumi MCP 的 `antumi_squad_roster`、`antumi_squad_dispatch`、`antumi_squad_finish` 让队长查看成员、派活和提交。成员按需启动，进程仍归 daemon；桌面端不承担调度。
 - **工作区**：每个仓库沿用任务的独立 worktree，小队成员共享。一个任务同时只运行一项开发工作，只读分析可并行。队长只读协调，成员能力与执行权限分别校验，只有共同支持的开发模式可以选择，默认逐项确认。队长和只读成员按 Agent 描述里的 `readOnlyMode` 运行（Claude 是逐项确认、Codex 和 Cursor 是只读），目录照样不可写，但不进计划模式：在计划模式下 Claude 会再提交一版计划，也不肯派活。
 - **配置快照**：每次运行保存完整小队配置。修改或归档小队不改变正在运行的成员与模型；接着修改沿用快照，重做生成新的运行。
 - **结果与恢复**：队长派活后结束回合、释放空闲容量；成员完成后先停止其 Agent 和归属命令，再释放开发位置，将结果交给队长。结果批次先持久化，以稳定消息引用去重。core 重启先接回 daemon 会话，再恢复派活；不能确认完成的工作保留为失败，允许显式重试。
@@ -114,8 +128,8 @@
 
 
 - **主项目与附加项目**：第一项为主项目，项目选择器里用高亮颜色标出；右键其他项目选「设为主项目」可以把它移到首位，其余项目顺序不变；移除主项目后下一项自动成为主项目。任务执行中、启动准备期间及已废弃时不能调整项目。主项目就是 Agent 会话的工作目录，会话途中不能换：任务的对话开始后主项目就固定了，附加项目仍可增删，下一条消息时 Agent 带上新的目录。
-- **多个仓库隔离执行**：每个 Git 仓库各建一个 worktree，放在 `~/.kando/worktrees/<任务id>/<项目名>/`，分支名相同。Agent 在主项目的 worktree 中运行，通过 `--add-dir` 访问其他 worktree。Kando 在 prompt 中列出各项目目录和分支，提醒 Agent 先读取附加项目适用的指令，并在对应仓库执行 Git、构建和测试。更换主项目保留已有 worktree 和分支。普通文件夹（非 Git）只能作为任务唯一的项目目录，原地执行。
-- **分支名**：`kando/[<issue key>-]<任务id前8位>-<标题 slug>`，slug 取标题里的英文和数字。标题含中文等非 ASCII 字母时，任务创建、改标题或换 Agent 后，由任务 Agent 的便宜小模型概括出几个英文单词作 slug，存在任务上；开始执行时还没生成好就最多等 10 秒，仍没有就只用任务 id。分支只在第一次建出时命名，之后改标题不改名。
+- **多个仓库隔离执行**：每个 Git 仓库各建一个 worktree，放在 `~/.antumi/worktrees/<任务id>/<项目名>/`，分支名相同。Agent 在主项目的 worktree 中运行，通过 `--add-dir` 访问其他 worktree。Antumi 在 prompt 中列出各项目目录和分支，提醒 Agent 先读取附加项目适用的指令，并在对应仓库执行 Git、构建和测试。更换主项目保留已有 worktree 和分支。普通文件夹（非 Git）只能作为任务唯一的项目目录，原地执行。
+- **分支名**：`antumi/[<issue key>-]<任务id前8位>-<标题 slug>`，slug 取标题里的英文和数字。标题含中文等非 ASCII 字母时，任务创建、改标题或换 Agent 后，由任务 Agent 的便宜小模型概括出几个英文单词作 slug，存在任务上；开始执行时还没生成好就最多等 10 秒，仍没有就只用任务 id。分支只在第一次建出时命名，之后改标题不改名。
 - **规划与历史任务**：只读规划以主项目起点的只读副本为 cwd（起点是项目当前的分支时用原目录），只读访问其他项目，不建任务分支。开始执行后这些副本会被移除；副本里若有改动或只有它才有的提交，就留着不动。历史数据沿用原列表第一项作为主项目，无需数据库迁移。
 - **依赖**：依赖的任务全部「已完成」（验收通过）后才能执行，「待验收」的不算，不能形成循环。同一个 Git 仓库里恰好有一个依赖留下了分支时，新 worktree 从那个分支拉出，直接用上前置任务的改动；prompt 里也会列出依赖任务和它们的分支。
 - **分支起点**：任务分支默认从 origin 的默认分支拉出（依次找 origin/HEAD、origin/main、origin/master），拉出前只拉取这一个分支，不用你当前检出的分支。拉取失败时用仓库里已有的副本；仓库没有 origin 的默认分支时，从项目当前的分支拉出。任务详情的「起点」一栏可以为每个项目另选：项目当前的分支，或任意本地、远端分支（远端分支同样先拉取），选了就不再叠在依赖的分支上。分支建好后这一栏记下从哪个提交拉出、什么时候，拉取失败或没有默认分支也写在这里。任务分支不跟踪它的起点，检查器里的改动从记下的提交算起。重做沿用原任务选的起点。只读规划读的也是这个起点，每次开始时重新拉取；接着同一个规划对话时，读的仍是上次那份。
@@ -125,7 +139,7 @@
 
 截图、设计稿这类图片不放进详情，而是作为任务的**图片**属性单独保存，像依赖一样在详情页单独一行：点「＋ 添加图片」选择文件，或者直接在任务页面上粘贴（包括在详情编辑器里）、拖进来都可以；新建任务对话框里也能贴图。图片自动编号（图 1、图 2…），详情里可以写"见图 2"；点缩略图看大图，名字可以改，当作图片说明。
 
-- **存储**：由 core 保存在 `~/.kando/attachments/<sha256>.<扩展名>`（权限 600），同一张图只存一份，重做任务时只复制引用。只接受 PNG、JPEG、GIF、WebP（不接受 SVG），单张不超过 10MB、4000 万像素；保存前会去掉 EXIF、文字块等元数据，免得位置之类的信息被发给模型。图片通过 RPC 分块传输，不会卡住别的消息。删除任务或移除图片不会删除图片文件。
+- **存储**：由 core 保存在 `~/.antumi/attachments/<sha256>.<扩展名>`（权限 600），同一张图只存一份，重做任务时只复制引用。只接受 PNG、JPEG、GIF、WebP（不接受 SVG），单张不超过 10MB、4000 万像素；保存前会去掉 EXIF、文字块等元数据，免得位置之类的信息被发给模型。图片通过 RPC 分块传输，不会卡住别的消息。删除任务或移除图片不会删除图片文件。
 - **交给 Agent**：开始、继续时，prompt 会按编号列出每张图片的本机路径，让 Agent 开始前先查看。Claude Code 只被授权读取这几张图片（`--allowedTools Read(//…)`），不会拿到整个图片目录；你加的图片还会附在第一条消息里。
 - **导入的图片**：从 Jira 导入时，issue 里的图片附件也会下载下来（最多 20 张，单张 10MB，一共 50MB），显示在原文快照卡片的下方；正文里原来放图的地方写成「（图片：文件名）」。这些图片和原文一样属于外部内容：交给 Agent 时它们和原文一起放在不可信数据块里，也不会附进消息。token 带权限范围但缺少 `read:attachment:jira` 时，图片下载不了，会在附件清单里注明。
 
@@ -140,25 +154,25 @@
 
 GitHub 在 设置 → 集成 → GitHub 中登录，登录时输入 Personal access token。筛选条件的写法和 GitHub 网页上的搜索一样，默认是 `assignee:@me is:open`，即 token 可访问范围内、分配给当前账号且仍开放的 Issues 和 Pull Requests；条件里没写 `is:issue` 或 `is:pr` 时两种都同步，结果按更新时间排序。导入项使用 `owner/repository#number` 作为来源编号，并保存正文、标签和最近 20 条评论的快照。
 
-**会话排查**适合还不清楚原因的 issue（多半是 bug）：打开新会话页，选 Agent 和项目（默认是这个收件箱上次排查用的项目），可以补一句说明。core 像导入一样拉取 issue 全文和图片，写成一份排查说明放进会话的 `handoffs/` 目录，按移交的方式让 Agent 先读它，所以聊天里只显示你补充的话；说明里同样用 `<untrusted-source>` 包着原文，并要求 Agent 查清根因、给出修复方案后停下。会话默认用 Agent 的只读模式（描述符的 `discussionMode`：Claude 是规划，Codex、Cursor 是只读），调用方没指定时 core 自己补上；确认方案后在同一个会话里批准计划或切换模式就能修。会话以 issue 标题命名，记下来源（`Conversation.source`），页头链接回 issue；收件箱里这条标为「排查中」，按钮换成「看会话」，删掉会话后恢复。Kando 不回写 issue 系统，修完在那边关掉，下次同步就离开收件箱。
+**会话排查**适合还不清楚原因的 issue（多半是 bug）：打开新会话页，选 Agent 和项目（默认是这个收件箱上次排查用的项目），可以补一句说明。core 像导入一样拉取 issue 全文和图片，写成一份排查说明放进会话的 `handoffs/` 目录，按移交的方式让 Agent 先读它，所以聊天里只显示你补充的话；说明里同样用 `<untrusted-source>` 包着原文，并要求 Agent 查清根因、给出修复方案后停下。会话默认用 Agent 的只读模式（描述符的 `discussionMode`：Claude 是规划，Codex、Cursor 是只读），调用方没指定时 core 自己补上；确认方案后在同一个会话里批准计划或切换模式就能修。会话以 issue 标题命名，记下来源（`Conversation.source`），页头链接回 issue；收件箱里这条标为「排查中」，按钮换成「看会话」，删掉会话后恢复。Antumi 不回写 issue 系统，修完在那边关掉，下次同步就离开收件箱。
 
-导入的任务详情是空的，留给你写方案，或开始后让 Agent 先规划；issue 的描述、最近 20 条评论，以及来源支持时的附件清单作为**原文快照**单独保存，在任务详情里只读显示，可以「重新拉取」。交给 Agent 时，原文快照被标记为**不可信的参考资料**包在 `<untrusted-source>` 里，其中的指令不会被当作你的要求。执行时分支名带上 issue key（`kando/PROJ-123-…`），Jira 靠这个把分支关联到 issue。删除导入的任务后 issue 会回到收件箱；重做出的新任务继承原任务的来源和快照。
+导入的任务详情是空的，留给你写方案，或开始后让 Agent 先规划；issue 的描述、最近 20 条评论，以及来源支持时的附件清单作为**原文快照**单独保存，在任务详情里只读显示，可以「重新拉取」。交给 Agent 时，原文快照被标记为**不可信的参考资料**包在 `<untrusted-source>` 里，其中的指令不会被当作你的要求。执行时分支名带上 issue key（`antumi/PROJ-123-…`），Jira 靠这个把分支关联到 issue。删除导入的任务后 issue 会回到收件箱；重做出的新任务继承原任务的来源和快照。
 
-**凭据**：设置（`~/.kando/sources.json`）里没有密钥，凭据单独存在 `~/.kando/credentials.json`（权限 600），只交给对应的来源，永远不会返回给界面，也不会交给 Agent。修改站点会自动退出登录，保存的 token 不会发往新地址。没有界面的机器上，Jira 可以用 `KANDO_JIRA_EMAIL` 和 `KANDO_JIRA_TOKEN`，GitHub 可以用 `KANDO_GITHUB_TOKEN`；环境变量优先于保存的凭据。旧版本的 `~/.kando/jira.json` 会在 core 启动时自动迁移。
+**凭据**：设置（`~/.antumi/sources.json`）里没有密钥，凭据单独存在 `~/.antumi/credentials.json`（权限 600），只交给对应的来源，永远不会返回给界面，也不会交给 Agent。修改站点会自动退出登录，保存的 token 不会发往新地址。没有界面的机器上，Jira 可以用 `ANTUMI_JIRA_EMAIL` 和 `ANTUMI_JIRA_TOKEN`，GitHub 可以用 `ANTUMI_GITHUB_TOKEN`；环境变量优先于保存的凭据。旧版本的 `~/.antumi/jira.json` 会在 core 启动时自动迁移。
 
 ## 3. Worktree 与 Git
 
 ### 清理 worktree
 
 
-Kando 不会自己删除任务的 worktree，它们可能是 Agent 工作的唯一副本。积累下来的 worktree 在状态栏右下角可以看到：一共几个、占多大空间、几个可以清理，点开是 worktree 页面，按能不能清理分组列出 `~/.kando/worktrees/` 下的每一个：
+Antumi 不会自己删除任务的 worktree，它们可能是 Agent 工作的唯一副本。积累下来的 worktree 在状态栏右下角可以看到：一共几个、占多大空间、几个可以清理，点开是 worktree 页面，按能不能清理分组列出 `~/.antumi/worktrees/` 下的每一个：
 
 - **可以清理**：任务已完成或已废弃，没有未提交的改动。
 - **找不到任务**：任务删了，worktree 还在；干净的也可以清理。
 - **需要你处理**：有未提交的文件、有只在它里面的提交（比如没有分支的检出上做的提交）、被 `git worktree lock` 锁定、任务的 Agent 还开着，或者它所属的仓库已经找不到了。这些不能在这里清理，每行可以打开任务、在终端里打开或在文件管理器中显示，处理完再清。
 - **进行中**：任务还没完成，只看占用。
 
-每行显示任务、分支、提交和 origin 默认分支相比的情况（比如「3 个提交还没合进 origin/main」）以及大小，大小在后台统计。可以清理的默认全选，确认后清理：只删 worktree 目录，**分支和提交都保留**，之后在这个任务上继续修改时，Kando 从分支重建 worktree；被 `.gitignore` 忽略的文件（如 `node_modules`、`.env`）会一起删除。清理前 Kando 会对每一个重新检查一遍，删除时不带 `--force`，有变化的会留下并说明原因。已完成、已废弃任务的「⋯」菜单和右键菜单里也有「清理 worktree」。
+每行显示任务、分支、提交和 origin 默认分支相比的情况（比如「3 个提交还没合进 origin/main」）以及大小，大小在后台统计。可以清理的默认全选，确认后清理：只删 worktree 目录，**分支和提交都保留**，之后在这个任务上继续修改时，Antumi 从分支重建 worktree；被 `.gitignore` 忽略的文件（如 `node_modules`、`.env`）会一起删除。清理前 Antumi 会对每一个重新检查一遍，删除时不带 `--force`，有变化的会留下并说明原因。已完成、已废弃任务的「⋯」菜单和右键菜单里也有「清理 worktree」。
 
 ### Git 分支管理
 
@@ -176,9 +190,9 @@ Merge 前先提交或暂存改动。有冲突时，分支页列出文件，可�
 ### 环境检查
 
 
-core 启动后会在自己的 PATH 里找 `git`、`claude`、`codex` 和 Cursor CLI（`cursor-agent` 或确认属于 Cursor 的 `agent`），问一下版本，再检查登录状态。Claude Code 和 Codex 只读本机凭据；Cursor 使用 CLI 的 `about --format json`。找不到 Git、支持的 Agent 一个都没装或都没登录时，左侧列表上方会有一条红色提醒：Agent 的问题点开是 设置 → 智能体，Git 的问题点开是 设置 → 关于。「智能体」里所有 Agent 都在一处，分三组：「已安装」的每个显示版本（悬停看路径）、登没登录和启用开关，没登录的给出登录命令；「可安装」是 Kando 能运行但这台电脑没装的，变灰并给出安装命令；「暂未支持」见下段。命令都可以直接复制，装好或登录后点「重新检测」。「关于」里的 Git 一行显示版本和路径，没装时给出安装命令。只装一个 Agent 不算问题：新建任务和新会话只列出装了的，默认选最近一次新建任务或会话时选的 Agent（小助手、任务聊天、群聊和小队成员、定时运行不算），它不在时只装一个就用那一个，否则留空；没装的不能移交过去；已有任务选的 Agent 不在时仍然显示，标为「未安装」。「智能体」底部可以展开 core 找命令用的目录：装在别处的，把它所在的目录加进登录 shell 的 PATH，再重启 Kando（打包的 App 启动 core 时用的就是登录 shell 的 PATH）。Windows 上 CLI 是 `.cmd` 垫片，只能看到装没装，问不到版本。
+core 启动后会在自己的 PATH 里找 `git`、`claude`、`codex` 和 Cursor CLI（`cursor-agent` 或确认属于 Cursor 的 `agent`），问一下版本，再检查登录状态。Claude Code 和 Codex 只读本机凭据；Cursor 使用 CLI 的 `about --format json`。找不到 Git、支持的 Agent 一个都没装或都没登录时，左侧列表上方会有一条红色提醒：Agent 的问题点开是 设置 → 智能体，Git 的问题点开是 设置 → 关于。「智能体」里所有 Agent 都在一处，分三组：「已安装」的每个显示版本（悬停看路径）、登没登录和启用开关，没登录的给出登录命令；「可安装」是 Antumi 能运行但这台电脑没装的，变灰并给出安装命令；「暂未支持」见下段。命令都可以直接复制，装好或登录后点「重新检测」。「关于」里的 Git 一行显示版本和路径，没装时给出安装命令。只装一个 Agent 不算问题：新建任务和新会话只列出装了的，默认选最近一次新建任务或会话时选的 Agent（小助手、任务聊天、群聊和小队成员、定时运行不算），它不在时只装一个就用那一个，否则留空；没装的不能移交过去；已有任务选的 Agent 不在时仍然显示，标为「未安装」。「智能体」底部可以展开 core 找命令用的目录：装在别处的，把它所在的目录加进登录 shell 的 PATH，再重启 Antumi（打包的 App 启动 core 时用的就是登录 shell 的 PATH）。Windows 上 CLI 是 `.cmd` 垫片，只能看到装没装，问不到版本。
 
-设置 → 智能体里的「暂未支持」显示 Kando 认识、但尚未接入聊天的 Agent：从 core 当前的 PATH 查找已知 CLI，并在 macOS 的 `/Applications` 和 `~/Applications` 查找已知应用。Cursor 已支持聊天，应用和 CLI 会合并进「已安装」或「可安装」的一项；只安装编辑器仍需另外安装 CLI。找到 CLI 后会限时执行 `--version`，分别显示命令已响应、版本检测失败或 Windows 命令垫片无法直接验证；这不检查登录，也不代表 Kando 已支持该 CLI 的聊天协议。每 5 分钟自动复查，也能手动「重新检测」；新增 PATH 目录仍需重启 Kando，才能让 core 和 daemon 都用到它。未接入的 Agent 标为「暂未支持」，不能选来运行任务或会话。尚未接入的产品在 `packages/core/src/environment-check.ts` 的发现清单里登记可辨认的命令或应用名；已接入的 Agent 由它的 adapter 声明（见「新增 Agent」）。
+设置 → 智能体里的「暂未支持」显示 Antumi 认识、但尚未接入聊天的 Agent：从 core 当前的 PATH 查找已知 CLI，并在 macOS 的 `/Applications` 和 `~/Applications` 查找已知应用。Cursor 已支持聊天，应用和 CLI 会合并进「已安装」或「可安装」的一项；只安装编辑器仍需另外安装 CLI。找到 CLI 后会限时执行 `--version`，分别显示命令已响应、版本检测失败或 Windows 命令垫片无法直接验证；这不检查登录，也不代表 Antumi 已支持该 CLI 的聊天协议。每 5 分钟自动复查，也能手动「重新检测」；新增 PATH 目录仍需重启 Antumi，才能让 core 和 daemon 都用到它。未接入的 Agent 标为「暂未支持」，不能选来运行任务或会话。尚未接入的产品在 `packages/core/src/environment-check.ts` 的发现清单里登记可辨认的命令或应用名；已接入的 Agent 由它的 adapter 声明（见「新增 Agent」）。
 
 ### Agent 并发
 
@@ -188,9 +202,9 @@ core 启动后会在自己的 PATH 里找 `git`、`claude`、`codex` 和 Cursor 
 ### 聊天界面
 
 
-会话和任务都在 Kando 的聊天界面里和 Agent 对话；任务怎么走见「开始任务」。点「＋」会打开一个新会话页面：在中间选 Agent，在输入框上方选项目，在输入框下方选起始的权限模式（「自动判断」要等 Agent 启动后按模型提供）、模型和推理强度（列表取自这个 Agent 最近一次聊天报出的模型；从没用它聊过时，Kando 会先问一下 CLI，约一秒），发出第一条消息时才创建会话并启动 Agent。
+会话和任务都在 Antumi 的聊天界面里和 Agent 对话；任务怎么走见「开始任务」。点「＋」会打开一个新会话页面：在中间选 Agent，在输入框上方选项目，在输入框下方选起始的权限模式（「自动判断」要等 Agent 启动后按模型提供）、模型和推理强度（列表取自这个 Agent 最近一次聊天报出的模型；从没用它聊过时，Antumi 会先问一下 CLI，约一秒），发出第一条消息时才创建会话并启动 Agent。
 
-输入框里可以粘贴、拖入图片，或点输入框下方的「＋」选「添加图片」（PNG、JPEG、GIF、WebP，一条消息最多 10 张，上传后先显示缩略图，发送时一起发出）：Claude Code 在消息里直接收到图片，Codex 收到图片文件的路径，Cursor 在 ACP 声明支持图片时收到图片内容；超过 4MB 的大图会先缩到 2000px 以内，Claude Code 只接受 5MB 以内的图片。排队的消息也带着图片。发出的图片显示在自己的消息里，点开可以放大；图片和任务附件存在同一个 `~/.kando/attachments/` 里，移交给另一个 Agent 时它只知道那条消息附了几张图片。
+输入框里可以粘贴、拖入图片，或点输入框下方的「＋」选「添加图片」（PNG、JPEG、GIF、WebP，一条消息最多 10 张，上传后先显示缩略图，发送时一起发出）：Claude Code 在消息里直接收到图片，Codex 收到图片文件的路径，Cursor 在 ACP 声明支持图片时收到图片内容；超过 4MB 的大图会先缩到 2000px 以内，Claude Code 只接受 5MB 以内的图片。排队的消息也带着图片。发出的图片显示在自己的消息里，点开可以放大；图片和任务附件存在同一个 `~/.antumi/attachments/` 里，移交给另一个 Agent 时它只知道那条消息附了几张图片。
 
 **小助手**
 
@@ -200,7 +214,7 @@ core 启动后会在自己的 PATH 里找 `git`、`claude`、`codex` 和 Cursor 
 
 小助手不进入会话列表、全文搜索、未读和全局待处理/通知/请求弹窗/总览；它通过 `conversations.helper { id: 父会话 }` 恢复，等待批准只在小助手标签和父会话检查器按钮上亮点。`listAll()`、git 忙碌判断和 Agent 并发计数仍包含它。协议通过 `conversation-helper` feature 控制入口，老 core 没有这个标签。
 
-会话不需要「停止」：发消息就会接着聊，状态只有运行中、等待确认和空闲。Agent 空闲 30 分钟后（没有回合在跑、没有等你处理的请求、没有排队的消息），Kando 会结束它的进程，下次发消息时再接着同一个会话启动，这一次要多等几秒。进程异常退出时，会话显示「异常退出」，发消息会重新启动它。
+会话不需要「停止」：发消息就会接着聊，状态只有运行中、等待确认和空闲。Agent 空闲 30 分钟后（没有回合在跑、没有等你处理的请求、没有排队的消息），Antumi 会结束它的进程，下次发消息时再接着同一个会话启动，这一次要多等几秒。进程异常退出时，会话显示「异常退出」，发消息会重新启动它。
 
 Claude Code 以 `claude -p --input-format stream-json --output-format stream-json` 运行，Codex 以 `codex app-server` 运行，Cursor 以 `cursor-agent acp` 或 `agent acp` 运行。它们由 daemon 托管：关闭窗口、重启 core 都不会中断 Agent，core 重启后会接着读它的输出，没回答的确认请求也还在。
 
@@ -212,13 +226,13 @@ Claude Code 以 `claude -p --input-format stream-json --output-format stream-jso
 - **会话标题**：设置 → 智能体 →「会话标题命名」默认关闭，沿用首条用户消息。可选「首轮总结」（第一轮成功完成后生成一次）或「每轮更新」（每轮成功完成后概括最新一轮主题）。后台复用同一 Agent 的轻量任务模型，独立请求、不进主会话上下文，每次计入用量；失败保留原名。手动重命名始终锁定优先，任务、定时、群聊成员、小助手等固定标题不变。模式从之后完成的回合生效，不补跑旧记录；回合水位与轮数持久化，恢复历史不重复请求，旧结果不覆盖新标题，生成标题不改变列表的最近活动排序。
 - **发消息**：Enter 发送，Shift+Enter 换行，Esc 或输入框右下角的按钮中断当前回合。Agent 处理时按 Enter，消息会排到这个回合结束后再发（再写一条会接在后面），发出前可以编辑或取消；回合被中断或失败时它不会自动发出，等你决定发还是不发。
 - **权限模式、模型和推理强度**：在输入框下方切换。Claude Code 有逐项确认、自动接受编辑、规划和自动判断（模型支持时）；Codex 有逐项确认（`untrusted` 审批）、自动（`on-request` 审批加 `workspace-write` 沙箱，并且允许联网，和 Claude Code 一致）、规划（Codex 自己的 plan 模式，配 `read-only` 沙箱）和只读（`read-only` 沙箱）。权限模式随时可换，模型和推理强度要等回合结束。会话沿用它最后所处的权限模式（比如按计划执行后的「自动接受编辑」），以及你选过的模型和推理强度；Agent 进程不在时也可以改，下次发消息启动时生效。Codex 不继承 `config.toml` 里的审批和沙箱设置，会话的其他项目作为可写目录。
-- **Cursor**：需要已登录且支持 ACP 的 CLI，最低接受版本为 `2026.10.01`，已实测 `2026.10.01-e373342`。先按官方说明安装 CLI 并运行 `agent login`，再「重新检测」。提供原生 Agent / Plan / Ask；模型与模型对应的推理强度来自 CLI 实时接口。Ask / Plan 是 Cursor 的原生行为，不代表 Kando 提供操作系统沙箱；不提供自动接受编辑、全部放行、用量轮询或无人值守预约与例程。Kando MCP 通过 `session/new` / `session/load` 的 `mcpServers` 逐会话注入，不改项目或用户的 MCP 配置；未成功加载时启动会明确失败。发出消息后 30 秒还没有任何事件，聊天里提示「还没有回应」并给出「停止并重试」；60 秒仍没有就停止这一轮（先取消，再按宽限结束进程），只提供「重新连接并重试」，不自动重发。Cursor 只在一轮有了进展后才保存会话，所以这样停下的会话 `session/load` 会报不存在：这时改用 `session/new` 开新会话，之前的记录按移交带过去，没得到回答的那条不带（重试会再发它）。仅规划阶段的 Kando MCP 只提供读取工具（外加待办，见「待办」）。
+- **Cursor**：需要已登录且支持 ACP 的 CLI，最低接受版本为 `2026.10.01`，已实测 `2026.10.01-e373342`。先按官方说明安装 CLI 并运行 `agent login`，再「重新检测」。提供原生 Agent / Plan / Ask；模型与模型对应的推理强度来自 CLI 实时接口。Ask / Plan 是 Cursor 的原生行为，不代表 Antumi 提供操作系统沙箱；不提供自动接受编辑、全部放行、用量轮询或无人值守预约与例程。Antumi MCP 通过 `session/new` / `session/load` 的 `mcpServers` 逐会话注入，不改项目或用户的 MCP 配置；未成功加载时启动会明确失败。发出消息后 30 秒还没有任何事件，聊天里提示「还没有回应」并给出「停止并重试」；60 秒仍没有就停止这一轮（先取消，再按宽限结束进程），只提供「重新连接并重试」，不自动重发。Cursor 只在一轮有了进展后才保存会话，所以这样停下的会话 `session/load` 会报不存在：这时改用 `session/new` 开新会话，之前的记录按移交带过去，没得到回答的那条不带（重试会再发它）。仅规划阶段的 Antumi MCP 只提供读取工具（外加待办，见「待办」）。
 - **全部放行**：支持它的 Agent（Claude Code、Codex）都提供这个模式，但从不默认选中，对应 Claude Code 的 `bypassPermissions`，以及 Codex 的 `never` 审批加 `danger-full-access` 沙箱：Agent 不再请求确认，也不受沙箱限制。
 - **规划**：Agent 在规划模式下拿出计划时，右侧的检查器会自动打开到「计划」页显示全文，每一版计划和它的处理结果都留在那里；输入框上方可以按计划执行（之后自动接受编辑，或者逐项确认），也可以附上意见让它继续规划。Cursor 使用原生 `cursor/create_plan` 审批，确认后等待 Agent 模式切换成功再接受计划。Cursor 的分叉会复制可见历史并新建会话，不使用原生 fork。Codex 的计划在回合结束时交出，按计划执行就是用选定的模式（自动或逐项确认）接着发一回合；直接发消息算作继续规划。
 - **上下文**：输入框右下角的圆环显示上下文窗口用了多少，超过 60% 变黄，超过 85% 变红。
-- **通知**：窗口不在前台时，Agent 等你允许或回答、这一轮做完、异常退出，都发一条系统通知，点它回到那条会话或任务（任务的聊天用任务的标题）。Dock 图标上的数字是等你处理的会话和任务有几个：Agent 在等你、你没看到的做完的回合、任务里等你回复的 Agent，一个任务的聊天只算一次（macOS 和 Linux；Windows 没有角标）。设置 → 通知 可以关掉通知，角标不受影响。macOS 第一次会问要不要允许 Kando 通知。
+- **通知**：窗口不在前台时，Agent 等你允许或回答、这一轮做完、异常退出，都发一条系统通知，点它回到那条会话或任务（任务的聊天用任务的标题）。Dock 图标上的数字是等你处理的会话和任务有几个：Agent 在等你、你没看到的做完的回合、任务里等你回复的 Agent，一个任务的聊天只算一次（macOS 和 Linux；Windows 没有角标）。设置 → 通知 可以关掉通知，角标不受影响。macOS 第一次会问要不要允许 Antumi 通知。
 - **记录**：每个聊天阶段把收发的每一帧写进 `sessions/<id>/stages/<阶段 id>.jsonl`，聊天界面就是从它重建的。用户消息和最终回复也记进会话消息，标题、搜索和移交都靠它们。Cursor 的 ACP 流式增量落盘，用于重建中途停止的回复；其他 Agent 的增量依各自协议处理，Codex 被中断的回合里只流式显示过的半截回复，重新打开后就没有了。
-- **和 Agent 自己的终端界面的区别**：没有 Agent 自己的快捷键；斜杠命令在输入框里输入 / 选用（Codex 只有 /compact、/review 和技能）。Claude Code 在 `-p` 模式下不会弹出「是否信任这个目录」的确认，请只在你信任的项目里用 Kando。Codex 的 app-server 还在实验阶段，版本太旧、没有 app-server 时会明确提示。
+- **和 Agent 自己的终端界面的区别**：没有 Agent 自己的快捷键；斜杠命令在输入框里输入 / 选用（Codex 只有 /compact、/review 和技能）。Claude Code 在 `-p` 模式下不会弹出「是否信任这个目录」的确认，请只在你信任的项目里用 Antumi。Codex 的 app-server 还在实验阶段，版本太旧、没有 app-server 时会明确提示。
 - **需要新的 daemon**：聊天界面依赖 daemon 的新方法。如果运行中的 daemon 是更早的版本，新建会话会提示重启它（`pnpm dev:daemon`）；重启 daemon 会结束它正在托管的 Agent 和终端。
 - **提交并推送**：会话空闲时，点标题旁的分支，在项目下选择「Commit & Push」，确认提交信息后即可提交这个仓库的全部改动并推送当前分支；没有 upstream 时自动使用 origin。多项目会话分别操作每个仓库。
 
@@ -241,15 +255,15 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 ### 会话与 Agent 移交
 
 
-任务在看板里管理：点侧栏的「任务」打开，按 未执行 / 执行中 / 待验收 / 已完成 分列，卡片上给出当前这一步的操作，顶部可以搜索、筛选、排序。侧栏的「进行中」列出执行中和待验收的任务，方便来回切换；下面是「会话」列表。两个入口都把用户选择的代码目录称为「项目」，都可选多个。新建会话可选 Claude Code、Codex 或 Cursor；不选项目时使用持久的 `~/.kando/sessions/<会话 id>/workspace/`，不会在 home 或 Kando 仓库中隐式运行。选多个项目时，第一项是主项目，项目选择器里用高亮颜色标出；创建前可以右键其他项目，选「设为主项目」调整。主项目是默认工作目录，其余项目作为附加目录开放给 Agent（Claude Code 用 `--add-dir`，Codex 通过协议设置目录权限；Cursor 仅在 ACP 声明支持附加目录时接受多个项目，当前验证版本不支持）；所有目录均原地使用，不创建 worktree 或分支。会话创建后不能更换项目列表或主项目，后续继续或移交仍使用相同的项目列表和 Agent 自身的交互审批。
+任务在看板里管理：点侧栏的「任务」打开，按 未执行 / 执行中 / 待验收 / 已完成 分列，卡片上给出当前这一步的操作，顶部可以搜索、筛选、排序。侧栏的「进行中」列出执行中和待验收的任务，方便来回切换；下面是「会话」列表。两个入口都把用户选择的代码目录称为「项目」，都可选多个。新建会话可选 Claude Code、Codex 或 Cursor；不选项目时使用持久的 `~/.antumi/sessions/<会话 id>/workspace/`，不会在 home 或 Antumi 仓库中隐式运行。选多个项目时，第一项是主项目，项目选择器里用高亮颜色标出；创建前可以右键其他项目，选「设为主项目」调整。主项目是默认工作目录，其余项目作为附加目录开放给 Agent（Claude Code 用 `--add-dir`，Codex 通过协议设置目录权限；Cursor 仅在 ACP 声明支持附加目录时接受多个项目，当前验证版本不支持）；所有目录均原地使用，不创建 worktree 或分支。会话创建后不能更换项目列表或主项目，后续继续或移交仍使用相同的项目列表和 Agent 自身的交互审批。
 
-会话直接在你的项目目录里工作，所以切分支切的是你自己的 checkout。会话标题栏的分支标签点开后，每个 Git 项目下有「切换分支」和「新建分支」：切换时列出本地和远端分支（可搜索，选远端分支会建一个跟踪它的本地分支），当前分支和已在其他 worktree 里检出的分支（比如任务的 `kando/*` 分支）不能选；新建分支从当前提交拉出，未提交的改动一起带过去。Agent 在工作时不能切换，要等这一轮结束；有未提交的改动时不切换，先提交或暂存；还有别的会话开着 Agent 用同一个目录时会提醒你。切换后检查器里的改动从新的 HEAD 算起。Agent 会在你下一条消息前看到一句说明，告诉它每个项目现在在哪个分支。
+会话直接在你的项目目录里工作，所以切分支切的是你自己的 checkout。会话标题栏的分支标签点开后，每个 Git 项目下有「切换分支」和「新建分支」：切换时列出本地和远端分支（可搜索，选远端分支会建一个跟踪它的本地分支），当前分支和已在其他 worktree 里检出的分支（比如任务的 `antumi/*` 分支）不能选；新建分支从当前提交拉出，未提交的改动一起带过去。Agent 在工作时不能切换，要等这一轮结束；有未提交的改动时不切换，先提交或暂存；还有别的会话开着 Agent 用同一个目录时会提醒你。切换后检查器里的改动从新的 HEAD 算起。Agent 会在你下一条消息前看到一句说明，告诉它每个项目现在在哪个分支。
 
 会话头部的检查器按钮打开右侧的**检查器**（有项目时才有）：「本次会话以来的提交」以新建会话时记下的各项目 HEAD 为起点；「还没提交的改动」和当前 HEAD 比较，包括没加入 git 的文件，点开能看 diff。项目目录是和你共用的，所以这里也可能包含你自己的改动。旧会话没有记录起点，只显示还没提交的改动。
 
-「移交」会先在 Agent 工作时请你确认停止，然后启动另一种 Agent。Kando 将已记录的可见用户消息、最终回复和本次补充说明写入 `sessions/<id>/handoffs/`，提示新 Agent 阅读文件并检查当前目录、Git 状态和测试。切回曾用过的 Agent 时，恢复它原来的 provider 对话（Claude session / Codex thread / Cursor session），并补上它离开期间的结构化历史。隐藏推理、未暴露上下文及 provider 专属能力无法移交。
+「移交」会先在 Agent 工作时请你确认停止，然后启动另一种 Agent。Antumi 将已记录的可见用户消息、最终回复和本次补充说明写入 `sessions/<id>/handoffs/`，提示新 Agent 阅读文件并检查当前目录、Git 状态和测试。切回曾用过的 Agent 时，恢复它原来的 provider 对话（Claude session / Codex thread / Cursor session），并补上它离开期间的结构化历史。隐藏推理、未暴露上下文及 provider 专属能力无法移交。
 
-在会话列表里右键选「删除会话」。删除会删除数据库记录、结构化消息、交接文件和聊天记录，但**无论外部还是 Kando 托管的工作目录都会保留**，因为其中可能有唯一的工作成果。
+在会话列表里右键选「删除会话」。删除会删除数据库记录、结构化消息、交接文件和聊天记录，但**无论外部还是 Antumi 托管的工作目录都会保留**，因为其中可能有唯一的工作成果。
 
 ### 待办
 
@@ -257,7 +271,7 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 总览里也汇总所有会话和任务聊天的未完成待办：顶部「待办」数字格（归你的和 Agent 可做的分开计数，兼作筛选），左栏「需要我」下面一张「待办」卡片，按会话分组，归你的排前面，每组露 3 项，可以直接勾掉，Agent 可做的项悬停出现「交给 Agent」（打开会话，作为引用放进输入框）；一组 7 天没动会标出来。小助手、群聊和小队成员、例程的会话不单列；已归档会话的待办默认不显示，卡片底部可以展开。它不进「等我」，也不加到侧栏总览的数字上：待办不阻塞任何人。连上 core 时用 `todos.open` 一次读来所有还有未完成项的会话，之后靠 `todos.changed` 更新。
 
-待办存在 core（`conversation_todos` 表，`TodoStore`），不在 Agent 的会话里，所以换轮、重启、移交给别的 Agent 都还在；它和 Agent 自己这一轮的步骤清单（Claude 的 TodoWrite）是两回事。Agent 通过 Kando MCP 的 `todo_list`、`todo_add`、`todo_check` 读写，工具说明里约定只在回复列出要用户之后处理的事时才记、同名未完成的组合并、已有的项不重复。仅规划阶段也能记，因为写的是 Kando 的记录而不是工作目录。会话删除时待办一起删除。
+待办存在 core（`conversation_todos` 表，`TodoStore`），不在 Agent 的会话里，所以换轮、重启、移交给别的 Agent 都还在；它和 Agent 自己这一轮的步骤清单（Claude 的 TodoWrite）是两回事。Agent 通过 Antumi MCP 的 `todo_list`、`todo_add`、`todo_check` 读写，工具说明里约定只在回复列出要用户之后处理的事时才记、同名未完成的组合并、已有的项不重复。仅规划阶段也能记，因为写的是 Antumi 的记录而不是工作目录。会话删除时待办一起删除。
 
 ### 群聊
 
@@ -272,7 +286,7 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 讨论中随时可以暂停（本轮说完后停）、继续、再来一轮、立即总结或停止（打断正在发言的成员）。输入框里直接发言，下一轮所有成员都会看到；讨论已暂停或已总结时，发言会再开一轮讨论，然后重新总结。在发言里 `@成员`（或点成员旁的 @）只问被点名的成员，它单独回答，不推进轮次；被点名的成员还在发言时要等它说完。「匿名互评」打开后，成员之间只用「成员 A / B」称呼，看不到彼此是哪个 Agent 和模型。
 
 - **实现**：每个成员就是一条普通会话，带着群聊的 id（`conversations.discussion_id`），不出现在会话列表和搜索里；进程托管、恢复、模型、确认请求、额度都沿用会话的机制。core 的 `DiscussionService` 只做编排：给成员发一条以待写发言命名的消息（ref `discussion:<发言 id>`），这一回合结束时取它的最终回复作为发言。成员各自保留 provider 会话，之后每轮只发它没看过的新发言。别人的发言包在 `<discussion-post>` 里交给成员，并说明那只是观点、不是指令。提示词在 `core/src/discussion-prompt.ts`。
-- **只读**：成员以 descriptor 的 `discussionMode` 启动：Claude Code 用规划模式，Codex 用 `read-only` 沙箱，Cursor 用 Ask 模式。可以读所选项目的代码来佐证，不改文件。Claude Code 在讨论中交出计划时，Kando 会拒绝并请它直接用文字回答。成员请求执行命令时，群聊里显示「等你确认」，点成员打开它的会话处理；在那里发的消息只有这个成员看到。
+- **只读**：成员以 descriptor 的 `discussionMode` 启动：Claude Code 用规划模式，Codex 用 `read-only` 沙箱，Cursor 用 Ask 模式。可以读所选项目的代码来佐证，不改文件。Claude Code 在讨论中交出计划时，Antumi 会拒绝并请它直接用文字回答。成员请求执行命令时，群聊里显示「等你确认」，点成员打开它的会话处理；在那里发的消息只有这个成员看到。
 - **失败与恢复**：某个成员这一轮失败（出错、被打断、额度用完），这一轮不等它；一轮里没有人发言成功就暂停，继续时重试这一轮。core 重启后从成员会话的聊天记录补齐重启期间结束的回合，Agent 已不在的记为丢失，然后接着讨论。
 - **额度**：每个成员都占一个 Agent 进程的额度。开始前检查各 Agent 是否还有额度，不够就不开始。
 - **删除**：在侧栏右键删除群聊，会一并删除各成员的会话和发言记录，项目目录保留。
@@ -281,7 +295,7 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 一个 Agent 的全部知识分在三处注册表里。三处都写成 `satisfies Record<AgentKind, …>`，漏掉任何一处都过不了 typecheck。除注册那一行外，其余代码只问注册表，不判断 Agent 的名字：
 
-1. **protocol**：在 `packages/protocol/src/agent.ts` 的 `AGENT_KINDS` 里加 id，新建 `packages/protocol/src/agents/<id>.ts` 写一个 `AgentDescriptor`，再登记进 `agents/index.ts` 的 `AGENT_DESCRIPTORS`。descriptor 是纯数据，core 和各客户端共用，内容包括名称、它怎么称呼 Kando 的权限模式、新会话的起始模式、群聊成员用的只读模式（`discussionMode`）、能力开关（`unattended`、`bypass`、`autoMode`、`pathMentions`、`optionsWhileBusy`）、安装和登录提示、用量重置在哪里用。界面只读这些数据，不自己编码规则。
+1. **protocol**：在 `packages/protocol/src/agent.ts` 的 `AGENT_KINDS` 里加 id，新建 `packages/protocol/src/agents/<id>.ts` 写一个 `AgentDescriptor`，再登记进 `agents/index.ts` 的 `AGENT_DESCRIPTORS`。descriptor 是纯数据，core 和各客户端共用，内容包括名称、它怎么称呼 Antumi 的权限模式、新会话的起始模式、群聊成员用的只读模式（`discussionMode`）、能力开关（`unattended`、`bypass`、`autoMode`、`pathMentions`、`optionsWhileBusy`）、安装和登录提示、用量重置在哪里用。界面只读这些数据，不自己编码规则。
 2. **core**：新建 `packages/core/src/agents/<id>/`，写一个 `AgentAdapter`（`agents/agent-adapter.ts`），再登记进 `agents/index.ts` 的 `AGENT_ADAPTERS`。adapter 负责以下几项，大多可选，没给就走默认实现：
    - 必填：driver（实现 `ChatDriver`）、启动命令（argv 数组）、能用的权限模式、会话策略（是否预先指定会话 id、会话是否绑定目录、是否支持原生 fork）。
    - 可选：模型目录、环境检测、登录检查、用量读取、CLI 安装命令、应用发现。
@@ -306,33 +320,33 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 ### 技能库
 
-设置 → 任务 → 技能 管理 Agent Skills（`SKILL.md` 目录）。core 从 https 地址 `git clone` 到 `~/.kando/skills/repos/<id>/`，固定在安装时的提交（detached HEAD），把扫描到的技能写进 `skills.json`；「检查更新」只 fetch 并从 git 对象里读新版本的技能列表，用户确认后才移动 pin，并记住上一个提交供回退。不改用户自己的 `~/.claude`、`~/.codex`。
+设置 → 任务 → 技能 管理 Agent Skills（`SKILL.md` 目录）。core 从 https 地址 `git clone` 到 `~/.antumi/skills/repos/<id>/`，固定在安装时的提交（detached HEAD），把扫描到的技能写进 `skills.json`；「检查更新」只 fetch 并从 git 对象里读新版本的技能列表，用户确认后才移动 pin，并记住上一个提交供回退。不改用户自己的 `~/.claude`、`~/.codex`。
 
 交给 Agent 的是**bundle**（`bundles/<key>/`）：按需要的技能从各仓库复制出来（只复制 `skills/<名字>/`，跳过软链接，限 32 MiB），同时写成 Claude Code 插件（`.claude-plugin/plugin.json` + `skills/`）和 `.agents/skills/` 两种布局；`key` 是技能及其提交的哈希，同样的选择得到同一个目录，提示词缓存得以保温，更新或回退后自然换新目录。descriptor 的 `capabilities.skills` 说明这个 Agent 能否接收 bundle，adapter 决定怎么交（`AgentLaunch.skills`）：Claude Code 用 `--plugin-dir`，Cursor 用 `--add-dir`；Codex 只读固定目录，暂不支持。第一版的选择是全局的：Obsidian 知识库允许写入时，交出推荐仓库 kepano/obsidian-skills 里的 `obsidian-markdown`（见 `skills-recommended.ts`）；Markdown 文件夹不自动加载该技能。bundle 建不出来只记进 wire log，不阻止 Agent 启动。
 
 ### 用户的 MCP 服务器
 
-设置 → 任务 → MCP 维护一份全局的 MCP 服务器列表（`mcp-servers.ts`）：本地命令（stdio）或远程地址（streamable HTTP，远程只接受 https），每个选好交给哪些 Agent，可以单独停用。设置存在 `mcp-servers.json`；环境变量和请求头的值都当密钥，存进 `credentials.json`（`mcp/<名字>`），客户端只看得到键名。名字 `kando` 留给 Kando 自己的服务器（工具名靠它识别）。
+设置 → 任务 → MCP 维护一份全局的 MCP 服务器列表（`mcp-servers.ts`）：本地命令（stdio）或远程地址（streamable HTTP，远程只接受 https），每个选好交给哪些 Agent，可以单独停用。设置存在 `mcp-servers.json`；环境变量和请求头的值都当密钥，存进 `credentials.json`（`mcp/<名字>`），客户端只看得到键名。名字 `antumi` 留给 Antumi 自己的服务器（工具名靠它识别）。
 
-和技能库一样，**每次启动时注入，不改 Agent 自己的配置**：descriptor 的 `capabilities.userMcp` 说明能不能接，adapter 用交 Kando MCP 的同一条路交出去（`AgentLaunch.userMcp`）——Claude Code 合进 `--mcp-config`（仍不加 `--strict-mcp-config`，用户自己配的照常加载），Codex 是整条 `-c mcp_servers.<名字>={...}`（同名时盖过 config.toml 里的那条），Cursor 进 ACP `session/new` 的 `mcpServers`。有密钥的服务器交出去的是 Kando 的启动器（`mcp-main --run <名字>`，`user-mcp-launch.ts`）：它启动时才从 Kando 的文件读出密钥，命令带上环境变量直接接管 stdio，远程地址则由它在 stdio 和 HTTP 之间转发（`mcp-http.ts`），所以密钥不进 Agent 的命令行、配置和 Kando 的日志；没有密钥的远程地址直接交给 Agent。改动从下次启动 Agent 起生效。
+和技能库一样，**每次启动时注入，不改 Agent 自己的配置**：descriptor 的 `capabilities.userMcp` 说明能不能接，adapter 用交 Antumi MCP 的同一条路交出去（`AgentLaunch.userMcp`）——Claude Code 合进 `--mcp-config`（仍不加 `--strict-mcp-config`，用户自己配的照常加载），Codex 是整条 `-c mcp_servers.<名字>={...}`（同名时盖过 config.toml 里的那条），Cursor 进 ACP `session/new` 的 `mcpServers`。有密钥的服务器交出去的是 Antumi 的启动器（`mcp-main --run <名字>`，`user-mcp-launch.ts`）：它启动时才从 Antumi 的文件读出密钥，命令带上环境变量直接接管 stdio，远程地址则由它在 stdio 和 HTTP 之间转发（`mcp-http.ts`），所以密钥不进 Agent 的命令行、配置和 Antumi 的日志；没有密钥的远程地址直接交给 Agent。改动从下次启动 Agent 起生效。
 
 - **测试连接**（`mcpServers.probe`，`mcp-probe.ts`）：像 Agent 一样连上去 `initialize` → `tools/list`，命令在独立进程组里跑、结束即杀，60 秒超时，失败时带上 stderr。
 - **没连上**：Claude 的 init 里 `source: dynamic` 且失败的、Codex 的 `mcpServer/startupStatus/updated` 里失败的用户服务器，聊天里各出一行提示；记进日志的帧带着这个判断，重放结果一致。
-- **审批**：Claude 和 Cursor 的 MCP 工具本来就走审批卡；Codex 对它认为会影响外部的工具发 `mcpServer/elicitation/request`（`_meta.codex_approval_kind: mcp_tool_call`），Kando 接成审批卡：允许一次、本次运行内不再问（`persist: session`）、拒绝；「永远允许」不提供，那会写进 Codex 自己的配置。
+- **审批**：Claude 和 Cursor 的 MCP 工具本来就走审批卡；Codex 对它认为会影响外部的工具发 `mcpServer/elicitation/request`（`_meta.codex_approval_kind: mcp_tool_call`），Antumi 接成审批卡：允许一次、本次运行内不再问（`persist: session`）、拒绝；「永远允许」不提供，那会写进 Codex 自己的配置。
 - **导入**（`mcp-import.ts`）：读 `~/.claude.json`、`~/.cursor/mcp.json` 和 `codex mcp list --json`（跳过 ChatGPT 应用和 Codex 插件自带的、已停用的），列表只给键名；导入时 core 重读一遍连同值一起存，默认不再交给它原来所在的 Agent，免得启动两份。SSE 和 Codex 从环境变量取令牌的不能导入。
 
 ## 5. 内置浏览器
 
 
-聊天界面里的 Agent 可以用 Kando 托管的浏览器看页面：Kando 的 MCP 服务给每个聊天会话提供一组 `browser_*` 工具——`browser_navigate` 打开页面，`browser_snapshot` 读无障碍树快照（每个可交互元素带 ref），`browser_click` / `browser_type` / `browser_press` / `browser_hover` / `browser_scroll` / `browser_select` 按 ref 操作，`browser_wait` 等待，`browser_screenshot` 截图，`browser_console` 读控制台和失败的请求，`browser_tabs` 管标签页。截图会显示在对话的卡片里。
+聊天界面里的 Agent 可以用 Antumi 托管的浏览器看页面：Antumi 的 MCP 服务给每个聊天会话提供一组 `browser_*` 工具——`browser_navigate` 打开页面，`browser_snapshot` 读无障碍树快照（每个可交互元素带 ref），`browser_click` / `browser_type` / `browser_press` / `browser_hover` / `browser_scroll` / `browser_select` 按 ref 操作，`browser_wait` 等待，`browser_screenshot` 截图，`browser_console` 读控制台和失败的请求，`browser_tabs` 管标签页。截图会显示在对话的卡片里。
 
-- **运行位置**：浏览器就是 Kando 应用自带的 Chromium，标签页由桌面端主进程持有：关窗口、刷新界面都不影响它，退出应用才结束。应用没开时，Agent 的浏览器工具会提示先打开 Kando。不用下载任何东西。
-- **隔离与登录态**：所有标签页共用一份持久会话（Electron 的 `persist:kando-browser` 分区），所以登录态在所有会话间共享；标签页按会话隔离，Agent 只看到自己会话的标签页，删除会话时它的标签页一并关闭。
+- **运行位置**：浏览器就是 Antumi 应用自带的 Chromium，标签页由桌面端主进程持有：关窗口、刷新界面都不影响它，退出应用才结束。应用没开时，Agent 的浏览器工具会提示先打开 Antumi。不用下载任何东西。
+- **隔离与登录态**：所有标签页共用一份持久会话（Electron 的 `persist:antumi-browser` 分区），所以登录态在所有会话间共享；标签页按会话隔离，Agent 只看到自己会话的标签页，删除会话时它的标签页一并关闭。
 - **站点确认**：`localhost`、`127.0.0.1`、`[::1]`、`*.localhost`、`*.test` 直接打开；其他站点在一个会话里第一次访问时，对话里弹出确认卡：允许一次、本会话允许或拒绝。25 秒没有回答时 Agent 会收到「等待用户确认」，你回答后它再试一次就能打开。门禁拦的是顶层导航（Agent 的打开、你在画面里点的链接、重定向都算），页面自己加载的资源不拦。
 - **浏览器面板**：状态栏右下角的浏览器按钮（或 Ctrl+Shift+`）打开右侧的浏览器面板，和终端面板一样可以拖宽、最大化。它列出所有会话的标签页（标签上带会话名），也能用「＋」开你自己的标签页：这种标签页不属于任何会话，Agent 看不到，打开什么站点也不会问你。Agent 打开页面时，对话里出现一张页面卡片（标题、地址、「打开」按钮），浏览器在后台跑，点「打开」才展开面板并选中那个标签页；在 设置 → 集成 → 浏览器 里可以改成 Agent 第一次用浏览器时自动打开。
 - **页面**：面板里直接显示选中的标签页本身，铺满面板，和普通浏览器一样可以点击、输入（Esc 回到应用，Shift+Esc 把 Esc 发给页面）、改地址、后退刷新，也能关标签页、截图存成图片。地址栏右侧可以把页面固定成手机、平板等尺寸，固定尺寸的页面在面板里等比居中显示；Agent 调用 `browser_navigate` 或 `browser_tabs new` 时也可以传 `viewport`，之后一直保持到再改。你操作时标签页标为「你在操作」，Agent 对它的调用会被拒绝并被告知等待，5 秒没动作或点「交还给 Agent」后恢复。
-- **升级**：早期版本下载到 `~/.kando/browser/` 的 Chromium 和 profile，在新版 core 第一次启动时自动删除；网站需要重新登录。
-- **Codex**：Codex 对 Kando 的 MCP 工具不弹自己的确认，所以站点确认是它唯一的闸；Claude Code 对打开页面和点击、输入会弹它自己的确认，只读的快照、截图、滚动、等待、控制台和标签页列表已放行。
+- **升级**：早期版本下载到 `~/.antumi/browser/` 的 Chromium 和 profile，在新版 core 第一次启动时自动删除；网站需要重新登录。
+- **Codex**：Codex 对 Antumi 的 MCP 工具不弹自己的确认，所以站点确认是它唯一的闸；Claude Code 对打开页面和点击、输入会弹它自己的确认，只读的快照、截图、滚动、等待、控制台和标签页列表已放行。
 
 ## 6. 终端与端口
 
@@ -350,11 +364,11 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 ### 开发服务端口
 
 
-状态栏右下角的端口按钮打开独立的端口面板，列出 Kando 托管终端和 Agent 子进程正在监听的 TCP 端口，按任务、会话或终端分组。可以切换为只看当前任务 / 会话，打开内置浏览器、定位所属终端或停止监听进程；停止前会重新核验进程身份和端口归属，不会结束其他终端或 Agent。普通终端里的 shell 保留，Agent 命令结束后标签保留输出。面板打开时每两秒刷新，隐藏后停止扫描。
+状态栏右下角的端口按钮打开独立的端口面板，列出 Antumi 托管终端和 Agent 子进程正在监听的 TCP 端口，按任务、会话或终端分组。可以切换为只看当前任务 / 会话，打开内置浏览器、定位所属终端或停止监听进程；停止前会重新核验进程身份和端口归属，不会结束其他终端或 Agent。普通终端里的 shell 保留，Agent 命令结束后标签保留输出。面板打开时每两秒刷新，隐藏后停止扫描。
 
 端口归属优先跟随终端 / Agent 的进程树。用户自己的 shell 只有在实际工作目录能唯一对应任务 worktree 或会话时才关联，多个会话共用目录时仍按终端显示。macOS 和 Linux 能读取实际工作目录；Windows 的普通 shell 按终端显示。没有归属的系统服务、Docker 容器内服务和脱离托管进程树的服务不在列表中。端口发现依赖 macOS 的 `lsof` / `ps`、Linux 的 `ss`（或 `lsof`）/ `ps`、Windows 的 PowerShell。
 
-可以在项目或任务 worktree 的 `.kando/ports.json` 中给端口命名：`{"ports":[{"port":3000,"label":"Frontend"},{"port":8080,"label":"API"}]}`。配置只给已发现的端口加标签，修改后自动生效，格式有误时仍显示端口。端口面板不分配端口，也不提供远程转发。
+可以在项目或任务 worktree 的 `.antumi/ports.json`（改名前的 `.kando/ports.json` 也认）中给端口命名：`{"ports":[{"port":3000,"label":"Frontend"},{"port":8080,"label":"API"}]}`。配置只给已发现的端口加标签，修改后自动生效，格式有误时仍显示端口。端口面板不分配端口，也不提供远程转发。
 
 ## 7. 从源码运行
 
@@ -380,18 +394,18 @@ macOS（Apple Silicon）可以打包成 dmg：
 
 ```bash
 pnpm install
-pnpm dist:mac     # 产物在 packages/desktop/dist/Kando-<版本>-arm64.dmg
+pnpm dist:mac     # 产物在 packages/desktop/dist/Antumi-<版本>-arm64.dmg
 ```
 
 `dist:mac` 依次执行 electron-vite 构建、`bundle-backend`（esbuild 把 core、daemon 和 MCP 服务各打成一个 JS，附上 node-pty 的 macOS 预编译）和 electron-builder。打包的 App 由 Electron 自带的 Node 运行这些文件（`ELECTRON_RUN_AS_NODE`），所以**装了 App 的机器不需要 Node 和 pnpm**，只需要 `claude` / `codex` CLI 本身。
 
-安装：打开 dmg，把 Kando 拖进「应用程序」。启动时 App 会检查 `~/.kando/core.json`，没有在运行的 core 就自动拉起随附的 daemon 和 core（日志在 `~/.kando/logs/`）；Agent 的查找用的是登录 shell 的 PATH，所以 CLI 装在 Homebrew 或 `~/.local/bin` 都能找到。和从源码运行时一样，关闭或退出 App 不会停掉 core、daemon 和正在跑的 Agent。
+安装：打开 dmg，把 Antumi 拖进「应用程序」。启动时 App 会检查 `~/.antumi/core.json`，没有在运行的 core 就自动拉起随附的 daemon 和 core（日志在 `~/.antumi/logs/`）；Agent 的查找用的是登录 shell 的 PATH，所以 CLI 装在 Homebrew 或 `~/.local/bin` 都能找到。和从源码运行时一样，关闭或退出 App 不会停掉 core、daemon 和正在跑的 Agent。
 
 几个注意点：
 
-- **产物没有签名**：本机构建的直接打开；拷到别的机器上首次要右键-打开，或 `xattr -dc /Applications/Kando.app`。正式分发需要 Apple Developer ID 签名与公证。
-- **和源码版共用数据**：两者都用 `~/.kando`（任务库、worktrees、会话记录）和同一个 daemon socket，可以混用；谁先启动，core 就是谁的。
-- **卸载**：删除 App 即可；`~/.kando` 里是任务数据和 worktrees（可能有未合并的工作成果），确认不要了再删。
+- **产物没有签名**：本机构建的直接打开；拷到别的机器上首次要右键-打开，或 `xattr -dc /Applications/Antumi.app`。正式分发需要 Apple Developer ID 签名与公证。
+- **和源码版共用数据**：两者都用 `~/.antumi`（任务库、worktrees、会话记录）和同一个 daemon socket，可以混用；谁先启动，core 就是谁的。
+- **卸载**：删除 App 即可；`~/.antumi` 里是任务数据和 worktrees（可能有未合并的工作成果），确认不要了再删。
 
 ## 9. 开发与验证
 

@@ -1,4 +1,4 @@
-# Kando
+# Antumi
 
 Task-first multi-agent manager. See docs/ARCHITECTURE.md for the architecture diagram and implementation details.
 
