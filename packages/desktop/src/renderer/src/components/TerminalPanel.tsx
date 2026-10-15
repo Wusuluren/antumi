@@ -20,39 +20,37 @@ function selectedLines(sessionId: string): string {
   return terminalSelection(sessionId).split('\n').map((line) => line.trimEnd()).join('\n').trim()
 }
 
-// Quotes what is selected in the terminal into a chat's input, to ask the agent about it.
-function QuoteToChatButton({ terminal }: { terminal: Terminal | undefined }) {
+// Quotes what is selected in the terminal into a chat's input, to ask the agent about it; shown by
+// the selection itself. It says where the passage went, then goes.
+function QuoteSelection({ terminal, dismiss }: { terminal: Terminal; dismiss: () => void }) {
   const target = useCore((s) => quoteTarget(s, terminal))
   const title = useCore((s) => (target ? s.conversations[target]?.title ?? null : null))
-  const [note, setNote] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
   useEffect(() => {
-    if (!note) return
-    const timer = setTimeout(() => setNote(null), 2000)
+    if (!done) return
+    const timer = setTimeout(dismiss, 1200)
     return () => clearTimeout(timer)
-  }, [note])
+  }, [done, dismiss])
   const quote = () => {
-    if (!terminal || !target) return
     const text = selectedLines(terminal.sessionId)
-    if (!text) return setNote('先在终端里选中要引用的内容')
+    if (!target || !text) return
     addQuote(target, null, text)
-    setNote(title ? `已引用到「${title}」的输入框` : '已引用到输入框')
+    setDone(true)
   }
+  if (done) return <span className="terminal-quote-done" role="status">{title ? `已引用到「${title}」` : '已引用到输入框'}</span>
   return (
-    <>
-      {note && <span className="terminal-quote-note" role="status">{note}</span>}
-      <button
-        type="button"
-        className="tool-button"
-        aria-label="引用到对话"
-        data-tooltip={target ? '把选中的内容引用到对话的输入框' : '先打开一个会话，再引用'}
-        disabled={!terminal || !target}
-        // Keeps the terminal's selection and focus while the click reads it.
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={quote}
-      >
-        <QuoteIcon />
-      </button>
-    </>
+    <button
+      type="button"
+      className="button terminal-quote-button"
+      disabled={!target}
+      title={target ? (title ? `引用到「${title}」的输入框` : '引用到对话的输入框') : '先打开一个会话，再引用'}
+      // Keeps the terminal's selection and focus while the click reads it.
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={quote}
+    >
+      <QuoteIcon />
+      引用到对话
+    </button>
   )
 }
 
@@ -113,7 +111,6 @@ export function TerminalPanel() {
             <PlusIcon />
           </button>
         </div>
-        <QuoteToChatButton terminal={active} />
         {commandsSupported && <TerminalCommandsButton terminal={active} />}
         <button
           type="button"
@@ -130,7 +127,7 @@ export function TerminalPanel() {
       </header>
       <div className="terminal-panel-body">
         {active ? (
-          <SessionTerminal key={active.sessionId} sessionId={active.sessionId} />
+          <SessionTerminal key={active.sessionId} sessionId={active.sessionId} selectionAction={(dismiss) => <QuoteSelection terminal={active} dismiss={dismiss} />} />
         ) : (
           <p className="inspector-empty muted">正在打开终端…</p>
         )}

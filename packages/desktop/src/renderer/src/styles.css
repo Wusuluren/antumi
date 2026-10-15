@@ -349,7 +349,6 @@ body.stacked-panel-resizing * {
 /* Under an agent's terminal run in the chat: the way to the tab it opened. */
 .chat-tool-actions { display: flex; gap: 12px; padding: 0 12px 8px; font-size: var(--chat-font-small); }
 .chat-tool-actions .link-button { margin-left: 0; }
-.terminal-quote-note { flex-shrink: 0; color: var(--text-3); font-size: 11px; white-space: nowrap; }
 
 .terminal-tab [role='tab'] {
   max-width: 160px;
@@ -3123,6 +3122,20 @@ body.side-panel-resizing * {
   min-height: 0;
   overflow: hidden;
 }
+
+/* What a mouse selection offers, floating by where it ended. */
+.terminal-frame { position: relative; }
+.terminal-selection-action {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+}
+.terminal-quote-button { height: 26px; gap: 6px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
+.terminal-quote-button > svg { width: 13px; height: 13px; }
+.terminal-quote-done { padding: 4px 10px; color: var(--text-muted); font-size: 12px; white-space: nowrap; }
 
 /* Chromium squeezes runs of full-width punctuation (text-spacing-trim), and xterm measures each
    glyph as a run of 32: "。" then measures half as wide as it draws, and rows overrun the grid. */
