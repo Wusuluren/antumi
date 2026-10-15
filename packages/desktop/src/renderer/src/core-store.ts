@@ -897,14 +897,6 @@ export function useUsageLimitSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('usage-limit') ?? false)
 }
 
-export function useAgentStatsSupported(): boolean {
-  return useCore((s) => s.rpc?.features.includes('agent-stats') ?? false)
-}
-
-export function useConversationStatsSupported(): boolean {
-  return useCore((s) => s.rpc?.features.includes('conversation-stats') ?? false)
-}
-
 export function useDashboardSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('dashboard') ?? false)
 }

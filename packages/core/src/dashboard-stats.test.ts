@@ -106,6 +106,23 @@ describe('summarizeDashboard', () => {
     ])
     expect(models[0]).toMatchObject({ runs: 1, decided: 1, accepted: 1, turns: 1, medianRunMs: HOUR })
   })
+
+  it('tells per model how decided runs went and how turns broke off', () => {
+    const { models } = summarizeDashboard(
+      [run({ outcome: 'accepted' }), run({ outcome: 'continued' }), run({ outcome: 'redone' }), run({})],
+      [
+        turn({ durationMs: 1000 }),
+        turn({ state: 'failed', usageLimit: 1, durationMs: 3000 }),
+        turn({ state: 'failed', durationMs: null }),
+        turn({ state: 'interrupted', durationMs: 5000 })
+      ],
+      options
+    )
+    expect(models).toEqual([expect.objectContaining({
+      runs: 4, decided: 3, accepted: 1, continued: 1, redone: 1,
+      turns: 4, failedTurns: 2, interruptedTurns: 1, usageLimitTurns: 1, medianTurnMs: 3000
+    })])
+  })
 })
 
 describe('calendarDays', () => {

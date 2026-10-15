@@ -111,7 +111,13 @@ function byModel(runs: readonly EndedRun[], turns: readonly TurnRow[], quick: re
       model: entry.model,
       ...runCounts(entry.runs),
       turns: entry.turns.length,
-      tokens: tokensOf(entry.runs, entry.turns) + entry.quickTokens
+      tokens: tokensOf(entry.runs, entry.turns) + entry.quickTokens,
+      continued: entry.runs.filter((run) => run.outcome === 'continued').length,
+      redone: entry.runs.filter((run) => run.outcome === 'redone').length,
+      failedTurns: entry.turns.filter((turn) => turn.state === 'failed').length,
+      interruptedTurns: entry.turns.filter((turn) => turn.state === 'interrupted').length,
+      usageLimitTurns: entry.turns.filter((turn) => turn.usageLimit === 1).length,
+      medianTurnMs: median(entry.turns.flatMap((turn) => (turn.durationMs === null ? [] : [turn.durationMs])))
     }))
     .sort((a, b) => AGENT_KINDS.indexOf(a.agent) - AGENT_KINDS.indexOf(b.agent) || b.tokens - a.tokens || b.runs + b.turns - a.runs - a.turns)
 }

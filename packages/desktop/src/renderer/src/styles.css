@@ -4401,55 +4401,6 @@ body.side-panel-resizing * {
   padding: 12px 0;
 }
 
-.settings-stats {
-  width: 100%;
-  margin: 12px 0 4px;
-  border-collapse: collapse;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-
-.settings-stats :is(th, td) {
-  padding: 8px 6px;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.settings-stats :is(th, td):first-child {
-  text-align: left;
-}
-
-.settings-stats thead th {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.settings-stats tbody tr {
-  border-top: 1px solid var(--border);
-}
-
-.settings-stats-agent th {
-  padding-top: 14px;
-  font-weight: 600;
-}
-
-.settings-stats-agent svg {
-  width: 14px;
-  height: 14px;
-  margin-right: 6px;
-  vertical-align: -2px;
-}
-
-.settings-stats-model {
-  padding-left: 26px;
-  font-weight: 400;
-}
-
-.settings-stats td.settings-stats-few {
-  text-align: center;
-}
-
 .settings-stats-heading {
   margin: 16px 0 0;
   font-size: 13px;
@@ -4457,12 +4408,6 @@ body.side-panel-resizing * {
 }
 
 .settings-stats-heading + .settings-empty { padding-top: 8px; }
-
-.settings-stats-note {
-  margin: 8px 0 14px;
-  font-size: 12px;
-  line-height: 1.5;
-}
 
 .settings-none {
   padding: 48px 0;
@@ -8273,6 +8218,14 @@ body.side-panel-resizing * {
 .dashboard-models tbody th { font-weight: 500; }
 .dashboard-model-name { display: inline-flex; align-items: center; gap: 8px; }
 .dashboard-model-name svg { width: 14px; height: 14px; }
+.dashboard-model-toggle { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.dashboard-model-toggle:hover { color: var(--text); }
+.dashboard-model-chevron { display: inline-flex; color: var(--text-3); transition: transform 120ms; }
+.dashboard-model-chevron[data-hidden] { visibility: hidden; }
+.dashboard-model-toggle[aria-expanded='true'] .dashboard-model-chevron { transform: rotate(90deg); }
+.dashboard-models tbody tr.dashboard-model-detail { border-top: 0; }
+.dashboard-models .dashboard-model-detail td { padding: 0 0 10px 22px; text-align: left; white-space: normal; color: var(--text-muted); }
+.dashboard-model-detail p { margin: 0; line-height: 1.6; }
 .dashboard-share { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .dashboard-share-track { width: 64px; height: 4px; overflow: hidden; border-radius: 999px; background: var(--fill-2); }
 .dashboard-share-track span { display: block; height: 100%; background: var(--text-muted); }
@@ -8296,6 +8249,7 @@ body.side-panel-resizing * {
 
 @media (prefers-reduced-motion: reduce) {
   .dashboard-refresh[data-loading] svg { animation: none; }
+  .dashboard-model-chevron { transition: none; }
 }
 
 /* Routines on the schedules page: a rule per row, its runs' history folded under it. */

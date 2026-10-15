@@ -36,7 +36,6 @@ import {
   SparkIcon,
   TranslateIcon
 } from './icons'
-import { AgentStatsSettings } from './AgentStatsSettings'
 import { ChatCommandSettings } from './ChatCommandSettings'
 import { KnowledgeBaseSettings } from './KnowledgeBaseSettings'
 import { SkillsSettingsSection } from './SkillsSettingsSection'
@@ -623,15 +622,6 @@ const SECTIONS: readonly Section[] = [
     keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', '模型', '轻量', '提交信息', 'haiku', '标题', '命名', '重命名', '首轮', '每轮'],
     Icon: SparkIcon,
     Body: AgentSettings
-  },
-  {
-    id: 'agent-stats',
-    group: '任务',
-    title: '智能体表现',
-    description: '按 Agent 和模型统计：任务看验收结果，会话看用量。',
-    keywords: ['表现', '统计', '通过率', '接受', '继续修改', '重做', '耗时', 'token', '模型', '会话', '用量', '回合', '失败', '额度', ...AGENT_KINDS],
-    Icon: GaugeIcon,
-    Body: AgentStatsSettings
   },
   {
     id: 'projects',

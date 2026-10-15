@@ -44,7 +44,16 @@ export const DashboardModel = z.object({
   accepted: count,
   medianRunMs: z.number().nullable(),
   turns: count,
-  tokens: z.number().nonnegative()
+  tokens: z.number().nonnegative(),
+  // Optional for older cores: what decided runs came to besides acceptance, and how turns broke off.
+  continued: count.optional(),
+  redone: count.optional(),
+  failedTurns: count.optional(),
+  interruptedTurns: count.optional(),
+  // Failed turns the usage limit stopped, counted among failedTurns too.
+  usageLimitTurns: count.optional(),
+  // The agent's own working time per turn.
+  medianTurnMs: z.number().nullable().optional()
 })
 export type DashboardModel = z.infer<typeof DashboardModel>
 
