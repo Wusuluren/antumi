@@ -12,7 +12,7 @@ import type { AcpDialect } from './acp-dialect'
 import { AcpConfig, valuesOf, type AcpOptionValue } from './acp-schema'
 
 const Id = z.union([z.string(), z.number()])
-const Frame = z.looseObject({ jsonrpc: z.literal('2.0').optional(), id: Id.optional(), method: z.string().optional(), params: z.unknown().optional(), result: z.unknown().optional(), error: z.looseObject({ code: z.number(), message: z.string() }).optional() })
+const Frame = z.looseObject({ jsonrpc: z.literal('2.0').optional(), id: Id.optional(), method: z.string().optional(), params: z.unknown().optional(), result: z.unknown().optional(), error: z.looseObject({ code: z.number(), message: z.string(), data: z.unknown().optional() }).optional() })
 type Frame = z.infer<typeof Frame>
 const Configs = z.looseObject({ configOptions: z.array(AcpConfig).optional() })
 const Opened = Configs.extend({
@@ -82,6 +82,8 @@ export class AcpDriver implements ChatDriver {
   private session: string | null = null
   private exited = false
   private startError: string | null = null
+  // The session to resume is not there to load: Cursor keeps one only once a turn has got somewhere.
+  private lost = false
   private config: AcpConfig[] = []
   private modern = new Set<string>()
   private serial = 0
@@ -193,6 +195,7 @@ export class AcpDriver implements ChatDriver {
 
   ready(): boolean { return this.session !== null && this.setup && this.modelsRead && this.initial.size === 0 && !this.startError && !this.exited }
   failure(): string | null { return this.startError ?? (this.exited && !this.session ? `${this.name} 进程已退出` : null) }
+  sessionLost(): boolean { return this.lost }
   activeTurnRef(): string | null { return this.turn?.ref ?? null }
 
   activity(): ChatTurnActivity { return this.pending.size || this.kando.pending ? 'awaiting' : this.turn || this.changing() ? 'running' : 'idle' }
@@ -395,7 +398,11 @@ export class AcpDriver implements ChatDriver {
     if (frame.error) {
       if (['session/set_config_option', 'session/set_mode', 'session/set_model'].includes(request.method)) this.optionErrors.set(id, frame.error.message)
       if (request.method === 'session/prompt') this.finish(this.stopping ? 'interrupted' : 'failed', frame.error.message, at)
-      else if (!this.setup || String(frame.id).startsWith(this.id('initial-')) || request.method === 'session/new' || request.method === 'session/load') this.startError = `${request.method}: ${frame.error.message}`
+      else if (!this.setup || String(frame.id).startsWith(this.id('initial-')) || request.method === 'session/new' || request.method === 'session/load') {
+        const detail = errorDetail(frame.error.data)
+        this.startError = `${request.method}: ${detail ?? frame.error.message}`
+        this.lost = request.method === 'session/load' && /not found/i.test(detail ?? frame.error.message)
+      }
       else this.items.notice('error', frame.error.message, at)
       return
     }
@@ -735,4 +742,10 @@ export class AcpDriver implements ChatDriver {
     this.state.endTurn()
     this.turn = null
   }
+}
+
+// What an error says beyond its JSON-RPC title ("Invalid params"): Cursor puts the reason in data.message.
+function errorDetail(data: unknown): string | null {
+  const message = z.looseObject({ message: z.string() }).safeParse(data).data?.message.trim()
+  return message || null
 }

@@ -276,7 +276,9 @@ export const ChatItem = z.discriminatedUnion('kind', [
     // still read the notice, and nullable once the action has been used.
     action: z.object({
       kind: z.literal('retryCursorTurn'),
-      userItemId: z.string()
+      userItemId: z.string(),
+      // The turn is still running, silent: retrying stops it first.
+      stop: z.boolean().optional()
     }).nullable().optional()
   }),
   // The turn before it (turn:<ref> for limit:<ref>) failed because the account's usage limit was

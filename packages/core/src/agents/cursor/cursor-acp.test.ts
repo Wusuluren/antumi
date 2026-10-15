@@ -496,3 +496,27 @@ describe('Cursor ACP', () => {
     expect(items(driver, 'turn')[0]?.error).toBe('The actual provider error')
   })
 })
+
+describe('Cursor sessions that cannot be loaded', () => {
+  const loading = () => {
+    const driver = new CursorAcp('stage', { ...OPTIONS, resume: 'gone' })
+    due(driver)
+    receive(driver, { id: 'cursor-init', result: { protocolVersion: 1, agentCapabilities: { loadSession: true } } })
+    due(driver)
+    return driver
+  }
+
+  it('says why, from the error\'s data, and that the session is gone', () => {
+    const driver = loading()
+    receive(driver, { id: 'cursor-session', error: { code: -32602, message: 'Invalid params', data: { message: 'Session "gone" not found' } } })
+    expect(driver.failure()).toBe('session/load: Session "gone" not found')
+    expect(driver.sessionLost()).toBe(true)
+  })
+
+  it('does not take another failure for a lost session', () => {
+    const driver = loading()
+    receive(driver, { id: 'cursor-session', error: { code: -32603, message: 'Internal error' } })
+    expect(driver.failure()).toBe('session/load: Internal error')
+    expect(driver.sessionLost()).toBe(false)
+  })
+})

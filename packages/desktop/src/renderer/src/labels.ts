@@ -209,6 +209,7 @@ const REASON_TEXT: Record<string, string> = {
 // Reasons whose message says what went wrong in the agent's own words, kept after the summary.
 const REASON_WITH_DETAIL: Record<string, string> = {
   'chat-start-failed': 'Agent 没能以聊天界面启动',
+  'chat-session-lost': 'Agent 原来的会话已经不在了',
   // Chromium's own word on it (net::ERR_NAME_NOT_RESOLVED, a certificate), which says what to fix.
   'browser-navigation-failed': '页面打不开',
   'git-commit-failed': '提交失败',

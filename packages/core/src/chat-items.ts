@@ -74,7 +74,7 @@ export class ChatItems {
     level: 'info' | 'warning' | 'error',
     text: string,
     at: number,
-    options: { id?: string; action?: { kind: 'retryCursorTurn'; userItemId: string } | null } = {}
+    options: { id?: string; action?: { kind: 'retryCursorTurn'; userItemId: string; stop?: boolean } | null } = {}
   ): void {
     this.put({ id: options.id ?? `n:${++this.notices}`, kind: 'notice', level, text, ...(options.action !== undefined ? { action: options.action } : {}) }, at)
   }

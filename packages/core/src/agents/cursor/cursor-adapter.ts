@@ -52,7 +52,10 @@ export const cursor: AgentAdapter = {
   turns: {
     serialized: true,
     stopAfterCancel: { cancelGraceMs: 2000, termGraceMs: 2000 },
-    firstFrameTimeoutMs: 30_000,
+    // Its first event has come after 20 seconds when the service is slow, so it is given longer
+    // before it is stopped.
+    firstFrameNoticeMs: 30_000,
+    firstFrameTimeoutMs: 60_000,
     retryByRestart: true,
     denialAsMessage: true
   },

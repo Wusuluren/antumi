@@ -46,6 +46,8 @@ type TurnWatch = {
   promptSentAt: number
   firstFrameAt: number | null
   lastFrameAt: number | null
+  // The user was told the agent has not answered yet (AgentAdapter.turns.firstFrameNoticeMs).
+  noticed: boolean
   stalled: boolean
   timer: ReturnType<typeof setTimeout> | null
 }
@@ -268,6 +270,12 @@ export class ChatHost {
   idle(conversationId: string): boolean {
     const live = this.liveOf(conversationId)
     return live !== undefined && this.isIdle(live)
+  }
+
+  // The watched turn the agent has not answered with a single event yet, by its ref.
+  silentTurn(conversationId: string): string | null {
+    const watch = this.liveOf(conversationId)?.watch
+    return watch && !watch.stalled && watch.firstFrameAt === null ? watch.ref : null
   }
 
   // Conversations whose agent has sat idle since before `before`.
@@ -539,9 +547,10 @@ export class ChatHost {
   private dispatch(live: Live, message: ChatOutgoing, ref?: string, images: readonly ChatImage[] = []): Promise<unknown> {
     if (ref && live.driver.activity() === 'idle') this.sink.prompt?.(live, ref)
     this.record(live, { dir: 'out', at: this.now(), frame: message.logged, ...(ref ? { ref } : {}), ...(images.length ? { images: [...images] } : {}) })
-    const timeout = adapterOf(live.agent).turns?.firstFrameTimeoutMs
+    const turns = adapterOf(live.agent).turns
+    const timeout = turns?.firstFrameTimeoutMs
     const signal = timeout ? live.driver.turnSignal?.(message.logged, 'out') : null
-    if (timeout && signal === 'prompt') this.watchPrompt(live, ref ?? this.rpcId(message.logged) ?? 'prompt', timeout)
+    if (timeout && signal === 'prompt') this.watchPrompt(live, ref ?? this.rpcId(message.logged) ?? 'prompt', timeout, turns?.firstFrameNoticeMs)
     else if (signal === 'session-load' || signal === 'session-new') this.trace(live, `${signal}-sent`)
     else if (signal === 'cancel') {
       this.clearWatchTimer(live)
@@ -587,7 +596,7 @@ export class ChatHost {
     }
     const failure = live.driver.failure()
     if (failure && live.started) {
-      live.started.reject(new Rejection('chat-start-failed', this.failureText(live, failure)))
+      live.started.reject(this.startFailure(live, failure))
       live.started = null
     }
   }
@@ -596,18 +605,25 @@ export class ChatHost {
     this.clearWatchTimer(live)
     const last = live.framer.flush()
     if (last) this.read(live, [last], false)
+    this.watchEnded(live, this.now())
     const record: LoggedRecord = { dir: 'exit', at: this.now(), code, stderr: live.stderr.slice(-2000) }
     this.tap(live, [{ dir: 'exit', text: JSON.stringify({ code }) }])
     live.log.append([record])
     live.driver.apply(record)
     this.flush(live)
-    live.started?.reject(new Rejection('chat-start-failed', this.failureText(live, live.driver.failure() ?? 'exited')))
+    live.started?.reject(this.startFailure(live, live.driver.failure() ?? 'exited'))
     live.started = null
     this.lives.delete(live.sessionId)
     this.remember(live.stageId, live.driver)
     this.sink.activity(live.conversationId)
     // Everything is in the log now; the daemon can let go of the output it kept.
     void this.daemon.request('release', { sessionId: live.sessionId }).catch(ignore)
+  }
+
+  // chat-session-lost: the start can be tried again as a new session (ConversationService.start).
+  private startFailure(live: Live, failure: string): Rejection {
+    const lost = live.driver.sessionLost?.() ?? false
+    return new Rejection(lost ? 'chat-session-lost' : 'chat-start-failed', lost ? failure : this.failureText(live, failure))
   }
 
   private failureText(live: Live, failure: string): string {
@@ -637,17 +653,21 @@ export class ChatHost {
     return typeof id === 'string' || typeof id === 'number' ? String(id) : null
   }
 
-  private watchPrompt(live: Live, ref: string, timeout: number): void {
+  private watchPrompt(live: Live, ref: string, timeout: number, noticeAfter?: number): void {
     this.clearWatchTimer(live)
     const watch: TurnWatch = {
       ref,
       promptSentAt: this.now(),
       firstFrameAt: null,
       lastFrameAt: null,
+      noticed: false,
       stalled: false,
       timer: null
     }
-    watch.timer = setTimeout(() => this.stalled(live, watch, timeout), timeout)
+    const early = noticeAfter !== undefined && noticeAfter < timeout
+    watch.timer = early
+      ? setTimeout(() => this.waiting(live, watch, noticeAfter, timeout), noticeAfter)
+      : setTimeout(() => this.stalled(live, watch, timeout), timeout)
     watch.timer.unref()
     live.watch = watch
     this.trace(live, 'prompt-sent', watch)
@@ -666,6 +686,9 @@ export class ChatHost {
     if (watch.timer) clearTimeout(watch.timer)
     watch.timer = null
     this.trace(live, 'first-frame', watch)
+    if (watch.noticed) {
+      this.stallNotice(live, watch, 'info', `${agentDescriptor(live.agent).label} 过了 ${Math.round((at - watch.promptSentAt) / 1000)} 秒才开始回应。`, null)
+    }
   }
 
   private watchEnded(live: Live, at: number): void {
@@ -676,21 +699,30 @@ export class ChatHost {
     watch.timer = null
     this.trace(live, 'turn-ended', watch)
     live.watch = null
+    // Stopped by the user while it was still silent: what is left to offer is a retry.
+    if (watch.noticed && !watch.stalled && watch.firstFrameAt === null) {
+      this.stallNotice(live, watch, 'warning', `${agentDescriptor(live.agent).label} 一直没有回应，这一轮已停止。Kando 不会自动重发，以免重复执行已经开始的操作。`, 'retry')
+    }
+  }
+
+  // Not answered yet, but maybe only slow: the user may wait on, or stop it now and try again. It
+  // is stopped anyway once the full timeout has passed.
+  private waiting(live: Live, watch: TurnWatch, after: number, timeout: number): void {
+    if (this.lives.get(live.sessionId) !== live || live.watch !== watch || watch.firstFrameAt !== null) return
+    watch.noticed = true
+    watch.timer = setTimeout(() => this.stalled(live, watch, timeout), timeout - after)
+    watch.timer.unref()
+    const label = agentDescriptor(live.agent).label
+    this.stallNotice(live, watch, 'info', `${label} ${Math.round(after / 1000)} 秒还没有回应，可能是它那边较慢。可以再等等，${Math.round(timeout / 1000)} 秒仍没有回应会自动停止；也可以现在停止并重试。`, 'stop')
+    this.trace(live, 'first-frame-waiting', watch)
+    this.flush(live)
   }
 
   private stalled(live: Live, watch: TurnWatch, timeout: number): void {
     if (this.lives.get(live.sessionId) !== live || live.watch !== watch || watch.firstFrameAt !== null) return
     watch.timer = null
     watch.stalled = true
-    const at = this.now()
-    this.record(live, {
-      dir: 'note',
-      at,
-      id: `${live.agent}-stalled:${watch.ref}`,
-      level: 'warning',
-      text: `${agentDescriptor(live.agent).label} ${Math.round(timeout / 1000)} 秒内没有返回当前回合事件，本轮正在停止。Kando 不会自动重发，以免重复执行已经开始的操作。`,
-      action: { kind: 'retryCursorTurn', userItemId: `u:${watch.ref}` }
-    })
+    this.stallNotice(live, watch, 'warning', `${agentDescriptor(live.agent).label} ${Math.round(timeout / 1000)} 秒没有回应，本轮正在停止。Kando 不会自动重发，以免重复执行已经开始的操作。`, 'retry')
     this.trace(live, 'first-frame-timeout', watch)
     let frames: unknown[] = []
     try {
@@ -703,6 +735,18 @@ export class ChatHost {
     // the cancellation frame; otherwise that clean exit could briefly look like a crash.
     this.sink.turnStalled?.(live.conversationId, live.sessionId)
     void Promise.all(frames.map((frame) => this.write(live, frame))).catch(ignore)
+  }
+
+  // One notice per watched turn, rewritten as it goes: waiting, then answered late or stopped.
+  private stallNotice(live: Live, watch: TurnWatch, level: 'info' | 'warning', text: string, offer: 'stop' | 'retry' | null): void {
+    this.record(live, {
+      dir: 'note',
+      at: this.now(),
+      id: `${live.agent}-stalled:${watch.ref}`,
+      level,
+      text,
+      action: offer ? { kind: 'retryCursorTurn', userItemId: `u:${watch.ref}`, ...(offer === 'stop' ? { stop: true } : {}) } : null
+    })
   }
 
   private clearWatchTimer(live: Live): void {

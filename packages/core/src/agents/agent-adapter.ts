@@ -101,6 +101,8 @@ export interface AgentAdapter {
     // A prompt with no event for this long is stopped, with a notice offering to retry it. Its
     // driver tells which frames start and belong to a turn (ChatDriver.turnSignal).
     firstFrameTimeoutMs?: number
+    // Before that, after this long, the user is told and may stop it and retry at once.
+    firstFrameNoticeMs?: number
     // A failed or stalled turn can be sent again from a fresh process.
     retryByRestart?: boolean
     // The message that goes with a denial reaches it only as a message of its own.

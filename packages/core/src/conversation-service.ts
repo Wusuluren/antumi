@@ -799,40 +799,54 @@ export class ConversationService {
       this.changed(current)
       if (current.sessionId) throw new Rejection('conversation-running')
       if (launch.fork) return { ...await this.startFork(current, agent, launch.fork), starting: false }
-      const previous = launch.fresh ? null : this.store.latestStage(id, agent)
-      // A session named before launch may never have been saved, and one bound to its folder is
-      // left behind by a move: either way the agent starts afresh from a handoff.
-      const { session } = adapterOf(agent)
-      const resumable = !(launch.moved && session.folderBound)
-      const saved = resumable && previous?.providerSessionId && (!session.preassignedId || this.store.hasProviderMessages(id, previous.providerSessionId))
-        ? previous.providerSessionId : null
-      const providerSessionId = saved ?? (session.preassignedId ? randomUUID() : null)
-      const missingNativeSession = previous !== null && saved === null
-      const messages = missingNativeSession ? this.store.messages(id) :
-        handoff ? this.store.messages(id, previous?.receivedSequence ?? 0) : []
-      const needsHandoff = handoff || (missingNativeSession && messages.length > 0)
-      let handoffPath: string | null = null
-      this.openedInHandoff.delete(id)
-      if (needsHandoff && launch.opening) {
-        note = note ? `${note}\n\n${launch.opening}` : launch.opening
-        this.openedInHandoff.add(id)
+      try {
+        return await this.startStage(current, agent, note, handoff, launch, null)
+      } catch (error) {
+        // The session it resumed has gone (Cursor keeps one only once a turn got somewhere): it
+        // starts afresh from a handoff instead.
+        const lost = this.store.latestStage(id, agent)?.providerSessionId
+        if (!(error instanceof Rejection && error.reason === 'chat-session-lost') || !lost) throw error
+        return await this.startStage(current, agent, note, handoff, launch, lost)
       }
-      if (needsHandoff) {
-        const directory = path.join(this.sessionsRoot, id, 'handoffs')
-        await mkdir(directory, { recursive: true, mode: 0o700 })
-        handoffPath = path.join(directory, `${randomUUID()}.md`)
-        await writeFile(handoffPath, buildHandoff(current, messages, note, current.agent, agent), { mode: 0o600 })
-      }
-      if (launch.brief) handoffPath = launch.brief
-      const stageId = randomUUID()
-      const stage = this.store.startStage(id, agent, providerSessionId, this.store.maxSequence(id), stageId, launch.planOnly ?? false)
-      return { ...await this.startChat(current, stage, saved !== null, handoffPath === null ? null : { path: handoffPath, note }, launch.readable ?? []), starting: false }
     } finally {
       this.launching.delete(id)
       const current = this.store.get(id)
       if (current) this.changed(current)
       this.capacityReleased?.()
     }
+  }
+
+  // lost: the provider session that turned out not to be there to resume.
+  private async startStage(current: Conversation, agent: AgentKind, note: string, handoff: boolean, launch: StageLaunch, lost: string | null): Promise<Conversation> {
+    const { id } = current
+    const previous = launch.fresh ? null : this.store.latestStage(id, agent)
+    // A session named before launch may never have been saved, and one bound to its folder is
+    // left behind by a move: either way the agent starts afresh from a handoff.
+    const { session } = adapterOf(agent)
+    const resumable = !(launch.moved && session.folderBound) && (lost === null || previous?.providerSessionId !== lost)
+    const saved = resumable && previous?.providerSessionId && (!session.preassignedId || this.store.hasProviderMessages(id, previous.providerSessionId))
+      ? previous.providerSessionId : null
+    const providerSessionId = saved ?? (session.preassignedId ? randomUUID() : null)
+    const missingNativeSession = previous !== null && saved === null
+    const messages = withoutUnanswered(missingNativeSession ? this.store.messages(id) :
+      handoff ? this.store.messages(id, previous?.receivedSequence ?? 0) : [], this.store.stages(id), lost)
+    const needsHandoff = handoff || (missingNativeSession && messages.length > 0)
+    let handoffPath: string | null = null
+    this.openedInHandoff.delete(id)
+    if (needsHandoff && launch.opening) {
+      note = note ? `${note}\n\n${launch.opening}` : launch.opening
+      this.openedInHandoff.add(id)
+    }
+    if (needsHandoff) {
+      const directory = path.join(this.sessionsRoot, id, 'handoffs')
+      await mkdir(directory, { recursive: true, mode: 0o700 })
+      handoffPath = path.join(directory, `${randomUUID()}.md`)
+      await writeFile(handoffPath, buildHandoff(current, messages, note, current.agent, agent), { mode: 0o600 })
+    }
+    if (launch.brief) handoffPath = launch.brief
+    const stageId = randomUUID()
+    const stage = this.store.startStage(id, agent, providerSessionId, this.store.maxSequence(id), stageId, launch.planOnly ?? false)
+    return { ...await this.startChat(current, stage, saved !== null, handoffPath === null ? null : { path: handoffPath, note }, launch.readable ?? []), starting: false }
   }
 
   // The first stage of a fork: the source's session taken over through the fork point, where the
@@ -1316,6 +1330,9 @@ export class ConversationService {
       const user = this.chats.items(this.chatStage(conversation, stage)).find((item) => item.id === notice.action?.userItemId)
       if (user?.kind !== 'user') throw new Rejection('chat-item-not-found', 'the message to retry is no longer available')
 
+      // Offered while the turn was still silent: stopped first, if it still is.
+      const silent = this.chats.silentTurn(id)
+      if (notice.action.stop && silent !== null && `u:${silent}` === notice.action.userItemId) await this.interrupt(id)
       const active = this.get(id)
       if (active.sessionId) await this.cancelStops.get(active.sessionId)
       const ready = this.get(id)
@@ -1551,4 +1568,13 @@ export class ConversationService {
     this.emit({ type: 'changed', conversation: decorated })
     return decorated
   }
+}
+
+// What was said in a lost provider session that never got an answer is left out of the handoff:
+// the agent did not answer it, and a retry sends it again.
+function withoutUnanswered(messages: ConversationMessage[], stages: readonly ConversationStage[], lost: string | null): ConversationMessage[] {
+  if (lost === null) return messages
+  const inLost = new Set(stages.filter((stage) => stage.providerSessionId === lost).map((stage) => stage.id))
+  if (messages.some((message) => message.role === 'assistant' && inLost.has(message.stageId))) return messages
+  return messages.filter((message) => !inLost.has(message.stageId))
 }

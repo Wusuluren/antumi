@@ -16,7 +16,7 @@ export type ChatRecord =
       level: 'info' | 'warning' | 'error'
       text: string
       id?: string
-      action?: { kind: 'retryCursorTurn'; userItemId: string } | null
+      action?: { kind: 'retryCursorTurn'; userItemId: string; stop?: boolean } | null
     }
   // The user switched an option; an agent that takes options per turn applies it from here.
   | { dir: 'option'; at: number; option: ChatOption; value: string }
@@ -104,6 +104,8 @@ export interface ChatDriver {
   ready(): boolean
   // Why the stage cannot start, once it is clear that it will not.
   failure(): string | null
+  // It could not start because the provider session it was to resume is gone.
+  sessionLost?(): boolean
   activity(): ChatTurnActivity
   activeTurnRef?(): string | null
   providerSessionId(): string | null

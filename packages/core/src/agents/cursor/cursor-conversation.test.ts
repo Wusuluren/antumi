@@ -22,6 +22,8 @@ let projects: ProjectRegistry
 let service: ConversationService
 let daemon: ReturnType<typeof fakeChatDaemon>
 let answerPrompt: boolean
+// Sessions Cursor never saved: loading one fails as Cursor does.
+let unsaved: Set<string>
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 beforeEach(() => {
@@ -30,6 +32,7 @@ beforeEach(() => {
   tasks = new TaskStore(database); store = new ConversationStore(database); projects = new ProjectRegistry(database)
   mkdirSync(path.join(root, 'attachments'))
   answerPrompt = true
+  unsaved = new Set()
   daemon = fakeChatDaemon()
   service = new ConversationService(store, daemon, path.join(root, 'sessions'), () => {}, projects, new AttachmentStore(path.join(root, 'attachments')), (id) => ({ command: 'node', args: ['mcp', '--conversation', id] }))
   daemon.deliver = (event) => {
@@ -49,6 +52,10 @@ beforeEach(() => {
       else if (frame.method === 'cursor/list_available_models') reply({ models: [] })
       else if (frame.method === 'session/new' || frame.method === 'session/load') {
         const opened = z.object({ sessionId: z.string().optional(), mcpServers: z.array(z.object({ args: z.array(z.string()) })) }).parse(frame.params)
+        if (frame.method === 'session/load' && unsaved.has(opened.sessionId ?? '')) {
+          queueMicrotask(() => daemon.emit(write.sessionId, { id: frame.id, error: { code: -32602, message: 'Invalid params', data: { message: `Session "${opened.sessionId}" not found` } } }))
+          continue
+        }
         const args = opened.mcpServers[0]?.args ?? []
         const ready = args[args.indexOf('--ready-file') + 1]
         if (ready) await writePrivateJson(ready, { ready: true })
@@ -112,19 +119,24 @@ it('lets an idle Cursor process go after half an hour, and resumes its session a
   expect(prompts('pipe-2')).toEqual([expect.stringContaining('after a break')])
 })
 
-it('stops a silent Cursor turn and retries it only after the user asks', async () => {
+const stallNotice = (id: string) => service.chatPage(id).items.find((item) => item.kind === 'notice' && item.id.startsWith('cursor-stalled:'))
+const promptText = (sessionId: string) => daemon.written(sessionId).map((frame) => Frame.parse(frame)).filter((frame) => frame.method === 'session/prompt')
+  .map((frame) => z.object({ prompt: z.array(z.object({ text: z.string() })) }).parse(frame.params).prompt[0]?.text)
+
+it('tells the user at 30 seconds that Cursor has not answered, stops it at 60, and retries it only when asked', async () => {
   vi.useFakeTimers()
   answerPrompt = false
   const created = await service.create('cursor', [])
   await service.send(created.id, 'do this once')
 
   await vi.advanceTimersByTimeAsync(30_000)
-  const notice = service.chatPage(created.id).items.find((item) => item.kind === 'notice' && item.action?.kind === 'retryCursorTurn')
-  expect(notice).toMatchObject({
-    kind: 'notice',
-    level: 'warning',
-    action: { kind: 'retryCursorTurn' }
-  })
+  expect(stallNotice(created.id)).toMatchObject({ level: 'info', action: { kind: 'retryCursorTurn', stop: true } })
+  expect(daemon.written('pipe-1')).not.toEqual(expect.arrayContaining([expect.objectContaining({ method: 'session/cancel' })]))
+
+  await vi.advanceTimersByTimeAsync(30_000)
+  const notice = stallNotice(created.id)
+  expect(notice).toMatchObject({ level: 'warning', text: expect.stringContaining('60 秒没有回应'), action: { kind: 'retryCursorTurn' } })
+  expect(notice?.kind === 'notice' && notice.action?.stop).toBeFalsy()
   expect(daemon.written('pipe-1')).toEqual(expect.arrayContaining([expect.objectContaining({ method: 'session/cancel' })]))
   expect(daemon.spawns).toHaveLength(1)
 
@@ -143,6 +155,57 @@ it('stops a silent Cursor turn and retries it only after the user asks', async (
     })
   ]))
   expect(service.chatItem(created.id, notice!.stageId, notice!.id)).toMatchObject({ action: null })
+})
+
+it('stops a still silent Cursor turn and sends it again when the user asks before the timeout', async () => {
+  vi.useFakeTimers()
+  answerPrompt = false
+  const created = await service.create('cursor', [])
+  await service.send(created.id, 'do this once')
+  await vi.advanceTimersByTimeAsync(30_000)
+  const notice = stallNotice(created.id)!
+
+  answerPrompt = true
+  const retried = service.retryCursorTurn(created.id, notice.stageId, notice.id)
+  await vi.advanceTimersByTimeAsync(2_000)
+  await retried
+  await vi.runAllTimersAsync()
+  expect(daemon.written('pipe-1')).toEqual(expect.arrayContaining([expect.objectContaining({ method: 'session/cancel' })]))
+  expect(daemon.spawns).toHaveLength(2)
+  expect(promptText('pipe-2')).toEqual(['do this once'])
+  expect(service.chatItem(created.id, notice.stageId, notice.id)).toMatchObject({ action: null })
+})
+
+it('lets a slow Cursor turn go on once it answers, and says how long it took', async () => {
+  vi.useFakeTimers()
+  answerPrompt = false
+  const created = await service.create('cursor', [])
+  await service.send(created.id, 'take your time')
+  await vi.advanceTimersByTimeAsync(41_000)
+  daemon.emit('pipe-1', { method: 'session/update', params: { sessionId: 'cursor-pipe-1', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'here' } } } })
+  await vi.advanceTimersByTimeAsync(60_000)
+
+  expect(stallNotice(created.id)).toMatchObject({ level: 'info', text: expect.stringMatching(/过了 \d+ 秒才开始回应/), action: null })
+  expect(daemon.written('pipe-1')).not.toEqual(expect.arrayContaining([expect.objectContaining({ method: 'session/cancel' })]))
+})
+
+it('starts a new Cursor session when the one to resume was never saved', async () => {
+  vi.useFakeTimers()
+  answerPrompt = false
+  const created = await service.create('cursor', [])
+  await service.send(created.id, 'do this once')
+  await vi.advanceTimersByTimeAsync(62_000)
+  unsaved.add(service.stages(created.id).at(-1)!.providerSessionId!)
+  const notice = stallNotice(created.id)!
+
+  answerPrompt = true
+  await service.retryCursorTurn(created.id, notice.stageId, notice.id)
+  await vi.runAllTimersAsync()
+  expect(daemon.written('pipe-2')).toEqual(expect.arrayContaining([expect.objectContaining({ method: 'session/load' })]))
+  expect(daemon.written('pipe-3')).toEqual(expect.arrayContaining([expect.objectContaining({ method: 'session/new' })]))
+  // The unanswered message is sent again on its own, not handed over as well.
+  expect(promptText('pipe-3')).toEqual(['do this once'])
+  expect(service.get(created.id).sessionId).toBe('pipe-3')
 })
 
 it('cancels a user-stopped Cursor turn before terminating its process', async () => {

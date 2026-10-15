@@ -281,7 +281,7 @@ function ChatNotice({ conversationId, item }: { conversationId: string; item: No
   } : null
   const action = retry && (
     <button type="button" className="button chat-notice-action" disabled={retrying} onClick={() => void retry()}>
-      {retrying ? '正在重连…' : '重新连接并重试'}
+      {item.action?.stop ? (retrying ? '正在停止…' : '停止并重试') : retrying ? '正在重连…' : '重新连接并重试'}
     </button>
   )
   if (!more) return <div className="chat-notice chat-notice-actionable" data-level={item.level}><span>{text}</span>{action}</div>
