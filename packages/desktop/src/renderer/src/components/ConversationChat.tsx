@@ -10,8 +10,7 @@ import { ChatDisclosureScope, ChatFindExpansion, setOpened, useDisclosure } from
 import { isCompaction, noticeSummary, readableNotice } from '../chat-notices'
 import { parseQuotes, withoutQuoteMarkers } from '../chat-quotes'
 import { formatTokens, isSubagent, thoughtFor, workedFor } from '../chat-tools'
-import { perform, useCore, useTranslateSupported } from '../core-store'
-import { needsTranslation, showOriginal, translate, translationKey, useTranslations, type TranslationState } from '../translation'
+import { perform, useCore } from '../core-store'
 import { ChatSurfaceContext, conversationSurface, useChatSurface, type ChatSurface } from './chat-surface'
 import { forkConversation } from './ConversationActions'
 import { agentLabel, chatDayAndTime, dayAndTime, messageTime } from '../labels'
@@ -39,8 +38,9 @@ import { cssFontFamily } from '../system-fonts'
 import { freshKeys } from '../chat-motion'
 import { acknowledgeInitialMessage, sendInitialMessage, useInitialMessages, type InitialMessage } from '../initial-messages'
 import { Spinner } from './Spinner'
+import { TranslateButton, useTranslated } from './TranslateButton'
 import { ChatFind, useChatFindState, type ChatHistoryResult } from './ChatFind'
-import { ArrowDownIcon, ChevronDownIcon, ChevronRightIcon, FileChangesIcon, AgentIcon, ForkIcon, TranslateIcon } from './icons'
+import { ArrowDownIcon, ChevronDownIcon, ChevronRightIcon, FileChangesIcon, AgentIcon, ForkIcon } from './icons'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 const NO_ITEMS: ChatItem[] = []
@@ -297,30 +297,6 @@ function ChatNotice({ conversationId, item }: { conversationId: string; item: No
   )
 }
 
-// Puts a reply in another language than the user's into theirs, on request or, with translation on,
-// as it comes into view; the original stays a click away.
-function TranslateButton({ state, original, onTranslate, onToggle }: {
-  state: TranslationState | undefined
-  original: boolean
-  onTranslate: () => void
-  onToggle: () => void
-}) {
-  if (state?.state === 'pending') return <span className="chat-translate" role="status"><Spinner />翻译中…</span>
-  if (state?.state === 'done') {
-    const by = state.model ? `由 ${state.model} 翻译` : '由这个 Agent 的默认模型翻译'
-    return (
-      <button type="button" className="copy-button chat-translate" data-tooltip={original ? `看译文（${by}）` : `看原文（这是${by}的译文）`} onClick={onToggle}>
-        <TranslateIcon />{original ? '译文' : '原文'}
-      </button>
-    )
-  }
-  return (
-    <button type="button" className="copy-button chat-translate" data-failed={state?.state === 'failed' || undefined} data-tooltip={state?.state === 'failed' ? `${state.error}，点击重试` : '用这个 Agent 的小模型翻译这条回复'} onClick={onTranslate}>
-      <TranslateIcon />{state?.state === 'failed' ? '重试翻译' : '翻译'}
-    </button>
-  )
-}
-
 const ChatVariant = createContext<'full' | 'compact'>('full')
 const FoldedTurns = createContext<ReadonlySet<string>>(new Set())
 
@@ -340,32 +316,10 @@ function AssistantReply({ conversationId, item, completedAt, ending, blockKey }:
   // A stored reply can still end in Cursor's raw transport error. Say what happened instead.
   const failure = item.streaming ? null : cursorProviderError(item.text)
   const text = failure ? failure.rest : item.text
-  const supported = useTranslateSupported()
-  const to = usePreferences((p) => p.translateTo)
-  const auto = usePreferences((p) => p.autoTranslate)
   const parentId = useCore((s) => s.conversations[conversationId]?.helperOf)
-  const agent = useCore((s) => s.conversations[conversationId]?.agent)
-  const model = usePreferences((p) => (agent ? p.quickModels[agent] : undefined)) ?? ''
-  const finished = completedAt !== undefined && !item.streaming && text !== ''
-  const foreign = useMemo(() => supported && finished && needsTranslation(text, to), [supported, finished, text, to])
-  const key = translationKey(conversationId, blockKey, to, model)
-  const result = useTranslations((s) => s.results[key])
-  const original = useTranslations((s) => s.original[key] ?? false)
   const box = useRef<HTMLDivElement>(null)
-  // With translation on, a foreign reply is translated once it comes into view, so opening a long
-  // conversation does not translate all of it.
-  useEffect(() => {
-    const element = box.current
-    if (!foreign || !auto || result || !element) return
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) return
-      observer.disconnect()
-      void translate(conversationId, key, text, to, model)
-    })
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [foreign, auto, result, conversationId, key, text, to, model])
-  const shown = result?.state === 'done' && !original ? result.text : text
+  const translated = useTranslated(conversationId, blockKey, text, completedAt !== undefined && !item.streaming, box)
+  const { shown } = translated
   return (
     <div ref={box} className="chat-assistant" data-streaming={item.streaming || undefined} data-translated={shown !== text || undefined}>
       {shown && <ChatMarkdown text={shown} highlight={!item.streaming} runnable={!item.streaming} />}
@@ -375,17 +329,7 @@ function AssistantReply({ conversationId, item, completedAt, ending, blockKey }:
           <CopyButton text={shown} label={shown !== text ? '复制译文' : '复制回复'} />
           {completedAt !== undefined && <MessageTime at={completedAt} />}
           {ending && (!compact || ending.state !== 'completed' || !foldedTurns.has(itemKey(ending))) && <><span className="chat-turn chat-turn-inline" data-state={ending.state}>{compact && ending.state === 'completed' ? helperDuration(ending) : turnText(ending)}</span>{compact && <HelperTurnCost turn={ending} />}</>}
-          {foreign && (
-            <TranslateButton
-              state={result}
-              original={original}
-              onTranslate={() => {
-                showOriginal(key, false)
-                void translate(conversationId, key, text, to, model)
-              }}
-              onToggle={() => showOriginal(key, !original)}
-            />
-          )}
+          {translated.foreign && <TranslateButton translated={translated} what="这条回复" />}
           <ForkButton item={item} />
           {parentId && <button type="button" className="link-button helper-quote-button" onClick={() => { addQuote(parentId, null, shown); focusChatInput(parentId) }}>引用到主会话</button>}
         </div>

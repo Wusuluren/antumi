@@ -6,6 +6,7 @@ import { QuoteCards } from './ChatQuoteCards'
 import { PlanComments } from './PlanComments'
 import { useChatSurface } from './chat-surface'
 import { ChatMarkdown } from './ChatMarkdown'
+import { TranslateButton, useTranslated } from './TranslateButton'
 import { useResponder } from './ChatRequestCards'
 import { ChatPicker } from './ChatPicker'
 import { SchedulePicker } from './SchedulePicker'
@@ -169,9 +170,12 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
   const choices: PlanChoice[] = squadStart ? (savePlan ? ['squad', 'save', 'revise', 'stop'] : ['squad', 'revise', 'stop']) : savePlan ? ['save', 'revise', 'stop'] : modesSupported ? ['run', 'revise', 'stop'] : ['allow', 'allowForSession', 'revise', 'stop']
   const [choice, setChoice] = useState<PlanChoice>(choices[0] ?? 'revise')
   const noteInput = useRef<HTMLInputElement>(null)
+  const preview = useRef<HTMLDivElement>(null)
   const long = (item.detail ?? '').split('\n').length > PREVIEW_LINES
   // The inspector beside the chat already shows this plan in full: no second copy here.
   const key = itemKey(item)
+  // One translation for the plan, wherever it shows (the inspector's plan tab too).
+  const translated = useTranslated(conversationId, planTranslationKey(key), item.detail ?? '', true, preview)
   const inView = useCore((s) => surface.inspector === 'task'
     ? s.inspectorOpen && s.taskInspectorTab === 'plan' && (s.taskInspectorPlan === null || s.taskInspectorPlan === key)
     : s.conversationInspectorOpen && s.conversationInspectorTab === 'plan' && (s.conversationPlan === null || s.conversationPlan === key))
@@ -246,13 +250,14 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
           : <button type="button" className="link-button" onClick={() => surface.showPlan(key)}>在检查器里看完整计划</button>}
         {surface.handoffPlan && <button type="button" className="link-button" disabled={busy || saving} onClick={() => surface.handoffPlan?.(item)}>交给小队执行</button>}
         {schedulable && <SchedulePlanButton conversationId={conversationId} />}
+        {!inView && translated.foreign && <TranslateButton translated={translated} what="这份计划" />}
       </div>
       {squadStart
         ? <p className="chat-request-detail muted">批准后，队长按这份计划给「{squadStart.name}」的成员派活。</p>
         : savePlan && <p className="chat-request-detail muted">依赖的任务还没完成：现在只能保存计划，等它们完成后开始执行时再按计划做。</p>}
       {item.detail && !inView && (
-        <div className="chat-plan-preview" data-clipped={(long && !open) || undefined}>
-          <ChatMarkdown text={item.detail} />
+        <div className="chat-plan-preview" ref={preview} data-clipped={(long && !open) || undefined}>
+          <ChatMarkdown text={translated.shown} />
           {long && (
             <button type="button" className="link-button chat-plan-preview-more" aria-expanded={open} onClick={() => setOpen(!open)}>
               {open ? '收起' : '展开全部'}
@@ -304,6 +309,11 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
   )
 }
 
+// A plan's translation, apart from a reply's under the same conversation.
+function planTranslationKey(key: string): string {
+  return `plan:${key}`
+}
+
 function downloadMarkdown(filename: string, markdown: string): void {
   const url = URL.createObjectURL(new Blob([markdown], { type: 'text/markdown;charset=utf-8' }))
   const link = document.createElement('a')
@@ -352,6 +362,7 @@ export function ChatPlanView({ conversationId, plans, selected, onSelect, note =
   const body = useRef<HTMLDivElement>(null)
   const quotes = useQuotes(conversationId ?? '')
   const plan = plans.find((each) => itemKey(each) === selected) ?? plans.at(-1)
+  const translated = useTranslated(conversationId, plan ? planTranslationKey(itemKey(plan)) : '', plan?.detail ?? '', plan !== undefined, body)
   const said = (each: PlanItem) => note(each) ?? status(each)
   if (!plan) return <p className="inspector-empty muted">Agent 还没有提出计划。</p>
   const planKey = itemKey(plan)
@@ -373,6 +384,7 @@ export function ChatPlanView({ conversationId, plans, selected, onSelect, note =
           ) : said(plan)}
           {plan.resolution === null && <span className="muted"> · 在对话下方确认</span>}
         </div>
+        {translated.foreign && <TranslateButton translated={translated} what="这份计划" />}
         {plan.detail && <PlanMarkdownActions markdown={plan.detail} filename={planMarkdownFilename(plan.detail, version, plans.length)} />}
       </div>
       {conversationId && plan.detail && comments > 0 && (
@@ -381,7 +393,7 @@ export function ChatPlanView({ conversationId, plans, selected, onSelect, note =
         </p>
       )}
       {plan.detail
-        ? <div className="chat-plan-body" ref={body}><ChatMarkdown text={plan.detail} /></div>
+        ? <div className="chat-plan-body" ref={body}><ChatMarkdown text={translated.shown} /></div>
         : <p className="muted">这份计划是空的。</p>}
       {conversationId && plan.detail && <PlanComments conversationId={conversationId} planKey={planKey} body={body} />}
     </div>

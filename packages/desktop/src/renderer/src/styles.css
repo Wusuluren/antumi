@@ -7409,6 +7409,10 @@ body.side-panel-resizing * {
 .chat-plan-view-actions .tool-button { width: 24px; height: 24px; }
 .chat-plan-view-actions .tool-button svg { width: 14px; height: 14px; }
 .chat-plan-view-actions .tool-button[data-copied] { color: var(--status-done); }
+/* Translating a plan sits at the end of its row, before copying and downloading it. */
+.chat-plan-view-status > .chat-translate { margin-left: auto; }
+.chat-plan-view-status > .chat-translate + .chat-plan-view-actions { margin-left: 0; }
+.chat-plan .chat-request-title > .chat-translate { margin-left: auto; font-weight: 400; }
 
 /* A new conversation before its first message: the agent in the middle, the projects above the
    input they go with. */
