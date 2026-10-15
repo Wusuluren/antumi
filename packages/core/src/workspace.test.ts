@@ -125,17 +125,17 @@ describe('prepareWorkspace', () => {
 
   it('starts where the task picked over a dependency\'s branch, and stacks on that when nothing is picked', async () => {
     const source = repo()
-    git(source, 'branch', 'kando/aaaaaaaa-dep')
+    git(source, 'branch', 'antumi/aaaaaaaa-dep')
     git(source, 'branch', 'release')
-    const dependency = { repos: [{ path: source, worktreePath: null, branch: 'kando/aaaaaaaa-dep', startRef: null, start: null }] }
+    const dependency = { repos: [{ path: source, worktreePath: null, branch: 'antumi/aaaaaaaa-dep', startRef: null, start: null }] }
     const [only] = task(source).repos
 
     const picked = await prepareWorkspace({ ...task(source), repos: [{ ...only!, startRef: 'refs/heads/release' }] }, [dependency], tempDir())
     expect(picked.entries[0]?.base).toBeNull()
     expect(picked.repos[0]?.start).toMatchObject({ ref: 'release', note: null })
     const stacked = await prepareWorkspace({ ...task(source), id: '5e1a0000-0000-4000-8000-000000000000' }, [dependency], tempDir())
-    expect(stacked.entries[0]?.base).toBe('kando/aaaaaaaa-dep')
-    expect(stacked.repos[0]?.start).toMatchObject({ ref: 'kando/aaaaaaaa-dep', note: null })
+    expect(stacked.entries[0]?.base).toBe('antumi/aaaaaaaa-dep')
+    expect(stacked.repos[0]?.start).toMatchObject({ ref: 'antumi/aaaaaaaa-dep', note: null })
   })
 
   it('leaves a worktree the user locked as it is', async () => {

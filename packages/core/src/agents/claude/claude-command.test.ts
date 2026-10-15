@@ -3,8 +3,8 @@ import { claudeEditDenials, claudeReadRules } from './claude-command'
 
 describe('Claude permission rules', () => {
   it('lets Claude read exactly those files, and nothing about the folder', () => {
-    expect(claudeReadRules(['/home/me/.kando/attachments/a.png', '/home/me/odd,name/b.png', 'relative.png'])).toEqual([
-      'Read(//home/me/.kando/attachments/a.png)'
+    expect(claudeReadRules(['/home/me/.antumi/attachments/a.png', '/home/me/odd,name/b.png', 'relative.png'])).toEqual([
+      'Read(//home/me/.antumi/attachments/a.png)'
     ])
   })
 

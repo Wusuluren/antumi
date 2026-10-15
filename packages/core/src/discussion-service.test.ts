@@ -29,7 +29,7 @@ describe('DiscussionService', () => {
 
   beforeEach(() => {
     root = mkdtempSync(path.join(os.tmpdir(), 'antumi-discussion-'))
-    const database = path.join(root, 'kando.db')
+    const database = path.join(root, 'antumi.db')
     tasks = new TaskStore(database)
     store = new ConversationStore(database)
     projects = new ProjectRegistry(database)
@@ -63,7 +63,7 @@ describe('DiscussionService', () => {
       else if (event.event === 'exit') conversations.handleExit(event.sessionId, event.exitCode)
       else conversations.handleStderr(event.sessionId, event.data)
     }
-    discussions = new DiscussionService(path.join(root, 'kando.db'), { conversations, events: { changed: () => {}, deleted: () => {}, posts: () => {} } })
+    discussions = new DiscussionService(path.join(root, 'antumi.db'), { conversations, events: { changed: () => {}, deleted: () => {}, posts: () => {} } })
   }
 
   afterEach(() => {
@@ -168,7 +168,7 @@ describe('DiscussionService', () => {
     const discussion = await discussions.create(fields({ requirements: '' }))
     await until(() => state(discussion.id) === 'done')
     expect(discussions.get(discussion.id).requirements).toBe('')
-    const db = new DatabaseSync(path.join(root, 'kando.db'))
+    const db = new DatabaseSync(path.join(root, 'antumi.db'))
     try { db.prepare('UPDATE discussions SET requirements = NULL WHERE id = ?').run(discussion.id) } finally { db.close() }
     expect(discussions.get(discussion.id).requirements).toBe(DEFAULT_DISCUSSION_REQUIREMENTS)
     const omitted = await discussions.create(fields())

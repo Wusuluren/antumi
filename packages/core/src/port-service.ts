@@ -36,15 +36,23 @@ export function ownedPorts(ports: readonly HostedPort[], context: PortContext): 
   })
 }
 
+// .kando is the folder's name from before the rename.
 async function labels(folder: string): Promise<Map<number, string>> {
-  try {
-    const file = path.join(folder, '.kando', 'ports.json')
-    if ((await stat(file)).size > 64 * 1024) return new Map()
-    const parsed = PortLabels.safeParse(JSON.parse(await readFile(file, 'utf8')))
-    return new Map(parsed.success ? parsed.data.ports.map((each) => [each.port, each.label]) : [])
-  } catch {
-    return new Map()
+  for (const dir of ['.antumi', '.kando']) {
+    const file = path.join(folder, dir, 'ports.json')
+    try {
+      if ((await stat(file)).size > 64 * 1024) return new Map()
+    } catch {
+      continue
+    }
+    try {
+      const parsed = PortLabels.safeParse(JSON.parse(await readFile(file, 'utf8')))
+      return new Map(parsed.success ? parsed.data.ports.map((each) => [each.port, each.label]) : [])
+    } catch {
+      return new Map()
+    }
   }
+  return new Map()
 }
 
 export class PortService {

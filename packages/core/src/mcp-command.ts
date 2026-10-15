@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 // plain Node. The env wrapper states the flag outright because an agent's environment lacks it
 // (POSIX only, like the dmg).
 export function mcpCommand(...args: string[]): string[] {
-  const bundled = process.env.KANDO_MCP_JS
+  const bundled = process.env.ANTUMI_MCP_JS
   if (bundled) {
     return ['/usr/bin/env', 'ELECTRON_RUN_AS_NODE=1', process.execPath, bundled, ...args]
   }

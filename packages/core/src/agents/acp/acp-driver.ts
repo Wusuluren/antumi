@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CHAT_PERMISSION_MODES, ChatPermissionMode, takeImageMarkers, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatTurnActivity, type ChatTurnState } from '@antumi/protocol'
+import { CHAT_PERMISSION_MODES, ChatPermissionMode, RESERVED_MCP_SERVER_NAME, takeImageMarkers, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatTurnActivity, type ChatTurnState } from '@antumi/protocol'
 import { ChatItems, clip } from '../../chat-items'
 import { StageState } from '../../chat-stage-state'
 import { ChatQueue } from '../../chat-queue'
@@ -167,7 +167,7 @@ export class AcpDriver implements ChatDriver {
         // Cursor is on its command line, and reads them by their paths either way.
         ...(this.roots().length && this.directories ? { additionalDirectories: this.roots() } : {}),
         mcpServers: [
-          ...(mcp ? [{ name: 'kando', command: mcp.command, args: mcp.args, env: [] }] : []),
+          ...(mcp ? [{ name: RESERVED_MCP_SERVER_NAME, command: mcp.command, args: mcp.args, env: [] }] : []),
           ...(this.options.userMcp ?? []).map((server) => server.type === 'stdio'
             ? { name: server.name, command: server.command, args: server.args, env: [] }
             : { type: 'http', name: server.name, url: server.url, headers: [] })

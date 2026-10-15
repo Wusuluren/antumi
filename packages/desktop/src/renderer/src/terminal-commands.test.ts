@@ -18,10 +18,10 @@ describe('isInside', () => {
 })
 
 describe('terminalProject', () => {
-  const tasks = [{ repos: [{ path: '/code/app', worktreePath: '/home/.kando/worktrees/1/app', branch: null, startRef: null, start: null }] }]
+  const tasks = [{ repos: [{ path: '/code/app', worktreePath: '/home/.antumi/worktrees/1/app', branch: null, startRef: null, start: null }] }]
 
   it('reads a task worktree as the project it came from', () => {
-    expect(terminalProject('/home/.kando/worktrees/1/app/src', tasks)).toBe('/code/app')
+    expect(terminalProject('/home/.antumi/worktrees/1/app/src', tasks)).toBe('/code/app')
   })
 
   it('takes any other folder as it is', () => {

@@ -19,7 +19,7 @@ beforeEach(() => opened.clear())
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 const tabId = '10dbacd0-d598-495a-997a-498a87d1e70e'
 const call = (id: string, changes: Partial<ToolItem> = {}): ToolItem => ({
-  id, kind: 'tool', stageId: 'stage', revision: 1, at: 0, name: 'kando.browser_navigate',
+  id, kind: 'tool', stageId: 'stage', revision: 1, at: 0, name: 'antumi.browser_navigate',
   title: id, input: id, status: 'done', diffs: [],
   output: describeBrowserPage({ id: tabId, title: `Page ${id}`, url: `http://localhost/preview?version=${id}` }, `${id} snapshot`), ...changes
 })
@@ -35,7 +35,7 @@ describe('browser work', () => {
   })
 
   it('renders a collapsed history and just one latest page for a repeated tab', () => {
-    const html = render([call('first'), call('refresh'), call('click', { name: 'kando.browser_click' })])
+    const html = render([call('first'), call('refresh'), call('click', { name: 'antumi.browser_click' })])
     expect(html).toContain('浏览器操作 3 次')
     expect(html.match(/class="chat-tool chat-page"/g)).toHaveLength(1)
     expect(html).toContain('Page click')
@@ -99,7 +99,7 @@ describe('browser work', () => {
   })
 
   it('keeps screenshot images as independent cards, including images returned by navigation', () => {
-    for (const name of ['kando.browser_screenshot', 'kando.browser_navigate']) {
+    for (const name of ['antumi.browser_screenshot', 'antumi.browser_navigate']) {
       const html = renderToStaticMarkup(createElement(ChatBrowserCard, { item: call('shot', {
         name, images: [{ id: `${'a'.repeat(64)}.png`, width: 2, height: 1 }]
       }) }))

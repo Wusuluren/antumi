@@ -197,9 +197,9 @@ describe('chatBlocks', () => {
   })
 
   it('collects browser history across commands and narration, leaving screenshots separate', () => {
-    const shot = { ...tool('shot', 'mcp__kando__browser_screenshot'), images: [{ id: `${'a'.repeat(64)}.png`, width: 2, height: 1 }] }
-    const items = [user('u'), tool('open', 'mcp__kando__browser_navigate'), tool('cmd', 'Bash'), reply('checking'),
-      tool('click', 'kando.browser_click'), shot, tool('refresh', 'kando.browser_navigate'), reply('answer')]
+    const shot = { ...tool('shot', 'mcp__antumi__browser_screenshot'), images: [{ id: `${'a'.repeat(64)}.png`, width: 2, height: 1 }] }
+    const items = [user('u'), tool('open', 'mcp__antumi__browser_navigate'), tool('cmd', 'Bash'), reply('checking'),
+      tool('click', 'antumi.browser_click'), shot, tool('refresh', 'antumi.browser_navigate'), reply('answer')]
     expect(shape(blocksOf(items))).toEqual(['u', 'tools:cmd', 'checking', 'shot', 'browser:open+click+refresh', 'answer'])
     const browser = blocksOf(items).find((block) => block.kind === 'browser')
     expect(browser?.key).toBe('browser:item:chat-stage/open')
@@ -210,8 +210,8 @@ describe('chatBlocks', () => {
   })
 
   it('keeps browser entry points visible after completion without counting them twice in the work fold', () => {
-    const items = [user('u'), { ...tool('open', 'kando.browser_navigate'), at: 100 },
-      { ...tool('cmd'), at: 200 }, { ...tool('click', 'kando.browser_click'), at: 300 },
+    const items = [user('u'), { ...tool('open', 'antumi.browser_navigate'), at: 100 },
+      { ...tool('cmd'), at: 200 }, { ...tool('click', 'antumi.browser_click'), at: 300 },
       { ...reply('answer'), at: 400 }, { ...turn('end'), at: 500 }]
     expect(shape(blocksOf(items))).toEqual(['u', { fold: ['tools:cmd'] }, 'browser:open+click', 'answer', 'end'])
     expect(blocksOf(items).find((block) => block.kind === 'fold')).toMatchObject({ steps: 1, workMs: 200 })
@@ -228,13 +228,13 @@ describe('chatBlocks', () => {
   })
 
   it('does not promote narration before the last browser operation to the final answer', () => {
-    expect(shape(blocksOf([user('u'), tool('open', 'kando.browser_navigate'), reply('checking'),
-      tool('click', 'kando.browser_click'), turn('end')])))
+    expect(shape(blocksOf([user('u'), tool('open', 'antumi.browser_navigate'), reply('checking'),
+      tool('click', 'antumi.browser_click'), turn('end')])))
       .toEqual(['u', { fold: ['checking'] }, 'browser:open+click', 'end'])
   })
 
   it('does not merge browser histories across users, turn endings or stages', () => {
-    const open = (id: string) => tool(id, 'kando.browser_navigate')
+    const open = (id: string) => tool(id, 'antumi.browser_navigate')
     expect(shape(blocksOf([user('u'), open('a'), turn('t'), open('b'), user('u2'), open('c'),
       { ...open('d'), stageId: 'next' }])))
       .toEqual(['u', 'browser:a', 't', 'browser:b', 'u2', 'browser:c', 'browser:d'])
@@ -245,7 +245,7 @@ describe('chatBlocks', () => {
   })
 
   it('retains running, failed and denied browser calls in inspectable history', () => {
-    const navigate = tool('open', 'kando.browser_navigate')
+    const navigate = tool('open', 'antumi.browser_navigate')
     const calls = [navigate, { ...navigate, id: 'running', status: 'running' as const },
       { ...navigate, id: 'failed', status: 'failed' as const }, { ...navigate, id: 'denied', status: 'denied' as const }]
     expect(blocksOf(calls)).toEqual([{ kind: 'browser', key: 'browser:item:chat-stage/open', tools: calls }])

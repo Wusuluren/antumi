@@ -20,7 +20,7 @@ describe('conversation titles', () => {
 
   beforeEach(() => {
     root = mkdtempSync(path.join(os.tmpdir(), 'antumi-titles-'))
-    const db = path.join(root, 'kando.db')
+    const db = path.join(root, 'antumi.db')
     tasks = new TaskStore(db)
     store = new ConversationStore(db)
     conversation = store.create('claude', root, [])

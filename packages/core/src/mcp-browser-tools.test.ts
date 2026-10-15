@@ -75,7 +75,7 @@ describe('browser tools over core', () => {
     tabs = [tab(TAB_A, 'http://localhost/')]
     const shot = await tools.call('screenshot', { fullPage: true })
     expect(shot.image).toEqual({ data: Buffer.from([0xff, 0xd8, 0xff]).toString('base64'), mimeType: 'image/jpeg' })
-    expect(shot.text).not.toContain('[kando-image')
+    expect(shot.text).not.toContain('[antumi-image')
     expect(calls.at(-1)).toMatchObject({ method: 'browser.screenshot', params: { tabId: TAB_A, fullPage: true } })
   })
 

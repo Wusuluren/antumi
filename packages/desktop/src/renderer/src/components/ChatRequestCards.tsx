@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { isHostApproval, TERMINAL_RUN_TOOL, terminalToolKind, type ChatDecision, type ChatItem, type ChatPermissionMode, type ChatQuestion } from '@antumi/protocol'
+import { isHostApproval, isTerminalRunTool, terminalToolKind, type ChatDecision, type ChatItem, type ChatPermissionMode, type ChatQuestion } from '@antumi/protocol'
 import { choiceAction, choiceText, chosenText, isPlainDeny } from '../approval-choice-text'
 import { questionAnswers } from '../chat-state'
 import { perform } from '../core-store'
@@ -22,7 +22,7 @@ const TERMINAL_DECISION_LABEL: Record<ChatDecision, string> = { allow: '运行�
 // A request to run a command in a terminal of the agent's own: Antumi's (the command is its title)
 // or the agent's own permission prompt for the tool (the command is in the call's input).
 function terminalCommand(item: Extract<ChatItem, { kind: 'approval' }>, input: string | null | undefined): string | null {
-  if (item.tool === TERMINAL_RUN_TOOL) return item.title
+  if (isTerminalRunTool(item.tool)) return item.title
   if (terminalToolKind(item.tool) !== 'run') return null
   try {
     const parsed: unknown = JSON.parse(input ?? '')
@@ -33,7 +33,7 @@ function terminalCommand(item: Extract<ChatItem, { kind: 'approval' }>, input: s
   return item.title
 }
 function decisionLabel(item: ApprovalItem, decision: ChatDecision): string {
-  return (isHostApproval(item) ? HOST_DECISION_LABEL : item.tool === TERMINAL_RUN_TOOL ? TERMINAL_DECISION_LABEL : DECISION_LABEL)[decision]
+  return (isHostApproval(item) ? HOST_DECISION_LABEL : isTerminalRunTool(item.tool) ? TERMINAL_DECISION_LABEL : DECISION_LABEL)[decision]
 }
 const RESOLUTION_TEXT: Record<NonNullable<ApprovalItem['resolution']>, string> = {
   allowed: '已允许',
@@ -175,7 +175,7 @@ export function ChatApprovalCard({ conversationId, item, tool, singleApproval = 
       {terminal !== null ? (
         <>
           <CommandBlock command={terminal} />
-          <p className="chat-request-detail muted">在 Antumi 的终端面板里开一个标签运行，你能看到输出，随时可以停掉。{item.tool === TERMINAL_RUN_TOOL && item.detail ? `目录：${item.detail}` : ''}</p>
+          <p className="chat-request-detail muted">在 Antumi 的终端面板里开一个标签运行，你能看到输出，随时可以停掉。{isTerminalRunTool(item.tool) && item.detail ? `目录：${item.detail}` : ''}</p>
         </>
       ) : command && !tool
         // A subagent's command has no call in this chat: its title is the command.

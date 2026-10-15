@@ -22,8 +22,8 @@ describe('task starts in words', () => {
 
   it('says what starts the branch when nothing is picked', () => {
     expect(fallbackText(option(), nobody)).toEqual({ ref: 'origin/main', says: 'origin 的默认分支，开始前先拉取' })
-    expect(fallbackText(option({ fallback: 'refs/heads/kando/5e1a-api', stacked: true }), (branch) => (branch === 'kando/5e1a-api' ? '登录接口' : undefined)))
-      .toEqual({ ref: 'kando/5e1a-api', says: '依赖任务「登录接口」的分支' })
+    expect(fallbackText(option({ fallback: 'refs/heads/antumi/5e1a-api', stacked: true }), (branch) => (branch === 'antumi/5e1a-api' ? '登录接口' : undefined)))
+      .toEqual({ ref: 'antumi/5e1a-api', says: '依赖任务「登录接口」的分支' })
     expect(fallbackText(option({ fallback: null }), nobody)).toEqual({ ref: 'feature/login', says: '没有 origin 的默认分支，用项目当前的分支' })
   })
 

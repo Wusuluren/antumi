@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { app } from 'electron'
 import { z } from 'zod'
 import { AGENT_KINDS, agentDescriptor, type CoreEndpoint } from '@antumi/protocol'
-import { antumiPaths, readCoreEndpoint } from '@antumi/protocol/node'
+import { antumiPaths, migrateHome, readCoreEndpoint } from '@antumi/protocol/node'
 
 // Where CLIs land that a Finder-launched app's minimal PATH misses.
 const EXTRA_PATH_DIRS = ['/opt/homebrew/bin', '/usr/local/bin', join(homedir(), '.local/bin')]
@@ -133,7 +133,7 @@ async function retireCore(endpoint: CoreEndpoint): Promise<void> {
   while (Date.now() < until && (await reachable(endpoint.port))) await sleep(200)
 }
 
-// Starts daemon and core from the app's bundled copies when none serve this KANDO_HOME yet, or when
+// Starts daemon and core from the app's bundled copies when none serve this home yet, or when
 // the ones that do are of another build: an app updated in place would otherwise keep talking to
 // what it found, and lack whatever the update put there. The daemon only goes when it runs nothing. Both are detached with their own
 // logs: closing the window or quitting the app never touches them, exactly as when they run from
@@ -146,6 +146,8 @@ export async function ensureBackend(): Promise<void> {
   const coreCurrent = running?.version === app.getVersion()
   if (coreCurrent && !daemonReplaced) return
   if (running && !coreCurrent) await retireCore(running)
+  // With the old daemon and core gone, the home from before the rename can move.
+  await migrateHome().catch((error: unknown) => console.error('[antumi] moving the home failed; it stays where it is', error))
   const paths = antumiPaths()
   const logs = join(paths.home, 'logs')
   mkdirSync(logs, { recursive: true, mode: 0o700 })
@@ -156,7 +158,7 @@ export async function ensureBackend(): Promise<void> {
     // The Electron binary doubles as the Node that runs them; each strips or scopes the flag
     // before anything of the user's inherits it.
     ELECTRON_RUN_AS_NODE: '1',
-    KANDO_MCP_JS: join(backend, 'mcp.mjs')
+    ANTUMI_MCP_JS: join(backend, 'mcp.mjs')
   }
   const launch = (name: 'daemon' | 'core') => {
     const log = openSync(join(logs, `${name}.log`), 'a')

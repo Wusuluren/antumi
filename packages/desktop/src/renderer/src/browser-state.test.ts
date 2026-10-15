@@ -28,8 +28,8 @@ describe('the scope of every tab', () => {
 
 describe('firstBrowserCall', () => {
   it('names the first browser call still running, and nothing for finished history', () => {
-    expect(firstBrowserCall([{ kind: 'tool', name: 'mcp__kando__browser_navigate', status: 'done', stageId: 's', id: 't:1' }])).toBeNull()
-    expect(firstBrowserCall([{ kind: 'tool', name: 'Bash', status: 'running', stageId: 's', id: 't:1' }, { kind: 'tool', name: 'kando.browser_click', status: 'running', stageId: 's', id: 't:2' }])).toBe('s/t:2')
+    expect(firstBrowserCall([{ kind: 'tool', name: 'mcp__antumi__browser_navigate', status: 'done', stageId: 's', id: 't:1' }])).toBeNull()
+    expect(firstBrowserCall([{ kind: 'tool', name: 'Bash', status: 'running', stageId: 's', id: 't:1' }, { kind: 'tool', name: 'antumi.browser_click', status: 'running', stageId: 's', id: 't:2' }])).toBe('s/t:2')
   })
 })
 

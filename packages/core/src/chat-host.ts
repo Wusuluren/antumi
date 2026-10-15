@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { agentDescriptor, type AgentKind, type ChatImage, type ChatItem, type ChatOption, type ChatQueued, type ChatTurnActivity, type ConversationDoing, type ConversationRequest } from '@antumi/protocol'
+import { agentDescriptor, ANTUMI_REQUEST_PREFIX, isAntumiRequest, type AgentKind, type ChatImage, type ChatItem, type ChatOption, type ChatQueued, type ChatTurnActivity, type ConversationDoing, type ConversationRequest } from '@antumi/protocol'
 import type { AttachmentStore } from './attachment-store'
 import type { ChatAnswer, ChatDriver, ChatImageFile, ChatOutgoing, ChatRecord, ChatStageOptions, StageMessage } from './chat-driver'
 import { ChatLog, type LoggedRecord } from './chat-log'
@@ -388,7 +388,7 @@ export class ChatHost {
   // everything else, so a replay shows it, and answered through answer() rather than the agent.
   ask(conversationId: string, ask: AntumiAsk): string {
     const live = this.running(conversationId)
-    const requestId = `kando:${ask.kind}:${randomUUID()}`
+    const requestId = `${ANTUMI_REQUEST_PREFIX}${ask.kind}:${randomUUID()}`
     this.record(live, { dir: 'ask', at: this.now(), requestId, ask })
     this.flush(live)
     return requestId
@@ -406,7 +406,7 @@ export class ChatHost {
     const live = this.liveOf(conversationId)
     if (!live) return
     for (const item of live.driver.items.list()) {
-      if (item.kind === 'approval' && item.resolution === null && item.requestId.startsWith('kando:')) {
+      if (item.kind === 'approval' && item.resolution === null && isAntumiRequest(item.requestId)) {
         this.record(live, { dir: 'answer', at: this.now(), requestId: item.requestId, resolution: 'cancelled' })
       }
     }

@@ -17,7 +17,7 @@ describe('ChatCommandStore', () => {
 
   beforeEach(() => {
     root = mkdtempSync(path.join(os.tmpdir(), 'antumi-chat-commands-'))
-    database = path.join(root, 'kando.db')
+    database = path.join(root, 'antumi.db')
     tasks = new TaskStore(database)
     emitted = []
     clock = 1000

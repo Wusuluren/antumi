@@ -6,7 +6,7 @@ type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 const tabId = '10dbacd0-d598-495a-997a-498a87d1e70e'
 const page = (url: string, id = tabId) => ({ id, title: url, url })
 const call = (id: string, url: string, changes: Partial<ToolItem> = {}): ToolItem => ({
-  id, stageId: 'stage', revision: 1, at: 0, kind: 'tool', name: 'kando.browser_navigate',
+  id, stageId: 'stage', revision: 1, at: 0, kind: 'tool', name: 'antumi.browser_navigate',
   title: url, input: null, output: describeBrowserPage(page(url), 'snapshot'), status: 'done', diffs: [], ...changes
 })
 
@@ -19,9 +19,9 @@ describe('latestBrowserPages', () => {
   })
 
   it('uses snapshots and interactions to update a page reached without an explicit navigation', () => {
-    const tools = [call('a', 'http://localhost/', { name: 'kando.browser_tabs' }),
-      call('b', 'http://localhost/next', { name: 'mcp__kando__browser_click' }),
-      call('c', 'http://localhost/final', { name: 'kando.browser_snapshot' })]
+    const tools = [call('a', 'http://localhost/', { name: 'antumi.browser_tabs' }),
+      call('b', 'http://localhost/next', { name: 'mcp__antumi__browser_click' }),
+      call('c', 'http://localhost/final', { name: 'antumi.browser_snapshot' })]
     expect(latestBrowserPages(tools)).toEqual([{ item: tools[2], page: page('http://localhost/final') }])
   })
 

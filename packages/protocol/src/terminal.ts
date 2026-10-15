@@ -63,9 +63,13 @@ export function terminalToolName(kind: TerminalToolKind): string {
 }
 // Antumi's own question, as an approval, before it runs an agent's command where the agent asks
 // nothing for MCP tools (Codex).
-export const TERMINAL_RUN_TOOL = 'kando_terminal_run'
+export const TERMINAL_RUN_TOOL = 'antumi_terminal_run'
+// The approval's tool as chats from before the rename keep it.
+export function isTerminalRunTool(tool: string): boolean {
+  return tool === TERMINAL_RUN_TOOL || tool === 'kando_terminal_run'
+}
 
-// Which terminal tool a call is, by the name the agent knows it by (mcp__kando__terminal_run,
+// Which terminal tool a call is, by the name the agent knows it by (mcp__antumi__terminal_run,
 // antumi.terminal_run), or null for any other.
 export function terminalToolKind(name: string): TerminalToolKind | null {
   const own = antumiToolName(name)

@@ -1,4 +1,4 @@
-import { SQUAD_TOOL_NAMES, HISTORY_TOOLS, historyToolName, SHOW_PREVIEW_TOOL, terminalToolName, TODO_TOOLS, todoToolName } from '@antumi/protocol'
+import { RESERVED_MCP_SERVER_NAME, SQUAD_TOOL_NAMES, HISTORY_TOOLS, historyToolName, SHOW_PREVIEW_TOOL, terminalToolName, TODO_TOOLS, todoToolName } from '@antumi/protocol'
 import { BROWSER_READ_TOOLS, type AgentCommand } from '../../agent-command'
 import { knowledgeBaseNote } from '../../agent-prompt'
 import type { AgentLaunch } from '../agent-adapter'
@@ -51,11 +51,11 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     // Reading or stopping a terminal the conversation opened itself asks nothing either; running
     // a command in one is the agent's to ask about, under the mode the user set. Reading the user's
     // history, which only reads and is there only where the user allows it, asks nothing.
-    ...(mcp ? [...Object.values(SQUAD_TOOL_NAMES), SHOW_PREVIEW_TOOL, ...BROWSER_READ_TOOLS, terminalToolName('read'), terminalToolName('stop'), ...HISTORY_TOOLS.map(historyToolName), ...TODO_TOOLS.map(todoToolName)].map((tool) => `mcp__kando__${tool}`) : [])
+    ...(mcp ? [...Object.values(SQUAD_TOOL_NAMES), SHOW_PREVIEW_TOOL, ...BROWSER_READ_TOOLS, terminalToolName('read'), terminalToolName('stop'), ...HISTORY_TOOLS.map(historyToolName), ...TODO_TOOLS.map(todoToolName)].map((tool) => `mcp__${RESERVED_MCP_SERVER_NAME}__${tool}`) : [])
   ]
   const denials = fenced ? claudeEditDenials(fenced.dirs) : []
   const servers = {
-    ...(mcp ? { kando: { type: 'stdio', command: mcp.command, args: mcp.args } } : {}),
+    ...(mcp ? { [RESERVED_MCP_SERVER_NAME]: { type: 'stdio', command: mcp.command, args: mcp.args } } : {}),
     ...Object.fromEntries(userMcp.map((server) => [server.name, server.type === 'stdio' ? { type: 'stdio', command: server.command, args: server.args } : { type: 'http', url: server.url }]))
   }
   return { command: 'claude', args: [

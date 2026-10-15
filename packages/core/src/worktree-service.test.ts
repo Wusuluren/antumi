@@ -20,13 +20,13 @@ describe('WorktreeService', () => {
   const worktree = (prefix: string, { planning = false } = {}) => {
     const at = planning ? path.join(root, id(prefix).slice(0, 8), '.planning', 'app') : path.join(root, id(prefix).slice(0, 8), 'app')
     if (planning) git(app, 'worktree', 'add', '-q', '--detach', at, 'origin/main')
-    else git(app, 'worktree', 'add', '-q', '--no-track', '-b', `kando/${prefix}`, at, 'origin/main')
+    else git(app, 'worktree', 'add', '-q', '--no-track', '-b', `antumi/${prefix}`, at, 'origin/main')
     return at
   }
   const task = (prefix: string, status: TaskStatus, worktreePath: string | null) => {
     const made = Task.parse({
       id: id(prefix), title: prefix, details: '', status, dependsOn: [], agent: 'claude', sessionId: null, createdAt: 0, updatedAt: 0,
-      repos: [{ path: app, worktreePath, branch: worktreePath ? `kando/${prefix}` : null }]
+      repos: [{ path: app, worktreePath, branch: worktreePath ? `antumi/${prefix}` : null }]
     })
     tasks.push(made)
     return made
@@ -87,11 +87,11 @@ describe('WorktreeService', () => {
     const listed = new Map((await service().list()).map((each) => [each.path, each]))
     expect([...listed.keys()].sort()).toEqual([done, review, orphan, planning, alone, locked].sort())
     expect(listed.get(done)).toMatchObject({
-      repo: realpathSync(app), branch: 'kando/d', taskId: id('d'), planning: false, changes: 0,
+      repo: realpathSync(app), branch: 'antumi/d', taskId: id('d'), planning: false, changes: 0,
       unmerged: { count: 1, into: 'origin/main' }, alone: false, locked: false, size: null
     })
     expect(listed.get(review)).toMatchObject({ taskId: id('r'), changes: 1, unmerged: { count: 0, into: 'origin/main' } })
-    expect(listed.get(orphan)).toMatchObject({ taskId: null, branch: 'kando/e', changes: 0 })
+    expect(listed.get(orphan)).toMatchObject({ taskId: null, branch: 'antumi/e', changes: 0 })
     expect(listed.get(planning)).toMatchObject({ taskId: id('p'), planning: true, branch: null, alone: false })
     expect(listed.get(alone)).toMatchObject({ taskId: null, planning: true, alone: true })
     expect(listed.get(locked)).toMatchObject({ locked: true, inUse: true })
@@ -141,7 +141,7 @@ describe('WorktreeService', () => {
     expect([dirty, review, alone, locked, outside].map(existsSync)).toEqual([true, true, true, true, true])
     // The task's folder went with its only worktree; the branch and its commit stay.
     expect(existsSync(path.dirname(done))).toBe(false)
-    expect(git(app, 'log', '-1', '--format=%s', 'kando/d')).toBe('work')
+    expect(git(app, 'log', '-1', '--format=%s', 'antumi/d')).toBe('work')
     expect(released).toEqual([id('d')])
     expect(forgotten).toEqual([done])
     expect(changes()).toBe(1)

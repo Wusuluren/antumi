@@ -2,7 +2,7 @@ import { mkdir, readdir, readFile, lstat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fromBuffer } from 'yauzl'
 import { satisfies, valid, validRange } from 'semver'
-import { PluginManifest, type PluginInstallSource } from '@antumi/protocol'
+import { PluginManifest, pluginEngineRange, type PluginInstallSource } from '@antumi/protocol'
 import { z } from 'zod'
 import { pluginEnvironment } from './plugin-process'
 
@@ -25,7 +25,7 @@ export async function readManifest(root: string, antumiVersion: string): Promise
   const info = await lstat(file)
   if (!info.isFile() || info.size > 128 * 1024) throw new Error('插件 manifest 无效或过大')
   const manifest = PluginManifest.parse(JSON.parse(await readFile(file, 'utf8')))
-  if (!valid(manifest.version) || !validRange(manifest.engines.kando) || !satisfies(antumiVersion, manifest.engines.kando)) throw new Error('插件版本无效或不兼容当前 Antumi')
+  if (!valid(manifest.version) || !validRange(pluginEngineRange(manifest)) || !satisfies(antumiVersion, pluginEngineRange(manifest))) throw new Error('插件版本无效或不兼容当前 Antumi')
   if (new Set(manifest.contributes.sources.map((source) => source.id)).size !== manifest.contributes.sources.length) throw new Error('插件重复声明了来源')
   for (const source of manifest.contributes.sources) {
     if (new Set(source.settings.map((field) => field.key)).size !== source.settings.length) throw new Error('插件重复声明了设置字段')

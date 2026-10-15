@@ -49,7 +49,7 @@ describe('AttachmentStore', () => {
   it('refuses anything that is not a stored image by its exact name', async () => {
     await expect(store.put(Buffer.from('<svg/>'))).rejects.toMatchObject({ reason: 'attachment-not-image' })
     await expect(store.put(new Uint8Array(10 * 1024 * 1024 + 1))).rejects.toMatchObject({ reason: 'attachment-too-large' })
-    for (const id of ['../kando.db', `${'A'.repeat(64)}.png`, `${'a'.repeat(64)}.png\u0000`, `${'a'.repeat(64)}.svg`]) {
+    for (const id of ['../antumi.db', `${'A'.repeat(64)}.png`, `${'a'.repeat(64)}.png\u0000`, `${'a'.repeat(64)}.svg`]) {
       await expect(store.read(id, 0, 1)).rejects.toMatchObject({ reason: 'attachment-not-found' })
       await expect(store.info(id)).rejects.toMatchObject({ reason: 'attachment-not-found' })
     }

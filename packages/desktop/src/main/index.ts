@@ -275,12 +275,12 @@ void app.whenReady().then(() => {
   protocol.handle(PREVIEW_SCHEME, servePreview)
   // Windows names a notification's sender by this id, the installer's shortcut carries the same.
   if (process.platform === 'win32') app.setAppUserModelId('dev.antumi.desktop')
-  void ensureBackend()
   createWindow()
-  startBrowserHost(slot, antumiPaths().browserHostFile).then(
+  // After the backend: ensureBackend may move the home, and the host file belongs in the one core reads.
+  void ensureBackend().finally(() => startBrowserHost(slot, antumiPaths().browserHostFile).then(
     (host) => { browserHost = host },
     (error: unknown) => console.error('[antumi] the browser host did not start', error)
-  )
+  ))
   app.on('activate', () => {
     if (!mainWindow) {
       createWindow()

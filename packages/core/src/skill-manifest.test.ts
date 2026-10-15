@@ -32,7 +32,7 @@ describe('skillEntry', () => {
 
 describe('scanSkills', () => {
   let repo: string
-  beforeEach(() => { repo = mkdtempSync(path.join(os.tmpdir(), 'kando-skills-')) })
+  beforeEach(() => { repo = mkdtempSync(path.join(os.tmpdir(), 'antumi-skills-')) })
   afterEach(() => rmSync(repo, { recursive: true, force: true }))
 
   const skill = (dir: string, name: string, body = `---\nname: ${name}\ndescription: Does ${name}.\n---\n`) => {

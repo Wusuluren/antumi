@@ -54,7 +54,7 @@ describe('TerminalService', () => {
 
   beforeEach(() => {
     root = mkdtempSync(path.join(os.tmpdir(), 'antumi-terminals-'))
-    database = path.join(root, 'kando.db')
+    database = path.join(root, 'antumi.db')
     tasks = new TaskStore(database)
     daemon = fakeDaemon()
     emitted = []

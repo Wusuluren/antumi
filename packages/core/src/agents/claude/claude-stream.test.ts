@@ -76,7 +76,7 @@ describe('ClaudeStream', () => {
   it('says which of the user\'s MCP servers did not start, once, the same when rebuilt from its log', () => {
     const at = 1_790_000_000_000
     const init = { type: 'system', subtype: 'init', session_id: 's-1', mcp_servers: [
-      { name: 'kando', status: 'failed', source: 'dynamic' },
+      { name: 'antumi', status: 'failed', source: 'dynamic' },
       { name: 'github', status: 'failed', source: 'dynamic' },
       { name: 'docs', status: 'connected', source: 'dynamic' },
       { name: 'own', status: 'failed', source: 'user' }
@@ -374,7 +374,7 @@ describe('ClaudeStream state', () => {
     const driver = new ClaudeStream('stage-1', OPTIONS)
     const kept = driver.logged({
       type: 'control_response',
-      response: { subtype: 'success', request_id: 'kando-init', response: { account: { email: 'someone@example.com' }, commands: [{ name: 'x' }], current_permission_mode: 'default', models: [] } }
+      response: { subtype: 'success', request_id: 'antumi-init', response: { account: { email: 'someone@example.com' }, commands: [{ name: 'x' }], current_permission_mode: 'default', models: [] } }
     })
     expect(JSON.stringify(kept)).not.toContain('example.com')
   })
@@ -382,11 +382,11 @@ describe('ClaudeStream state', () => {
 
 describe('ClaudeStream slash commands', () => {
   const stateOf = (driver: ClaudeStream) => ofKind(driver.items.list(), 'state')[0]
-  const init: ChatRecord = { dir: 'out', at: 1, frame: { type: 'control_request', request_id: 'kando-init', request: { subtype: 'initialize' } } }
+  const init: ChatRecord = { dir: 'out', at: 1, frame: { type: 'control_request', request_id: 'antumi-init', request: { subtype: 'initialize' } } }
   const answer = (commands: unknown[]): ChatRecord => ({
     dir: 'in',
     at: 2,
-    frame: { type: 'control_response', response: { subtype: 'success', request_id: 'kando-init', response: { commands, models: [], account: { email: 'someone@example.com' } } } }
+    frame: { type: 'control_response', response: { subtype: 'success', request_id: 'antumi-init', response: { commands, models: [], account: { email: 'someone@example.com' } } } }
   })
   const skill = { name: 'review-pr', description: `Review a pull request.\n${'More detail. '.repeat(40)}`, argumentHint: '<pr#>', aliases: ['rp'] }
 
@@ -435,7 +435,7 @@ describe('ClaudeStream options', () => {
   it('switches the permission mode, even mid-turn, to one the stage offers', () => {
     const driver = live()
     expect(driver.setOption('permissionMode', 'ask')).toEqual([
-      { type: 'control_request', request_id: 'kando-option-2', request: { subtype: 'set_permission_mode', mode: 'default' } }
+      { type: 'control_request', request_id: 'antumi-option-2', request: { subtype: 'set_permission_mode', mode: 'default' } }
     ])
     expect(() => driver.setOption('permissionMode', 'bypass')).toThrow(expect.objectContaining({ reason: 'chat-option-invalid' }))
     expect(() => driver.setOption('permissionMode', 'readOnly')).toThrow(expect.objectContaining({ reason: 'chat-option-invalid' }))
@@ -449,7 +449,7 @@ describe('ClaudeStream options', () => {
     // Haiku takes no effort at all.
     expect(() => driver.setOption('effort', 'high')).toThrow(expect.objectContaining({ reason: 'chat-option-invalid' }))
     driver.apply({ dir: 'out', at, frame })
-    driver.apply({ dir: 'in', at, frame: { type: 'control_response', response: { subtype: 'success', request_id: 'kando-option-2' } } })
+    driver.apply({ dir: 'in', at, frame: { type: 'control_response', response: { subtype: 'success', request_id: 'antumi-option-2' } } })
     const state = ofKind(driver.items.list(), 'state')[0]
     expect(state?.model).toBe('sonnet')
     const [effort] = driver.setOption('effort', 'high')
@@ -461,15 +461,15 @@ describe('ClaudeStream options', () => {
   it('says so when the CLI refuses a switch', () => {
     const driver = live()
     driver.apply({ dir: 'out', at, frame: driver.setOption('model', 'sonnet')[0] })
-    driver.apply({ dir: 'in', at, frame: { type: 'control_response', response: { subtype: 'error', request_id: 'kando-option-2', error: "Model 'sonnet' not found" } } })
+    driver.apply({ dir: 'in', at, frame: { type: 'control_response', response: { subtype: 'error', request_id: 'antumi-option-2', error: "Model 'sonnet' not found" } } })
     expect(ofKind(driver.items.list(), 'notice').at(-1)?.text).toContain("Model 'sonnet' not found")
     expect(ofKind(driver.items.list(), 'state')[0]?.model).toBe('haiku')
   })
 
   it('carries out an approved plan asking each edit, or taking edits as they come', () => {
     const driver = new ClaudeStream('stage-1', OPTIONS)
-    driver.apply({ dir: 'out', at, frame: { type: 'control_request', request_id: 'kando-init', request: { subtype: 'initialize' } } })
-    driver.apply({ dir: 'in', at, frame: { type: 'control_response', response: { subtype: 'success', request_id: 'kando-init' } } })
+    driver.apply({ dir: 'out', at, frame: { type: 'control_request', request_id: 'antumi-init', request: { subtype: 'initialize' } } })
+    driver.apply({ dir: 'in', at, frame: { type: 'control_response', response: { subtype: 'success', request_id: 'antumi-init' } } })
     driver.apply({ dir: 'out', at, frame: driver.send('plan it').wire, ref: 'ref-1' })
     driver.apply({ dir: 'in', at, frame: { type: 'control_request', request_id: 'plan-1', request: { subtype: 'can_use_tool', tool_name: 'ExitPlanMode', input: { plan: '# Plan' }, tool_use_id: 'toolu_p' } } })
     expect(driver.items.get('a:plan-1')).toMatchObject({ detail: '# Plan', decisions: ['allow', 'allowForSession', 'deny'] })
@@ -489,9 +489,9 @@ describe('ClaudeStream commands', () => {
     const driver = new ClaudeStream('stage-1', options)
     const [init] = driver.due()
     driver.apply({ dir: 'out', at, frame: init })
-    driver.apply({ dir: 'in', at, frame: { type: 'control_response', response: { subtype: 'success', request_id: 'kando-init' } } })
+    driver.apply({ dir: 'in', at, frame: { type: 'control_response', response: { subtype: 'success', request_id: 'antumi-init' } } })
     const [settings] = driver.due()
-    expect(settings).toMatchObject({ request_id: 'kando-settings', request: { subtype: 'get_settings' } })
+    expect(settings).toMatchObject({ request_id: 'antumi-settings', request: { subtype: 'get_settings' } })
     driver.apply({ dir: 'out', at, frame: settings })
     return driver
   }
@@ -509,7 +509,7 @@ describe('ClaudeStream commands', () => {
 
   it('initializes before anything else and refuses a message until the agent answers', () => {
     const driver = new ClaudeStream('stage-1', OPTIONS)
-    expect(driver.due()).toEqual([{ type: 'control_request', request_id: 'kando-init', request: { subtype: 'initialize' } }])
+    expect(driver.due()).toEqual([{ type: 'control_request', request_id: 'antumi-init', request: { subtype: 'initialize' } }])
     driver.apply({ dir: 'out', at, frame: driver.due()[0] })
     expect(driver.due()).toEqual([])
     expect(() => driver.send('hi').wire).toThrow(expect.objectContaining({ reason: 'chat-starting' }))
@@ -593,10 +593,10 @@ describe('ClaudeStream commands', () => {
     const frames = driver.interrupt()
     expect(frames).toEqual([
       { type: 'control_response', response: { subtype: 'success', request_id: 'req-2', response: { behavior: 'deny', message: 'The user interrupted the turn.', interrupt: true } } },
-      { type: 'control_request', request_id: 'kando-interrupt-1', request: { subtype: 'interrupt' } }
+      { type: 'control_request', request_id: 'antumi-interrupt-1', request: { subtype: 'interrupt' } }
     ])
     frames.forEach((frame) => driver.apply({ dir: 'out', at, frame }))
-    expect(driver.interrupt().at(-1)).toMatchObject({ request_id: 'kando-interrupt-2' })
+    expect(driver.interrupt().at(-1)).toMatchObject({ request_id: 'antumi-interrupt-2' })
     // Stopping decided nothing about the call itself.
     expect(driver.items.get('a:req-2')).toMatchObject({ resolution: 'cancelled' })
   })
@@ -624,7 +624,7 @@ describe('ClaudeStream commands', () => {
 
   it('asks for suggestions at initialize when the user has them on', () => {
     const driver = new ClaudeStream('stage-1', { ...OPTIONS, promptSuggestions: true })
-    expect(driver.due()).toEqual([{ type: 'control_request', request_id: 'kando-init', request: { subtype: 'initialize', promptSuggestions: true } }])
+    expect(driver.due()).toEqual([{ type: 'control_request', request_id: 'antumi-init', request: { subtype: 'initialize', promptSuggestions: true } }])
   })
 
   it('offers the suggested next message from the end of a turn until the next message', () => {
@@ -648,13 +648,13 @@ describe('ClaudeStream commands', () => {
     const driver = started({ ...OPTIONS, promptSuggestions: true })
     driver.apply({ dir: 'in', at, frame: { type: 'prompt_suggestion', suggestion: 'commit this', uuid: 'u-1', session_id: 's-1' } })
     const [pause] = driver.pauseSuggestions(true)
-    expect(pause).toEqual({ type: 'control_request', request_id: 'kando-suggestions-1', request: { subtype: 'set_prompt_suggestions_paused', paused: true } })
+    expect(pause).toEqual({ type: 'control_request', request_id: 'antumi-suggestions-1', request: { subtype: 'set_prompt_suggestions_paused', paused: true } })
     driver.apply({ dir: 'out', at, frame: pause })
     expect(driver.suggestion()).toBeNull()
-    expect(driver.pauseSuggestions(false)).toEqual([expect.objectContaining({ request_id: 'kando-suggestions-2' })])
+    expect(driver.pauseSuggestions(false)).toEqual([expect.objectContaining({ request_id: 'antumi-suggestions-2' })])
     // The CLI's answer is Antumi's own, so it is kept rather than treated as a stranger's.
-    expect(driver.logged({ type: 'control_response', response: { subtype: 'success', request_id: 'kando-suggestions-1' } })).toEqual({
-      type: 'control_response', response: { subtype: 'success', request_id: 'kando-suggestions-1' }
+    expect(driver.logged({ type: 'control_response', response: { subtype: 'success', request_id: 'antumi-suggestions-1' } })).toEqual({
+      type: 'control_response', response: { subtype: 'success', request_id: 'antumi-suggestions-1' }
     })
   })
 
@@ -769,7 +769,7 @@ describe('ClaudeStream usage limits', () => {
     expect(driver.items.get('t:t2')).toMatchObject({ output: '[图片]' })
     expect(driver.items.get('t:t2')).not.toHaveProperty('images')
     expect(JSON.stringify(logged)).not.toContain('AAAA')
-    expect(JSON.stringify(logged[1])).toContain(`[kando-image ${id} 8x6]`)
+    expect(JSON.stringify(logged[1])).toContain(`[antumi-image ${id} 8x6]`)
 
     const replayed = replay(logged.flatMap((frame) => (frame === null ? [] : [{ dir: 'in' as const, at: 1, frame }])))
     expect(replayed.items.get('t:t1')).toMatchObject({ output: 'saved', images: [{ id, width: 8, height: 6 }] })
@@ -779,7 +779,7 @@ describe('ClaudeStream usage limits', () => {
     const id = `${'c'.repeat(64)}.jpg`
     const taken: string[] = []
     const driver = new ClaudeStream('stage-1', { ...OPTIONS, keepImage: (data) => { taken.push(data); return { id, width: 1400, height: 1100 } } })
-    const call = { type: 'assistant', message: { id: 'm-shot', content: [{ type: 'tool_use', id: 'shot', name: 'mcp__kando__browser_screenshot', input: {} }] }, parent_tool_use_id: null }
+    const call = { type: 'assistant', message: { id: 'm-shot', content: [{ type: 'tool_use', id: 'shot', name: 'mcp__antumi__browser_screenshot', input: {} }] }, parent_tool_use_id: null }
     const result = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'shot', content: [
       { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: 'AAAA' } },
       { type: 'text', text: '截图已保存，用户在对话里能看到这张图。' }
@@ -790,7 +790,7 @@ describe('ClaudeStream usage limits', () => {
     })
     expect(taken).toEqual(['AAAA'])
     expect(driver.items.get('t:shot')).toMatchObject({ output: '截图已保存，用户在对话里能看到这张图。', images: [{ id, width: 1400, height: 1100 }] })
-    expect(JSON.stringify(logged).split('[kando-image').length - 1).toBe(1)
+    expect(JSON.stringify(logged).split('[antumi-image').length - 1).toBe(1)
     expect(JSON.stringify(logged)).not.toContain('AAAA')
   })
 })

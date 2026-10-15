@@ -17,8 +17,8 @@ describe('agent registry', () => {
     expect(adapter.permissionModes.includes('auto')).toBe(descriptor.capabilities.autoMode)
     if (adapter.fallbackMode) expect(adapter.permissionModes).toContain(adapter.fallbackMode)
     // A client is told whether the agent takes a skills bundle only where its command gives one.
-    const launch = { providerSessionId: null, resume: false, handoffPath: null, extraProjects: [], skills: { dir: '/kando/skills/bundles/abc' } }
-    expect(adapter.command(launch).args.includes('/kando/skills/bundles/abc')).toBe(descriptor.capabilities.skills)
+    const launch = { providerSessionId: null, resume: false, handoffPath: null, extraProjects: [], skills: { dir: '/antumi/skills/bundles/abc' } }
+    expect(adapter.command(launch).args.includes('/antumi/skills/bundles/abc')).toBe(descriptor.capabilities.skills)
   })
 
   it.each(AGENT_KINDS)('gives %s a driver for every turn hook it declares', (kind) => {

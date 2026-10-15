@@ -20,7 +20,7 @@ describe('to-do MCP tools', () => {
   // A core that answers the to-do methods from a store of its own.
   beforeEach(() => {
     root = mkdtempSync(path.join(os.tmpdir(), 'antumi-mcp-todos-'))
-    const file = path.join(root, 'kando.db')
+    const file = path.join(root, 'antumi.db')
     tasks = new TaskStore(file)
     todos = new TodoStore(file)
     const answer = (method: string, raw: unknown): unknown => {

@@ -38,10 +38,10 @@ describe('kept images', () => {
 
   it('puts the marker of each kept image where its block was, leaving the rest', () => {
     expect(markKeptImages([claude, text, mcp], [image('a'), image('b')])).toEqual([
-      { type: 'text', text: `[kando-image ${'a'.repeat(64)}.png 2x1]` },
+      { type: 'text', text: `[antumi-image ${'a'.repeat(64)}.png 2x1]` },
       text,
-      { type: 'text', text: `[kando-image ${'b'.repeat(64)}.png 2x1]` }
+      { type: 'text', text: `[antumi-image ${'b'.repeat(64)}.png 2x1]` }
     ])
-    expect(markKeptImages([claude, mcp], [image('a')])).toEqual([{ type: 'text', text: `[kando-image ${'a'.repeat(64)}.png 2x1]` }, mcp])
+    expect(markKeptImages([claude, mcp], [image('a')])).toEqual([{ type: 'text', text: `[antumi-image ${'a'.repeat(64)}.png 2x1]` }, mcp])
   })
 })

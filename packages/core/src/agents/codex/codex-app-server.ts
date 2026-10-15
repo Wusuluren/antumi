@@ -544,7 +544,7 @@ export class CodexAppServer implements ChatDriver {
     const frames: unknown[] = [...this.unanswered.values()].map((id) => ({ id, error: { code: -32601, message: 'Antumi does not handle this request' } }))
     if (!this.initSent) {
       frames.push({
-        id: 'kando-init',
+        id: 'antumi-init',
         method: 'initialize',
         params: { clientInfo: { name: 'antumi', title: 'Antumi', version: '0.1.0' }, capabilities: { experimentalApi: true, requestAttestation: false } }
       })
@@ -553,9 +553,9 @@ export class CodexAppServer implements ChatDriver {
     if (!this.initialized || this.startError) return frames
     if (!this.initializedSent) frames.push({ method: 'initialized' })
     if (!this.threadRequested) frames.push(this.openThread())
-    if (!this.modelsRequested) frames.push({ id: 'kando-models', method: 'model/list', params: {} })
-    if (!this.configRequested) frames.push({ id: 'kando-config', method: 'config/read', params: { cwd: this.options.cwd } })
-    if (!this.skillsRequested) frames.push({ id: 'kando-skills', method: 'skills/list', params: { cwds: [this.options.cwd] } })
+    if (!this.modelsRequested) frames.push({ id: 'antumi-models', method: 'model/list', params: {} })
+    if (!this.configRequested) frames.push({ id: 'antumi-config', method: 'config/read', params: { cwd: this.options.cwd } })
+    if (!this.skillsRequested) frames.push({ id: 'antumi-skills', method: 'skills/list', params: { cwds: [this.options.cwd] } })
     return frames
   }
 
@@ -588,7 +588,7 @@ export class CodexAppServer implements ChatDriver {
     const command = codexCommand(text, this.skills)
     if (command && command.kind !== 'skill') {
       if (images.length > 0) throw new Rejection('chat-command-images', `/${command.kind} takes no images`)
-      const frame = commandRequest(command, `kando-turn-${this.turns + 1}`, this.threadId)
+      const frame = commandRequest(command, `antumi-turn-${this.turns + 1}`, this.threadId)
       return { wire: frame, logged: frame }
     }
     const skill = command?.kind === 'skill' ? { type: 'skill', name: command.skill.name, path: command.skill.path } : null
@@ -605,7 +605,7 @@ export class CodexAppServer implements ChatDriver {
       ...(text || images.length === 0 ? [{ type: 'text', text, text_elements: [] }] : []),
       ...images.map((image) => ({ type: 'localImage', path: image.path }))
     ]
-    const frame = { id: `kando-steer-${this.steers + 1}`, method: 'turn/steer', params: { threadId: this.threadId, input, expectedTurnId: this.turn.turnId } }
+    const frame = { id: `antumi-steer-${this.steers + 1}`, method: 'turn/steer', params: { threadId: this.threadId, input, expectedTurnId: this.turn.turnId } }
     return { wire: frame, logged: frame }
   }
 
@@ -620,7 +620,7 @@ export class CodexAppServer implements ChatDriver {
       ...images.map((image) => ({ type: 'localImage', path: image.path }))
     ]
     return {
-      id: `kando-turn-${this.turns + 1}`,
+      id: `antumi-turn-${this.turns + 1}`,
       method: 'turn/start',
       params: { threadId, input, ...this.turnOptions(permissionMode) }
     }
@@ -707,7 +707,7 @@ export class CodexAppServer implements ChatDriver {
       id: pending.rawId,
       result: pending.kind === 'question' ? { answers: {} } : { decision: 'cancel' }
     }))
-    const request = { id: `kando-interrupt-${this.interrupts + 1}`, method: 'turn/interrupt', params: { threadId: this.threadId, turnId: this.turn.turnId } }
+    const request = { id: `antumi-interrupt-${this.interrupts + 1}`, method: 'turn/interrupt', params: { threadId: this.threadId, turnId: this.turn.turnId } }
     return [...cancels, request]
   }
 
@@ -898,10 +898,10 @@ export class CodexAppServer implements ChatDriver {
     const { cwd, resume, fork } = this.options
     const { approvalPolicy, sandbox } = this.mode()
     const common = { cwd, approvalPolicy, sandbox, ...(this.chosen.model ? { model: this.chosen.model } : {}) }
-    if (resume && fork) return { id: 'kando-thread', method: 'thread/fork', params: { threadId: resume, lastTurnId: fork, ...common, excludeTurns: true } }
+    if (resume && fork) return { id: 'antumi-thread', method: 'thread/fork', params: { threadId: resume, lastTurnId: fork, ...common, excludeTurns: true } }
     return resume
-      ? { id: 'kando-thread', method: 'thread/resume', params: { threadId: resume, ...common, excludeTurns: true } }
-      : { id: 'kando-thread', method: 'thread/start', params: common }
+      ? { id: 'antumi-thread', method: 'thread/resume', params: { threadId: resume, ...common, excludeTurns: true } }
+      : { id: 'antumi-thread', method: 'thread/start', params: common }
   }
 
   private answerBody(pending: Pending, answer: ChatAnswer): unknown {

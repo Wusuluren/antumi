@@ -17,9 +17,9 @@ describe('squad MCP', () => {
     const tools = squadToolsOverCore(withCore, id(6), run)
     const handler = createMcpHandler({ planOnly: true, preview: async () => {}, squad: tools })
     const list = await handler(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }))
-    expect(JSON.stringify(list)).toContain('kando_squad_dispatch')
-    expect(squadToolsOverCore(withCore, id(9), run).map((tool) => tool.spec.name)).toEqual(['kando_squad_roster'])
-    const dispatch = tools.find((tool) => tool.spec.name === 'kando_squad_dispatch')!
+    expect(JSON.stringify(list)).toContain('antumi_squad_dispatch')
+    expect(squadToolsOverCore(withCore, id(9), run).map((tool) => tool.spec.name)).toEqual(['antumi_squad_roster'])
+    const dispatch = tools.find((tool) => tool.spec.name === 'antumi_squad_dispatch')!
     expect((await dispatch.run({ memberId: 'not-an-id' })).isError).toBe(true)
   })
 })

@@ -14,7 +14,7 @@ describe('TaskStore migrations', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-store-'))
-    file = path.join(dir, 'kando.db')
+    file = path.join(dir, 'antumi.db')
   })
 
   afterEach(() => {
@@ -31,7 +31,7 @@ describe('TaskStore migrations', () => {
     )
     insert.run('t1', 'seed', 'seed', null, null, null)
     insert.run('t2', 'ripe', 'ripe', '/code/app', null, null)
-    insert.run('t3', 'done', 'done', '/code/app', '/wt/app/t3', 'kando/t3')
+    insert.run('t3', 'done', 'done', '/code/app', '/wt/app/t3', 'antumi/t3')
     raw.close()
 
     const store = new TaskStore(file)
@@ -42,7 +42,7 @@ describe('TaskStore migrations', () => {
       expect.arrayContaining([
         ['t1', 'pending', []],
         ['t2', 'pending', [{ path: '/code/app', worktreePath: null, branch: null, startRef: null, start: null }]],
-        ['t3', 'done', [{ path: '/code/app', worktreePath: '/wt/app/t3', branch: 'kando/t3', startRef: null, start: null }]]
+        ['t3', 'done', [{ path: '/code/app', worktreePath: '/wt/app/t3', branch: 'antumi/t3', startRef: null, start: null }]]
       ])
     )
     store.close()
@@ -212,7 +212,7 @@ describe('TaskStore migrations', () => {
     raw.prepare(`INSERT INTO conversations
       (id, title, title_locked, agent, workspace_path, managed_workspace, created_at, updated_at)
       VALUES (?, '无项目', 0, 'codex', ?, 1, 2, 2)`)
-      .run('00000000-0000-4000-8000-000000000002', '/kando/sessions/session/workspace')
+      .run('00000000-0000-4000-8000-000000000002', '/antumi/sessions/session/workspace')
     raw.close()
     const tasks = new TaskStore(file)
     const conversations = new ConversationStore(file)

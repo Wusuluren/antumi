@@ -5,9 +5,9 @@ import { z } from 'zod'
 import { CommitSha, SkillName, SkillRepoId, type SkillRef, type SkillRepo } from '@antumi/protocol'
 import { Rejection } from './rejection'
 
-// The one plugin every bundle is, so a skill keeps its name (kando-skills:<skill>) and the
+// The one plugin every bundle is, so a skill keeps its name (antumi-skills:<skill>) and the
 // agent's prompt its text from one start to the next.
-export const BUNDLE_PLUGIN = { name: 'kando-skills', version: '1.0.0' } as const
+export const BUNDLE_PLUGIN = { name: 'antumi-skills', version: '1.0.0' } as const
 // Skills are text with a few scripts; a bundle past this is not one.
 const MAX_BUNDLE_BYTES = 32 * 1024 * 1024
 
@@ -20,10 +20,12 @@ export const reposDir = (root: string) => path.join(root, 'repos')
 export const bundlesDir = (root: string) => path.join(root, 'bundles')
 
 // Names the bundle by what goes in it: the same skills at the same pins give the same folder,
-// which keeps an agent's prompt cache warm; a pin moved gives a new one.
+// which keeps an agent's prompt cache warm; a pin moved gives a new one. The plugin's name is in
+// the key too: bundles built before the rename are kando-skills, and stay as they were.
 export function bundleKey(entries: readonly Entry[]): string {
   const sorted = [...entries].sort((a, b) => a.repo.localeCompare(b.repo) || a.skill.localeCompare(b.skill))
-  return createHash('sha256').update(JSON.stringify(sorted.map(({ repo, commit, skill }) => ({ repo, commit, skill })))).digest('hex').slice(0, 16)
+  const pinned = JSON.stringify(sorted.map(({ repo, commit, skill }) => ({ repo, commit, skill })))
+  return createHash('sha256').update(`${BUNDLE_PLUGIN.name}\n${pinned}`).digest('hex').slice(0, 16)
 }
 
 // Files and folders only: a link in a repository could point a bundle anywhere on the machine.

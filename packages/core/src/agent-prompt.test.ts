@@ -7,7 +7,7 @@ const workspace: Workspace = {
   cwd: '/wt/app',
   extraDirs: [],
   multi: false,
-  entries: [{ name: 'app', source: '/code/app', dir: '/wt/app', branch: 'kando/b-use', base: 'kando/a-add', startRef: null, start: null }],
+  entries: [{ name: 'app', source: '/code/app', dir: '/wt/app', branch: 'antumi/b-use', base: 'antumi/a-add', startRef: null, start: null }],
   repos: []
 }
 
@@ -42,7 +42,7 @@ function dependency(overrides: Partial<Task> = {}): Task {
     title: 'Add "token" API',
     details: '## 目标\n新增 TokenService',
     status: 'done',
-    repos: [{ path: '/code/app', worktreePath: '/wt/a', branch: 'kando/a-add', startRef: null, start: null }],
+    repos: [{ path: '/code/app', worktreePath: '/wt/a', branch: 'antumi/a-add', startRef: null, start: null }],
     dependsOn: [],
     agent: 'claude',
     slug: null,
@@ -70,7 +70,7 @@ describe('chatPlanPrompt', () => {
   })
 
   it('says what a planning checkout holds: the start the task\'s branch will come from', () => {
-    const checkout = '/kando/worktrees/76b8c0de/.planning/app'
+    const checkout = '/antumi/worktrees/76b8c0de/.planning/app'
     const workspace = { ...refining(), cwd: checkout, dirs: [checkout, '/code/web'], starts: new Map([[checkout, { ref: 'origin/main', commit: 'bd03e52aa0', note: null, at: 0 }]]) }
     const prompt = chatPlanPrompt({ title: 'x', details: '', source: null, sourceSnapshot: null }, workspace, [])
     expect(prompt).toContain(`- 主项目：${checkout}（当前目录），是 origin/main（bd03e52）的只读副本，任务分支将从这里拉出\n- 附加项目：/code/web\n`)
@@ -78,22 +78,22 @@ describe('chatPlanPrompt', () => {
 
   it('points a redo at the last go and why it was dropped', () => {
     const task = { title: 'x', details: '', source: null, sourceSnapshot: null }
-    const inPlace = chatPlanPrompt(task, refining(), [], { reason: '不该改表结构', branches: ['kando/a-add-try1'], redoneFrom: null })
-    expect(inPlace).toContain('这个任务是从头重做：上一次尝试已放弃，原因是：不该改表结构。它的改动在分支 kando/a-add-try1 上，可以用 git 查看作参考，但不要直接沿用。')
+    const inPlace = chatPlanPrompt(task, refining(), [], { reason: '不该改表结构', branches: ['antumi/a-add-try1'], redoneFrom: null })
+    expect(inPlace).toContain('这个任务是从头重做：上一次尝试已放弃，原因是：不该改表结构。它的改动在分支 antumi/a-add-try1 上，可以用 git 查看作参考，但不要直接沿用。')
     const abandoned = dependency({ status: 'abandoned' })
-    const successor = chatPlanPrompt(task, refining(), [], { reason: null, branches: ['kando/a-add'], redoneFrom: abandoned })
-    expect(successor).toContain('这个任务是重做：上一次尝试 aaaaaaaa「Add "token" API」已放弃。它的改动在分支 kando/a-add 上')
+    const successor = chatPlanPrompt(task, refining(), [], { reason: null, branches: ['antumi/a-add'], redoneFrom: abandoned })
+    expect(successor).toContain('这个任务是重做：上一次尝试 aaaaaaaa「Add "token" API」已放弃。它的改动在分支 antumi/a-add 上')
   })
 
   it('points at the code for a finished dependency whose branch has landed', () => {
-    const prompt = chatPlanPrompt({ title: 'Use token API', details: '', source: null, sourceSnapshot: null }, refining(['kando/a-add']), [dependency()])
+    const prompt = chatPlanPrompt({ title: 'Use token API', details: '', source: null, sourceSnapshot: null }, refining(['antumi/a-add']), [dependency()])
     expect(prompt).toContain('- aaaaaaaa「Add "token" API」：已完成，改动已在当前代码里，直接读代码即可')
     expect(prompt).not.toContain('新增 TokenService')
   })
 
   it('names the branch when a finished dependency has not landed yet', () => {
     const prompt = chatPlanPrompt({ title: 'x', details: '', source: null, sourceSnapshot: null }, refining(), [dependency()])
-    expect(prompt).toContain('分支 kando/a-add 上的改动还没进当前代码，可以用 git log / git diff / git show 查看')
+    expect(prompt).toContain('分支 antumi/a-add 上的改动还没进当前代码，可以用 git log / git diff / git show 查看')
   })
 
   it('inlines the plan of an unfinished dependency, clipped past its limit', () => {
@@ -109,13 +109,13 @@ describe('agentPrompt', () => {
   it('describes sibling worktrees from the primary repo', () => {
     const multi: Workspace = {
       ...workspace, multi: true, extraDirs: ['/wt/web'],
-      entries: [...workspace.entries, { name: 'web', source: '/code/web', dir: '/wt/web', branch: 'kando/web', base: null, startRef: null, start: null }]
+      entries: [...workspace.entries, { name: 'web', source: '/code/web', dir: '/wt/web', branch: 'antumi/web', base: null, startRef: null, start: null }]
     }
     const task = dependency()
     for (const prompt of [agentPrompt(task, multi, [])]) {
       expect(prompt).toContain('当前工作目录：/wt/app')
       expect(prompt).toContain('主项目：.（/wt/app） ← /code/app')
-      expect(prompt).toContain('附加项目：../web（/wt/web） ← /code/web（分支 kando/web）')
+      expect(prompt).toContain('附加项目：../web（/wt/web） ← /code/web（分支 antumi/web）')
       expect(prompt).toContain('AGENTS.md、CLAUDE.md')
       expect(prompt).toContain('对应项目目录内执行')
       expect(prompt).not.toContain('当前目录下每个子目录')
@@ -137,7 +137,7 @@ describe('agentPrompt', () => {
 
   it('keeps dependencies to a line each when running', () => {
     const prompt = agentPrompt({ title: 'Use token API', details: 'go', source: null, sourceSnapshot: null }, workspace, [dependency()])
-    expect(prompt).toContain(`- aaaaaaaa Add "token" API（kando/a-add，本任务的分支从它拉出）`)
+    expect(prompt).toContain(`- aaaaaaaa Add "token" API（antumi/a-add，本任务的分支从它拉出）`)
     expect(prompt).not.toContain('新增 TokenService')
   })
 })

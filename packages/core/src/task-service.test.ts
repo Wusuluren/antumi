@@ -46,7 +46,7 @@ describe('TaskService', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-test-'))
-    const database = path.join(dir, 'kando.db')
+    const database = path.join(dir, 'antumi.db')
     store = new TaskStore(database)
     conversationsStore = new ConversationStore(database)
     projects = new ProjectRegistry(database)
@@ -179,7 +179,7 @@ describe('TaskService', () => {
     expect(running.repos).toEqual([{
       path: repo,
       worktreePath: path.join(dir, 'worktrees', short, 'app'),
-      branch: `kando/${short}-add-dark-mode`,
+      branch: `antumi/${short}-add-dark-mode`,
       startRef: null,
       // No origin here: the branch starts from what the repo has checked out, and says why.
       start: { ref: git(repo, 'symbolic-ref', '--short', 'HEAD'), commit: git(repo, 'rev-parse', 'HEAD'), note: 'no-remote-default', at: expect.any(Number) }
@@ -467,7 +467,7 @@ describe('TaskService', () => {
     service.update({ id: task.id, repos: [repo] })
 
     const running = await service.start(task.id)
-    expect(running.repos[0]?.branch).toBe(`kando/PROJ-7-${task.id.slice(0, 8)}`)
+    expect(running.repos[0]?.branch).toBe(`antumi/PROJ-7-${task.id.slice(0, 8)}`)
     expect(told(task.id)).toContain('这个任务来自 Jira PROJ-7')
   })
 
@@ -494,7 +494,7 @@ describe('TaskService', () => {
     await settle()
     answer('fix-logout')
     const running = await starting
-    expect(running.repos[0]?.branch).toBe(`kando/${task.id.slice(0, 8)}-fix-logout`)
+    expect(running.repos[0]?.branch).toBe(`antumi/${task.id.slice(0, 8)}-fix-logout`)
     expect(asked).toEqual(['claude:修复登录超时', 'claude:修复登出'])
   })
 
@@ -585,7 +585,7 @@ describe('TaskService', () => {
     const task = readyTask('Primary', [api, web])
     const updated = service.update({ id: task.id, repos: [web, api] })
     expect(updated.repos.map((repo) => repo.path)).toEqual([web, api])
-    const reopened = new TaskStore(path.join(dir, 'kando.db'))
+    const reopened = new TaskStore(path.join(dir, 'antumi.db'))
     try {
       expect(reopened.get(task.id)?.repos).toEqual(updated.repos)
     } finally {
@@ -628,9 +628,9 @@ describe('TaskService', () => {
     const codexSession = `pipe-${daemon.spawns.length + 1}`
     const asked = (method: string) => daemon.written(codexSession).some((frame) => JSON.stringify(frame).includes(`"method":"${method}"`))
     while (!asked('initialize')) await settle()
-    daemon.emit(codexSession, { id: 'kando-init', result: {} })
+    daemon.emit(codexSession, { id: 'antumi-init', result: {} })
     while (!asked('thread/start')) await settle()
-    daemon.emit(codexSession, { id: 'kando-thread', result: { thread: { id: 'thread-1' } } })
+    daemon.emit(codexSession, { id: 'antumi-thread', result: { thread: { id: 'thread-1' } } })
     const handed = await handing
     expect(handed).toMatchObject({ agent: 'codex', status: 'running' })
     expect(conversations.get(handed.conversationId ?? '').agent).toBe('codex')
@@ -781,7 +781,7 @@ describe('TaskService', () => {
     git(repo, 'commit', '-q', '--allow-empty', '-m', 'mine')
     const dependency = service.create({ title: 'First' })
     const task = service.update({ id: readyTask('Plan it', [repo]).id, dependsOn: [dependency.id] })
-    const taskBranches = () => git(repo, 'branch', '--list', 'kando/*')
+    const taskBranches = () => git(repo, 'branch', '--list', 'antumi/*')
 
     await service.start(task.id)
     const checkout = path.join(dir, 'worktrees', task.id.slice(0, 8), '.planning', 'clone')
@@ -960,7 +960,7 @@ describe('TaskService', () => {
     const task = service.update({ id: second.id, details: 'x', repos: [repo], agent: 'claude', dependsOn: [dependency.id] })
     const planning = await service.start(task.id)
     expect(planning).toMatchObject({ status: 'pending', repos: [{ worktreePath: null, branch: null }] })
-    expect(git(repo, 'branch', '--list', 'kando/*')).toBe('')
+    expect(git(repo, 'branch', '--list', 'antumi/*')).toBe('')
     expect(daemon.spawns.at(-1)).toMatchObject({ cwd: realpathSync(repo) })
     expect(daemon.spawns.at(-1)?.args).toEqual(expect.arrayContaining(['--disallowedTools']))
     expect(told(task.id)).toContain('这次只读代码、讨论和规划')

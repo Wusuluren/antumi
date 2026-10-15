@@ -1,4 +1,4 @@
-import type { Squad, SquadMember, SquadWork, Task } from '@antumi/protocol'
+import { SQUAD_TOOL_NAMES, type Squad, type SquadMember, type SquadWork, type Task } from '@antumi/protocol'
 import type { PlanBrief } from './agent-prompt'
 
 const rosterLines = (squad: Squad) => squad.members.map((member) => `${member.id} · ${member.name} · ${member.agent} · ${member.id === squad.leaderId ? '队长，只读协调' : member.capability} · ${member.role}`)
@@ -20,11 +20,11 @@ export function squadLeaderPrompt(squad: Squad): string {
   return [
     `你是研发小队「${squad.name}」的队长，只负责协调。不能修改代码或运行会修改工作区的命令。`,
     '用户已授权小队开发，现有规划是执行依据，无须再次提交规划。',
-    '通过 kando_squad_roster 查看运行，通过 kando_squad_dispatch 给指定成员派活。成员不必全部启动，按实际需要分工。',
+    `通过 ${SQUAD_TOOL_NAMES.roster} 查看运行，通过 ${SQUAD_TOOL_NAMES.dispatch} 给指定成员派活。成员不必全部启动，按实际需要分工。`,
     '开发工作串行，只读分析可以并行；需要修改文件或运行测试的工作使用 develop。只读工作不能运行会写入文件的测试。',
     '派活工具立即返回工作 ID。派活后结束本回合，系统在成员结果返回后自动唤醒你，不要循环查询或阻塞等待。',
     '成员失败不代表工作完成。可以重新派活修复或向用户说明阻碍。不要让成员通过原生子 Agent 绕过小队分工。',
-    '整体完成且没有未处理工作时，调用 kando_squad_finish，提交成果摘要与验证结果，然后结束回合。用户负责最终验收。',
+    `整体完成且没有未处理工作时，调用 ${SQUAD_TOOL_NAMES.finish}，提交成果摘要与验证结果，然后结束回合。用户负责最终验收。`,
     '小队成员：', ...rosterLines(squad),
     squad.instructions ? `小队指令：\n${squad.instructions}` : ''
   ].filter(Boolean).join('\n')

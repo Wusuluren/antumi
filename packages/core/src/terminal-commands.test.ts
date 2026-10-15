@@ -16,7 +16,7 @@ describe('TerminalCommandStore', () => {
 
   beforeEach(() => {
     root = mkdtempSync(path.join(os.tmpdir(), 'antumi-terminal-commands-'))
-    database = path.join(root, 'kando.db')
+    database = path.join(root, 'antumi.db')
     tasks = new TaskStore(database)
     emitted = []
     clock = 1000

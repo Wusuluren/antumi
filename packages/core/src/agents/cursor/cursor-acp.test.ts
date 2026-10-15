@@ -119,7 +119,7 @@ describe('Cursor ACP', () => {
     const driver = new CursorAcp('stage', OPTIONS)
     expect(due(driver)).toMatchObject([{ method: 'initialize', params: { protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false } } }])
     receive(driver, { id: 'cursor-init', result: { protocolVersion: 1 } })
-    expect(due(driver)).toMatchObject([{ method: 'session/new', params: { cwd: '/work/repo', mcpServers: [{ name: 'kando', command: 'node', args: OPTIONS.mcp?.args, env: [] }] } }])
+    expect(due(driver)).toMatchObject([{ method: 'session/new', params: { cwd: '/work/repo', mcpServers: [{ name: 'antumi', command: 'node', args: OPTIONS.mcp?.args, env: [] }] } }])
   })
 
   it('opens the session with the user\'s MCP servers beside Antumi\'s', () => {
@@ -127,7 +127,7 @@ describe('Cursor ACP', () => {
     due(driver)
     receive(driver, { id: 'cursor-init', result: { protocolVersion: 1 } })
     expect(due(driver)).toMatchObject([{ method: 'session/new', params: { mcpServers: [
-      { name: 'kando' },
+      { name: 'antumi' },
       { name: 'github', command: 'node', args: ['mcp.mjs', '--run', 'github'], env: [] },
       { type: 'http', name: 'docs', url: 'https://mcp.example.com/mcp', headers: [] }
     ] } }])

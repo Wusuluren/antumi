@@ -8,7 +8,7 @@ describe('browser tool presentation', () => {
   it.each([
     'mcp__claude-in-chrome__navigate', 'mcp__plugin_claude-in-chrome_claude-in-chrome__navigate',
     'codex_in_edge.navigate', 'cursor_in_firefox.navigate', 'mcp__chrome_devtools__navigate',
-    'playwright.browser_navigate', 'mcp__puppeteer__navigate', 'kando.browser_navigate'
+    'playwright.browser_navigate', 'mcp__puppeteer__navigate', 'antumi.browser_navigate'
   ])('recognizes %s without depending on the conversation agent', (name) => {
     expect(activity(name)?.action).toBe('navigate')
     expect(toolIconKind(name)).toBe('browser-control')
@@ -22,11 +22,11 @@ describe('browser tool presentation', () => {
   })
 
   it('does not confuse web fetching, previews or a tool argument with browser control', () => {
-    for (const name of ['WebFetch', 'fetch', 'mcp__kando__show_preview', 'mcp__github__chrome_issue', 'mcp__edgeless__navigate']) {
+    for (const name of ['WebFetch', 'fetch', 'mcp__antumi__show_preview', 'mcp__github__chrome_issue', 'mcp__edgeless__navigate']) {
       expect(browserOperation(name)).toBeNull()
     }
     expect(activity('Bash', '{"url":"https://chrome.example"}', 'Chrome')).toBeNull()
-    expect(toolIconKind('mcp__kando__browser_screenshot')).toBe('image')
+    expect(toolIconKind('mcp__antumi__browser_screenshot')).toBe('image')
   })
 
   it.each([
@@ -45,7 +45,7 @@ describe('browser tool presentation', () => {
 
   it('shows an address without credentials, query data, typed content or file paths', () => {
     expect(activity('playwright.browser_navigate', '{"url":"https://user:secret@example.com/wiki?p=token#private"}')?.address).toBe('example.com/wiki')
-    expect(activity('kando.browser_click', null, 'https://example.com/')?.address).toBe('example.com')
-    expect(activity('kando.browser_type', '{"text":"private"}', 'file:///private/text.txt')?.address).toBeNull()
+    expect(activity('antumi.browser_click', null, 'https://example.com/')?.address).toBe('example.com')
+    expect(activity('antumi.browser_type', '{"text":"private"}', 'file:///private/text.txt')?.address).toBeNull()
   })
 })

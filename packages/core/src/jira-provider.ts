@@ -101,10 +101,12 @@ export function jiraProvider(connect: (credentials: JiraCredentials) => JiraApi 
     ],
     normalizeSettings: (values) => ({ site: normalizeSite(values.site ?? ''), jql: values.jql?.trim() || DEFAULT_JIRA_JQL }),
     normalizeKey: (key) => key.trim().toUpperCase(),
-    envCredential: (env) =>
-      env.KANDO_JIRA_EMAIL && env.KANDO_JIRA_TOKEN
-        ? { kind: 'basic', payload: { email: env.KANDO_JIRA_EMAIL, token: env.KANDO_JIRA_TOKEN } }
-        : null,
+    envCredential: (env) => {
+      // The KANDO_ names are from before the rename.
+      const email = env.ANTUMI_JIRA_EMAIL ?? env.KANDO_JIRA_EMAIL
+      const token = env.ANTUMI_JIRA_TOKEN ?? env.KANDO_JIRA_TOKEN
+      return email && token ? { kind: 'basic', payload: { email, token } } : null
+    },
 
     async login(session, settings, signal) {
       let email = ''

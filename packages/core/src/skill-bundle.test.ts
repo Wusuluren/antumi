@@ -42,7 +42,7 @@ describe('buildBundle', () => {
     expect(bundle).toEqual({ dir: path.join(root, 'bundles', bundleKey([{ repo: 'r', commit: COMMIT_A, skill: 'notes' }])), skills: [{ repo: 'r', skill: 'notes' }], missing: [] })
     expect(readFileSync(path.join(bundle!.dir, 'skills', 'notes', 'scripts', 'run.sh'), 'utf8')).toBe('echo')
     expect(readFileSync(path.join(bundle!.dir, '.agents', 'skills', 'notes', 'SKILL.md'), 'utf8')).toContain('name: notes')
-    expect(JSON.parse(readFileSync(path.join(bundle!.dir, '.claude-plugin', 'plugin.json'), 'utf8'))).toEqual({ name: 'kando-skills', version: '1.0.0' })
+    expect(JSON.parse(readFileSync(path.join(bundle!.dir, '.claude-plugin', 'plugin.json'), 'utf8'))).toEqual({ name: 'antumi-skills', version: '1.0.0' })
     expect(existsSync(path.join(bundle!.dir, 'skills', 'other'))).toBe(false)
     expect(readdirSync(path.join(root, 'bundles'))).toEqual([path.basename(bundle!.dir)])
   })

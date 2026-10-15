@@ -126,18 +126,18 @@ describe('CodexAppServer', () => {
     // As the chat host does: what is due goes out and is logged before the answer comes in.
     const send = () => { const frames = driver.due(); frames.forEach((frame) => driver.apply({ dir: 'out', at: 1, frame })); return frames }
     send()
-    driver.apply({ dir: 'in', at: 1, frame: { id: 'kando-init', result: {} } })
+    driver.apply({ dir: 'in', at: 1, frame: { id: 'antumi-init', result: {} } })
     const opened = send().find((frame) => JSON.stringify(frame).includes('"method":"thread/'))
-    expect(opened).toEqual({ id: 'kando-thread', method: 'thread/fork', params: expect.objectContaining({ threadId: 'thread-1', lastTurnId: 'turn-2', cwd: '/work/repo', excludeTurns: true }) })
+    expect(opened).toEqual({ id: 'antumi-thread', method: 'thread/fork', params: expect.objectContaining({ threadId: 'thread-1', lastTurnId: 'turn-2', cwd: '/work/repo', excludeTurns: true }) })
     // Asked for once: while the answer is on its way, and after, nothing asks again (each ask made
     // Codex another thread, and each answer took the stage's turns away to it).
     const opens = () => send().filter((frame) => JSON.stringify(frame).includes('"method":"thread/')).length
     expect(opens()).toBe(0)
-    driver.apply({ dir: 'in', at: 2, frame: { id: 'kando-thread', result: { thread: { id: 'thread-2' } } } })
+    driver.apply({ dir: 'in', at: 2, frame: { id: 'antumi-thread', result: { thread: { id: 'thread-2' } } } })
     expect(driver.providerSessionId()).toBe('thread-2')
     expect(opens()).toBe(0)
     // A thread opened again stays a stranger: the stage keeps the one it has.
-    driver.apply({ dir: 'in', at: 3, frame: { id: 'kando-thread', result: { thread: { id: 'thread-3' } } } })
+    driver.apply({ dir: 'in', at: 3, frame: { id: 'antumi-thread', result: { thread: { id: 'thread-3' } } } })
     expect(driver.providerSessionId()).toBe('thread-2')
   })
 
@@ -158,10 +158,10 @@ describe('CodexAppServer steering', () => {
     const out = (frame: unknown, ref?: string) => driver.apply({ dir: 'out', at: 1, frame, ...(ref ? { ref } : {}) })
     const answer = (frame: unknown) => driver.apply({ dir: 'in', at: 2, frame })
     driver.due().forEach((frame) => out(frame))
-    answer({ id: 'kando-init', result: {} })
+    answer({ id: 'antumi-init', result: {} })
     driver.due().forEach((frame) => out(frame))
-    answer({ id: 'kando-thread', result: { thread: { id: 'thread-1' } } })
-    out({ id: 'kando-turn-1', method, params: { threadId: 'thread-1', input: [{ type: 'text', text: 'list forty numbers' }] } }, 'm1')
+    answer({ id: 'antumi-thread', result: { thread: { id: 'thread-1' } } })
+    out({ id: 'antumi-turn-1', method, params: { threadId: 'thread-1', input: [{ type: 'text', text: 'list forty numbers' }] } }, 'm1')
     expect(driver.canSteer()).toBe(false)
     answer({ method: 'turn/started', params: { threadId: 'thread-1', turn: { id: 'turn-1' } } })
     return { driver, out, answer }
@@ -172,11 +172,11 @@ describe('CodexAppServer steering', () => {
     expect(driver.canSteer()).toBe(true)
     expect(ofKind(driver.items.list(), 'state')[0]?.steerable).toBe(true)
     const { wire } = driver.steer('stop and say STEERED')
-    expect(wire).toEqual({ id: 'kando-steer-1', method: 'turn/steer', params: { threadId: 'thread-1', input: [{ type: 'text', text: 'stop and say STEERED', text_elements: [] }], expectedTurnId: 'turn-1' } })
+    expect(wire).toEqual({ id: 'antumi-steer-1', method: 'turn/steer', params: { threadId: 'thread-1', input: [{ type: 'text', text: 'stop and say STEERED', text_elements: [] }], expectedTurnId: 'turn-1' } })
     out(wire, 'm2')
     // Not the user's until Codex says it took it.
     expect(driver.items.get('u:m2')).toBeUndefined()
-    answer({ id: 'kando-steer-1', result: { turnId: 'turn-1' } })
+    answer({ id: 'antumi-steer-1', result: { turnId: 'turn-1' } })
     expect(driver.items.get('u:m2')).toMatchObject({ kind: 'user', text: 'stop and say STEERED' })
     expect(driver.queuedToSend()).toBeNull()
   })
@@ -185,7 +185,7 @@ describe('CodexAppServer steering', () => {
     const { driver, out, answer } = running()
     const { wire } = driver.steer('too late')
     out(wire, 'm2')
-    answer({ id: 'kando-steer-1', error: { code: -32600, message: 'no active turn to steer' } })
+    answer({ id: 'antumi-steer-1', error: { code: -32600, message: 'no active turn to steer' } })
     expect(driver.items.get('u:m2')).toBeUndefined()
     expect(ofKind(driver.items.list(), 'notice').at(-1)?.text).toContain('这一轮刚好结束了')
     answer({ method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed' } } })
@@ -205,10 +205,10 @@ describe('CodexAppServer questions asked in passing', () => {
     const out = (frame: unknown, ref?: string) => driver.apply({ dir: 'out', at: 1, frame, ...(ref ? { ref } : {}) })
     const answer = (frame: unknown) => driver.apply({ dir: 'in', at: 2, frame })
     driver.due().forEach((frame) => out(frame))
-    answer({ id: 'kando-init', result: {} })
+    answer({ id: 'antumi-init', result: {} })
     driver.due().forEach((frame) => out(frame))
-    answer({ id: 'kando-thread', result: { thread: { id: 'thread-1' } } })
-    out({ id: 'kando-turn-1', method: 'turn/start', params: { threadId: 'thread-1', input: [{ type: 'text', text: 'release it' }] } }, 'm1')
+    answer({ id: 'antumi-thread', result: { thread: { id: 'thread-1' } } })
+    out({ id: 'antumi-turn-1', method: 'turn/start', params: { threadId: 'thread-1', input: [{ type: 'text', text: 'release it' }] } }, 'm1')
     answer({ method: 'turn/started', params: { threadId: 'thread-1', turn: { id: 'turn-1' } } })
     return { driver, out, answer }
   }
@@ -291,7 +291,7 @@ describe('CodexAppServer state', () => {
 
   it('turns a plan update into the turn\'s checklist', () => {
     const driver = new CodexAppServer('stage-1', OPTIONS)
-    driver.apply({ dir: 'out', at: 1, frame: { id: 'kando-turn-1', method: 'turn/start', params: { input: [{ type: 'text', text: 'go' }] } }, ref: 'ref-1' })
+    driver.apply({ dir: 'out', at: 1, frame: { id: 'antumi-turn-1', method: 'turn/start', params: { input: [{ type: 'text', text: 'go' }] } }, ref: 'ref-1' })
     driver.apply({ dir: 'in', at: 2, frame: { method: 'turn/plan/updated', params: { plan: [{ step: 'Write the parser', status: 'completed' }, { step: 'Test it', status: 'inProgress' }] } } })
     const todos = [
       { content: 'Write the parser', status: 'completed', activeForm: null },
@@ -352,7 +352,7 @@ describe('CodexAppServer options', () => {
   it('opens a thread with what the conversation chose last time', () => {
     const driver = new CodexAppServer('stage-1', { ...OPTIONS, preferred: { permissionMode: 'ask', model: 'gpt-6-luna' } })
     driver.apply({ dir: 'out', at, frame: driver.due()[0] })
-    driver.apply({ dir: 'in', at, frame: { id: 'kando-init', result: {} } })
+    driver.apply({ dir: 'in', at, frame: { id: 'antumi-init', result: {} } })
     expect(driver.due()[1]).toMatchObject({ method: 'thread/start', params: { approvalPolicy: 'untrusted', sandbox: 'workspace-write', model: 'gpt-6-luna' } })
   })
 })
@@ -361,13 +361,13 @@ describe('CodexAppServer commands', () => {
   const at = 1
   const handshake = (driver: CodexAppServer, threadId = 'thread-1', thread: Record<string, unknown> = {}) => {
     driver.due().forEach((frame) => driver.apply({ dir: 'out', at, frame }))
-    driver.apply({ dir: 'in', at, frame: { id: 'kando-init', result: {} } })
+    driver.apply({ dir: 'in', at, frame: { id: 'antumi-init', result: {} } })
     const [initialized, open, models, config, skills] = driver.due()
-    expect(models).toEqual({ id: 'kando-models', method: 'model/list', params: {} })
-    expect(config).toEqual({ id: 'kando-config', method: 'config/read', params: { cwd: '/work/repo' } })
-    expect(skills).toEqual({ id: 'kando-skills', method: 'skills/list', params: { cwds: ['/work/repo'] } })
+    expect(models).toEqual({ id: 'antumi-models', method: 'model/list', params: {} })
+    expect(config).toEqual({ id: 'antumi-config', method: 'config/read', params: { cwd: '/work/repo' } })
+    expect(skills).toEqual({ id: 'antumi-skills', method: 'skills/list', params: { cwds: ['/work/repo'] } })
     for (const frame of [initialized, open, models, config, skills]) driver.apply({ dir: 'out', at, frame })
-    driver.apply({ dir: 'in', at, frame: { id: 'kando-thread', result: { thread: { id: threadId }, ...thread } } })
+    driver.apply({ dir: 'in', at, frame: { id: 'antumi-thread', result: { thread: { id: threadId }, ...thread } } })
     return { initialized, open }
   }
 
@@ -410,15 +410,15 @@ describe('CodexAppServer commands', () => {
   it('takes the model config.toml names as the default, keeping only that of the config', () => {
     const driver = new CodexAppServer('stage-1', OPTIONS)
     handshake(driver)
-    driver.apply({ dir: 'in', at, frame: { id: 'kando-models', result: { data: [{ id: 'gpt-x', isDefault: true }, { id: 'gpt-y', isDefault: false }] } } })
-    const reply = { id: 'kando-config', result: { config: { model: 'gpt-y', mcp_servers: { secret: { env: { TOKEN: 'x' } } } } } }
-    expect(driver.logged(reply)).toEqual({ id: 'kando-config', result: { config: { model: 'gpt-y' } } })
+    driver.apply({ dir: 'in', at, frame: { id: 'antumi-models', result: { data: [{ id: 'gpt-x', isDefault: true }, { id: 'gpt-y', isDefault: false }] } } })
+    const reply = { id: 'antumi-config', result: { config: { model: 'gpt-y', mcp_servers: { secret: { env: { TOKEN: 'x' } } } } } }
+    expect(driver.logged(reply)).toEqual({ id: 'antumi-config', result: { config: { model: 'gpt-y' } } })
     driver.apply({ dir: 'in', at, frame: reply })
     expect(ofKind(driver.items.list(), 'state')[0]?.models.map((model) => [model.id, model.isDefault])).toEqual([['gpt-x', false], ['gpt-y', true]])
   })
 
   const skillsReply = {
-    id: 'kando-skills',
+    id: 'antumi-skills',
     result: {
       data: [{
         cwd: '/work/repo',
@@ -452,10 +452,10 @@ describe('CodexAppServer commands', () => {
   it('compacts the thread on /compact, as a turn of its own', () => {
     const driver = withSkills()
     const { wire } = driver.send('/compact')
-    expect(wire).toEqual({ id: 'kando-turn-1', method: 'thread/compact/start', params: { threadId: 'thread-1' } })
+    expect(wire).toEqual({ id: 'antumi-turn-1', method: 'thread/compact/start', params: { threadId: 'thread-1' } })
     driver.apply({ dir: 'out', at, frame: wire, ref: 'ref-1' })
     expect(userTexts(driver)).toEqual(['/compact'])
-    driver.apply({ dir: 'in', at, frame: { id: 'kando-turn-1', result: {} } })
+    driver.apply({ dir: 'in', at, frame: { id: 'antumi-turn-1', result: {} } })
     driver.apply({ dir: 'in', at, frame: { method: 'turn/started', params: { threadId: 'thread-1', turn: { id: 't-1', status: 'inProgress' } } } })
     expect(driver.interrupt()).toContainEqual(expect.objectContaining({ method: 'turn/interrupt', params: { threadId: 'thread-1', turnId: 't-1' } }))
     driver.apply({ dir: 'in', at, frame: { method: 'item/completed', params: { threadId: 'thread-1', item: { type: 'contextCompaction', id: 'c-1' } } } })
@@ -471,7 +471,7 @@ describe('CodexAppServer commands', () => {
     const { wire } = driver.send('/review  main ')
     expect(wire).toMatchObject({ method: 'review/start', params: { target: { type: 'baseBranch', branch: 'main' } } })
     driver.apply({ dir: 'out', at, frame: wire, ref: 'ref-1' })
-    driver.apply({ dir: 'in', at, frame: driver.logged({ id: 'kando-turn-1', result: { turn: { id: 't-1', items: [{ type: 'userMessage' }] }, reviewThreadId: 'thread-1' } }) })
+    driver.apply({ dir: 'in', at, frame: driver.logged({ id: 'antumi-turn-1', result: { turn: { id: 't-1', items: [{ type: 'userMessage' }] }, reviewThreadId: 'thread-1' } }) })
     expect(userTexts(driver)).toEqual(['/review main'])
     expect(driver.interrupt()).toContainEqual(expect.objectContaining({ params: { threadId: 'thread-1', turnId: 't-1' } }))
   })
@@ -490,7 +490,7 @@ describe('CodexAppServer commands', () => {
     const driver = withSkills()
     expect(driver.due()).toEqual([])
     driver.apply({ dir: 'in', at, frame: { method: 'skills/changed', params: {} } })
-    expect(driver.due()).toEqual([{ id: 'kando-skills', method: 'skills/list', params: { cwds: ['/work/repo'] } }])
+    expect(driver.due()).toEqual([{ id: 'antumi-skills', method: 'skills/list', params: { cwds: ['/work/repo'] } }])
   })
 
   it('leaves a waiting plan waiting through a command', () => {
@@ -563,10 +563,10 @@ describe('CodexAppServer commands', () => {
 
   it('shakes hands, then opens a thread with its policy stated outright', () => {
     const driver = new CodexAppServer('stage-1', { ...OPTIONS, extraDirs: ['/work/web'] })
-    expect(driver.due()).toEqual([expect.objectContaining({ id: 'kando-init', method: 'initialize' })])
+    expect(driver.due()).toEqual([expect.objectContaining({ id: 'antumi-init', method: 'initialize' })])
     const { initialized, open } = handshake(driver)
     expect(initialized).toEqual({ method: 'initialized' })
-    expect(open).toEqual({ id: 'kando-thread', method: 'thread/start', params: { cwd: '/work/repo', approvalPolicy: 'on-request', sandbox: 'workspace-write' } })
+    expect(open).toEqual({ id: 'antumi-thread', method: 'thread/start', params: { cwd: '/work/repo', approvalPolicy: 'on-request', sandbox: 'workspace-write' } })
     expect(driver.ready()).toBe(true)
     expect(driver.due()).toEqual([])
     expect(driver.send('go').wire).toMatchObject({
@@ -627,11 +627,11 @@ describe('CodexAppServer commands', () => {
     handshake(driver)
     driver.apply({ dir: 'out', at, frame: driver.send('go').wire, ref: 'ref-1' })
     expect(() => driver.interrupt()).toThrow(expect.objectContaining({ reason: 'chat-busy' }))
-    driver.apply({ dir: 'in', at, frame: { id: 'kando-turn-1', result: { turn: { id: 'turn-9' } } } })
+    driver.apply({ dir: 'in', at, frame: { id: 'antumi-turn-1', result: { turn: { id: 'turn-9' } } } })
     driver.apply({ dir: 'in', at, frame: { id: 4, method: 'item/tool/requestUserInput', params: { questions: [{ id: 'q1', header: 'Pick', question: 'Which?', options: [{ label: 'A' }] }] } } })
     expect(driver.interrupt()).toEqual([
       { id: 4, result: { answers: {} } },
-      { id: 'kando-interrupt-1', method: 'turn/interrupt', params: { threadId: 'thread-1', turnId: 'turn-9' } }
+      { id: 'antumi-interrupt-1', method: 'turn/interrupt', params: { threadId: 'thread-1', turnId: 'turn-9' } }
     ])
   })
 
@@ -639,7 +639,7 @@ describe('CodexAppServer commands', () => {
     const driver = new CodexAppServer('stage-1', OPTIONS)
     handshake(driver)
     driver.apply({ dir: 'out', at, frame: driver.send('go').wire, ref: 'ref-1' })
-    driver.apply({ dir: 'in', at, frame: { id: 'kando-turn-1', result: { turn: { id: 'turn-9' } } } })
+    driver.apply({ dir: 'in', at, frame: { id: 'antumi-turn-1', result: { turn: { id: 'turn-9' } } } })
     const command = (id: string, status: string) => ({ type: 'commandExecution', id, command: 'sleep 5', status, exitCode: status === 'inProgress' ? null : 1 })
     driver.apply({ dir: 'in', at, frame: { method: 'item/completed', params: { item: command('exec-1', 'failed') } } })
     driver.apply({ dir: 'in', at, frame: { method: 'item/started', params: { item: command('exec-2', 'inProgress') } } })
@@ -850,9 +850,9 @@ describe('CodexAppServer subagents', () => {
   const thread = 'thread-main'
   const opened = (): CodexAppServer => {
     const driver = new CodexAppServer('stage-1', OPTIONS)
-    driver.apply({ dir: 'out', at: 1, frame: { id: 'kando-thread', method: 'thread/start', params: {} } })
-    driver.apply({ dir: 'in', at: 2, frame: { id: 'kando-thread', result: { thread: { id: thread } } } })
-    driver.apply({ dir: 'out', at: 3, frame: { id: 'kando-turn-1', method: 'turn/start', params: { threadId: thread, input: [{ type: 'text', text: 'go' }] } }, ref: 'ref-1' })
+    driver.apply({ dir: 'out', at: 1, frame: { id: 'antumi-thread', method: 'thread/start', params: {} } })
+    driver.apply({ dir: 'in', at: 2, frame: { id: 'antumi-thread', result: { thread: { id: thread } } } })
+    driver.apply({ dir: 'out', at: 3, frame: { id: 'antumi-turn-1', method: 'turn/start', params: { threadId: thread, input: [{ type: 'text', text: 'go' }] } }, ref: 'ref-1' })
     return driver
   }
   const collab = (id: string, tool: string, status: string, receiverThreadIds: string[], agentsStates: Record<string, { status: string; message: string | null }>) => ({
@@ -952,7 +952,7 @@ describe('CodexAppServer usage limits', () => {
   const at = 1_790_000_000_000
   const frame = (value: Record<string, unknown>): ChatRecord => ({ dir: 'in', at, frame: value })
   const records = (error: Record<string, unknown>, willRetry: boolean): ChatRecord[] => [
-    { dir: 'out', at, frame: { method: 'turn/start', id: 'kando-turn-1', params: {} }, ref: 'ref-1' },
+    { dir: 'out', at, frame: { method: 'turn/start', id: 'antumi-turn-1', params: {} }, ref: 'ref-1' },
     frame({ method: 'turn/started', params: { turn: { id: 'turn-a' } } }),
     frame({ method: 'error', params: { error, willRetry, threadId: 'thread-1', turnId: 'turn-a' } }),
     // A retried request goes on; one Codex gave up on ends the turn with the same error.
@@ -986,7 +986,7 @@ describe('CodexAppServer usage limits', () => {
     expect(driver.items.get('t:i1')).toMatchObject({ output: 'saved', images: [{ id, width: 8, height: 6 }] })
     const logged = driver.logged(completed)
     expect(JSON.stringify(logged)).not.toContain('AAAA')
-    expect(JSON.stringify(logged)).toContain(`[kando-image ${id} 8x6]`)
+    expect(JSON.stringify(logged)).toContain(`[antumi-image ${id} 8x6]`)
     const replayed = replay([{ dir: 'in', at: 1, frame: logged }])
     expect(replayed.items.get('t:i1')).toMatchObject({ output: 'saved', images: [{ id, width: 8, height: 6 }] })
 

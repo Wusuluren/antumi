@@ -41,10 +41,10 @@ describe('command execution presentation', () => {
 describe('toolIconKind', () => {
   it('recognizes both agents and Antumi MCP aliases', () => {
     expect(['Write', 'MultiEdit', 'fileChange'].map((name) => toolIconKind(name))).toEqual(['edit', 'edit', 'edit'])
-    expect(['Bash', 'commandExecution', 'mcp__kando__terminal_run', 'kando.terminal_read'].map((name) => toolIconKind(name))).toEqual(['terminal', 'terminal', 'terminal', 'terminal'])
+    expect(['Bash', 'commandExecution', 'mcp__antumi__terminal_run', 'antumi.terminal_read'].map((name) => toolIconKind(name))).toEqual(['terminal', 'terminal', 'terminal', 'terminal'])
     expect(['Read', 'Grep', 'Glob', 'webSearch'].map((name) => toolIconKind(name))).toEqual(['read', 'search', 'search', 'search'])
-    expect(['WebFetch', 'mcp__kando__browser_navigate', 'kando.browser_click'].map((name) => toolIconKind(name))).toEqual(['browser', 'browser-control', 'browser-control'])
-    expect(['imageView', 'mcp__kando__browser_screenshot', 'kando.show_preview'].map((name) => toolIconKind(name))).toEqual(['image', 'image', 'image'])
+    expect(['WebFetch', 'mcp__antumi__browser_navigate', 'antumi.browser_click'].map((name) => toolIconKind(name))).toEqual(['browser', 'browser-control', 'browser-control'])
+    expect(['imageView', 'mcp__antumi__browser_screenshot', 'antumi.show_preview'].map((name) => toolIconKind(name))).toEqual(['image', 'image', 'image'])
   })
 
   it('recognizes the kinds Cursor names its calls by', () => {
@@ -62,9 +62,9 @@ describe('toolIconKind', () => {
     expect(toolLabel('mcp__claude_ai_Atlassian__getJiraIssue')).toBe('Atlassian · getJiraIssue')
     expect(toolLabel('mcp__plugin_figma_figma__get_screenshot')).toBe('plugin figma figma · get_screenshot')
     // Antumi's own keep their names, and so do the agent's built-in tools.
-    expect(toolLabel('mcp__kando__show_preview')).toBe('预览')
-    expect([toolLabel('mcp__kando__history_list'), toolLabel('kando.history_read')]).toEqual(['查看 Antumi 记录', '读取 Antumi 记录'])
-    expect(toolIconKind('mcp__kando__history_read')).toBe('read')
+    expect(toolLabel('mcp__antumi__show_preview')).toBe('预览')
+    expect([toolLabel('mcp__antumi__history_list'), toolLabel('antumi.history_read')]).toEqual(['查看 Antumi 记录', '读取 Antumi 记录'])
+    expect(toolIconKind('mcp__antumi__history_read')).toBe('read')
     expect(toolLabel('Bash')).toBe(toolLabel('Bash', { name: 'ignored', server: null }))
     expect(runSummary([{ name: 'mcp__x__y', display: { name: 'Y', server: 'X' } }, { name: 'mcp__x__y', display: { name: 'Y', server: 'X' } }])).toBe('X · Y 2 次')
   })
@@ -75,7 +75,7 @@ describe('toolInputLanguage', () => {
     expect(toolInputLanguage('Bash', 'git status')).toBe('bash')
     expect(toolInputLanguage('commandExecution', 'ls -la')).toBe('bash')
     expect(toolInputLanguage('ExitPlanMode', '# Plan')).toBe('markdown')
-    expect(toolInputLanguage('mcp__kando__terminal_run', '{\n  "command": "pnpm dev"\n}')).toBe('json')
+    expect(toolInputLanguage('mcp__antumi__terminal_run', '{\n  "command": "pnpm dev"\n}')).toBe('json')
   })
 
   it('leaves input that is neither plain', () => {
@@ -85,13 +85,13 @@ describe('toolInputLanguage', () => {
 
 describe('runSummary', () => {
   it('counts a run of calls by kind, in the order each first came up', () => {
-    const names = ['Read', 'Grep', 'Read', 'Bash', 'Glob', 'mcp__kando__read_task_details']
-    expect(runSummary(names.map((name) => ({ name })))).toBe('读取 2 个文件，搜索 2 次，运行 1 个命令，kando · read_task_details 1 次')
+    const names = ['Read', 'Grep', 'Read', 'Bash', 'Glob', 'mcp__antumi__read_task_details']
+    expect(runSummary(names.map((name) => ({ name })))).toBe('读取 2 个文件，搜索 2 次，运行 1 个命令，antumi · read_task_details 1 次')
   })
 
   it('counts the browser tools together, by either agent\'s name for them', () => {
-    expect(runSummary(['mcp__kando__browser_click', 'kando.browser_type', 'Read'].map((name) => ({ name })))).toBe('浏览器操作 2 次，读取 1 个文件')
-    expect(toolLabel('mcp__kando__browser_screenshot')).toBe('截图')
+    expect(runSummary(['mcp__antumi__browser_click', 'antumi.browser_type', 'Read'].map((name) => ({ name })))).toBe('浏览器操作 2 次，读取 1 个文件')
+    expect(toolLabel('mcp__antumi__browser_screenshot')).toBe('截图')
     expect(toolLabel('browser_host')).toBe('打开网站')
   })
 })

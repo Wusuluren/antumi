@@ -3,7 +3,7 @@ import { AgentKind } from './agent'
 import { agentDescriptor } from './agents'
 import { ChatPermissionMode } from './chat'
 
-export const SQUAD_TOOL_NAMES = { roster: 'kando_squad_roster', dispatch: 'kando_squad_dispatch', finish: 'kando_squad_finish' } as const
+export const SQUAD_TOOL_NAMES = { roster: 'antumi_squad_roster', dispatch: 'antumi_squad_dispatch', finish: 'antumi_squad_finish' } as const
 
 export const SquadMember = z.object({
   id: z.string().uuid(),

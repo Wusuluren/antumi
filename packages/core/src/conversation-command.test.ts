@@ -5,7 +5,7 @@ describe('chatCommand', () => {
   it('gives Codex Antumi\'s tools and hides the ChatGPT app\'s browser beside them', () => {
     const mcp = { command: 'node', args: ['mcp.mjs', '--home', '/k'] }
     const args = chatCommand('codex', null, false, null, [], { mcp }).args
-    expect(args.slice(0, 5)).toEqual(['app-server', '-c', 'mcp_servers.kando.command="node"', '-c', 'mcp_servers.kando.args=["mcp.mjs","--home","/k"]'])
+    expect(args.slice(0, 5)).toEqual(['app-server', '-c', 'mcp_servers.antumi.command="node"', '-c', 'mcp_servers.antumi.args=["mcp.mjs","--home","/k"]'])
     expect(args).toEqual(expect.arrayContaining(['-c', 'mcp_servers.cua_repl={command="/usr/bin/true",enabled=false}']))
     // Without Antumi's tools there is nothing to choose between, and nothing is hidden.
     expect(chatCommand('codex', null, false, null, []).args).toEqual(['app-server'])
@@ -31,7 +31,7 @@ describe('chatCommand', () => {
     const mcp = { command: 'node', args: ['mcp.mjs'] }
     const claude = chatCommand('claude', 's', false, null, [], { mcp, userMcp }).args
     expect(JSON.parse(claude[claude.indexOf('--mcp-config') + 1] ?? '{}')).toEqual({ mcpServers: {
-      kando: { type: 'stdio', command: 'node', args: ['mcp.mjs'] },
+      antumi: { type: 'stdio', command: 'node', args: ['mcp.mjs'] },
       github: { type: 'stdio', command: 'node', args: ['mcp.mjs', '--run', 'github'] },
       docs: { type: 'http', url: 'https://mcp.example.com/mcp' }
     } })
@@ -49,8 +49,8 @@ describe('chatCommand', () => {
   it('lets Claude show a file, read its own terminals and the user\'s history without asking', () => {
     const args = chatCommand('claude', 's', false, null, [], { mcp: { command: 'node', args: ['mcp.mjs'] } }).args
     const allowed = args[args.indexOf('--allowedTools') + 1]?.split(',') ?? []
-    expect(allowed).toEqual(expect.arrayContaining(['mcp__kando__show_preview', 'mcp__kando__terminal_read', 'mcp__kando__history_list', 'mcp__kando__history_read']))
-    expect(allowed).not.toContain('mcp__kando__terminal_run')
+    expect(allowed).toEqual(expect.arrayContaining(['mcp__antumi__show_preview', 'mcp__antumi__terminal_read', 'mcp__antumi__history_list', 'mcp__antumi__history_read']))
+    expect(allowed).not.toContain('mcp__antumi__terminal_run')
   })
 
   it('gives Cursor each extra project as a workspace root before its ACP server', () => {
@@ -85,10 +85,10 @@ describe('chatCommand', () => {
   })
 
   it('hands Antumi\'s skills to the agents that load a folder of them, each its own way', () => {
-    const skills = { dir: '/kando/skills/bundles/abc' }
-    expect(chatCommand('claude', 's', false, null, [], { skills }).args).toEqual(expect.arrayContaining(['--plugin-dir', '/kando/skills/bundles/abc']))
+    const skills = { dir: '/antumi/skills/bundles/abc' }
+    expect(chatCommand('claude', 's', false, null, [], { skills }).args).toEqual(expect.arrayContaining(['--plugin-dir', '/antumi/skills/bundles/abc']))
     expect(chatCommand('claude', 's', false, null, [], { skills }).args).not.toContain('--add-dir')
-    expect(chatCommand('cursor', null, false, null, ['/code/web'], { skills }).args).toEqual(['--add-dir', '/code/web', '--add-dir', '/kando/skills/bundles/abc', 'acp'])
+    expect(chatCommand('cursor', null, false, null, ['/code/web'], { skills }).args).toEqual(['--add-dir', '/code/web', '--add-dir', '/antumi/skills/bundles/abc', 'acp'])
     expect(chatCommand('codex', null, false, null, [], { skills }).args).toEqual(['app-server'])
     expect(chatCommand('claude', 's', false, null, []).args).not.toContain('--plugin-dir')
   })
@@ -107,12 +107,12 @@ describe('chatCommand', () => {
       preferred: { permissionMode: 'acceptEdits' },
       allowBypass: true,
       planOnly: { dirs: ['/code/app', '/code/web'] },
-      readable: ['/kando/attachments/a.png']
+      readable: ['/antumi/attachments/a.png']
     }).args
     expect(args).toEqual(expect.arrayContaining(['--permission-mode', 'plan', '--disallowedTools', 'Edit(//code/app/**),Edit(//code/web/**)']))
     expect(args).not.toContain('--allow-dangerously-skip-permissions')
     // One list of what it may read: its images and git history.
     expect(args.filter((arg) => arg === '--allowedTools')).toHaveLength(1)
-    expect(args[args.indexOf('--allowedTools') + 1]).toBe('Read(//kando/attachments/a.png),Bash(git log:*),Bash(git diff:*),Bash(git show:*)')
+    expect(args[args.indexOf('--allowedTools') + 1]).toBe('Read(//antumi/attachments/a.png),Bash(git log:*),Bash(git diff:*),Bash(git show:*)')
   })
 })

@@ -48,7 +48,7 @@ describe('Antumi\'s own questions in a chat', () => {
     const { host, sessionId } = await started()
     const before = activity
     const requestId = host.ask(STAGE.conversationId, { kind: 'browser-host', host: 'example.com', url: 'https://example.com/' })
-    expect(requestId).toMatch(/^kando:browser-host:/)
+    expect(requestId).toMatch(/^antumi:browser-host:/)
     expect(published.at(-1)).toMatchObject({ kind: 'approval', requestId, tool: 'browser_host', title: 'example.com', resolution: null })
     expect(host.activity(STAGE.conversationId)).toBe('awaiting')
     expect(activity).toBeGreaterThan(before)

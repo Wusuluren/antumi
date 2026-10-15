@@ -1,4 +1,4 @@
-import { BROWSER_HOST_TOOL, browserToolKind, historyToolKind, isPreviewTool, TERMINAL_RUN_TOOL, terminalToolKind, todoToolKind, type TodoToolKind, type BrowserToolKind, type ChatDiff, type ChatItem, type ChatToolStatus, type TerminalToolKind } from '@antumi/protocol'
+import { BROWSER_HOST_TOOL, browserToolKind, historyToolKind, isPreviewTool, isTerminalRunTool, terminalToolKind, todoToolKind, type TodoToolKind, type BrowserToolKind, type ChatDiff, type ChatItem, type ChatToolStatus, type TerminalToolKind } from '@antumi/protocol'
 import { browserOperation } from './browser-activity'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
@@ -76,7 +76,7 @@ export function toolLabel(name: string, display?: ToolDisplay | null): string {
   if (todo) return TODO_LABEL[todo]
   const history = historyToolKind(name)
   if (history) return history === 'list' ? '查看 Antumi 记录' : '读取 Antumi 记录'
-  if (name === TERMINAL_RUN_TOOL) return TERMINAL_LABEL.run
+  if (isTerminalRunTool(name)) return TERMINAL_LABEL.run
   const terminal = terminalToolKind(name)
   if (terminal) return TERMINAL_LABEL[terminal]
   const browser = browserToolKind(name)
@@ -96,7 +96,7 @@ const TOOL_ICONS: Record<string, ToolIconKind> = {
 }
 
 export function toolIconKind(name: string, display?: ToolDisplay | null): ToolIconKind {
-  if (name === TERMINAL_RUN_TOOL || terminalToolKind(name)) return 'terminal'
+  if (isTerminalRunTool(name) || terminalToolKind(name)) return 'terminal'
   if (browserToolKind(name) === 'screenshot' || isPreviewTool(name)) return 'image'
   if (browserOperation(name, display) !== null) return 'browser-control'
   const history = historyToolKind(name)

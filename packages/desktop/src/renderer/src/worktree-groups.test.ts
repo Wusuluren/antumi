@@ -3,7 +3,7 @@ import { Task, type ManagedWorktree } from '@antumi/protocol'
 import { formatBytes, groupWorktrees, worktreeRows, worktreeState, worktreeSummary } from './worktree-groups'
 
 const worktree = (name: string, overrides: Partial<ManagedWorktree> = {}): ManagedWorktree => ({
-  path: `/kando/worktrees/${name}/app`, repo: '/code/app', branch: `kando/${name}`, taskId: null, planning: false,
+  path: `/antumi/worktrees/${name}/app`, repo: '/code/app', branch: `antumi/${name}`, taskId: null, planning: false,
   changes: 0, unmerged: null, alone: false, inUse: false, locked: false, touchedAt: 0, size: null, ...overrides
 })
 const task = (id: string, status: Task['status']) =>
@@ -22,10 +22,10 @@ describe('worktree groups', () => {
 
   it('sorts worktrees by what can be done about them, the oldest first', () => {
     expect(groupWorktrees(rows).map((group) => [group.id, group.rows.map((row) => row.worktree.branch)])).toEqual([
-      ['cleanable', ['kando/gone', 'kando/done']],
-      ['orphaned', ['kando/orphan']],
-      ['attention', ['kando/dirty', 'kando/open']],
-      ['active', ['kando/review']]
+      ['cleanable', ['antumi/gone', 'antumi/done']],
+      ['orphaned', ['antumi/orphan']],
+      ['attention', ['antumi/dirty', 'antumi/open']],
+      ['active', ['antumi/review']]
     ])
   })
 

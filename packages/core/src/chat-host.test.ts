@@ -86,8 +86,8 @@ describe('ChatHost', () => {
     const recorded = recordingSink()
     const { host, sessionId } = await started(recorded.sink)
     expect(daemon.written(sessionId)).toEqual([
-      { type: 'control_request', request_id: 'kando-init', request: { subtype: 'initialize' } },
-      { type: 'control_request', request_id: 'kando-settings', request: { subtype: 'get_settings' } }
+      { type: 'control_request', request_id: 'antumi-init', request: { subtype: 'initialize' } },
+      { type: 'control_request', request_id: 'antumi-settings', request: { subtype: 'get_settings' } }
     ])
 
     const reply = daemon.reply
@@ -169,7 +169,7 @@ describe('ChatHost', () => {
     const host = new ChatHost(daemon, root, attachments, recordingSink().sink)
     const { sessionId } = await daemon.request('spawnPipe', { command: 'claude', args: [], cwd: '/work/repo', env: {} })
     daemon.answerInit = false
-    const init = `${JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: 'kando-init' } })}\n`
+    const init = `${JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: 'antumi-init' } })}\n`
     const assistant = `${JSON.stringify({ type: 'assistant', message: { id: 'm1', content: [{ type: 'text', text: 'early' }] } })}\n`
     const session = daemon.sessions.get(sessionId)!
     session.output = init

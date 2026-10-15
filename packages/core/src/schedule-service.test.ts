@@ -139,7 +139,7 @@ describe('ScheduleService', () => {
 
   beforeEach(() => {
     root = mkdtempSync(path.join(os.tmpdir(), 'antumi-schedule-'))
-    database = path.join(root, 'kando.db')
+    database = path.join(root, 'antumi.db')
     tasks = new TaskStore(database)
     store = new ConversationStore(database)
     projects = new ProjectRegistry(database)

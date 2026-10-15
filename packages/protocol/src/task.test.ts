@@ -41,7 +41,7 @@ describe('checkEditProjects', () => {
 describe('checkEditStart', () => {
   it('lets a start be picked until the repo has its branch, when projects may be edited', () => {
     expect(checkEditStart(task(), { branch: null })).toBeNull()
-    expect(checkEditStart(task({ status: 'review' }), { branch: 'kando/00000000-refactor-login' })).toBe('branch-exists')
+    expect(checkEditStart(task({ status: 'review' }), { branch: 'antumi/00000000-refactor-login' })).toBe('branch-exists')
     expect(checkEditStart(task({ status: 'running' }), { branch: null })).toBe('task-running')
     expect(checkEditStart(task(), { branch: null }, true)).toBe('run-in-progress')
   })
@@ -86,7 +86,7 @@ describe('checkMove', () => {
 })
 
 describe('checkContinue and checkRedo', () => {
-  const repos = [{ path: '/repo', worktreePath: '/wt', branch: 'kando/x', startRef: null, start: null }]
+  const repos = [{ path: '/repo', worktreePath: '/wt', branch: 'antumi/x', startRef: null, start: null }]
 
   it('continues only finished tasks, under review or accepted, whose dependencies are still accepted', () => {
     const done = task({ status: 'done', repos, agent: 'claude' })
@@ -114,7 +114,7 @@ describe('cancelling and reopening', () => {
     expect(checkReopen(task({ status: 'abandoned' }), { id: 'successor' })).toBe('task-redone')
     const repo = { path: '/app', worktreePath: null, branch: null, startRef: null, start: null }
     expect(reopenStatus(task({ repos: [repo] }))).toBe('pending')
-    expect(reopenStatus(task({ repos: [{ ...repo, worktreePath: '/wt/app', branch: 'kando/x' }] }))).toBe('review')
+    expect(reopenStatus(task({ repos: [{ ...repo, worktreePath: '/wt/app', branch: 'antumi/x' }] }))).toBe('review')
   })
 })
 

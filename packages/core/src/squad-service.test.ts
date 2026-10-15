@@ -37,7 +37,7 @@ describe('squad execution', () => {
   const workSession = (work: SquadWork) => chats.get(work.conversationId!).sessionId!
   beforeEach(() => {
     root = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'antumi-squad-')))
-    const db = path.join(root, 'kando.db')
+    const db = path.join(root, 'antumi.db')
     tasks = new TaskStore(db); chatsStore = new ConversationStore(db); projects = new ProjectRegistry(db)
     daemon = fakeChatDaemon()
     daemon.reply = () => {}
@@ -293,9 +293,9 @@ describe('squad execution', () => {
     const asked = (method: string) => daemon.written(sessionId).some((frame) => JSON.stringify(frame).includes(`"method":"${method}"`))
     complete(chats.get(leaderId()).sessionId!, 'delegated to Codex')
     await waitFor(() => asked('initialize'))
-    daemon.emit(sessionId, { id: 'kando-init', result: {} })
+    daemon.emit(sessionId, { id: 'antumi-init', result: {} })
     await waitFor(() => asked('thread/start'))
-    daemon.emit(sessionId, { id: 'kando-thread', result: { thread: { id: 'codex-thread' } } })
+    daemon.emit(sessionId, { id: 'antumi-thread', result: { thread: { id: 'codex-thread' } } })
     await waitFor(() => current().works[0]?.state === 'running')
     await waitFor(() => asked('turn/start'))
     const frame = daemon.written(sessionId).find((entry) => typeof entry === 'object' && entry !== null && Reflect.get(entry, 'method') === 'turn/start')
@@ -314,7 +314,7 @@ describe('squad execution', () => {
     const sessionId = workSession(current().works[0]!)
     const before = daemon.spawns.length
     await squads.close()
-    squads = new SquadService(new SquadStore(path.join(root, 'kando.db')), service, chats, { squad: () => {}, run: () => {} })
+    squads = new SquadService(new SquadStore(path.join(root, 'antumi.db')), service, chats, { squad: () => {}, run: () => {} })
     service.setSquads(squads)
     await squads.reconcile()
     expect(workSession(current().works[0]!)).toBe(sessionId)
@@ -329,11 +329,11 @@ describe('squad execution', () => {
     await waitFor(() => current().works[0]?.delivered === true)
     const message = chats.messages(leaderId()).findLast((entry) => entry.role === 'user' && entry.eventKey.startsWith('chat:squad-results:'))!
     const ref = message.eventKey.slice('chat:'.length, -':user'.length)
-    const persisted = new SquadStore(path.join(root, 'kando.db'))
+    const persisted = new SquadStore(path.join(root, 'antumi.db'))
     persisted.patchRun(current().id, { delivery: { id: ref, workIds: [current().works[0]!.id], text: message.text }, works: current().works.map((work) => ({ ...work, delivered: false })) })
     persisted.close()
     await squads.close()
-    squads = new SquadService(new SquadStore(path.join(root, 'kando.db')), service, chats, { squad: () => {}, run: () => {} })
+    squads = new SquadService(new SquadStore(path.join(root, 'antumi.db')), service, chats, { squad: () => {}, run: () => {} })
     service.setSquads(squads)
     complete(chats.get(leaderId()).sessionId!, 'considering next step')
     await squads.reconcile()

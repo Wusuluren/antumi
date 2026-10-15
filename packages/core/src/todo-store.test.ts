@@ -15,7 +15,7 @@ describe('TodoStore', () => {
 
   beforeEach(() => {
     root = mkdtempSync(path.join(os.tmpdir(), 'antumi-todos-'))
-    const file = path.join(root, 'kando.db')
+    const file = path.join(root, 'antumi.db')
     tasks = new TaskStore(file)
     told = []
     clock = 100
@@ -38,7 +38,7 @@ describe('TodoStore', () => {
     expect(todos.list('c2')).toEqual([])
     // Restarted, it still holds them.
     todos.close()
-    todos = new TodoStore(path.join(root, 'kando.db'))
+    todos = new TodoStore(path.join(root, 'antumi.db'))
     expect(texts(todos.list('c1'))).toEqual([['真机验证', ['加载已解压', '重载后自动恢复']]])
   })
 

@@ -1,8 +1,8 @@
 {
-  "id": "kando.github",
+  "id": "antumi.github",
   "version": "1.0.0",
   "engines": {
-    "kando": ">=0.15.11 <1.0.0"
+    "antumi": ">=0.15.11 <1.0.0"
   },
   "contributes": {
     "sources": [
@@ -28,6 +28,7 @@
     "main": "main.mjs"
   },
   "env": [
+    "ANTUMI_GITHUB_TOKEN",
     "KANDO_GITHUB_TOKEN"
   ]
 }

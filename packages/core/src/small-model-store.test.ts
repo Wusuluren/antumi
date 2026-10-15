@@ -54,7 +54,7 @@ describe('small-model accounting', () => {
 
   beforeEach(() => {
     root = mkdtempSync(path.join(os.tmpdir(), 'antumi-small-models-'))
-    database = path.join(root, 'kando.db')
+    database = path.join(root, 'antumi.db')
     tasks = new TaskStore(database)
     store = new SmallModelStore(database, () => NOW)
   })

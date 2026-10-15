@@ -95,8 +95,8 @@ describe('task starts', () => {
   })
 
   it('stacks on a dependency\'s branch when nothing is picked', async () => {
-    git(clone, 'branch', 'kando/aaaa-dep', 'HEAD')
-    expect((await resolveStart(clone, null, 'kando/aaaa-dep', 1)).start).toMatchObject({ ref: 'kando/aaaa-dep', note: null })
+    git(clone, 'branch', 'antumi/aaaa-dep', 'HEAD')
+    expect((await resolveStart(clone, null, 'antumi/aaaa-dep', 1)).start).toMatchObject({ ref: 'antumi/aaaa-dep', note: null })
   })
 
   it('offers local branches, then remote ones, with what starts the branch when nothing is picked', async () => {
@@ -106,7 +106,7 @@ describe('task starts', () => {
     expect(options).toMatchObject({ path: clone, git: true, current: 'feature/login', fallback: 'refs/remotes/origin/main', stacked: false })
     expect(options.refs.slice(0, 2).sort()).toEqual(['refs/heads/feature/login', 'refs/heads/main'])
     expect(options.refs.slice(2).sort()).toEqual(['refs/remotes/origin/hotfix', 'refs/remotes/origin/main'])
-    expect(await repoStartOptions(clone, clone, 'kando/aaaa-dep')).toMatchObject({ fallback: 'refs/heads/kando/aaaa-dep', stacked: true })
+    expect(await repoStartOptions(clone, clone, 'antumi/aaaa-dep')).toMatchObject({ fallback: 'refs/heads/antumi/aaaa-dep', stacked: true })
     expect(await repoStartOptions('/notes', null, null)).toEqual({ path: '/notes', git: false, current: null, fallback: null, stacked: false, refs: [] })
   })
 })

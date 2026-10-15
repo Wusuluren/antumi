@@ -28,7 +28,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 beforeEach(() => {
   root = mkdtempSync(path.join(os.tmpdir(), 'antumi-cursor-conversation-'))
-  const database = path.join(root, 'kando.db')
+  const database = path.join(root, 'antumi.db')
   tasks = new TaskStore(database); store = new ConversationStore(database); projects = new ProjectRegistry(database)
   mkdirSync(path.join(root, 'attachments'))
   answerPrompt = true

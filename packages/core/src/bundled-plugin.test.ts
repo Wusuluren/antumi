@@ -4,7 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import { expect, it } from 'vitest'
-import { PluginManifest } from '@antumi/protocol'
+import { PluginManifest, pluginEngineRange } from '@antumi/protocol'
 import manifestJson from '../../plugin-github/manifest.json' with { type: 'json' }
 import { PluginProcess } from './plugin-process'
 
@@ -19,7 +19,7 @@ it('runs the shipped GitHub source in plain Node without workspace dependencies'
     if (!output) throw new Error('Plugin build did not produce output')
     const main = path.join(directory, 'main.mjs')
     await writeFile(main, output.contents)
-    const process = new PluginProcess(PluginManifest.parse(manifestJson), main, { KANDO_GITHUB_TOKEN: 'test-env-token' })
+    const process = new PluginProcess(PluginManifest.parse(manifestJson), main, { ANTUMI_GITHUB_TOKEN: 'test-env-token' })
     const providers = await process.providers()
     const github = providers[0]
     if (!github) throw new Error('Missing GitHub source')
@@ -28,4 +28,10 @@ it('runs the shipped GitHub source in plain Node without workspace dependencies'
     expect(await github.normalizeSettings({ query: '  assignee:@me   is:open  ' })).toEqual({ query: 'assignee:@me is:open' })
     expect(await github.normalizeKey?.(' acme/repo#1 ')).toBe('acme/repo#1')
   } finally { await rm(directory, { recursive: true, force: true }) }
+})
+
+it('reads the engine range of a plugin written before the rename', () => {
+  const legacy = PluginManifest.parse({ ...manifestJson, engines: { kando: '>=0.15.0 <1.0.0' } })
+  expect(pluginEngineRange(legacy)).toBe('>=0.15.0 <1.0.0')
+  expect(pluginEngineRange(PluginManifest.parse(manifestJson))).toBe(manifestJson.engines.antumi)
 })

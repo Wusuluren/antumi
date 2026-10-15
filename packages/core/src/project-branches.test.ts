@@ -29,12 +29,12 @@ describe('project branches', () => {
   afterEach(() => rmSync(root, { recursive: true, force: true }))
 
   it('lists local branches, then remote ones, and those another worktree holds', async () => {
-    git(app, 'worktree', 'add', '-q', '-b', 'kando/aaaa-task', path.join(root, 'task-wt'))
+    git(app, 'worktree', 'add', '-q', '-b', 'antumi/aaaa-task', path.join(root, 'task-wt'))
     const found = await projectBranches(app)
     expect(found).toMatchObject({ git: true, branch: 'main', changes: 0 })
-    expect(found.refs.slice(0, 3).sort()).toEqual(['refs/heads/feature', 'refs/heads/kando/aaaa-task', 'refs/heads/main'])
+    expect(found.refs.slice(0, 3).sort()).toEqual(['refs/heads/antumi/aaaa-task', 'refs/heads/feature', 'refs/heads/main'])
     expect(found.refs.slice(3).sort()).toEqual(['refs/remotes/origin/main', 'refs/remotes/origin/release'])
-    expect(found.elsewhere).toEqual({ 'refs/heads/kando/aaaa-task': expect.stringContaining('task-wt') })
+    expect(found.elsewhere).toEqual({ 'refs/heads/antumi/aaaa-task': expect.stringContaining('task-wt') })
     expect(await projectBranches(root)).toEqual({ git: false, branch: null, changes: 0, refs: [], elsewhere: {} })
   })
 
@@ -58,8 +58,8 @@ describe('project branches', () => {
   })
 
   it('refuses a branch another worktree holds, one that is not there, and anything not a branch', async () => {
-    git(app, 'worktree', 'add', '-q', '-b', 'kando/aaaa-task', path.join(root, 'task-wt'))
-    await expect(switchProjectBranch(app, 'refs/heads/kando/aaaa-task')).rejects.toMatchObject({ reason: 'branch-elsewhere' })
+    git(app, 'worktree', 'add', '-q', '-b', 'antumi/aaaa-task', path.join(root, 'task-wt'))
+    await expect(switchProjectBranch(app, 'refs/heads/antumi/aaaa-task')).rejects.toMatchObject({ reason: 'branch-elsewhere' })
     await expect(switchProjectBranch(app, 'refs/heads/nope')).rejects.toMatchObject({ reason: 'branch-not-found' })
     await expect(switchProjectBranch(app, 'HEAD')).rejects.toMatchObject({ reason: 'branch-not-found' })
     expect(current()).toBe('main')

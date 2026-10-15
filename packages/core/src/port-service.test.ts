@@ -59,7 +59,7 @@ describe('port ownership in core', () => {
   })
 
   it('associates a user terminal in a task worktree with that task', () => {
-    const task = Task.parse({ id: taskId, title: 'Task', details: '', status: 'running', conversationId: chatId, agent: 'claude', repos: [{ path: '/repo', worktreePath: '/worktree', branch: 'kando/task' }], dependsOn: [], createdAt: 0, updatedAt: 0 })
+    const task = Task.parse({ id: taskId, title: 'Task', details: '', status: 'running', conversationId: chatId, agent: 'claude', repos: [{ path: '/repo', worktreePath: '/worktree', branch: 'antumi/task' }], dependsOn: [], createdAt: 0, updatedAt: 0 })
     expect(ownedPorts([{ ...port, cwd: '/worktree/frontend' }], { ...base, terminals: [{ ...terminal, conversationId: null }], tasks: [task] })[0]).toMatchObject({ taskId, conversationId: chatId })
   })
 
@@ -74,8 +74,8 @@ describe('PortService', () => {
   it('reads labels from each worktree, detects edits, and keeps discovery working with malformed labels', async () => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'antumi-ports-'))
     roots.push(root)
-    mkdirSync(path.join(root, '.kando'))
-    const file = path.join(root, '.kando', 'ports.json')
+    mkdirSync(path.join(root, '.antumi'))
+    const file = path.join(root, '.antumi', 'ports.json')
     const context = { ...base, terminals: [{ ...terminal, cwd: root }], conversations: [conversation(chatId, root)] }
     const fake = daemonWith([{ ...port, cwd: path.join(root, 'frontend') }])
     const service = new PortService(fake.daemon, () => context)

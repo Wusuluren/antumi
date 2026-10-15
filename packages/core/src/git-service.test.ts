@@ -88,7 +88,7 @@ describe('Git management', () => {
 
   it('removes a worktree while an agent works in another checkout of its repository, but not during a Git operation', async () => {
     const worktree = path.join(root, 'worktree')
-    git(repo, 'worktree', 'add', '-q', '-b', 'kando/done', worktree)
+    git(repo, 'worktree', 'add', '-q', '-b', 'antumi/done', worktree)
     conversations[0]!.sessionId = 'agent'; conversations[0]!.chat = { turn: 'running' }
     await service.withRepositoryLock([worktree], async () => { git(repo, 'worktree', 'remove', worktree) })
     expect(git(repo, 'worktree', 'list')).not.toContain(worktree)
@@ -107,13 +107,13 @@ describe('Git management', () => {
 
   it('lists upstreams and worktree holders and protects task branches even after cleanup', async () => {
     const worktree = path.join(root, 'worktree')
-    git(repo, 'worktree', 'add', '-q', '-b', 'kando/task', worktree)
-    tasks.push(Task.parse({ id: 'task', title: 'task', details: '', status: 'done', repos: [{ path: repo, worktreePath: worktree, branch: 'kando/task' }], dependsOn: [], agent: 'claude', createdAt: 0, updatedAt: 0 }))
+    git(repo, 'worktree', 'add', '-q', '-b', 'antumi/task', worktree)
+    tasks.push(Task.parse({ id: 'task', title: 'task', details: '', status: 'done', repos: [{ path: repo, worktreePath: worktree, branch: 'antumi/task' }], dependsOn: [], agent: 'claude', createdAt: 0, updatedAt: 0 }))
     expect(await service.status(target)).toMatchObject({ branch: 'main', upstream: 'origin/main', changes: 0 })
-    expect((await service.status(target)).branches.find((branch) => branch.name === 'kando/task')).toMatchObject({ protected: true, worktree })
-    await expect(service.execute(target, { kind: 'delete', ref: 'refs/heads/kando/task' })).rejects.toMatchObject({ reason: 'git-protected' })
+    expect((await service.status(target)).branches.find((branch) => branch.name === 'antumi/task')).toMatchObject({ protected: true, worktree })
+    await expect(service.execute(target, { kind: 'delete', ref: 'refs/heads/antumi/task' })).rejects.toMatchObject({ reason: 'git-protected' })
     git(repo, 'worktree', 'remove', worktree); tasks[0]!.repos[0]!.worktreePath = null
-    await expect(service.execute(target, { kind: 'rename', ref: 'refs/heads/kando/task', name: 'new' })).rejects.toMatchObject({ reason: 'git-protected' })
+    await expect(service.execute(target, { kind: 'rename', ref: 'refs/heads/antumi/task', name: 'new' })).rejects.toMatchObject({ reason: 'git-protected' })
   })
 
   it('rejects foreign directories, busy or starting agents and task checkouts', async () => {

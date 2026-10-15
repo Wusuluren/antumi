@@ -5,7 +5,7 @@ import { PluginManifest } from '@antumi/protocol'
 export async function pluginFixture(directory: string, options: { id?: string; version?: string; source?: string; behavior?: Record<string, unknown>; env?: string[] } = {}) {
   await mkdir(directory, { recursive: true })
   const manifest = PluginManifest.parse({
-    id: options.id ?? 'demo.source', version: options.version ?? '1.0.0', engines: { kando: '>=0.15.0 <1.0.0' },
+    id: options.id ?? 'demo.source', version: options.version ?? '1.0.0', engines: { antumi: '>=0.15.0 <1.0.0' },
     contributes: { sources: [{ id: options.source ?? 'demo', name: 'Demo', settings: [{ key: 'query', type: 'text', label: 'Query', required: false }] }] },
     entry: { runtime: 'node', main: 'main.mjs' }, env: options.env ?? []
   })

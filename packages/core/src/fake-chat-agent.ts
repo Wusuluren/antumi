@@ -84,10 +84,10 @@ export function fakeChatDaemon() {
         writes.push({ sessionId, frame })
         const text = JSON.stringify(frame)
         if (text.includes('"subtype":"initialize"') && fake.answerInit) {
-          queueMicrotask(() => fake.emit(sessionId, { type: 'control_response', response: { subtype: 'success', request_id: 'kando-init', response: { models: FAKE_MODELS } } }))
+          queueMicrotask(() => fake.emit(sessionId, { type: 'control_response', response: { subtype: 'success', request_id: 'antumi-init', response: { models: FAKE_MODELS } } }))
         }
         // A mode switch is taken as Claude takes it: acknowledged, then reported.
-        const switched = /"request_id":"(kando-option-\d+)","request":\{"subtype":"set_permission_mode","mode":"(\w+)"/.exec(text)
+        const switched = /"request_id":"(antumi-option-\d+)","request":\{"subtype":"set_permission_mode","mode":"(\w+)"/.exec(text)
         if (switched) {
           const [, requestId, mode] = switched
           queueMicrotask(() => {

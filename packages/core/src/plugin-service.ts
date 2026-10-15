@@ -19,7 +19,7 @@ type Registry = z.infer<typeof Registry>
 type Loaded = { process: PluginProcess; providers: SourceProvider[] }
 
 export class PluginService {
-  private registry: Registry = { version: 1, plugins: [], owners: { jira: 'builtin', github: 'kando.github' } }
+  private registry: Registry = { version: 1, plugins: [], owners: { jira: 'builtin', github: 'antumi.github' } }
   private readonly loaded = new Map<string, Loaded>()
   private readonly problems = new Map<string, string>()
   private pending: Promise<unknown> = Promise.resolve()

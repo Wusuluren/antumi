@@ -171,7 +171,7 @@ export async function prepareWorkspace(
   // An issue key in the branch name is how Jira links the branch to the issue.
   const slug = task.slug ?? branchSlug(task.title)
   const key = task.source ? branchKey(task.source.key) : ''
-  const branch = `kando/${key ? `${key}-` : ''}${shortId}${slug ? `-${slug}` : ''}`
+  const branch = `antumi/${key ? `${key}-` : ''}${shortId}${slug ? `-${slug}` : ''}`
   const taskDir = path.join(worktreesRoot, shortId)
   const multi = task.repos.length > 1
 
@@ -253,7 +253,7 @@ export async function prepareWorkspace(
 // every other one starts from its project's HEAD.
 export async function prepareConversationWorktrees(conversationId: string, projects: readonly string[], worktreesRoot: string, primaryStart?: string): Promise<string[]> {
   const shortId = shortTaskId(conversationId)
-  const branch = `kando/${shortId}`
+  const branch = `antumi/${shortId}`
   const topLevels: string[] = []
   for (const project of projects) {
     const topLevel = await gitTopLevel(project)

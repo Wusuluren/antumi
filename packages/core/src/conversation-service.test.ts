@@ -44,9 +44,9 @@ describe('ConversationService', () => {
     const sessionId = `pipe-${daemon.spawns.length + 1}`
     const asked = (method: string) => daemon.written(sessionId).some((frame) => JSON.stringify(frame).includes(`"method":"${method}"`))
     while (!asked('initialize')) await settle()
-    daemon.emit(sessionId, { id: 'kando-init', result: {} })
+    daemon.emit(sessionId, { id: 'antumi-init', result: {} })
     while (!asked('thread/start') && !asked('thread/resume')) await settle()
-    daemon.emit(sessionId, { id: 'kando-thread', result: { thread: { id: thread } } })
+    daemon.emit(sessionId, { id: 'antumi-thread', result: { thread: { id: thread } } })
     return starting
   }
 
@@ -62,7 +62,7 @@ describe('ConversationService', () => {
 
   beforeEach(() => {
     root = mkdtempSync(path.join(os.tmpdir(), 'antumi-conversation-'))
-    const database = path.join(root, 'kando.db')
+    const database = path.join(root, 'antumi.db')
     tasks = new TaskStore(database)
     store = new ConversationStore(database)
     projects = new ProjectRegistry(database)
@@ -86,7 +86,7 @@ describe('ConversationService', () => {
     expect(store.chatOptions(helper.id).allowBypass).toBe(false)
     expect(daemon.spawns).toHaveLength(0)
     expect(service.helper(parent.id)?.id).toBe(helper.id)
-    const reopened = new ConversationStore(path.join(root, 'kando.db'))
+    const reopened = new ConversationStore(path.join(root, 'antumi.db'))
     expect(reopened.helper(parent.id)?.id).toBe(helper.id)
     reopened.close()
     expect(() => service.rename(helper.id, 'renamed')).toThrow()
@@ -260,9 +260,9 @@ describe('ConversationService', () => {
     expect(ready).toBe(false)
     expect(service.get(created.id).sessionId).toBe('pipe-1')
     expect(service.get(created.id).starting).toBe(true)
-    daemon.emit('pipe-1', { id: 'kando-init', result: {} })
+    daemon.emit('pipe-1', { id: 'antumi-init', result: {} })
     await settle()
-    daemon.emit('pipe-1', { id: 'kando-thread', result: { thread: { id: 'new-thread' } } })
+    daemon.emit('pipe-1', { id: 'antumi-thread', result: { thread: { id: 'new-thread' } } })
     await expect(starting).resolves.toMatchObject({ id: created.id, sessionId: 'pipe-1', starting: false })
     expect(service.get(created.id).starting).toBe(false)
   })
@@ -411,7 +411,7 @@ describe('ConversationService', () => {
     const laidOut = [path.join(root, 'worktrees', shortId, 'app'), path.join(root, 'worktrees', shortId, 'lib')].map((dir) => realpathSync(dir))
     expect(created.projectPaths).toEqual(laidOut)
     expect(daemon.spawns[0]).toMatchObject({ cwd: laidOut[0] })
-    expect((await service.branches(created.id)).map((head) => head.branch)).toEqual([`kando/${shortId}`, `kando/${shortId}`])
+    expect((await service.branches(created.id)).map((head) => head.branch)).toEqual([`antumi/${shortId}`, `antumi/${shortId}`])
     expect(existsSync(path.join(laidOut[0]!, 'draft.md'))).toBe(false)
     expect(execFileSync('git', ['-C', app, 'branch', '--show-current'], { encoding: 'utf8' }).trim()).toBe('main')
     // The recent list keeps the projects as picked, not their worktrees.
@@ -430,7 +430,7 @@ describe('ConversationService', () => {
 
     // In a worktree, the conversation's branch starts from the one picked; the project stays put.
     const worked = await service.create('claude', [app], undefined, { worktree: true, branch: 'refs/heads/feature' })
-    const branch = `kando/${worked.id.slice(0, 8)}`
+    const branch = `antumi/${worked.id.slice(0, 8)}`
     expect(git('log', '-1', '--format=%s', branch)).toBe('on feature')
     expect(git('branch', '--show-current')).toBe('main')
 

@@ -4,8 +4,10 @@ import { AgentKind } from './agent'
 // MCP servers the user keeps in Antumi and core hands to the agents they pick at each start, beside
 // Antumi's own. Nothing goes into an agent's own configuration. `antumi` is Antumi's own server's
 // name in every agent, which tool names are read by (antumiToolName), so no user server takes it.
-export const RESERVED_MCP_SERVER_NAME = 'kando'
-export const McpServerName = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,31}$/).refine((name) => name !== RESERVED_MCP_SERVER_NAME)
+export const RESERVED_MCP_SERVER_NAME = 'antumi'
+// The name before the rename: history still reads tools by it, so no user server takes it either.
+export const LEGACY_MCP_SERVER_NAME = 'kando'
+export const McpServerName = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,31}$/).refine((name) => name !== RESERVED_MCP_SERVER_NAME && name !== LEGACY_MCP_SERVER_NAME)
 export type McpServerName = z.infer<typeof McpServerName>
 
 export const McpEnvKey = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,127}$/)

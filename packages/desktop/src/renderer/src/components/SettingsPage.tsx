@@ -495,7 +495,7 @@ function DebugSettings() {
       />
       <SettingsRow
         label="已经记下的"
-        description={`${usage ? `${usage.files} 段，共 ${formatBytes(usage.bytes)}。` : ''}存在 ~/.kando/sessions/<会话>/wire/ 下，每段最多 50 MB，7 天后自动删除。里面有文件内容和命令输出，分享前看一眼。`}
+        description={`${usage ? `${usage.files} 段，共 ${formatBytes(usage.bytes)}。` : ''}存在 ~/.antumi/sessions/<会话>/wire/ 下，每段最多 50 MB，7 天后自动删除。里面有文件内容和命令输出，分享前看一眼。`}
         control={() => (
           <button type="button" className="button" disabled={clearing || !usage || usage.files === 0} onClick={() => void clear()}>
             全部删除

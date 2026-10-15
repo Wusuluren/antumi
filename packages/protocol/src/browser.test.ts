@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { browserHostOf, describeBrowserPage, isLocalHost, normalizeBrowserUrl, parseBrowserPage } from './browser'
-import { browserToolKind, imageMarker, isBrowserTool, isPreviewImage, isPreviewTool, antumiToolName, takeImageMarkers, toolImagePath } from './chat'
+import { browserToolKind, imageMarker, isAntumiRequest, isBrowserTool, isPreviewImage, isPreviewTool, antumiToolName, takeImageMarkers, toolImagePath } from './chat'
+import { McpServerName } from './mcp'
+import { isTerminalRunTool } from './terminal'
 
 describe('isLocalHost', () => {
   it('takes the names a developer serves on', () => {
@@ -18,11 +20,24 @@ describe('isLocalHost', () => {
 
 describe('tool names', () => {
   it('reads Antumi tools as either agent names them', () => {
-    expect(antumiToolName('mcp__kando__browser_click')).toBe('browser_click')
-    expect(antumiToolName('kando.show_preview')).toBe('show_preview')
+    expect(antumiToolName('mcp__antumi__browser_click')).toBe('browser_click')
+    expect(antumiToolName('antumi.show_preview')).toBe('show_preview')
     expect(antumiToolName('Bash')).toBeNull()
     expect(antumiToolName('mcp__other__browser_click')).toBeNull()
-    expect(isPreviewTool('kando.show_preview')).toBe(true)
+    expect(isPreviewTool('antumi.show_preview')).toBe(true)
+  })
+
+  it('still reads what chats from before the rename named kando', () => {
+    expect(antumiToolName('mcp__kando__browser_click')).toBe('browser_click')
+    expect(antumiToolName('kando.show_preview')).toBe('show_preview')
+    expect(isTerminalRunTool('kando_terminal_run')).toBe(true)
+    expect(isAntumiRequest('kando:browser-host:1')).toBe(true)
+    expect(isAntumiRequest('antumi:browser-host:1')).toBe(true)
+    expect(isAntumiRequest('toolu_1')).toBe(false)
+    const id = `${'c'.repeat(64)}.png`
+    expect(takeImageMarkers(`[kando-image ${id} 2x1]`).images).toEqual([{ id, width: 2, height: 1 }])
+    expect(McpServerName.safeParse('antumi').success).toBe(false)
+    expect(McpServerName.safeParse('kando').success).toBe(false)
   })
 
   it('shows a picture a call looked at on disk from the file, for a Read or a view_image alone', () => {
@@ -41,11 +56,11 @@ describe('tool names', () => {
   })
 
   it('knows the browser tools and no other', () => {
-    expect(browserToolKind('mcp__kando__browser_navigate')).toBe('navigate')
-    expect(browserToolKind('kando.browser_tabs')).toBe('tabs')
-    expect(browserToolKind('kando.browser_fly')).toBeNull()
-    expect(browserToolKind('mcp__kando__show_preview')).toBeNull()
-    expect(isBrowserTool('kando.browser_click')).toBe(true)
+    expect(browserToolKind('mcp__antumi__browser_navigate')).toBe('navigate')
+    expect(browserToolKind('antumi.browser_tabs')).toBe('tabs')
+    expect(browserToolKind('antumi.browser_fly')).toBeNull()
+    expect(browserToolKind('mcp__antumi__show_preview')).toBeNull()
+    expect(isBrowserTool('antumi.browser_click')).toBe(true)
     expect(isBrowserTool('Edit')).toBe(false)
   })
 })
@@ -67,7 +82,7 @@ describe('image markers', () => {
   })
 
   it('returns text without markers untouched', () => {
-    expect(takeImageMarkers('[kando-image nope 1x1]\nplain')).toEqual({ text: '[kando-image nope 1x1]\nplain', images: [] })
+    expect(takeImageMarkers('[antumi-image nope 1x1]\nplain')).toEqual({ text: '[antumi-image nope 1x1]\nplain', images: [] })
   })
 })
 describe('normalizeBrowserUrl', () => {

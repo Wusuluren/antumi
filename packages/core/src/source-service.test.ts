@@ -97,9 +97,9 @@ describe('SourceService', () => {
 
   beforeEach(async () => {
     dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-sources-'))
-    store = new TaskStore(path.join(dir, 'kando.db'))
+    store = new TaskStore(path.join(dir, 'antumi.db'))
     attachments = new AttachmentStore(dir)
-    projects = new ProjectRegistry(path.join(dir, 'kando.db'))
+    projects = new ProjectRegistry(path.join(dir, 'antumi.db'))
     tasks = new TaskService(store, projects, dir, () => {}, attachments)
     demo = demoProvider()
     config = new SourceConfigStore(path.join(dir, 'sources.json'))

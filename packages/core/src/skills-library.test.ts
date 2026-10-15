@@ -33,7 +33,7 @@ describe('SkillsLibrary', () => {
   const url = () => pathToFileURL(upstream).href
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-skills-lib-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-skills-lib-'))
     // Named by its last two path segments, as a GitHub URL is by its owner and name.
     upstream = path.join(root, 'root', 'upstream')
     execFileSync('git', ['init', '-q', '-b', 'main', upstream])

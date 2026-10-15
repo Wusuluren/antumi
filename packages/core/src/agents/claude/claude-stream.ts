@@ -20,11 +20,13 @@ import { mergeUsageReports, type UsageReport } from '../../usage-source'
 // stream-json`), as Claude Code 2.1.282 speaks it. It is only partly documented, so every frame is
 // read loosely and anything unrecognized is ignored rather than trusted.
 
-const INIT_ID = 'kando-init'
-const SETTINGS_ID = 'kando-settings'
-const INTERRUPT_PREFIX = 'kando-interrupt-'
-const SUGGESTIONS_PREFIX = 'kando-suggestions-'
-const OPTION_PREFIX = 'kando-option-'
+const INIT_ID = 'antumi-init'
+const SETTINGS_ID = 'antumi-settings'
+const INTERRUPT_PREFIX = 'antumi-interrupt-'
+const SUGGESTIONS_PREFIX = 'antumi-suggestions-'
+const OPTION_PREFIX = 'antumi-option-'
+// Logs from before the rename carry Antumi's own requests as kando-; the CLI's ids never look so.
+const RequestId = z.string().transform((id) => (id.startsWith('kando-') ? `antumi-${id.slice('kando-'.length)}` : id))
 const MAX_PATCH = 50_000
 // The API's limit for one image; the store takes twice that.
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -182,7 +184,7 @@ const ResultFrame = z.looseObject({
 })
 const Input = z.record(z.string(), z.unknown()).catch({})
 const ControlRequest = z.looseObject({
-  request_id: z.string(),
+  request_id: RequestId,
   request: z.looseObject({
     subtype: z.string(),
     tool_name: z.string().optional(),
@@ -197,12 +199,12 @@ const ControlRequest = z.looseObject({
 const ControlResponse = z.looseObject({
   response: z.looseObject({
     subtype: z.string(),
-    request_id: z.string(),
+    request_id: RequestId,
     error: z.string().optional(),
     response: z.unknown().optional()
   })
 })
-const ControlCancel = z.looseObject({ request_id: z.string() })
+const ControlCancel = z.looseObject({ request_id: RequestId })
 const Answered = z.looseObject({
   behavior: z.string(),
   // A denial that also stops the turn.

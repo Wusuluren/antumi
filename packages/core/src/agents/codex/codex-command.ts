@@ -1,3 +1,4 @@
+import { RESERVED_MCP_SERVER_NAME } from '@antumi/protocol'
 import type { AgentCommand, AgentMcpServer } from '../../agent-command'
 import { knowledgeBaseNote } from '../../agent-prompt'
 import type { AgentLaunch } from '../agent-adapter'
@@ -25,7 +26,7 @@ function codexServer(server: AgentMcpServer): string {
 export function codexCommand({ mcp, userMcp = [], knowledgeBase }: AgentLaunch): AgentCommand {
   return { command: 'codex', args: [
     'app-server',
-    ...(mcp ? ['-c', `mcp_servers.kando.command=${JSON.stringify(mcp.command)}`, '-c', `mcp_servers.kando.args=${JSON.stringify(mcp.args)}`, ...HIDDEN_CODEX_BROWSERS] : []),
+    ...(mcp ? ['-c', `mcp_servers.${RESERVED_MCP_SERVER_NAME}.command=${JSON.stringify(mcp.command)}`, '-c', `mcp_servers.${RESERVED_MCP_SERVER_NAME}.args=${JSON.stringify(mcp.args)}`, ...HIDDEN_CODEX_BROWSERS] : []),
     ...userMcp.flatMap((server) => ['-c', `mcp_servers.${server.name}=${codexServer(server)}`]),
     ...(knowledgeBase ? ['-c', `developer_instructions=${JSON.stringify(knowledgeBaseNote(knowledgeBase))}`] : [])
   ] }

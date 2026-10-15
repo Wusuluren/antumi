@@ -120,7 +120,7 @@ describe('RoutineService', () => {
 
   beforeEach(() => {
     root = mkdtempSync(path.join(os.tmpdir(), 'antumi-routine-'))
-    database = path.join(root, 'kando.db')
+    database = path.join(root, 'antumi.db')
     tasks = new TaskStore(database)
     store = new ConversationStore(database)
     projects = new ProjectRegistry(database)
