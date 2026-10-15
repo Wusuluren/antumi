@@ -49,7 +49,7 @@ import { actionableItems, type ActionableItem } from './attention'
 import { overview, type Overview } from './overview'
 import { attentionSummaryMode, fetchAttentionSummaries, replaySummaryChanges, type AttentionSummaryMode } from './attention-summaries'
 
-export type OverviewFilter = null | 'mine' | 'running' | 'next' | 'unread'
+export type OverviewFilter = null | 'mine' | 'todos' | 'running' | 'next' | 'unread'
 
 export type ConnectionState = 'waiting-for-core' | 'connecting' | 'connected'
 
@@ -1118,6 +1118,8 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         // Asked only of a core that has one, and never waited for: it starts the host when it is down.
         if (full && rpc.features.includes('browser')) void rpc.call('browser.status', {}).then((status) => useCore.setState({ browser: status })).catch(() => {})
         if (full && rpc.features.includes('keep-awake')) void rpc.call('system.awakeStatus', {}).then((awake) => useCore.setState({ awake })).catch(() => {})
+        // What is left to do everywhere, for the overview; todos.changed keeps it current.
+        if (full && rpc.features.includes('todo-overview')) void rpc.call('todos.open', {}).then((open) => open.forEach(({ conversationId, groups }) => receiveTodos(conversationId, groups))).catch(() => {})
         if (full && rpc.features.includes('prompt-suggestions')) void rpc.call('system.chatSettings', {}).then((chatSettings) => useCore.setState({ chatSettings })).catch(() => {})
         const schedules = full && rpc.features.includes('schedules') ? await rpc.call('schedules.list', {}).catch(() => []) : []
         const routines = full && rpc.features.includes('routines') ? await rpc.call('routines.list', {}).catch(() => []) : []

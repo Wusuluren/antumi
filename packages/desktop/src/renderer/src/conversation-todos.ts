@@ -17,6 +17,16 @@ export function useTodosSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('conversation-todos') ?? false)
 }
 
+// Every conversation's to-dos known so far: those with something left, all read at connect
+// (todos.open), and any other a panel has read since.
+export function useAllTodos(): Readonly<Record<string, readonly TodoGroup[]>> {
+  return useTodoStore((s) => s)
+}
+
+export function useTodoOverviewSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('todo-overview') ?? false)
+}
+
 // How many of a conversation's to-dos are not done, for a badge where the panel is closed.
 export function useOpenTodoCount(conversationId: string | null): number {
   return openTodoCount(useConversationTodos(conversationId))

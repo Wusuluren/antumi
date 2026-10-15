@@ -2,14 +2,18 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode
 import type { ChatDecision } from '@kando/protocol'
 import { quickApproval, type ActionableItem } from '../attention'
 import {
-  openAttentionItem, perform, refreshAttentionSummaries, selectConversation, selectTask, setOverviewFilter,
-  setOverviewOpen, setOverviewScroll, setRoutinesOpen, setSchedulesOpen, showView, useOverview, useCore, type OverviewFilter
+  openAttentionItem, perform, refreshAttentionSummaries, selectConversation, selectTask, setConversationInspectorOpen,
+  setConversationInspectorTab, setInspectorOpen, setOverviewFilter, setOverviewOpen, setOverviewScroll, setRoutinesOpen,
+  setSchedulesOpen, setTaskInspectorTab, showView, useOverview, useCore, type OverviewFilter
 } from '../core-store'
+import { addQuote } from '../chat-quotes'
+import { useAllTodos, useTodoOverviewSupported } from '../conversation-todos'
+import { overviewTodos, type TodoEntry, type TodoLine } from '../overview-todos'
 import { agentLabel, agoText, chatDayAndTime, timeOfDay } from '../labels'
 import { laterByDay, waitBreakdown, type OverviewRow } from '../overview'
 import { markRoutineAllSeen, runRoutineNow } from '../routines'
 import { rescheduleRun, runScheduleNow, scheduleTime } from '../schedules'
-import { projectNames } from './ProjectPicker'
+import { primaryProjectName } from './ProjectPicker'
 import { conversationActivity, latestSquadRun, taskActivity, type WorkActivity } from '../work-activity'
 import { SchedulePicker } from './SchedulePicker'
 import { WorkingSummary } from './WorkingSummary'
@@ -154,7 +158,7 @@ function Meta({ row, reason = false }: { row: OverviewRow; reason?: boolean }) {
   return (
     <div className="overview-meta">
       <span>{KIND_LABEL[row.kind]}</span>
-      {row.projectPaths.length > 0 && <span className="overview-project" title={row.projectPaths.join('\n')}>{projectNames(row.projectPaths)}</span>}
+      {row.projectPaths.length > 0 && <span className="overview-project" title={row.projectPaths.join('\n')}>{primaryProjectName(row.projectPaths)}</span>}
       {reason && row.reason && <span>{row.reason}</span>}
       {row.detail && <span>{row.detail}</span>}
     </div>
@@ -240,10 +244,66 @@ function Rows({ rows, section }: { rows: OverviewRow[]; section: 'mine' | 'runni
   return <ul className="overview-rows">{rows.map((row) => <Row key={row.key} row={row} section={section} />)}</ul>
 }
 
+// Where a conversation's (or its task's) to-dos are: its chat, with the inspector on them.
+function openTodos(entry: TodoEntry): void {
+  if (entry.taskId) {
+    selectTask(entry.taskId)
+    showView('chat')
+    setInspectorOpen(true)
+    setTaskInspectorTab('todos')
+  } else {
+    selectConversation(entry.conversationId)
+    setConversationInspectorOpen(true)
+    setConversationInspectorTab('todos')
+  }
+}
+
+// One item: checked off here as in its conversation; one its agent can take on is handed to it as
+// the to-dos panel does, a quote waiting in that chat's input for the user to send.
+function TodoLineView({ entry, line }: { entry: TodoEntry; line: TodoLine }) {
+  const [busy, setBusy] = useState(false)
+  const check = async () => {
+    setBusy(true)
+    await perform((rpc) => rpc.call('todos.check', { id: entry.conversationId, groupId: line.groupId, itemId: line.item.id, done: true }))
+    setBusy(false)
+  }
+  return (
+    <li className="overview-todo-line" data-owner={line.item.owner}>
+      <input type="checkbox" checked={false} disabled={busy} aria-label={`完成：${line.item.text}`} onChange={() => void check()} />
+      <span className="overview-todo-text">{line.item.text}</span>
+      <span className="overview-todo-group">{line.group}{line.note ? ` · ${line.note}` : ''}</span>
+      {line.item.owner === 'agent' && <span className="overview-actions overview-secondary">
+        <button type="button" className="button ghost" aria-label={`交给 Agent：${line.item.text}`} data-tooltip="打开会话，放进输入框，让 Agent 去做"
+          onClick={() => {
+            addQuote(entry.conversationId, null, line.item.text, '请处理这一项待办，做完后在待办里把它勾掉。')
+            openTodos(entry)
+          }}>交给 Agent</button>
+      </span>}
+    </li>
+  )
+}
+
+const SHOWN_TODOS = 3
+
+function TodoEntryView({ entry, now }: { entry: TodoEntry; now: number }) {
+  const more = entry.lines.length - SHOWN_TODOS
+  return (
+    <li className="overview-todo">
+      <button type="button" className="overview-todo-head" onClick={() => openTodos(entry)}>
+        <span className="overview-avatar" aria-hidden="true"><AgentIcon agent={entry.agent} /></span>
+        <span className="overview-todo-title">{entry.title}</span>
+        <span className="overview-count">{entry.lines.length} 项</span>
+        {entry.stale && <span className="overview-badge" title={chatDayAndTime(entry.updatedAt)}>{Math.floor((now - entry.updatedAt) / 86_400_000)} 天没动</span>}
+      </button>
+      <ul className="overview-todo-lines">
+        {entry.lines.slice(0, SHOWN_TODOS).map((line) => <TodoLineView key={line.item.id} entry={entry} line={line} />)}
+      </ul>
+      {more > 0 && <button type="button" className="link-button overview-todo-more" onClick={() => openTodos(entry)}>还有 {more} 项</button>}
+    </li>
+  )
+}
+
 const WEEKDAY = '日一二三四五六'
-const RANGES = [
-  { value: 'mine', label: '等我' }, { value: 'running', label: '在跑' }, { value: 'next', label: '接下来' }, { value: 'unread', label: '未读' }
-] as const
 
 export function OverviewView() {
   const data = useOverview()
@@ -256,6 +316,9 @@ export function OverviewView() {
   const tasks = useCore((s) => s.tasks)
   const conversations = useCore((s) => s.conversations)
   const runs = useCore((s) => s.squadRuns)
+  const todosSupported = useTodoOverviewSupported()
+  const allTodos = useAllTodos()
+  const [withArchived, setWithArchived] = useState(false)
   const page = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
     if (page.current) page.current.scrollTop = useCore.getState().overviewScroll
@@ -269,13 +332,22 @@ export function OverviewView() {
     const activity = task ? taskActivity(task, conversations, runs) : conversation ? conversationActivity(conversation, conversation.agent) : null
     return activity?.workers ?? []
   }), [data.running, tasks, conversations, runs])
+  // What is left to do across conversations: not waiting on anyone, so apart from 等我.
+  const todos = overviewTodos(allTodos, conversations, tasks, now, withArchived)
+  const counts = { ...data.counts, todos: todos.mine + todos.agents }
+  const ranges = [
+    { value: 'mine', label: '等我' },
+    ...(todosSupported ? [{ value: 'todos', label: '待办' } as const] : []),
+    { value: 'running', label: '在跑' }, { value: 'next', label: '接下来' }, { value: 'unread', label: '未读' }
+  ] as const
   const emptyConfirmed = connected && !loading && !error && mode !== null
-  const empty = Object.values(data.counts).every((count) => count === 0)
-  const shows = (range: Exclude<OverviewFilter, null>) => (!filter || filter === range) && data.counts[range] > 0
+  const empty = Object.values(counts).every((count) => count === 0)
+  const shows = (range: Exclude<OverviewFilter, null>) => (!filter || filter === range) && counts[range] > 0
   const nextUp = data.next.byTime[0] ?? data.next.later[0]
   const latestUnread = data.unread.at(-1)
   const foot: Record<Exclude<OverviewFilter, null>, ReactNode> = {
     mine: data.counts.mine > 0 ? waitBreakdown(data.mine) : '没有等你的事',
+    todos: counts.todos > 0 ? [todos.mine > 0 && `${todos.mine} 件归你`, todos.agents > 0 && `${todos.agents} 件 Agent 可接着做`].filter(Boolean).join(' · ') : '没有待办',
     running: working.length > 0
       ? <WorkingSummary activity={{ state: 'running', workers: working, detail: null }} detail={false} />
       : data.counts.running > 0 ? '正在开始' : '没有在跑的',
@@ -283,6 +355,11 @@ export function OverviewView() {
     unread: latestUnread ? `最近 ${agoText(latestUnread.at, now)}` : '都看过了'
   }
   const mine = shows('mine') && <Panel title="需要我" count={data.counts.mine}><Rows rows={data.mine} section="mine" /></Panel>
+  const todoPanel = todosSupported && (!filter || filter === 'todos') && (counts.todos > 0 || todos.archived > 0) && <Panel title="待办" count={counts.todos}>
+    {todos.entries.length > 0 && <ul className="overview-todos">{todos.entries.map((entry) => <TodoEntryView key={entry.conversationId} entry={entry} now={now} />)}</ul>}
+    {todos.archived > 0 && <button type="button" className="overview-day overview-disclosure" aria-expanded={withArchived}
+      onClick={() => setWithArchived(!withArchived)}>{withArchived ? '不看' : '也看'}已归档会话的 {todos.archived} 项</button>}
+  </Panel>
   const unread = shows('unread') && <Panel title="未读" count={data.counts.unread}><Rows rows={data.unread} section="unread" /></Panel>
   const running = shows('running') && <Panel title="进行中" count={data.counts.running}><Rows rows={data.running} section="running" /></Panel>
   const next = shows('next') && <Panel title="接下来" count={data.counts.next}>
@@ -313,22 +390,22 @@ export function OverviewView() {
         <div>聊天摘要加载失败，事项可能不完整。<span className="muted">{error}</span></div>
         <button type="button" className="button ghost" disabled={!connected || loading} onClick={() => void refreshAttentionSummaries()}>重试</button>
       </div>}
-      <div className="overview-kpis" role="group" aria-label="工作范围">
-        {RANGES.map(({ value, label }) => <button type="button" key={value} className="overview-kpi" aria-pressed={filter === value}
-          aria-label={`${label} ${data.counts[value]}`} data-waiting={value === 'mine' && data.counts.mine > 0 ? '' : undefined}
+      <div className="overview-kpis" role="group" aria-label="工作范围" data-count={ranges.length}>
+        {ranges.map(({ value, label }) => <button type="button" key={value} className="overview-kpi" aria-pressed={filter === value}
+          aria-label={`${label} ${counts[value]}`} data-waiting={value === 'mine' && data.counts.mine > 0 ? '' : undefined}
           onClick={() => {
             setOverviewFilter(filter === value ? null : value)
             if (page.current) page.current.scrollTop = 0
           }}>
           <span className="overview-kpi-label">{label}</span>
-          <span className="overview-kpi-value">{data.counts[value]}</span>
+          <span className="overview-kpi-value">{counts[value]}</span>
           <span className="overview-kpi-foot">{foot[value]}</span>
         </button>)}
       </div>
       {/* What the user acts on to the left, what they only follow to the right; one column when
           only one side has anything, or when the pane is narrow. */}
-      <div className="overview-grid" data-columns={(mine || unread) && (running || next) ? 2 : 1}>
-        {(mine || unread) && <div className="overview-column">{mine}{unread}</div>}
+      <div className="overview-grid" data-columns={(mine || todoPanel || unread) && (running || next) ? 2 : 1}>
+        {(mine || todoPanel || unread) && <div className="overview-column">{mine}{todoPanel}{unread}</div>}
         {(running || next) && <div className="overview-column">{running}{next}</div>}
       </div>
       {empty && emptyConfirmed && <p className="attention-empty muted">暂时没有进行中的工作</p>}

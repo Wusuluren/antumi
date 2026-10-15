@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StateCreator } from 'zustand'
 import { Conversation, Task, createRpcClient, type Routine, type RpcConnection, type ScheduledRun } from '@kando/protocol'
 import { useCore } from '../core-store'
+import { useQuotes } from '../chat-quotes'
+import { receiveTodos } from '../conversation-todos'
 import { OverviewEntry } from './OverviewEntry'
 import { OverviewView } from './OverviewView'
 import { SchedulePicker } from './SchedulePicker'
@@ -83,6 +85,31 @@ beforeEach(() => {
 })
 
 describe('overview page', () => {
+  it.each([
+    ['/w/kando-agents', '/w/orca', '/w/lobehub'],
+    ['C:\\work\\kando-agents', 'C:\\work\\orca'],
+    ['/w/kando-agents']
+  ])('shows only the primary project in row metadata (%j)', (...projectPaths) => {
+    connect()
+    useCore.setState({
+      tasks: { task: task({ repos: projectPaths.map((path) => ({ path, worktreePath: null, branch: null })) }) },
+      conversations: { [id(1)]: chat({ projectPaths }) }, unseen: { [id(1)]: true },
+      schedules: [run()], routines: [routine({ target: { kind: 'new', agent: 'auto', projectPaths, text: '巡检' } })]
+    })
+    render()
+    const projects = captured.nodes.filter((entry) => entry.type === 'span' && entry.props.className === 'overview-project')
+    expect(projects).toHaveLength(4)
+    for (const { props } of projects) {
+      expect(props.children).toBe('kando-agents')
+      expect(props.title).toBe(projectPaths.join('\n'))
+    }
+  })
+
+  it('omits project metadata when no project is attached', () => {
+    useCore.setState({ tasks: { task: task() } })
+    expect(render()).not.toContain('class="overview-project"')
+  })
+
   it('shows the empty message only after a successful connected snapshot', () => {
     expect(render()).not.toContain('暂时没有进行中的工作')
     expect(render()).toContain('尚未连接到 core')
@@ -170,6 +197,37 @@ describe('overview page', () => {
     expect(markup).toContain('下一个 13:00')
     expect(markup).toContain('都看过了')
     expect(markup).toContain('data-next=""')
+  })
+
+  it('gathers what is left to do, checks an item off and hands an agent\'s one to it', () => {
+    const { sent, rpc } = connect()
+    useCore.setState({ rpc: { ...rpc, features: ['todo-overview'] }, conversations: { [id(1)]: chat() } })
+    receiveTodos(id(1), [{ id: 'g', title: '上线前', note: '周五前', createdAt: now, updatedAt: now, items: [
+      { id: 'a', text: '通知运营', owner: 'user', done: false, createdAt: now, doneAt: null },
+      { id: 'b', text: '补测试', owner: 'agent', done: false, createdAt: now, doneAt: null },
+      { id: 'c', text: '改版本号', owner: 'user', done: true, createdAt: now, doneAt: now }
+    ] }])
+    const markup = render()
+    expect(markup).toContain('aria-label="待办 2"')
+    expect(markup).toContain('1 件归你 · 1 件 Agent 可接着做')
+    expect(markup).toContain('aria-label="待办"')
+    expect(markup).toContain('通知运营')
+    expect(markup).toContain('上线前 · 周五前')
+    expect(markup).not.toContain('改版本号')
+    const box = node('input', (props) => props['aria-label'] === '完成：通知运营')
+    if (typeof box.onChange !== 'function') throw new Error('missing check handler')
+    box.onChange()
+    expect(sent.at(-1)).toMatchObject({ method: 'todos.check', params: { id: id(1), groupId: 'g', itemId: 'a', done: true } })
+    click('交给 Agent：补测试')
+    expect(useQuotes(id(1))).toEqual([expect.objectContaining({ text: '补测试', note: '请处理这一项待办，做完后在待办里把它勾掉。' })])
+    expect(useCore.getState()).toMatchObject({ selectedConversationId: id(1), conversationInspectorOpen: true, conversationInspectorTab: 'todos' })
+  })
+
+  it('leaves to-dos out of the overview on a core that cannot gather them', () => {
+    connect()
+    useCore.setState({ conversations: { [id(1)]: chat() } })
+    receiveTodos(id(1), [{ id: 'g', title: 't', note: null, createdAt: now, updatedAt: now, items: [{ id: 'a', text: '通知运营', owner: 'user', done: false, createdAt: now, doneAt: null }] }])
+    expect(render()).not.toContain('待办')
   })
 
   it('restores the saved scroll when the overview mounts again', () => {

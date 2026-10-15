@@ -8116,7 +8116,27 @@ body.side-panel-resizing * {
 .overview-secondary { display: flex; gap: 4px; opacity: 0; transition: opacity 0.12s; }
 .overview-row:hover .overview-secondary, .overview-row:focus-within .overview-secondary,
 .overview-timeline-item:hover .overview-secondary, .overview-timeline-item:focus-within .overview-secondary,
-.overview-member:hover .overview-secondary, .overview-member:focus-within .overview-secondary { opacity: 1; }
+.overview-member:hover .overview-secondary, .overview-member:focus-within .overview-secondary,
+.overview-todo-line:hover .overview-secondary, .overview-todo-line:focus-within .overview-secondary { opacity: 1; }
+/* What is left to do, by conversation: a head that opens it, then its first few items. */
+.overview-kpis[data-count='5'] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.overview-todos { margin: 0 -16px; padding: 0; list-style: none; }
+.overview-todo { padding: 10px 16px 12px; border-top: 1px solid var(--border); }
+.overview-todo-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.overview-todo-head:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.overview-todo-head .overview-avatar { width: 24px; height: 24px; }
+.overview-todo-title { min-width: 0; overflow: hidden; font-size: 13px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.overview-todo-head:hover .overview-todo-title { color: var(--accent); }
+.overview-todo-lines { margin: 6px 0 0; padding: 0 0 0 34px; list-style: none; }
+.overview-todo-line { position: relative; display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; }
+.overview-todo-line input { flex-shrink: 0; margin: 0; }
+.overview-todo-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.overview-todo-line[data-owner='agent'] .overview-todo-text { color: var(--text-muted); }
+.overview-todo-group { flex-shrink: 0; margin-left: auto; font-size: 12px; color: var(--text-3); white-space: nowrap; }
+/* Over the group's name while the pointer is on the line, so every line keeps the same columns. */
+.overview-todo-line .overview-actions { position: absolute; right: 0; padding-left: 8px; background: var(--surface); }
+.overview-todo-more { margin: 4px 0 0 34px; font-size: 12px; }
+.overview-todos + .overview-disclosure { margin-top: 8px; }
 .overview-members { margin-top: 8px; font-size: 12px; }
 .overview-members summary { width: max-content; color: var(--text-muted); cursor: pointer; }
 .overview-members ul { margin: 6px 0 0; padding: 0; list-style: none; }
@@ -8146,12 +8166,13 @@ body.side-panel-resizing * {
 @container worktrees (max-width: 900px) {
   .overview-grid[data-columns='2'] { grid-template-columns: minmax(0, 1fr); }
   .overview-column { display: contents; }
-  .overview-panel[aria-label='进行中'] { order: 1; }
-  .overview-panel[aria-label='接下来'] { order: 2; }
-  .overview-panel[aria-label='未读'] { order: 3; }
+  .overview-panel[aria-label='待办'] { order: 1; }
+  .overview-panel[aria-label='进行中'] { order: 2; }
+  .overview-panel[aria-label='接下来'] { order: 3; }
+  .overview-panel[aria-label='未读'] { order: 4; }
 }
 @container worktrees (max-width: 640px) {
-  .overview-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overview-kpis, .overview-kpis[data-count] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overview-row { grid-template-columns: 28px minmax(0, 1fr) auto; row-gap: 8px; }
   .overview-row > .overview-actions { grid-column: 2 / -1; justify-content: flex-end; }
 }
