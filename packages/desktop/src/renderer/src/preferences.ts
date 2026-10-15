@@ -18,6 +18,8 @@ const Preferences = z.object({
   // How far apart the terminal's lines are, as a multiple of the font's own line: Geist Mono's is
   // already a third taller than its size, enough as it is.
   terminalLineHeight: z.number().min(1).max(2).catch(1),
+  // On, a new terminal's zsh gets a prompt in colour where the user never set one (core's ShellPrompt).
+  colorPrompt: z.boolean().catch(true),
   // The family code and the terminal are set in, as the user picked it; empty, the bundled one.
   codeFontFamily: z.string().max(200).catch(''),
   chatFontSize: z.number().int().min(10).max(20).catch(14),

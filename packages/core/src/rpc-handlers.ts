@@ -383,7 +383,7 @@ export function createRpcHandlers(
     'ports.list': () => ports.list(),
     'ports.stop': async (ref) => { await ports.stop(ref); return OK },
     'terminals.list': () => terminals.list(),
-    'terminals.open': ({ cwd }) => terminals.open(cwd),
+    'terminals.open': ({ cwd, colorPrompt }) => terminals.open(cwd, colorPrompt),
     'terminals.run': ({ conversationId, command, cwd }) => {
       if (conversations.get(conversationId).workspaceReadOnly) throw new Rejection('read-only-workspace')
       return agentTerminals.run(conversationId, command, cwd)

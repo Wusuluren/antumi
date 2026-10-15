@@ -7,6 +7,7 @@ import { agentDescriptor, Terminal, type AgentCliInstallation, type TerminalOutp
 import type { SessionInfo } from '@kando/protocol/node'
 import type { SessionHost } from './daemon-client'
 import { Rejection } from './rejection'
+import { terminalEnv, type ShellPrompt } from './shell-prompt'
 
 // The user's own login shell, started the way their terminal app would. An interactive shell is
 // the point here; agent commands, by contrast, never go through one.
@@ -48,7 +49,8 @@ export class TerminalService {
     file: string,
     private readonly daemon: SessionHost,
     private readonly emit: (terminals: Terminal[]) => void,
-    private readonly now: () => number = Date.now
+    private readonly now: () => number = Date.now,
+    private readonly prompt: Pick<ShellPrompt, 'env'> | null = null
   ) {
     this.db = new DatabaseSync(file)
     this.db.exec('PRAGMA journal_mode = WAL')
@@ -84,11 +86,15 @@ export class TerminalService {
     return this.db.prepare('SELECT 1 FROM terminals WHERE session_id = ?').get(sessionId) !== undefined
   }
 
-  // In the folder the user is looking at when there is one, else their home.
-  async open(cwd: string | undefined): Promise<Terminal> {
+  // In the folder the user is looking at when there is one, else their home. colorPrompt: a shell
+  // whose prompt the user never set gets one in colour (ShellPrompt).
+  async open(cwd: string | undefined, colorPrompt = false): Promise<Terminal> {
     const folder = cwd && path.isAbsolute(cwd) && (await stat(cwd).catch(() => null))?.isDirectory() ? cwd : os.homedir()
     const shell = userShell()
-    const { sessionId } = await this.daemon.request('spawn', { command: shell.command, args: shell.args, cwd: folder, env: {}, cols: 100, rows: 30 })
+    // Without its files the shell still opens, only with the prompt it came with.
+    const prompt = colorPrompt && this.prompt ? await this.prompt.env(shell.command).catch(() => null) : null
+    const env = { ...terminalEnv(), ...prompt }
+    const { sessionId } = await this.daemon.request('spawn', { command: shell.command, args: shell.args, cwd: folder, env, cols: 100, rows: 30 })
     const terminal = { id: randomUUID(), sessionId, cwd: folder, title: path.basename(folder) || folder, createdAt: this.now() }
     this.db.prepare('INSERT INTO terminals (id, session_id, cwd, title, created_at) VALUES (?, ?, ?, ?, ?)')
       .run(terminal.id, terminal.sessionId, terminal.cwd, terminal.title, terminal.createdAt)
@@ -100,7 +106,7 @@ export class TerminalService {
   async run(conversationId: string, cwd: string, command: string): Promise<Terminal> {
     const folder = path.isAbsolute(cwd) && (await stat(cwd).catch(() => null))?.isDirectory() ? cwd : os.homedir()
     const shell = commandShell(command)
-    const { sessionId } = await this.daemon.request('spawn', { command: shell.command, args: shell.args, cwd: folder, env: {}, cols: 120, rows: 32 })
+    const { sessionId } = await this.daemon.request('spawn', { command: shell.command, args: shell.args, cwd: folder, env: terminalEnv(), cols: 120, rows: 32 })
     const title = command.length > 60 ? `${command.slice(0, 59)}…` : command
     const terminal = { id: randomUUID(), sessionId, cwd: folder, title, createdAt: this.now(), conversationId, command }
     this.db.prepare('INSERT INTO terminals (id, session_id, cwd, title, created_at, conversation_id, command) VALUES (?, ?, ?, ?, ?, ?, ?)')
@@ -115,7 +121,7 @@ export class TerminalService {
       ? { command: 'powershell.exe', args: ['-NoLogo', '-NoProfile', '-Command', `$ErrorActionPreference = 'Stop'; ${installation.command}`] }
       : { command: '/bin/bash', args: ['-o', 'pipefail', '-c', installation.command] }
     const cwd = os.homedir()
-    const { sessionId } = await this.daemon.request('spawn', { ...shell, cwd, env: {}, cols: 120, rows: 32 })
+    const { sessionId } = await this.daemon.request('spawn', { ...shell, cwd, env: terminalEnv(), cols: 120, rows: 32 })
     const terminal = { id: randomUUID(), sessionId, cwd, title: `安装 ${agentDescriptor(installation.agent).label} CLI`, createdAt: this.now(), command: installation.command }
     this.db.prepare('INSERT INTO terminals (id, session_id, cwd, title, created_at, command) VALUES (?, ?, ?, ?, ?, ?)')
       .run(terminal.id, sessionId, cwd, terminal.title, terminal.createdAt, terminal.command)

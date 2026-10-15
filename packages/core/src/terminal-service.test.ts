@@ -76,6 +76,16 @@ describe('TerminalService', () => {
     expect(emitted.at(-1)).toHaveLength(3)
   })
 
+  it('says the terminal takes colour, and asks for a prompt in colour only when the client does', async () => {
+    const prompt = { env: async () => ({ ZDOTDIR: '/kando/shell/zsh' }) }
+    const coloured = new TerminalService(database, daemon, () => {}, Date.now, prompt)
+    await coloured.open(root)
+    await coloured.open(root, true)
+    expect(daemon.spawns[0]?.env).toMatchObject({ COLORTERM: 'truecolor', TERM_PROGRAM: 'Kando' })
+    expect(daemon.spawns[0]?.env).not.toHaveProperty('ZDOTDIR')
+    expect(daemon.spawns[1]?.env).toMatchObject({ COLORTERM: 'truecolor', ZDOTDIR: '/kando/shell/zsh' })
+  })
+
   it('keeps its terminals across a core restart', async () => {
     await service.open(root)
     const restarted = new TerminalService(database, daemon, () => {})

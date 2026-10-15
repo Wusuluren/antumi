@@ -341,6 +341,10 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 状态栏右下角的终端按钮（或 Ctrl+`）打开右侧的终端面板，里面是你自己的登录 shell，可以开多个标签。新终端的工作目录跟着当前选中的内容走：任务的 worktree、会话的项目，都没有时是 home。shell 由 daemon 托管，隐藏面板或关闭窗口都不会结束它；关闭标签或在 shell 里 `exit` 才会结束。面板可以拖动调宽，也可以最大化。
 
+**颜色**：终端像别的终端应用一样告诉程序自己能显示颜色：`TERM=xterm-256color`、`COLORTERM=truecolor`、`TERM_PROGRAM=Kando`，你没设 `CLICOLOR` 时补上 `CLICOLOR=1`（macOS 的 `ls` 靠它上色）。Agent 跑命令和安装 CLI 的标签也一样。
+
+**彩色提示符**（设置 → 外观，默认开）：shell 是 zsh、而你从没设置过提示符时，Kando 的终端换成带颜色的提示符：当前目录、git 分支，上一条命令失败时 `%` 变红。做法同 VS Code 的 shell 集成：新终端的 `ZDOTDIR` 指向 `~/.kando/shell/zsh/`，那里的 `.zshenv`、`.zprofile`、`.zshrc` 依次先读你自己的同名文件（你设了 `ZDOTDIR` 就从那里读），`.zshrc` 读完把 `ZDOTDIR` 还回去，所以 `.zlogin` 和在里面再开的 shell 都只读你的。只有提示符仍是 macOS 或 zsh 的默认值才替换；自己设过 `PROMPT`、用 oh-my-zsh 或 starship 的不受影响。不写你的任何文件，只影响 Kando 里新开的终端。bash、fish 和 Windows 的 shell 保持原样。想要更多信息的提示符，可以装 [starship](https://starship.rs)，或在 `~/.zshrc` 里自己写一行 `PROMPT`。
+
 终端栏的书签按钮是**常用命令**：点一条就打进当前终端。每条命令可以选「直接执行」（自动按回车）或只填到命令行、按回车前再改；可以对所有终端显示，也可以只在某个项目的终端里显示（任务的 worktree 算作它的项目）。先在终端里选中一段文字再点「添加常用命令」，会直接带进命令框。命令存在 core 里，多个窗口同步，最多 200 条。
 
 ### 开发服务端口

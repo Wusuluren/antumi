@@ -35,6 +35,7 @@ import {
 import { receiveChatDelta, receiveChatItems } from './chat-state'
 import { forgetDiscussionPosts, receiveDiscussionPosts } from './discussions'
 import { forgetFileTabs } from './file-tabs'
+import { usePreferences } from './preferences'
 import { activeInboxes, inboxKey } from './source-inboxes'
 import type { BrowserStatus } from '@kando/protocol'
 import { focusBrowserConversation, focusBrowserTab, receiveBrowserTabs } from './browser-state'
@@ -404,7 +405,8 @@ function activeAmong(id: string | null, terminals: readonly Terminal[]): string 
 }
 
 export async function openTerminal(cwd = contextFolder(useCore.getState())): Promise<Terminal | null> {
-  const terminal = await perform((rpc) => rpc.call('terminals.open', { cwd }))
+  const colorPrompt = useCore.getState().rpc?.features.includes('terminal-color-prompt') ? { colorPrompt: usePreferences.getState().colorPrompt } : {}
+  const terminal = await perform((rpc) => rpc.call('terminals.open', { cwd, ...colorPrompt }))
   if (terminal) {
     useCore.setState((s) => ({
       terminals: s.terminals.some((each) => each.id === terminal.id) ? s.terminals : [...s.terminals, terminal],

@@ -54,6 +54,8 @@ function AppearanceSettings() {
   const theme = usePreferences((s) => s.theme)
   const terminalFontSize = usePreferences((s) => s.terminalFontSize)
   const terminalLineHeight = usePreferences((s) => s.terminalLineHeight)
+  const colorPrompt = usePreferences((s) => s.colorPrompt)
+  const colorPromptSupported = useCore((s) => s.rpc?.features.includes('terminal-color-prompt') ?? false)
   const chatFontSize = usePreferences((s) => s.chatFontSize)
   const chatWidth = usePreferences((s) => s.chatWidth)
   const foldTurns = usePreferences((s) => s.foldTurns)
@@ -110,6 +112,13 @@ function AppearanceSettings() {
           />
         )}
       />
+      {colorPromptSupported && (
+        <SettingsRow
+          label="彩色提示符"
+          description="终端用的是 zsh、而你没有自己设置过提示符时，换成带颜色和 git 分支的提示符；上一条命令失败时 % 变红。只影响 Kando 里新开的终端，不改你的 ~/.zshrc；自己配过提示符（或用 oh-my-zsh、starship）的不受影响。"
+          control={(labelId) => <Toggle labelId={labelId} checked={colorPrompt} onChange={(next) => setPreference('colorPrompt', next)} />}
+        />
+      )}
       <SettingsRow
         label="代码字体"
         description="终端、代码块、改动和文件里的代码用的字体。默认是内置的 Geist Mono；也可以选这台电脑上装的等宽字体，中文回落到系统中文字体。"

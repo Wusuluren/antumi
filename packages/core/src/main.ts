@@ -41,6 +41,7 @@ import { ConversationStore } from './conversation-store'
 import { ConversationService } from './conversation-service'
 import { TerminalCommandStore } from './terminal-commands'
 import { ChatCommandStore } from './chat-commands'
+import { ShellPrompt } from './shell-prompt'
 import { TerminalService } from './terminal-service'
 import { WorktreeService } from './worktree-service'
 import { AwakeConfigStore } from './awake-config'
@@ -268,7 +269,7 @@ const squads = new SquadService(new SquadStore(paths.database), service, convers
 service.setSquads(squads)
 conversations.setSquadGuard((conversation) => squads.guardMember(conversation))
 
-const terminals = new TerminalService(paths.database, daemon, (list) => server?.broadcast('terminals.changed', { terminals: list }))
+const terminals = new TerminalService(paths.database, daemon, (list) => server?.broadcast('terminals.changed', { terminals: list }), Date.now, new ShellPrompt(path.join(paths.home, 'shell')))
 const terminalCommands = new TerminalCommandStore(paths.database, (commands) => server?.broadcast('terminalCommands.changed', { commands }))
 const chatCommands = new ChatCommandStore(paths.database, (commands) => server?.broadcast('chatCommands.changed', { commands }))
 const worktrees = new WorktreeService(paths.worktrees, service, () => server?.broadcast('worktrees.changed', {}), conversations)
