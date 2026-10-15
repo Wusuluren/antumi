@@ -261,6 +261,10 @@ export function createRpcHandlers(
     'conversations.rename': ({ id, title }) => conversations.rename(id, title),
     'conversations.setPinned': ({ id, pinned }) => conversations.setPinned(id, pinned),
     'todos.list': ({ id }) => todosOf(id).list(id),
+    'todos.open': () => {
+      if (!todos) throw new Rejection('todos-unavailable')
+      return todos.open()
+    },
     'todos.add': ({ id, ...group }) => todosOf(id).add(id, group),
     'todos.check': ({ id, groupId, itemId, done }) => todosOf(id).check(id, groupId, itemId, done),
     'todos.edit': ({ id, groupId, itemId, text }) => todosOf(id).edit(id, groupId, itemId, text),

@@ -73,4 +73,18 @@ describe('TodoStore', () => {
     todos.drop('c1')
     expect(todos.list('c1')).toEqual([])
   })
+
+  it('gathers the lists of conversations with something left to do, whole', () => {
+    const first = todos.add('a', { title: '上线前', note: null, items: [{ text: '通知运营', owner: 'user' }, { text: '补测试', owner: 'agent' }] })
+    const done = todos.add('a', { title: '已完成', note: null, items: [{ text: '改版本号', owner: 'agent' }] })
+    todos.check('a', done[1]!.id, undefined, true)
+    todos.check('a', first[0]!.id, first[0]!.items[0]!.id, true)
+    const finished = todos.add('b', { title: '全做完了', note: null, items: [{ text: '删文件', owner: 'user' }] })
+    todos.check('b', finished[0]!.id, undefined, true)
+    todos.add('c', { title: '可选', note: '有空再做', items: [{ text: '整理文档', owner: 'user' }] })
+    expect(todos.open().map(({ conversationId, groups }) => [conversationId, texts(groups)])).toEqual([
+      ['a', [['上线前', ['通知运营', '补测试']], ['已完成', ['改版本号']]]],
+      ['c', [['可选', ['整理文档']]]]
+    ])
+  })
 })

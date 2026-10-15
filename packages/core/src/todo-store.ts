@@ -25,6 +25,15 @@ export class TodoStore {
     return row ? TodoList.parse(JSON.parse(String(row.groups))) : []
   }
 
+  // Every conversation with something left to do, with its whole list (as list gives it, so a
+  // client can keep it as that conversation's): what the overview gathers.
+  open(): { conversationId: string; groups: TodoGroup[] }[] {
+    return this.db.prepare('SELECT conversation_id AS id, groups FROM conversation_todos').all().flatMap((row) => {
+      const groups = TodoList.parse(JSON.parse(String(row.groups)))
+      return groups.some((group) => group.items.some((item) => !item.done)) ? [{ conversationId: String(row.id), groups }] : []
+    })
+  }
+
   // A new group, or more items in the open group of that title (or the one named): what a later
   // reply adds to a list it wrote before goes with it, and an item already there is not doubled.
   add(conversationId: string, { title, note, groupId, items }: AddParams): TodoGroup[] {
