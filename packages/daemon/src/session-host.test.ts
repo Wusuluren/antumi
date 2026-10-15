@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { DaemonEvent } from '@kando/protocol/node'
+import type { DaemonEvent } from '@antumi/protocol/node'
 
 const callbacks = vi.hoisted(() => ({
   data: (_text: string) => {},

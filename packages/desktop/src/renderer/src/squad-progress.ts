@@ -1,4 +1,4 @@
-import { squadWorkActive, squadWorkOpen, type Conversation, type ConversationDoing, type SquadMember, type SquadRun, type SquadWork } from '@kando/protocol'
+import { squadWorkActive, squadWorkOpen, type Conversation, type ConversationDoing, type SquadMember, type SquadRun, type SquadWork } from '@antumi/protocol'
 import { toolLabel } from './chat-tools'
 
 // How a squad's run reads at a glance: who works now and at what, and its work in the order the

@@ -72,7 +72,7 @@ function Row({ row, now, checked, onToggle }: { row: WorktreeRow; now: number; c
   )
 }
 
-// Every worktree Kando laid out, by what can be done about each. Nothing goes without asking, and
+// Every worktree Antumi laid out, by what can be done about each. Nothing goes without asking, and
 // only what loses nothing can be picked.
 export function WorktreeManager() {
   const list = useWorktrees((s) => s.list)
@@ -121,7 +121,7 @@ export function WorktreeManager() {
       {list === null ? (
         <p className="worktrees-empty muted">正在读取…</p>
       ) : rows.length === 0 ? (
-        <p className="worktrees-empty muted">没有 Kando 建的 worktree。</p>
+        <p className="worktrees-empty muted">没有 Antumi 建的 worktree。</p>
       ) : (
         groups.map((group) => {
           const collapsed = group.id === 'active' && !showActive

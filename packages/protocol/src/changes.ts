@@ -34,7 +34,7 @@ export const FolderChanges = z.object({
   branch: z.string().nullable(),
   // Short id of HEAD; null when the folder is not in a git repo, or the repo has no commit yet.
   head: z.string().nullable(),
-  // Commits since the conversation started; null when it began before Kando recorded where.
+  // Commits since the conversation started; null when it began before Antumi recorded where.
   commits: z.array(Commit).nullable(),
   // Uncommitted against HEAD, untracked included; the user's own edits land here too.
   files: z.array(ChangedFile)

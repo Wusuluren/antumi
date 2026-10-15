@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createRoot } from '../../packages/desktop/node_modules/react-dom/client'
-import { ChatItem, Conversation, Discussion, DiscussionPost, createRpcClient } from '@kando/protocol'
+import { ChatItem, Conversation, Discussion, DiscussionPost, createRpcClient } from '@antumi/protocol'
 import { useCore } from '../../packages/desktop/src/renderer/src/core-store'
 import { useChat } from '../../packages/desktop/src/renderer/src/chat-state'
 import { useDiscussionPosts } from '../../packages/desktop/src/renderer/src/discussions'

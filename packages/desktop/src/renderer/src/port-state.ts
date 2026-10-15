@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
-import type { Conversation, ListeningPort, PortList, RpcConnection, Task, Terminal } from '@kando/protocol'
+import type { Conversation, ListeningPort, PortList, RpcConnection, Task, Terminal } from '@antumi/protocol'
 import { perform, showBrowserPanel, showBrowserTab, useCore } from './core-store'
 
 export const usePorts = create<{ list: PortList; loading: boolean }>()(() => ({ list: { ports: [], problem: null }, loading: true }))

@@ -1,6 +1,6 @@
 import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { PortLabels, type Conversation, type HostedPort, type ListeningPort, type PortList, type PortRef, type Task, type Terminal } from '@kando/protocol'
+import { PortLabels, type Conversation, type HostedPort, type ListeningPort, type PortList, type PortRef, type Task, type Terminal } from '@antumi/protocol'
 import type { SessionHost } from './daemon-client'
 import { Rejection } from './rejection'
 
@@ -74,7 +74,7 @@ export class PortService {
       return { ports: ports.map((port) => ({ ...port, label: byFolder.get(folderOf(port))?.get(port.port) ?? null })), problem: null }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      return { ports: [], problem: message === 'unknown-method' ? '当前 daemon 不支持端口管理，请重启 Kando daemon。' : `无法读取监听端口：${message}` }
+      return { ports: [], problem: message === 'unknown-method' ? '当前 daemon 不支持端口管理，请重启 Antumi daemon。' : `无法读取监听端口：${message}` }
     }
   }
 

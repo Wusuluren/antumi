@@ -1,46 +1,46 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
-contextBridge.exposeInMainWorld('kando', {
+contextBridge.exposeInMainWorld('antumi', {
   platform: process.platform,
   onFullScreenChange: (listener: (fullScreen: boolean) => void): (() => void) => {
     const handler = (_event: IpcRendererEvent, fullScreen: unknown) => listener(fullScreen === true)
-    ipcRenderer.on('kando:full-screen', handler)
-    return () => ipcRenderer.removeListener('kando:full-screen', handler)
+    ipcRenderer.on('antumi:full-screen', handler)
+    return () => ipcRenderer.removeListener('antumi:full-screen', handler)
   },
-  getCoreEndpoint: (): Promise<unknown> => ipcRenderer.invoke('kando:core-endpoint'),
-  pickPlugin: (kind: 'directory' | 'zip'): Promise<unknown> => ipcRenderer.invoke('kando:pick-plugin', kind),
-  pickFolder: (defaultPath?: string, title?: string): Promise<unknown> => ipcRenderer.invoke('kando:pick-folder', defaultPath, title),
-  setTheme: (theme: string): Promise<unknown> => ipcRenderer.invoke('kando:set-theme', theme),
-  revealFile: (candidates: string[]): Promise<unknown> => ipcRenderer.invoke('kando:reveal-file', candidates),
-  openFile: (path: string): Promise<unknown> => ipcRenderer.invoke('kando:open-file', path),
-  notify: (notice: unknown): Promise<unknown> => ipcRenderer.invoke('kando:notify', notice),
-  setBadge: (count: number): Promise<unknown> => ipcRenderer.invoke('kando:set-badge', count),
+  getCoreEndpoint: (): Promise<unknown> => ipcRenderer.invoke('antumi:core-endpoint'),
+  pickPlugin: (kind: 'directory' | 'zip'): Promise<unknown> => ipcRenderer.invoke('antumi:pick-plugin', kind),
+  pickFolder: (defaultPath?: string, title?: string): Promise<unknown> => ipcRenderer.invoke('antumi:pick-folder', defaultPath, title),
+  setTheme: (theme: string): Promise<unknown> => ipcRenderer.invoke('antumi:set-theme', theme),
+  revealFile: (candidates: string[]): Promise<unknown> => ipcRenderer.invoke('antumi:reveal-file', candidates),
+  openFile: (path: string): Promise<unknown> => ipcRenderer.invoke('antumi:open-file', path),
+  notify: (notice: unknown): Promise<unknown> => ipcRenderer.invoke('antumi:notify', notice),
+  setBadge: (count: number): Promise<unknown> => ipcRenderer.invoke('antumi:set-badge', count),
   onNotificationClick: (listener: (target: unknown) => void): (() => void) => {
     const handler = (_event: IpcRendererEvent, target: unknown) => listener(target)
-    ipcRenderer.on('kando:notification-click', handler)
-    return () => ipcRenderer.removeListener('kando:notification-click', handler)
+    ipcRenderer.on('antumi:notification-click', handler)
+    return () => ipcRenderer.removeListener('antumi:notification-click', handler)
   },
   // The card of waiting requests: the main window asks for it, the card lays itself out.
-  requestPopup: (wanted: boolean): Promise<unknown> => ipcRenderer.invoke('kando:request-popup', wanted),
+  requestPopup: (wanted: boolean): Promise<unknown> => ipcRenderer.invoke('antumi:request-popup', wanted),
   onRequestPopupWanted: (listener: (wanted: boolean) => void): (() => void) => {
     const handler = (_event: IpcRendererEvent, wanted: unknown) => listener(wanted === true)
-    ipcRenderer.on('kando:request-popup-wanted', handler)
-    return () => ipcRenderer.removeListener('kando:request-popup-wanted', handler)
+    ipcRenderer.on('antumi:request-popup-wanted', handler)
+    return () => ipcRenderer.removeListener('antumi:request-popup-wanted', handler)
   },
-  requestPopupLayout: (layout: { visible: boolean; height: number }): void => ipcRenderer.send('kando:request-popup-layout', layout),
-  openFromRequestPopup: (target: unknown): Promise<unknown> => ipcRenderer.invoke('kando:request-popup-open', target),
+  requestPopupLayout: (layout: { visible: boolean; height: number }): void => ipcRenderer.send('antumi:request-popup-layout', layout),
+  openFromRequestPopup: (target: unknown): Promise<unknown> => ipcRenderer.invoke('antumi:request-popup-open', target),
   // The built-in browser's tab on show, placed over the panel by main.
-  browserShow: (tabId: string | null): Promise<unknown> => ipcRenderer.invoke('kando:browser-show', tabId),
-  browserBounds: (bounds: { x: number; y: number; width: number; height: number }): void => ipcRenderer.send('kando:browser-bounds', bounds),
-  browserOccluded: (occluded: boolean): Promise<unknown> => ipcRenderer.invoke('kando:browser-occluded', occluded),
+  browserShow: (tabId: string | null): Promise<unknown> => ipcRenderer.invoke('antumi:browser-show', tabId),
+  browserBounds: (bounds: { x: number; y: number; width: number; height: number }): void => ipcRenderer.send('antumi:browser-bounds', bounds),
+  browserOccluded: (occluded: boolean): Promise<unknown> => ipcRenderer.invoke('antumi:browser-occluded', occluded),
   onBrowserFocused: (listener: (event: unknown) => void): (() => void) => {
     const handler = (_event: IpcRendererEvent, payload: unknown) => listener(payload)
-    ipcRenderer.on('kando:browser-focused', handler)
-    return () => ipcRenderer.removeListener('kando:browser-focused', handler)
+    ipcRenderer.on('antumi:browser-focused', handler)
+    return () => ipcRenderer.removeListener('antumi:browser-focused', handler)
   },
   onBrowserShortcut: (listener: (event: unknown) => void): (() => void) => {
     const handler = (_event: IpcRendererEvent, payload: unknown) => listener(payload)
-    ipcRenderer.on('kando:browser-shortcut', handler)
-    return () => ipcRenderer.removeListener('kando:browser-shortcut', handler)
+    ipcRenderer.on('antumi:browser-shortcut', handler)
+    return () => ipcRenderer.removeListener('antumi:browser-shortcut', handler)
   }
 })

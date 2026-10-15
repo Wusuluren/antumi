@@ -13,7 +13,7 @@ describe('migrateLegacyJira', () => {
   let credentials: CredentialStore
 
   beforeEach(async () => {
-    dir = mkdtempSync(path.join(os.tmpdir(), 'kando-migrate-'))
+    dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-migrate-'))
     legacy = path.join(dir, 'jira.json')
     sources = new SourceConfigStore(path.join(dir, 'sources.json'))
     credentials = new CredentialStore(path.join(dir, 'credentials.json'))

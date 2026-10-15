@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite'
 import { z } from 'zod'
-import { AGENT_KINDS, AgentKind, type ChatItem, type ConversationStats } from '@kando/protocol'
+import { AGENT_KINDS, AgentKind, type ChatItem, type ConversationStats } from '@antumi/protocol'
 import type { ChatStageRef } from './conversation-service'
 import { median } from './median'
 

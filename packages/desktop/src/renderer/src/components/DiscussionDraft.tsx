@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { DEFAULT_DISCUSSION_REQUIREMENTS, DEFAULT_DISCUSSION_ROUNDS, MAX_DISCUSSION_MEMBERS, MAX_DISCUSSION_ROUNDS, MIN_DISCUSSION_MEMBERS, type AgentKind, type Discussion } from '@kando/protocol'
+import { DEFAULT_DISCUSSION_REQUIREMENTS, DEFAULT_DISCUSSION_ROUNDS, MAX_DISCUSSION_MEMBERS, MAX_DISCUSSION_ROUNDS, MIN_DISCUSSION_MEMBERS, type AgentKind, type Discussion } from '@antumi/protocol'
 import { resolveModel, useAgentCatalog } from '../agent-models'
 import { closeDiscussionDraft, selectDiscussion, useDiscussionRequirementsSupported } from '../core-store'
 import { createDiscussion, defaultMemberName, loadDiscussionPosts } from '../discussions'

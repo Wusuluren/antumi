@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { RepoStartOptions } from '@kando/protocol'
+import type { RepoStartOptions } from '@antumi/protocol'
 import { fallbackText, pickedText, shortRef } from './task-starts'
 
 const option = (overrides: Partial<RepoStartOptions> = {}): RepoStartOptions => ({

@@ -2,7 +2,7 @@ import { constants } from 'node:fs'
 import { open, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import { MAX_FILE_PREVIEW_BYTES, type Conversation, type FileRead, type ResolvedFile } from '@kando/protocol'
+import { MAX_FILE_PREVIEW_BYTES, type Conversation, type FileRead, type ResolvedFile } from '@antumi/protocol'
 import { findFiles } from './file-search'
 import { Rejection } from './rejection'
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { diffCounts, runHeadline, runSummary, subagentBrief, workedFor, formatTokens, elapsedText, thoughtFor, commandKeyword, toolLabel, toolIconKind, toolInputLanguage, toolDisplayStatus, commandExitCode, toolRunStatus } from './chat-tools'
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 
 type ToolExecution = Pick<Extract<ChatItem, { kind: 'tool' }>, 'name' | 'status' | 'execution'>
 
@@ -39,7 +39,7 @@ describe('command execution presentation', () => {
 })
 
 describe('toolIconKind', () => {
-  it('recognizes both agents and Kando MCP aliases', () => {
+  it('recognizes both agents and Antumi MCP aliases', () => {
     expect(['Write', 'MultiEdit', 'fileChange'].map((name) => toolIconKind(name))).toEqual(['edit', 'edit', 'edit'])
     expect(['Bash', 'commandExecution', 'mcp__kando__terminal_run', 'kando.terminal_read'].map((name) => toolIconKind(name))).toEqual(['terminal', 'terminal', 'terminal', 'terminal'])
     expect(['Read', 'Grep', 'Glob', 'webSearch'].map((name) => toolIconKind(name))).toEqual(['read', 'search', 'search', 'search'])
@@ -61,9 +61,9 @@ describe('toolIconKind', () => {
     expect(toolLabel('mcp__claude_ai_Atlassian__getJiraIssue', { name: 'Get issue', server: 'Atlassian' })).toBe('Atlassian · Get issue')
     expect(toolLabel('mcp__claude_ai_Atlassian__getJiraIssue')).toBe('Atlassian · getJiraIssue')
     expect(toolLabel('mcp__plugin_figma_figma__get_screenshot')).toBe('plugin figma figma · get_screenshot')
-    // Kando's own keep their names, and so do the agent's built-in tools.
+    // Antumi's own keep their names, and so do the agent's built-in tools.
     expect(toolLabel('mcp__kando__show_preview')).toBe('预览')
-    expect([toolLabel('mcp__kando__history_list'), toolLabel('kando.history_read')]).toEqual(['查看 Kando 记录', '读取 Kando 记录'])
+    expect([toolLabel('mcp__kando__history_list'), toolLabel('kando.history_read')]).toEqual(['查看 Antumi 记录', '读取 Antumi 记录'])
     expect(toolIconKind('mcp__kando__history_read')).toBe('read')
     expect(toolLabel('Bash')).toBe(toolLabel('Bash', { name: 'ignored', server: null }))
     expect(runSummary([{ name: 'mcp__x__y', display: { name: 'Y', server: 'X' } }, { name: 'mcp__x__y', display: { name: 'Y', server: 'X' } }])).toBe('X · Y 2 次')

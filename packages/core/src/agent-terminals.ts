@@ -1,4 +1,4 @@
-import type { AgentKind, ChatDecision, Terminal, TerminalRun } from '@kando/protocol'
+import type { AgentKind, ChatDecision, Terminal, TerminalRun } from '@antumi/protocol'
 import { adapterOf } from './agents'
 
 // How long a run waits on the user's answer before telling the agent to try again once they have:
@@ -9,7 +9,7 @@ type Target = { agent: AgentKind; cwd: string }
 
 // Runs an agent's command in a terminal of its own, once the user lets it. An agent that asks for
 // MCP tools itself (Claude Code, under whatever mode the user set) has its runs go straight
-// through; for one that asks nothing (Codex), Kando asks in the chat: this once, or every run in
+// through; for one that asks nothing (Codex), Antumi asks in the chat: this once, or every run in
 // the conversation.
 export class AgentTerminals {
   private readonly allowed = new Set<string>()
@@ -25,7 +25,7 @@ export class AgentTerminals {
   async run(conversationId: string, command: string, cwd?: string): Promise<TerminalRun> {
     const target = this.target(conversationId)
     const folder = cwd?.trim() || target.cwd
-    if (adapterOf(target.agent).mcpApproval === 'kando' && !this.allowed.has(conversationId) && !this.takeOnce(conversationId, command)) {
+    if (adapterOf(target.agent).mcpApproval === 'antumi' && !this.allowed.has(conversationId) && !this.takeOnce(conversationId, command)) {
       // An answer that comes after the wait still counts, for the agent's next try.
       const asked = Promise.resolve().then(() => this.ask(conversationId, command, folder)).then(
         (decision) => {

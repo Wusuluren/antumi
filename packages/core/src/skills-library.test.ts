@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { SkillRepo } from '@kando/protocol'
+import type { SkillRepo } from '@antumi/protocol'
 import { SkillsLibrary, skillRepoId } from './skills-library'
 
 function git(dir: string, ...args: string[]): string {
@@ -37,8 +37,8 @@ describe('SkillsLibrary', () => {
     // Named by its last two path segments, as a GitHub URL is by its owner and name.
     upstream = path.join(root, 'root', 'upstream')
     execFileSync('git', ['init', '-q', '-b', 'main', upstream])
-    git(upstream, 'config', 'user.name', 'Kando Test')
-    git(upstream, 'config', 'user.email', 'kando@example.com')
+    git(upstream, 'config', 'user.name', 'Antumi Test')
+    git(upstream, 'config', 'user.email', 'antumi@example.com')
     writeFileSync(path.join(upstream, 'README.md'), '# Skills\n')
     mkdirSync(path.join(upstream, '.claude-plugin'))
     writeFileSync(path.join(upstream, '.claude-plugin', 'plugin.json'), '{"name":"test-skills","version":"0.1.0"}')

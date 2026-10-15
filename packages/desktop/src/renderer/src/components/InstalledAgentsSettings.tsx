@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from 'react'
-import { AGENT_KINDS, agentDescriptor, type AgentCliInstallation, type AgentKind, type DetectedAgent, type EnvironmentCheck } from '@kando/protocol'
+import { AGENT_KINDS, agentDescriptor, type AgentCliInstallation, type AgentKind, type DetectedAgent, type EnvironmentCheck } from '@antumi/protocol'
 import { installAgentCli, refreshEnvironment, showTerminal, useCore } from '../core-store'
 import { checkStatusText } from '../environment-text'
 import { agentLabel } from '../labels'
@@ -57,7 +57,7 @@ function AgentRow({ kind, check, enabled, last }: { kind: AgentKind; check: Envi
   )
 }
 
-// One Kando can run but this machine does not have: dimmed, with what to type to install it.
+// One Antumi can run but this machine does not have: dimmed, with what to type to install it.
 function MissingAgentRow({ kind, installation }: { kind: AgentKind; installation?: AgentCliInstallation }) {
   const [opening, setOpening] = useState(false)
   const terminal = useCore((s) => installation ? s.terminals.findLast((each) => !each.conversationId && each.command === installation.command) : undefined)
@@ -77,7 +77,7 @@ function MissingAgentRow({ kind, installation }: { kind: AgentKind; installation
           <span className="settings-row-label">{agentLabel(kind)}</span>
           <span className="agent-row-pill">{installation ? '未找到 CLI' : '未安装'}</span>
         </div>
-        <p className="settings-row-description">{installation ? `已检测到 ${agentLabel(kind)} App，安装 CLI 后即可在 Kando 中使用。` : agentDescriptor(kind).environment.role}</p>
+        <p className="settings-row-description">{installation ? `已检测到 ${agentLabel(kind)} App，安装 CLI 后即可在 Antumi 中使用。` : agentDescriptor(kind).environment.role}</p>
         <Fix label="安装：" command={installation?.command ?? agentDescriptor(kind).environment.install} />
         {installation && (
           <div className="agent-install-actions">
@@ -132,7 +132,7 @@ function Group({ title, count, children }: { title: string; count: number; child
   )
 }
 
-// Every agent in one place, as core found them: the ones Kando runs, each on until turned off (off,
+// Every agent in one place, as core found them: the ones Antumi runs, each on until turned off (off,
 // it is not offered for new tasks and conversations; what already runs on it carries on); the
 // ones it runs that are not installed, with how to install them; and others it found but cannot
 // run yet. Git, which is not an agent, is under 关于.
@@ -176,14 +176,14 @@ export function InstalledAgentsSettings() {
         {missing.map((kind) => <MissingAgentRow key={kind} kind={kind} installation={installationSupported ? environment?.cliInstallations?.find((each) => each.agent === kind) : undefined} />)}
       </Group>
       <Group title="暂未支持" count={other.length}>
-        <p className="settings-row-description agent-list-note">在这台电脑上找到了，但还不能在 Kando 里运行；命令能响应版本，不代表已登录或支持聊天。</p>
+        <p className="settings-row-description agent-list-note">在这台电脑上找到了，但还不能在 Antumi 里运行；命令能响应版本，不代表已登录或支持聊天。</p>
         {other.map((agent) => <DetectedAgentRow key={agent.id} agent={agent} />)}
       </Group>
       {environment && (
         <details className="environment-search-path">
-          <summary>Kando 在这些目录里找命令（{environment.searchPath.length} 个）</summary>
+          <summary>Antumi 在这些目录里找命令（{environment.searchPath.length} 个）</summary>
           <p className="settings-row-description">
-            core 和 Agent 启动时用的 PATH，另外也会查常见目录里的 App。CLI 装在别处时，把它的目录加进 PATH 后重启 Kando。
+            core 和 Agent 启动时用的 PATH，另外也会查常见目录里的 App。CLI 装在别处时，把它的目录加进 PATH 后重启 Antumi。
           </p>
           <ul className="mono">
             {environment.searchPath.map((dir) => (

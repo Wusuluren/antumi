@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
+import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 
 // A secret a provider signed in with. `payload` is opaque to core: only its provider reads it.
 export const CredentialRecord = z.object({
@@ -26,11 +26,11 @@ export class CredentialStore {
       const raw = await readJsonIfExists(this.file)
       const parsed = raw === undefined ? null : CredentialFile.safeParse(raw)
       if (parsed && !parsed.success) {
-        console.error(`[kando-core] ${this.file} is not a credential file; ignoring it until the next sign-in`)
+        console.error(`[antumi-core] ${this.file} is not a credential file; ignoring it until the next sign-in`)
       }
       this.records = parsed?.success ? parsed.data.records : {}
     } catch (error) {
-      console.error(`[kando-core] cannot read ${this.file}:`, error instanceof Error ? error.message : error)
+      console.error(`[antumi-core] cannot read ${this.file}:`, error instanceof Error ? error.message : error)
       this.records = {}
     }
   }

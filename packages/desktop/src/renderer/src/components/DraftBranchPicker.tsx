@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type KeyboardEvent } from 'react'
-import type { ProjectBranches } from '@kando/protocol'
+import type { ProjectBranches } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { shortRef } from '../task-starts'
 import { BranchIcon, CheckIcon, ChevronDownIcon, WarningIcon } from './icons'

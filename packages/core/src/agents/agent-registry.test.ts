@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AGENT_KINDS, agentDescriptor } from '@kando/protocol'
+import { AGENT_KINDS, agentDescriptor } from '@antumi/protocol'
 import { adapterOf, checkAdapter } from '.'
 
 describe('agent registry', () => {

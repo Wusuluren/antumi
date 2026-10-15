@@ -1,4 +1,4 @@
-import { nextOccurrence, type Routine, type RoutineAgent, type RoutineFields, type RoutineSchedule, type ScheduledRun } from '@kando/protocol'
+import { nextOccurrence, type Routine, type RoutineAgent, type RoutineFields, type RoutineSchedule, type ScheduledRun } from '@antumi/protocol'
 import type { Notice } from './attention'
 import { perform } from './core-store'
 import { agentLabel, reasonText } from './labels'

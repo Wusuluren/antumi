@@ -1,6 +1,6 @@
-import { isHelper } from '@kando/protocol'
+import { isHelper } from '@antumi/protocol'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AGENT_KINDS, type Conversation } from '@kando/protocol'
+import { AGENT_KINDS, type Conversation } from '@antumi/protocol'
 import { selectConversation, useCore } from '../core-store'
 import { conversationState, timeAgo } from '../conversation-state'
 import { agentLabel } from '../labels'

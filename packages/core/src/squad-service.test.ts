@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { agentDescriptor, type Squad, type SquadRun, type SquadWork } from '@kando/protocol'
+import { agentDescriptor, type Squad, type SquadRun, type SquadWork } from '@antumi/protocol'
 import { AttachmentStore } from './attachment-store'
 import { ConversationService } from './conversation-service'
 import { ConversationStore } from './conversation-store'
@@ -36,7 +36,7 @@ describe('squad execution', () => {
   const leaderId = () => service.get(taskId).conversationId!
   const workSession = (work: SquadWork) => chats.get(work.conversationId!).sessionId!
   beforeEach(() => {
-    root = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'kando-squad-')))
+    root = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'antumi-squad-')))
     const db = path.join(root, 'kando.db')
     tasks = new TaskStore(db); chatsStore = new ConversationStore(db); projects = new ProjectRegistry(db)
     daemon = fakeChatDaemon()

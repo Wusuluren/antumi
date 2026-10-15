@@ -7,7 +7,7 @@ import { pluginFixture } from './plugin-fixtures'
 
 describe('plugin process boundary', () => {
   let directory: string
-  beforeEach(async () => { directory = await mkdtemp(path.join(os.tmpdir(), 'kando-plugin-process-')) })
+  beforeEach(async () => { directory = await mkdtemp(path.join(os.tmpdir(), 'antumi-plugin-process-')) })
   afterEach(async () => { await rm(directory, { recursive: true, force: true }) })
 
   it('keeps multiple login prompts in one process and starts the next operation separately', async () => {

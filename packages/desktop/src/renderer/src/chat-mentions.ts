@@ -1,4 +1,4 @@
-import { agentDescriptor, type AgentKind, type ProjectFileMatch } from '@kando/protocol'
+import { agentDescriptor, type AgentKind, type ProjectFileMatch } from '@antumi/protocol'
 
 const MAX_PROJECTS = 8
 

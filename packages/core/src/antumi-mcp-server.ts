@@ -1,16 +1,16 @@
-import type { McpServer as UserMcpServer } from '@kando/protocol'
+import type { McpServer as UserMcpServer } from '@antumi/protocol'
 import type { AgentMcpServer, McpServer } from './agent-command'
 import { mcpCommand } from './mcp-command'
 
 // The tools every conversation has (showing a file the agent wrote, the browser), acting for this
 // one conversation, whose tabs are the only ones it reaches; and the user's history, where allowed.
-export function kandoChatMcpServer(home: string, conversationId: string, history = false): McpServer {
+export function antumiChatMcpServer(home: string, conversationId: string, history = false): McpServer {
   const [command, ...args] = mcpCommand('--home', home, '--conversation', conversationId, ...(history ? ['--history'] : []))
   if (!command) throw new Error('empty MCP command')
   return { command, args }
 }
 
-// One of the user's MCP servers as an agent is handed it. Kando's launcher (mcp-main --run) starts a
+// One of the user's MCP servers as an agent is handed it. Antumi's launcher (mcp-main --run) starts a
 // command with its env, and carries a server's messages where it needs headers; a server that
 // needs nothing is reached at its address by the agent itself.
 export function userMcpServer(home: string, server: UserMcpServer): AgentMcpServer {

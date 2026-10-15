@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { nextOccurrence, type AgentUsage, type Routine, type RoutineFields, type UnattendedMode } from '@kando/protocol'
+import { nextOccurrence, type AgentUsage, type Routine, type RoutineFields, type UnattendedMode } from '@antumi/protocol'
 import { UNATTENDED_NOTE } from './agent-prompt'
 import { AttachmentStore } from './attachment-store'
 import { ConversationService } from './conversation-service'
@@ -119,7 +119,7 @@ describe('RoutineService', () => {
   const userTexts = (id: string) => conversations.chatPage(id).items.flatMap((item) => (item.kind === 'user' ? [item.text] : []))
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-routine-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-routine-'))
     database = path.join(root, 'kando.db')
     tasks = new TaskStore(database)
     store = new ConversationStore(database)

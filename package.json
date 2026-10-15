@@ -1,5 +1,5 @@
 {
-  "name": "kando",
+  "name": "antumi",
   "version": "0.16.6",
   "private": true,
   "type": "module",
@@ -9,14 +9,14 @@
   },
   "scripts": {
     "postinstall": "node scripts/fix-node-pty-spawn-helper.mjs",
-    "dev": "pnpm --parallel --filter @kando/daemon --filter @kando/core --filter @kando/desktop run dev",
-    "dev:daemon": "pnpm --filter @kando/daemon run dev",
-    "dev:core": "pnpm --filter @kando/core run dev",
-    "dev:desktop": "pnpm --filter @kando/desktop run dev",
-    "build": "pnpm --filter @kando/desktop run build",
+    "dev": "pnpm --parallel --filter @antumi/daemon --filter @antumi/core --filter @antumi/desktop run dev",
+    "dev:daemon": "pnpm --filter @antumi/daemon run dev",
+    "dev:core": "pnpm --filter @antumi/core run dev",
+    "dev:desktop": "pnpm --filter @antumi/desktop run dev",
+    "build": "pnpm --filter @antumi/desktop run build",
     "typecheck": "pnpm -r run typecheck",
     "test": "vitest run",
-    "dist:mac": "pnpm --filter @kando/desktop run dist:mac"
+    "dist:mac": "pnpm --filter @antumi/desktop run dist:mac"
   },
   "devDependencies": {
     "@types/node": "catalog:",

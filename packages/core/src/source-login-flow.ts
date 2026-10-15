@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { LoginPrompt } from '@kando/protocol'
+import type { LoginPrompt } from '@antumi/protocol'
 import { Rejection } from './rejection'
 import type { Connection } from './rpc-server'
 import { SourceError, sourceProblem } from './source-error'

@@ -5,16 +5,16 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanCommitMessage, commitContext, commitMessagePrompt, commitRules } from './commit-message'
 
-const RULES = '# Kando\n\n## Style\n\nKeep it short.\n\n## Commits\n\nAngular style: `<type>(<scope>): <summary>`.\n\n### Body\n\nSay why.\n\n## Verify\n\npnpm test\n'
+const RULES = '# Antumi\n\n## Style\n\nKeep it short.\n\n## Commits\n\nAngular style: `<type>(<scope>): <summary>`.\n\n### Body\n\nSay why.\n\n## Verify\n\npnpm test\n'
 
 describe('commit messages', () => {
   let repo: string
   const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim()
   beforeEach(() => {
-    repo = mkdtempSync(path.join(os.tmpdir(), 'kando-commit-message-'))
+    repo = mkdtempSync(path.join(os.tmpdir(), 'antumi-commit-message-'))
     git('init', '-q', '-b', 'main')
-    git('config', 'user.name', 'Kando Test')
-    git('config', 'user.email', 'kando@example.com')
+    git('config', 'user.name', 'Antumi Test')
+    git('config', 'user.email', 'antumi@example.com')
     writeFileSync(path.join(repo, 'AGENTS.md'), RULES)
     writeFileSync(path.join(repo, 'app.ts'), 'export const answer = 41\n')
     git('add', '-A')

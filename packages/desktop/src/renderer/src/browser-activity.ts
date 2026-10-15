@@ -1,4 +1,4 @@
-import { browserToolKind, type ChatItem } from '@kando/protocol'
+import { browserToolKind, type ChatItem } from '@antumi/protocol'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 type ToolDisplay = ToolItem['display']
@@ -15,7 +15,7 @@ function normalized(value: string): string {
   return value.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase().replace(/[^a-z0-9]+/g, '_')
 }
 
-// Presentation only: third-party browser calls must not acquire Kando's tab ownership or routing.
+// Presentation only: third-party browser calls must not acquire Antumi's tab ownership or routing.
 export function browserOperation(name: string, display?: ToolDisplay): string | null {
   const own = browserToolKind(name)
   if (own) return own

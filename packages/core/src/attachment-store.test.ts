@@ -10,7 +10,7 @@ describe('AttachmentStore', () => {
   let store: AttachmentStore
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(os.tmpdir(), 'kando-attachments-'))
+    dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-attachments-'))
     store = new AttachmentStore(dir)
   })
   afterEach(() => {

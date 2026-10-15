@@ -9,7 +9,7 @@ export type AgentDescriptor = {
   label: string
   // The command the user runs themselves, to sign in or refresh its credentials.
   cli: string
-  // Kando's permission modes as this agent's users know them; a mode left out is one it lacks.
+  // Antumi's permission modes as this agent's users know them; a mode left out is one it lacks.
   modes: Partial<Record<ChatPermissionMode, AgentModeText>>
   // What a new conversation can start in, before the catalog adds auto and the settings bypass.
   // The first is the fallback when defaultStartMode is unavailable.
@@ -32,20 +32,20 @@ export type AgentDescriptor = {
     pathMentions: boolean
     // Takes a mode, model or effort switch while a turn runs.
     optionsWhileBusy: boolean
-    // Loads a folder of Agent Skills Kando built for its start (the skills library).
+    // Loads a folder of Agent Skills Antumi built for its start (the skills library).
     skills: boolean
-    // Takes the user's MCP servers at its start, beside Kando's (Settings → MCP).
+    // Takes the user's MCP servers at its start, beside Antumi's (Settings → MCP).
     userMcp: boolean
   }
   // A plan it approves runs on in one of its own modes, named as the agent names them, rather than
-  // in Kando's run modes.
+  // in Antumi's run modes.
   nativePlanRun?: { hint: string }
   environment: {
-    // Why Kando needs it, and how it runs it.
+    // Why Antumi needs it, and how it runs it.
     role: string
     install: string
     signIn: string
-    // A CLI found, but too old to speak the protocol Kando runs it with.
+    // A CLI found, but too old to speak the protocol Antumi runs it with.
     outdated?: { status: string; hint: string }
   }
   // Where a usage reset can be used.

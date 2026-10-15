@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { openTodoCount, todoToolName, TodoOwner, TodoText, TodoTitle, type RpcConnection, type TodoGroup, type TodoToolKind } from '@kando/protocol'
+import { openTodoCount, todoToolName, TodoOwner, TodoText, TodoTitle, type RpcConnection, type TodoGroup, type TodoToolKind } from '@antumi/protocol'
 
 const argumentsFor = {
   list: z.object({}),
@@ -17,7 +17,7 @@ const descriptions: Record<TodoToolKind, string> = {
     '列出这条会话里记下的待办：每一组的标题，组里每一项、谁来做、做完没有，都带 id。记新的待办之前先看一遍，免得重复；' +
     '要勾掉某一项时用它找 id。只读。',
   add:
-    '把要用户之后处理的事记成待办。它显示在 Kando 检查器的「待办」里，跟着这条会话保存，换轮、重启、移交给别的 Agent 都还在，' +
+    '把要用户之后处理的事记成待办。它显示在 Antumi 检查器的「待办」里，跟着这条会话保存，换轮、重启、移交给别的 Agent 都还在，' +
     '用户能逐项勾掉。只在回复里列出了要用户之后去做、或这一轮做不完要留到以后的事时用：上线前要做的、要和别人对齐的、' +
     '要用户去验证或配置的、发布顺序之类。你这一轮自己要做的步骤不要记，那是你自己的计划。' +
     '一组一个标题（如「真机验证」），下面是具体的几项，每项一句话说清做什么；同一标题、还没做完的组会合并，已有的项不会重复记。' +

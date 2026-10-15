@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { ApprovalChoice, ApprovalGrant, ApprovalScope, ChatDecision } from '@kando/protocol'
+import type { ApprovalChoice, ApprovalGrant, ApprovalScope, ChatDecision } from '@antumi/protocol'
 import { commandPrefixes } from './command-rules'
 
 // Where Claude writes a permission update: session lasts the CLI's run, as does a cliArg one.
@@ -21,8 +21,8 @@ const ClaudeUpdate = z.looseObject({
 })
 
 // What Claude's suggested permission updates would do, read as Claude writes them; one it does not
-// describe in a way Kando knows still counts, as other, so the card never makes it look like less.
-// modes: Claude's permission modes by Kando's names.
+// describe in a way Antumi knows still counts, as other, so the card never makes it look like less.
+// modes: Claude's permission modes by Antumi's names.
 export function claudeGrants(suggestions: readonly unknown[], modes: Readonly<Record<string, string>>): ApprovalGrant[] {
   return suggestions.map((suggestion): ApprovalGrant => {
     const parsed = ClaudeUpdate.safeParse(suggestion)
@@ -39,7 +39,7 @@ export function claudeGrants(suggestions: readonly unknown[], modes: Readonly<Re
   })
 }
 
-// What a Bash call is remembered by, in Claude's own permission update: Kando's short rules (see
+// What a Bash call is remembered by, in Claude's own permission update: Antumi's short rules (see
 // command-rules) for this project's local settings, in place of Claude's suggestion, which is the
 // command whole; none for a command that may not be remembered.
 export function claudeBashRules(command: string): unknown[] {
@@ -71,14 +71,14 @@ const NetworkPolicy = z.looseObject({
   })
 })
 
-// A Codex answer as it is sent back, with Kando's choice for it.
+// A Codex answer as it is sent back, with Antumi's choice for it.
 export type CodexChoice = ApprovalChoice & { raw: unknown }
 
 // Codex's answers in the order it lists them, each sent back exactly as listed: once, the same
 // command or files again this run, commands starting the same way from now on (Codex keeps those
 // in its rules), a host let through or kept out. Of decline and cancel, only the one that stands
 // for no. Older servers list none: then once, this run, and no. what: the command, or the files.
-// Commands starting the same way are remembered by Kando's own short prefix (command-rules), sent
+// Commands starting the same way are remembered by Antumi's own short prefix (command-rules), sent
 // in place of Codex's, which is the command word for word; when the command has no single prefix
 // to keep, that answer is not offered.
 export function codexChoices(
@@ -114,7 +114,7 @@ export function codexChoices(
 }
 
 // The choice an answer sent to Codex was, read back off the answer, as a replay reads it. An
-// amendment sent before Kando chose the prefix is Codex's own, and still the same choice.
+// amendment sent before Antumi chose the prefix is Codex's own, and still the same choice.
 export function codexChoiceOf(choices: readonly CodexChoice[], decision: unknown): CodexChoice | undefined {
   const sent = JSON.stringify(decision)
   return choices.find((choice) => JSON.stringify(choice.raw) === sent)

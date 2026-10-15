@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createRpcClient, Task, type ListeningPort, type RpcConnection } from '@kando/protocol'
+import { createRpcClient, Task, type ListeningPort, type RpcConnection } from '@antumi/protocol'
 import { portGroups, portKey, portUrl, openPort } from './port-state'
 import { setPortsMaximized, showBrowserTab, showTerminal, toggleBrowserPanel, togglePortsPanel, toggleTerminalPanel, useCore } from './core-store'
 

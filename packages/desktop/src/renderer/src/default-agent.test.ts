@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { Conversation, Task } from '@kando/protocol'
+import { Conversation, Task } from '@antumi/protocol'
 import { useCore } from './core-store'
 import { defaultAgent } from './default-agent'
 import { usePreferences } from './preferences'

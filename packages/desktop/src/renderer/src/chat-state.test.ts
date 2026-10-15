@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ChatItem, handoffMessage, type ConversationStage } from '@kando/protocol'
+import { ChatItem, handoffMessage, type ConversationStage } from '@antumi/protocol'
 import {
   appendText,
   chatBlocks,

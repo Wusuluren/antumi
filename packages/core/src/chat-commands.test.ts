@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { MAX_CHAT_COMMANDS, type SavedChatCommand } from '@kando/protocol'
+import { MAX_CHAT_COMMANDS, type SavedChatCommand } from '@antumi/protocol'
 import { ChatCommandStore } from './chat-commands'
 import { TaskStore } from './task-store'
 
@@ -16,7 +16,7 @@ describe('ChatCommandStore', () => {
   const command = (name: string, projectPath: string | null = null) => ({ name, description: '', prompt: `Do ${name} with $ARGUMENTS`, projectPath })
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-chat-commands-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-chat-commands-'))
     database = path.join(root, 'kando.db')
     tasks = new TaskStore(database)
     emitted = []

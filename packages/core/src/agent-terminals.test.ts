@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentKind, ChatDecision, Terminal } from '@kando/protocol'
+import type { AgentKind, ChatDecision, Terminal } from '@antumi/protocol'
 import { AgentTerminals } from './agent-terminals'
 
 function setup(agent: AgentKind, answer: () => Promise<ChatDecision>, waitMs = 50) {

@@ -178,7 +178,7 @@ export type AdditionalProjectsBlocker = BranchSwitchBlocker | 'managed-workspace
 
 // The agent is given its directories at launch, so a change restarts it on the same session once
 // it is idle. The primary is the cwd the session began in and stays. A conversation begun without
-// projects works in a directory of Kando's own; a task's has its projects set on the task.
+// projects works in a directory of Antumi's own; a task's has its projects set on the task.
 export function checkEditAdditionalProjects(
   conversation: Pick<Conversation, 'taskId' | 'sessionId' | 'chat' | 'managedWorkspace'>
 ): AdditionalProjectsBlocker | null {

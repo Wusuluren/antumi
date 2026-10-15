@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 import type { ChatStageOptions } from '../../chat-driver'
 import { AcpDriver } from './acp-driver'
 import type { AcpDialect } from './acp-dialect'
@@ -112,7 +112,7 @@ describe('ACP without a dialect of its own', () => {
     expect(JSON.stringify(driver.send('again').wire)).not.toContain('知识库')
   })
 
-  it('switches modes by the ids its dialect maps Kando\'s to', () => {
+  it('switches modes by the ids its dialect maps Antumi\'s to', () => {
     const driver = opened()
     expect(Request.parse(driver.setOption('permissionMode', 'plan')[0])).toMatchObject({ method: 'session/set_mode', params: { modeId: 'plan' } })
     expect(() => driver.setOption('permissionMode', 'readOnly')).toThrow()

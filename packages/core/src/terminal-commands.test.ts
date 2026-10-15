@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { MAX_TERMINAL_COMMANDS, type TerminalCommand } from '@kando/protocol'
+import { MAX_TERMINAL_COMMANDS, type TerminalCommand } from '@antumi/protocol'
 import { TaskStore } from './task-store'
 import { TerminalCommandStore } from './terminal-commands'
 
@@ -15,7 +15,7 @@ describe('TerminalCommandStore', () => {
   let store: TerminalCommandStore
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-terminal-commands-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-terminal-commands-'))
     database = path.join(root, 'kando.db')
     tasks = new TaskStore(database)
     emitted = []

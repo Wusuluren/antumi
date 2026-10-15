@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { WireEntry, WireStage } from '@kando/protocol'
+import type { WireEntry, WireStage } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { canRevealFile, revealFile } from '../desktop-bridge'
 import { agentLabel } from '../labels'

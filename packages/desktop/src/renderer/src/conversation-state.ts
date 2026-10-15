@@ -1,4 +1,4 @@
-import type { Conversation } from '@kando/protocol'
+import type { Conversation } from '@antumi/protocol'
 
 export type ConversationState = { label: string; running: boolean; failed: boolean; detail: string | null }
 

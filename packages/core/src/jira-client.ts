@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ISSUE_STATUS_CATEGORIES, type SourceIssue } from '@kando/protocol'
+import { ISSUE_STATUS_CATEGORIES, type SourceIssue } from '@antumi/protocol'
 import { SourceError } from './source-error'
 
 export type JiraCredentials = { site: string; email: string; token: string }

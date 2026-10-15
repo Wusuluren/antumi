@@ -4,12 +4,12 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import { expect, it } from 'vitest'
-import { PluginManifest } from '@kando/protocol'
+import { PluginManifest } from '@antumi/protocol'
 import manifestJson from '../../plugin-github/manifest.json' with { type: 'json' }
 import { PluginProcess } from './plugin-process'
 
 it('runs the shipped GitHub source in plain Node without workspace dependencies', async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'kando-bundled-plugin-'))
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'antumi-bundled-plugin-'))
   try {
     const artifact = await build({
       entryPoints: [fileURLToPath(new URL('../../plugin-github/src/main.ts', import.meta.url))],

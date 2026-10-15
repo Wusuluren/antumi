@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
-import { AGENT_KINDS, agentDescriptor, McpServerName, type AgentKind, type McpImportCandidate, type McpProbe, type McpServer, type McpServerInput } from '@kando/protocol'
+import { AGENT_KINDS, agentDescriptor, McpServerName, type AgentKind, type McpImportCandidate, type McpProbe, type McpServer, type McpServerInput } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
 import { agentLabel } from '../labels'
 import { Segmented, Toggle } from './SettingsControls'
@@ -138,7 +138,7 @@ function ServerForm({ initial, onDone }: { initial: Draft; onDone: (saved: strin
       <label className="chat-command-field">
         <span>名称</span>
         <input className="input mono" value={draft.name} onChange={(event) => set({ name: event.target.value })} placeholder="github" maxLength={32} spellCheck={false} autoFocus={json === null} aria-invalid={badName} />
-        <span className="chat-command-hint">{badName ? '只能用小写字母、数字和 - _，以字母或数字开头；kando 留给 Kando 自己' : 'Agent 里看到的工具名会带上它，如 github · create_issue'}</span>
+        <span className="chat-command-hint">{badName ? '只能用小写字母、数字和 - _，以字母或数字开头；antumi 留给 Antumi 自己' : 'Agent 里看到的工具名会带上它，如 github · create_issue'}</span>
       </label>
       <div className="chat-command-field">
         <span id={typeId}>类型</span>
@@ -177,7 +177,7 @@ function ServerForm({ initial, onDone }: { initial: Draft; onDone: (saved: strin
           </span>
         ))}
         <span><button type="button" className="button ghost" onClick={() => set({ secrets: [...draft.secrets, { key: '', value: '', stored: false }] })}>添加{what}</button></span>
-        <span className="chat-command-hint">值只存在本机 Kando 的凭据文件里，之后这里只显示键名；Agent 的配置、命令行和 Kando 的日志里都不会出现。</span>
+        <span className="chat-command-hint">值只存在本机 Antumi 的凭据文件里，之后这里只显示键名；Agent 的配置、命令行和 Antumi 的日志里都不会出现。</span>
       </div>
       <div className="chat-command-field">
         <span>交给哪些 Agent</span>
@@ -300,7 +300,7 @@ function ImportPanel({ onDone }: { onDone: (imported: string[]) => void }) {
           {candidates.map((candidate) => {
             const key = keyOf(candidate)
             const on = key in chosen
-            const blocked = candidate.problem ?? (candidate.suggestedName ? null : '同名的服务器已经在 Kando 里了，勾选后改个名字')
+            const blocked = candidate.problem ?? (candidate.suggestedName ? null : '同名的服务器已经在 Antumi 里了，勾选后改个名字')
             return (
               <li key={key} className="settings-project mcp-candidate">
                 <input type="checkbox" checked={on} disabled={Boolean(candidate.problem) || busy} aria-label={`导入 ${candidate.name}`}
@@ -313,7 +313,7 @@ function ImportPanel({ onDone }: { onDone: (imported: string[]) => void }) {
                 <span className="settings-project-path mono" title={candidate.transport.type === 'stdio' ? candidate.transport.command : candidate.transport.url}>
                   {candidate.transport.type === 'stdio' ? [candidate.transport.command, ...candidate.transport.args].join(' ') : candidate.transport.url}
                 </span>
-                {on && <input className="input mono mcp-candidate-name" value={chosen[key] ?? ''} aria-label={`${candidate.name} 在 Kando 里的名字`} onChange={(event) => setChosen((current) => ({ ...current, [key]: event.target.value }))} spellCheck={false} />}
+                {on && <input className="input mono mcp-candidate-name" value={chosen[key] ?? ''} aria-label={`${candidate.name} 在 Antumi 里的名字`} onChange={(event) => setChosen((current) => ({ ...current, [key]: event.target.value }))} spellCheck={false} />}
                 {blocked && !on && <span className="settings-note warning">{blocked}</span>}
               </li>
             )
@@ -335,7 +335,7 @@ function ImportPanel({ onDone }: { onDone: (imported: string[]) => void }) {
   )
 }
 
-// The user's MCP servers: handed at each start to the agents picked for each, beside Kando's own,
+// The user's MCP servers: handed at each start to the agents picked for each, beside Antumi's own,
 // with nothing written into the agents' own configuration.
 export function McpSettingsSection() {
   const connected = useCore((s) => s.connection === 'connected')
@@ -350,13 +350,13 @@ export function McpSettingsSection() {
     setProbes(({ [name]: _running, ...rest }) => (result ? { ...rest, [name]: result } : rest))
   }
 
-  if (!connected) return <p className="settings-empty">连接到 Kando core 后才能查看。</p>
+  if (!connected) return <p className="settings-empty">连接到 Antumi core 后才能查看。</p>
   if (draft) return <ServerForm key={draft.previousName ?? 'new'} initial={draft} onDone={(saved) => { setDraft(null); if (saved) void probe(saved) }} />
   if (importing) return <ImportPanel onDone={(imported) => { setImporting(false); imported.forEach((name) => void probe(name)) }} />
   return (
     <>
       <p className="settings-note">
-        启动 Agent 时交给它，和 Kando 自己的工具一起；不改 ~/.claude.json、~/.codex/config.toml、~/.cursor/mcp.json，Agent 自己配的服务器照常加载。改动从下次启动 Agent 起生效。
+        启动 Agent 时交给它，和 Antumi 自己的工具一起；不改 ~/.claude.json、~/.codex/config.toml、~/.cursor/mcp.json，Agent 自己配的服务器照常加载。改动从下次启动 Agent 起生效。
         MCP 服务器能读写你的数据、能联网：只添加你信任的。需要确认的工具调用会在聊天里请你确认。
       </p>
       {servers.length === 0 ? <p className="settings-empty">还没有 MCP 服务器。</p> : servers.map((server) => (

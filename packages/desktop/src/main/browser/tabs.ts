@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Page } from 'playwright-core'
-import type { HostTab } from '@kando/protocol/node'
-import type { BrowserConsole, BrowserViewport } from '@kando/protocol'
+import type { HostTab } from '@antumi/protocol/node'
+import type { BrowserConsole, BrowserViewport } from '@antumi/protocol'
 import { HostError } from './host-error'
 
 type ConsoleEntry = BrowserConsole['messages'][number]

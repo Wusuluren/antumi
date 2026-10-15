@@ -1,4 +1,4 @@
-import { checkTaskHandoff, type AgentKind, type ChatModel, type Conversation, type TaskLaunchOptions } from '@kando/protocol'
+import { checkTaskHandoff, type AgentKind, type ChatModel, type Conversation, type TaskLaunchOptions } from '@antumi/protocol'
 import { resolveModel, useAgentCatalog } from '../agent-models'
 import { cancelHandoff, chooseHandoffModel, proposeHandoff, useHandoffs } from '../chat-handoff'
 import { perform, useCore, useTaskHandoffSupported } from '../core-store'

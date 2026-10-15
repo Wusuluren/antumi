@@ -1,10 +1,10 @@
-import { CoreEndpoint, PROTOCOL_VERSION } from '@kando/protocol'
+import { CoreEndpoint, PROTOCOL_VERSION } from '@antumi/protocol'
 
 // Inside Electron the preload bridge reads core.json; in a plain browser
 // (UI preview, future web client) the endpoint comes from ?port=&token=.
 export async function resolveCoreEndpoint(): Promise<CoreEndpoint | null> {
-  if (window.kando) {
-    const parsed = CoreEndpoint.nullable().safeParse(await window.kando.getCoreEndpoint())
+  if (window.antumi) {
+    const parsed = CoreEndpoint.nullable().safeParse(await window.antumi.getCoreEndpoint())
     return parsed.success ? parsed.data : null
   }
   const query = new URLSearchParams(window.location.search)

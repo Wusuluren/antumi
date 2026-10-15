@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Conversation } from '@kando/protocol'
+import type { Conversation } from '@antumi/protocol'
 import { groupOf } from './ConversationList'
 
 const base: Conversation = {
@@ -9,8 +9,8 @@ const base: Conversation = {
 
 describe('groupOf', () => {
   it('puts a conversation under its primary project, whatever else it reaches, and one without last', () => {
-    expect(groupOf({ ...base, projectPaths: ['/code/kando', '/code/lobehub', '/code/multica'] }, 'project')).toEqual({ label: 'kando', rank: 0 })
-    expect(groupOf({ ...base, projectPaths: ['/code/kando'] }, 'project')).toEqual({ label: 'kando', rank: 0 })
+    expect(groupOf({ ...base, projectPaths: ['/code/antumi', '/code/lobehub', '/code/multica'] }, 'project')).toEqual({ label: 'antumi', rank: 0 })
+    expect(groupOf({ ...base, projectPaths: ['/code/antumi'] }, 'project')).toEqual({ label: 'antumi', rank: 0 })
     expect(groupOf(base, 'project')).toEqual({ label: '无项目', rank: 1 })
   })
 })

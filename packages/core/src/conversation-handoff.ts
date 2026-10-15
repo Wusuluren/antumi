@@ -1,4 +1,4 @@
-import type { Conversation, ConversationMessage } from '@kando/protocol'
+import type { Conversation, ConversationMessage } from '@antumi/protocol'
 
 export function buildHandoff(
   conversation: Conversation,
@@ -9,11 +9,11 @@ export function buildHandoff(
   now = new Date()
 ): string {
   const lines = [
-    '# Kando 会话移交',
+    '# Antumi 会话移交',
     '',
     `会话：${conversation.title}`,
     `时间：${now.toISOString()}`,
-    `项目：${conversation.managedWorkspace ? '无项目（Kando 托管目录）' : conversation.projectPaths.map((project, index) => `${index + 1}. ${project}`).join('；')}`,
+    `项目：${conversation.managedWorkspace ? '无项目（Antumi 托管目录）' : conversation.projectPaths.map((project, index) => `${index + 1}. ${project}`).join('；')}`,
     `当前目录：${conversation.workspacePath}`,
     `移交：${fromAgent} → ${toAgent}`,
     '',

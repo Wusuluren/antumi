@@ -17,7 +17,7 @@ export const codex: AgentDescriptor = {
   discussionMode: 'readOnly',
   readOnlyMode: 'readOnly',
   // skills: it reads only .agents/skills under the working folder and ~/.agents/skills, neither of
-  // which Kando writes; whether skills.config or skills/list can add a folder is unverified.
+  // which Antumi writes; whether skills.config or skills/list can add a folder is unverified.
   capabilities: { unattended: true, bypass: true, autoMode: false, pathMentions: false, optionsWhileBusy: true, skills: false, userMcp: true },
   environment: {
     role: '聊天界面以 `codex app-server` 运行它；没装也可以使用其他 Agent。',

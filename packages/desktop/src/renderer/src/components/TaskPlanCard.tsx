@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Task } from '@kando/protocol'
+import type { Task } from '@antumi/protocol'
 import { useCore, useSquadsSupported } from '../core-store'
 import { agentLabel, dayAndTime } from '../labels'
 import { ChevronDownIcon } from './icons'

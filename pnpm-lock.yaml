@@ -214,7 +214,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@kando/protocol':
+      '@antumi/protocol':
         specifier: workspace:*
         version: link:../protocol
       semver:
@@ -251,7 +251,7 @@ importers:
 
   packages/daemon:
     dependencies:
-      '@kando/protocol':
+      '@antumi/protocol':
         specifier: workspace:*
         version: link:../protocol
       node-pty:
@@ -277,6 +277,9 @@ importers:
         specifier: 'catalog:'
         version: 1.63.0
     devDependencies:
+      '@antumi/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       '@codemirror/commands':
         specifier: 6.11.1
         version: 6.11.1
@@ -298,9 +301,6 @@ importers:
       '@codemirror/view':
         specifier: 6.43.13
         version: 6.43.13
-      '@kando/protocol':
-        specifier: workspace:*
-        version: link:../protocol
       '@lezer/common':
         specifier: 1.5.2
         version: 1.5.2
@@ -385,7 +385,7 @@ importers:
 
   packages/plugin-github:
     dependencies:
-      '@kando/protocol':
+      '@antumi/protocol':
         specifier: workspace:*
         version: link:../protocol
       zod:

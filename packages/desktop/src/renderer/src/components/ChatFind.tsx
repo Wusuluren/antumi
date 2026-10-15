@@ -40,11 +40,11 @@ export function ChatFind({ state, scope, container, onOpen, loadOlder, hasOlder 
 
   const mark = useCallback(() => {
     if (typeof CSS === 'undefined' || !('highlights' in CSS)) return
-    CSS.highlights.set('kando-chat-find', new Highlight(...matches.current))
+    CSS.highlights.set('antumi-chat-find', new Highlight(...matches.current))
     const active = matches.current[current.current]
     const highlight = new Highlight(...(active ? [active] : []))
     highlight.priority = 1
-    CSS.highlights.set('kando-chat-find-current', highlight)
+    CSS.highlights.set('antumi-chat-find-current', highlight)
   }, [])
   const scroll = useCallback(() => {
     const range = matches.current[current.current]
@@ -136,8 +136,8 @@ export function ChatFind({ state, scope, container, onOpen, loadOlder, hasOlder 
   useEffect(() => {
     return () => {
       if (typeof CSS !== 'undefined' && 'highlights' in CSS) {
-        CSS.highlights.delete('kando-chat-find')
-        CSS.highlights.delete('kando-chat-find-current')
+        CSS.highlights.delete('antumi-chat-find')
+        CSS.highlights.delete('antumi-chat-find-current')
       }
     }
   }, [open, query])

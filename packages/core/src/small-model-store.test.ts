@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { agentDescriptor, modelPrice, type ChatItem, type CostBaseline, type ModelMetering } from '@kando/protocol'
+import { agentDescriptor, modelPrice, type ChatItem, type CostBaseline, type ModelMetering } from '@antumi/protocol'
 import { TaskStore } from './task-store'
 import { SmallModelStore, EMPTY_BASELINE, estimateSmallModel, smallModelTotals } from './small-model-store'
 import { summarizeDashboard } from './dashboard-stats'
@@ -53,7 +53,7 @@ describe('small-model accounting', () => {
   let store: SmallModelStore
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-small-models-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-small-models-'))
     database = path.join(root, 'kando.db')
     tasks = new TaskStore(database)
     store = new SmallModelStore(database, () => NOW)

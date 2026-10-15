@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ChatImage } from '@kando/protocol'
+import { ChatImage } from '@antumi/protocol'
 import type { MentionedText } from './chat-mentions'
 
 // Unsent input belongs to the conversation it was written in. The new-conversation page has its

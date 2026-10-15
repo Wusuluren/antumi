@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { Squad, SquadRun, Task, createRpcClient, type Conversation, type RpcConnection } from '@kando/protocol'
+import { Squad, SquadRun, Task, createRpcClient, type Conversation, type RpcConnection } from '@antumi/protocol'
 import { actionableItems, attentionCount, noticesBetween } from './attention'
 import { openAttentionItem, selectSquad, useCore } from './core-store'
 import { saveSquad } from './squads'

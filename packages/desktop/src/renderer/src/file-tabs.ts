@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ResolvedFile } from '@kando/protocol'
+import type { ResolvedFile } from '@antumi/protocol'
 
 export type FileTab = { file: ResolvedFile; line: number | null; reveal: number; scrollTop: number; scrollLeft: number }
 export type FileTabs = { tabs: FileTab[]; active: string | null; wrap: boolean; maximized: boolean }

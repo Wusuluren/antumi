@@ -1,4 +1,4 @@
-import type { ComputerAwakeMode, ComputerAwakeStatus } from '@kando/protocol'
+import type { ComputerAwakeMode, ComputerAwakeStatus } from '@antumi/protocol'
 import type { SessionHost } from './daemon-client'
 import type { AwakeConfigStore } from './awake-config'
 

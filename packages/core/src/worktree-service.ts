@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { readdir, realpath, rmdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { checkCleanWorktree, shortTaskId, type Conversation, type ManagedWorktree, type Task, type WorktreeCleanResult } from '@kando/protocol'
+import { checkCleanWorktree, shortTaskId, type Conversation, type ManagedWorktree, type Task, type WorktreeCleanResult } from '@antumi/protocol'
 import { gitOrNull } from './git-changes'
 import { Rejection } from './rejection'
 import { originDefault } from './task-start'
@@ -24,7 +24,7 @@ export type WorktreeTasks = {
   forgetWorktree(taskId: string, worktreePath: string): void
 }
 
-// The conversations outside any task, whose projects may be worktrees Kando laid out for them.
+// The conversations outside any task, whose projects may be worktrees Antumi laid out for them.
 export type WorktreeConversations = { list(): Pick<Conversation, 'id' | 'projectPaths' | 'chat'>[] }
 
 type Folder = { dir: string; shortId: string; planning: boolean }
@@ -42,7 +42,7 @@ async function entries(dir: string): Promise<string[]> {
   return readdir(dir).catch(() => [])
 }
 
-// Kando lays worktrees out as <root>/<task>/<project>, planning checkouts as
+// Antumi lays worktrees out as <root>/<task>/<project>, planning checkouts as
 // <root>/<task>/.planning/<project>; a task folder that is itself a worktree is the older layout.
 async function folders(root: string): Promise<Folder[]> {
   const found: Folder[] = []
@@ -133,7 +133,7 @@ export class WorktreeService {
     const tasks = new Map(this.tasks.list().map((task) => [task.id, task]))
     const results: WorktreeCleanResult[] = []
     for (const requested of paths) {
-      // Only a worktree Kando laid out, as the list found it, is ever removed.
+      // Only a worktree Antumi laid out, as the list found it, is ever removed.
       const worktree = current.get(path.normalize(requested))
       if (!worktree) {
         results.push({ path: requested, removed: false, reason: 'worktree-not-found' })
@@ -166,7 +166,7 @@ export class WorktreeService {
     }
     if (task) this.tasks.forgetWorktree(task.id, worktree.path)
     this.sizes.delete(worktree.path)
-    // Folders Kando made for it go when nothing else is left in them.
+    // Folders Antumi made for it go when nothing else is left in them.
     for (let dir = path.dirname(worktree.path); dir.startsWith(this.root + path.sep); dir = path.dirname(dir)) {
       if (await rmdir(dir).then(() => false, () => true)) break
     }

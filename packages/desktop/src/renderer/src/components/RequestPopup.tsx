@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { create } from 'zustand'
-import type { ChatItem, Conversation } from '@kando/protocol'
+import type { ChatItem, Conversation } from '@antumi/protocol'
 import { dropChat, pathShortener, setChatPage, useChat } from '../chat-state'
 import { dismissError, perform, useCore } from '../core-store'
 import { layoutRequestPopup, onRequestPopupWanted, openFromRequestPopup } from '../desktop-bridge'
@@ -156,7 +156,7 @@ export function RequestPopup() {
               <button type="button" className="request-popup-step" aria-label="下一个" onClick={() => step(1)}><ChevronRightIcon /></button>
             </span>
           )}
-          <button type="button" className="link-button" onClick={() => openFromRequestPopup(entry.target)}>在 Kando 中打开</button>
+          <button type="button" className="link-button" onClick={() => openFromRequestPopup(entry.target)}>在 Antumi 中打开</button>
           <button type="button" className="request-popup-close" aria-label="收起，有新的请求再弹出" title="收起，有新的请求再弹出" onClick={close}><CloseIcon /></button>
         </header>
         {error && <p className="request-popup-error" role="alert">{error}</p>}

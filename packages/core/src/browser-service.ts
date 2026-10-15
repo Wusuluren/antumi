@@ -14,8 +14,8 @@ import {
   type BrowserViewport,
   type ChatDecision,
   type browserActions
-} from '@kando/protocol'
-import { BROWSER_HOST_PROTOCOL_VERSION, type BrowserHostEvent, type BrowserHostParams, type HostTab, type KandoPaths } from '@kando/protocol/node'
+} from '@antumi/protocol'
+import { BROWSER_HOST_PROTOCOL_VERSION, type BrowserHostEvent, type BrowserHostParams, type HostTab, type AntumiPaths } from '@antumi/protocol/node'
 import type { AttachmentStore } from './attachment-store'
 import { connectBrowserHost, type HostConnect, type HostLink } from './browser-host-client'
 import { readBrowserHostEndpoint } from './browser-host-file'
@@ -40,7 +40,7 @@ function mayBrowse(connection: Connection, tab: Pick<BrowserTab, 'conversationId
 export type HostAsk = (conversationId: string, host: string, url: string) => Promise<ChatDecision>
 
 type ActionParams<K extends keyof typeof browserActions> = z.output<(typeof browserActions)[K]>
-type BrowserPaths = Pick<KandoPaths, 'browserHostFile'>
+type BrowserPaths = Pick<AntumiPaths, 'browserHostFile'>
 
 // A host that does not answer a status request this fast is hung.
 const STATUS_TIMEOUT_MS = 5_000
@@ -49,7 +49,7 @@ const DRIVING_MS = 5_000
 const MAX_SNAPSHOT_CHARS = 60_000
 
 const APP_CLOSED: BrowserStatus = { state: 'app-closed', running: false }
-const APP_CLOSED_TEXT = '浏览器在 Kando 应用里运行，请打开 Kando 应用后再试'
+const APP_CLOSED_TEXT = '浏览器在 Antumi 应用里运行，请打开 Antumi 应用后再试'
 
 function withTimeout<T>(promise: Promise<T>, ms: number, error: () => Error): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -59,7 +59,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, error: () => Error): Pr
   })
 }
 
-// Kando's browser, as core sees it: the host the desktop app runs for it, the tabs it has, which
+// Antumi's browser, as core sees it: the host the desktop app runs for it, the tabs it has, which
 // conversation each belongs to, and what the user has allowed each conversation to open. Every
 // agent call names its conversation and reaches only that conversation's tabs. The app says
 // where its host listens through the host file; with no app up there is no browser.
@@ -109,7 +109,7 @@ export class BrowserService {
       throw new Rejection('browser-app-closed', APP_CLOSED_TEXT)
     }
     if (endpoint.protocolVersion !== BROWSER_HOST_PROTOCOL_VERSION) {
-      throw new Rejection('browser-app-outdated', `Kando 应用的浏览器是版本 ${endpoint.protocolVersion}，core 需要 ${BROWSER_HOST_PROTOCOL_VERSION}：请把应用和 core 一起升级`)
+      throw new Rejection('browser-app-outdated', `Antumi 应用的浏览器是版本 ${endpoint.protocolVersion}，core 需要 ${BROWSER_HOST_PROTOCOL_VERSION}：请把应用和 core 一起升级`)
     }
     this.setStatus({ state: 'starting', running: false })
     let link: HostLink

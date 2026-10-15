@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { DashboardDay } from '@kando/protocol'
+import type { DashboardDay } from '@antumi/protocol'
 import { dayLabel } from '../dashboard-model'
 import { compact } from '../stat-format'
 import { Segmented } from './SettingsControls'

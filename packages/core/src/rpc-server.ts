@@ -14,7 +14,7 @@ import {
   type RpcNotificationParams,
   type RpcParsedParams,
   type RpcResult
-} from '@kando/protocol'
+} from '@antumi/protocol'
 import { Rejection } from './rejection'
 
 export type Connection = {
@@ -95,7 +95,7 @@ export function startRpcServer(options: {
       if (error instanceof Rejection) {
         return errorFrame(id, RPC_ERROR.rejected, error.message, error.reason)
       }
-      console.error(`[kando-core] ${method} failed`, error)
+      console.error(`[antumi-core] ${method} failed`, error)
       return errorFrame(id, RPC_ERROR.internal, 'internal error')
     }
   }

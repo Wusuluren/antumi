@@ -1,7 +1,7 @@
 import type { AgentDescriptor } from './agent-descriptor'
 import { CURSOR_PRICES } from './model-prices'
 
-// Kando's modes carry Cursor's own names: ask is its Agent mode, readOnly its Ask mode.
+// Antumi's modes carry Cursor's own names: ask is its Agent mode, readOnly its Ask mode.
 export const cursor: AgentDescriptor = {
   label: 'Cursor',
   cli: 'agent',

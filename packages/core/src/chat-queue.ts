@@ -1,4 +1,4 @@
-import type { ChatImage, ChatQueued, ChatTurnState } from '@kando/protocol'
+import type { ChatImage, ChatQueued, ChatTurnState } from '@antumi/protocol'
 import type { ChatRecord } from './chat-driver'
 
 type Entry = { text: string; images: ChatImage[]; ref: string; held: boolean }

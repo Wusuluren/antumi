@@ -1,4 +1,4 @@
-import { imageMarker, type ChatImage } from '@kando/protocol'
+import { imageMarker, type ChatImage } from '@antumi/protocol'
 
 // An image block as either agent carries one: Claude {type:'image', source:{data}}, Codex and MCP
 // {type:'image', data}. The bytes are in the attachment store (see imageMarker), so the log keeps

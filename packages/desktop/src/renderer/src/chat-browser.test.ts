@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeBrowserPage, type ChatItem } from '@kando/protocol'
+import { describeBrowserPage, type ChatItem } from '@antumi/protocol'
 import { latestBrowserPages } from './chat-browser'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>

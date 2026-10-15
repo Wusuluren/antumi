@@ -89,7 +89,7 @@ export const Discussion = z.object({
 export type Discussion = z.infer<typeof Discussion>
 
 // opening: a member's first, independent answer; rebuttal: its answer in a later round; reply: to
-// the user who named it; notice: Kando's own line, as when a member's turn failed.
+// the user who named it; notice: Antumi's own line, as when a member's turn failed.
 export const DiscussionPostKind = z.enum(['opening', 'rebuttal', 'reply', 'summary', 'user', 'notice'])
 export type DiscussionPostKind = z.infer<typeof DiscussionPostKind>
 
@@ -189,7 +189,7 @@ export type DiscussionProjectsBlocker = 'no-projects' | 'busy'
 
 // Each member's agent works in the first project and is given the others as it starts, so only those
 // others change, and only while every member is idle. One begun without projects works in a folder of
-// Kando's own, and stays there.
+// Antumi's own, and stays there.
 export function checkEditDiscussionProjects(discussion: Pick<Discussion, 'projectPaths' | 'members'>): DiscussionProjectsBlocker | null {
   if (discussion.projectPaths.length === 0) return 'no-projects'
   return discussion.members.every((member) => member.status === 'idle') ? null : 'busy'

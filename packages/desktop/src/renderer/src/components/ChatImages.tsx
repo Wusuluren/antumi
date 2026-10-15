@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from 'react'
-import { IMAGE_MIME_TYPES, MAX_CHAT_IMAGES, type ChatImage } from '@kando/protocol'
+import { IMAGE_MIME_TYPES, MAX_CHAT_IMAGES, type ChatImage } from '@antumi/protocol'
 import { copyImageToClipboard, imageFilesOf, uploadImageFiles, useImageUrl } from '../attachment-images'
 import { useCore } from '../core-store'
 import { fitChatImage } from '../image-fit'

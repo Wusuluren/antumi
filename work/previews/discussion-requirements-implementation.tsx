@@ -1,5 +1,5 @@
 import { createRoot } from '../../packages/desktop/node_modules/react-dom/client'
-import { createRpcClient, Discussion, DiscussionCreate } from '@kando/protocol'
+import { createRpcClient, Discussion, DiscussionCreate } from '@antumi/protocol'
 import { useCore } from '../../packages/desktop/src/renderer/src/core-store'
 import { DiscussionDraft } from '../../packages/desktop/src/renderer/src/components/DiscussionDraft'
 

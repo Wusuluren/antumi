@@ -1,5 +1,5 @@
 import type { BrowserWindow, Rectangle, WebContentsView } from 'electron'
-import type { BrowserViewport } from '@kando/protocol'
+import type { BrowserViewport } from '@antumi/protocol'
 import { fitViewport } from './viewport'
 
 // Where the one tab on show sits: in the window, over the panel's rectangle. The renderer says

@@ -76,8 +76,8 @@ export function isImagePath(path: string): boolean {
   return IMAGE_EXTENSIONS.has(path.split('.').at(-1)?.toLowerCase() ?? '')
 }
 
-// main's kando-preview protocol reads the file at the URL's path; each part is escaped so a # or
+// main's antumi-preview protocol reads the file at the URL's path; each part is escaped so a # or
 // a space stays part of the name.
 export function previewUrl(path: string): string {
-  return `kando-preview://file${path.split('/').map(encodeURIComponent).join('/')}`
+  return `antumi-preview://file${path.split('/').map(encodeURIComponent).join('/')}`
 }

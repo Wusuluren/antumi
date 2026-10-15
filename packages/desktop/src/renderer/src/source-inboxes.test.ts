@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { SourceDescriptor, SourceInbox, SourceIssue } from '@kando/protocol'
+import type { SourceDescriptor, SourceInbox, SourceIssue } from '@antumi/protocol'
 import { activeInboxes, inboxTab, investigationProjects, rememberInvestigationProjects } from './source-inboxes'
 
 const issue = (key: string): SourceIssue => ({

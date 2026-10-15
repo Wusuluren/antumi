@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import type { ProjectBranches } from '@kando/protocol'
+import type { ProjectBranches } from '@antumi/protocol'
 import { gitOrNull } from './git-changes'
 import { Rejection } from './rejection'
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { GitCommit } from '@kando/protocol'
+import type { GitCommit } from '@antumi/protocol'
 import { GRAPH_COLORS, LONG_EDGE_ROWS, gitGraph } from './git-graph'
 const commit = (sha: string, parents: string[]): GitCommit => ({ sha, parents, subject: sha, author: 'test', date: '', refs: [] })
 describe('commit graph', () => {

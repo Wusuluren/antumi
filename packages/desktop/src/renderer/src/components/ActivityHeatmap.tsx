@@ -1,4 +1,4 @@
-import type { DashboardDay } from '@kando/protocol'
+import type { DashboardDay } from '@antumi/protocol'
 import { activity, dayLabel, heatLevels, monthLabels, streaks, weeks } from '../dashboard-model'
 
 const WEEKDAYS = ['一', '', '三', '', '五', '', '日']

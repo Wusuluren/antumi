@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { TerminalCommand } from '@kando/protocol'
+import type { TerminalCommand } from '@antumi/protocol'
 import { isInside, offeredCommands, pastedCommand, terminalProject } from './terminal-commands'
 
 let next = 0

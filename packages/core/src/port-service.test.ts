@@ -2,8 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Task, type Conversation, type HostedPort, type Terminal } from '@kando/protocol'
-import { daemonSchemas } from '@kando/protocol/node'
+import { Task, type Conversation, type HostedPort, type Terminal } from '@antumi/protocol'
+import { daemonSchemas } from '@antumi/protocol/node'
 import { fakeChatDaemon } from './fake-chat-agent'
 import { ownedPorts, PortService } from './port-service'
 import type { SessionHost } from './daemon-client'
@@ -72,7 +72,7 @@ describe('port ownership in core', () => {
 
 describe('PortService', () => {
   it('reads labels from each worktree, detects edits, and keeps discovery working with malformed labels', async () => {
-    const root = mkdtempSync(path.join(os.tmpdir(), 'kando-ports-'))
+    const root = mkdtempSync(path.join(os.tmpdir(), 'antumi-ports-'))
     roots.push(root)
     mkdirSync(path.join(root, '.kando'))
     const file = path.join(root, '.kando', 'ports.json')
@@ -90,7 +90,7 @@ describe('PortService', () => {
   it('reports an old daemon without pretending its empty result means there are no ports', async () => {
     const fake = daemonWith([])
     fake.fail(new Error('unknown-method'))
-    expect(await new PortService(fake.daemon, () => base).list()).toEqual({ ports: [], problem: '当前 daemon 不支持端口管理，请重启 Kando daemon。' })
+    expect(await new PortService(fake.daemon, () => base).list()).toEqual({ ports: [], problem: '当前 daemon 不支持端口管理，请重启 Antumi daemon。' })
   })
 
   it('rechecks ownership before stopping and refuses a stale or unknown service', async () => {

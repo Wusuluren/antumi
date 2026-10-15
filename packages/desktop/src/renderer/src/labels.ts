@@ -1,4 +1,4 @@
-import { agentDescriptor, type AgentKind, type SourceFailure, type SourceProblem, type TaskStatus } from '@kando/protocol'
+import { agentDescriptor, type AgentKind, type SourceFailure, type SourceProblem, type TaskStatus } from '@antumi/protocol'
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
   pending: '未执行',
@@ -138,8 +138,8 @@ const REASON_TEXT: Record<string, string> = {
   'chat-idle': '现在没有进行中的回合',
   'chat-request-gone': '这个请求已经不再等待回答',
   'browser-unavailable': '浏览器没有运行',
-  'browser-app-closed': '浏览器在 Kando 应用里运行，先打开 Kando 应用',
-  'browser-app-outdated': 'Kando 应用和 core 版本不一致，请一起升级',
+  'browser-app-closed': '浏览器在 Antumi 应用里运行，先打开 Antumi 应用',
+  'browser-app-outdated': 'Antumi 应用和 core 版本不一致，请一起升级',
   'browser-tab-not-found': '标签页已经关闭',
   'browser-not-watching': '先打开这个会话的浏览器面板',
   'browser-user-driving': '你正在操作这个标签页',
@@ -168,7 +168,7 @@ const REASON_TEXT: Record<string, string> = {
   'not-cancelled': '只有已取消的任务可以重新打开',
   'task-redone': '它已经由重做出来的新任务接着做，不能重新打开',
   'task-conversation': '这条会话属于一个任务，请从任务那里继续',
-  'managed-workspace': '没选项目的会话在 Kando 的临时目录里运行，不能再添加项目',
+  'managed-workspace': '没选项目的会话在 Antumi 的临时目录里运行，不能再添加项目',
   'chat-unavailable': '这个 core 不支持聊天界面',
   'dependencies-unfinished': '依赖的任务还没完成，现在只能规划，不能直接执行',
   'already-scheduled': '这个任务已经预约了',

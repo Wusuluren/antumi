@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StateCreator } from 'zustand'
-import { Conversation, createRpcClient, type ChatItem, type RpcConnection } from '@kando/protocol'
+import { Conversation, createRpcClient, type ChatItem, type RpcConnection } from '@antumi/protocol'
 import { itemKey } from '../chat-state'
 import { useCore } from '../core-store'
 import { usePreferences } from '../preferences'
@@ -11,7 +11,7 @@ import { ChatPlanView } from './ChatPlan'
 
 // The chat's markdown reaches modules that read the window as they load.
 vi.hoisted(() => {
-  vi.stubGlobal('window', { kando: undefined, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) })
+  vi.stubGlobal('window', { antumi: undefined, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) })
   vi.stubGlobal('navigator', { userAgent: 'Mac', platform: 'MacIntel' })
 })
 

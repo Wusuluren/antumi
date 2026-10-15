@@ -4,16 +4,16 @@ import readline from 'node:readline'
 import { stat } from 'node:fs/promises'
 import { extname, isAbsolute } from 'node:path'
 import { z } from 'zod'
-import { connectRpc, coreUrl, isPreviewImage, PREVIEW_EXTENSIONS, SHOW_PREVIEW_TOOL, type RpcConnection } from '@kando/protocol'
-import { readCoreEndpoint, kandoPaths } from '@kando/protocol/node'
+import { connectRpc, coreUrl, isPreviewImage, PREVIEW_EXTENSIONS, SHOW_PREVIEW_TOOL, type RpcConnection } from '@antumi/protocol'
+import { readCoreEndpoint, antumiPaths } from '@antumi/protocol/node'
 import { AttachmentStore } from './attachment-store'
 import { BROWSER_ARGUMENTS, BROWSER_TOOL_SPECS, browserToolsOverCore, type BrowserTools, type ToolOutcome } from './mcp-browser-tools'
 import { HISTORY_ARGUMENTS, HISTORY_TOOL_SPECS, historyToolsOverCore, type HistoryTools } from './mcp-history-tools'
 import { TERMINAL_ARGUMENTS, TERMINAL_TOOL_SPECS, terminalToolsOverCore, type TerminalTools } from './mcp-terminal-tools'
 
-// A tools-only MCP server over stdio, giving an agent Kando's own tools: showing a file it wrote in
-// the chat, the browser Kando hosts, terminals of its own in the app's panel, and, unless the user
-// turned it off, reading their history in Kando.
+// A tools-only MCP server over stdio, giving an agent Antumi's own tools: showing a file it wrote in
+// the chat, the browser Antumi hosts, terminals of its own in the app's panel, and, unless the user
+// turned it off, reading their history in Antumi.
 // Messages are newline-delimited JSON-RPC 2.0; stdout is the channel, so logs go to stderr.
 
 const Message = z.object({
@@ -148,7 +148,7 @@ function toolTable({ preview, browser, terminal, history, squad, todo, planOnly 
     }
   }
   if (squad) entries.push(...squad)
-  // Kando's list, not the checkout: a planning agent writes to it too.
+  // Antumi's list, not the checkout: a planning agent writes to it too.
   if (todo) entries.push(...todo)
   return entries
 }
@@ -180,7 +180,7 @@ export function createMcpHandler(tools: McpTools) {
         return reply({
           protocolVersion: requested.success ? requested.data.protocolVersion : FALLBACK_PROTOCOL_VERSION,
           capabilities: { tools: {} },
-          serverInfo: { name: 'kando', version: '0.0.0' }
+          serverInfo: { name: 'antumi', version: '0.0.0' }
         })
       }
       case 'ping':
@@ -217,7 +217,7 @@ export async function serveMcp(home: string | undefined, conversationId?: string
   const withCore = async <T>(work: (rpc: RpcConnection) => Promise<T>): Promise<T> => {
     const endpoint = await readCoreEndpoint(home)
     if (!endpoint) {
-      throw new Error('Kando core 没有运行')
+      throw new Error('Antumi core 没有运行')
     }
     const rpc = await connectRpc(coreUrl(endpoint))
     try {
@@ -237,7 +237,7 @@ export async function serveMcp(home: string | undefined, conversationId?: string
     initialized,
     preview: checkPreviewFile,
     ...(conversationId ? {
-      browser: browserToolsOverCore(withCore, conversationId, new AttachmentStore(kandoPaths(home).attachments)),
+      browser: browserToolsOverCore(withCore, conversationId, new AttachmentStore(antumiPaths(home).attachments)),
       terminal: terminalToolsOverCore(withCore, conversationId),
       todo: todoToolsOverCore(withCore, conversationId)
     } : {}),

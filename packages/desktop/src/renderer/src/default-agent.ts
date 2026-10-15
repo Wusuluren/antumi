@@ -1,4 +1,4 @@
-import { isHelper, type AgentKind, type Conversation, type Task } from '@kando/protocol'
+import { isHelper, type AgentKind, type Conversation, type Task } from '@antumi/protocol'
 import { currentInstalledAgents } from './installed-agents'
 
 // New work, a task or a conversation, takes the agent picked for the latest one the user started,

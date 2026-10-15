@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import os from 'node:os'
 import readline from 'node:readline'
-import type { McpProbe } from '@kando/protocol'
+import type { McpProbe } from '@antumi/protocol'
 import { McpHttpSession } from './mcp-http'
 import type { ResolvedMcpServer } from './mcp-servers'
 
@@ -30,7 +30,7 @@ export async function probeMcpServer(server: ResolvedMcpServer, now: () => numbe
 }
 
 async function listTools(exchange: Exchange, notify: (message: Message) => Promise<void>): Promise<McpProbe['tools']> {
-  const init = await exchange({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: 'kando', version: '1' } } })
+  const init = await exchange({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: 'antumi', version: '1' } } })
   failed(init, '初始化')
   await notify({ jsonrpc: '2.0', method: 'notifications/initialized' })
   const tools: McpProbe['tools'] = []

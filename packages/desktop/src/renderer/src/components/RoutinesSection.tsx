@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { isScheduleOpen, type Routine, type ScheduledRun } from '@kando/protocol'
+import { isScheduleOpen, type Routine, type ScheduledRun } from '@antumi/protocol'
 import { selectConversation, useCore } from '../core-store'
 import { reasonText } from '../labels'
 import { deleteRoutine, fetchRoutineRuns, isUnread, markRoutineAllSeen, nextRunText, routineAgentLabel, runOutcomeText, runRoutineNow, scheduleText, updateRoutine } from '../routines'

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { SkillRepo } from '@kando/protocol'
+import type { SkillRepo } from '@antumi/protocol'
 import { buildBundle, bundleKey, removeBundlesOf } from './skill-bundle'
 
 const COMMIT_A = 'a'.repeat(40)
@@ -32,7 +32,7 @@ describe('buildBundle', () => {
     }
   }
 
-  beforeEach(() => { root = mkdtempSync(path.join(os.tmpdir(), 'kando-bundle-')) })
+  beforeEach(() => { root = mkdtempSync(path.join(os.tmpdir(), 'antumi-bundle-')) })
   afterEach(() => rmSync(root, { recursive: true, force: true }))
 
   it('copies the chosen skills twice over, as a plugin and as an agents folder, under one manifest', async () => {

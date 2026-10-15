@@ -7,7 +7,7 @@ import { pluginFixture, pluginZip } from './plugin-fixtures'
 
 describe('plugin packages', () => {
   let root: string
-  beforeEach(async () => { root = await mkdtemp(path.join(os.tmpdir(), 'kando-plugin-package-')) })
+  beforeEach(async () => { root = await mkdtemp(path.join(os.tmpdir(), 'antumi-plugin-package-')) })
   afterEach(async () => { vi.unstubAllGlobals(); await rm(root, { recursive: true, force: true }) })
 
   it.each(['../outside.js', '/outside.js', 'C:/outside.js', 'dir/../../outside.js', 'dir\\outside.js', 'dir./outside.js'])('rejects unsafe path %s', (name) => {

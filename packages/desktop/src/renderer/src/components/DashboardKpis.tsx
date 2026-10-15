@@ -1,5 +1,5 @@
 import { coverage, dollars } from '../model-cost-format'
-import type { DashboardDay, DashboardStats } from '@kando/protocol'
+import type { DashboardDay, DashboardStats } from '@antumi/protocol'
 import { acceptance, change, dayTokens, rateChange, type Change } from '../dashboard-model'
 import { compact, durationText, percent } from '../stat-format'
 

@@ -1,4 +1,4 @@
-import { AGENT_KINDS, DASHBOARD_HISTORY_DAYS, type AgentKind, type DashboardDay, type DashboardModel, type DashboardStats, type DashboardTotals } from '@kando/protocol'
+import { AGENT_KINDS, DASHBOARD_HISTORY_DAYS, type AgentKind, type DashboardDay, type DashboardModel, type DashboardStats, type DashboardTotals } from '@antumi/protocol'
 import type { AgentRun } from './agent-run-store'
 import type { TurnRow } from './chat-turn-store'
 import { median } from './median'

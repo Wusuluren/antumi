@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DASHBOARD_HISTORY_DAYS } from '@kando/protocol'
+import { DASHBOARD_HISTORY_DAYS } from '@antumi/protocol'
 import type { AgentRun } from './agent-run-store'
 import type { TurnRow } from './chat-turn-store'
 import { calendarDays, summarizeDashboard } from './dashboard-stats'

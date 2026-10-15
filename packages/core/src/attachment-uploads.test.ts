@@ -14,7 +14,7 @@ describe('AttachmentUploads', () => {
   let uploads: AttachmentUploads
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(os.tmpdir(), 'kando-uploads-'))
+    dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-uploads-'))
     uploads = new AttachmentUploads(new AttachmentStore(dir), 30)
   })
   afterEach(() => {

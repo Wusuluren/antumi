@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import { agentDescriptor, type AgentKind, type ChatImage, type ChatItem, type ChatOption, type ChatQueued, type ChatTurnActivity, type ConversationDoing, type ConversationRequest } from '@kando/protocol'
+import { agentDescriptor, type AgentKind, type ChatImage, type ChatItem, type ChatOption, type ChatQueued, type ChatTurnActivity, type ConversationDoing, type ConversationRequest } from '@antumi/protocol'
 import type { AttachmentStore } from './attachment-store'
 import type { ChatAnswer, ChatDriver, ChatImageFile, ChatOutgoing, ChatRecord, ChatStageOptions, StageMessage } from './chat-driver'
 import { ChatLog, type LoggedRecord } from './chat-log'
 import { clip } from './chat-items'
-import type { KandoAsk, KandoResolution } from './kando-requests'
+import type { AntumiAsk, AntumiResolution } from './antumi-requests'
 import { adapterOf } from './agents'
 import type { SessionHost } from './daemon-client'
 import { LineFramer } from './line-framer'
@@ -384,9 +384,9 @@ export class ChatHost {
     live.lastActive = record.at
   }
 
-  // Kando's own question to the user, put to the running stage as an approval: logged first like
+  // Antumi's own question to the user, put to the running stage as an approval: logged first like
   // everything else, so a replay shows it, and answered through answer() rather than the agent.
-  ask(conversationId: string, ask: KandoAsk): string {
+  ask(conversationId: string, ask: AntumiAsk): string {
     const live = this.running(conversationId)
     const requestId = `kando:${ask.kind}:${randomUUID()}`
     this.record(live, { dir: 'ask', at: this.now(), requestId, ask })
@@ -394,14 +394,14 @@ export class ChatHost {
     return requestId
   }
 
-  answer(conversationId: string, requestId: string, resolution: KandoResolution, message?: string): void {
+  answer(conversationId: string, requestId: string, resolution: AntumiResolution, message?: string): void {
     const live = this.liveOf(conversationId)
     if (!live) return
     this.record(live, { dir: 'answer', at: this.now(), requestId, resolution, ...(message ? { message } : {}) })
     this.flush(live)
   }
 
-  // Kando's questions a replayed stage left open: nothing waits on them any more.
+  // Antumi's questions a replayed stage left open: nothing waits on them any more.
   cancelAsks(conversationId: string): void {
     const live = this.liveOf(conversationId)
     if (!live) return
@@ -701,7 +701,7 @@ export class ChatHost {
     live.watch = null
     // Stopped by the user while it was still silent: what is left to offer is a retry.
     if (watch.noticed && !watch.stalled && watch.firstFrameAt === null) {
-      this.stallNotice(live, watch, 'warning', `${agentDescriptor(live.agent).label} 一直没有回应，这一轮已停止。Kando 不会自动重发，以免重复执行已经开始的操作。`, 'retry')
+      this.stallNotice(live, watch, 'warning', `${agentDescriptor(live.agent).label} 一直没有回应，这一轮已停止。Antumi 不会自动重发，以免重复执行已经开始的操作。`, 'retry')
     }
   }
 
@@ -722,7 +722,7 @@ export class ChatHost {
     if (this.lives.get(live.sessionId) !== live || live.watch !== watch || watch.firstFrameAt !== null) return
     watch.timer = null
     watch.stalled = true
-    this.stallNotice(live, watch, 'warning', `${agentDescriptor(live.agent).label} ${Math.round(timeout / 1000)} 秒没有回应，本轮正在停止。Kando 不会自动重发，以免重复执行已经开始的操作。`, 'retry')
+    this.stallNotice(live, watch, 'warning', `${agentDescriptor(live.agent).label} ${Math.round(timeout / 1000)} 秒没有回应，本轮正在停止。Antumi 不会自动重发，以免重复执行已经开始的操作。`, 'retry')
     this.trace(live, 'first-frame-timeout', watch)
     let frames: unknown[] = []
     try {

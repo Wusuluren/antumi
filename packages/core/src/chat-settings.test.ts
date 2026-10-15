@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { ChatSettings, knowledgeBaseKind } from '@kando/protocol'
+import { ChatSettings, knowledgeBaseKind } from '@antumi/protocol'
 import { ChatSettingsStore } from './chat-settings'
 
 describe('ChatSettingsStore', () => {
@@ -11,7 +11,7 @@ describe('ChatSettingsStore', () => {
   let changes: ChatSettings[]
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-chat-settings-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-chat-settings-'))
     file = path.join(root, 'chat-settings.json')
     changes = []
   })

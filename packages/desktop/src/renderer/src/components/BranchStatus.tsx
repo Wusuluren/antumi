@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import type { ProjectHead } from '@kando/protocol'
+import type { ProjectHead } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { ConversationBranches } from './ConversationBranches'
 import { Popover } from './Popover'

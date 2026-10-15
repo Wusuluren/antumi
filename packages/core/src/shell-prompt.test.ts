@@ -10,19 +10,19 @@ let root: string
 let home: string
 
 beforeEach(() => {
-  root = mkdtempSync(path.join(os.tmpdir(), 'kando-shell-prompt-'))
+  root = mkdtempSync(path.join(os.tmpdir(), 'antumi-shell-prompt-'))
   home = path.join(root, 'home')
   mkdirSync(home)
 })
 afterEach(() => rmSync(root, { recursive: true, force: true }))
 
-// What a login shell started as Kando's terminal ends up with, read from inside it.
+// What a login shell started as Antumi's terminal ends up with, read from inside it.
 async function started(files: Record<string, string>, userZdotdir?: string): Promise<Record<string, string>> {
   const dir = userZdotdir ?? home
   mkdirSync(dir, { recursive: true })
   for (const [name, text] of Object.entries(files)) writeFileSync(path.join(dir, name), text)
-  const env = await new ShellPrompt(path.join(root, 'kando', 'shell')).env(zsh!, userZdotdir ? { ZDOTDIR: userZdotdir } : {})
-  const printed = execFileSync(zsh!, ['-l', '-i', '-c', 'print -r -- "$PROMPT"; print -r -- "${ZDOTDIR-unset}"; print -r -- "${KANDO_USER_ZDOTDIR-unset}"; print -r -- "$READ"'], {
+  const env = await new ShellPrompt(path.join(root, 'antumi', 'shell')).env(zsh!, userZdotdir ? { ZDOTDIR: userZdotdir } : {})
+  const printed = execFileSync(zsh!, ['-l', '-i', '-c', 'print -r -- "$PROMPT"; print -r -- "${ZDOTDIR-unset}"; print -r -- "${ANTUMI_USER_ZDOTDIR-unset}"; print -r -- "$READ"'], {
     env: { PATH: process.env.PATH, HOME: home, ...env },
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore']
@@ -35,8 +35,8 @@ const READS = { '.zshenv': 'READ=env', '.zprofile': 'READ="$READ profile"', '.zs
 
 describe('terminalEnv', () => {
   it('says the terminal takes colour, and turns on ls colours unless the user set them', () => {
-    expect(terminalEnv({})).toEqual({ COLORTERM: 'truecolor', TERM_PROGRAM: 'Kando', CLICOLOR: '1' })
-    expect(terminalEnv({ CLICOLOR: '0' })).toEqual({ COLORTERM: 'truecolor', TERM_PROGRAM: 'Kando' })
+    expect(terminalEnv({})).toEqual({ COLORTERM: 'truecolor', TERM_PROGRAM: 'Antumi', CLICOLOR: '1' })
+    expect(terminalEnv({ CLICOLOR: '0' })).toEqual({ COLORTERM: 'truecolor', TERM_PROGRAM: 'Antumi' })
   })
 })
 
@@ -57,6 +57,6 @@ describe.skipIf(!zsh)('ShellPrompt', () => {
   })
 
   it('is only for zsh', async () => {
-    expect(await new ShellPrompt(path.join(root, 'kando')).env('/bin/bash')).toBeNull()
+    expect(await new ShellPrompt(path.join(root, 'antumi')).env('/bin/bash')).toBeNull()
   })
 })

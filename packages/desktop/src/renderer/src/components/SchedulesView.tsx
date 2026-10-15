@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import type { ScheduledRun } from '@kando/protocol'
+import type { ScheduledRun } from '@antumi/protocol'
 import { selectConversation, selectTask, setAwakeMode, setSchedulesOpen, showView, useCore } from '../core-store'
 import { agentLabel } from '../labels'
 import { cancelSchedule, clearSchedules, openQueueRuns, reorderSchedules, rescheduleRun, runAction, runScheduleNow, scheduleState, TARGET_LABEL, UNATTENDED_LABEL } from '../schedules'

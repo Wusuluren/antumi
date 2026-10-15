@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { quotaVerdict, type ChatItem, type Conversation } from '@kando/protocol'
+import { quotaVerdict, type ChatItem, type Conversation } from '@antumi/protocol'
 import { otherInstalledAgent, useInstalledAgents } from '../installed-agents'
 import { perform, setSchedulesOpen, useCore, useUsageLimitSupported } from '../core-store'
 import { scheduleTime, UNATTENDED_LABEL } from '../schedules'

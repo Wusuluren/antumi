@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { ChatItem } from '@kando/protocol'
+import { ChatItem } from '@antumi/protocol'
 import { copyTextForItem } from './message-copy'
 
 const base = { id: 'item', stageId: 'stage', revision: 1, at: 0 }

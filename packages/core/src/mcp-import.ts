@@ -3,8 +3,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { z } from 'zod'
-import { McpEnvKey, McpHeaderName, McpServerName, type AgentKind, type McpImportCandidate, type McpImportItem, type McpServer, type McpServerInput, type McpTransport } from '@kando/protocol'
-import { readJsonIfExists } from '@kando/protocol/node'
+import { McpEnvKey, McpHeaderName, McpServerName, type AgentKind, type McpImportCandidate, type McpImportItem, type McpServer, type McpServerInput, type McpTransport } from '@antumi/protocol'
+import { readJsonIfExists } from '@antumi/protocol/node'
 import type { ResolvedMcpServer } from './mcp-servers'
 import { Rejection } from './rejection'
 
@@ -30,7 +30,7 @@ function fromJson(source: AgentKind, name: string, raw: unknown): FoundMcpServer
   const parsed = JsonEntry.safeParse(raw)
   if (!parsed.success) return { source, name, transport: null, problem: '读不懂这一项' }
   const entry = parsed.data
-  if (entry.type === 'sse') return { source, name, transport: null, problem: 'Kando 不支持 SSE 传输' }
+  if (entry.type === 'sse') return { source, name, transport: null, problem: 'Antumi 不支持 SSE 传输' }
   if (entry.command) return { source, name, transport: { type: 'stdio', command: entry.command, args: entry.args ?? [], cwd: entry.cwd ?? null, env: entry.env ?? {} }, problem: null }
   if (entry.url) return { source, name, transport: { type: 'http', url: entry.url, headers: entry.headers ?? {} }, problem: null }
   return { source, name, transport: null, problem: '既没有命令也没有地址' }
@@ -62,7 +62,7 @@ function fromCodex(raw: unknown, codexHome: string): FoundMcpServer | null {
   if (transport.type === 'stdio') return { source: 'codex', name, transport: { type: 'stdio', command: transport.command, args: transport.args, cwd: transport.cwd ?? null, env: transport.env ?? {} }, problem: null }
   // A token Codex reads from its own environment has no value here to take.
   if (transport.bearer_token_env_var || Object.keys(transport.env_http_headers ?? {}).length) {
-    return { source: 'codex', name, transport: null, problem: '令牌从环境变量读取，请在 Kando 里手动添加' }
+    return { source: 'codex', name, transport: null, problem: '令牌从环境变量读取，请在 Antumi 里手动添加' }
   }
   return { source: 'codex', name, transport: { type: 'http', url: transport.url, headers: transport.http_headers ?? {} }, problem: null }
 }
@@ -82,7 +82,7 @@ export async function findAgentMcpServers({ env = process.env, homedir = os.home
   return found.flat()
 }
 
-// A name Kando takes: lowercase, digits, - and _, not Kando's own.
+// A name Antumi takes: lowercase, digits, - and _, not Antumi's own.
 export function suggestedMcpName(name: string): string | null {
   const slug = name.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^[-_]+/, '').slice(0, 32).replace(/[-_]+$/, '')
   return McpServerName.safeParse(slug).success ? slug : null

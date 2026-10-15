@@ -18,7 +18,7 @@ const WINDOWS_ASSERTION = `
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
-public static class KandoAwake {
+public static class AntumiAwake {
   [DllImport("kernel32.dll")]
   public static extern uint SetThreadExecutionState(uint flags);
 }
@@ -26,7 +26,7 @@ public static class KandoAwake {
 $continuous = 0x80000000
 $systemRequired = 0x00000001
 while ($true) {
-  [KandoAwake]::SetThreadExecutionState($continuous -bor $systemRequired) | Out-Null
+  [AntumiAwake]::SetThreadExecutionState($continuous -bor $systemRequired) | Out-Null
   Start-Sleep -Seconds 30
 }
 `
@@ -36,7 +36,7 @@ function command(platform: NodeJS.Platform): { file: string; args: string[] } | 
   if (platform === 'linux') {
     return {
       file: 'systemd-inhibit',
-      args: ['--what=sleep:handle-lid-switch', '--why=Kando agent is working', '--mode=block', 'cat']
+      args: ['--what=sleep:handle-lid-switch', '--why=Antumi agent is working', '--mode=block', 'cat']
     }
   }
   if (platform === 'win32') {

@@ -3,7 +3,7 @@ import { defineConfig } from 'electron-vite'
 import type { Plugin } from 'vite'
 
 // Everything lives in devDependencies so electron-vite bundles it (including the
-// TS-source @kando/protocol) instead of externalizing it into a runtime require. playwright-core
+// TS-source @antumi/protocol) instead of externalizing it into a runtime require. playwright-core
 // is the one exception: it reaches for optional native modules (kerberos) the bundler cannot
 // resolve, so it stays a dependency, required at run time from the app's own node_modules. ws
 // asks for two such modules too, inside a try: left unresolved, it does without them.
@@ -14,18 +14,18 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   // Task images arrive from core as blob: URLs, and images a reply names through main's preview
   // protocol; nothing is ever loaded from the web.
-  "img-src 'self' data: blob: kando-preview:",
+  "img-src 'self' data: blob: antumi-preview:",
   "font-src 'self' data:",
   // Copying an attachment fetches its in-memory object URL before writing a PNG to the clipboard.
   'connect-src ws://127.0.0.1:* blob:',
-  // The preview frames in the chat: files the agent asked to show, served by main (kando-preview:).
-  'frame-src kando-preview:'
+  // The preview frames in the chat: files the agent asked to show, served by main (antumi-preview:).
+  'frame-src antumi-preview:'
 ].join('; ')
 
 // Build-only: the dev server injects an inline React Refresh preamble a strict CSP would block.
 function productionCsp(): Plugin {
   return {
-    name: 'kando-production-csp',
+    name: 'antumi-production-csp',
     apply: 'build',
     transformIndexHtml: () => [
       {

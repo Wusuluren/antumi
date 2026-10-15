@@ -1,4 +1,4 @@
-import type { GitCommit } from '@kando/protocol'
+import type { GitCommit } from '@antumi/protocol'
 
 // How many colours the lines cycle through (--graph-1 … in styles.css).
 export const GRAPH_COLORS = 6

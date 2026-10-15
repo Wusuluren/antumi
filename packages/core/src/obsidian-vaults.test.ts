@@ -20,7 +20,7 @@ describe('readObsidianVaults', () => {
   const where = () => ({ platform: 'linux' as const, homedir: home, env: {} })
 
   beforeEach(() => {
-    home = mkdtempSync(path.join(os.tmpdir(), 'kando-obsidian-'))
+    home = mkdtempSync(path.join(os.tmpdir(), 'antumi-obsidian-'))
     mkdirSync(path.dirname(registry()), { recursive: true })
   })
 

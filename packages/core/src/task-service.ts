@@ -38,7 +38,7 @@ import {
   type ScheduleTaskBlocker,
   type TaskStatus,
   type UnattendedMode
-} from '@kando/protocol'
+} from '@antumi/protocol'
 import { agentPrompt, chatPlanPrompt, chatStartPrompt, leaderStartPrompt, type PlanBrief, type PreviousAttempt, type PromptImages } from './agent-prompt'
 import type { AgentRunStore } from './agent-run-store'
 import type { AttachmentStore } from './attachment-store'
@@ -284,7 +284,7 @@ export class TaskService {
         // The title may have changed meanwhile, and its own words are on their way.
         if (words && current?.title === title && current.slug === null) this.changed(this.store.update(id, { slug: words }))
       })
-      .catch((error: unknown) => console.error(`[kando-core] naming the branch of task ${id} failed:`, error instanceof Error ? error.message : error))
+      .catch((error: unknown) => console.error(`[antumi-core] naming the branch of task ${id} failed:`, error instanceof Error ? error.message : error))
       .finally(() => this.naming.delete(key))
     this.naming.set(key, work)
     return work
@@ -745,7 +745,7 @@ export class TaskService {
         this.runs.transition(before, after, (run, endedAt) =>
           after.conversationId && this.chats ? this.chats.runUsage(after.conversationId, run.startedAt, endedAt) : null)
       } catch (error) {
-        console.error('[kando-core] recording the run failed:', error instanceof Error ? error.message : error)
+        console.error('[antumi-core] recording the run failed:', error instanceof Error ? error.message : error)
       }
     }
     return after

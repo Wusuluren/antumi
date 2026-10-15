@@ -21,7 +21,7 @@ import {
   type DiscussionMember,
   type DiscussionMemberStatus,
   type DiscussionPostKind
-} from '@kando/protocol'
+} from '@antumi/protocol'
 import type { ConversationService } from './conversation-service'
 import { holdsPosition, openingPrompt, replyPrompt, roundPrompt, summaryPrompt, topicPrompt } from './discussion-prompt'
 import { Rejection } from './rejection'

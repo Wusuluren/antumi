@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AgentKind } from '@kando/protocol'
+import type { AgentKind } from '@antumi/protocol'
 
 // A conversation's handoff while the user sets it up in its composer: the agent picked to take the
 // work over, and the model and effort it starts in. Nothing happens until the composer sends it.

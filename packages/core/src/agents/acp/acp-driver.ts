@@ -1,9 +1,9 @@
 import { z } from 'zod'
-import { CHAT_PERMISSION_MODES, ChatPermissionMode, takeImageMarkers, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatTurnActivity, type ChatTurnState } from '@kando/protocol'
+import { CHAT_PERMISSION_MODES, ChatPermissionMode, takeImageMarkers, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatTurnActivity, type ChatTurnState } from '@antumi/protocol'
 import { ChatItems, clip } from '../../chat-items'
 import { StageState } from '../../chat-stage-state'
 import { ChatQueue } from '../../chat-queue'
-import { KandoRequests } from '../../kando-requests'
+import { AntumiRequests } from '../../antumi-requests'
 import { markKeptImages, keepImageBlocks, stripImageBytes } from '../../image-frames'
 import { messageText, type ChatAnswer, type ChatDriver, type ChatImageFile, type ChatOutgoing, type ChatRecord, type ChatStageOptions, type StageMessage, type TurnSignal } from '../../chat-driver'
 import { Rejection } from '../../rejection'
@@ -55,7 +55,7 @@ type ThoughtLevel = { id: string; name: string; values: AcpOptionValue[] }
 export class AcpDriver implements ChatDriver {
   readonly items: ChatItems
   private readonly state: StageState
-  private readonly kando: KandoRequests
+  private readonly antumi: AntumiRequests
   private readonly queue = new ChatQueue()
   private readonly requests = new Map<string, Request>()
   private readonly optionErrors = new Map<string, string>()
@@ -97,14 +97,14 @@ export class AcpDriver implements ChatDriver {
   constructor(private readonly dialect: AcpDialect, private readonly stageId: string, private readonly options: ChatStageOptions, private readonly catalogOnly = false) {
     this.items = new ChatItems(stageId)
     this.state = new StageState(this.items)
-    this.kando = new KandoRequests(this.items)
+    this.antumi = new AntumiRequests(this.items)
     // Without a model listing of its own, the session config is all there is to read.
     this.modelsRead = !dialect.models
   }
 
   private get name(): string { return this.dialect.name }
   private id(name: string): string { return `${this.dialect.idPrefix}-${name}` }
-  private kandoMode(mode: string): ChatPermissionMode | null { return CHAT_PERMISSION_MODES.find((kando) => this.dialect.modes[kando] === mode) ?? null }
+  private antumiMode(mode: string): ChatPermissionMode | null { return CHAT_PERMISSION_MODES.find((antumi) => this.dialect.modes[antumi] === mode) ?? null }
   private nativeMode(mode: string): string {
     const known = ChatPermissionMode.safeParse(mode)
     return (known.success ? this.dialect.modes[known.data] : undefined) ?? mode
@@ -116,7 +116,7 @@ export class AcpDriver implements ChatDriver {
   private toolName(update: Pick<z.infer<typeof Update>, 'kind' | 'rawInput'>, old: string | undefined): string {
     return this.dialect.toolName?.(update.rawInput) ?? (update.kind === 'execute' ? 'commandExecution' : update.kind === 'edit' ? 'fileChange' : old ?? update.kind ?? 'tool')
   }
-  // The agent's own requests Kando answers by asking the user.
+  // The agent's own requests Antumi answers by asking the user.
   private asked(method: string | undefined): boolean {
     const requests = this.dialect.requests
     return method === 'session/request_permission' || (method !== undefined && (method === requests?.question || method === requests?.plan?.method))
@@ -136,10 +136,10 @@ export class AcpDriver implements ChatDriver {
       ...(record.id !== undefined ? { id: record.id } : {}),
       ...(record.action !== undefined ? { action: record.action } : {})
     })
-    else if (record.dir === 'ask' || record.dir === 'answer') this.kando.apply(record)
+    else if (record.dir === 'ask' || record.dir === 'answer') this.antumi.apply(record)
     else if (record.dir === 'exit') {
       this.exited = true
-      this.kando.cancelAll(record.at)
+      this.antumi.cancelAll(record.at)
       this.cancelPending(record.at)
       this.finish(this.stopping ? 'interrupted' : 'failed', this.startError ?? (record.stderr.trim() || `${this.name} 进程已退出`), record.at)
     }
@@ -151,7 +151,7 @@ export class AcpDriver implements ChatDriver {
     if (this.exited) return []
     const frames = [...this.owed.values()]
     if (this.startError) return frames
-    if (!this.initSent) return [...frames, rpc(this.id('init'), 'initialize', { protocolVersion: 1, clientInfo: { name: 'kando', version: '1' }, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false, ...(this.dialect.clientMeta ? { _meta: this.dialect.clientMeta } : {}) } })]
+    if (!this.initSent) return [...frames, rpc(this.id('init'), 'initialize', { protocolVersion: 1, clientInfo: { name: 'antumi', version: '1' }, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false, ...(this.dialect.clientMeta ? { _meta: this.dialect.clientMeta } : {}) } })]
     if (!this.initialized) return frames
     if (this.auth && !this.authenticated) return this.authSent ? frames : [...frames, rpc(this.id('auth'), 'authenticate', { methodId: this.dialect.authMethod })]
     const listing = this.dialect.models
@@ -198,7 +198,7 @@ export class AcpDriver implements ChatDriver {
   sessionLost(): boolean { return this.lost }
   activeTurnRef(): string | null { return this.turn?.ref ?? null }
 
-  activity(): ChatTurnActivity { return this.pending.size || this.kando.pending ? 'awaiting' : this.turn || this.changing() ? 'running' : 'idle' }
+  activity(): ChatTurnActivity { return this.pending.size || this.antumi.pending ? 'awaiting' : this.turn || this.changing() ? 'running' : 'idle' }
   providerSessionId(): string | null { return this.session }
   canSteer(): boolean { return false }
   steer(): ChatOutgoing { throw new Rejection('chat-no-steer', `${this.name} ACP 不支持向正在执行的回合追加消息`) }
@@ -534,8 +534,8 @@ export class AcpDriver implements ChatDriver {
     const model = this.config.find((entry) => entry.category === 'model')
     const effort = this.config.find((entry) => entry.category === 'thought_level')
     this.state.set({
-      permissionMode: mode ? this.kandoMode(mode.currentValue) : null,
-      permissionModes: mode ? valuesOf(mode).flatMap((entry) => { const mapped = this.kandoMode(entry.value); return mapped && (!this.options.planOnly || mapped === 'plan') && (!this.options.readOnly || mapped === 'readOnly') ? [mapped] : [] }) : [],
+      permissionMode: mode ? this.antumiMode(mode.currentValue) : null,
+      permissionModes: mode ? valuesOf(mode).flatMap((entry) => { const mapped = this.antumiMode(entry.value); return mapped && (!this.options.planOnly || mapped === 'plan') && (!this.options.readOnly || mapped === 'readOnly') ? [mapped] : [] }) : [],
       model: model?.currentValue ?? null,
       models: model ? valuesOf(model).map((entry) => ({ id: entry.value, label: entry.name, description: entry.description ?? null, efforts: this.models.find((one) => one.id === entry.value)?.efforts ?? (entry.value === model.currentValue && effort ? valuesOf(effort).map((one) => one.value) : []), isDefault: entry.value === model.currentValue })) : [],
       effort: effort?.currentValue ?? null
@@ -654,7 +654,7 @@ export class AcpDriver implements ChatDriver {
       this.owed.set(id, result(frame.id, {})); return
     }
     if (!this.asked(frame.method)) {
-      this.owed.set(id, { jsonrpc: '2.0', id: frame.id, error: { code: -32601, message: 'Kando does not handle this request' } })
+      this.owed.set(id, { jsonrpc: '2.0', id: frame.id, error: { code: -32601, message: 'Antumi does not handle this request' } })
       return
     }
     const scope = z.looseObject({ sessionId: z.string().optional() }).safeParse(frame.params).data?.sessionId
@@ -667,7 +667,7 @@ export class AcpDriver implements ChatDriver {
       if (request.success) {
         const itemId = `a:${id}`
         const tool = request.data.toolCall
-        // A subagent's call reaches Kando only as this request, never with its result: a card made
+        // A subagent's call reaches Antumi only as this request, never with its result: a card made
         // from it would run until the turn ends. Its approval stands alone, as Claude's does.
         const announced = tool.toolCallId !== undefined && this.items.get(`tool:${tool.toolCallId}`)?.kind === 'tool'
         if (announced) this.tool({ ...tool, sessionUpdate: 'tool_call' }, null, at)
@@ -698,7 +698,7 @@ export class AcpDriver implements ChatDriver {
         return
       }
     }
-    this.owed.set(id, { jsonrpc: '2.0', id: frame.id, error: { code: this.asked(frame.method) ? -32602 : -32601, message: 'Kando does not handle this request or its parameters' } })
+    this.owed.set(id, { jsonrpc: '2.0', id: frame.id, error: { code: this.asked(frame.method) ? -32602 : -32601, message: 'Antumi does not handle this request or its parameters' } })
   }
 
   private cancelPending(at: number): void {

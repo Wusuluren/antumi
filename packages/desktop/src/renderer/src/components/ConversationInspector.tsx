@@ -2,7 +2,7 @@ import { HelperPanel } from './HelperPanel'
 import { useHelper, useHelperSupported } from '../helper-conversations'
 import { GitInspector } from './GitInspector'
 import { useEffect, useState } from 'react'
-import { openTodoCount, type Conversation, type FolderChanges } from '@kando/protocol'
+import { openTodoCount, type Conversation, type FolderChanges } from '@antumi/protocol'
 import { pathShortener, usePlans } from '../chat-state'
 import { clearInspectorFile, setConversationInspectorOpen, setConversationInspectorTab, showConversationPlan, showInspectorFile, useCore } from '../core-store'
 import { ProjectGroups, ProjectRow, useProjectHeads } from './BranchStatus'
@@ -60,7 +60,7 @@ function ChangeList({ changes, onOpen }: { changes: FolderChanges[] | null; onOp
 }
 
 // Beside the transcript, opened by the user or by a plan the agent proposes. A conversation in
-// Kando's own folder has no changes of the user's to show, only its plans. With wire set, the
+// Antumi's own folder has no changes of the user's to show, only its plans. With wire set, the
 // raw traffic with its agent too (settings → 调试).
 export function ConversationInspector({ conversation, widthRatio, onWidthRatioChange, wire = false }: {
   conversation: Conversation

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { UsageWindow } from '@kando/protocol'
+import type { UsageWindow } from '@antumi/protocol'
 import type { Preferences } from './preferences'
 
 // How usage numbers read wherever they show: the status bar, and next to an agent being picked.

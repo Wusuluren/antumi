@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 import type { ChatRecord, ChatStageOptions } from '../../chat-driver'
 import { parseChatRecord } from '../../chat-log'
 import { CodexAppServer, commandDescription, unwrapShell } from './codex-app-server'
@@ -265,7 +265,7 @@ describe('CodexAppServer questions asked in passing', () => {
 })
 
 describe('CodexAppServer state', () => {
-  // gpt-6-luna at low effort, then medium effort with the untrusted policy (Kando's ask).
+  // gpt-6-luna at low effort, then medium effort with the untrusted policy (Antumi's ask).
   const records = fixture('codex-options.jsonl')
   const stateOf = (driver: CodexAppServer) => ofKind(driver.items.list(), 'state')[0]
 
@@ -604,7 +604,7 @@ describe('CodexAppServer commands', () => {
     driver.apply({ dir: 'out', at, frame: driver.send('go').wire, ref: 'ref-1' })
     const execpolicy = { acceptWithExecpolicyAmendment: { execpolicy_amendment: ['cat', 'plan.md'] } }
     driver.apply({ dir: 'in', at, frame: { id: 3, method: 'item/commandExecution/requestApproval', params: { itemId: 'exec-3', command: "/bin/zsh -lc 'cat plan.md'", availableDecisions: ['accept', execpolicy, 'cancel'] } } })
-    // Codex proposes the command word for word; Kando sends its own short prefix in its place.
+    // Codex proposes the command word for word; Antumi sends its own short prefix in its place.
     const ours = { acceptWithExecpolicyAmendment: { execpolicy_amendment: ['cat'] } }
     expect(driver.items.get('a:3')).toMatchObject({
       decisions: ['allow', 'allowForSession', 'deny'],
@@ -704,7 +704,7 @@ describe('CodexAppServer commands', () => {
     expect(unwrapShell('git status')).toBe('git status')
   })
 
-  it('puts a command in words from Codex\'s own reading of it, when every part is one Kando knows', () => {
+  it('puts a command in words from Codex\'s own reading of it, when every part is one Antumi knows', () => {
     const read = (name: string) => ({ type: 'read', name, path: `/work/repo/${name}` })
     expect(commandDescription([read('a.ts'), read('b.ts')])).toBe('读取 a.ts、b.ts')
     expect(commandDescription([{ type: 'listFiles', path: 'src' }, read('a.ts')])).toBe('列出 src 里的文件，读取 a.ts')
@@ -745,7 +745,7 @@ describe('CodexAppServer commands', () => {
 
 describe('CodexAppServer plan mode, as recorded', () => {
   // Codex 0.156.1: a plan-mode turn that ended with a plan, then the turn that carried it out with
-  // edits accepted, as Kando logged them.
+  // edits accepted, as Antumi logged them.
   const records = fixture('codex-plan.jsonl')
 
   it('shows the plan as one approval, answered by the turn that carried it out', () => {

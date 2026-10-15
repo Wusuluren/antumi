@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { isCompaction } from './chat-notices'
 import { diffCounts, isSubagent } from './chat-tools'
 import { browserOperation } from './browser-activity'
-import { parseHandoffMessage, type AgentKind, type ChatDiff, type ChatItem, type ChatQuestion, type ChatTodo, type ConversationStage, browserToolKind, isPlanApproval, isPreviewTool, toolImagePath, terminalToolKind } from '@kando/protocol'
+import { parseHandoffMessage, type AgentKind, type ChatDiff, type ChatItem, type ChatQuestion, type ChatTodo, type ConversationStage, browserToolKind, isPlanApproval, isPreviewTool, toolImagePath, terminalToolKind } from '@antumi/protocol'
 
 // A conversation's chat items as this window holds them, in the order core first saw them;
 // `before` pages further back, null when nothing older is left.
@@ -144,7 +144,7 @@ export function dropChat(conversationId: string): void {
   }, true)
 }
 
-// What the user said in a message: of the one that starts a handoff, only their note, as Kando's
+// What the user said in a message: of the one that starts a handoff, only their note, as Antumi's
 // instruction to read the handoff file is its own.
 export function saidText(text: string): string {
   return parseHandoffMessage(text)?.note ?? text

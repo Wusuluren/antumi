@@ -1,6 +1,6 @@
 import { createInterface } from 'node:readline'
 import { z } from 'zod'
-import { PLUGIN_PROTOCOL_VERSION, pluginSchemas } from '@kando/protocol'
+import { PLUGIN_PROTOCOL_VERSION, pluginSchemas } from '@antumi/protocol'
 import manifest from '../manifest.json' with { type: 'json' }
 import { githubProvider } from './github-provider'
 import { sourceProblem } from './source-error'

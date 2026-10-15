@@ -1,10 +1,10 @@
 import { parseArgs } from 'node:util'
-import { RpcError } from '@kando/protocol'
+import { RpcError } from '@antumi/protocol'
 import { serveMcp } from './mcp-server'
-import { kandoHome, writePrivateJson } from '@kando/protocol/node'
+import { antumiHome, writePrivateJson } from '@antumi/protocol/node'
 import { runUserMcp } from './user-mcp-launch'
 
-// Kando's MCP server, a process of its own that an agent starts over stdio: core configures it
+// Antumi's MCP server, a process of its own that an agent starts over stdio: core configures it
 // for every chat (see mcpCommand), and it reaches core over RPC like any other client.
 const { values } = parseArgs({
   args: process.argv.slice(2),
@@ -22,10 +22,10 @@ const { values } = parseArgs({
 // Speaks MCP on stdout, so nothing else may print there.
 const readyFile = values['ready-file']
 const served = values.run
-  ? runUserMcp(values.home ?? kandoHome(), values.run)
+  ? runUserMcp(values.home ?? antumiHome(), values.run)
   : serveMcp(values.home, values.conversation, values['plan-only'], readyFile ? () => writePrivateJson(readyFile, { ready: true }) : undefined, values.history)
 served.catch((error: unknown) => {
   const reason = error instanceof RpcError && error.reason ? ` (${error.reason})` : ''
-  console.error(`kando mcp: ${error instanceof Error ? error.message : String(error)}${reason}`)
+  console.error(`antumi mcp: ${error instanceof Error ? error.message : String(error)}${reason}`)
   process.exitCode = 1
 })

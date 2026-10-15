@@ -17,7 +17,7 @@ import {
   type ScheduleTaskBlocker,
   type Task,
   type UnattendedMode
-} from '@kando/protocol'
+} from '@antumi/protocol'
 import { CONTINUE_TEXT } from './agent-prompt'
 import { checkUnattended } from './agents'
 import type { ConversationService } from './conversation-service'

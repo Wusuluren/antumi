@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url'
 
-// How an agent starts Kando's MCP server (mcp-main.ts). From source it goes through the
+// How an agent starts Antumi's MCP server (mcp-main.ts). From source it goes through the
 // workspace's tsx; packaged, the launcher names the bundled mcp.mjs, run by the Electron binary as
 // plain Node. The env wrapper states the flag outright because an agent's environment lacks it
 // (POSIX only, like the dmg).

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
-import { openTodoCount, type TodoGroup } from '@kando/protocol'
+import { openTodoCount, type TodoGroup } from '@antumi/protocol'
 import { perform, useCore } from './core-store'
 
 // Each conversation's to-dos as core last told: read once a conversation's panel wants them, then

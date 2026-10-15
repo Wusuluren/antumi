@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AgentKind, GitTarget } from '@kando/protocol'
+import type { AgentKind, GitTarget } from '@antumi/protocol'
 import { perform, useCommitMessageSupported, useCore, type CoreState } from './core-store'
 import { usePreferences } from './preferences'
 

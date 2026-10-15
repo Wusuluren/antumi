@@ -1,5 +1,5 @@
-import { isHelper } from '@kando/protocol'
-import type { AgentKind, Conversation, Routine, ScheduledRun, SquadRun, Task } from '@kando/protocol'
+import { isHelper } from '@antumi/protocol'
+import type { AgentKind, Conversation, Routine, ScheduledRun, SquadRun, Task } from '@antumi/protocol'
 import { actionableItems, type ActionableItem, type ActionableReason, type Snapshot } from './attention'
 import { runOutcomeText } from './routines'
 import { openQueueRuns, scheduleState, scheduleTime, TARGET_LABEL } from './schedules'

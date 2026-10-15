@@ -1,7 +1,7 @@
-import type { ChatCommand } from '@kando/protocol'
+import type { ChatCommand } from '@antumi/protocol'
 import { commandOf, offeredCommand } from '../../agent-commands'
 
-// The app server expands no slash command: Kando offers the TUI's /compact and /review as the
+// The app server expands no slash command: Antumi offers the TUI's /compact and /review as the
 // methods behind them, and each skill as a message that carries it.
 
 export type CodexSkill = { name: string; description: string; path: string }

@@ -1,6 +1,6 @@
-import { knowledgeBaseKind, type KnowledgeBase, type RecommendedSkillRepo, type SkillRef } from '@kando/protocol'
+import { knowledgeBaseKind, type KnowledgeBase, type RecommendedSkillRepo, type SkillRef } from '@antumi/protocol'
 
-// A short list, not a marketplace: what Kando's own features build on, and what it stands behind.
+// A short list, not a marketplace: what Antumi's own features build on, and what it stands behind.
 export const RECOMMENDED_SKILL_REPOS: readonly RecommendedSkillRepo[] = [
   {
     url: 'https://github.com/kepano/obsidian-skills',

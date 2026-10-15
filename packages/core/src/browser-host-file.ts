@@ -1,6 +1,6 @@
 import { watch, type FSWatcher } from 'node:fs'
 import path from 'node:path'
-import { BrowserHostEndpoint, readJsonIfExists, type BrowserHostEndpoint as Endpoint } from '@kando/protocol/node'
+import { BrowserHostEndpoint, readJsonIfExists, type BrowserHostEndpoint as Endpoint } from '@antumi/protocol/node'
 
 // The app looks again this often for a host file a watcher missed (a home on a network mount).
 const POLL_MS = 2_000

@@ -1,4 +1,4 @@
-import type { ChatCatalog } from '@kando/protocol'
+import type { ChatCatalog } from '@antumi/protocol'
 import { resolveModel, type ModelChoice } from '../agent-models'
 import { ChatModelPicker, ChatPicker, type PickerSize } from './ChatPicker'
 import { effortLabel } from './ChatOptionsBar'

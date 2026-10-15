@@ -21,7 +21,7 @@ export async function startTabProxy(webContents: WebContents): Promise<TabProxy>
   // Playwright takes a page's target to be its main frame, so the id must be Chromium's own.
   const real = await debug.sendCommand('Target.getTargetInfo')
   const targetId: string = real.targetInfo.targetId
-  const rootSession = `kando-tab-${webContents.id}`
+  const rootSession = `antumi-tab-${webContents.id}`
   const token = randomBytes(16).toString('hex')
   let client: WebSocket | null = null
   const send = (frame: unknown) => {
@@ -34,7 +34,7 @@ export async function startTabProxy(webContents: WebContents): Promise<TabProxy>
     url: webContents.getURL(),
     attached: true,
     canAccessOpener: false,
-    browserContextId: 'kando'
+    browserContextId: 'antumi'
   })
   const onMessage = (_event: unknown, method: string, params: unknown, sessionId?: string) => {
     send({ method, params, sessionId: sessionId || rootSession })
@@ -65,7 +65,7 @@ export async function startTabProxy(webContents: WebContents): Promise<TabProxy>
         send({ id, result: {} })
         return
       default:
-        send({ id, error: { code: -32601, message: `${method} is not available on a Kando tab` } })
+        send({ id, error: { code: -32601, message: `${method} is not available on a Antumi tab` } })
     }
   }
 

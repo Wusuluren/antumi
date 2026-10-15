@@ -11,7 +11,7 @@ describe('ProjectRegistry', () => {
   let projects: ProjectRegistry
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(os.tmpdir(), 'kando-projects-'))
+    dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-projects-'))
     const file = path.join(dir, 'kando.db')
     // Creates the table the registry reads.
     tasks = new TaskStore(file)

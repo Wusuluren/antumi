@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'vitest'
-import type { ResolvedFile } from '@kando/protocol'
+import type { ResolvedFile } from '@antumi/protocol'
 import { closedFile, EMPTY_FILE_TABS, forgetFileTabs, openedFile, saveFileScroll, updateFileTabs, useFileTabs } from './file-tabs'
 
 const file: ResolvedFile = { path: '/project/a.ts', root: '/project', relative: 'a.ts', kind: 'file' }

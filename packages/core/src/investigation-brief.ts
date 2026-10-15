@@ -1,4 +1,4 @@
-import { untrustedSource, type SnapshotImagePath, type SourceSnapshot, type TaskSource } from '@kando/protocol'
+import { untrustedSource, type SnapshotImagePath, type SourceSnapshot, type TaskSource } from '@antumi/protocol'
 
 // What a conversation opened from an inbox issue reads first: the issue, fenced off as the
 // tracker's words, and what to do with it. It starts read-only, so it stops at a finding and a

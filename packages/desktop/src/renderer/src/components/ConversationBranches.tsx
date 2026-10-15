@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { checkSwitchBranch, type CommitPushResult, type CommitResult, type Conversation, type GitTarget, type ProjectBranches, type ProjectHead, type PushResult } from '@kando/protocol'
+import { checkSwitchBranch, type CommitPushResult, type CommitResult, type Conversation, type GitTarget, type ProjectBranches, type ProjectHead, type PushResult } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
 import { reasonText } from '../labels'
 import { shortRef } from '../task-starts'

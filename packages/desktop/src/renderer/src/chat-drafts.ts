@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ChatImage } from '@kando/protocol'
+import type { ChatImage } from '@antumi/protocol'
 
 // A message left in a chat's input for the user to go on from, by something other than their
 // typing: a fork before one of their messages puts that message here, unsent. Taken once, by the

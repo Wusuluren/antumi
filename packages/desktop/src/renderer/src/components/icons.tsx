@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import type { AgentKind } from '@kando/protocol'
+import type { AgentKind } from '@antumi/protocol'
 import cursorMark from '../assets/cursor.svg'
 
 // Line icons on a 20px grid; they take the button's text color.

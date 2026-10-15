@@ -1,4 +1,4 @@
-import { MAX_ATTACHMENT_BYTES, MAX_TASK_IMAGES } from '@kando/protocol'
+import { MAX_ATTACHMENT_BYTES, MAX_TASK_IMAGES } from '@antumi/protocol'
 import { JiraClient, normalizeSite, type JiraApi, type JiraAttachment, type JiraCredentials, type JiraIssue } from './jira-client'
 import { issueSnapshot, isImageAttachment, type ImageOutcome } from './jira-snapshot'
 import { SourceError } from './source-error'
@@ -42,7 +42,7 @@ async function downloadImages(api: JiraApi, issue: JiraIssue, signal: AbortSigna
       outcomes.set(file.id, 'saved')
     } catch (error) {
       // A token without read:attachment:jira gets 403 here; the issue still imports.
-      console.error(`[kando-core] image ${file.filename} of ${issue.key} not fetched:`, error instanceof Error ? error.message : error)
+      console.error(`[antumi-core] image ${file.filename} of ${issue.key} not fetched:`, error instanceof Error ? error.message : error)
     }
   })
   const images = wanted.flatMap((file) => {

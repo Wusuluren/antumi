@@ -16,7 +16,7 @@ import {
   type ChatTurnActivity,
   type Task,
   type TaskStatus
-} from '@kando/protocol'
+} from '@antumi/protocol'
 import { openChatWhileStarting, perform, selectTask, setInspectorOpen, setSchedulesOpen, showTaskChanges, showView, updateTask, useChatOptionsSupported, useCore, useSchedulesSupported, useTaskCancelSupported, useTaskLaunchSupported, useTaskRedoInPlace, useWireLogShown, useWorktreesSupported, type TaskView } from '../core-store'
 import { resolveModel, useAgentCatalog } from '../agent-models'
 import { reasonText, STATUS_HINT, STATUS_LABEL } from '../labels'

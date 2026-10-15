@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
-import type { BrowserTab, BrowserViewport } from '@kando/protocol'
+import type { BrowserTab, BrowserViewport } from '@antumi/protocol'
 import { ALL_TABS, focusBrowserTab, selectBrowserTab, useBrowserTabs, useWatchAllBrowser } from '../browser-state'
 import { perform, useCore } from '../core-store'
 import { canShowNativeBrowser, onBrowserFocused, reportBrowserBounds, showNativeBrowserTab } from '../desktop-bridge'
@@ -125,7 +125,7 @@ function NativeStage({ tab }: { tab: BrowserTab }) {
   }, [tab.id, held])
   return (
     <div ref={stage} className="browser-stage" data-held={held ? '' : undefined}>
-      {!canShowNativeBrowser() && <span className="browser-stage-note">页面在 Kando 应用里显示</span>}
+      {!canShowNativeBrowser() && <span className="browser-stage-note">页面在 Antumi 应用里显示</span>}
       {held && frame && <div className="browser-stage-frame" style={{ width: frame.width, height: frame.height }} />}
     </div>
   )
@@ -173,7 +173,7 @@ export function BrowserPanel() {
   if (status && status.state !== 'ready' && tabs.length === 0) {
     return (
       <div className="browser-empty">
-        {status.state === 'app-closed' && <p>{status.message ?? '浏览器在 Kando 应用里运行，core 还没有连上它。'}</p>}
+        {status.state === 'app-closed' && <p>{status.message ?? '浏览器在 Antumi 应用里运行，core 还没有连上它。'}</p>}
         {status.state === 'starting' && <p><Spinner label="正在连接" /> 正在连接浏览器…</p>}
         {status.state === 'error' && <p className="browser-error">浏览器出了问题：{status.message ?? '未知错误'}</p>}
       </div>

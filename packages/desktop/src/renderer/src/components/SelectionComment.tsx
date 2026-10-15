@@ -32,7 +32,7 @@ function mark(name: string, ranges: readonly Range[]): void {
 // Text selected in one region of the container (a plan, a reply) opens a box over it to say
 // something about it. The comment joins the chat's quotes, as a quote the user picked would, and
 // goes on from there the same way; the passages commented on stay marked while their quotes wait.
-// name: which highlights it draws (kando-<name>-draft, kando-<name>-comments; see styles.css).
+// name: which highlights it draws (antumi-<name>-draft, antumi-<name>-comments; see styles.css).
 // focus: the box takes the focus as it opens, where a selection is made to comment on; elsewhere it
 // waits for the user to type, so a selection made to copy still copies. A right-click closes the box
 // for the menu; copyMenu: that menu is this one, copying the passage, for a box that took the focus
@@ -58,8 +58,8 @@ export function SelectionComment({ conversationId, container, region, sourceOf, 
   const input = useRef<HTMLInputElement>(null)
   const closeMenu = useCallback(() => setMenu(null), [])
   const quotes = useQuotes(conversationId)
-  const draftName = `kando-${name}-draft`
-  const commentedName = `kando-${name}-comments`
+  const draftName = `antumi-${name}-draft`
+  const commentedName = `antumi-${name}-comments`
 
   // A new selection opens the box; with the box open, the focus in it must not close it.
   useEffect(() => {

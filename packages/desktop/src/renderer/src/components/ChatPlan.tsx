@@ -16,7 +16,7 @@ import { ContextMenu, type MenuPoint } from './ContextMenu'
 import { CheckIcon, ChevronDownIcon, CopyIcon, DownloadIcon } from './icons'
 import { createSchedule } from '../schedules'
 import { modeLabel } from './ChatOptionsBar'
-import { agentDescriptor, type AgentKind } from '@kando/protocol'
+import { agentDescriptor, type AgentKind } from '@antumi/protocol'
 
 // Approving later, once the quota is back: an empty scheduled message approves the plan waiting.
 function SchedulePlanButton({ conversationId }: { conversationId: string }) {

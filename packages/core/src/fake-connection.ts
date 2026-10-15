@@ -1,4 +1,4 @@
-import { LEGACY_USAGE_WINDOW_KINDS, rpcNotificationSchemas, type RpcNotificationName, type RpcNotificationParams } from '@kando/protocol'
+import { LEGACY_USAGE_WINDOW_KINDS, rpcNotificationSchemas, type RpcNotificationName, type RpcNotificationParams } from '@antumi/protocol'
 import type { FlowOwner } from './source-login-flow'
 
 // A client connection for tests: records what core sends it, and can be closed.

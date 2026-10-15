@@ -1,4 +1,4 @@
-import { SQUAD_TOOL_NAMES, HISTORY_TOOLS, historyToolName, SHOW_PREVIEW_TOOL, terminalToolName, TODO_TOOLS, todoToolName } from '@kando/protocol'
+import { SQUAD_TOOL_NAMES, HISTORY_TOOLS, historyToolName, SHOW_PREVIEW_TOOL, terminalToolName, TODO_TOOLS, todoToolName } from '@antumi/protocol'
 import { BROWSER_READ_TOOLS, type AgentCommand } from '../../agent-command'
 import { knowledgeBaseNote } from '../../agent-prompt'
 import type { AgentLaunch } from '../agent-adapter'
@@ -47,7 +47,7 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     ...(knowledgeBase && !knowledgeBase.write ? claudeReadRules([`${knowledgeBase.path}/**`]) : []),
     // Showing a file the agent wrote asks nothing of the user, nor does reading the browser's
     // page; opening and acting on a page go through Claude's own confirmation. (Codex asks
-    // nothing for Kando's MCP tools, so for it the site gate in core is the only check.)
+    // nothing for Antumi's MCP tools, so for it the site gate in core is the only check.)
     // Reading or stopping a terminal the conversation opened itself asks nothing either; running
     // a command in one is the agent's to ask about, under the mode the user set. Reading the user's
     // history, which only reads and is there only where the user allows it, asks nothing.
@@ -71,13 +71,13 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     // A vault it may write is a working folder, edits in it going by the mode as a project's do.
     ...(knowledgeBase?.write ? ['--add-dir', knowledgeBase.path] : []),
     ...(knowledgeBase ? ['--append-system-prompt', knowledgeBaseNote(knowledgeBase)] : []),
-    // Kando's skills as a plugin: read, not a working folder.
+    // Antumi's skills as a plugin: read, not a working folder.
     ...(skills ? ['--plugin-dir', skills.dir] : []),
     ...(denials.length ? ['--disallowedTools', denials.join(',')] : []),
     ...(reads.length ? ['--allowedTools', reads.join(',')] : []),
     // Beside the user's own MCP configuration, which Claude still loads: not --strict-mcp-config.
     ...(Object.keys(servers).length ? ['--mcp-config', JSON.stringify({ mcpServers: servers })] : []),
-    // Claude in Chrome, either way, so Kando's setting wins over Claude Code's own default.
+    // Claude in Chrome, either way, so Antumi's setting wins over Claude Code's own default.
     ...(userBrowser === undefined ? [] : [userBrowser ? '--chrome' : '--no-chrome'])
   ] }
 }

@@ -5,10 +5,10 @@ import {
   createLineDecoder,
   daemonSchemas,
   isDaemonMethod,
-  kandoPaths,
+  antumiPaths,
   type DaemonMethod,
   type DaemonResult
-} from '@kando/protocol/node'
+} from '@antumi/protocol/node'
 import packageJson from '../package.json' with { type: 'json' }
 import { claimEndpoint } from './endpoint-claim'
 import { createSessionHost } from './session-host'
@@ -19,7 +19,7 @@ import { AwakeService } from './awake-service'
 // an agent starts into a Node interpreter.
 delete process.env.ELECTRON_RUN_AS_NODE
 
-const paths = kandoPaths()
+const paths = antumiPaths()
 await mkdir(paths.home, { recursive: true, mode: 0o700 })
 await claimEndpoint(paths.daemonSocket)
 
@@ -66,7 +66,7 @@ server.listen(paths.daemonSocket, async () => {
   if (process.platform !== 'win32') {
     await chmod(paths.daemonSocket, 0o600)
   }
-  console.log(`[kando-daemon] listening on ${paths.daemonSocket}`)
+  console.log(`[antumi-daemon] listening on ${paths.daemonSocket}`)
 })
 
 function shutdown(): void {

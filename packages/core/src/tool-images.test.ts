@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { imageMarker } from '@kando/protocol'
+import { imageMarker } from '@antumi/protocol'
 import type { ChatRecord } from './chat-driver'
 import { ClaudeStream } from './agents/claude/claude-stream'
 import { CodexAppServer } from './agents/codex/codex-app-server'

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { checkArchiveDiscussion, type Discussion } from '@kando/protocol'
+import { checkArchiveDiscussion, type Discussion } from '@antumi/protocol'
 import { openDiscussionDraft, selectDiscussion, useCore, useDiscussionArchiveSupported, useDiscussionsSupported } from '../core-store'
 import { archiveDiscussion, deleteDiscussion, discussionProgress, renameDiscussion, setDiscussionPinned } from '../discussions'
 import { agentLabel } from '../labels'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { RpcConnection } from '@kando/protocol'
+import type { RpcConnection } from '@antumi/protocol'
 import { clipMiddle, historyToolsOverCore, parseWhen } from './mcp-history-tools'
 import { createMcpHandler } from './mcp-server'
 
@@ -9,7 +9,7 @@ const OLD = '00000000-0000-4000-8000-000000000002'
 const TASK = '00000000-0000-4000-8000-000000000003'
 const TASK_CHAT = '00000000-0000-4000-8000-000000000004'
 
-const conversation = (id: string, title: string, at: number, agent = 'claude') => ({ id, title, agent, projectPaths: ['/code/kando'], createdAt: at, updatedAt: at, archivedAt: null })
+const conversation = (id: string, title: string, at: number, agent = 'claude') => ({ id, title, agent, projectPaths: ['/code/antumi'], createdAt: at, updatedAt: at, archivedAt: null })
 const message = (conversationId: string, role: 'user' | 'assistant', text: string, at: number, agent = 'codex') => ({ conversationId, role, text, agent, createdAt: at })
 
 // A core that answers each method as the test says.
@@ -37,7 +37,7 @@ describe('history tools', () => {
   it('lists what had activity in a stretch, any agent\'s, newest first, the asking one marked', async () => {
     const { text } = await tools.call('list', { since: '2026-10-05', until: '2026-10-11' })
     expect(text).toContain('现在是 2026-10-10 12:00。共 2 条：')
-    expect(text.indexOf(`会话 ${CHAT}「修登录页」· Codex · kando · 就是这条会话`)).toBeLessThan(text.indexOf(`任务 ${TASK}「加缓存」· 已完成 · Claude Code · api`))
+    expect(text.indexOf(`会话 ${CHAT}「修登录页」· Codex · antumi · 就是这条会话`)).toBeLessThan(text.indexOf(`任务 ${TASK}「加缓存」· 已完成 · Claude Code · api`))
     expect(text).not.toContain('上个月的事')
     expect((await tools.call('list', { query: 'redis' })).text).toContain(`共 1 条：\n- 任务 ${TASK}`)
     expect((await tools.call('list', { since: 'last week' })).isError).toBe(true)

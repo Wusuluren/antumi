@@ -1,9 +1,9 @@
 import { z } from 'zod'
 import { AgentKind } from './agent'
 
-// MCP servers the user keeps in Kando and core hands to the agents they pick at each start, beside
-// Kando's own. Nothing goes into an agent's own configuration. `kando` is Kando's own server's
-// name in every agent, which tool names are read by (kandoToolName), so no user server takes it.
+// MCP servers the user keeps in Antumi and core hands to the agents they pick at each start, beside
+// Antumi's own. Nothing goes into an agent's own configuration. `antumi` is Antumi's own server's
+// name in every agent, which tool names are read by (antumiToolName), so no user server takes it.
 export const RESERVED_MCP_SERVER_NAME = 'kando'
 export const McpServerName = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,31}$/).refine((name) => name !== RESERVED_MCP_SERVER_NAME)
 export type McpServerName = z.infer<typeof McpServerName>
@@ -62,8 +62,8 @@ export const McpProbe = z.object({
 })
 export type McpProbe = z.infer<typeof McpProbe>
 
-// A server one of the agents is set up with in its own configuration, as Kando could take it in:
-// the name Kando would give it, and, where it cannot, why not. Its secret values stay where they
+// A server one of the agents is set up with in its own configuration, as Antumi could take it in:
+// the name Antumi would give it, and, where it cannot, why not. Its secret values stay where they
 // are until it is imported, which core reads again.
 export const McpImportSource = AgentKind
 export const McpImportCandidate = z.object({

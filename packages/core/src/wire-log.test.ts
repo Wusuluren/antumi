@@ -2,7 +2,7 @@ import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSyn
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { WireEntry } from '@kando/protocol'
+import type { WireEntry } from '@antumi/protocol'
 import { WIRE_LINE_LIMIT_CHARS, WIRE_STAGE_LIMIT_BYTES, WireLog } from './wire-log'
 
 describe('WireLog', () => {
@@ -11,7 +11,7 @@ describe('WireLog', () => {
   let wire: WireLog
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-wire-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-wire-'))
     added = []
     wire = new WireLog(root, (_conversationId, _stageId, entries) => added.push(...entries), () => 1000)
     wire.setEnabled(true)

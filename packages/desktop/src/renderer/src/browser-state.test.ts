@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { BrowserTab } from '@kando/protocol'
+import type { BrowserTab } from '@antumi/protocol'
 import { ALL_TABS, fileUrl, firstBrowserCall, receiveAllBrowserTabs, receiveBrowserTabs, selectAfter, useBrowserTabs, USER_TABS } from './browser-state'
 
 const tab = (id: string, active = false): BrowserTab => ({ id, conversationId: 'c', url: 'http://localhost/', title: '', loading: false, active, userDriving: false, agentActing: false, viewport: null, createdAt: 1 })

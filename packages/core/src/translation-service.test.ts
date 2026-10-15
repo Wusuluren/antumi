@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { agentDescriptor, quickModel, type ChatCatalog } from '@kando/protocol'
+import { agentDescriptor, quickModel, type ChatCatalog } from '@antumi/protocol'
 import type { QuickCommand } from './agents/agent-adapter'
 import { QuickRequests } from './quick-request'
 import { translatePrompt, TranslationService } from './translation-service'

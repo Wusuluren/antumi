@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ManagedWorktree, WorktreeCleanResult } from '@kando/protocol'
+import type { ManagedWorktree, WorktreeCleanResult } from '@antumi/protocol'
 import { perform, useCore } from './core-store'
 
 // null until core answers, and for an older core without worktrees.

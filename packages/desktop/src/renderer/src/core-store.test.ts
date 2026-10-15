@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { Task, createRpcClient, type Conversation, type RpcConnection } from '@kando/protocol'
+import { Task, createRpcClient, type Conversation, type RpcConnection } from '@antumi/protocol'
 import { actionableItems } from './attention'
 import {
   openAttentionItem, openConversationDraft, selectConversation, selectTask, setOverviewOpen, setOverviewFilter, setOverviewScroll,
@@ -217,10 +217,10 @@ describe('attention snapshot retry', () => {
 
 describe('new conversation page', () => {
   it('starts with the projects it was opened for, anew each time, and with none otherwise', () => {
-    openConversationDraft(['/code/kando'])
+    openConversationDraft(['/code/antumi'])
     const first = useCore.getState().conversationDraftProjects
-    expect(useCore.getState()).toMatchObject({ conversationDraft: true, conversationDraftProjects: { paths: ['/code/kando'] } })
-    openConversationDraft(['/code/kando'])
+    expect(useCore.getState()).toMatchObject({ conversationDraft: true, conversationDraftProjects: { paths: ['/code/antumi'] } })
+    openConversationDraft(['/code/antumi'])
     expect(useCore.getState().conversationDraftProjects).not.toBe(first)
     openConversationDraft()
     expect(useCore.getState().conversationDraftProjects).toBeNull()

@@ -43,7 +43,7 @@ export function isStartRef(ref: string): boolean {
 export const StartNote = z.enum(['fetch-failed', 'no-remote-default'])
 export type StartNote = z.infer<typeof StartNote>
 
-// Where a task's branch started in one repo, recorded when Kando made the branch.
+// Where a task's branch started in one repo, recorded when Antumi made the branch.
 export const TaskStart = z.object({
   // As a person names it: origin/main, release/2.4, or the branch the project was on.
   ref: z.string(),

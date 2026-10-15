@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
-import type { SmallModelCost, SmallModelStats } from '@kando/protocol'
+import type { SmallModelCost, SmallModelStats } from '@antumi/protocol'
 import { coverage, dollars, smallModelExplanation } from './model-cost-format'
 import { SmallModelStats as Breakdown } from './components/SmallModelStats'
 import { dayTokens, activity } from './dashboard-model'

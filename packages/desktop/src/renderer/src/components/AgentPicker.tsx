@@ -1,4 +1,4 @@
-import { quotaVerdict, type AgentKind } from '@kando/protocol'
+import { quotaVerdict, type AgentKind } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'

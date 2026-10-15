@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { LANGUAGE_NAMES, type AgentKind, type TranslateLanguage, type Translation } from '@kando/protocol'
+import { LANGUAGE_NAMES, type AgentKind, type TranslateLanguage, type Translation } from '@antumi/protocol'
 import type { QuickRequests, QuickTracking } from './quick-request'
 
 const REMEMBERED = 200

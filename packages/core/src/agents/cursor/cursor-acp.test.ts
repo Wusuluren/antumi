@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { z } from 'zod'
-import { ChatItem } from '@kando/protocol'
+import { ChatItem } from '@antumi/protocol'
 import { CursorAcp } from './cursor-acp'
 import type { ChatRecord, ChatStageOptions } from '../../chat-driver'
 import { parseChatRecord } from '../../chat-log'
@@ -122,7 +122,7 @@ describe('Cursor ACP', () => {
     expect(due(driver)).toMatchObject([{ method: 'session/new', params: { cwd: '/work/repo', mcpServers: [{ name: 'kando', command: 'node', args: OPTIONS.mcp?.args, env: [] }] } }])
   })
 
-  it('opens the session with the user\'s MCP servers beside Kando\'s', () => {
+  it('opens the session with the user\'s MCP servers beside Antumi\'s', () => {
     const driver = new CursorAcp('stage', { ...OPTIONS, userMcp: [{ name: 'github', type: 'stdio', command: 'node', args: ['mcp.mjs', '--run', 'github'] }, { name: 'docs', type: 'http', url: 'https://mcp.example.com/mcp' }] })
     due(driver)
     receive(driver, { id: 'cursor-init', result: { protocolVersion: 1 } })

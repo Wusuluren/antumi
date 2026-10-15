@@ -7,7 +7,7 @@ import { findAgentMcpServers, importCandidate, suggestedMcpName } from './mcp-im
 import { McpServerStore } from './mcp-servers'
 
 let home: string
-beforeEach(() => { home = mkdtempSync(path.join(os.tmpdir(), 'kando-mcp-import-')) })
+beforeEach(() => { home = mkdtempSync(path.join(os.tmpdir(), 'antumi-mcp-import-')) })
 afterEach(() => rmSync(home, { recursive: true, force: true }))
 
 const codexList = (home: string) => JSON.stringify([
@@ -28,9 +28,9 @@ describe('the agents\' own MCP servers', () => {
     const found = await findAgentMcpServers({ env: {}, homedir: home, codex: async () => codexList(home) })
     expect(found).toEqual([
       { source: 'claude', name: 'github', transport: { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'], cwd: null, env: { GITHUB_TOKEN: 'ghp' } }, problem: null },
-      { source: 'claude', name: 'Old', transport: null, problem: 'Kando 不支持 SSE 传输' },
+      { source: 'claude', name: 'Old', transport: null, problem: 'Antumi 不支持 SSE 传输' },
       { source: 'codex', name: 'linear', transport: { type: 'http', url: 'https://mcp.linear.app/mcp', headers: { Authorization: 'Bearer lin' } }, problem: null },
-      { source: 'codex', name: 'sentry', transport: null, problem: '令牌从环境变量读取，请在 Kando 里手动添加' },
+      { source: 'codex', name: 'sentry', transport: null, problem: '令牌从环境变量读取，请在 Antumi 里手动添加' },
       { source: 'cursor', name: 'Context7.Docs', transport: { type: 'http', url: 'https://mcp.context7.com/mcp', headers: {} }, problem: null }
     ])
   })
@@ -39,7 +39,7 @@ describe('the agents\' own MCP servers', () => {
     expect(await findAgentMcpServers({ env: {}, homedir: home, codex: async () => { throw new Error('codex: not found') } })).toEqual([])
   })
 
-  it('shows keys, never values, and a name Kando can take', () => {
+  it('shows keys, never values, and a name Antumi can take', () => {
     const candidate = importCandidate({ source: 'cursor', name: 'Context7.Docs', transport: { type: 'http', url: 'https://mcp.context7.com/mcp', headers: { Authorization: 'Bearer x' } }, problem: null }, [])
     expect(candidate).toEqual({ source: 'cursor', name: 'Context7.Docs', suggestedName: 'context7-docs', transport: { type: 'http', url: 'https://mcp.context7.com/mcp', headerKeys: ['Authorization'] }, problem: null })
     expect(suggestedMcpName('kando')).toBeNull()

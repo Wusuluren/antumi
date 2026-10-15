@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { z } from 'zod'
-import { MAX_CHAT_COMMANDS, SavedChatCommand } from '@kando/protocol'
+import { MAX_CHAT_COMMANDS, SavedChatCommand } from '@antumi/protocol'
 import { Rejection } from './rejection'
 
 type Fields = Pick<SavedChatCommand, 'name' | 'description' | 'prompt' | 'projectPath'>

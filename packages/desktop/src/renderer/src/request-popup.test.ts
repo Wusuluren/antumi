@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Conversation, ConversationRequest, Task } from '@kando/protocol'
+import type { Conversation, ConversationRequest, Task } from '@antumi/protocol'
 import { newlyWaiting, popupKey, popupLabel, popupQueue } from './request-popup'
 
 const request = (requestId: string, patch: Partial<ConversationRequest> = {}): ConversationRequest => ({

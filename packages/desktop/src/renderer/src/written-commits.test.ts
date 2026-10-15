@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createRpcClient, type Conversation, type GitTarget, type RpcConnection } from '@kando/protocol'
+import { createRpcClient, type Conversation, type GitTarget, type RpcConnection } from '@antumi/protocol'
 import { useCore } from './core-store'
 import { usePreferences } from './preferences'
 import { commitSubject, commitWithWrittenMessage } from './written-commits'

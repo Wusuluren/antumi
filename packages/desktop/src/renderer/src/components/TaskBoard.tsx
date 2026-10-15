@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { create } from 'zustand'
-import { AGENT_KINDS, type AgentKind, type Task } from '@kando/protocol'
+import { AGENT_KINDS, type AgentKind, type Task } from '@antumi/protocol'
 import { timeAgo } from '../conversation-state'
 import { selectTask, setNewTaskOpen, useCore } from '../core-store'
 import { agentLabel, STATUS_LABEL } from '../labels'

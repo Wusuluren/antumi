@@ -1,8 +1,8 @@
-import type { FileDiff, RepoChanges, TaskRepo } from '@kando/protocol'
+import type { FileDiff, RepoChanges, TaskRepo } from '@antumi/protocol'
 import { changedFileAt, changedFiles, commitsSince, diffOf, gitOrNull } from './git-changes'
 import { Rejection } from './rejection'
 
-// Where the task's branch started: the commit Kando recorded when it made the branch, or for a
+// Where the task's branch started: the commit Antumi recorded when it made the branch, or for a
 // branch made before that was recorded, the first entry of its reflog. Pulled back to an ancestor
 // in case the branch was rebased since. Without either (the reflog expired, or the branch came
 // from elsewhere) the fork point with the repo's own HEAD will do. Either way a branch stacked on

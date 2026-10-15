@@ -1,4 +1,4 @@
-import type { Task } from '@kando/protocol'
+import type { Task } from '@antumi/protocol'
 
 export function hasTaskAlerts(task: Task): boolean {
   return task.awaitingInput

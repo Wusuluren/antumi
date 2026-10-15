@@ -1,10 +1,10 @@
-import type { ModelTokens } from '@kando/protocol'
+import type { ModelTokens } from '@antumi/protocol'
 import { z } from 'zod'
-import { browserToolKind, ChatPermissionMode, CODEX_IMAGE_VIEW, CONTEXT_COMPACTED, takeImageMarkers, type ChatDecision, type ChatDiff, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatQuestion, type ChatTodo, type ChatToolStatus, type ChatTurnActivity, type ChatTurnState } from '@kando/protocol'
+import { browserToolKind, ChatPermissionMode, CODEX_IMAGE_VIEW, CONTEXT_COMPACTED, takeImageMarkers, type ChatDecision, type ChatDiff, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatQuestion, type ChatTodo, type ChatToolStatus, type ChatTurnActivity, type ChatTurnState } from '@antumi/protocol'
 import { choiceDecisions, codexAnswerAllows, codexChoiceOf, codexChoices, type CodexChoice } from '../../approval-choices'
 import { describeBrowserTool, showBrowserInput } from '../../browser-tools'
 import { keepImageBlocks, markKeptImages, stripImageBytes } from '../../image-frames'
-import { KandoRequests } from '../../kando-requests'
+import { AntumiRequests } from '../../antumi-requests'
 import { messageText, type ChatAnswer, type ChatDriver, type ChatImageFile, type ChatOutgoing, type ChatPreferences, type ChatRecord, type ChatStageOptions, type StageMessage } from '../../chat-driver'
 import { ChatItems, clip, type UsageLimitHit } from '../../chat-items'
 import { ChatQueue } from '../../chat-queue'
@@ -17,7 +17,7 @@ import { mergeUsageReports, type UsageReport } from '../../usage-source'
 
 // Codex's app-server protocol (`codex app-server`): JSON-RPC over stdio without the jsonrpc field,
 // as codex-cli 0.156.1 speaks it. `codex app-server generate-ts` prints the full schema; this reads
-// only the part Kando uses, loosely, since the server is marked experimental.
+// only the part Antumi uses, loosely, since the server is marked experimental.
 
 const MAX_PATCH = 50_000
 
@@ -162,7 +162,7 @@ const SkillEntry = z.looseObject({
   path: z.string(),
   enabled: z.boolean().optional()
 })
-// The requests that start a turn: a message, and the commands Kando offers.
+// The requests that start a turn: a message, and the commands Antumi offers.
 const TURN_METHODS: ReadonlySet<string> = new Set(['turn/start', 'thread/compact/start', 'review/start'])
 // The text of a turn/start or turn/steer's input, its text parts joined.
 function inputText(params: unknown): string {
@@ -205,7 +205,7 @@ const McpToolApproval = z.looseObject({
   })
 })
 const Decision = z.looseObject({ decision: z.unknown().optional(), answers: z.record(z.string(), z.unknown()).optional() })
-// userMcp: Kando's mark, in the log, that the server was one of the user's it handed Codex.
+// userMcp: Antumi's mark, in the log, that the server was one of the user's it handed Codex.
 const McpStartup = z.looseObject({ name: z.string(), status: z.string(), userMcp: z.boolean().optional() })
 const Answers = z.looseObject({ answers: z.array(z.string()).catch([]) })
 
@@ -225,7 +225,7 @@ type Pending = {
 
 type Sandbox = 'workspace-write' | 'read-only' | 'danger-full-access'
 
-// Kando's permission modes as Codex's approval policy and sandbox. acceptEdits is what the Codex
+// Antumi's permission modes as Codex's approval policy and sandbox. acceptEdits is what the Codex
 // TUI starts with: the sandbox lets it write the workspace, and it asks when it wants out. It may
 // also reach the network, as Claude Code in the same mode does: closed, every install or fetch
 // failed first and then asked to leave the sandbox anyway, and config.toml, where the TUI turns it
@@ -261,7 +261,7 @@ function sandboxName(type: string | undefined): Sandbox | null {
   }
 }
 
-// Kando's name for a policy and sandbox, or Codex's own words for a pairing it has no name for.
+// Antumi's name for a policy and sandbox, or Codex's own words for a pairing it has no name for.
 export function codexMode(approvalPolicy: unknown, sandbox: Sandbox | null): string | null {
   if (typeof approvalPolicy !== 'string' || !sandbox) return null
   const found = Object.entries(CODEX_MODES).find(([, mode]) => mode.approvalPolicy === approvalPolicy && mode.sandbox === sandbox)
@@ -425,8 +425,8 @@ function replyText(questions: readonly ChatQuestion[], answers: Readonly<Record<
 
 export class CodexAppServer implements ChatDriver {
   readonly items: ChatItems
-  private readonly kando: KandoRequests
-  // Kando's own requests by id, to know what each response answers.
+  private readonly antumi: AntumiRequests
+  // Antumi's own requests by id, to know what each response answers.
   private readonly requests = new Map<string, string>()
   private initSent = false
   private initialized = false
@@ -489,7 +489,7 @@ export class CodexAppServer implements ChatDriver {
 
   constructor(stageId: string, private readonly options: ChatStageOptions) {
     this.items = new ChatItems(stageId)
-    this.kando = new KandoRequests(this.items)
+    this.antumi = new AntumiRequests(this.items)
     this.state = new StageState(this.items)
     // A stage that only plans runs every turn in plan mode, whatever was remembered.
     this.chosen = { ...options.preferred, ...(options.planOnly ? { permissionMode: PLAN_MODE } : options.readOnly ? { permissionMode: 'readOnly' } : {}) }
@@ -523,12 +523,12 @@ export class CodexAppServer implements ChatDriver {
         this.ended(record.stderr, record.at)
         break
       case 'ask':
-        this.kando.apply(record)
+        this.antumi.apply(record)
         break
       case 'answer':
-        // A plan put aside (see waitingPlans); any other answer is to Kando's own question.
+        // A plan put aside (see waitingPlans); any other answer is to Antumi's own question.
         if (this.pending.get(record.requestId)?.kind === 'plan') this.resolve(record.requestId, record.resolution, null, record.at)
-        else this.kando.apply(record)
+        else this.antumi.apply(record)
         break
       case 'reply':
         this.closeAsk(record.requestId, record.answers, record.at)
@@ -541,12 +541,12 @@ export class CodexAppServer implements ChatDriver {
 
   due(): unknown[] {
     if (this.exited) return []
-    const frames: unknown[] = [...this.unanswered.values()].map((id) => ({ id, error: { code: -32601, message: 'Kando does not handle this request' } }))
+    const frames: unknown[] = [...this.unanswered.values()].map((id) => ({ id, error: { code: -32601, message: 'Antumi does not handle this request' } }))
     if (!this.initSent) {
       frames.push({
         id: 'kando-init',
         method: 'initialize',
-        params: { clientInfo: { name: 'kando', title: 'Kando', version: '0.1.0' }, capabilities: { experimentalApi: true, requestAttestation: false } }
+        params: { clientInfo: { name: 'antumi', title: 'Antumi', version: '0.1.0' }, capabilities: { experimentalApi: true, requestAttestation: false } }
       })
       return frames
     }
@@ -571,7 +571,7 @@ export class CodexAppServer implements ChatDriver {
   activeTurnRef(): string | null { return this.turn?.ref ?? null }
 
   activity(): ChatTurnActivity {
-    if (this.kando.pending > 0) return 'awaiting'
+    if (this.antumi.pending > 0) return 'awaiting'
     if (!this.turn) return [...this.pending.values()].some((pending) => pending.kind === 'plan') ? 'awaiting' : 'idle'
     return this.pending.size > 0 ? 'awaiting' : 'running'
   }
@@ -744,8 +744,8 @@ export class CodexAppServer implements ChatDriver {
     return kept.includes(method) ? stripImageBytes(this.withKeptImages(parsed.data)) : null
   }
 
-  // Codex reports every server it starts, its own config's too; only the user's that Kando handed
-  // it are Kando's to point out, which a stage rebuilt from its log knows by the mark.
+  // Codex reports every server it starts, its own config's too; only the user's that Antumi handed
+  // it are Antumi's to point out, which a stage rebuilt from its log knows by the mark.
   private unreachableUserMcp(startup: z.infer<typeof McpStartup>): boolean {
     return startup.status === 'failed' && (startup.userMcp === true || (this.options.userMcp ?? []).some((server) => server.name === startup.name))
   }
@@ -971,7 +971,7 @@ export class CodexAppServer implements ChatDriver {
     }
   }
 
-  // A subagent's thread streams on the connection Kando opened: its calls and replies are not this
+  // A subagent's thread streams on the connection Antumi opened: its calls and replies are not this
   // chat's. Whether a request it made was resolved still is, as the request shows here.
   private childThread(method: string, params: unknown): string | null {
     if (!this.threadId || method === 'serverRequest/resolved') return null
@@ -1321,7 +1321,7 @@ export class CodexAppServer implements ChatDriver {
   }
 
   // Once, this run (where Codex offers to remember it for the session), or no. Remembering it
-  // always is left out: Codex would keep that in its own config, outside what Kando can show.
+  // always is left out: Codex would keep that in its own config, outside what Antumi can show.
   private mcpToolApproval(requestId: string, rawId: string | number, request: z.infer<typeof McpToolApproval>, method: string, params: unknown, at: number): void {
     const call = this.mcpCalls.get(request.serverName)
     const tool = call?.tool ?? /"([^"]+)"/.exec(request.message)?.[1] ?? null
@@ -1537,7 +1537,7 @@ export class CodexAppServer implements ChatDriver {
     for (const [requestId, pending] of [...this.pending]) {
       if (pending.kind === 'plan') this.resolve(requestId, 'cancelled', null, at)
     }
-    this.kando.cancelAll(at)
+    this.antumi.cancelAll(at)
     this.exited = true
     const tail = stderr.trim().split('\n').slice(-20).join('\n')
     if (this.threadId) return

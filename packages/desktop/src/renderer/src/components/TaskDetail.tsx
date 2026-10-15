@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { checkChangePrimary, checkEditProjects, shortTaskId, type Task } from '@kando/protocol'
+import { checkChangePrimary, checkEditProjects, shortTaskId, type Task } from '@antumi/protocol'
 import { selectTask, updateTask, useCore, useTaskCancelSupported } from '../core-store'
 import { dayAndTime } from '../labels'
 import { saveTaskText, unsavedTaskText, useTaskSaveState, type SaveState } from '../unsaved-edits'

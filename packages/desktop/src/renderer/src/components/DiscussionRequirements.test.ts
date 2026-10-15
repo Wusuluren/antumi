@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_DISCUSSION_REQUIREMENTS, MAX_DISCUSSION_REQUIREMENTS } from '@kando/protocol'
+import { DEFAULT_DISCUSSION_REQUIREMENTS, MAX_DISCUSSION_REQUIREMENTS } from '@antumi/protocol'
 import { DiscussionRequirements } from './DiscussionRequirements'
 
 const render = (value: string) => renderToStaticMarkup(createElement(DiscussionRequirements, { value, onChange: () => {} }))

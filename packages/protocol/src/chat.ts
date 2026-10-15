@@ -38,7 +38,7 @@ export const ChatSettings = z.object({
   // through Claude in Chrome), from its next start. Older cores omit it.
   userBrowser: z.boolean().optional(),
   // Whether agents get the tools that read the user's conversations, tasks and group chats in
-  // Kando (see HISTORY_TOOLS), from their next start. Older cores omit it.
+  // Antumi (see HISTORY_TOOLS), from their next start. Older cores omit it.
   readHistory: z.boolean().optional(),
   // The user's local knowledge base, given to agents from their next start; null is none. Nullable so a
   // client can clear it through a partial update. Older cores omit it.
@@ -63,9 +63,9 @@ export const ApprovalScope = z.enum(['run', 'local', 'project', 'user', 'agent']
 export type ApprovalScope = z.infer<typeof ApprovalScope>
 
 // What an answer lets through, or keeps out, beyond the call asked about. values are what it
-// names: rules: permission rules as the agent writes them · mode: a Kando permission mode ·
+// names: rules: permission rules as the agent writes them · mode: a Antumi permission mode ·
 // directories: folders · command: the command asked about · files: the files asked about ·
-// prefix: the words a command starts with · host: a network host. other: one Kando cannot read.
+// prefix: the words a command starts with · host: a network host. other: one Antumi cannot read.
 export const ApprovalGrant = z.object({
   kind: z.enum(['rules', 'mode', 'directories', 'command', 'files', 'prefix', 'host', 'other']).catch('other'),
   values: z.array(z.string()),
@@ -84,7 +84,7 @@ export const ApprovalChoice = z.object({
 })
 export type ApprovalChoice = z.infer<typeof ApprovalChoice>
 
-// Kando's names for how freely an agent may act; each agent maps them onto its own settings and
+// Antumi's names for how freely an agent may act; each agent maps them onto its own settings and
 // offers the ones it has. Cursor maps ask to Agent, plan to Plan and readOnly to native Ask;
 // these names do not imply an OS sandbox. Others: ask: confirm each call · acceptEdits: file edits go through (Codex:
 // on-request) · plan: read and plan only · auto: the agent's own judgement · readOnly: a read-only
@@ -190,7 +190,7 @@ export const ChatItem = z.discriminatedUnion('kind', [
     // One line saying what the call does: a command, a path, a pattern.
     title: z.string(),
     // The same in words, where there are some: as the agent put it (Claude's Bash description), or
-    // as Kando reads Codex's own parse of the command. Older cores leave it out.
+    // as Antumi reads Codex's own parse of the command. Older cores leave it out.
     description: z.string().nullable().optional(),
     input: z.string().nullable(),
     status: ChatToolStatus.catch('done'),
@@ -305,7 +305,7 @@ export const ChatItem = z.discriminatedUnion('kind', [
   // composer reads it for the options it offers and the progress it shows.
   Base.extend({
     kind: z.literal('state'),
-    // One of CHAT_PERMISSION_MODES, or the agent's own name for a mode Kando has none for.
+    // One of CHAT_PERMISSION_MODES, or the agent's own name for a mode Antumi has none for.
     permissionMode: z.string().nullable(),
     permissionModes: z.array(z.string()),
     model: z.string().nullable(),
@@ -330,9 +330,9 @@ export const ChatItem = z.discriminatedUnion('kind', [
 ])
 export type ChatItem = z.infer<typeof ChatItem>
 
-// Kando's own tools, as each agent names an MCP tool: Claude Code mcp__<server>__<tool>, Codex
-// <server>.<tool>. The server is `kando` in both launch configs.
-export function kandoToolName(name: string): string | null {
+// Antumi's own tools, as each agent names an MCP tool: Claude Code mcp__<server>__<tool>, Codex
+// <server>.<tool>. The server is `antumi` in both launch configs.
+export function antumiToolName(name: string): string | null {
   if (name.startsWith('mcp__kando__')) return name.slice('mcp__kando__'.length)
   if (name.startsWith('kando.')) return name.slice('kando.'.length)
   return null
@@ -347,7 +347,7 @@ export function isPreviewImage(path: string): boolean {
   return PREVIEW_IMAGE_EXTENSIONS.has(path.split('.').at(-1)?.toLowerCase() ?? '')
 }
 
-// The tools that read the user's own history in Kando, across agents: what had activity in a
+// The tools that read the user's own history in Antumi, across agents: what had activity in a
 // stretch of time, and what was said in one of them. Read-only, and off where the user turned it off.
 export const HISTORY_TOOLS = ['list', 'read'] as const
 export type HistoryToolKind = (typeof HISTORY_TOOLS)[number]
@@ -355,7 +355,7 @@ export function historyToolName(kind: HistoryToolKind): string {
   return `history_${kind}`
 }
 export function historyToolKind(name: string): HistoryToolKind | null {
-  const own = kandoToolName(name)
+  const own = antumiToolName(name)
   return HISTORY_TOOLS.find((kind) => own === historyToolName(kind)) ?? null
 }
 
@@ -369,7 +369,7 @@ export function toolImagePath(item: { name: string; title: string }): string | n
   return reads && item.title.startsWith('/') && isPreviewImage(item.title) ? item.title : null
 }
 export function isPreviewTool(name: string): boolean {
-  return kandoToolName(name) === SHOW_PREVIEW_TOOL
+  return antumiToolName(name) === SHOW_PREVIEW_TOOL
 }
 
 // The browser tools, named browser_<kind>.
@@ -379,7 +379,7 @@ export function browserToolName(kind: BrowserToolKind): string {
   return `browser_${kind}`
 }
 export function browserToolKind(name: string): BrowserToolKind | null {
-  const own = kandoToolName(name)
+  const own = antumiToolName(name)
   if (!own?.startsWith('browser_')) return null
   const kind = own.slice('browser_'.length)
   const found = BROWSER_TOOL_KINDS.find((candidate) => candidate === kind)
@@ -418,17 +418,17 @@ export function isPlanApproval(item: ChatItem): boolean {
   return item.kind === 'approval' && PLAN_TOOLS.has(item.tool)
 }
 
-// Kando's own question, as an approval: the site its browser is about to open for the first time
+// Antumi's own question, as an approval: the site its browser is about to open for the first time
 // in this conversation. Not an agent tool, so the agent's names for tools never clash with it.
 export const BROWSER_HOST_TOOL = 'browser_host'
 export function isHostApproval(item: ChatItem): boolean {
   return item.kind === 'approval' && item.tool === BROWSER_HOST_TOOL
 }
-// Request ids Kando issues itself; an agent's never start this way, so an answer to one is
-// routed to Kando rather than written to the agent.
-export const KANDO_REQUEST_PREFIX = 'kando:'
-export function isKandoRequest(requestId: string): boolean {
-  return requestId.startsWith(KANDO_REQUEST_PREFIX)
+// Request ids Antumi issues itself; an agent's never start this way, so an answer to one is
+// routed to Antumi rather than written to the agent.
+export const ANTUMI_REQUEST_PREFIX = 'kando:'
+export function isAntumiRequest(requestId: string): boolean {
+  return requestId.startsWith(ANTUMI_REQUEST_PREFIX)
 }
 
 // Parsed one by one, so an item a newer core describes differently drops alone, not the batch.

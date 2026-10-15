@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState, type ReactNode } from 'react'
-import { AGENT_KINDS, MIN_DECIDED_RUNS, type AgentKind, type AgentStats, type ConversationStats } from '@kando/protocol'
+import { AGENT_KINDS, MIN_DECIDED_RUNS, type AgentKind, type AgentStats, type ConversationStats } from '@antumi/protocol'
 import { workedFor } from '../chat-tools'
 import { perform, useAgentStatsSupported, useConversationStatsSupported, useCore } from '../core-store'
 import { agentLabel } from '../labels'
@@ -92,7 +92,7 @@ function TaskCells({ stats }: { stats: AgentStats }) {
 function TaskStats() {
   const supported = useAgentStatsSupported()
   const stats = useReport(supported, () => perform((rpc) => rpc.call('agents.stats', {})))
-  if (!supported) return <p className="settings-empty">当前运行的 Kando core 还不记录任务运行，升级后才能查看。</p>
+  if (!supported) return <p className="settings-empty">当前运行的 Antumi core 还不记录任务运行，升级后才能查看。</p>
   if (stats === null) return <p className="settings-empty">正在读取…</p>
   if (stats.length === 0) {
     return <p className="settings-empty">还没有任务的运行记录。任务执行结束后会出现在这里，你验收、继续修改或重做之后计入比率。</p>
@@ -141,7 +141,7 @@ function ConversationCells({ stats }: { stats: ConversationStats }) {
 function ConversationUsage() {
   const supported = useConversationStatsSupported()
   const stats = useReport(supported, () => perform((rpc) => rpc.call('agents.conversationStats', {})))
-  if (!supported) return <p className="settings-empty">当前运行的 Kando core 还不统计会话，升级后才能查看。</p>
+  if (!supported) return <p className="settings-empty">当前运行的 Antumi core 还不统计会话，升级后才能查看。</p>
   if (stats === null) return <p className="settings-empty">正在读取…</p>
   if (stats.length === 0) {
     return <p className="settings-empty">还没有会话的回合记录。聊天界面里的会话每结束一个回合，就会计入这里。</p>
@@ -159,7 +159,7 @@ function ConversationUsage() {
 export function AgentStatsSettings() {
   const connected = useCore((s) => s.connection === 'connected')
   if (!connected) {
-    return <p className="settings-empty">连接到 Kando core 后才能查看。</p>
+    return <p className="settings-empty">连接到 Antumi core 后才能查看。</p>
   }
   return (
     <>

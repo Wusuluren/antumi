@@ -1,4 +1,4 @@
-import { isHelper, type ChatItem, type Conversation, type ConversationMessage, type TitleNaming } from '@kando/protocol'
+import { isHelper, type ChatItem, type Conversation, type ConversationMessage, type TitleNaming } from '@antumi/protocol'
 import type { ConversationStore } from './conversation-store'
 
 export type TitleGenerator = (conversation: Conversation, prompt: string) => Promise<string>
@@ -64,7 +64,7 @@ export class ConversationTitles {
       const current = this.store.setGeneratedTitle(id, title)
       if (current) this.changed(current)
     }).catch((error: unknown) => {
-      console.error('[kando-core] conversation title generation failed', error instanceof Error ? error.message : 'unknown error')
+      console.error('[antumi-core] conversation title generation failed', error instanceof Error ? error.message : 'unknown error')
     }).finally(() => { if (this.pending.get(id) === token) this.pending.delete(id) })
   }
 }

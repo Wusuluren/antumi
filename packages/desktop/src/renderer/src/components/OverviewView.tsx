@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { ChatDecision } from '@kando/protocol'
+import type { ChatDecision } from '@antumi/protocol'
 import { quickApproval, type ActionableItem } from '../attention'
 import {
   openAttentionItem, perform, refreshAttentionSummaries, selectConversation, selectTask, setConversationInspectorOpen,

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react'
-import type { Terminal, TerminalCommand } from '@kando/protocol'
+import type { Terminal, TerminalCommand } from '@antumi/protocol'
 import { deleteTerminalCommand, saveTerminalCommand, showError, useCore } from '../core-store'
 import { PRIMARY_KEY_LABEL, hasPrimaryModifier } from '../shortcut-keys'
 import { commandTitle, offeredCommands, terminalProject } from '../terminal-commands'

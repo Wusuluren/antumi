@@ -8,7 +8,7 @@ describe('handoff message', () => {
   })
 
   it('leaves any other message alone', () => {
-    expect(parseHandoffMessage('请先阅读 Kando 移交文件，然后告诉我里面写了什么')).toBeNull()
+    expect(parseHandoffMessage('请先阅读 Antumi 移交文件，然后告诉我里面写了什么')).toBeNull()
     expect(parseHandoffMessage('帮我看看 /k/sessions/c/handoffs/h.md')).toBeNull()
   })
 })

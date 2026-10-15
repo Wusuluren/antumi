@@ -3,7 +3,7 @@ import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { MAX_FILE_PREVIEW_BYTES } from '@kando/protocol'
+import { MAX_FILE_PREVIEW_BYTES } from '@antumi/protocol'
 import { ConversationFiles, projectLocation } from './conversation-files'
 
 describe('conversation files', () => {
@@ -12,7 +12,7 @@ describe('conversation files', () => {
   let extra: string
   let files: ConversationFiles
   beforeEach(async () => {
-    root = await mkdtemp(path.join(tmpdir(), 'kando-preview-'))
+    root = await mkdtemp(path.join(tmpdir(), 'antumi-preview-'))
     primary = path.join(root, 'primary')
     extra = path.join(root, 'extra')
     await Promise.all([mkdir(path.join(primary, 'src/deep'), { recursive: true }), mkdir(extra)])

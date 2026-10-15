@@ -1,4 +1,4 @@
-import type { AgentKind, ChatItem, Conversation } from '@kando/protocol'
+import type { AgentKind, ChatItem, Conversation } from '@antumi/protocol'
 import { openConversationDraft, perform, selectConversation, selectTask, showView, useConversationArchiveSupported, useConversationPinSupported, useCore } from '../core-store'
 import { proposeHandoff } from '../chat-handoff'
 import { agentLabel } from '../labels'
@@ -68,7 +68,7 @@ export function archiveConversation(id: string, archived: boolean) {
 }
 
 export async function deleteConversation(conversation: Conversation): Promise<boolean> {
-  if (!window.confirm('删除这条会话及其聊天记录？项目目录或 Kando 托管目录都会保留，不会改动其中的文件。')) return false
+  if (!window.confirm('删除这条会话及其聊天记录？项目目录或 Antumi 托管目录都会保留，不会改动其中的文件。')) return false
   return (await perform((rpc) => rpc.call('conversations.delete', { id: conversation.id }))) !== null
 }
 

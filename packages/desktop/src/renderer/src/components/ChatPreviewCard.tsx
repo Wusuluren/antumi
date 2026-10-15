@@ -1,5 +1,5 @@
 import { useContext, useState } from 'react'
-import { isPreviewImage, type ChatItem } from '@kando/protocol'
+import { isPreviewImage, type ChatItem } from '@antumi/protocol'
 import { openFileInBrowser } from '../browser-state'
 import { useBrowserSupported } from '../core-store'
 import { canRevealFile, revealFile } from '../desktop-bridge'
@@ -42,7 +42,7 @@ function PreviewImage({ path, src, label }: { path: string; src: string; label: 
 }
 
 // A file the agent asked to show, rendered where it asked. A page or an SVG is a frame that is a
-// page of its own, with no way to the app around it or to the network (main's kando-preview
+// page of its own, with no way to the app around it or to the network (main's antumi-preview
 // protocol sets the policy), following the app's light or dark scheme; a picture is an image. It
 // reads the file as it stands now, so a later edit shows on refresh.
 export function ChatPreviewCard({ conversationId, item }: { conversationId: string; item: ToolItem }) {
@@ -57,7 +57,7 @@ export function ChatPreviewCard({ conversationId, item }: { conversationId: stri
   // The call arrives before it runs, and the file it names may still be on its way (written by a
   // call beside it); the tool checks it is there, so the page loads once the call is done.
   const pending = item.status === 'running'
-  const src = `kando-preview://file${path}?v=${generation}`
+  const src = `antumi-preview://file${path}?v=${generation}`
   return (
     <div className="chat-preview" data-status={item.status} onPointerEnter={() => setAwake(true)}>
       <div className="chat-preview-head">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { LoginPrompt } from '@kando/protocol'
+import type { LoginPrompt } from '@antumi/protocol'
 import type { JiraApi, JiraCredentials } from './jira-client'
 import { DEFAULT_JIRA_JQL, jiraProvider } from './jira-provider'
 import { SourceError } from './source-error'

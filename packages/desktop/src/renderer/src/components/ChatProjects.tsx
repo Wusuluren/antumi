@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { checkEditAdditionalProjects, MAX_TASK_REPOS, type Conversation } from '@kando/protocol'
+import { checkEditAdditionalProjects, MAX_TASK_REPOS, type Conversation } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
 import { canPickFolder, pickFolder } from '../desktop-bridge'
 import { reasonText } from '../labels'

@@ -1,4 +1,4 @@
-import { isScheduleOpen, type RequestedTarget, type ScheduledRun, type UnattendedMode } from '@kando/protocol'
+import { isScheduleOpen, type RequestedTarget, type ScheduledRun, type UnattendedMode } from '@antumi/protocol'
 import type { Notice } from './attention'
 import { perform } from './core-store'
 import { dayAndTime, reasonText } from './labels'

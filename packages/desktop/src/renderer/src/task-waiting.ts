@@ -1,4 +1,4 @@
-import type { Task } from '@kando/protocol'
+import type { Task } from '@antumi/protocol'
 
 // How many of a task's dependencies it still waits on. Only a pending task can be held up, the
 // rest already ran; and only an accepted (done) dependency counts, as `startKind` has it.

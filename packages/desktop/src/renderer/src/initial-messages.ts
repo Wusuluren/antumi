@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { z } from 'zod'
-import { ChatImage, RpcError, type ChatItem, type RpcConnection } from '@kando/protocol'
+import { ChatImage, RpcError, type ChatItem, type RpcConnection } from '@antumi/protocol'
 import { reasonText } from './labels'
 
 const InitialMessage = z.object({

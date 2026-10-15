@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SquadRun, createRpcClient, type RpcConnection } from '@kando/protocol'
+import { SquadRun, createRpcClient, type RpcConnection } from '@antumi/protocol'
 import { createMcpHandler } from './mcp-server'
 import { squadToolsOverCore } from './mcp-squad-tools'
 

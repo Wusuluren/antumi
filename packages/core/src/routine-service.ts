@@ -17,7 +17,7 @@ import {
   type QuotaState,
   type RoutineFields,
   type ScheduledRun
-} from '@kando/protocol'
+} from '@antumi/protocol'
 import { checkUnattended } from './agents'
 import type { ConversationService } from './conversation-service'
 import { Rejection } from './rejection'
@@ -278,7 +278,7 @@ export class RoutineService {
       const schedule = RoutineSchedule.safeParse(JSON.parse(String(raw.schedule)))
       const target = RoutineTarget.safeParse(JSON.parse(String(raw.target)))
       if (!schedule.success || !target.success) {
-        console.error(`[kando-core] routine ${String(raw.id)} cannot be read; skipping it`)
+        console.error(`[antumi-core] routine ${String(raw.id)} cannot be read; skipping it`)
         return []
       }
       return [{

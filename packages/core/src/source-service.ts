@@ -18,7 +18,7 @@ import {
   type Task,
   type TaskImage,
   type TaskSource
-} from '@kando/protocol'
+} from '@antumi/protocol'
 import type { AttachmentStore } from './attachment-store'
 import type { CredentialStore } from './credential-store'
 import { investigationBrief } from './investigation-brief'
@@ -342,7 +342,7 @@ export class SourceService {
         },
         (error: unknown) => {
           if (state.generation === generation) {
-            console.error(`[kando-core] ${id}/${instance} refresh failed:`, error instanceof Error ? error.message : error)
+            console.error(`[antumi-core] ${id}/${instance} refresh failed:`, error instanceof Error ? error.message : error)
             state.problem = sourceProblem(error)
           }
         }
@@ -480,7 +480,7 @@ export class SourceService {
           images.push({ id: info.id, name: imageName(image.name), width: info.width, height: info.height })
         }
       } catch (error) {
-        console.error('[kando-core] an image from a source was not stored:', error instanceof Error ? error.message : error)
+        console.error('[antumi-core] an image from a source was not stored:', error instanceof Error ? error.message : error)
         lost += 1
       }
     }
@@ -498,7 +498,7 @@ export class SourceService {
       return [issue]
     })
     if (accepted.length < issues.length) {
-      console.error(`[kando-core] ${id}: dropped ${issues.length - accepted.length} malformed or repeated issues`)
+      console.error(`[antumi-core] ${id}: dropped ${issues.length - accepted.length} malformed or repeated issues`)
     }
     return accepted.slice(0, MAX_ISSUES)
   }

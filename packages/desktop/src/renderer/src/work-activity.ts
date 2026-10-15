@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { AgentKind, Conversation, SquadRun, Task } from '@kando/protocol'
+import type { AgentKind, Conversation, SquadRun, Task } from '@antumi/protocol'
 import { useCore } from './core-store'
 import { agentLabel } from './labels'
 import { doingText, memberProgress } from './squad-progress'

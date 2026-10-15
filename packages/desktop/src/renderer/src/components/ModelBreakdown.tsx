@@ -1,4 +1,4 @@
-import type { DashboardModel } from '@kando/protocol'
+import type { DashboardModel } from '@antumi/protocol'
 import { acceptance } from '../dashboard-model'
 import { agentLabel } from '../labels'
 import { compact, durationText, percent } from '../stat-format'

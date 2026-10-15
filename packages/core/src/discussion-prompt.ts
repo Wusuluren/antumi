@@ -1,4 +1,4 @@
-import { agentDescriptor, DEFAULT_DISCUSSION_REQUIREMENTS, memberLetter, type Discussion, type DiscussionMember, type DiscussionPost } from '@kando/protocol'
+import { agentDescriptor, DEFAULT_DISCUSSION_REQUIREMENTS, memberLetter, type Discussion, type DiscussionMember, type DiscussionPost } from '@antumi/protocol'
 
 // What each member of a group chat is sent. A member keeps its own agent session, so after the
 // first message it is sent only what was said since it last spoke.
@@ -57,7 +57,7 @@ export function openingPrompt(discussion: Discussion, member: DiscussionMember, 
     ? discussion.projectPaths.map((path, index) => `${index + 1}. ${path}`).join('\n')
     : '（没有关联项目）'
   return [
-    '你正在参加 Kando 的一场圆桌讨论，和其他几位 AI 一起讨论用户给出的主题。讨论分几轮进行，最后由主持人总结。',
+    '你正在参加 Antumi 的一场圆桌讨论，和其他几位 AI 一起讨论用户给出的主题。讨论分几轮进行，最后由主持人总结。',
     '',
     '## 主题',
     topic,

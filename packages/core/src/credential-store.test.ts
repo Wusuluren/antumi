@@ -10,7 +10,7 @@ const record = (token: string) => ({ kind: 'basic', payload: { email: 'me@acme.c
 describe('CredentialStore', () => {
   let dir: string
   beforeEach(() => {
-    dir = mkdtempSync(path.join(os.tmpdir(), 'kando-credentials-'))
+    dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-credentials-'))
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })

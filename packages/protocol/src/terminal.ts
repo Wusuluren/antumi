@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { kandoToolName } from './chat'
+import { antumiToolName } from './chat'
 
 // A terminal in the app's panel: a shell, an agent command, or a user-started CLI installer.
 export const Terminal = z.object({
@@ -46,7 +46,7 @@ export const TerminalOutput = z.object({
 })
 export type TerminalOutput = z.infer<typeof TerminalOutput>
 
-// How a run went: started in a terminal, or waiting on the user (Kando asks where the agent does
+// How a run went: started in a terminal, or waiting on the user (Antumi asks where the agent does
 // not), or refused by them.
 export const TerminalRun = z.discriminatedUnion('outcome', [
   z.object({ outcome: z.literal('started'), terminal: Terminal }),
@@ -61,14 +61,14 @@ export type TerminalToolKind = (typeof TERMINAL_TOOLS)[number]
 export function terminalToolName(kind: TerminalToolKind): string {
   return `terminal_${kind}`
 }
-// Kando's own question, as an approval, before it runs an agent's command where the agent asks
+// Antumi's own question, as an approval, before it runs an agent's command where the agent asks
 // nothing for MCP tools (Codex).
 export const TERMINAL_RUN_TOOL = 'kando_terminal_run'
 
 // Which terminal tool a call is, by the name the agent knows it by (mcp__kando__terminal_run,
-// kando.terminal_run), or null for any other.
+// antumi.terminal_run), or null for any other.
 export function terminalToolKind(name: string): TerminalToolKind | null {
-  const own = kandoToolName(name)
+  const own = antumiToolName(name)
   if (!own?.startsWith('terminal_')) return null
   return TERMINAL_TOOLS.find((kind) => kind === own.slice('terminal_'.length)) ?? null
 }

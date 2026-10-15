@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { isHostApproval, TERMINAL_RUN_TOOL, terminalToolKind, type ChatDecision, type ChatItem, type ChatPermissionMode, type ChatQuestion } from '@kando/protocol'
+import { isHostApproval, TERMINAL_RUN_TOOL, terminalToolKind, type ChatDecision, type ChatItem, type ChatPermissionMode, type ChatQuestion } from '@antumi/protocol'
 import { choiceAction, choiceText, chosenText, isPlainDeny } from '../approval-choice-text'
 import { questionAnswers } from '../chat-state'
 import { perform } from '../core-store'
@@ -16,10 +16,10 @@ export type RequestItem = ApprovalItem | QuestionItem
 const DECISION_LABEL: Record<ChatDecision, string> = { allow: '允许', allowForSession: '本会话都允许', deny: '拒绝' }
 // A site is allowed for one visit or for the whole conversation; the words say so.
 const HOST_DECISION_LABEL: Record<ChatDecision, string> = { allow: '允许一次', allowForSession: '本会话允许', deny: '拒绝' }
-// Kando's own question before an agent's command runs in a terminal of its own.
+// Antumi's own question before an agent's command runs in a terminal of its own.
 const TERMINAL_DECISION_LABEL: Record<ChatDecision, string> = { allow: '运行这一次', allowForSession: '本会话都允许在终端运行', deny: '拒绝' }
 
-// A request to run a command in a terminal of the agent's own: Kando's (the command is its title)
+// A request to run a command in a terminal of the agent's own: Antumi's (the command is its title)
 // or the agent's own permission prompt for the tool (the command is in the call's input).
 function terminalCommand(item: Extract<ChatItem, { kind: 'approval' }>, input: string | null | undefined): string | null {
   if (item.tool === TERMINAL_RUN_TOOL) return item.title
@@ -63,7 +63,7 @@ export function ChatRequestLine({ item }: { item: RequestItem }) {
     if (item.resolution !== null) return <ChatQuestionReceipt item={item} />
     return <div className="chat-request-line" data-waiting>Agent 在问你：{item.questions[0]?.question ?? ''} · 在下方回答</div>
   }
-  // A command is named by the program it runs; the card below has it in full. Kando's own
+  // A command is named by the program it runs; the card below has it in full. Antumi's own
   // question about a site names the site.
   const what = <>{toolLabel(item.tool)} <span className="mono">{isCommandTool(item.tool) ? commandKeyword(item.title) : isHostApproval(item) ? item.title : shorten(item.title)}</span></>
   return item.resolution === null
@@ -175,7 +175,7 @@ export function ChatApprovalCard({ conversationId, item, tool, singleApproval = 
       {terminal !== null ? (
         <>
           <CommandBlock command={terminal} />
-          <p className="chat-request-detail muted">在 Kando 的终端面板里开一个标签运行，你能看到输出，随时可以停掉。{item.tool === TERMINAL_RUN_TOOL && item.detail ? `目录：${item.detail}` : ''}</p>
+          <p className="chat-request-detail muted">在 Antumi 的终端面板里开一个标签运行，你能看到输出，随时可以停掉。{item.tool === TERMINAL_RUN_TOOL && item.detail ? `目录：${item.detail}` : ''}</p>
         </>
       ) : command && !tool
         // A subagent's command has no call in this chat: its title is the command.

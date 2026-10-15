@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, closeSync, rmSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
-import { WireDirection, type WireEntry, type WireUsage } from '@kando/protocol'
+import { WireDirection, type WireEntry, type WireUsage } from '@antumi/protocol'
 
 export const WIRE_STAGE_LIMIT_BYTES = 50 * 1024 * 1024
 // An image sent as base64 makes a line of megabytes; the rest of it says nothing a person reads.

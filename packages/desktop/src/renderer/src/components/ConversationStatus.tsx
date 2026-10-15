@@ -1,4 +1,4 @@
-import type { Conversation } from '@kando/protocol'
+import type { Conversation } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { conversationGlyph, conversationState } from '../conversation-state'
 import { Spinner } from './Spinner'

@@ -1,4 +1,4 @@
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 import { withoutQuoteMarkers } from './chat-quotes'
 
 export function copyTextForItem(item: ChatItem): string {

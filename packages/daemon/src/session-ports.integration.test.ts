@@ -9,7 +9,7 @@ describe('live session ports', () => {
     const foreign = createServer()
     foreign.listen(0, '127.0.0.1')
     await once(foreign, 'listening')
-    const server = "const http=require('node:http');const s=http.createServer((q,r)=>r.end('kando-port-test'));s.listen(0,'127.0.0.1',()=>console.log(JSON.stringify({pid:process.pid,port:s.address().port})))"
+    const server = "const http=require('node:http');const s=http.createServer((q,r)=>r.end('antumi-port-test'));s.listen(0,'127.0.0.1',()=>console.log(JSON.stringify({pid:process.pid,port:s.address().port})))"
     const root = spawn(process.execPath, ['-e', `const c=require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(server)}],{stdio:['ignore','pipe','inherit']});c.stdout.pipe(process.stdout);process.on('SIGTERM',()=>{c.kill();process.exit()});setInterval(()=>{},1000)`], { stdio: ['ignore', 'pipe', 'pipe'] })
     let childPid: number | null = null
     try {
@@ -35,7 +35,7 @@ describe('live session ports', () => {
       const port = ports.find((each) => each.port === announced.port && each.pid === announced.pid)
       expect(port).toMatchObject({ sessionId: 'test-session', canStop: true, cwd: process.cwd() })
       expect(ports.every((each) => each.sessionId === 'test-session' && each.pid !== process.pid)).toBe(true)
-      expect(await (await fetch(`http://127.0.0.1:${announced.port}`)).text()).toBe('kando-port-test')
+      expect(await (await fetch(`http://127.0.0.1:${announced.port}`)).text()).toBe('antumi-port-test')
       if (!port) throw new Error('port was not discovered')
       await service.stop(port)
       await expect.poll(async () => (await service.list()).some((each) => each.pid === announced.pid), { timeout: 5000 }).toBe(false)

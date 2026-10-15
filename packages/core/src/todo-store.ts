@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
-import { MAX_TODO_GROUPS, MAX_TODO_ITEMS, TodoList, todoGroupDone, type RpcParsedParams, type TodoGroup } from '@kando/protocol'
+import { MAX_TODO_GROUPS, MAX_TODO_ITEMS, TodoList, todoGroupDone, type RpcParsedParams, type TodoGroup } from '@antumi/protocol'
 import { Rejection } from './rejection'
 
 type AddParams = Omit<RpcParsedParams<'todos.add'>, 'id'>

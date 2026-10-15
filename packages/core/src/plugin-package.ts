@@ -2,7 +2,7 @@ import { mkdir, readdir, readFile, lstat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fromBuffer } from 'yauzl'
 import { satisfies, valid, validRange } from 'semver'
-import { PluginManifest, type PluginInstallSource } from '@kando/protocol'
+import { PluginManifest, type PluginInstallSource } from '@antumi/protocol'
 import { z } from 'zod'
 import { pluginEnvironment } from './plugin-process'
 
@@ -20,12 +20,12 @@ function allowedFile(name: string): boolean {
   return /\.(?:m?js|cjs|json|md|txt|map)$/i.test(name) || /^(?:LICENSE|NOTICE)$/i.test(path.basename(name))
 }
 
-export async function readManifest(root: string, kandoVersion: string): Promise<PluginManifest> {
+export async function readManifest(root: string, antumiVersion: string): Promise<PluginManifest> {
   const file = path.join(root, 'manifest.json')
   const info = await lstat(file)
   if (!info.isFile() || info.size > 128 * 1024) throw new Error('插件 manifest 无效或过大')
   const manifest = PluginManifest.parse(JSON.parse(await readFile(file, 'utf8')))
-  if (!valid(manifest.version) || !validRange(manifest.engines.kando) || !satisfies(kandoVersion, manifest.engines.kando)) throw new Error('插件版本无效或不兼容当前 Kando')
+  if (!valid(manifest.version) || !validRange(manifest.engines.kando) || !satisfies(antumiVersion, manifest.engines.kando)) throw new Error('插件版本无效或不兼容当前 Antumi')
   if (new Set(manifest.contributes.sources.map((source) => source.id)).size !== manifest.contributes.sources.length) throw new Error('插件重复声明了来源')
   for (const source of manifest.contributes.sources) {
     if (new Set(source.settings.map((field) => field.key)).size !== source.settings.length) throw new Error('插件重复声明了设置字段')
@@ -118,7 +118,7 @@ export async function extractPlugin(data: Buffer, root: string): Promise<void> {
 const Release = z.object({ tag_name: z.string(), assets: z.array(z.object({ name: z.string(), browser_download_url: z.string().url() })) })
 
 async function download(url: string): Promise<Buffer> {
-  const response = await fetch(url, { headers: { 'User-Agent': 'Kando', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(60_000) })
+  const response = await fetch(url, { headers: { 'User-Agent': 'Antumi', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(60_000) })
   if (!response.ok) throw new Error(`下载插件失败：HTTP ${response.status}`)
   if (Number(response.headers.get('content-length')) > MAX_BYTES) throw new Error('插件下载过大')
   const chunks: Uint8Array[] = []

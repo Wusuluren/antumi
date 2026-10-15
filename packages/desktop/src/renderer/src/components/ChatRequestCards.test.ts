@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 import { ChatApprovalCard } from './ChatRequestCards'
 
 vi.mock('../core-store', () => ({ perform: vi.fn() }))

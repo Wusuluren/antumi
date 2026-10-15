@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { z } from 'zod'
-import type { ResetCredit, ResetCredits, UsageWindow } from '@kando/protocol'
+import type { ResetCredit, ResetCredits, UsageWindow } from '@antumi/protocol'
 import { fetchUsageJson, parseJson, type UsageReading, type UsageReport } from '../../usage-source'
 
 // The same endpoint Claude Code's /usage reads; it only accepts the OAuth token of a Claude subscription.

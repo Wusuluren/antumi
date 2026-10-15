@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { DEFAULT_INSTANCE, type SourceDescriptor, type SourceInbox } from '@kando/protocol'
+import { DEFAULT_INSTANCE, type SourceDescriptor, type SourceInbox } from '@antumi/protocol'
 
 export const inboxKey = (inbox: Pick<SourceInbox, 'provider' | 'instance'>) => `${inbox.provider}/${inbox.instance}`
 

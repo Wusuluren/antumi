@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Conversation } from '@kando/protocol'
+import type { Conversation } from '@antumi/protocol'
 import { conversationGlyph, conversationState, timeAgo } from './conversation-state'
 
 const base: Conversation = {

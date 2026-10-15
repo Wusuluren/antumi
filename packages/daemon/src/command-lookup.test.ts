@@ -9,7 +9,7 @@ describe.skipIf(process.platform === 'win32')('commandExists', () => {
   afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
   it('finds only an executable file on PATH', () => {
-    dir = mkdtempSync(path.join(os.tmpdir(), 'kando-command-'))
+    dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-command-'))
     const file = path.join(dir, 'agent')
     writeFileSync(file, '#!/bin/sh\n')
     const env = { PATH: `/nowhere${path.delimiter}${dir}` }
@@ -20,7 +20,7 @@ describe.skipIf(process.platform === 'win32')('commandExists', () => {
   })
 
   it('checks a path as it is, relative to the working directory', () => {
-    dir = mkdtempSync(path.join(os.tmpdir(), 'kando-command-'))
+    dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-command-'))
     expect(commandExists(process.execPath, '/', {})).toBe(true)
     expect(commandExists('./missing', dir, {})).toBe(false)
   })

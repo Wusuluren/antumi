@@ -1,4 +1,4 @@
-import { agentDescriptor, type AgentKind } from '@kando/protocol'
+import { agentDescriptor, type AgentKind } from '@antumi/protocol'
 import { Rejection } from '../rejection'
 import type { AgentAdapter } from './agent-adapter'
 import { claude } from './claude/claude-adapter'

@@ -1,4 +1,4 @@
-import type { ChatItem, ChatToolStatus } from '@kando/protocol'
+import type { ChatItem, ChatToolStatus } from '@antumi/protocol'
 import { toolIconKind, type ToolIconKind } from '../chat-tools'
 import { BookIcon, BranchIcon, GearIcon, GlobeIcon, ImageIcon, ListIcon, PencilIcon, SearchIcon, TerminalIcon } from './icons'
 

@@ -1,4 +1,4 @@
-import type { AgentKind } from '@kando/protocol'
+import type { AgentKind } from '@antumi/protocol'
 import type { AgentCommand } from './agent-command'
 import { adapterOf } from './agents'
 import type { AgentLaunch } from './agents/agent-adapter'

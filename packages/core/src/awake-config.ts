@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { ComputerAwakeMode, type ComputerAwakeMode as ComputerAwakeModeValue } from '@kando/protocol'
-import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
+import { ComputerAwakeMode, type ComputerAwakeMode as ComputerAwakeModeValue } from '@antumi/protocol'
+import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 
 const AwakeConfig = z.object({ version: z.literal(1), mode: ComputerAwakeMode }).catch({ version: 1, mode: 'off' })
 

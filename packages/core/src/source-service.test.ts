@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { Conversation, type SourceDescriptor, type SourceInbox, type SourceIssue } from '@kando/protocol'
+import { Conversation, type SourceDescriptor, type SourceInbox, type SourceIssue } from '@antumi/protocol'
 import { AttachmentStore } from './attachment-store'
 import { CredentialStore } from './credential-store'
 import { fakeConnection, until, type FakeConnection } from './fake-connection'
@@ -96,7 +96,7 @@ describe('SourceService', () => {
   const keys = (inbox: SourceInbox) => inbox.items.map((item) => item.key)
 
   beforeEach(async () => {
-    dir = mkdtempSync(path.join(os.tmpdir(), 'kando-sources-'))
+    dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-sources-'))
     store = new TaskStore(path.join(dir, 'kando.db'))
     attachments = new AttachmentStore(dir)
     projects = new ProjectRegistry(path.join(dir, 'kando.db'))

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { RpcError, terminalToolName, type RpcConnection, type TerminalOutput, type TerminalToolKind } from '@kando/protocol'
+import { RpcError, terminalToolName, type RpcConnection, type TerminalOutput, type TerminalToolKind } from '@antumi/protocol'
 import type { ToolOutcome } from './mcp-browser-tools'
 
 export type TerminalTools = {
@@ -24,7 +24,7 @@ export const TERMINAL_TOOL_SPECS = [
     name: terminalToolName('run'),
     title: '在用户能看到的终端里运行',
     description:
-      '在 Kando 的终端面板里为这条会话新开一个标签，用用户的登录 shell 运行一条命令；用户能实时看到输出，也能停掉它。' +
+      '在 Antumi 的终端面板里为这条会话新开一个标签，用用户的登录 shell 运行一条命令；用户能实时看到输出，也能停掉它。' +
       '用来跑要一直运行、用户也想看的进程：开发服务器、watch、测试的 watch 模式、日志 tail。' +
       '一次性的命令（构建、测试、git、查看文件）继续用你自己的 shell 工具，不要用这个。' +
       '返回标签 id 和刚启动时的输出；之后用 terminal_read 读，用 terminal_stop 停。' +

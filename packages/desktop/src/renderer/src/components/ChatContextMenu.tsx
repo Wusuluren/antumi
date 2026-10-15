@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type RefObject } from 'react'
-import { canHaveHelper, type Conversation, type ResolvedFile } from '@kando/protocol'
+import { canHaveHelper, type Conversation, type ResolvedFile } from '@antumi/protocol'
 import { handToHelper } from '../helper-conversations'
 import { useCore } from '../core-store'
 import { canRevealFile } from '../desktop-bridge'
@@ -57,7 +57,7 @@ export function useChatContextMenu(list: RefObject<HTMLDivElement | null>, scope
     openMenu(event.target, { x: box.left + 12, y: box.bottom })
   }
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    const mac = window.kando?.platform === 'darwin' || navigator.userAgent.includes('Mac')
+    const mac = window.antumi?.platform === 'darwin' || navigator.userAgent.includes('Mac')
     if (event.button === 2 || (mac && event.ctrlKey)) event.preventDefault()
   }
   const copy = (text: string) => { close(); void copyFileText(text) }

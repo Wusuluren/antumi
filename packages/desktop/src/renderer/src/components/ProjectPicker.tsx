@@ -1,5 +1,5 @@
 import { useCallback, useState, type FormEvent } from 'react'
-import { MAX_TASK_REPOS, type TaskRepo } from '@kando/protocol'
+import { MAX_TASK_REPOS, type TaskRepo } from '@antumi/protocol'
 import { perform } from '../core-store'
 import { canPickFolder, pickFolder } from '../desktop-bridge'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'

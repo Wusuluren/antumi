@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ATTACHMENT_CHUNK_BYTES, IMAGE_MIME_TYPES, MAX_ATTACHMENT_BYTES, MAX_IMAGE_NAME_LENGTH, type TaskImage } from '@kando/protocol'
+import { ATTACHMENT_CHUNK_BYTES, IMAGE_MIME_TYPES, MAX_ATTACHMENT_BYTES, MAX_IMAGE_NAME_LENGTH, type TaskImage } from '@antumi/protocol'
 import { base64ToBytes, bytesToBase64 } from './base64'
 import { perform, useCore } from './core-store'
 import { ImageCache } from './image-cache'

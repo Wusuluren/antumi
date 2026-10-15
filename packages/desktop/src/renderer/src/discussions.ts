@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AgentKind, Discussion, DiscussionAction, DiscussionCreate, DiscussionMemberFields, DiscussionMemberStatus, DiscussionPost, DiscussionState } from '@kando/protocol'
+import type { AgentKind, Discussion, DiscussionAction, DiscussionCreate, DiscussionMemberFields, DiscussionMemberStatus, DiscussionPost, DiscussionState } from '@antumi/protocol'
 import { perform } from './core-store'
 import { agentLabel } from './labels'
 

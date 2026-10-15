@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { START_HEAD, type RepoStartOptions, type StartNote, type TaskStart } from '@kando/protocol'
+import { START_HEAD, type RepoStartOptions, type StartNote, type TaskStart } from '@antumi/protocol'
 import { gitOrNull } from './git-changes'
 import { Rejection } from './rejection'
 

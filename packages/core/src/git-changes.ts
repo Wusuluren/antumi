@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import type { ChangedFile, Commit, FileDiff } from '@kando/protocol'
+import type { ChangedFile, Commit, FileDiff } from '@antumi/protocol'
 
 const execFileAsync = promisify(execFile)
 

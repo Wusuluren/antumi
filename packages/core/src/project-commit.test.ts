@@ -15,13 +15,13 @@ describe('commitAndPush', () => {
   let remote: string
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-commit-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-commit-'))
     repo = path.join(root, 'repo')
     remote = path.join(root, 'remote.git')
     execFileSync('git', ['init', '--bare', '-q', remote])
     execFileSync('git', ['init', '-q', '-b', 'main', repo])
-    git(repo, 'config', 'user.name', 'Kando Test')
-    git(repo, 'config', 'user.email', 'kando@example.com')
+    git(repo, 'config', 'user.name', 'Antumi Test')
+    git(repo, 'config', 'user.email', 'antumi@example.com')
     git(repo, 'remote', 'add', 'origin', remote)
   })
 

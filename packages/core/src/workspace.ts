@@ -3,7 +3,7 @@ import { mkdir, readdir, rmdir, stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { isFinished, shortTaskId, type RepoStartOptions, type Task, type TaskRepo, type TaskStart } from '@kando/protocol'
+import { isFinished, shortTaskId, type RepoStartOptions, type Task, type TaskRepo, type TaskStart } from '@antumi/protocol'
 import { Rejection } from './rejection'
 import { repoStartOptions, resolveStart } from './task-start'
 
@@ -300,14 +300,14 @@ async function worktreeOutput(dir: string, args: readonly string[]): Promise<str
 
 // What a redo keeps of an attempt in one repo: everything it left, uncommitted work committed on
 // top, on a branch of its own, so the task's branch can start again with nothing lost. Hooks are
-// skipped and a missing identity filled in, as this commit is Kando's keeping, not the user's.
+// skipped and a missing identity filled in, as this commit is Antumi's keeping, not the user's.
 async function keepAttemptWork(topLevel: string, repo: TaskRepo & { branch: string }, attempt: number): Promise<string | null> {
   const dir = repo.worktreePath && (await isDirectory(repo.worktreePath)) ? repo.worktreePath : null
   if (dir && (await worktreeOutput(dir, ['status', '--porcelain']))) {
     const named = (await gitConfig(dir, 'user.name')) && (await gitConfig(dir, 'user.email'))
-    const identity = named ? [] : ['-c', 'user.name=Kando', '-c', 'user.email=kando@localhost']
+    const identity = named ? [] : ['-c', 'user.name=Antumi', '-c', 'user.email=antumi@localhost']
     await worktreeGit(dir, ['add', '-A'])
-    await worktreeGit(dir, [...identity, 'commit', '--no-verify', '-q', '-m', `Kando：第 ${attempt} 次尝试里没提交的改动`])
+    await worktreeGit(dir, [...identity, 'commit', '--no-verify', '-q', '-m', `Antumi：第 ${attempt} 次尝试里没提交的改动`])
   }
   if (!(await branchExists(topLevel, repo.branch))) return null
   const head = await worktreeOutput(topLevel, ['rev-parse', `refs/heads/${repo.branch}`])

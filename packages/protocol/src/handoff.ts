@@ -1,7 +1,7 @@
-// The message that starts an agent on a handoff: Kando's instruction to read the handoff file, then
+// The message that starts an agent on a handoff: Antumi's instruction to read the handoff file, then
 // what the user added for the new agent. Clients show the user's part alone, and core keeps only
-// that as said, so Kando's wording stays out of the chat, its title and its search.
-const PREFIX = '请先阅读 Kando 移交文件 '
+// that as said, so Antumi's wording stays out of the chat, its title and its search.
+const PREFIX = '请先阅读 Antumi 移交文件 '
 const SUFFIX = '，结合当前项目目录现状继续协助用户。'
 
 export function handoffMessage(handoffPath: string, note = ''): string {

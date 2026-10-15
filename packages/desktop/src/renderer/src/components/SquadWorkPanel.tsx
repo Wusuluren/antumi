@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { SquadRun, SquadWork } from '@kando/protocol'
+import type { SquadRun, SquadWork } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
 import { clockText, memberProgress, orderedWorks, workHeadline, type MemberProgress, type MemberState } from '../squad-progress'
 import { durationText } from '../stat-format'

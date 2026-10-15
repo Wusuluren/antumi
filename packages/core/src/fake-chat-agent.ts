@@ -1,4 +1,4 @@
-import type { DaemonEvent, DaemonMethod, DaemonParams, DaemonResult } from '@kando/protocol/node'
+import type { DaemonEvent, DaemonMethod, DaemonParams, DaemonResult } from '@antumi/protocol/node'
 import type { SessionHost } from './daemon-client'
 
 type PipeSession = { output: string; exitCode: number | null; stderr: string; io: 'pty' | 'pipe' }

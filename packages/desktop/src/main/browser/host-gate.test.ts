@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { BROWSER_HOST_DECISION_WAIT_MS } from '@kando/protocol'
+import { BROWSER_HOST_DECISION_WAIT_MS } from '@antumi/protocol'
 import { gatedHost, HostGate } from './host-gate'
 import type { TabRegistry } from './tabs'
 

@@ -23,5 +23,5 @@ export async function waitForCursorMcp(file: string, waitMs = 5000): Promise<voi
     if (await access(file).then(() => true, () => false)) return
     await new Promise((resolve) => setTimeout(resolve, 50))
   }
-  throw new Rejection('cursor-mcp-unavailable', 'Cursor 未能加载 Kando MCP，请检查 CLI 版本、服务器权限或企业策略后重试')
+  throw new Rejection('cursor-mcp-unavailable', 'Cursor 未能加载 Antumi MCP，请检查 CLI 版本、服务器权限或企业策略后重试')
 }

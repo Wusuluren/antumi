@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { isLocalHost, type BrowserNavigationOutcome } from '@kando/protocol'
-import { BROWSER_HOST_PROTOCOL_VERSION, type BrowserHostEndpoint, type BrowserHostEvent, type BrowserHostMethod, type BrowserHostParams, type BrowserHostResult, type HostTab } from '@kando/protocol/node'
+import { isLocalHost, type BrowserNavigationOutcome } from '@antumi/protocol'
+import { BROWSER_HOST_PROTOCOL_VERSION, type BrowserHostEndpoint, type BrowserHostEvent, type BrowserHostMethod, type BrowserHostParams, type BrowserHostResult, type HostTab } from '@antumi/protocol/node'
 import type { HostLink } from './browser-host-client'
 import { pngBytes } from './image-fixtures'
 import { Rejection } from './rejection'

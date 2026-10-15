@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { agentDescriptor, historyToolName, type AgentKind, type Conversation, type ConversationMessage, type Discussion, type DiscussionPost, type HistoryToolKind, type RpcConnection, type Task } from '@kando/protocol'
+import { agentDescriptor, historyToolName, type AgentKind, type Conversation, type ConversationMessage, type Discussion, type DiscussionPost, type HistoryToolKind, type RpcConnection, type Task } from '@antumi/protocol'
 import type { ToolOutcome } from './mcp-browser-tools'
 
 export type HistoryTools = {
@@ -30,9 +30,9 @@ export const HISTORY_TOOL_SPECS = [
   {
     kind: 'list' as const,
     name: historyToolName('list'),
-    title: '列出用户在 Kando 里的会话、任务和群聊',
+    title: '列出用户在 Antumi 里的会话、任务和群聊',
     description:
-      '列出用户在 Kando 里、一段时间内有过活动的会话、任务和群聊，不管是哪个 Agent（Claude Code、Codex、Cursor）做的：' +
+      '列出用户在 Antumi 里、一段时间内有过活动的会话、任务和群聊，不管是哪个 Agent（Claude Code、Codex、Cursor）做的：' +
       'id、标题、Agent、项目、状态、创建和最后活动的时间。用户让你回顾、总结他做过的事（比如「总结我本周的工作」），' +
       '或者提到以前和别的 Agent 聊过的内容时用。先用它找到要看的，再用 history_read 读具体内容。只读。',
     inputSchema: {
@@ -145,7 +145,7 @@ function postsText(discussion: Discussion, posts: readonly DiscussionPost[], fro
   const said = posts.filter((post) => post.state === 'done' && post.createdAt >= from && post.createdAt <= to && post.text.trim())
   if (said.length === 0) return '（这段时间里没有发言）'
   return said.map((post) => {
-    const who = post.memberId ? (members.find((member) => member.id === post.memberId)?.name ?? '已移除的成员') : post.kind === 'notice' ? 'Kando' : '用户'
+    const who = post.memberId ? (members.find((member) => member.id === post.memberId)?.name ?? '已移除的成员') : post.kind === 'notice' ? 'Antumi' : '用户'
     return `[${stamp(post.createdAt)}] ${who}${post.kind === 'summary' ? '（总结）' : ''}：\n${post.text.trim()}`
   }).join('\n\n')
 }

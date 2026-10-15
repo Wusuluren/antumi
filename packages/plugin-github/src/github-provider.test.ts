@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { LoginPrompt, SourceIssue } from '@kando/protocol'
+import type { LoginPrompt, SourceIssue } from '@antumi/protocol'
 import type { GitHubApi, GitHubCredentials, GitHubIssue } from './github-client'
 import { DEFAULT_GITHUB_QUERY, githubProvider } from './github-provider'
 import { SourceError } from './source-error'

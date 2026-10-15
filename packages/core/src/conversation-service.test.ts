@@ -61,7 +61,7 @@ describe('ConversationService', () => {
     readFileSync(/移交文件 (\S+?)，/.exec(JSON.stringify(daemon.written(sessionId)))?.[1] ?? '', 'utf8')
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-conversation-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-conversation-'))
     const database = path.join(root, 'kando.db')
     tasks = new TaskStore(database)
     store = new ConversationStore(database)
@@ -223,8 +223,8 @@ describe('ConversationService', () => {
     const remote = path.join(root, 'origin.git')
     execFileSync('git', ['init', '--bare', '-q', remote])
     execFileSync('git', ['init', '-q', '-b', 'main', repo])
-    execFileSync('git', ['-C', repo, 'config', 'user.name', 'Kando Test'])
-    execFileSync('git', ['-C', repo, 'config', 'user.email', 'kando@example.com'])
+    execFileSync('git', ['-C', repo, 'config', 'user.name', 'Antumi Test'])
+    execFileSync('git', ['-C', repo, 'config', 'user.email', 'antumi@example.com'])
     execFileSync('git', ['-C', repo, 'remote', 'add', 'origin', remote])
     writeFileSync(path.join(repo, 'note.txt'), 'hello\n')
     const echo = daemon.reply
@@ -596,7 +596,7 @@ describe('ConversationService', () => {
     expect(service.get(own.id).taskId).toBe(owner.id)
   })
 
-  it('deletes a conversation with its agent and files, but keeps the workspace Kando made for it', async () => {
+  it('deletes a conversation with its agent and files, but keeps the workspace Antumi made for it', async () => {
     const created = await service.create('claude', [])
     await service.send(created.id, 'Hello')
     await settle()
@@ -682,11 +682,11 @@ describe('ConversationService', () => {
     await service.stop(created.id)
     const handed = await service.handoff(created.id, 'claude', 'watch the tests', false)
     const [first] = daemon.written(handed.sessionId!).filter((frame) => JSON.stringify(frame).includes('"type":"user"'))
-    expect(JSON.stringify(first)).toContain('请先阅读 Kando 移交文件')
+    expect(JSON.stringify(first)).toContain('请先阅读 Antumi 移交文件')
     expect(JSON.stringify(first)).toContain('watch the tests')
     await settle()
     expect(service.messages(created.id).filter((message) => message.role === 'user').map((message) => message.text)).toEqual(['watch the tests'])
-    expect(service.get(created.id).title).not.toContain('Kando')
+    expect(service.get(created.id).title).not.toContain('Antumi')
   })
 
   it('opens a conversation on an issue: named after it, reading the brief first, the note alone as said', async () => {
@@ -987,7 +987,7 @@ describe('ConversationService', () => {
     expect(args).not.toContain('--resume')
     expect(args).toEqual(expect.arrayContaining(['--allowedTools', expect.stringContaining('handoffs')]))
     const sessionId = service.get(moved.id).sessionId!
-    expect(JSON.stringify(daemon.written(sessionId))).toContain('请先阅读 Kando 移交文件')
+    expect(JSON.stringify(daemon.written(sessionId))).toContain('请先阅读 Antumi 移交文件')
     expect(service.stages(moved.id).map((each) => each.planOnly)).toEqual([true, false])
   })
 
@@ -1018,7 +1018,7 @@ describe('ConversationService', () => {
     expect(regrouped.projectPaths).toEqual([realpathSync(root), realpathSync(web)])
     expect(daemon.spawns).toHaveLength(2)
     expect(daemon.spawns.at(-1)?.args).toEqual(expect.arrayContaining(['--resume', sessionArg(first), '--add-dir', realpathSync(web)]))
-    expect(JSON.stringify(daemon.written(service.get(started.id).sessionId!))).not.toContain('请先阅读 Kando 移交文件')
+    expect(JSON.stringify(daemon.written(service.get(started.id).sessionId!))).not.toContain('请先阅读 Antumi 移交文件')
   })
 
   it('restarts an idle chat agent on its session to give it the additional projects, the primary kept', async () => {

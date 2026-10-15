@@ -5,7 +5,7 @@ import {
   AgentKind, CostBaseline, ModelMetering, ModelPrice, SmallModelCost, SmallModelKind,
   agentDescriptor, meteringTokens, modelPrice, ratesAt, tokenCost,
   type ChatItem, type SmallModelTotals
-} from '@kando/protocol'
+} from '@antumi/protocol'
 
 const Job = z.object({
   id: z.string(), kind: SmallModelKind, conversationId: z.string().nullable(), agent: AgentKind,

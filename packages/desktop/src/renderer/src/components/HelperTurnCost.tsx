@@ -1,4 +1,4 @@
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 import { dollars, smallModelExplanation } from '../model-cost-format'
 import { compact } from '../stat-format'
 

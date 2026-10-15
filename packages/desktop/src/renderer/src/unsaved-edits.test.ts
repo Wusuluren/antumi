@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { createRpcClient, type RpcConnection } from '@kando/protocol'
+import { createRpcClient, type RpcConnection } from '@antumi/protocol'
 import { useCore } from './core-store'
 import { saveTaskText, startUnsavedEditRetries, unsavedTaskText } from './unsaved-edits'
 

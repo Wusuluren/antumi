@@ -7,7 +7,7 @@ import { checkPreviewFile, createMcpHandler } from './mcp-server'
 const frame = (method: string, params?: unknown) => JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
 const notification = (method: string) => JSON.stringify({ jsonrpc: '2.0', method })
 
-describe('kando MCP server', () => {
+describe('antumi MCP server', () => {
   const handle = createMcpHandler({ preview: checkPreviewFile })
 
   it('acknowledges startup only after initialize and restricts a planning server to read-only tools', async () => {
@@ -64,7 +64,7 @@ describe('kando MCP server', () => {
   })
 
   it('shows an HTML file or a picture that exists, and refuses anything else', async () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'kando-preview-'))
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-preview-'))
     try {
       const page = path.join(dir, 'index.html')
       writeFileSync(page, '<h1>hi</h1>')

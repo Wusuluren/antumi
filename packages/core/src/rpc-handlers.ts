@@ -1,6 +1,6 @@
 import { EMPTY_BASELINE, type SmallModelStore } from './small-model-store'
 import { GitService } from './git-service'
-import { CORE_FEATURES, PROTOCOL_VERSION, type ChatItem } from '@kando/protocol'
+import { CORE_FEATURES, PROTOCOL_VERSION, type ChatItem } from '@antumi/protocol'
 import packageJson from '../package.json' with { type: 'json' }
 import type { AgentRunStore } from './agent-run-store'
 import type { ChatTurnStore } from './chat-turn-store'
@@ -93,7 +93,7 @@ export function createRpcHandlers(
   const cliInstaller = new AgentCliInstaller(environment, terminals)
   const ports = new PortService(sessions, () => ({ terminals: terminals.list(), conversations: conversations.listAll(), tasks: service.list() }))
   // An agent's own terminals: run in the conversation's folder unless it names another, and
-  // asked about in the chat where the agent asks nothing for Kando's MCP tools.
+  // asked about in the chat where the agent asks nothing for Antumi's MCP tools.
   const agentTerminals = new AgentTerminals(
     (id) => {
       const conversation = conversations.get(id)

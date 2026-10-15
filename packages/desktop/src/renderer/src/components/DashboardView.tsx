@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { TASK_STATUSES, type DashboardStats } from '@kando/protocol'
+import { TASK_STATUSES, type DashboardStats } from '@antumi/protocol'
 import { perform, setDashboardOpen, useCore } from '../core-store'
 import { DASHBOARD_RANGES, type DashboardRange } from '../dashboard-model'
 import { STATUS_LABEL } from '../labels'

@@ -1,4 +1,4 @@
-import type { HostedPort, PortRef } from '@kando/protocol'
+import type { HostedPort, PortRef } from '@antumi/protocol'
 import { readListeningProcesses, readProcessFolders, stopListeningProcess, type ProcessIdentity, type ProcessSnapshot } from './listening-processes'
 
 export type PortSession = { sessionId: string; pid: number; canStopRoot: boolean }

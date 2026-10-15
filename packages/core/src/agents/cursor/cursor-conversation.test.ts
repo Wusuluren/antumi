@@ -10,7 +10,7 @@ import { fakeChatDaemon } from '../../fake-chat-agent'
 import { ProjectRegistry } from '../../project-registry'
 import { TaskStore } from '../../task-store'
 import { requireCursorCli } from './cursor-cli'
-import { writePrivateJson } from '@kando/protocol/node'
+import { writePrivateJson } from '@antumi/protocol/node'
 
 vi.mock('./cursor-cli', async (original) => ({ ...await original<object>(), requireCursorCli: vi.fn(async () => '/fake/cursor-agent'), cursorCatalog: vi.fn(async () => null) }))
 const Frame = z.looseObject({ id: z.union([z.number(), z.string()]).optional(), method: z.string().optional(), params: z.unknown().optional() })
@@ -27,7 +27,7 @@ let unsaved: Set<string>
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 beforeEach(() => {
-  root = mkdtempSync(path.join(os.tmpdir(), 'kando-cursor-conversation-'))
+  root = mkdtempSync(path.join(os.tmpdir(), 'antumi-cursor-conversation-'))
   const database = path.join(root, 'kando.db')
   tasks = new TaskStore(database); store = new ConversationStore(database); projects = new ProjectRegistry(database)
   mkdirSync(path.join(root, 'attachments'))

@@ -1,4 +1,4 @@
-import type { AgentCliInstallation, AgentKind, ChatCatalog, ChatPermissionMode, EnvironmentCheck, KnowledgeBase } from '@kando/protocol'
+import type { AgentCliInstallation, AgentKind, ChatCatalog, ChatPermissionMode, EnvironmentCheck, KnowledgeBase } from '@antumi/protocol'
 import type { AgentCommand, AgentMcpServer, McpServer } from '../agent-command'
 import type { ChatDriver, ChatPreferences, ChatStageOptions } from '../chat-driver'
 import type { UsageSource } from '../usage-source'
@@ -21,9 +21,9 @@ export type AgentLaunch = {
   readable?: readonly string[]
   // Resume only through this message (its uuid), as a new session: a fork of the one resumed.
   forkAt?: string | null
-  // Kando's own tools for the agent (showing a file it wrote); none for an older setup.
+  // Antumi's own tools for the agent (showing a file it wrote); none for an older setup.
   mcp?: McpServer
-  // The user's MCP servers picked for this agent, beside Kando's: never named kando.
+  // The user's MCP servers picked for this agent, beside Antumi's: never named antumi.
   userMcp?: readonly AgentMcpServer[]
   // Whether it may drive the user's own browser, for an agent that can; unset leaves its own default.
   userBrowser?: boolean
@@ -53,13 +53,13 @@ export interface AgentAdapter {
   readonly kind: AgentKind
   createDriver(stageId: string, options: ChatStageOptions): ChatDriver
   command(launch: AgentLaunch): AgentCommand
-  // Kando's modes it can start in; a start asking another is refused before anything runs.
+  // Antumi's modes it can start in; a start asking another is refused before anything runs.
   readonly permissionModes: readonly string[]
   // The mode a stage starts in when the chosen one is not among its modes; without one, the CLI's
   // own default stands.
   readonly fallbackMode?: ChatPermissionMode
   readonly session: {
-    // Kando names the session before launch, so one that died before its first prompt left an id
+    // Antumi names the session before launch, so one that died before its first prompt left an id
     // the agent never saved: only a session that recorded messages is resumed.
     preassignedId: boolean
     // Its sessions belong to the folder they ran in: moved elsewhere, it starts afresh from a handoff.
@@ -69,8 +69,8 @@ export interface AgentAdapter {
   }
   // How long its handshake may take, where the host's own wait is too short.
   readonly startTimeoutMs?: number
-  // Who asks before Kando's MCP tools run a terminal command: the agent itself, or Kando in the chat.
-  readonly mcpApproval: 'agent' | 'kando'
+  // Who asks before Antumi's MCP tools run a terminal command: the agent itself, or Antumi in the chat.
+  readonly mcpApproval: 'agent' | 'antumi'
   // Its models without a chat to read them from; without it, a probe of its chat protocol.
   catalog?(cwd: string): Promise<ChatCatalog | null>
   // How the environment check finds it; without it, its kind on PATH, asked for --version.
@@ -83,7 +83,7 @@ export interface AgentAdapter {
   readonly discovery?: { commands: readonly string[]; applications: Partial<Record<NodeJS.Platform, readonly string[]>> }
   // Steps around starting its process, for an agent its command line alone does not set up.
   readonly launch?: {
-    // Kando's MCP server as this agent is to start it.
+    // Antumi's MCP server as this agent is to start it.
     mcp(server: McpServer, stage: AgentStage): McpServer
     // Before the process starts, given the server it gets: the executable to run in place of the
     // command's, once that is known to be able to run.

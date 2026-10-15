@@ -2,14 +2,14 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 import { AttachmentStore } from './attachment-store'
 import { ChatHost, type ChatSink, type ChatStage } from './chat-host'
 import { fakeChatDaemon } from './fake-chat-agent'
 
 const STAGE: ChatStage = { conversationId: 'conversation-1', stageId: 'stage-1', agent: 'claude', options: { cwd: '/work/repo', extraDirs: [], resume: null } }
 
-describe('Kando\'s own questions in a chat', () => {
+describe('Antumi\'s own questions in a chat', () => {
   let root: string
   let daemon: ReturnType<typeof fakeChatDaemon>
   let published: ChatItem[]
@@ -25,7 +25,7 @@ describe('Kando\'s own questions in a chat', () => {
   }
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-ask-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-ask-'))
     mkdirSync(path.join(root, 'attachments'))
     daemon = fakeChatDaemon()
     published = []
@@ -55,7 +55,7 @@ describe('Kando\'s own questions in a chat', () => {
     host.answer(STAGE.conversationId, requestId, 'allowedForSession', 'go ahead')
     expect(published.at(-1)).toMatchObject({ kind: 'approval', requestId, resolution: 'allowedForSession' })
     expect(host.activity(STAGE.conversationId)).toBe('idle')
-    // Nothing was written to the agent: the question was Kando's.
+    // Nothing was written to the agent: the question was Antumi's.
     expect(daemon.written(sessionId).filter((frame) => JSON.stringify(frame).includes(requestId))).toEqual([])
 
     const open = host.ask(STAGE.conversationId, { kind: 'browser-host', host: 'other.com', url: 'https://other.com/' })

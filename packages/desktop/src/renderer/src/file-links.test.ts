@@ -40,7 +40,7 @@ describe('linkTarget', () => {
   })
 
   it('reads a path, a file URL or a relative name as a file, with the line it points at', () => {
-    expect(linkTarget('/private/tmp/kando-awake-preview-narrow.png')).toEqual({ kind: 'file', path: '/private/tmp/kando-awake-preview-narrow.png', line: null })
+    expect(linkTarget('/private/tmp/antumi-awake-preview-narrow.png')).toEqual({ kind: 'file', path: '/private/tmp/antumi-awake-preview-narrow.png', line: null })
     expect(linkTarget('file:///Users/me/My%20Shots/a.png')).toEqual({ kind: 'file', path: '/Users/me/My Shots/a.png', line: null })
     expect(linkTarget('src/app.ts:42')).toEqual({ kind: 'file', path: 'src/app.ts', line: 42 })
     expect(linkTarget('app.ts:42:7')).toEqual({ kind: 'file', path: 'app.ts', line: 42 })
@@ -64,6 +64,6 @@ describe('images', () => {
   })
 
   it('escapes each part of the path for the preview protocol', () => {
-    expect(previewUrl('/Users/me/My Shots/#1.png')).toBe('kando-preview://file/Users/me/My%20Shots/%231.png')
+    expect(previewUrl('/Users/me/My Shots/#1.png')).toBe('antumi-preview://file/Users/me/My%20Shots/%231.png')
   })
 })

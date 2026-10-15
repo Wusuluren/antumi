@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Task } from '@kando/protocol'
+import type { Task } from '@antumi/protocol'
 import { perform } from '../core-store'
 import { dayAndTime } from '../labels'
 import { ChevronDownIcon, RefreshIcon } from './icons'

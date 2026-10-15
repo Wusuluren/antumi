@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { Squad, SquadRun, Task, type Conversation } from '@kando/protocol'
+import { Squad, SquadRun, Task, type Conversation } from '@antumi/protocol'
 import { WorkingSummary } from './components/WorkingSummary'
 import { conversationActivity, taskActivity } from './work-activity'
 

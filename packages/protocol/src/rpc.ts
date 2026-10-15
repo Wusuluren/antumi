@@ -478,7 +478,7 @@ export const rpcMethods = {
   // colorPrompt: a zsh whose prompt the user never set gets one in colour, with the git branch.
   'terminals.open': { params: z.object({ cwd: z.string().optional(), colorPrompt: z.boolean().optional() }), result: Terminal },
   'terminals.close': { params: z.object({ id: z.string().uuid() }), result: Ok },
-  // An agent's own terminals, called by Kando's MCP server for the conversation it serves: run a
+  // An agent's own terminals, called by Antumi's MCP server for the conversation it serves: run a
   // command in a new tab the user sees, read the end of what it printed, stop it. A conversation
   // reaches only the terminals it opened.
   'terminals.run': {
@@ -513,7 +513,7 @@ export const rpcMethods = {
   },
   // Project paths any task or conversation has used, most recent first; kept after they are gone.
   'projects.recent': { params: z.object({}), result: z.array(z.string()) },
-  // Every worktree Kando laid out, with what git says of each; sizes come as they are counted.
+  // Every worktree Antumi laid out, with what git says of each; sizes come as they are counted.
   'worktrees.list': { params: z.object({}), result: z.array(ManagedWorktree) },
   // Removes each worktree checkCleanWorktree allows, as it stands now; branches stay.
   'worktrees.clean': { params: z.object({ paths: z.array(z.string().min(1)).min(1).max(500) }), result: z.array(WorktreeCleanResult) },

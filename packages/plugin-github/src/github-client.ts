@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { MAX_ISSUE_TITLE_LENGTH, type SourceIssue } from '@kando/protocol'
+import { MAX_ISSUE_TITLE_LENGTH, type SourceIssue } from '@antumi/protocol'
 import { SourceError } from './source-error'
 
 export const GITHUB_KEY_PATTERN = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)#([1-9][0-9]*)$/
@@ -238,7 +238,7 @@ export class GitHubClient implements GitHubApi {
         headers: {
           Accept: 'application/vnd.github+json',
           Authorization: `Bearer ${this.credentials.token}`,
-          'User-Agent': 'Kando',
+          'User-Agent': 'Antumi',
           'X-GitHub-Api-Version': '2022-11-28'
         },
         signal: AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT_MS)]),

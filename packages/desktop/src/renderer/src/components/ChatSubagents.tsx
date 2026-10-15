@@ -1,5 +1,5 @@
 import { useContext, useId, useState } from 'react'
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 import { ChatFindExpansion, useChosen } from '../chat-disclosure'
 import { itemKey } from '../chat-state'
 import { formatTokens, subagentBrief } from '../chat-tools'

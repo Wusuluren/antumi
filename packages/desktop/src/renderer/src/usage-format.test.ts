@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { UsageWindow } from '@kando/protocol'
+import type { UsageWindow } from '@antumi/protocol'
 import { windowLabel } from './usage-format'
 
 const window = (kind: UsageWindow['kind'], model: string | null = null): UsageWindow => ({ kind, model, usedPercent: 9, windowMinutes: 1, resetsAt: null })

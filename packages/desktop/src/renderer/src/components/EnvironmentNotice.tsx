@@ -1,4 +1,4 @@
-import { blocksEverything, environmentProblems } from '@kando/protocol'
+import { blocksEverything, environmentProblems } from '@antumi/protocol'
 import { setSettingsOpen, useCore } from '../core-store'
 import { problemText } from '../environment-text'
 import { PulseIcon } from './icons'

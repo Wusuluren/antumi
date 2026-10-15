@@ -1,5 +1,5 @@
 import { useCallback, useState, type ReactNode } from 'react'
-import type { ResolvedFile } from '@kando/protocol'
+import type { ResolvedFile } from '@antumi/protocol'
 import { canOpenFile, canRevealFile } from '../desktop-bridge'
 import { copyFileText, FILE_MANAGER, openResolvedFile, revealResolvedFile, showResolvedFile, type ChatFileScope } from '../file-actions'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'

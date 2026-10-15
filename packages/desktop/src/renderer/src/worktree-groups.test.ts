@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Task, type ManagedWorktree } from '@kando/protocol'
+import { Task, type ManagedWorktree } from '@antumi/protocol'
 import { formatBytes, groupWorktrees, worktreeRows, worktreeState, worktreeSummary } from './worktree-groups'
 
 const worktree = (name: string, overrides: Partial<ManagedWorktree> = {}): ManagedWorktree => ({

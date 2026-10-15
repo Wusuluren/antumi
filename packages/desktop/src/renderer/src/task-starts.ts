@@ -1,4 +1,4 @@
-import { START_HEAD, type RepoStartOptions, type StartNote, type TaskRepo } from '@kando/protocol'
+import { START_HEAD, type RepoStartOptions, type StartNote, type TaskRepo } from '@antumi/protocol'
 
 export const START_NOTE_TEXT: Record<StartNote, string> = {
   'fetch-failed': '没能拉取最新的，用的是本地已有的',

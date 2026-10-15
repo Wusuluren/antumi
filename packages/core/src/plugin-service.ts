@@ -3,8 +3,8 @@ import path from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { rcompare } from 'semver'
 import { z } from 'zod'
-import { PluginInfo, PluginManifest, PluginVersion, type PluginInstallSource } from '@kando/protocol'
-import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
+import { PluginInfo, PluginManifest, PluginVersion, type PluginInstallSource } from '@antumi/protocol'
+import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 import { packagePath, readManifest, stagePlugin } from './plugin-package'
 import { PluginProcess } from './plugin-process'
 import { Rejection } from './rejection'
@@ -27,7 +27,7 @@ export class PluginService {
 
   constructor(
     private readonly root: string,
-    private readonly kandoVersion: string,
+    private readonly antumiVersion: string,
     private readonly sources: SourceService,
     private readonly config: SourceConfigStore,
     private readonly builtins: readonly SourceProvider[],
@@ -52,7 +52,7 @@ export class PluginService {
         await this.installInner({ kind: 'local', path: bundledGitHub }, undefined, { kind: 'bundled' })
       } catch (error) {
         // Leave first-run initialization retryable if the packaged artifact is missing or invalid.
-        console.error('[kando-core] bundled GitHub plugin could not be installed:', this.message(error))
+        console.error('[antumi-core] bundled GitHub plugin could not be installed:', this.message(error))
       }
     }
   }
@@ -141,7 +141,7 @@ export class PluginService {
     let installedVersion: { id: string; version: string } | undefined
     try {
       await stagePlugin(source, staging)
-      const manifest = await readManifest(staging, this.kandoVersion)
+      const manifest = await readManifest(staging, this.antumiVersion)
       if (expectedId && manifest.id !== expectedId) throw new Error('更新包的插件 ID 不匹配')
       this.checkOwners(manifest)
       const current = this.registry.plugins.find((entry) => entry.manifest.id === manifest.id)
@@ -178,7 +178,7 @@ export class PluginService {
   }
 
   private async prepare(directory: string): Promise<Loaded> {
-    const manifest = await readManifest(directory, this.kandoVersion)
+    const manifest = await readManifest(directory, this.antumiVersion)
     this.checkOwners(manifest)
     const process = new PluginProcess(manifest, packagePath(directory, manifest.entry.main))
     return { process, providers: await process.providers() }

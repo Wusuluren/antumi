@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Conversation, ScheduledRun, Task } from '@kando/protocol'
+import type { Conversation, ScheduledRun, Task } from '@antumi/protocol'
 import { actionableItems, attentionCount, noticesBetween, quickApproval, type Snapshot } from './attention'
 
 const conversation = (id: string, patch: Partial<Conversation> = {}): Conversation => ({

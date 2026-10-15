@@ -21,9 +21,9 @@ const browser = await chromium.launch({ executablePath: '/Applications/Google Ch
 const url = `http://127.0.0.1:${server.address().port}`
 const errors = []
 const counts = (page, expected) => page.waitForFunction((value) => document.querySelector('.chat-find-count')?.textContent === value, expected)
-const highlighted = (page) => page.evaluate(() => [...CSS.highlights.get('kando-chat-find')].map((range) => range.toString()))
+const highlighted = (page) => page.evaluate(() => [...CSS.highlights.get('antumi-chat-find')].map((range) => range.toString()))
 const matchVisible = (page) => page.evaluate(() => {
-  const range = [...CSS.highlights.get('kando-chat-find-current')][0]
+  const range = [...CSS.highlights.get('antumi-chat-find-current')][0]
   const bounds = range.getBoundingClientRect()
   for (let element = range.startContainer.parentElement; element; element = element.parentElement) {
     if (!/auto|scroll/.test(getComputedStyle(element).overflowY)) continue
@@ -82,7 +82,7 @@ try {
   assert.ok(await page.locator('.chat-fold-header[aria-expanded="false"]').count() >= collapsed)
   await search.press('Escape')
   assert.equal(await search.count(), 0)
-  assert.equal(await page.evaluate(() => CSS.highlights.has('kando-chat-find')), false)
+  assert.equal(await page.evaluate(() => CSS.highlights.has('antumi-chat-find')), false)
   assert.equal(await page.evaluate(() => document.body.dataset.escaped), undefined)
   assert.ok(await composer.evaluate((element) => element === document.activeElement))
   assert.equal((await requests(page)).filter((request) => /send|interrupt/.test(request.method)).length, 0)
@@ -98,7 +98,7 @@ try {
   await counts(page, '1 / 9')
   await page.getByRole('button', { name: '切换会话' }).click()
   await search.waitFor({ state: 'detached' })
-  assert.equal(await page.evaluate(() => CSS.highlights.has('kando-chat-find')), false)
+  assert.equal(await page.evaluate(() => CSS.highlights.has('antumi-chat-find')), false)
   await page.keyboard.press('Meta+f')
   assert.equal(await search.inputValue(), '')
   await search.fill('另一个会话')

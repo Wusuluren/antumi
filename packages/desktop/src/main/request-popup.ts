@@ -21,7 +21,7 @@ export class RequestPopup {
       this.open()
       return
     }
-    this.window?.webContents.send('kando:request-popup-wanted', wanted)
+    this.window?.webContents.send('antumi:request-popup-wanted', wanted)
   }
 
   // The card's say: shown at its height, or put away with nothing left to show.
@@ -69,7 +69,7 @@ export class RequestPopup {
     } else {
       window.setAlwaysOnTop(true)
     }
-    window.webContents.on('did-finish-load', () => window.webContents.send('kando:request-popup-wanted', this.wanted))
+    window.webContents.on('did-finish-load', () => window.webContents.send('antumi:request-popup-wanted', this.wanted))
     window.once('closed', () => {
       if (this.window === window) {
         this.window = null
@@ -95,8 +95,8 @@ export function popupWindowOptions(preload: string): BrowserWindowConstructorOpt
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: true,
-    title: 'Kando',
-    // An NSPanel: floats over full-screen apps without bringing Kando's other windows forward.
+    title: 'Antumi',
+    // An NSPanel: floats over full-screen apps without bringing Antumi's other windows forward.
     ...(process.platform === 'darwin' ? { type: 'panel' } : {}),
     webPreferences: {
       preload,

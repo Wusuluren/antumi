@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { Environment, Terminal } from '@kando/protocol'
+import type { Environment, Terminal } from '@antumi/protocol'
 import { AgentCliInstaller, agentCliInstallations } from './agent-cli-installation'
 import { cursorInstallation } from './agents/cursor/cursor-cli'
 

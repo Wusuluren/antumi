@@ -1,10 +1,10 @@
 import { z } from 'zod'
-import { AGENT_KINDS, ChatSettings, KnowledgeBase, TitleNaming, UnattendedMode } from '@kando/protocol'
-import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
+import { AGENT_KINDS, ChatSettings, KnowledgeBase, TitleNaming, UnattendedMode } from '@antumi/protocol'
+import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 
 // Suggestions on, as in Claude Code itself; scheduled runs let edits through but still ask for
 // anything else; an agent that can drives the user's own browser; agents may read the user's
-// history in Kando; no knowledge base until the user picks one. Each field falls back on its own,
+// history in Antumi; no knowledge base until the user picks one. Each field falls back on its own,
 // so one bad value resets nothing else.
 export const DEFAULT_AGENT_CONCURRENCY = 6
 const DEFAULTS = {
@@ -47,7 +47,7 @@ export class ChatSettingsStore {
     try {
       saved = await readJsonIfExists(this.file)
     } catch (error) {
-      console.error('[kando-core] unreadable chat settings; using the defaults', error)
+      console.error('[antumi-core] unreadable chat settings; using the defaults', error)
     }
     this.settings = Saved.parse(saved ?? {})
     this.settings.agentConcurrency = { ...DEFAULTS.agentConcurrency, ...this.settings.agentConcurrency }

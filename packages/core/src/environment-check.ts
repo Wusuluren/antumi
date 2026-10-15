@@ -5,7 +5,7 @@ import { homedir } from 'node:os'
 import { promisify } from 'node:util'
 import { agentCliInstallations } from './agent-cli-installation'
 import { adapterOf } from './agents'
-import { AGENT_KINDS, agentDescriptor, ENVIRONMENT_TOOLS, isAgentKind, type DetectedAgent, type Environment, type EnvironmentCheck, type EnvironmentTool } from '@kando/protocol'
+import { AGENT_KINDS, agentDescriptor, ENVIRONMENT_TOOLS, isAgentKind, type DetectedAgent, type Environment, type EnvironmentCheck, type EnvironmentTool } from '@antumi/protocol'
 
 const execFileAsync = promisify(execFile)
 
@@ -18,7 +18,7 @@ const WINDOWS_EXTENSIONS = ['.exe', '.cmd', '.bat', '.ps1']
 type Discoverable = { id: string; name: string; commands: readonly string[]; applications: Partial<Record<NodeJS.Platform, readonly string[]>> }
 
 // Add a product here when its executable or application bundle can be identified reliably.
-// Integration into Kando's chat is separate from discovery: an agent Kando runs is found through
+// Integration into Antumi's chat is separate from discovery: an agent Antumi runs is found through
 // its adapter's discovery instead.
 const OTHER_AGENTS: readonly Discoverable[] = [
   { id: 'windsurf', name: 'Windsurf', commands: [], applications: { darwin: ['Windsurf.app'] } },
@@ -134,7 +134,7 @@ export class EnvironmentService {
   start(): void {
     if (this.timer) return
     this.timer = setInterval(() => {
-      void this.check(true).catch((error: unknown) => console.error('[kando-core] agent discovery failed', error))
+      void this.check(true).catch((error: unknown) => console.error('[antumi-core] agent discovery failed', error))
     }, RESULT_TTL_MS)
     this.timer.unref()
   }

@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'no
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { Task, type TaskStatus } from '@kando/protocol'
+import { Task, type TaskStatus } from '@antumi/protocol'
 import { WorktreeService, type WorktreeTasks } from './worktree-service'
 
 describe('WorktreeService', () => {
@@ -16,7 +16,7 @@ describe('WorktreeService', () => {
   const git = (cwd: string, ...args: string[]) =>
     execFileSync('git', ['-C', cwd, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { encoding: 'utf8' }).trim()
   const id = (prefix: string) => `${prefix.padEnd(8, '0')}-0000-4000-8000-000000000000`
-  // A worktree where Kando lays one out, on a branch or, for planning, at a commit with none.
+  // A worktree where Antumi lays one out, on a branch or, for planning, at a commit with none.
   const worktree = (prefix: string, { planning = false } = {}) => {
     const at = planning ? path.join(root, id(prefix).slice(0, 8), '.planning', 'app') : path.join(root, id(prefix).slice(0, 8), 'app')
     if (planning) git(app, 'worktree', 'add', '-q', '--detach', at, 'origin/main')
@@ -50,7 +50,7 @@ describe('WorktreeService', () => {
   const service = () => counted().worktrees
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(os.tmpdir(), 'kando-worktrees-'))
+    dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-worktrees-'))
     root = path.join(dir, 'worktrees')
     const origin = path.join(dir, 'origin.git')
     git(dir, 'init', '-q', '--bare', '-b', 'main', origin)
@@ -67,7 +67,7 @@ describe('WorktreeService', () => {
   })
   afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
-  it('lists every worktree Kando laid out, with its task and what git says of it', async () => {
+  it('lists every worktree Antumi laid out, with its task and what git says of it', async () => {
     const done = worktree('d')
     git(done, 'commit', '-q', '--allow-empty', '-m', 'work')
     task('d', 'done', done)

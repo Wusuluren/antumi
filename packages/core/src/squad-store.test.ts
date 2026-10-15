@@ -8,7 +8,7 @@ import { MIGRATIONS, TaskStore } from './task-store'
 
 describe('squad persistence', () => {
   let root: string
-  beforeEach(() => { root = mkdtempSync(path.join(os.tmpdir(), 'kando-squad-store-')) })
+  beforeEach(() => { root = mkdtempSync(path.join(os.tmpdir(), 'antumi-squad-store-')) })
   afterEach(() => { rmSync(root, { recursive: true, force: true }) })
   it('upgrades existing tasks without changing their agent, projects or status', () => {
     const file = path.join(root, 'db')

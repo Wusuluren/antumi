@@ -1,4 +1,4 @@
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 import { itemKey } from './chat-state'
 
 export type RelayMessage = {

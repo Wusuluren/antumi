@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ChatItem, Conversation, TitleNaming } from '@kando/protocol'
+import type { ChatItem, Conversation, TitleNaming } from '@antumi/protocol'
 import { ConversationStore } from './conversation-store'
 import { MIGRATIONS, TaskStore } from './task-store'
 import { cleanConversationTitle, conversationTitlePrompt, ConversationTitles, type TitleGenerator } from './conversation-titles'
@@ -19,7 +19,7 @@ describe('conversation titles', () => {
   let index: number
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-titles-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-titles-'))
     const db = path.join(root, 'kando.db')
     tasks = new TaskStore(db)
     store = new ConversationStore(db)

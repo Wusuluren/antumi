@@ -1,5 +1,5 @@
 import * as pty from 'node-pty'
-import type { DaemonParsedParams } from '@kando/protocol/node'
+import type { DaemonParsedParams } from '@antumi/protocol/node'
 import { commandExists } from './command-lookup'
 import type { HostedProcess, ProcessEvents } from './session-host'
 

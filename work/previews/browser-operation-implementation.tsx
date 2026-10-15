@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createRoot } from '../../packages/desktop/node_modules/react-dom/client'
-import type { ChatItem, ChatToolStatus } from '@kando/protocol'
+import type { ChatItem, ChatToolStatus } from '@antumi/protocol'
 import { ChatBrowserActivity } from '../../packages/desktop/src/renderer/src/components/ChatBrowserActivity'
 import { ChatToolIcon } from '../../packages/desktop/src/renderer/src/components/ChatToolIcon'
 

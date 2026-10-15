@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { BrowserContext, Request } from 'playwright-core'
-import { BROWSER_HOST_DECISION_WAIT_MS, isLocalHost, type BrowserNavigationOutcome } from '@kando/protocol'
+import { BROWSER_HOST_DECISION_WAIT_MS, isLocalHost, type BrowserNavigationOutcome } from '@antumi/protocol'
 import type { TabRegistry } from './tabs'
 
 export type HostCheck = { checkId: string; tabId: string; conversationId: string | null; host: string; url: string }

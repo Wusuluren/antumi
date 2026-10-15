@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { kandoToolName } from './chat'
+import { antumiToolName } from './chat'
 
-// What is left to do after a turn, kept per conversation by Kando rather than in an agent's session,
+// What is left to do after a turn, kept per conversation by Antumi rather than in an agent's session,
 // so it outlives the turn, a restart and a handoff: what the agent writes down for the user (or for
 // whichever agent goes on), and what the user adds. Grouped as a reply lists them: a heading, the
 // items under it. Not the agent's own step list for the turn (ChatTodo), which it replaces at will.
@@ -47,13 +47,13 @@ export function openTodoCount(groups: readonly Pick<TodoGroup, 'items'>[]): numb
   return groups.reduce((sum, group) => sum + group.items.filter((item) => !item.done).length, 0)
 }
 
-// The agent's tools for them, through Kando's MCP server.
+// The agent's tools for them, through Antumi's MCP server.
 export const TODO_TOOLS = ['list', 'add', 'check'] as const
 export type TodoToolKind = (typeof TODO_TOOLS)[number]
 export function todoToolName(kind: TodoToolKind): string {
   return `todo_${kind}`
 }
 export function todoToolKind(name: string): TodoToolKind | null {
-  const own = kandoToolName(name)
+  const own = antumiToolName(name)
   return TODO_TOOLS.find((kind) => own === todoToolName(kind)) ?? null
 }

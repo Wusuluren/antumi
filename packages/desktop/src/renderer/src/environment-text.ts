@@ -1,4 +1,4 @@
-import { AGENT_KINDS, agentDescriptor, isAgentKind, type EnvironmentCheck, type EnvironmentProblem, type EnvironmentTool } from '@kando/protocol'
+import { AGENT_KINDS, agentDescriptor, isAgentKind, type EnvironmentCheck, type EnvironmentProblem, type EnvironmentTool } from '@antumi/protocol'
 import { agentLabel } from './labels'
 
 export function toolLabel(tool: EnvironmentTool): string {
@@ -6,9 +6,9 @@ export function toolLabel(tool: EnvironmentTool): string {
 }
 
 // The platform picks the package manager.
-export const GIT_INSTALL_HINT = window.kando?.platform === 'darwin' ? 'xcode-select --install' : '用系统的包管理器安装 git'
+export const GIT_INSTALL_HINT = window.antumi?.platform === 'darwin' ? 'xcode-select --install' : '用系统的包管理器安装 git'
 
-// Every agent Kando runs, as a sentence names them: "A、B 或 C".
+// Every agent Antumi runs, as a sentence names them: "A、B 或 C".
 export function agentNames(): string {
   const labels = AGENT_KINDS.map(agentLabel)
   return labels.length > 1 ? `${labels.slice(0, -1).join('、')} 或 ${labels.at(-1)}` : labels.join('')

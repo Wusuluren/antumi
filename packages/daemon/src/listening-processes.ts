@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { readlink } from 'node:fs/promises'
-import { ProcessSnapshotData } from '@kando/protocol/node'
+import { ProcessSnapshotData } from '@antumi/protocol/node'
 
 const execute = promisify(execFile)
 export type ProcessIdentity = { pid: number; parentPid: number; startedAt: string; command: string }

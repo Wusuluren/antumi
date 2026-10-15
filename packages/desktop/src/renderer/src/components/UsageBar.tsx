@@ -9,7 +9,7 @@ import {
   type AgentUsage,
   type ResetCredits,
   type UsageWindow
-} from '@kando/protocol'
+} from '@antumi/protocol'
 import { refreshUsage, useCore } from '../core-store'
 import { agentLabel } from '../labels'
 import { usePreferences } from '../preferences'

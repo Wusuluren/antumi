@@ -13,7 +13,7 @@ describe('project branches', () => {
   const current = () => git(app, 'symbolic-ref', '--short', 'HEAD')
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-branches-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-branches-'))
     const origin = path.join(root, 'origin.git')
     git(root, 'init', '-q', '--bare', '-b', 'main', origin)
     const seed = path.join(root, 'seed')

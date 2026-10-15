@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { knowledgeBaseKind, type KnowledgeBaseKind, type KnowledgeFolder, type KnowledgeVault } from '@kando/protocol'
+import { knowledgeBaseKind, type KnowledgeBaseKind, type KnowledgeFolder, type KnowledgeVault } from '@antumi/protocol'
 import { perform, setChatSettings, useCore, useSkillsSupported } from '../core-store'
 import { canPickFolder, pickFolder } from '../desktop-bridge'
 import { projectName } from './ProjectPicker'
@@ -49,7 +49,7 @@ export function KnowledgeBaseSettings() {
     void setChatSettings({ knowledgeBase: { path: picked, write: chosen?.write ?? true, ...(kindsSupported ? { kind } : {}) } })
   }
 
-  if (!connected) return <p className="settings-empty">连接到 Kando core 后才能查看。</p>
+  if (!connected) return <p className="settings-empty">连接到 Antumi core 后才能查看。</p>
   if (!chatSettings) return <p className="settings-empty">正在读取…</p>
   const others = (vaults ?? []).filter((vault) => vault.path !== chosenPath)
   return (

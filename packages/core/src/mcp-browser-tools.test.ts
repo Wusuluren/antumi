@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { RpcError, type BrowserTab, type RpcConnection, type RpcMethod, type RpcParams } from '@kando/protocol'
+import { RpcError, type BrowserTab, type RpcConnection, type RpcMethod, type RpcParams } from '@antumi/protocol'
 import { AttachmentStore } from './attachment-store'
 import { browserToolsOverCore, BROWSER_ARGUMENTS } from './mcp-browser-tools'
 
@@ -39,7 +39,7 @@ describe('browser tools over core', () => {
   const withCore = <T>(work: (connection: RpcConnection) => Promise<T>) => work(rpc as unknown as RpcConnection)
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(os.tmpdir(), 'kando-browser-tools-'))
+    dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-browser-tools-'))
     writeFileSync(path.join(dir, `${'d'.repeat(64)}.jpg`), Buffer.from([0xff, 0xd8, 0xff]))
     calls = []
     tabs = []
@@ -96,7 +96,7 @@ describe('browser tools over core', () => {
   it('turns core\'s refusals into advice', async () => {
     const tools = browserToolsOverCore(withCore, CONV, new AttachmentStore(dir))
     failWith = new RpcError('closed', -32000, 'browser-app-closed')
-    expect(await tools.call('snapshot', {})).toMatchObject({ isError: true, text: expect.stringContaining('打开 Kando 应用') })
+    expect(await tools.call('snapshot', {})).toMatchObject({ isError: true, text: expect.stringContaining('打开 Antumi 应用') })
     failWith = null
     expect(await tools.call('click', { ref: 'e1' })).toMatchObject({ isError: true, text: expect.stringContaining('没有打开的标签页') })
   })

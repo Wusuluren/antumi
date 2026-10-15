@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { Task, type AgentKind, type AgentUsage, type ChatItem, type Routine, type ScheduledRun, type ScheduleTaskBlocker, type UnattendedMode } from '@kando/protocol'
+import { Task, type AgentKind, type AgentUsage, type ChatItem, type Routine, type ScheduledRun, type ScheduleTaskBlocker, type UnattendedMode } from '@antumi/protocol'
 import { CONTINUE_TEXT, SCHEDULED_GO_TEXT, UNATTENDED_NOTE } from './agent-prompt'
 import { AttachmentStore } from './attachment-store'
 import { pngBytes } from './image-fixtures'
@@ -138,7 +138,7 @@ describe('ScheduleService', () => {
   const run = (id: string) => schedules.list().find((each) => each.id === id)
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-schedule-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-schedule-'))
     database = path.join(root, 'kando.db')
     tasks = new TaskStore(database)
     store = new ConversationStore(database)

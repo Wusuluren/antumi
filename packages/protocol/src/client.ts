@@ -113,7 +113,7 @@ export function connectRpc(url: string): Promise<RpcConnection> {
       client.failAll(new Error('connection closed'))
       markClosed()
       if (!opened) {
-        reject(new Error(`cannot connect to Kando core`))
+        reject(new Error(`cannot connect to Antumi core`))
       }
     }
     socket.onopen = async () => {

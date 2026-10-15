@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react'
 import { setSchedulesOpen, useCore } from '../core-store'
 import { cancelSchedule, openRunsForConversation, runAction, scheduleState } from '../schedules'
-import { isPlanApproval, type ChatItem, type Conversation } from '@kando/protocol'
+import { isPlanApproval, type ChatItem, type Conversation } from '@antumi/protocol'
 import { itemKey } from '../chat-state'
 import { toolLabel } from '../chat-tools'
 import { useChatSurface } from './chat-surface'

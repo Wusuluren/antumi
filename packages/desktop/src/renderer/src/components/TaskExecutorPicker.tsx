@@ -1,4 +1,4 @@
-import type { AgentKind, Squad, Task } from '@kando/protocol'
+import type { AgentKind, Squad, Task } from '@antumi/protocol'
 import { updateTask, useCore } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'

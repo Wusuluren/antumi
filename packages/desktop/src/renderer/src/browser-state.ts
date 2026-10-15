@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
-import { isBrowserTool, type BrowserTab } from '@kando/protocol'
+import { isBrowserTool, type BrowserTab } from '@antumi/protocol'
 import { perform, showBrowserPanel, useCore } from './core-store'
 import { usePreferences } from './preferences'
 

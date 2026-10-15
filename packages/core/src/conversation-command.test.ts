@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { chatCommand } from './conversation-command'
 
 describe('chatCommand', () => {
-  it('gives Codex Kando\'s tools and hides the ChatGPT app\'s browser beside them', () => {
+  it('gives Codex Antumi\'s tools and hides the ChatGPT app\'s browser beside them', () => {
     const mcp = { command: 'node', args: ['mcp.mjs', '--home', '/k'] }
     const args = chatCommand('codex', null, false, null, [], { mcp }).args
     expect(args.slice(0, 5)).toEqual(['app-server', '-c', 'mcp_servers.kando.command="node"', '-c', 'mcp_servers.kando.args=["mcp.mjs","--home","/k"]'])
     expect(args).toEqual(expect.arrayContaining(['-c', 'mcp_servers.cua_repl={command="/usr/bin/true",enabled=false}']))
-    // Without Kando's tools there is nothing to choose between, and nothing is hidden.
+    // Without Antumi's tools there is nothing to choose between, and nothing is hidden.
     expect(chatCommand('codex', null, false, null, []).args).toEqual(['app-server'])
   })
 
@@ -23,7 +23,7 @@ describe('chatCommand', () => {
     expect(chatCommand('claude', 's', false, null, []).args).not.toContain('--permission-mode')
   })
 
-  it('gives each agent the user\'s MCP servers beside Kando\'s, asking about their tools as for any other', () => {
+  it('gives each agent the user\'s MCP servers beside Antumi\'s, asking about their tools as for any other', () => {
     const userMcp = [
       { name: 'github', type: 'stdio' as const, command: 'node', args: ['mcp.mjs', '--run', 'github'] },
       { name: 'docs', type: 'http' as const, url: 'https://mcp.example.com/mcp' }
@@ -37,7 +37,7 @@ describe('chatCommand', () => {
     } })
     expect(claude).not.toContain('--strict-mcp-config')
     expect(claude[claude.indexOf('--allowedTools') + 1]).not.toContain('github')
-    // Without Kando's server the user's still go.
+    // Without Antumi's server the user's still go.
     expect(chatCommand('claude', 's', false, null, [], { userMcp }).args).toContain('--mcp-config')
     expect(chatCommand('codex', null, false, null, [], { userMcp }).args).toEqual([
       'app-server',
@@ -84,7 +84,7 @@ describe('chatCommand', () => {
     expect(chatCommand('claude', 's', false, null, []).args).not.toContain('--append-system-prompt')
   })
 
-  it('hands Kando\'s skills to the agents that load a folder of them, each its own way', () => {
+  it('hands Antumi\'s skills to the agents that load a folder of them, each its own way', () => {
     const skills = { dir: '/kando/skills/bundles/abc' }
     expect(chatCommand('claude', 's', false, null, [], { skills }).args).toEqual(expect.arrayContaining(['--plugin-dir', '/kando/skills/bundles/abc']))
     expect(chatCommand('claude', 's', false, null, [], { skills }).args).not.toContain('--add-dir')

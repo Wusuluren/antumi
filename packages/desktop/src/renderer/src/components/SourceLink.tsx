@@ -1,4 +1,4 @@
-import type { TaskSource } from '@kando/protocol'
+import type { TaskSource } from '@antumi/protocol'
 import { ExternalIcon } from './icons'
 
 // The issue an imported task, or a conversation looking into it, came from, one click away.

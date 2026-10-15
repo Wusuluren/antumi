@@ -1,4 +1,4 @@
-import { agentDescriptor, agentModeText, type AgentKind, type ChatContextUse, type ChatItem, type ChatModel, type ChatOption, type ChatPermissionMode, type Conversation } from '@kando/protocol'
+import { agentDescriptor, agentModeText, type AgentKind, type ChatContextUse, type ChatItem, type ChatModel, type ChatOption, type ChatPermissionMode, type Conversation } from '@antumi/protocol'
 import { perform } from '../core-store'
 import { ChatModelPicker, ChatPicker, type PickerOption } from './ChatPicker'
 
@@ -77,7 +77,7 @@ function ContextRing({ context }: { context: ChatContextUse }) {
   )
 }
 
-// A choice the stage reports but does not list (a mode Kando has no name for) still shows.
+// A choice the stage reports but does not list (a mode Antumi has no name for) still shows.
 function withCurrent(values: readonly string[], current: string | null): string[] {
   return current && !values.includes(current) ? [current, ...values] : [...values]
 }

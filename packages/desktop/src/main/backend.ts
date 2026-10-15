@@ -5,8 +5,8 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { app } from 'electron'
 import { z } from 'zod'
-import { AGENT_KINDS, agentDescriptor, type CoreEndpoint } from '@kando/protocol'
-import { kandoPaths, readCoreEndpoint } from '@kando/protocol/node'
+import { AGENT_KINDS, agentDescriptor, type CoreEndpoint } from '@antumi/protocol'
+import { antumiPaths, readCoreEndpoint } from '@antumi/protocol/node'
 
 // Where CLIs land that a Finder-launched app's minimal PATH misses.
 const EXTRA_PATH_DIRS = ['/opt/homebrew/bin', '/usr/local/bin', join(homedir(), '.local/bin')]
@@ -71,7 +71,7 @@ function parsedLine(line: string): unknown {
 // with the same id back. Null when no daemon answers, or this one does not know the method.
 function daemonCall(method: 'info' | 'retire'): Promise<Record<string, unknown> | null> {
   return new Promise((resolve) => {
-    const socket = net.connect(kandoPaths().daemonSocket)
+    const socket = net.connect(antumiPaths().daemonSocket)
     let buffered = ''
     const settle = (value: Record<string, unknown> | null) => {
       socket.destroy()
@@ -94,7 +94,7 @@ function daemonCall(method: 'info' | 'retire'): Promise<Record<string, unknown> 
 
 function daemonReachable(): Promise<boolean> {
   return new Promise((resolve) => {
-    const socket = net.connect(kandoPaths().daemonSocket)
+    const socket = net.connect(antumiPaths().daemonSocket)
     socket.setTimeout(800, () => { socket.destroy(); resolve(false) })
     socket.once('connect', () => { socket.destroy(); resolve(true) })
     socket.once('error', () => resolve(false))
@@ -110,10 +110,10 @@ async function retireOldDaemon(): Promise<boolean> {
   if (!info || info.version === app.getVersion()) return false
   const answer = await daemonCall('retire')
   if (answer?.retired !== true) {
-    console.log(`[kando] daemon ${String(info.version)} still runs ${String(answer?.live ?? '?')} sessions; keeping it until they end`)
+    console.log(`[antumi] daemon ${String(info.version)} still runs ${String(answer?.live ?? '?')} sessions; keeping it until they end`)
     return false
   }
-  console.log(`[kando] daemon ${String(info.version)} is older than this app (${app.getVersion()}); replacing it`)
+  console.log(`[antumi] daemon ${String(info.version)} is older than this app (${app.getVersion()}); replacing it`)
   const until = Date.now() + 10_000
   while (Date.now() < until && (await daemonReachable())) await sleep(200)
   return true
@@ -123,7 +123,7 @@ async function retireOldDaemon(): Promise<boolean> {
 // file on SIGTERM. Sessions live in the daemon, so the agents it served run on; the new core takes
 // them up again.
 async function retireCore(endpoint: CoreEndpoint): Promise<void> {
-  console.log(`[kando] core ${endpoint.version ?? '(unversioned)'} is older than this app (${app.getVersion()}); replacing it`)
+  console.log(`[antumi] core ${endpoint.version ?? '(unversioned)'} is older than this app (${app.getVersion()}); replacing it`)
   try {
     process.kill(endpoint.pid, 'SIGTERM')
   } catch {
@@ -146,7 +146,7 @@ export async function ensureBackend(): Promise<void> {
   const coreCurrent = running?.version === app.getVersion()
   if (coreCurrent && !daemonReplaced) return
   if (running && !coreCurrent) await retireCore(running)
-  const paths = kandoPaths()
+  const paths = antumiPaths()
   const logs = join(paths.home, 'logs')
   mkdirSync(logs, { recursive: true, mode: 0o700 })
   const backend = join(process.resourcesPath, 'backend')
@@ -175,5 +175,5 @@ export async function ensureBackend(): Promise<void> {
     if (await runningCore()) return
     await sleep(300)
   }
-  console.error(`[kando] core did not come up; see ${join(logs, 'core.log')}`)
+  console.error(`[antumi] core did not come up; see ${join(logs, 'core.log')}`)
 }

@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { ChatItem, Conversation } from '@kando/protocol'
+import type { ChatItem, Conversation } from '@antumi/protocol'
 import type { PlanItem } from '../chat-state'
 import { showBrowserPanel, showConversationChanges, showConversationPlan, showInspectorFile } from '../core-store'
 import { locateInspectorFile } from '../inspector-file'

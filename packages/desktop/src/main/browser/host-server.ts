@@ -11,7 +11,7 @@ import {
   type BrowserHostMethod,
   type BrowserHostParsedParams,
   type BrowserHostResult
-} from '@kando/protocol/node'
+} from '@antumi/protocol/node'
 import { HostError } from './host-error'
 
 export type HostHandlers = {

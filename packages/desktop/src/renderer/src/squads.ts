@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { type Squad, type SquadFields, type SquadRun } from '@kando/protocol'
+import { type Squad, type SquadFields, type SquadRun } from '@antumi/protocol'
 import { perform, selectSquad, useCore } from './core-store'
 import { replaySummaryChanges } from './attention-summaries'
 

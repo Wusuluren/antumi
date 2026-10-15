@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import type { SourceInbox, SourceIssue, Task } from '@kando/protocol'
+import type { SourceInbox, SourceIssue, Task } from '@antumi/protocol'
 import { openConversationDraft, perform, selectConversation, selectTask, setInboxOpen, setInboxTab, setSettingsOpen, useCore, useSourceInvestigateSupported } from '../core-store'
 import { defaultAgent } from '../default-agent'
 import { sourceProblemText } from '../labels'

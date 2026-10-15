@@ -2,8 +2,8 @@ import { mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { WebContentsView, type WebContents } from 'electron'
 import { chromium } from 'playwright-core'
-import { BROWSER_HOST_PROTOCOL_VERSION, writePrivateJson, type BrowserHostResult } from '@kando/protocol/node'
-import { BROWSER_VIEWPORT, normalizeBrowserUrl, type BrowserNavigateTo, type BrowserStatus, type BrowserViewport } from '@kando/protocol'
+import { BROWSER_HOST_PROTOCOL_VERSION, writePrivateJson, type BrowserHostResult } from '@antumi/protocol/node'
+import { BROWSER_VIEWPORT, normalizeBrowserUrl, type BrowserNavigateTo, type BrowserStatus, type BrowserViewport } from '@antumi/protocol'
 import * as actions from './actions'
 import { HostError } from './host-error'
 import { HostGate } from './host-gate'
@@ -91,8 +91,8 @@ export async function startBrowserHost(slot: WindowSlot, hostFile: string): Prom
       return { action: 'deny' }
     })
     keysForApp(contents, tab.id, slot)
-    contents.on('focus', () => slot.sendToRenderer('kando:browser-focused', { tabId: tab.id, focused: true }))
-    contents.on('blur', () => slot.sendToRenderer('kando:browser-focused', { tabId: tab.id, focused: false }))
+    contents.on('focus', () => slot.sendToRenderer('antumi:browser-focused', { tabId: tab.id, focused: true }))
+    contents.on('blur', () => slot.sendToRenderer('antumi:browser-focused', { tabId: tab.id, focused: false }))
     return tab
   }
 
@@ -217,17 +217,17 @@ function keysForApp(contents: WebContents, tabId: string, slot: WindowSlot): voi
         contents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
       } else {
         slot.focusApp()
-        slot.sendToRenderer('kando:browser-focused', { tabId, focused: false })
+        slot.sendToRenderer('antumi:browser-focused', { tabId, focused: false })
       }
       return
     }
     if (!command) return
     if (input.shift && input.code === 'Backquote') {
       event.preventDefault()
-      slot.sendToRenderer('kando:browser-shortcut', { kind: 'toggle-browser' })
+      slot.sendToRenderer('antumi:browser-shortcut', { kind: 'toggle-browser' })
     } else if (input.key === ',') {
       event.preventDefault()
-      slot.sendToRenderer('kando:browser-shortcut', { kind: 'settings' })
+      slot.sendToRenderer('antumi:browser-shortcut', { kind: 'settings' })
     } else if (['=', '+', '-', '0'].includes(input.key)) {
       event.preventDefault()
     }

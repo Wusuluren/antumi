@@ -2,8 +2,8 @@ import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { SkillRepo, SkillRepoId, type RecommendedSkillRepo, type SkillRef, type SkillUpdateCheck } from '@kando/protocol'
-import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
+import { SkillRepo, SkillRepoId, type RecommendedSkillRepo, type SkillRef, type SkillUpdateCheck } from '@antumi/protocol'
+import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 import { writeGit } from './git-repository'
 import { gitOrNull } from './git-changes'
 import { Rejection } from './rejection'
@@ -42,10 +42,10 @@ export class SkillsLibrary {
     try {
       const raw = await readJsonIfExists(this.lockFile)
       const parsed = raw === undefined ? null : Lock.safeParse(raw)
-      if (parsed && !parsed.success) console.error(`[kando-core] ${this.lockFile} is not a skills lock; ignoring it until a skill is installed`)
+      if (parsed && !parsed.success) console.error(`[antumi-core] ${this.lockFile} is not a skills lock; ignoring it until a skill is installed`)
       this.repos = parsed?.success ? parsed.data.repos : []
     } catch (error) {
-      console.error(`[kando-core] cannot read ${this.lockFile}:`, error instanceof Error ? error.message : error)
+      console.error(`[antumi-core] cannot read ${this.lockFile}:`, error instanceof Error ? error.message : error)
       this.repos = []
     }
   }

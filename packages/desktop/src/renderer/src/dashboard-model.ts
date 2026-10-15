@@ -1,4 +1,4 @@
-import { MIN_DECIDED_RUNS, type DashboardDay } from '@kando/protocol'
+import { MIN_DECIDED_RUNS, type DashboardDay } from '@antumi/protocol'
 
 export const DASHBOARD_RANGES = [7, 30, 90] as const
 export type DashboardRange = (typeof DASHBOARD_RANGES)[number]

@@ -23,7 +23,7 @@ describe('ChatTurnStore', () => {
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-chat-turns-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-chat-turns-'))
     database = path.join(root, 'kando.db')
     tasks = new TaskStore(database)
     store = new ConversationStore(database)

@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { IMAGE_MIME_TYPES, imageLabel, type TaskImage } from '@kando/protocol'
+import { IMAGE_MIME_TYPES, imageLabel, type TaskImage } from '@antumi/protocol'
 import { useImageUrl } from '../attachment-images'
 
 function Thumbnail({

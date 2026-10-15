@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
-import { Squad, SquadFields, SquadRun, type SquadWork } from '@kando/protocol'
+import { Squad, SquadFields, SquadRun, type SquadWork } from '@antumi/protocol'
 import { Rejection } from './rejection'
 
 export class SquadStore {

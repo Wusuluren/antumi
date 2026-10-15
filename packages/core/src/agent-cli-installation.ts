@@ -1,4 +1,4 @@
-import { AGENT_KINDS, type AgentCliInstallation, type AgentKind, type Environment, type Terminal } from '@kando/protocol'
+import { AGENT_KINDS, type AgentCliInstallation, type AgentKind, type Environment, type Terminal } from '@antumi/protocol'
 import { adapterOf } from './agents'
 import type { EnvironmentService } from './environment-check'
 import type { TerminalService } from './terminal-service'

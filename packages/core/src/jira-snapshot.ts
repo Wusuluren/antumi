@@ -1,4 +1,4 @@
-import { MAX_SNAPSHOT_LENGTH } from '@kando/protocol'
+import { MAX_SNAPSHOT_LENGTH } from '@antumi/protocol'
 import { adfToMarkdown, escapeLinkText, type MediaDescriber } from './jira-adf'
 import type { JiraAttachment, JiraIssue } from './jira-client'
 

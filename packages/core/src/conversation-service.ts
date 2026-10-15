@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { canHaveHelper, isHelper, agentDescriptor, modelPrice, type CostBaseline, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isKandoRequest } from '@kando/protocol'
-import type { DaemonEvent, SessionInfo } from '@kando/protocol/node'
-import type { TaskLaunchOptions } from '@kando/protocol'
+import { canHaveHelper, isHelper, agentDescriptor, modelPrice, type CostBaseline, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isAntumiRequest } from '@antumi/protocol'
+import type { DaemonEvent, SessionInfo } from '@antumi/protocol/node'
+import type { TaskLaunchOptions } from '@antumi/protocol'
 import type { RunMeasure } from './agent-run-store'
 import type { AttachmentStore } from './attachment-store'
 import type { ChatAnswer, StageMessage } from './chat-driver'
@@ -93,7 +93,7 @@ function settles(promise: Promise<void>, ms: number): Promise<boolean> {
   })
 }
 
-// How the note of a branch switch begins, which Kando puts before the user's next message.
+// How the note of a branch switch begins, which Antumi puts before the user's next message.
 const SWITCH_NOTE = '（我切换了分支：'
 
 // Each an existing directory, by its real path and as picked; `taken` are real paths already in use.
@@ -156,7 +156,7 @@ export class ConversationService {
   private readonly cancelStops = new Map<string, Promise<void>>()
   // The tail of each conversation's sends and retries, for an agent that takes them one at a time.
   private readonly serialActions = new Map<string, Promise<void>>()
-  // Kando's own questions waiting on the user, by request id.
+  // Antumi's own questions waiting on the user, by request id.
   private readonly asks = new Map<string, { resolve: (decision: ChatDecision) => void; reject: (error: Error) => void }>()
 
   constructor(
@@ -166,8 +166,8 @@ export class ConversationService {
     private readonly emit: (event: ConversationEvent) => void,
     private readonly projects: ProjectRegistry,
     private readonly attachments: AttachmentStore,
-    // Kando's MCP server for a conversation's agent, acting for that conversation; null leaves the
-    // agent without Kando's tools.
+    // Antumi's MCP server for a conversation's agent, acting for that conversation; null leaves the
+    // agent without Antumi's tools.
     private readonly mcp: ((conversationId: string) => McpServer) | null = null,
     // Where a conversation started in worktrees lays them out; null offers none.
     private readonly worktreesRoot: string | null = null,
@@ -231,7 +231,7 @@ export class ConversationService {
   // The skills bundle an agent's start gets, from the library, or null for none; asked at each
   // start. A bundle that cannot be built keeps no agent from starting: it is noted and left out.
   private skillsFor: ((agent: AgentKind) => Promise<{ dir: string } | null>) | null = null
-  // The user's MCP servers an agent's start gets beside Kando's; asked at each start, like skills.
+  // The user's MCP servers an agent's start gets beside Antumi's; asked at each start, like skills.
   private userMcpFor: ((agent: AgentKind) => AgentMcpServer[]) | null = null
   setUserMcpProvider(provider: (agent: AgentKind) => AgentMcpServer[]): void {
     this.userMcpFor = provider
@@ -1093,7 +1093,7 @@ export class ConversationService {
   async releaseIdle(now = Date.now()): Promise<void> {
     for (const id of this.chats.idleSince(now - CHAT_IDLE_MS)) {
       if (this.launching.has(id)) continue
-      await this.stop(id).catch((error: unknown) => console.error('[kando-core] releasing an idle chat agent failed', error))
+      await this.stop(id).catch((error: unknown) => console.error('[antumi-core] releasing an idle chat agent failed', error))
     }
   }
 
@@ -1260,11 +1260,11 @@ export class ConversationService {
     return new Promise((resolve, reject) => this.asks.set(requestId, { resolve, reject }))
   }
 
-  // A question of Kando's answered as cancelled (the agent went, the stage was replayed) has
+  // A question of Antumi's answered as cancelled (the agent went, the stage was replayed) has
   // nobody left to tell; its waiter learns so here.
   private settleAsks(items: readonly ChatItem[]): void {
     for (const item of items) {
-      if (item.kind !== 'approval' || item.resolution !== 'cancelled' || !isKandoRequest(item.requestId)) continue
+      if (item.kind !== 'approval' || item.resolution !== 'cancelled' || !isAntumiRequest(item.requestId)) continue
       this.asks.get(item.requestId)?.reject(new Rejection('chat-request-gone', 'the question was withdrawn'))
       this.asks.delete(item.requestId)
     }
@@ -1278,7 +1278,7 @@ export class ConversationService {
       const choice = request?.kind === 'approval' ? request.choices?.find((item) => item.id === answer.choice) : null
       if (answer.decision === 'allowForSession' || (answer.mode && answer.mode !== 'ask') || choice?.grants.some((grant) => grant.behavior === 'allow')) throw new Rejection('chat-option-invalid', '小助手的写操作需要逐次批准')
     }
-    if (isKandoRequest(requestId)) {
+    if (isAntumiRequest(requestId)) {
       const resolution = answer.decision === 'allow' ? 'allowed' : answer.decision === 'allowForSession' ? 'allowedForSession' : 'denied'
       this.chats.answer(id, requestId, resolution, answer.message)
       this.asks.get(requestId)?.resolve(answer.decision)
@@ -1456,7 +1456,7 @@ export class ConversationService {
       await rm(path.join(directory, 'handoffs'), { recursive: true, force: true })
       await rm(path.join(directory, 'stages'), { recursive: true, force: true })
       await rm(WireLog.directory(this.sessionsRoot, id), { recursive: true, force: true })
-      // The folder goes too, unless it still holds the workspace Kando made, which stays.
+      // The folder goes too, unless it still holds the workspace Antumi made, which stays.
       await rmdir(directory).catch(() => {})
       this.store.delete(id)
       this.emit({ type: 'deleted', id })
@@ -1478,7 +1478,7 @@ export class ConversationService {
     if (!saved) return
     if (message.role === 'assistant' && message.complete) this.store.completePendingUsers(stage.id)
     if (message.role === 'user' && !conversation.titleLocked && conversation.title === '新会话') {
-      // The user's own words name it, not Kando's note of a branch switch before them.
+      // The user's own words name it, not Antumi's note of a branch switch before them.
       const first = text.split(/\r?\n/).map((line) => line.trim().replace(/\s+/g, ' ')).find((line) => line && !line.startsWith(SWITCH_NOTE))
       if (first) {
         this.changed(this.store.update(conversation.id, { title: [...first].slice(0, 40).join('') }))
@@ -1536,12 +1536,12 @@ export class ConversationService {
           if (info.exited) this.handleExit(info.sessionId, info.exitCode ?? -1)
         }
       } catch (error) {
-        console.error(`[kando-core] recovering conversation ${conversation.id} failed`, error)
+        console.error(`[antumi-core] recovering conversation ${conversation.id} failed`, error)
       }
     }
   }
 
-  // What the user said in a message: of a handoff's, only their note, as Kando's instruction to read
+  // What the user said in a message: of a handoff's, only their note, as Antumi's instruction to read
   // the file is not theirs and stays out of the title, search and later handoffs.
   private userPart(id: string, text: string): string {
     const handoff = parseHandoffMessage(text)

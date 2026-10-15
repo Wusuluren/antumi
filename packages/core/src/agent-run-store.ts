@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
 import { z } from 'zod'
-import { AGENT_KINDS, AgentKind, isFinished, type AgentStats, type Task } from '@kando/protocol'
+import { AGENT_KINDS, AgentKind, isFinished, type AgentStats, type Task } from '@antumi/protocol'
 import { median } from './median'
 
 // run: the first time an agent worked on the task · continue: picked up again in the same worktree

@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import type { Task } from './task'
 
-// A git worktree Kando laid out under its worktrees folder: a task's, a planning checkout, a
-// conversation's, or one whose task or conversation was deleted. Kando never removes one of its own accord; the user cleans them up.
+// A git worktree Antumi laid out under its worktrees folder: a task's, a planning checkout, a
+// conversation's, or one whose task or conversation was deleted. Antumi never removes one of its own accord; the user cleans them up.
 export const ManagedWorktree = z.object({
   path: z.string(),
   // The project it belongs to: the repo's main working tree; null when git cannot say.

@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import type { TaskStatus } from '@kando/protocol'
+import type { TaskStatus } from '@antumi/protocol'
 import { STATUS_HINT, STATUS_LABEL } from '../labels'
 
 function Shape({ status }: { status: TaskStatus }) {

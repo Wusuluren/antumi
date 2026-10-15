@@ -1,6 +1,6 @@
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
-import type { RpcConnection } from '@kando/protocol'
+import type { RpcConnection } from '@antumi/protocol'
 import { onThemeChange } from '../appearance'
 import { codeFontStack } from '../code-font'
 import { usePreferences } from '../preferences'

@@ -1,9 +1,9 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { AGENT_KINDS, agentDescriptor, PROTOCOL_VERSION, usageReadable, type AgentKind, type ChatItem } from '@kando/protocol'
+import { AGENT_KINDS, agentDescriptor, PROTOCOL_VERSION, usageReadable, type AgentKind, type ChatItem } from '@antumi/protocol'
 import packageJson from '../package.json' with { type: 'json' }
-import { removeCoreEndpoint, kandoPaths, writeCoreEndpoint } from '@kando/protocol/node'
+import { removeCoreEndpoint, antumiPaths, writeCoreEndpoint } from '@antumi/protocol/node'
 import { adapterOf } from './agents'
 import { EnvironmentService } from './environment-check'
 import { AgentRunStore } from './agent-run-store'
@@ -32,7 +32,7 @@ import { ScheduleService } from './schedule-service'
 import { RoutineService } from './routine-service'
 import { UsageService } from './usage-service'
 import type { UsageSource } from './usage-source'
-import { kandoChatMcpServer, userMcpServer } from './kando-mcp-server'
+import { antumiChatMcpServer, userMcpServer } from './antumi-mcp-server'
 import { SourceConfigStore } from './source-config'
 import { LoginFlows } from './source-login-flow'
 import { migrateLegacyJira } from './source-migration'
@@ -54,7 +54,7 @@ import { WireLog } from './wire-log'
 import { timestampConsole } from './log-timestamps'
 
 timestampConsole()
-const paths = kandoPaths()
+const paths = antumiPaths()
 await mkdir(paths.home, { recursive: true, mode: 0o700 })
 await mkdir(paths.worktrees, { recursive: true })
 await mkdir(paths.attachments, { recursive: true, mode: 0o700 })
@@ -140,7 +140,7 @@ const conversations = new ConversationService(
   projects,
   attachments,
   // Read at each agent start, so turning history off holds from the next start.
-  (id) => kandoChatMcpServer(paths.home, id, chatSettings.current().readHistory),
+  (id) => antumiChatMcpServer(paths.home, id, chatSettings.current().readHistory),
   paths.worktrees,
   wire
 )
@@ -165,7 +165,7 @@ watchBrowserHostFile(paths.browserHostFile, () => browser.hostFileChanged())
 browser.hostFileChanged()
 for (const stale of ['ms-playwright', 'profile']) {
   const dir = path.join(paths.browser, stale)
-  void stat(dir).then(() => rm(dir, { recursive: true, force: true }).then(() => console.log(`[kando-core] removed ${dir}: the browser now runs in the app`)), () => {})
+  void stat(dir).then(() => rm(dir, { recursive: true, force: true }).then(() => console.log(`[antumi-core] removed ${dir}: the browser now runs in the app`)), () => {})
 }
 
 const service = new TaskService(
@@ -193,7 +193,7 @@ const credentials = new CredentialStore(paths.credentials)
 await sourceConfig.load()
 await credentials.load()
 await migrateLegacyJira(paths.legacyJiraConfig, sourceConfig, credentials).catch((error: unknown) =>
-  console.error('[kando-core] migrating jira.json failed; it stays in place:', error)
+  console.error('[antumi-core] migrating jira.json failed; it stays in place:', error)
 )
 const builtinSources = [jiraProvider()]
 const sources = new SourceService(builtinSources, sourceConfig, credentials, new LoginFlows(), service, store, attachments, {
@@ -290,7 +290,7 @@ const skills = new SkillsLibrary(paths.skills, (repos) => server?.broadcast('ski
 await skills.load()
 const mcpServers = new McpServerStore(paths.mcpServers, credentials, (servers) => server?.broadcast('mcpServers.changed', { servers: [...servers] }))
 await mcpServers.load()
-// Handed through Kando's launcher, so no secret is in an agent's command line or Kando's logs.
+// Handed through Antumi's launcher, so no secret is in an agent's command line or Antumi's logs.
 conversations.setUserMcpProvider((agent) => agentDescriptor(agent).capabilities.userMcp ? mcpServers.forAgent(agent).map((server) => userMcpServer(paths.home, server)) : [])
 // An agent that loads skills gets Obsidian's, where the user turned writing on and has
 // the repository installed; the bundle is the same folder start after start while nothing moved.
@@ -319,7 +319,7 @@ daemon.onEvent((event) => {
     attached.forEach((c) => c.notify('sessions.exit', { sessionId, exitCode: event.exitCode }))
     conversations.handleExit(sessionId, event.exitCode)
     terminals.handleExit(sessionId, event.exitCode)
-    if (installation) void environment.check(true).catch((error: unknown) => console.error('[kando-core] post-install detection failed', error))
+    if (installation) void environment.check(true).catch((error: unknown) => console.error('[antumi-core] post-install detection failed', error))
     // An agent that ended is when the numbers most likely moved.
     void usage.refresh()
     refreshAwake()
@@ -338,11 +338,11 @@ daemon.onConnect(() => {
       terminals.reconcile(sessions)
       await discussions.reconcile()
       await squads.reconcile()
-      void environment.check(true).catch((error: unknown) => console.error('[kando-core] agent discovery failed', error))
+      void environment.check(true).catch((error: unknown) => console.error('[antumi-core] agent discovery failed', error))
       // What came due while core or the daemon was away goes now, not at the next tick.
       await schedules.tick()
     })
-    .catch((error) => console.error('[kando-core] reconcile failed', error))
+    .catch((error) => console.error('[antumi-core] reconcile failed', error))
 })
 
 // Looked for where the daemon looks: it was started with the same PATH as core.
@@ -372,14 +372,14 @@ schedules.start()
 environment.start()
 refreshAwake()
 // Stages that ended before turns were kept, counted once in the background.
-void turns.catchUp().catch((error: unknown) => console.error('[kando-core] counting earlier chat turns failed:', error))
+void turns.catchUp().catch((error: unknown) => console.error('[antumi-core] counting earlier chat turns failed:', error))
 sources.start()
 // Idle chat agents are checked for once a minute, so one goes within a minute of its limit.
 setInterval(() => void conversations.releaseIdle(), 60_000).unref()
 // Wire logs are for looking at soon after: a week on, they go.
 wire.prune()
 setInterval(() => wire.prune(), 6 * 60 * 60_000).unref()
-console.log(`[kando-core] listening on 127.0.0.1:${server.port} (home ${paths.home})`)
+console.log(`[antumi-core] listening on 127.0.0.1:${server.port} (home ${paths.home})`)
 
 let shuttingDown = false
 async function shutdown(): Promise<void> {

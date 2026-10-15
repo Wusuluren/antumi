@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { DiscussionPost } from '@kando/protocol'
+import type { DiscussionPost } from '@antumi/protocol'
 import { discussionProgress, EVERYONE, mentionChoices, mentionedMembers, mentionQuery, mergePosts } from './discussions'
 
 const post = (sequence: number, patch: Partial<DiscussionPost> = {}): DiscussionPost => ({

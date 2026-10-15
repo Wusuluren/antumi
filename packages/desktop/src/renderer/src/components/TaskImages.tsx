@@ -1,5 +1,5 @@
 import { useState, type ClipboardEvent, type DragEvent } from 'react'
-import type { Task } from '@kando/protocol'
+import type { Task } from '@antumi/protocol'
 import { imageFilesOf, uploadImageFiles } from '../attachment-images'
 import { perform } from '../core-store'
 import { ImageStrip } from './ImageStrip'

@@ -1,5 +1,5 @@
 import { createRoot } from '../../packages/desktop/node_modules/react-dom/client'
-import { ChatSettings, createRpcClient } from '@kando/protocol'
+import { ChatSettings, createRpcClient } from '@antumi/protocol'
 import { useCore } from '../../packages/desktop/src/renderer/src/core-store'
 import { usePreferences } from '../../packages/desktop/src/renderer/src/preferences'
 import { SettingsPage } from '../../packages/desktop/src/renderer/src/components/SettingsPage'

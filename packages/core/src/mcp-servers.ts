@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { z } from 'zod'
-import { McpServer, type AgentKind, type McpImportCandidate, type McpImportItem, type McpProbe, type McpSecretInput, type McpServerInput, type McpTransport } from '@kando/protocol'
-import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
+import { McpServer, type AgentKind, type McpImportCandidate, type McpImportItem, type McpProbe, type McpSecretInput, type McpServerInput, type McpTransport } from '@antumi/protocol'
+import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 import type { CredentialStore } from './credential-store'
 import { findAgentMcpServers, importCandidate, importInput, type FoundMcpServer } from './mcp-import'
 import { probeMcpServer } from './mcp-probe'
@@ -42,10 +42,10 @@ export class McpServerStore {
     try {
       const raw = await readJsonIfExists(this.file)
       const parsed = raw === undefined ? null : Saved.safeParse(raw)
-      if (parsed && !parsed.success) console.error(`[kando-core] ${this.file} is not a list of MCP servers; ignoring it until one is saved`)
+      if (parsed && !parsed.success) console.error(`[antumi-core] ${this.file} is not a list of MCP servers; ignoring it until one is saved`)
       this.servers = parsed?.success ? parsed.data.servers : []
     } catch (error) {
-      console.error(`[kando-core] cannot read ${this.file}:`, error instanceof Error ? error.message : error)
+      console.error(`[antumi-core] cannot read ${this.file}:`, error instanceof Error ? error.message : error)
       this.servers = []
     }
   }

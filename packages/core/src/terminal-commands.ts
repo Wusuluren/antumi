@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { z } from 'zod'
-import { MAX_TERMINAL_COMMANDS, TerminalCommand } from '@kando/protocol'
+import { MAX_TERMINAL_COMMANDS, TerminalCommand } from '@antumi/protocol'
 import { Rejection } from './rejection'
 
 type Fields = Pick<TerminalCommand, 'label' | 'command' | 'run' | 'projectPath'>

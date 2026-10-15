@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { imageLabel, MAX_IMAGE_NAME_LENGTH, type TaskImage } from '@kando/protocol'
+import { imageLabel, MAX_IMAGE_NAME_LENGTH, type TaskImage } from '@antumi/protocol'
 import { useImageUrl } from '../attachment-images'
 import { useOccludesBrowser } from '../browser-occlusion'
 

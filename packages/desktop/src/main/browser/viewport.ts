@@ -1,5 +1,5 @@
 import type { Rectangle, WebContents } from 'electron'
-import type { BrowserViewport } from '@kando/protocol'
+import type { BrowserViewport } from '@antumi/protocol'
 
 // Holds the page at a size of its own, or lets it fill its view again. The debugger is the
 // tab's (attached by its proxy); deviceScaleFactor 0 keeps the screen's own density.

@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { SkillName, type SkillEntry } from '@kando/protocol'
+import { SkillName, type SkillEntry } from '@antumi/protocol'
 
 // Where a repository keeps its skills: the Agent Skills layout, else each top-level folder.
 const SKILLS_DIR = 'skills'

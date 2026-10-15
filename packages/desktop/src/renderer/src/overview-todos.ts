@@ -1,4 +1,4 @@
-import { isHelper, type AgentKind, type Conversation, type Task, type TodoGroup, type TodoItem } from '@kando/protocol'
+import { isHelper, type AgentKind, type Conversation, type Task, type TodoGroup, type TodoItem } from '@antumi/protocol'
 
 // A list nobody has touched for this long is called out, so old ones do not bury new ones.
 export const STALE_TODO_MS = 7 * 86_400_000

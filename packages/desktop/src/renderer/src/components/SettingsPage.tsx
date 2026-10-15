@@ -1,6 +1,6 @@
-import type { BrowserStatus, WireUsage } from '@kando/protocol'
+import type { BrowserStatus, WireUsage } from '@antumi/protocol'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
-import { AGENT_KINDS, agentDescriptor, LANGUAGE_NAMES, PROTOCOL_VERSION, quickModel, TRANSLATE_LANGUAGES, UNATTENDED_MODES, type AgentKind, type SourceDescriptor } from '@kando/protocol'
+import { AGENT_KINDS, agentDescriptor, LANGUAGE_NAMES, PROTOCOL_VERSION, quickModel, TRANSLATE_LANGUAGES, UNATTENDED_MODES, type AgentKind, type SourceDescriptor } from '@antumi/protocol'
 import packageJson from '../../../../package.json'
 import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useMcpServersSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
 import { setPreference, usePreferences } from '../preferences'
@@ -115,7 +115,7 @@ function AppearanceSettings() {
       {colorPromptSupported && (
         <SettingsRow
           label="彩色提示符"
-          description="终端用的是 zsh、而你没有自己设置过提示符时，换成带颜色和 git 分支的提示符；上一条命令失败时 % 变红。只影响 Kando 里新开的终端，不改你的 ~/.zshrc；自己配过提示符（或用 oh-my-zsh、starship）的不受影响。"
+          description="终端用的是 zsh、而你没有自己设置过提示符时，换成带颜色和 git 分支的提示符；上一条命令失败时 % 变红。只影响 Antumi 里新开的终端，不改你的 ~/.zshrc；自己配过提示符（或用 oh-my-zsh、starship）的不受影响。"
           control={(labelId) => <Toggle labelId={labelId} checked={colorPrompt} onChange={(next) => setPreference('colorPrompt', next)} />}
         />
       )}
@@ -294,7 +294,7 @@ function browserStatusText(status: BrowserStatus | null): string {
   if (!status) return '正在询问…'
   switch (status.state) {
     case 'app-closed':
-      return '没有连上：浏览器在 Kando 应用里运行'
+      return '没有连上：浏览器在 Antumi 应用里运行'
     case 'starting':
       return '正在启动'
     case 'ready':
@@ -311,7 +311,7 @@ function BrowserRows() {
     <>
       <SettingsRow
         label="浏览器"
-        description="Agent 用 Kando 自带的浏览器打开页面、截图和点击，页面显示在右侧面板。本地地址直接打开，其他网站第一次访问会先问你。Kando 关掉时不可用。"
+        description="Agent 用 Antumi 自带的浏览器打开页面、截图和点击，页面显示在右侧面板。本地地址直接打开，其他网站第一次访问会先问你。Antumi 关掉时不可用。"
         control={() => <span className="muted">{browserStatusText(status)}</span>}
       />
       <SettingsRow
@@ -391,8 +391,8 @@ function AgentSettings() {
       )}
       {chatSettings?.readHistory !== undefined && (
         <SettingsRow
-          label="让 Agent 读你在 Kando 里的记录"
-          description="每个 Agent 都能用两个只读工具，列出和读取你在 Kando 里的会话、任务和群聊（包括其他 Agent 的），比如让定时任务总结本周工作。从下次启动 Agent 起生效。"
+          label="让 Agent 读你在 Antumi 里的记录"
+          description="每个 Agent 都能用两个只读工具，列出和读取你在 Antumi 里的会话、任务和群聊（包括其他 Agent 的），比如让定时任务总结本周工作。从下次启动 Agent 起生效。"
           control={(labelId) => (
             <Toggle labelId={labelId} checked={chatSettings.readHistory ?? true} onChange={(next) => void setChatSettings({ readHistory: next })} />
           )}
@@ -442,7 +442,7 @@ function ProjectSettings() {
   }
 
   if (!connected) {
-    return <p className="settings-empty">连接到 Kando core 后才能查看。</p>
+    return <p className="settings-empty">连接到 Antumi core 后才能查看。</p>
   }
   if (projects === null) {
     return <p className="settings-empty">正在读取…</p>
@@ -490,7 +490,7 @@ function DebugSettings() {
     <>
       <SettingsRow
         label="记录和 Agent 之间的原始数据"
-        description="原样记下 Kando 和 Agent 之间收发的每一行（含 stderr、启动命令和退出码），在会话或任务检查器的「原始数据」里查看、搜索和复制。正在运行的 Agent 从下一行开始记。"
+        description="原样记下 Antumi 和 Agent 之间收发的每一行（含 stderr、启动命令和退出码），在会话或任务检查器的「原始数据」里查看、搜索和复制。正在运行的 Agent 从下一行开始记。"
         control={(labelId) => <Toggle labelId={labelId} checked={wireLog} onChange={(next) => void setChatSettings({ wireLog: next })} />}
       />
       <SettingsRow
@@ -544,15 +544,15 @@ function AboutSettings() {
       <SettingsRow
         label="项目地址"
         control={() => (
-          <a className="settings-about-link" href="https://github.com/flyhero/kando-agents" target="_blank" rel="noreferrer">
-            https://github.com/flyhero/kando-agents
+          <a className="settings-about-link" href="https://github.com/flyhero/antumi-agents" target="_blank" rel="noreferrer">
+            https://github.com/flyhero/antumi-agents
           </a>
         )}
       />
       <SettingsRow label="桌面端版本" control={() => <span className="mono">{packageJson.version}</span>} />
       <SettingsRow label="协议版本" control={() => <span className="mono">{PROTOCOL_VERSION}</span>} />
       <SettingsRow
-        label="Kando core"
+        label="Antumi core"
         control={() => (
           <span className="connection" data-state={connection}>
             <span className="connection-dot" aria-hidden="true" />
@@ -681,7 +681,7 @@ const MCP_SECTION: Section = {
   id: 'mcp',
   group: '任务',
   title: 'MCP',
-  description: '在 Kando 里维护 MCP 服务器，启动时交给你选的 Agent，不改它们自己的配置；可以测试连接，也可以从 Claude、Codex、Cursor 导入。',
+  description: '在 Antumi 里维护 MCP 服务器，启动时交给你选的 Agent，不改它们自己的配置；可以测试连接，也可以从 Claude、Codex、Cursor 导入。',
   keywords: ['mcp', '服务器', 'server', '工具', 'tool', '导入', '连接', '测试', 'token', '令牌', '环境变量', '请求头', ...AGENT_KINDS],
   Icon: PlugIcon,
   Body: McpSettingsSection
@@ -692,7 +692,7 @@ const DEBUG_SECTION: Section = {
   id: 'debug',
   group: '其他',
   title: '调试',
-  description: '原样记下 Kando 和 Agent 之间收发的数据，在检查器的「原始数据」里查看。',
+  description: '原样记下 Antumi 和 Agent 之间收发的数据，在检查器的「原始数据」里查看。',
   keywords: ['调试', 'debug', '原始数据', '日志', 'log', 'stdout', 'stderr', 'stdin', 'json', '协议', '抓包', 'wire'],
   Icon: BugIcon,
   Body: DebugSettings
@@ -709,12 +709,12 @@ const KNOWLEDGE_SECTION: Section = {
   Body: KnowledgeBaseSettings
 }
 
-// The browser Kando hosts for chat agents, where core offers one; it follows the task sources.
+// The browser Antumi hosts for chat agents, where core offers one; it follows the task sources.
 const BROWSER_SECTION: Section = {
   id: 'browser',
   group: '集成',
   title: '浏览器',
-  description: 'Kando 托管的 Chromium：安装状态，以及 Agent 打开页面时是否自动显示浏览器面板。',
+  description: 'Antumi 托管的 Chromium：安装状态，以及 Agent 打开页面时是否自动显示浏览器面板。',
   keywords: ['浏览器', 'chromium', '网页', '截图', '安装', '面板', '集成'],
   Icon: GlobeIcon,
   Body: BrowserRows

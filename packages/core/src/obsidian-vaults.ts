@@ -2,8 +2,8 @@ import { access, stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { z } from 'zod'
-import { AGENT_SKILL_DIRS, type KnowledgeFolder, type KnowledgeVault } from '@kando/protocol'
-import { readJsonIfExists } from '@kando/protocol/node'
+import { AGENT_SKILL_DIRS, type KnowledgeFolder, type KnowledgeVault } from '@antumi/protocol'
+import { readJsonIfExists } from '@antumi/protocol/node'
 
 // Obsidian's own list of the vaults it opened, kept beside its settings.
 const Registry = z.object({

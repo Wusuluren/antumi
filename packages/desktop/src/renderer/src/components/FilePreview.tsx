@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import type { FileRead } from '@kando/protocol'
+import type { FileRead } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { closedFile, EMPTY_FILE_TABS, updateFileTabs, useFileTabs, type FileTab } from '../file-tabs'
 import { FileSource, type FileSourceHandle } from './FileSource'

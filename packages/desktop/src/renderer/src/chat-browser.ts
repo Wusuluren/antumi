@@ -1,4 +1,4 @@
-import { browserToolKind, parseBrowserPage, type ChatItem } from '@kando/protocol'
+import { browserToolKind, parseBrowserPage, type ChatItem } from '@antumi/protocol'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 type BrowserPage = { item: ToolItem; page: NonNullable<ReturnType<typeof parseBrowserPage>> }

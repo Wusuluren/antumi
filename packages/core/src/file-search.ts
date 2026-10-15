@@ -1,6 +1,6 @@
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
-import { MAX_FILE_MATCHES, type ProjectFileMatch } from '@kando/protocol'
+import { MAX_FILE_MATCHES, type ProjectFileMatch } from '@antumi/protocol'
 import { gitOrNull } from './git-changes'
 
 const MAX_MATCHES = 20

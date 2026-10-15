@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-// Agent Skills: folders of SKILL.md that Kando installs once, from git repositories pinned to a
+// Agent Skills: folders of SKILL.md that Antumi installs once, from git repositories pinned to a
 // commit, and hands to whichever agent it starts. Names follow the Agent Skills spec: lowercase,
 // digits and hyphens, the same as the skill's folder.
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/
@@ -34,6 +34,6 @@ export type SkillRef = z.infer<typeof SkillRef>
 export const SkillUpdateCheck = z.object({ id: SkillRepoId, current: CommitSha, latest: CommitSha, behind: z.number().int().nonnegative(), skills: z.array(SkillEntry) })
 export type SkillUpdateCheck = z.infer<typeof SkillUpdateCheck>
 
-// A repository Kando suggests, with what the user should know before installing third-party code.
+// A repository Antumi suggests, with what the user should know before installing third-party code.
 export const RecommendedSkillRepo = z.object({ url: z.string(), name: z.string(), description: z.string(), license: z.string(), homepage: z.string(), skills: z.array(SkillName) })
 export type RecommendedSkillRepo = z.infer<typeof RecommendedSkillRepo>

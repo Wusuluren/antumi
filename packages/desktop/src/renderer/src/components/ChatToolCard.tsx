@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { terminalToolKind, type ChatDiff, type ChatItem, type ChatToolStatus } from '@kando/protocol'
+import { terminalToolKind, type ChatDiff, type ChatItem, type ChatToolStatus } from '@antumi/protocol'
 import { ChatFindExpansion, useDisclosure } from '../chat-disclosure'
 import { itemKey } from '../chat-state'
 import { showTerminal } from '../core-store'

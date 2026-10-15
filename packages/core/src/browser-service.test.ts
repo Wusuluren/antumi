@@ -2,13 +2,13 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { ChatDecision } from '@kando/protocol'
+import type { ChatDecision } from '@antumi/protocol'
 import { AttachmentStore } from './attachment-store'
 import { BrowserService, type BrowserEvent } from './browser-service'
 import { fakeBrowserHost } from './fake-browser-host'
 import { fakeConnection, until } from './fake-connection'
 import { Rejection } from './rejection'
-import { writePrivateJson } from '@kando/protocol/node'
+import { writePrivateJson } from '@antumi/protocol/node'
 
 const CONV_A = '8a0b5f7c-5b0e-4e8d-9d1e-0c1c2b3a4d5e'
 const CONV_B = '1b2c3d4e-5f60-4718-8293-a4b5c6d7e8f9'
@@ -27,7 +27,7 @@ describe('BrowserService', () => {
     new BrowserService({ browserHostFile: hostFile }, new AttachmentStore(path.join(root, 'attachments')), ask, onEvent, (endpoint) => host.connect(endpoint), () => now)
 
   beforeEach(async () => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-browser-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-browser-'))
     mkdirSync(path.join(root, 'attachments'))
     mkdirSync(path.join(root, 'browser'))
     hostFile = path.join(root, 'browser', 'host.json')
@@ -127,7 +127,7 @@ describe('BrowserService', () => {
     await expect(service.snapshot(CONV_A, opened.tab.id)).rejects.toMatchObject({ reason: 'browser-tab-not-found' })
     // The app is gone: its file with it, and nothing answers until it is back.
     rmSync(hostFile)
-    await expect(service.status()).resolves.toMatchObject({ state: 'app-closed', running: false, message: expect.stringContaining('Kando 应用') })
+    await expect(service.status()).resolves.toMatchObject({ state: 'app-closed', running: false, message: expect.stringContaining('Antumi 应用') })
     await expect(service.open(CONV_A)).rejects.toMatchObject({ reason: 'browser-app-closed' })
     host = fakeBrowserHost()
     await writePrivateJson(hostFile, host.endpoint(2))

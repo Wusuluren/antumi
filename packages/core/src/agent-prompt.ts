@@ -10,7 +10,7 @@ import {
   type Task,
   type TaskPlan,
   type TaskStatus
-} from '@kando/protocol'
+} from '@antumi/protocol'
 import type { RefineWorkspace, Workspace } from './workspace'
 
 // Worktrees may be siblings, so include their relative path from the primary repo.

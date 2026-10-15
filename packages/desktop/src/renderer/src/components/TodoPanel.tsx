@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { openTodoCount, todoGroupDone, type RpcMethod, type RpcParams, type TodoGroup, type TodoItem, type TodoOwner } from '@kando/protocol'
+import { openTodoCount, todoGroupDone, type RpcMethod, type RpcParams, type TodoGroup, type TodoItem, type TodoOwner } from '@antumi/protocol'
 import { addQuote } from '../chat-quotes'
 import { receiveTodos, useConversationTodos } from '../conversation-todos'
 import { perform } from '../core-store'

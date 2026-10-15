@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { RpcError, type GitTarget } from '@kando/protocol'
+import { RpcError, type GitTarget } from '@antumi/protocol'
 import { useCommitMessageSupported, useCore } from '../core-store'
 import { reasonText } from '../labels'
 import { usePreferences } from '../preferences'

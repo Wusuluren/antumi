@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { agentDescriptor, canHaveHelper, quickModel, type ChatCatalog, type Conversation, type RpcConnection } from '@kando/protocol'
+import { agentDescriptor, canHaveHelper, quickModel, type ChatCatalog, type Conversation, type RpcConnection } from '@antumi/protocol'
 import { perform, useCore } from './core-store'
 import { addQuote } from './chat-quotes'
 import { usePreferences } from './preferences'

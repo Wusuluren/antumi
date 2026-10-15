@@ -1,10 +1,10 @@
-import { type BrowserToolKind } from '@kando/protocol'
+import { type BrowserToolKind } from '@antumi/protocol'
 
 const str = (value: unknown): string | null => (typeof value === 'string' ? value : null)
 const short = (text: string, max = 40): string => (text.length > max ? `${text.slice(0, max)}…` : text)
 
 // One line saying what a browser tool call does, for its card: the URL, the element and what
-// goes into it, the key. Shared by both drivers, since the tools are Kando's own.
+// goes into it, the key. Shared by both drivers, since the tools are Antumi's own.
 export function describeBrowserTool(kind: BrowserToolKind, input: Record<string, unknown>): string {
   const ref = str(input.ref) ?? ''
   switch (kind) {

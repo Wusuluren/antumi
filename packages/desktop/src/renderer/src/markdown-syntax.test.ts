@@ -10,7 +10,7 @@ describe('reply markdown', () => {
   it('bolds a Chinese label that ends in punctuation and runs straight into the text', () => {
     expect(render('1. **逐行对齐：**每一行的分支图只画到这一行。')).toContain('<strong>逐行对齐：</strong>每一行')
     expect(render('**验证：**新增 2 个测试')).toContain('<strong>验证：</strong>新增')
-    expect(render('Kando 的**「本月」**窗口')).toContain('<strong>「本月」</strong>窗口')
+    expect(render('Antumi 的**「本月」**窗口')).toContain('<strong>「本月」</strong>窗口')
   })
   it('leaves English emphasis to CommonMark', () => {
     expect(render('**Note:** done')).toContain('<strong>Note:</strong> done')

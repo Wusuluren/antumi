@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import type { Task } from '@kando/protocol'
+import type { Task } from '@antumi/protocol'
 import { AgentRunStore } from './agent-run-store'
 import { AttachmentStore } from './attachment-store'
 import { ConversationService } from './conversation-service'
@@ -45,7 +45,7 @@ describe('TaskService', () => {
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(os.tmpdir(), 'kando-test-'))
+    dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-test-'))
     const database = path.join(dir, 'kando.db')
     store = new TaskStore(database)
     conversationsStore = new ConversationStore(database)
@@ -688,7 +688,7 @@ describe('TaskService', () => {
     })
     expect(git(worktree, 'rev-parse', 'HEAD')).toBe(git(repo, 'rev-parse', 'HEAD'))
     expect(git(worktree, 'status', '--porcelain')).toBe('')
-    expect(git(repo, 'log', '-2', '--format=%s', `${branch}-try1`)).toBe('Kando：第 1 次尝试里没提交的改动\nfirst go')
+    expect(git(repo, 'log', '-2', '--format=%s', `${branch}-try1`)).toBe('Antumi：第 1 次尝试里没提交的改动\nfirst go')
     expect(service.get(dependent.id).dependsOn).toEqual([task.id])
     await expect(service.redo(task.id, undefined)).rejects.toMatchObject({ reason: 'not-done' })
   })

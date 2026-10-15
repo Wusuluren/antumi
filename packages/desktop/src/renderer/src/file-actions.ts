@@ -1,11 +1,11 @@
-import type { ResolvedFile } from '@kando/protocol'
+import type { ResolvedFile } from '@antumi/protocol'
 import { perform, showError, useCore } from './core-store'
 import { canRevealFile, openFile, revealFile } from './desktop-bridge'
 import { fileCandidates, type FileReference } from './file-links'
 import { openedFile, updateFileTabs } from './file-tabs'
 
 export type ChatFileScope = { conversationId: string; inspector: 'task' | 'conversation'; roots: readonly string[] }
-export const FILE_MANAGER = window.kando?.platform === 'darwin' ? '访达' : window.kando?.platform === 'win32' ? '资源管理器' : '文件管理器'
+export const FILE_MANAGER = window.antumi?.platform === 'darwin' ? '访达' : window.antumi?.platform === 'win32' ? '资源管理器' : '文件管理器'
 
 export function filePreviewSupported(): boolean {
   return useCore.getState().rpc?.features.includes('file-preview') ?? false

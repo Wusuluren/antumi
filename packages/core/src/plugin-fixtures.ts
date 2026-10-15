@@ -1,6 +1,6 @@
 import { copyFile, mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { PluginManifest } from '@kando/protocol'
+import { PluginManifest } from '@antumi/protocol'
 
 export async function pluginFixture(directory: string, options: { id?: string; version?: string; source?: string; behavior?: Record<string, unknown>; env?: string[] } = {}) {
   await mkdir(directory, { recursive: true })

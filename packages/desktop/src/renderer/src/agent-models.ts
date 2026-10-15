@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { AgentKind, ChatCatalog, ChatModel } from '@kando/protocol'
+import type { AgentKind, ChatCatalog, ChatModel } from '@antumi/protocol'
 import { useCore } from './core-store'
 
 // A model and effort picked for an agent to start in; absent is its default.

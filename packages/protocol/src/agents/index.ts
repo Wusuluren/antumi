@@ -15,7 +15,7 @@ export function agentDescriptor(kind: AgentKind): AgentDescriptor {
   return AGENT_DESCRIPTORS[kind]
 }
 
-// A mode a stage reports, as the agent names it; undefined for one Kando has no name for.
+// A mode a stage reports, as the agent names it; undefined for one Antumi has no name for.
 export function agentModeText(kind: AgentKind, mode: string): AgentModeText | undefined {
   const known = ChatPermissionMode.safeParse(mode)
   return known.success ? AGENT_DESCRIPTORS[kind].modes[known.data] : undefined

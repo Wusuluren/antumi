@@ -5,7 +5,7 @@ import path from 'node:path'
 // look at COLORTERM and TERM_PROGRAM, and macOS's ls colours only with CLICOLOR, unless the user
 // has said otherwise.
 export function terminalEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
-  return { COLORTERM: 'truecolor', TERM_PROGRAM: 'Kando', ...(env.CLICOLOR === undefined ? { CLICOLOR: '1' } : {}) }
+  return { COLORTERM: 'truecolor', TERM_PROGRAM: 'Antumi', ...(env.CLICOLOR === undefined ? { CLICOLOR: '1' } : {}) }
 }
 
 // zsh reads its startup files from ZDOTDIR. Pointed at these, it still reads the user's own,
@@ -13,42 +13,42 @@ export function terminalEnv(env: NodeJS.ProcessEnv = process.env): Record<string
 // and any shell started inside are the user's alone. Only a prompt left as it came (macOS's, or
 // zsh's own) is replaced, by one in colour with the git branch; a prompt the user set, a theme or
 // starship, is left alone. Nothing of the user's is written.
-const USER = '${KANDO_USER_ZDOTDIR:-$HOME}'
+const USER = '${ANTUMI_USER_ZDOTDIR:-$HOME}'
 const ZSH_FILES: Record<string, string> = {
-  '.zshenv': `# Kando: the user's own .zshenv, read as zsh would have.
-_kando_zdotdir=$ZDOTDIR
+  '.zshenv': `# Antumi: the user's own .zshenv, read as zsh would have.
+_antumi_zdotdir=$ZDOTDIR
 ZDOTDIR=${USER}
 [[ -f $ZDOTDIR/.zshenv ]] && source $ZDOTDIR/.zshenv
 # One that moves ZDOTDIR on purpose keeps it, and the rest is read from there.
-[[ $ZDOTDIR == "${USER}" ]] && ZDOTDIR=$_kando_zdotdir
-unset _kando_zdotdir
+[[ $ZDOTDIR == "${USER}" ]] && ZDOTDIR=$_antumi_zdotdir
+unset _antumi_zdotdir
 `,
-  '.zprofile': `# Kando: the user's own .zprofile.
-_kando_zdotdir=$ZDOTDIR
+  '.zprofile': `# Antumi: the user's own .zprofile.
+_antumi_zdotdir=$ZDOTDIR
 ZDOTDIR=${USER}
 [[ -f $ZDOTDIR/.zprofile ]] && source $ZDOTDIR/.zprofile
-ZDOTDIR=$_kando_zdotdir
-unset _kando_zdotdir
+ZDOTDIR=$_antumi_zdotdir
+unset _antumi_zdotdir
 `,
-  '.zshrc': `# Kando: the user's own .zshrc, then a prompt in colour where theirs is still the default.
+  '.zshrc': `# Antumi: the user's own .zshrc, then a prompt in colour where theirs is still the default.
 ZDOTDIR=${USER}
 [[ -f $ZDOTDIR/.zshrc ]] && source $ZDOTDIR/.zshrc
-if [[ -n $KANDO_USER_ZDOTDIR ]]; then ZDOTDIR=$KANDO_USER_ZDOTDIR; else unset ZDOTDIR; fi
-unset KANDO_USER_ZDOTDIR
+if [[ -n $ANTUMI_USER_ZDOTDIR ]]; then ZDOTDIR=$ANTUMI_USER_ZDOTDIR; else unset ZDOTDIR; fi
+unset ANTUMI_USER_ZDOTDIR
 if [[ $PROMPT == '%n@%m %1~ %# ' || $PROMPT == '%m%# ' ]]; then
   autoload -Uz vcs_info add-zsh-hook
   zstyle ':vcs_info:*' enable git
   zstyle ':vcs_info:git:*' formats ' %b'
   zstyle ':vcs_info:git:*' actionformats ' %b|%a'
-  _kando_vcs_info() { vcs_info }
-  add-zsh-hook precmd _kando_vcs_info
+  _antumi_vcs_info() { vcs_info }
+  add-zsh-hook precmd _antumi_vcs_info
   setopt prompt_subst
   PROMPT='%F{cyan}%1~%f%F{magenta}\${vcs_info_msg_0_}%f %(?.%F{green}.%F{red})%#%f '
 fi
 `
 }
 
-// Where the files go, under Kando's home, and the environment a shell is started with to read them.
+// Where the files go, under Antumi's home, and the environment a shell is started with to read them.
 // null where the shell is not zsh: other shells keep their own prompt.
 export class ShellPrompt {
   private written: Promise<void> | null = null
@@ -62,7 +62,7 @@ export class ShellPrompt {
       throw error
     })
     await this.written
-    return { ZDOTDIR: this.zsh(), ...(env.ZDOTDIR ? { KANDO_USER_ZDOTDIR: env.ZDOTDIR } : {}) }
+    return { ZDOTDIR: this.zsh(), ...(env.ZDOTDIR ? { ANTUMI_USER_ZDOTDIR: env.ZDOTDIR } : {}) }
   }
 
   private zsh(): string {

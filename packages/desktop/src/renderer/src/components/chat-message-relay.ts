@@ -1,5 +1,5 @@
 import { createContext, useLayoutEffect, useRef, useState, type RefObject } from 'react'
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 import { relayMessage, type RelayMessage } from '../chat-message-relay'
 import { entryKey, itemKey } from '../chat-state'
 

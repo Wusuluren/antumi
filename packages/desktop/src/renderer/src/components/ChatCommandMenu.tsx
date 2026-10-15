@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type TextareaHTMLAttributes } from 'react'
-import { commandQuery, expandPrompt, matchCommands, typedKandoCommand, type CommandEntry } from '../chat-commands'
+import { commandQuery, expandPrompt, matchCommands, typedAntumiCommand, type CommandEntry } from '../chat-commands'
 
-const KANDO_LABEL = '我的命令'
+const ANTUMI_LABEL = '我的命令'
 
 type InputProps = Pick<TextareaHTMLAttributes<HTMLTextAreaElement>, 'aria-autocomplete' | 'aria-expanded' | 'aria-controls' | 'aria-activedescendant'>
 
@@ -60,16 +60,16 @@ export function useChatCommandMenu({ text, entries, agentLabel, setText, sendCom
   const query = commandQuery(text)
   const shown = useMemo(() => {
     const matches = query === null ? [] : matchCommands(entries, query)
-    return [...matches.filter((entry) => entry.source === 'kando'), ...matches.filter((entry) => entry.source === 'agent')]
+    return [...matches.filter((entry) => entry.source === 'antumi'), ...matches.filter((entry) => entry.source === 'agent')]
   }, [entries, query])
   const open = query !== null && text !== closedAt && shown.length > 0
   const active = Math.min(highlight, shown.length - 1)
   useEffect(() => setHighlight(0), [query])
 
   const pick = (entry: CommandEntry, complete: boolean) => {
-    if (complete || (entry.source === 'kando' && entry.argumentHint)) {
+    if (complete || (entry.source === 'antumi' && entry.argumentHint)) {
       setText(`/${entry.name} `)
-    } else if (entry.source === 'kando') {
+    } else if (entry.source === 'antumi') {
       setText(expandPrompt(entry.command.prompt, ''))
     } else {
       setClosedAt(`/${entry.name}`)
@@ -96,7 +96,7 @@ export function useChatCommandMenu({ text, entries, agentLabel, setText, sendCom
 
   // Before a message goes, the user's own command it names expands into the input instead.
   const expand = (value: string): string | null => {
-    const typed = typedKandoCommand(value, entries)
+    const typed = typedAntumiCommand(value, entries)
     if (!typed) return null
     const expanded = expandPrompt(typed.command.prompt, typed.args)
     return expanded === value.trim() ? null : expanded
@@ -128,7 +128,7 @@ export function useChatCommandMenu({ text, entries, agentLabel, setText, sendCom
   const menu = open ? (
     <div className="menu menu-up chat-command-menu">
       <ul id={listId} role="listbox" aria-label="斜杠命令" className="menu-list">
-        {group('kando', KANDO_LABEL)}
+        {group('antumi', ANTUMI_LABEL)}
         {group('agent', `${agentLabel} 命令`)}
       </ul>
       <div className="chat-command-keys" aria-hidden="true">

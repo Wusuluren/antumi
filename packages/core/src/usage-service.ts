@@ -1,4 +1,4 @@
-import { AGENT_KINDS, usageReadable, type AgentKind, type AgentUsage, type UsageWindow } from '@kando/protocol'
+import { AGENT_KINDS, usageReadable, type AgentKind, type AgentUsage, type UsageWindow } from '@antumi/protocol'
 import { UsageFetchError, type UsageReport, type UsageSource } from './usage-source'
 
 const POLL_MS = 15 * 60_000
@@ -107,7 +107,7 @@ export class UsageService {
           }
         : { agent, status: 'signed-out', windows: [], plan: null, error: null, updatedAt: this.now(), resetCredits: null }
     } catch (error) {
-      console.error(`[kando-core] ${agent} usage refresh failed:`, error instanceof Error ? error.message : error)
+      console.error(`[antumi-core] ${agent} usage refresh failed:`, error instanceof Error ? error.message : error)
       const previous = this.usage.get(agent)
       return {
         agent,

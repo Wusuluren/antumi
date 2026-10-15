@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
-import { DEFAULT_INSTANCE, type SettingField, type SourceDescriptor } from '@kando/protocol'
+import { DEFAULT_INSTANCE, type SettingField, type SourceDescriptor } from '@antumi/protocol'
 import { perform, startLogin, useCore } from '../core-store'
 import { inboxKey } from '../source-inboxes'
 import { sourceProblemText } from '../labels'

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Terminal } from '@kando/protocol'
+import type { Terminal } from '@antumi/protocol'
 import { addQuote } from '../chat-quotes'
 import { closeTerminal, openTerminal, selectTerminal, setTerminalMaximized, toggleTerminalPanel, useCore, useTerminalCommandsSupported, type CoreState } from '../core-store'
 import { AgentIcon, CloseIcon, MaximizeIcon, PlusIcon, QuoteIcon, RestoreIcon } from './icons'

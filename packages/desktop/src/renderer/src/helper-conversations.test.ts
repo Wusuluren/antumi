@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createRpcClient, RpcRequest, type ChatCatalog, type Conversation, type RpcConnection } from '@kando/protocol'
+import { createRpcClient, RpcRequest, type ChatCatalog, type Conversation, type RpcConnection } from '@antumi/protocol'
 import { ensureHelper, handToHelper, helperFor, helperWaiting } from './helper-conversations'
 import { useCore } from './core-store'
 import { usePreferences } from './preferences'

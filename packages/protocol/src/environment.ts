@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { AGENT_KINDS, AgentKind } from './agent'
 
-// What Kando needs on the machine to run a task: git for the worktrees, and at least one agent CLI.
+// What Antumi needs on the machine to run a task: git for the worktrees, and at least one agent CLI.
 export const ENVIRONMENT_TOOLS = ['git', ...AGENT_KINDS] as const
 export const EnvironmentTool = z.enum(ENVIRONMENT_TOOLS)
 export type EnvironmentTool = z.infer<typeof EnvironmentTool>
@@ -15,20 +15,20 @@ export const EnvironmentCheck = z.object({
   tool: EnvironmentTool,
   status: EnvironmentCheckStatus,
   version: z.string().nullable(),
-  // Where it was found, so the user can tell which install Kando runs.
+  // Where it was found, so the user can tell which install Antumi runs.
   path: z.string().nullable(),
   // Whether the tool has an account to run with; null for git, and for a tool that is not there.
   signedIn: z.boolean().nullable()
 })
 export type EnvironmentCheck = z.infer<typeof EnvironmentCheck>
 
-// Inventory is independent of the agent kinds Kando can run. A detected application may not
+// Inventory is independent of the agent kinds Antumi can run. A detected application may not
 // have a CLI, and a CLI may have no desktop application.
 export const DetectedAgent = z.object({
   id: z.string(),
   name: z.string(),
   locations: z.array(z.object({ source: z.enum(['cli', 'application']), path: z.string() })),
-  // A version response proves the CLI can be launched, not that Kando speaks its protocol or
+  // A version response proves the CLI can be launched, not that Antumi speaks its protocol or
   // that the user is signed in. Older cores omit this field.
   cliCheck: z.object({
     status: z.enum(['responded', 'unverified']),

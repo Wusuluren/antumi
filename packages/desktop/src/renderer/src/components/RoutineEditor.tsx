@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
-import { agentDescriptor, HOURLY_EVERY, nextOccurrence, RoutineAgent, type AgentKind, type ChatCatalog, type Routine, type RoutineFields, type RoutineSchedule } from '@kando/protocol'
+import { agentDescriptor, HOURLY_EVERY, nextOccurrence, RoutineAgent, type AgentKind, type ChatCatalog, type Routine, type RoutineFields, type RoutineSchedule } from '@antumi/protocol'
 import type { RoutineTemplate } from '../routine-templates'
 import { dismissError, useChatOptionsSupported, useCore } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'

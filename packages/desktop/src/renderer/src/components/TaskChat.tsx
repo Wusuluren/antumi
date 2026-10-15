@@ -1,6 +1,6 @@
 import { useHelperSupported } from '../helper-conversations'
 import { useEffect, useMemo, useState } from 'react'
-import { checkChatResume, shortTaskId, type Squad, type Task } from '@kando/protocol'
+import { checkChatResume, shortTaskId, type Squad, type Task } from '@antumi/protocol'
 import { usePlans, type PlanItem } from '../chat-state'
 import { loadConversation, perform, showBrowserPanel, showInspectorFile, showTaskChanges, showTaskPlan, useChatOptionsSupported, useCore, useWireLogShown } from '../core-store'
 import { locateInspectorFile } from '../inspector-file'

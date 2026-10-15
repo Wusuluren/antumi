@@ -18,8 +18,8 @@ const CONNECTION_LABEL: Record<ConnectionIssue, string> = {
 }
 
 const CONNECTION_HINT: Record<ConnectionIssue, string> = {
-  connecting: '正在连接 Kando core，断开后会自动重连',
-  'waiting-for-core': '没有找到正在运行的 Kando core，先启动 pnpm dev:core'
+  connecting: '正在连接 Antumi core，断开后会自动重连',
+  'waiting-for-core': '没有找到正在运行的 Antumi core，先启动 pnpm dev:core'
 }
 
 // Only interruptions need a status-bar indicator; healthy is the default.
@@ -151,8 +151,8 @@ function AwakeButton() {
   )
 }
 
-// How many worktrees Kando has laid out and what they take, and how many could go: they are never
-// removed of Kando's own accord, so this is where the user sees them pile up.
+// How many worktrees Antumi has laid out and what they take, and how many could go: they are never
+// removed of Antumi's own accord, so this is where the user sees them pile up.
 function WorktreeButton() {
   const supported = useWorktreesSupported()
   const list = useWorktrees((s) => s.list)
@@ -165,7 +165,7 @@ function WorktreeButton() {
       type="button"
       className="tool-button statusbar-worktrees"
       aria-pressed={open}
-      data-tooltip="管理 Kando 建的 worktree"
+      data-tooltip="管理 Antumi 建的 worktree"
       data-tooltip-side="top-end"
       onClick={() => setWorktreesOpen(!open)}
     >

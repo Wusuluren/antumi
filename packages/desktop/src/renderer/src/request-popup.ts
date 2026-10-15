@@ -1,5 +1,5 @@
-import { isHelper } from '@kando/protocol'
-import { PLAN_TOOLS, type Conversation, type ConversationRequest } from '@kando/protocol'
+import { isHelper } from '@antumi/protocol'
+import { PLAN_TOOLS, type Conversation, type ConversationRequest } from '@antumi/protocol'
 import { actionableItems, waiting, type ActionableTarget, type Snapshot } from './attention'
 
 // One conversation on the card of waiting requests, under its task's name when it has one.

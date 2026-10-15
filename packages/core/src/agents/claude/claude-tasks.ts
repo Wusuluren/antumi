@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { ChatTodo } from '@kando/protocol'
+import type { ChatTodo } from '@antumi/protocol'
 
 // Claude Code keeps its checklist with task tools: TaskCreate adds one (its result names the id),
 // TaskUpdate changes one by id, TaskList restates them all. Older versions wrote the whole list

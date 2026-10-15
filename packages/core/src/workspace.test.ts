@@ -31,7 +31,7 @@ describe('projectHead', () => {
   const dirs: string[] = []
   afterEach(() => dirs.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })))
   const tempDir = () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'kando-head-'))
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-head-'))
     dirs.push(dir)
     return dir
   }
@@ -74,7 +74,7 @@ describe('prepareWorkspace', () => {
   const dirs: string[] = []
   afterEach(() => dirs.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })))
   const tempDir = () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'kando-workspace-'))
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-workspace-'))
     dirs.push(dir)
     return dir
   }

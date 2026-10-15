@@ -1,4 +1,4 @@
-import { CONTEXT_COMPACTED, cursorProviderError } from '@kando/protocol'
+import { CONTEXT_COMPACTED, cursorProviderError } from '@antumi/protocol'
 
 export function isCompaction(text: string): boolean {
   return text === CONTEXT_COMPACTED

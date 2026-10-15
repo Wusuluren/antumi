@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Conversation } from '@kando/protocol'
+import type { Conversation } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
 import { ensureHelper, helperModel, useHelper } from '../helper-conversations'
 import { keepInitialMessage, sendInitialMessage } from '../initial-messages'

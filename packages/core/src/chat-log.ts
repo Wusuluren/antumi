@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync, openSync, readFileSync, closeSync, fstatSync, ftruncateSync, readSync } from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
-import { ChatImage, ChatOption } from '@kando/protocol'
+import { ChatImage, ChatOption } from '@antumi/protocol'
 import type { ChatRecord } from './chat-driver'
 
 const Level = z.enum(['info', 'warning', 'error']).catch('info')
@@ -42,7 +42,7 @@ export function parseChatRecord(line: string): LoggedRecord | null {
   }
 }
 
-// A chat stage's record of what passed between Kando and the agent, one JSON line each. It is
+// A chat stage's record of what passed between Antumi and the agent, one JSON line each. It is
 // the stage's history: the chat view is rebuilt from it, so it is written before anything acts on it.
 export class ChatLog {
   private ready = false

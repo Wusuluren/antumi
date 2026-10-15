@@ -13,7 +13,7 @@ import {
   type BrowserTab,
   type BrowserToolKind,
   type RpcConnection
-} from '@kando/protocol'
+} from '@antumi/protocol'
 import type { AttachmentStore } from './attachment-store'
 
 // What a browser tool gives the model: text, and for a screenshot the picture itself.
@@ -31,7 +31,7 @@ const viewportProperty = {
     type: 'object',
     properties: { width: { type: 'integer' }, height: { type: 'integer' } },
     required: ['width', 'height'],
-    description: '页面尺寸（像素），默认跟随 Kando 的浏览器面板；要看手机布局时给 390×844 这类值，之后一直保持到再改'
+    description: '页面尺寸（像素），默认跟随 Antumi 的浏览器面板；要看手机布局时给 390×844 这类值，之后一直保持到再改'
   }
 }
 
@@ -77,7 +77,7 @@ export const BROWSER_TOOL_SPECS: ReadonlyArray<ToolSpec & { kind: BrowserToolKin
     name: browserToolName('navigate'),
     title: '打开页面',
     description:
-      '在 Kando 托管的浏览器里打开一个 URL，或在当前标签页里后退、前进、刷新；返回页面的无障碍树快照。' +
+      '在 Antumi 托管的浏览器里打开一个 URL，或在当前标签页里后退、前进、刷新；返回页面的无障碍树快照。' +
       '本地开发地址（localhost、127.0.0.1、*.localhost、*.test）直接打开；第一次访问其他站点时会在对话里请用户确认，' +
       '返回「等待用户确认」时先停下，等用户同意后再调用一次。没有标签页时自动开一个。',
     inputSchema: {
@@ -91,7 +91,7 @@ export const BROWSER_TOOL_SPECS: ReadonlyArray<ToolSpec & { kind: BrowserToolKin
       additionalProperties: false
     },
     // Not marked open-world although it is: Codex asks before every such call through a request
-    // Kando's chat does not answer, so the page would never open. The site gate in core is the
+    // Antumi's chat does not answer, so the page would never open. The site gate in core is the
     // check that matters, the same for both agents.
     annotations: acts
   },
@@ -288,7 +288,7 @@ function failureText(error: unknown): string {
   if (error instanceof RpcError && error.reason) {
     switch (error.reason) {
       case 'browser-app-closed':
-        return '浏览器在 Kando 应用里运行，现在应用没有打开。请用户打开 Kando 应用后再试。'
+        return '浏览器在 Antumi 应用里运行，现在应用没有打开。请用户打开 Antumi 应用后再试。'
       case 'browser-app-outdated':
         return `${error.message}。`
       case 'browser-tab-not-found':

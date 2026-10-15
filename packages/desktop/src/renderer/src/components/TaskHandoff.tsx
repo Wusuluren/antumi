@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { checkTaskHandoff, type AgentKind, type Task } from '@kando/protocol'
+import { checkTaskHandoff, type AgentKind, type Task } from '@antumi/protocol'
 import { useCore, useTaskHandoffSupported } from '../core-store'
 import { reasonText } from '../labels'
 import { beginHandoff } from './ConversationActions'

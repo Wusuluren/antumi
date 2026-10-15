@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useState } from 'react'
-import type { ChatItem, ChatTodo } from '@kando/protocol'
+import type { ChatItem, ChatTodo } from '@antumi/protocol'
 import { useDisclosure } from '../chat-disclosure'
 import { itemKey, todoChange } from '../chat-state'
 import { CheckIcon, ChevronRightIcon } from './icons'

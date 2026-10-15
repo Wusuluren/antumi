@@ -3,14 +3,14 @@ import os from 'node:os'
 import path from 'node:path'
 import { DAEMON_PROTOCOL_VERSION } from './daemon-protocol'
 
-export function kandoHome(env: NodeJS.ProcessEnv = process.env, homedir: string = os.homedir()): string {
+export function antumiHome(env: NodeJS.ProcessEnv = process.env, homedir: string = os.homedir()): string {
   return env.KANDO_HOME ? path.resolve(env.KANDO_HOME) : path.join(homedir, '.kando')
 }
 
 // sun_path is 104 bytes on macOS and 108 on Linux; leave headroom.
 const MAX_SOCKET_PATH_BYTES = 100
 
-export type KandoPaths = {
+export type AntumiPaths = {
   home: string
   database: string
   coreEndpoint: string
@@ -33,14 +33,14 @@ export type KandoPaths = {
   // connect to. Earlier versions kept a Chromium download and profile here too.
   browser: string
   browserHostFile: string
-  // Agent Skills Kando installed: their repositories, the lock that pins them, and the bundles
+  // Agent Skills Antumi installed: their repositories, the lock that pins them, and the bundles
   // built from them for agents.
   skills: string
   // The user's MCP servers; their secrets are in credentials.
   mcpServers: string
 }
 
-export function kandoPaths(home: string = kandoHome()): KandoPaths {
+export function antumiPaths(home: string = antumiHome()): AntumiPaths {
   return {
     home,
     database: path.join(home, 'kando.db'),

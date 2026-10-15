@@ -1,4 +1,4 @@
-import { quotaVerdict, type AgentKind, type AgentUsage, type ChatItem, type LimitRef } from '@kando/protocol'
+import { quotaVerdict, type AgentKind, type AgentUsage, type ChatItem, type LimitRef } from '@antumi/protocol'
 import type { ConversationService } from './conversation-service'
 import { Rejection } from './rejection'
 import { GRACE_MS, ScheduleService, type LimitRun } from './schedule-service'

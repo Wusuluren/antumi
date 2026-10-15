@@ -12,7 +12,7 @@ describe('conversation changes', () => {
     execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { encoding: 'utf8' }).trim()
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-folder-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-folder-'))
     repo = path.join(root, 'app')
     mkdirSync(path.join(repo, 'web'), { recursive: true })
     execFileSync('git', ['init', '-q', '-b', 'main', repo])

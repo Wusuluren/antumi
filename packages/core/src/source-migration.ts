@@ -1,8 +1,8 @@
 import { rm } from 'node:fs/promises'
 import { z } from 'zod'
-import { DEFAULT_INSTANCE } from '@kando/protocol'
+import { DEFAULT_INSTANCE } from '@antumi/protocol'
 import type { CredentialStore } from './credential-store'
-import { readJsonIfExists } from '@kando/protocol/node'
+import { readJsonIfExists } from '@antumi/protocol/node'
 import type { SourceConfigStore } from './source-config'
 
 const LegacyJiraConfig = z.object({ site: z.string(), email: z.string(), token: z.string(), jql: z.string() })
@@ -20,7 +20,7 @@ export async function migrateLegacyJira(
   try {
     raw = await readJsonIfExists(legacyFile)
   } catch (error) {
-    console.error(`[kando-core] cannot read ${legacyFile}, leaving it in place:`, error instanceof Error ? error.message : error)
+    console.error(`[antumi-core] cannot read ${legacyFile}, leaving it in place:`, error instanceof Error ? error.message : error)
     return
   }
   if (raw === undefined) {
@@ -28,7 +28,7 @@ export async function migrateLegacyJira(
   }
   const legacy = LegacyJiraConfig.safeParse(raw)
   if (!legacy.success) {
-    console.error(`[kando-core] ${legacyFile} is not a Jira config, leaving it in place`)
+    console.error(`[antumi-core] ${legacyFile} is not a Jira config, leaving it in place`)
     return
   }
   const { site, email, token, jql } = legacy.data

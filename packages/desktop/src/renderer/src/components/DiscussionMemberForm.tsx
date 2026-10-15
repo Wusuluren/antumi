@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { checkAddDiscussionMember, MAX_DISCUSSION_MEMBERS, type AgentKind, type Discussion } from '@kando/protocol'
+import { checkAddDiscussionMember, MAX_DISCUSSION_MEMBERS, type AgentKind, type Discussion } from '@antumi/protocol'
 import { resolveModel, useAgentCatalog } from '../agent-models'
 import { addDiscussionMember, defaultMemberName } from '../discussions'
 import { useInstalledAgents } from '../installed-agents'

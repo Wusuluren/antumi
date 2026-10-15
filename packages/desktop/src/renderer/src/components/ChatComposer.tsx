@@ -1,8 +1,8 @@
 import { HelperStartOptions } from './HelperModelPicker'
 import { useCallback, useContext, useEffect, useMemo, useState, type KeyboardEvent } from 'react'
-import { agentDescriptor, type ChatImage, type ChatItem, type ChatQueued, type Conversation } from '@kando/protocol'
+import { agentDescriptor, type ChatImage, type ChatItem, type ChatQueued, type Conversation } from '@antumi/protocol'
 import { perform, useChatImagesSupported, useChatOptionsSupported, useCore, useFileMentionsSupported, useScheduleImagesSupported, useSchedulesSupported } from '../core-store'
-import { agentEntries, kandoEntries } from '../chat-commands'
+import { agentEntries, antumiEntries } from '../chat-commands'
 import { composeMessage, parseQuotes, setQuotes, useQuotes, type ChatQuote } from '../chat-quotes'
 import { takeDraft } from '../chat-drafts'
 import { writeMentions } from '../chat-mentions'
@@ -259,7 +259,7 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
   const canSteer = !handingOff && queueable && steerable && canSend
   const chatCommands = useCore((s) => s.chatCommands)
   const commandEntries = useMemo(
-    () => [...kandoEntries(chatCommands, conversation.projectPaths), ...agentEntries(state?.commands ?? [])],
+    () => [...antumiEntries(chatCommands, conversation.projectPaths), ...agentEntries(state?.commands ?? [])],
     [chatCommands, conversation.projectPaths, state?.commands]
   )
   const commandMenu = useChatCommandMenu({

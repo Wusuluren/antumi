@@ -1,6 +1,6 @@
 import path from 'node:path'
-import type { AgentKind, GitTarget, GitAction, GitResult, GitStatus, GitHistory, GitDetail, GitComparison, FileDiff } from '@kando/protocol'
-import { checkGitOperation } from '@kando/protocol'
+import type { AgentKind, GitTarget, GitAction, GitResult, GitStatus, GitHistory, GitDetail, GitComparison, FileDiff } from '@antumi/protocol'
+import { checkGitOperation } from '@antumi/protocol'
 import type { TaskService } from './task-service'
 import type { ConversationService } from './conversation-service'
 import { git, gitOrNull } from './git-changes'

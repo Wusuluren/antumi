@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import { MAX_DISCUSSION_REQUIREMENTS } from '@kando/protocol'
+import { MAX_DISCUSSION_REQUIREMENTS } from '@antumi/protocol'
 import { DISCUSSION_REQUIREMENT_PRESETS } from '../discussion-requirements'
 import { ChatPicker } from './ChatPicker'
 

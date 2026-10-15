@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CHAT_COMMAND_ARGUMENTS, ChatCommandFields, type SavedChatCommand } from '@kando/protocol'
+import { CHAT_COMMAND_ARGUMENTS, ChatCommandFields, type SavedChatCommand } from '@antumi/protocol'
 import { deleteChatCommand, perform, saveChatCommand, useCore } from '../core-store'
 import { PRIMARY_KEY_LABEL, hasPrimaryModifier } from '../shortcut-keys'
 import { projectName } from './ProjectPicker'
@@ -122,7 +122,7 @@ export function ChatCommandSettings() {
     if (connected) void perform((rpc) => rpc.call('projects.recent', {})).then((recent) => setProjects(recent ?? []))
   }, [connected])
 
-  if (!connected) return <p className="settings-empty">连接到 Kando core 后才能查看。</p>
+  if (!connected) return <p className="settings-empty">连接到 Antumi core 后才能查看。</p>
   if (draft) return <CommandForm key={draft.id ?? 'new'} draft={draft} projects={projects} onDone={() => setDraft(null)} />
   return (
     <>

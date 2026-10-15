@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StateCreator } from 'zustand'
-import { Conversation, createRpcClient, type RpcConnection, type SourceInbox, type SourceIssue } from '@kando/protocol'
+import { Conversation, createRpcClient, type RpcConnection, type SourceInbox, type SourceIssue } from '@antumi/protocol'
 import { openConversationDraft, useCore } from '../core-store'
 import { SourceInboxView } from './SourceInboxView'
 

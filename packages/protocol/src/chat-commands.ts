@@ -5,7 +5,7 @@ export const MAX_CHAT_COMMANDS = 200
 export const CHAT_COMMAND_ARGUMENTS = '$ARGUMENTS'
 
 // A prompt the user keeps under a slash command of their own. The composer expands it into the
-// message being written, for any agent: Kando's commands never reach the agent as commands.
+// message being written, for any agent: Antumi's commands never reach the agent as commands.
 export const ChatCommandFields = z.object({
   name: z.string().trim().min(1).max(40).regex(/^[a-z0-9][a-z0-9_:-]*$/i),
   description: z.string().trim().max(200),

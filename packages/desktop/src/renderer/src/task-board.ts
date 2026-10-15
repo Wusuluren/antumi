@@ -1,4 +1,4 @@
-import { shortTaskId, type AgentKind, type Task, type TaskStatus } from '@kando/protocol'
+import { shortTaskId, type AgentKind, type Task, type TaskStatus } from '@antumi/protocol'
 import type { Preferences } from './preferences'
 
 export type TaskSort = Preferences['taskSort']

@@ -1,5 +1,5 @@
 {
-  "name": "@kando/daemon",
+  "name": "@antumi/daemon",
   "version": "0.16.6",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@kando/protocol": "workspace:*",
+    "@antumi/protocol": "workspace:*",
     "node-pty": "1.1.0"
   },
   "devDependencies": {

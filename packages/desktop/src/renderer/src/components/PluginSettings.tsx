@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import type { PluginInfo, PluginInstallSource } from '@kando/protocol'
+import type { PluginInfo, PluginInstallSource } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
 import { pickPlugin } from '../desktop-bridge'
 import { Toggle } from './SettingsControls'
@@ -65,7 +65,7 @@ export function PluginSettings() {
         <div className="settings-field">
           <label className="settings-field-label" htmlFor={`${ids}-location`}>{kind === 'local' ? '插件路径' : 'GitHub 仓库'}</label>
           <input id={`${ids}-location`} className="input mono" value={location} required disabled={busy} placeholder={kind === 'local' ? '插件目录或 ZIP 的完整路径' : 'owner/repository'} onChange={(event) => { setLocation(event.target.value); setTrusted(false) }} />
-          {kind === 'local' && window.kando?.pickPlugin && <div className="plugin-actions">
+          {kind === 'local' && window.antumi?.pickPlugin && <div className="plugin-actions">
             <button className="button ghost" type="button" disabled={busy} onClick={() => { void pickPlugin('directory').then((path) => { if (path) { setLocation(path); setTrusted(false) } }) }}>选择目录</button>
             <button className="button ghost" type="button" disabled={busy} onClick={() => { void pickPlugin('zip').then((path) => { if (path) { setLocation(path); setTrusted(false) } }) }}>选择 ZIP</button>
           </div>}
@@ -91,7 +91,7 @@ export function PluginSettings() {
             <div className="settings-row-text">
               <span id={`${ids}-${plugin.id}`} className="settings-row-label">{plugin.sources.map((source) => source.name).join('、')}</span>
               <p className="settings-row-description">{plugin.id} · {plugin.version} · {plugin.enabled ? plugin.problem ? '启动失败' : '已启用' : '已停用'}</p>
-              <p className="settings-row-description">{plugin.origin.kind === 'bundled' ? '随 Kando 提供' : plugin.origin.kind === 'github' ? `GitHub · ${plugin.origin.repository}` : plugin.origin.path}</p>
+              <p className="settings-row-description">{plugin.origin.kind === 'bundled' ? '随 Antumi 提供' : plugin.origin.kind === 'github' ? `GitHub · ${plugin.origin.repository}` : plugin.origin.path}</p>
             </div>
             <Toggle labelId={`${ids}-${plugin.id}`} checked={plugin.enabled} disabled={busy} onChange={(enabled) => { void run((connection) => connection.call('plugins.setEnabled', { id: plugin.id, enabled }), enabled ? '插件已启用' : '插件已停用') }} />
           </div>

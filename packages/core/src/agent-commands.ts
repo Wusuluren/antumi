@@ -1,4 +1,4 @@
-import type { ChatCommand } from '@kando/protocol'
+import type { ChatCommand } from '@antumi/protocol'
 
 // A skill's description is written for the model and runs to paragraphs; the composer's list
 // shows a line, and the stage state carries every command on each update.

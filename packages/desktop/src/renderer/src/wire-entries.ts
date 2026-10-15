@@ -1,4 +1,4 @@
-import type { WireDirection, WireEntry } from '@kando/protocol'
+import type { WireDirection, WireEntry } from '@antumi/protocol'
 
 // Which way an entry went, as the list marks it: → to the agent, ← from it.
 export const WIRE_MARK: Record<WireDirection, string> = { spawn: '▶', stdin: '→', stdout: '←', stderr: '!', exit: '■', note: '·' }

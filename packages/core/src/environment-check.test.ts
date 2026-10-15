@@ -14,7 +14,7 @@ describe('environment check', () => {
   }
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-environment-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-environment-'))
     bin = path.join(root, 'bin')
     mkdirSync(bin)
   })

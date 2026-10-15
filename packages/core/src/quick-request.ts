@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { agentDescriptor, quickModel, type AgentKind, type ChatCatalog, type CostBaseline } from '@kando/protocol'
+import { agentDescriptor, quickModel, type AgentKind, type ChatCatalog, type CostBaseline } from '@antumi/protocol'
 import type { QuickCommand } from './agents/agent-adapter'
 import { adapterOf } from './agents'
 import { Rejection } from './rejection'
@@ -45,7 +45,7 @@ export class QuickRequests {
     // the pick is tried as it is.
     const gone = picked !== undefined && catalog !== null && !catalog.models.some((each) => each.id === picked)
     const model = picked !== undefined && !gone ? picked : quickModel(agentDescriptor(agent).quickModels, catalog)
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'kando-quick-'))
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'antumi-quick-'))
     const accounting = this.deps.accounting
     let job: string | undefined
     try {

@@ -1,12 +1,12 @@
 import { ClaudeTokenUsage, claudeMetering } from '../../model-metering'
-import type { ModelMetering } from '@kando/protocol'
+import type { ModelMetering } from '@antumi/protocol'
 import { z } from 'zod'
-import { browserToolKind, ChatPermissionMode, CONTEXT_COMPACTED, RESERVED_MCP_SERVER_NAME, takeImageMarkers, toolImagePath, type ChatCommand, type ChatDiff, type ChatImage, type ChatModel, type ChatOption, type ChatTurnActivity, type ChatTurnState } from '@kando/protocol'
+import { browserToolKind, ChatPermissionMode, CONTEXT_COMPACTED, RESERVED_MCP_SERVER_NAME, takeImageMarkers, toolImagePath, type ChatCommand, type ChatDiff, type ChatImage, type ChatModel, type ChatOption, type ChatTurnActivity, type ChatTurnState } from '@antumi/protocol'
 import { offeredCommand } from '../../agent-commands'
 import { claudeBashRules, claudeChoices, claudeGrants } from '../../approval-choices'
 import { describeBrowserTool, showBrowserInput } from '../../browser-tools'
 import { keepImageBlocks, markKeptImages, stripImageBytes } from '../../image-frames'
-import { KandoRequests } from '../../kando-requests'
+import { AntumiRequests } from '../../antumi-requests'
 import { messageText, type ChatAnswer, type ChatDriver, type ChatImageFile, type ChatOutgoing, type ChatRecord, type ChatStageOptions, type StageMessage } from '../../chat-driver'
 import { ChatItems, clip, type UsageLimitHit } from '../../chat-items'
 import { ChatQueue } from '../../chat-queue'
@@ -35,7 +35,7 @@ const HIDDEN_TOOLS: ReadonlySet<string> = new Set(['AskUserQuestion', 'ToolSearc
 const FILE_TOOLS: ReadonlySet<string> = new Set(['Write', 'Edit', 'MultiEdit'])
 // Plan mode drafts its plan in a file of its own (~/.claude/plans/<name>.md) before proposing it.
 const PLAN_FILE = /\/plans\/[^/]+\.md$/
-// Claude Code's permission modes by Kando's names for them; manual is what newer versions call default.
+// Claude Code's permission modes by Antumi's names for them; manual is what newer versions call default.
 const PERMISSION_MODES: Record<string, string> = {
   default: 'ask',
   manual: 'ask',
@@ -44,7 +44,7 @@ const PERMISSION_MODES: Record<string, string> = {
   auto: 'auto',
   bypassPermissions: 'bypass'
 }
-// And back: the mode set_permission_mode takes for each of Kando's names.
+// And back: the mode set_permission_mode takes for each of Antumi's names.
 export const CLAUDE_MODE_NAMES: Record<string, string> = {
   ask: 'default',
   acceptEdits: 'acceptEdits',
@@ -83,11 +83,11 @@ const SystemFrame = z.looseObject({
   detail: z.string().nullish(),
   // compact_boundary: how much of the context the summary left filled.
   compact_metadata: z.looseObject({ post_tokens: z.number().optional() }).optional().catch(undefined),
-  // init: the MCP servers and how starting each went; dynamic ones came in --mcp-config, from Kando.
+  // init: the MCP servers and how starting each went; dynamic ones came in --mcp-config, from Antumi.
   mcp_servers: z.array(z.looseObject({ name: z.string(), status: z.string().optional(), source: z.string().optional() }).catch({ name: '' })).optional().catch(undefined)
 })
 
-// The servers Kando handed Claude that did not start, Kando's own aside: the user's.
+// The servers Antumi handed Claude that did not start, Antumi's own aside: the user's.
 function unreachableMcp(servers: z.infer<typeof SystemFrame>['mcp_servers']) {
   return (servers ?? []).filter((server) => server.status === 'failed' && server.source === 'dynamic' && server.name && server.name !== RESERVED_MCP_SERVER_NAME)
 }
@@ -363,7 +363,7 @@ function resultText(content: unknown): string {
 
 export class ClaudeStream implements ChatDriver {
   readonly items: ChatItems
-  private readonly kando: KandoRequests
+  private readonly antumi: AntumiRequests
   private initSent = false
   private initialized = false
   private initError: string | null = null
@@ -388,7 +388,7 @@ export class ClaudeStream implements ChatDriver {
   private agentsCompleted = 0
   private readonly subagentText = new Map<string, string>()
   private readonly pending = new Map<string, Pending>()
-  // Control requests Kando does not handle, still owed an error reply.
+  // Control requests Antumi does not handle, still owed an error reply.
   private readonly unanswered = new Set<string>()
   private readonly denied = new Set<string>()
   // Calls with no tool card of their own (see HIDDEN_TOOLS), and plan mode's drafts of its plan,
@@ -430,7 +430,7 @@ export class ClaudeStream implements ChatDriver {
 
   constructor(stageId: string, private readonly options: ChatStageOptions) {
     this.items = new ChatItems(stageId)
-    this.kando = new KandoRequests(this.items)
+    this.antumi = new AntumiRequests(this.items)
     this.state = new StageState(this.items)
     this.sessionId = options.resume
   }
@@ -460,7 +460,7 @@ export class ClaudeStream implements ChatDriver {
         break
       case 'ask':
       case 'answer':
-        this.kando.apply(record)
+        this.antumi.apply(record)
     }
     this.refreshOptions()
     this.state.publish(record.at)
@@ -476,7 +476,7 @@ export class ClaudeStream implements ChatDriver {
       frames.push({ type: 'control_request', request_id: INIT_ID, request: { subtype: 'initialize', ...suggestions } })
     }
     for (const requestId of this.unanswered) {
-      frames.push({ type: 'control_response', response: { subtype: 'error', request_id: requestId, error: 'Kando does not handle this request' } })
+      frames.push({ type: 'control_response', response: { subtype: 'error', request_id: requestId, error: 'Antumi does not handle this request' } })
     }
     // The effort is the one setting nothing else reports.
     if (this.initialized && !this.settingsSent) {
@@ -499,7 +499,7 @@ export class ClaudeStream implements ChatDriver {
   activeTurnRef(): string | null { return this.turn?.ref ?? null }
 
   activity(): ChatTurnActivity {
-    if (this.kando.pending > 0) return 'awaiting'
+    if (this.antumi.pending > 0) return 'awaiting'
     if (!this.turn) return this.backgroundAgents() + this.backgroundCommands() > 0 ? 'running' : 'idle'
     return this.pending.size > 0 ? 'awaiting' : 'running'
   }
@@ -641,7 +641,7 @@ export class ClaudeStream implements ChatDriver {
         return { ...assistant.data, type: 'assistant', message: { ...assistant.data.message, content } }
       }
       case 'control_response': {
-        // Only the answers to Kando's own requests matter; the CLI also echoes Kando's answers back.
+        // Only the answers to Antumi's own requests matter; the CLI also echoes Antumi's answers back.
         const response = ControlResponse.safeParse(frame)
         if (!response.success || !this.ownRequest(response.data.response.request_id)) return null
         const { subtype, request_id, error } = response.data.response
@@ -679,7 +679,7 @@ export class ClaudeStream implements ChatDriver {
     return [{ type: 'control_request', request_id: `${SUGGESTIONS_PREFIX}${this.suggestionPauses + 1}`, request: { subtype: 'set_prompt_suggestions_paused', paused } }]
   }
 
-  // What of an answer to Kando's request to keep: the models, mode and commands initialize reports
+  // What of an answer to Antumi's request to keep: the models, mode and commands initialize reports
   // (it also carries the account and more, none of which belongs in a log), and the effort.
   private keptAnswer(response: { request_id: string; response?: unknown }): { response?: unknown } {
     if (response.request_id === INIT_ID) {
@@ -722,7 +722,7 @@ export class ClaudeStream implements ChatDriver {
     })
   }
 
-  // The permission modes this stage offers, by Kando's names: auto where the model has it, bypass
+  // The permission modes this stage offers, by Antumi's names: auto where the model has it, bypass
   // where the stage was started to allow it, and only planning in a stage that may only plan.
   private offeredModes(): string[] {
     if (this.options.planOnly) return ['plan']
@@ -1201,7 +1201,7 @@ export class ClaudeStream implements ChatDriver {
       this.pending.set(requestId, { kind: 'question', tool, itemId, toolItemId, input, suggestions: [] })
       return
     }
-    // A command is remembered by Kando's short rules, the same as Codex's are; other tools by
+    // A command is remembered by Antumi's short rules, the same as Codex's are; other tools by
     // what Claude suggests, which already goes by the tool.
     const suggestions = tool === 'Bash' ? claudeBashRules(str(input.command) ?? '') : (request.permission_suggestions ?? [])
     const itemId = `a:${requestId}`
@@ -1372,7 +1372,7 @@ export class ClaudeStream implements ChatDriver {
     this.items.settleTools('interrupted', at)
     this.finishStreaming(at)
     for (const requestId of [...this.pending.keys()]) this.resolve(requestId, 'cancelled', null, at)
-    this.kando.cancelAll(at)
+    this.antumi.cancelAll(at)
     this.exited = true
     const tail = stderr.trim().split('\n').slice(-20).join('\n')
     if (!this.initialized) {

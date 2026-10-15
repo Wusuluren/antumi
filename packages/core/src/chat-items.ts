@@ -1,4 +1,4 @@
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 
 // An item as a driver writes it; the book stamps the stage, revision and first-seen time.
 export type ChatItemBody = ChatItem extends infer Item

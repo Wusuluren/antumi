@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { agentDescriptor, ChatPermissionMode, type AgentKind, type ChatCatalog } from '@kando/protocol'
+import { agentDescriptor, ChatPermissionMode, type AgentKind, type ChatCatalog } from '@antumi/protocol'
 import { closeConversationDraft, perform, selectConversation, useChatImagesSupported, useChatOptionsSupported, useConversationWorktreesSupported, useCore, useSourceInvestigateSupported, useStartBranchSupported } from '../core-store'
 import { defaultAgent } from '../default-agent'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
-import { kandoEntries } from '../chat-commands'
+import { antumiEntries } from '../chat-commands'
 import { AgentQuotaHint, confirmQuota, modelText } from './AgentQuota'
 import { usePreferences } from '../preferences'
 import { startOptions } from './ConversationActions'
@@ -71,7 +71,7 @@ export function ConversationDraft() {
   const canSend = agent !== null && !busy && attached.uploading === 0 && (issue !== null || text.trim() !== '' || attached.images.length > 0)
   // Only the user's own commands: the agent has not started to say what it takes.
   const chatCommands = useCore((s) => s.chatCommands)
-  const commandEntries = useMemo(() => kandoEntries(chatCommands, projectPaths), [chatCommands, projectPaths])
+  const commandEntries = useMemo(() => antumiEntries(chatCommands, projectPaths), [chatCommands, projectPaths])
   const commandMenu = useChatCommandMenu({ text, entries: commandEntries, agentLabel: agent ? agentLabel(agent) : '', setText, sendCommand: () => {} })
   // The agent will work in the first project picked.
   const mentionMenu = useChatMentionMenu({ value, setText, setValue, roots: projectPaths, cwd: projectPaths[0] ?? null, agent })

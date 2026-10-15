@@ -26,7 +26,7 @@ export function WindowBrand() {
   const label = hidden ? '展开侧边栏' : '收起侧边栏'
   return (
     <div className="window-brand">
-      <span className="window-brand-name">Kando</span>
+      <span className="window-brand-name">Antumi</span>
       <button
         type="button"
         className="icon-button window-brand-toggle"

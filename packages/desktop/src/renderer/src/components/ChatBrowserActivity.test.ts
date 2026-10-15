@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { ChatItem, ChatToolStatus } from '@kando/protocol'
+import type { ChatItem, ChatToolStatus } from '@antumi/protocol'
 import { ChatBrowserActivity } from './ChatBrowserActivity'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>

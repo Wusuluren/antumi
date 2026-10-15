@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { cursorProviderError } from '@kando/protocol'
+import { cursorProviderError } from '@antumi/protocol'
 import type { AcpDialect } from '../acp/acp-dialect'
 import { AcpConfig } from '../acp/acp-schema'
 
@@ -12,7 +12,7 @@ const SubagentSpawned = z.looseObject({ _meta: z.looseObject({ cursor: z.looseOb
 export const cursorDialect: AcpDialect = {
   name: 'Cursor',
   idPrefix: 'cursor',
-  // Kando's ask is Cursor's Agent mode, readOnly its Ask mode.
+  // Antumi's ask is Cursor's Agent mode, readOnly its Ask mode.
   modes: { ask: 'agent', plan: 'plan', readOnly: 'ask' },
   clientMeta: { parameterizedModelPicker: true, subagents: true },
   authMethod: 'cursor_login',
@@ -20,7 +20,7 @@ export const cursorDialect: AcpDialect = {
   toolName: (rawInput) => {
     const raw = RawTool.safeParse(rawInput).data
     if (raw?.providerIdentifier && raw.toolName) return `${raw.providerIdentifier}.${raw.toolName}`
-    // Cursor marks its subagent call only in the input; Kando knows a subagent as Task.
+    // Cursor marks its subagent call only in the input; Antumi knows a subagent as Task.
     if (raw?._toolName === 'task') return 'Task'
     return raw?.toolName ?? raw?.tool ?? null
   },

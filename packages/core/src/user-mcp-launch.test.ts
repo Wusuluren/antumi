@@ -5,8 +5,8 @@ import os from 'node:os'
 import path from 'node:path'
 import readline from 'node:readline'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { kandoPaths } from '@kando/protocol/node'
-import type { McpServerInput } from '@kando/protocol'
+import { antumiPaths } from '@antumi/protocol/node'
+import type { McpServerInput } from '@antumi/protocol'
 import { CredentialStore } from './credential-store'
 import { mcpCommand } from './mcp-command'
 import { McpHttpSession } from './mcp-http'
@@ -16,8 +16,8 @@ let home: string
 let http: Server | null = null
 
 beforeEach(() => {
-  home = mkdtempSync(path.join(os.tmpdir(), 'kando-mcp-launch-'))
-  // The launcher from source, even where these tests run inside an installed Kando.
+  home = mkdtempSync(path.join(os.tmpdir(), 'antumi-mcp-launch-'))
+  // The launcher from source, even where these tests run inside an installed Antumi.
   vi.stubEnv('KANDO_MCP_JS', '')
 })
 afterEach(() => {
@@ -28,7 +28,7 @@ afterEach(() => {
 })
 
 async function save(input: McpServerInput): Promise<void> {
-  const paths = kandoPaths(home)
+  const paths = antumiPaths(home)
   const credentials = new CredentialStore(paths.credentials)
   await credentials.load()
   const store = new McpServerStore(paths.mcpServers, credentials)

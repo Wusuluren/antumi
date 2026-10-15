@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 import { itemKey } from './chat-state'
 import { relayMessage } from './chat-message-relay'
 

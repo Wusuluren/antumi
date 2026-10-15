@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ScheduledRun } from '@kando/protocol'
+import type { ScheduledRun } from '@antumi/protocol'
 import { fromLocalInput, nextNight, openRunsForConversation, runAction, scheduleNoticesBetween, scheduleState, scheduleTime, toLocalInput } from './schedules'
 
 const at = (year: number, month: number, day: number, hour: number, minute = 0) => new Date(year, month - 1, day, hour, minute).getTime()

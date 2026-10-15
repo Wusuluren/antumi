@@ -1,4 +1,4 @@
-import { AgentKind, TranslateLanguage } from '@kando/protocol'
+import { AgentKind, TranslateLanguage } from '@antumi/protocol'
 import { z } from 'zod'
 import { create } from 'zustand'
 import { PALETTES } from './palettes'
@@ -56,7 +56,7 @@ const Preferences = z.object({
   // Creation order preserves the task list's original behavior.
   taskSort: z.enum(TASK_SORTS).catch('created'),
   conversationGroup: z.enum(CONVERSATION_GROUPS).catch('none'),
-  // Conversation groups folded in the sidebar, by grouping and group ("project:group:kando").
+  // Conversation groups folded in the sidebar, by grouping and group ("project:group:antumi").
   foldedConversationGroups: z.array(z.string()).catch([]),
   conversationSort: z.enum(CONVERSATION_SORTS).catch('recent'),
   // Off, archived conversations and group chats stay out of the sidebar, found only by a search.

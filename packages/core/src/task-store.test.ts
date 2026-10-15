@@ -13,7 +13,7 @@ describe('TaskStore migrations', () => {
   let file: string
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(os.tmpdir(), 'kando-store-'))
+    dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-store-'))
     file = path.join(dir, 'kando.db')
   })
 

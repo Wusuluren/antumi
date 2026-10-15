@@ -3,8 +3,8 @@ import { stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { agentDescriptor, Terminal, type AgentCliInstallation, type TerminalOutput } from '@kando/protocol'
-import type { SessionInfo } from '@kando/protocol/node'
+import { agentDescriptor, Terminal, type AgentCliInstallation, type TerminalOutput } from '@antumi/protocol'
+import type { SessionInfo } from '@antumi/protocol/node'
 import type { SessionHost } from './daemon-client'
 import { Rejection } from './rejection'
 import { terminalEnv, type ShellPrompt } from './shell-prompt'
@@ -19,7 +19,7 @@ export function userShell(env: NodeJS.ProcessEnv = process.env): { command: stri
 // An agent's command, run by the user's shell as the user's terminal would, but as the shell's
 // command rather than typed at its prompt: the tab ends with the command, and says how it ended.
 // The command is the agent's, so a shell has to read it; the agent's own permission prompt, or
-// Kando's where the agent has none, is what stands in front of it.
+// Antumi's where the agent has none, is what stands in front of it.
 export function commandShell(command: string, env: NodeJS.ProcessEnv = process.env): { command: string; args: string[] } {
   if (process.platform === 'win32') return { command: env.COMSPEC ?? 'cmd.exe', args: ['/d', '/s', '/c', command] }
   return { command: env.SHELL || '/bin/sh', args: ['-l', '-c', command] }

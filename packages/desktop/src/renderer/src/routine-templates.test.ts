@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isValidSchedule } from '@kando/protocol'
+import { isValidSchedule } from '@antumi/protocol'
 import { ROUTINE_TEMPLATES } from './routine-templates'
 import { scheduleText } from './routines'
 

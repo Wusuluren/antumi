@@ -3,7 +3,7 @@ import { realpath, stat } from 'node:fs/promises'
 import { basename, delimiter, join } from 'node:path'
 import { promisify } from 'node:util'
 import { z } from 'zod'
-import type { AgentCliInstallation, ChatCatalog } from '@kando/protocol'
+import type { AgentCliInstallation, ChatCatalog } from '@antumi/protocol'
 import { Rejection } from '../../rejection'
 import { CursorAcp } from './cursor-acp'
 import { probeChatCatalog } from '../../chat-catalog'
@@ -65,7 +65,7 @@ const signIns = new Map<string, { signedIn: boolean; at: number }>()
 export async function requireCursorCli(): Promise<string> {
   const command = await findCursorCli()
   if (!command) throw new Rejection('cursor-cli-missing', '未找到 Cursor CLI，请安装后重新检测')
-  if (!(await cursorCliInfo(command)).compatible) throw new Rejection('cursor-upgrade-required', '请升级 Cursor CLI，Kando 需要支持 ACP 的版本')
+  if (!(await cursorCliInfo(command)).compatible) throw new Rejection('cursor-upgrade-required', '请升级 Cursor CLI，Antumi 需要支持 ACP 的版本')
   const seen = signIns.get(command)
   const known = seen && Date.now() - seen.at < SIGN_IN_FRESH_MS ? seen.signedIn : null
   if (known !== true && await cursorSignedIn(command) === false) throw new Rejection('cursor-signed-out', '请在终端运行 agent login，登录 Cursor 后重试')

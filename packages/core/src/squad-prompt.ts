@@ -1,4 +1,4 @@
-import type { Squad, SquadMember, SquadWork, Task } from '@kando/protocol'
+import type { Squad, SquadMember, SquadWork, Task } from '@antumi/protocol'
 import type { PlanBrief } from './agent-prompt'
 
 const rosterLines = (squad: Squad) => squad.members.map((member) => `${member.id} · ${member.name} · ${member.agent} · ${member.id === squad.leaderId ? '队长，只读协调' : member.capability} · ${member.role}`)

@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { access, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import type { GitCommit, ChangedFile, FileDiff } from '@kando/protocol'
+import type { GitCommit, ChangedFile, FileDiff } from '@antumi/protocol'
 import { git, gitOrNull } from './git-changes'
 import { Rejection } from './rejection'
 

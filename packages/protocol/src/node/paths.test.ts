@@ -1,31 +1,31 @@
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { kandoHome, kandoPaths } from './paths'
+import { antumiHome, antumiPaths } from './paths'
 
 describe.skipIf(process.platform === 'win32')('daemon socket path', () => {
   it('lives in KANDO_HOME when short enough', () => {
-    expect(kandoPaths('/home/me/.kando').daemonSocket).toBe('/home/me/.kando/daemon-v3.sock')
+    expect(antumiPaths('/home/me/.antumi').daemonSocket).toBe('/home/me/.antumi/daemon-v3.sock')
   })
 
   it('falls back to a hashed temp path when KANDO_HOME is too deep for sun_path', () => {
-    const deep = `/${'nested/'.repeat(20)}kando`
-    const socket = kandoPaths(deep).daemonSocket
+    const deep = `/${'nested/'.repeat(20)}antumi`
+    const socket = antumiPaths(deep).daemonSocket
     expect(path.dirname(socket)).toBe(os.tmpdir())
-    expect(socket).not.toBe(kandoPaths(`${deep}-other`).daemonSocket)
+    expect(socket).not.toBe(antumiPaths(`${deep}-other`).daemonSocket)
   })
 })
 
 describe('home directory', () => {
   it('prefers KANDO_HOME', () => {
-    expect(kandoHome({ KANDO_HOME: '/a' }, '/home/me')).toBe(path.resolve('/a'))
+    expect(antumiHome({ KANDO_HOME: '/a' }, '/home/me')).toBe(path.resolve('/a'))
   })
 
-  it('defaults to ~/.kando', () => {
-    expect(kandoHome({}, '/home/me')).toBe(path.join('/home/me', '.kando'))
+  it('defaults to ~/.antumi', () => {
+    expect(antumiHome({}, '/home/me')).toBe(path.join('/home/me', '.kando'))
   })
 
   it('keeps installed skills under home', () => {
-    expect(kandoPaths('/home/me/.kando').skills).toBe(path.join('/home/me/.kando', 'skills'))
+    expect(antumiPaths('/home/me/.antumi').skills).toBe(path.join('/home/me/.antumi', 'skills'))
   })
 })

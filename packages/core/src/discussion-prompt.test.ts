@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_DISCUSSION_REQUIREMENTS, type Discussion, type DiscussionPost } from '@kando/protocol'
+import { DEFAULT_DISCUSSION_REQUIREMENTS, type Discussion, type DiscussionPost } from '@antumi/protocol'
 import { holdsPosition, openingPrompt, replyPrompt, roundPrompt, speakerName, summaryPrompt, topicPrompt } from './discussion-prompt'
 
 const ID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`

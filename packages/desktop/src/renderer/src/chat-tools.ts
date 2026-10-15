@@ -1,4 +1,4 @@
-import { BROWSER_HOST_TOOL, browserToolKind, historyToolKind, isPreviewTool, TERMINAL_RUN_TOOL, terminalToolKind, todoToolKind, type TodoToolKind, type BrowserToolKind, type ChatDiff, type ChatItem, type ChatToolStatus, type TerminalToolKind } from '@kando/protocol'
+import { BROWSER_HOST_TOOL, browserToolKind, historyToolKind, isPreviewTool, TERMINAL_RUN_TOOL, terminalToolKind, todoToolKind, type TodoToolKind, type BrowserToolKind, type ChatDiff, type ChatItem, type ChatToolStatus, type TerminalToolKind } from '@antumi/protocol'
 import { browserOperation } from './browser-activity'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
@@ -26,7 +26,7 @@ const TOOL_LABEL: Record<string, string> = {
   spawnAgent: '子 Agent',
   TodoWrite: '待办',
   ExitPlanMode: '计划',
-  // Kando's own question about a site its browser is to open, shown among the approvals.
+  // Antumi's own question about a site its browser is to open, shown among the approvals.
   [BROWSER_HOST_TOOL]: '打开网站',
   // Cursor names a call only by its ACP kind.
   read: '读取',
@@ -37,7 +37,7 @@ const TOOL_LABEL: Record<string, string> = {
   think: '思考'
 }
 
-// Kando's browser tools, in words.
+// Antumi's browser tools, in words.
 const BROWSER_LABEL: Record<BrowserToolKind, string> = {
   navigate: '打开页面',
   snapshot: '页面快照',
@@ -75,7 +75,7 @@ export function toolLabel(name: string, display?: ToolDisplay | null): string {
   const todo = todoToolKind(name)
   if (todo) return TODO_LABEL[todo]
   const history = historyToolKind(name)
-  if (history) return history === 'list' ? '查看 Kando 记录' : '读取 Kando 记录'
+  if (history) return history === 'list' ? '查看 Antumi 记录' : '读取 Antumi 记录'
   if (name === TERMINAL_RUN_TOOL) return TERMINAL_LABEL.run
   const terminal = terminalToolKind(name)
   if (terminal) return TERMINAL_LABEL[terminal]
@@ -218,7 +218,7 @@ export function isSubagent(name: string): boolean {
   return name === 'Task' || name === 'Agent' || name === 'spawnAgent'
 }
 
-// What a subagent was told, and what kind it is, from its call's input: JSON Kando may have cut
+// What a subagent was told, and what kind it is, from its call's input: JSON Antumi may have cut
 // short, which then stays the prompt as it is.
 export function subagentBrief(input: string | null): { kind: string | null; prompt: string | null } {
   if (!input) return { kind: null, prompt: null }

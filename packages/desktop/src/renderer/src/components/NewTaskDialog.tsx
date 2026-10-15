@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
-import { AgentKind, IMAGE_MIME_TYPES, type TaskImage } from '@kando/protocol'
+import { AgentKind, IMAGE_MIME_TYPES, type TaskImage } from '@antumi/protocol'
 import { dismissError, perform, selectTask, setNewTaskOpen, useCore } from '../core-store'
 import { defaultAgent } from '../default-agent'
 import { useInstalledAgents } from '../installed-agents'
@@ -163,7 +163,7 @@ export function NewTaskDialog() {
       <div className="modal-body new-task-body">
         <header className="new-task-header">
           <div className="new-task-breadcrumb">
-            <span>Kando</span>
+            <span>Antumi</span>
             <span className="new-task-breadcrumb-separator" aria-hidden="true">›</span>
             <h2 id={`${ids}-heading`}>手动创建</h2>
           </div>

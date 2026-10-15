@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type MouseEvent } from 'react'
-import type { GitAction, GitBranch, GitComparison, GitDetail, GitHistory, GitStatus, GitTarget, ProjectHead } from '@kando/protocol'
-import { checkGitOperation } from '@kando/protocol'
+import type { GitAction, GitBranch, GitComparison, GitDetail, GitHistory, GitStatus, GitTarget, ProjectHead } from '@antumi/protocol'
+import { checkGitOperation } from '@antumi/protocol'
 import { perform, openTerminal, useCore } from '../core-store'
 import { gitGraph } from '../git-graph'
 import { commitRefs } from '../git-refs'

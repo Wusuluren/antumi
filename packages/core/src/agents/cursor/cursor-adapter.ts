@@ -12,13 +12,13 @@ export const cursor: AgentAdapter = {
   kind: 'cursor',
   createDriver: (stageId, options) => new CursorAcp(stageId, options),
   // Its ACP session takes no extra folders, but the CLI does, as workspace roots whose rules and
-  // skills it loads: every release Kando runs (2026.10.01 on) has --add-dir. The user's vault is
+  // skills it loads: every release Antumi runs (2026.10.01 on) has --add-dir. The user's vault is
   // one where the stage may write it; the note on it rides on the first prompt (AcpDriver). So is
-  // Kando's skills bundle, whose .agents/skills it reads; that it could write there is harmless,
-  // as Kando builds bundles afresh.
+  // Antumi's skills bundle, whose .agents/skills it reads; that it could write there is harmless,
+  // as Antumi builds bundles afresh.
   command: (launch) => ({ command: 'cursor-agent', args: [...[...launch.extraProjects, ...(launch.knowledgeBase?.write ? [launch.knowledgeBase.path] : []), ...(launch.skills ? [launch.skills.dir] : [])].flatMap((dir) => ['--add-dir', dir]), 'acp'] }),
   permissionModes: Object.keys(CURSOR_MODES),
-  // Kando sets the mode over ACP, so a stage always starts in one Cursor has.
+  // Antumi sets the mode over ACP, so a stage always starts in one Cursor has.
   fallbackMode: 'ask',
   session: { preassignedId: false, folderBound: true, nativeFork: false },
   // Its CLI starts cold and loads the session before it answers.
@@ -39,11 +39,11 @@ export const cursor: AgentAdapter = {
     })
   },
   launch: {
-    // Kando's MCP server reports, through a file, that Cursor connected to it.
+    // Antumi's MCP server reports, through a file, that Cursor connected to it.
     mcp: (server, stage) => cursorMcpServer(server, readyFile(stage), stage.planOnly),
     prepare: async (stage, mcp) => {
       const command = await requireCursorCli()
-      if (!mcp) throw new Rejection('cursor-mcp-unavailable', 'Cursor 需要 Kando MCP 配置')
+      if (!mcp) throw new Rejection('cursor-mcp-unavailable', 'Cursor 需要 Antumi MCP 配置')
       await prepareCursorMcp(readyFile(stage))
       return { command }
     },

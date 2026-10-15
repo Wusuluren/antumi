@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { WireEntry } from '@kando/protocol'
+import type { WireEntry } from '@antumi/protocol'
 import { formatBytes, groupWireEntries, isWireStream, mergeWireEntries, streamLabel, streamText, wireDetail, wireJsonl, wireLabel, wireMatches } from './wire-entries'
 
 let next = 0

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { create } from 'zustand'
-import { RpcError } from '@kando/protocol'
+import { RpcError } from '@antumi/protocol'
 import { useCore } from './core-store'
 import { reasonText } from './labels'
 

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { AGENT_KINDS, agentDescriptor, type RecommendedSkillRepo, type SkillRepo, type SkillUpdateCheck } from '@kando/protocol'
+import { AGENT_KINDS, agentDescriptor, type RecommendedSkillRepo, type SkillRepo, type SkillUpdateCheck } from '@antumi/protocol'
 import { useEffect } from 'react'
 import { perform, useCore } from '../core-store'
 import { agentLabel } from '../labels'
@@ -85,7 +85,7 @@ function RecommendedRow({ repo, installed }: { repo: RecommendedSkillRepo; insta
   )
 }
 
-// Agent Skills Kando installs for its agents: what is installed and pinned where, what Kando
+// Agent Skills Antumi installs for its agents: what is installed and pinned where, what Antumi
 // suggests, and any other repository by its address.
 export function SkillsSettingsSection() {
   const connected = useCore((s) => s.connection === 'connected')
@@ -109,7 +109,7 @@ export function SkillsSettingsSection() {
     }
   }
 
-  if (!connected) return <p className="settings-empty">连接到 Kando core 后才能查看。</p>
+  if (!connected) return <p className="settings-empty">连接到 Antumi core 后才能查看。</p>
   // Which agents take a bundle is the descriptors' to say.
   const takers = AGENT_KINDS.filter((kind) => agentDescriptor(kind).capabilities.skills).map(agentLabel)
   const others = AGENT_KINDS.filter((kind) => !agentDescriptor(kind).capabilities.skills).map(agentLabel)

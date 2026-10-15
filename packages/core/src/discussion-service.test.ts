@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { DEFAULT_DISCUSSION_REQUIREMENTS, type Discussion, type DiscussionCreate, type DiscussionPost } from '@kando/protocol'
+import { DEFAULT_DISCUSSION_REQUIREMENTS, type Discussion, type DiscussionCreate, type DiscussionPost } from '@antumi/protocol'
 import { DatabaseSync } from 'node:sqlite'
 import { AttachmentStore } from './attachment-store'
 import { ConversationService } from './conversation-service'
@@ -28,7 +28,7 @@ describe('DiscussionService', () => {
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-discussion-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-discussion-'))
     const database = path.join(root, 'kando.db')
     tasks = new TaskStore(database)
     store = new ConversationStore(database)

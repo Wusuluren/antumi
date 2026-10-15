@@ -6,7 +6,7 @@ import type {
   DaemonResult,
   SessionInfo,
   SessionIo
-} from '@kando/protocol/node'
+} from '@antumi/protocol/node'
 import { OutputBuffer } from './output-buffer'
 import { startPipe } from './pipe-session'
 import { startPty } from './pty-session'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { DashboardDay } from '@kando/protocol'
+import type { DashboardDay } from '@antumi/protocol'
 import { acceptance, change, dayLabel, heatLevels, monthLabels, rateChange, streaks, weeks } from './dashboard-model'
 
 const day = (date: string, runs = 0, turns = 0): DashboardDay => ({ day: date, runs, accepted: 0, turns, runTokens: 0, turnTokens: 0 })

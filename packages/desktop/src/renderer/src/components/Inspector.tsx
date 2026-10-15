@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { RpcError, type ChangedFile, type Commit, type FileDiff } from '@kando/protocol'
+import { RpcError, type ChangedFile, type Commit, type FileDiff } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import type { BranchTarget } from './BranchStatus'
 import { DiffLines } from './DiffLines'

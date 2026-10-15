@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ApprovalChoice, ApprovalGrant, ChatItem } from '@kando/protocol'
+import type { ApprovalChoice, ApprovalGrant, ChatItem } from '@antumi/protocol'
 import { choiceAction, choiceText, chosenText, isPlainDeny } from './approval-choice-text'
 
 const grant = (overrides: Partial<ApprovalGrant>): ApprovalGrant => ({ kind: 'rules', values: [], scope: 'run', behavior: 'allow', ...overrides })

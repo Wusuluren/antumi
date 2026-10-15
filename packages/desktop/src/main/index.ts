@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import { extname, isAbsolute, join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, Notification, protocol, shell, type OpenDialogOptions } from 'electron'
 import { z } from 'zod'
-import { kandoPaths, readCoreEndpoint } from '@kando/protocol/node'
+import { antumiPaths, readCoreEndpoint } from '@antumi/protocol/node'
 import { ensureBackend } from './backend'
 import { popupWindowOptions, RequestPopup } from './request-popup'
 import { startBrowserHost, type BrowserHost } from './browser/browser-host'
@@ -16,9 +16,9 @@ let browserHost: BrowserHost | null = null
 let mainWindow: BrowserWindow | null = null
 const PRELOAD = join(__dirname, '../preload/index.js')
 
-// Files an agent wrote, served to the preview frames in the chat: kando-preview://file/<path>.
+// Files an agent wrote, served to the preview frames in the chat: antumi-preview://file/<path>.
 // Registered before the app is ready, as a standard scheme so relative links inside a page resolve.
-const PREVIEW_SCHEME = 'kando-preview'
+const PREVIEW_SCHEME = 'antumi-preview'
 protocol.registerSchemesAsPrivileged([{ scheme: PREVIEW_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }])
 
 const PREVIEW_TYPES: Record<string, string> = {
@@ -65,7 +65,7 @@ function createWindow(): void {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'Kando',
+    title: 'Antumi',
     titleBarStyle: insetTitleBar ? 'hidden' : 'default',
     trafficLightPosition: insetTitleBar ? { x: 20, y: 19 } : undefined,
     show: false,
@@ -81,7 +81,7 @@ function createWindow(): void {
   if (insetTitleBar) {
     // Fullscreen hides the traffic lights, so the renderer drops the space kept for them.
     // Resent on every load so a reload while fullscreen keeps the right layout.
-    const sendFullScreen = () => win.webContents.send('kando:full-screen', win.isFullScreen())
+    const sendFullScreen = () => win.webContents.send('antumi:full-screen', win.isFullScreen())
     win.on('enter-full-screen', sendFullScreen)
     win.on('leave-full-screen', sendFullScreen)
     win.webContents.on('did-finish-load', sendFullScreen)
@@ -127,7 +127,7 @@ function revealMainWindow(target?: unknown): void {
   if (win.isMinimized()) win.restore()
   win.show()
   win.focus()
-  if (target !== undefined) win.webContents.send('kando:notification-click', target)
+  if (target !== undefined) win.webContents.send('antumi:notification-click', target)
 }
 
 const requestPopup = new RequestPopup(() => {
@@ -139,32 +139,32 @@ const requestPopup = new RequestPopup(() => {
 // The browser panel's say over the tab on show: which one, where it sits, whether something is
 // over it. Bounds arrive as the renderer's CSS pixels; the window's zoom turns them into points.
 const Bounds = z.object({ x: z.number().finite(), y: z.number().finite(), width: z.number().finite().min(0), height: z.number().finite().min(0) })
-ipcMain.handle('kando:browser-show', (_event, tabId: unknown) => {
+ipcMain.handle('antumi:browser-show', (_event, tabId: unknown) => {
   const id = typeof tabId === 'string' ? tabId : null
   slot.show(id, id ? (browserHost?.viewOf(id) ?? null) : null, id ? (browserHost?.viewportOf(id) ?? null) : null)
 })
-ipcMain.on('kando:browser-bounds', (event, bounds: unknown) => {
+ipcMain.on('antumi:browser-bounds', (event, bounds: unknown) => {
   const parsed = Bounds.safeParse(bounds)
   if (!parsed.success) return
   const zoom = event.sender.getZoomFactor()
   const { x, y, width, height } = parsed.data
   slot.setBounds({ x: Math.round(x * zoom), y: Math.round(y * zoom), width: Math.round(width * zoom), height: Math.round(height * zoom) })
 })
-ipcMain.handle('kando:browser-occluded', (_event, occluded: unknown) => {
+ipcMain.handle('antumi:browser-occluded', (_event, occluded: unknown) => {
   slot.setOccluded(occluded === true)
 })
 
 // Re-read on every call: core rewrites the file with a new port/token on restart.
-ipcMain.handle('kando:core-endpoint', () => readCoreEndpoint())
+ipcMain.handle('antumi:core-endpoint', () => readCoreEndpoint())
 
 // Drives prefers-color-scheme in every window and the native chrome with it.
-ipcMain.handle('kando:set-theme', (_event, theme: unknown) => {
+ipcMain.handle('antumi:set-theme', (_event, theme: unknown) => {
   if (theme === 'system' || theme === 'light' || theme === 'dark') {
     nativeTheme.themeSource = theme
   }
 })
 
-ipcMain.handle('kando:pick-plugin', async (event, kind: unknown) => {
+ipcMain.handle('antumi:pick-plugin', async (event, kind: unknown) => {
   if (kind !== 'directory' && kind !== 'zip') return null
   const options: OpenDialogOptions = kind === 'directory'
     ? { title: '选择插件目录', properties: ['openDirectory'] }
@@ -174,7 +174,7 @@ ipcMain.handle('kando:pick-plugin', async (event, kind: unknown) => {
   return result.canceled ? null : (result.filePaths[0] ?? null)
 })
 
-ipcMain.handle('kando:pick-folder', async (event, defaultPath: unknown, title: unknown) => {
+ipcMain.handle('antumi:pick-folder', async (event, defaultPath: unknown, title: unknown) => {
   const options: OpenDialogOptions = {
     title: typeof title === 'string' && title ? title : '选择代码仓库',
     properties: ['openDirectory'],
@@ -188,7 +188,7 @@ ipcMain.handle('kando:pick-folder', async (event, defaultPath: unknown, title: u
 // Shows a file a reply names in the system's file manager: the first of the paths the renderer
 // resolved it to that exists. Showing never opens or runs it, so a path an agent wrote cannot start
 // anything.
-ipcMain.handle('kando:reveal-file', async (_event, candidates: unknown) => {
+ipcMain.handle('antumi:reveal-file', async (_event, candidates: unknown) => {
   if (!Array.isArray(candidates)) return null
   for (const candidate of candidates.slice(0, 20)) {
     if (typeof candidate !== 'string') continue
@@ -205,7 +205,7 @@ ipcMain.handle('kando:reveal-file', async (_event, candidates: unknown) => {
   return null
 })
 
-ipcMain.handle('kando:open-file', async (_event, file: unknown) => {
+ipcMain.handle('antumi:open-file', async (_event, file: unknown) => {
   if (typeof file !== 'string' || !isAbsolute(file) || file.includes('\0')) return '文件路径无效'
   try {
     const info = await stat(file)
@@ -222,7 +222,7 @@ const Notice = z.object({ title: z.string().max(200), body: z.string().max(1000)
 // A system notification from the renderer, which decides what is worth one; clicking it brings
 // the window up and tells the renderer where to go. Main only relays: what is said is the
 // renderer's, so an older or newer renderer changes nothing here.
-ipcMain.handle('kando:notify', (_event, notice: unknown) => {
+ipcMain.handle('antumi:notify', (_event, notice: unknown) => {
   const parsed = Notice.safeParse(notice)
   if (!Notification.isSupported() || !parsed.success) return false
   const { title, body, target } = parsed.data
@@ -234,24 +234,24 @@ ipcMain.handle('kando:notify', (_event, notice: unknown) => {
 
 // How many things wait on the user, on the dock icon (macOS) or launcher (Linux). Windows shows
 // no count without an overlay icon, which this does not draw.
-ipcMain.handle('kando:set-badge', (_event, count: unknown) => {
+ipcMain.handle('antumi:set-badge', (_event, count: unknown) => {
   if (typeof count === 'number' && Number.isInteger(count) && count >= 0) app.setBadgeCount(count)
 })
 
 // The card of waiting requests (request-popup.ts). Only the main window asks for it or puts it
 // away, and only the card says how it is laid out or where a click on it leads.
-ipcMain.handle('kando:request-popup', (event, wanted: unknown) => {
+ipcMain.handle('antumi:request-popup', (event, wanted: unknown) => {
   if (event.sender !== mainWindow?.webContents || typeof wanted !== 'boolean') return
   requestPopup.want(wanted)
 })
 const PopupLayout = z.object({ visible: z.boolean(), height: z.number().finite().min(0).max(10_000) })
-ipcMain.on('kando:request-popup-layout', (event, layout: unknown) => {
+ipcMain.on('antumi:request-popup-layout', (event, layout: unknown) => {
   const parsed = PopupLayout.safeParse(layout)
   if (!requestPopup.owns(event.sender) || !parsed.success) return
   requestPopup.layout(parsed.data.visible, parsed.data.height)
 })
 // The target goes to the main window as a notification's would, which checks it the same way.
-ipcMain.handle('kando:request-popup-open', (event, target: unknown) => {
+ipcMain.handle('antumi:request-popup-open', (event, target: unknown) => {
   if (!requestPopup.owns(event.sender)) return
   requestPopup.want(false)
   revealMainWindow(target)
@@ -274,12 +274,12 @@ void app.whenReady().then(() => {
   if (!primary) return
   protocol.handle(PREVIEW_SCHEME, servePreview)
   // Windows names a notification's sender by this id, the installer's shortcut carries the same.
-  if (process.platform === 'win32') app.setAppUserModelId('dev.kando.desktop')
+  if (process.platform === 'win32') app.setAppUserModelId('dev.antumi.desktop')
   void ensureBackend()
   createWindow()
-  startBrowserHost(slot, kandoPaths().browserHostFile).then(
+  startBrowserHost(slot, antumiPaths().browserHostFile).then(
     (host) => { browserHost = host },
-    (error: unknown) => console.error('[kando] the browser host did not start', error)
+    (error: unknown) => console.error('[antumi] the browser host did not start', error)
   )
   app.on('activate', () => {
     if (!mainWindow) {

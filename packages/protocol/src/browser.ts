@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ChatImage } from './chat'
 
-// The browser Kando hosts for its chat agents: the app's own Chromium, tabs tagged by the
+// The browser Antumi hosts for its chat agents: the app's own Chromium, tabs tagged by the
 // conversation they belong to. A tab is laid out at the browser panel's size, so what the agent
 // screenshots is what the user sees; this is the size of one no panel has shown yet.
 export const BROWSER_VIEWPORT = { width: 1280, height: 800 } as const

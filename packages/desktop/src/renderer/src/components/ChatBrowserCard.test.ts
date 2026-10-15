@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { describeBrowserPage, type ChatItem } from '@kando/protocol'
+import { describeBrowserPage, type ChatItem } from '@antumi/protocol'
 import { ChatBrowserCard, ChatBrowserRun } from './ChatBrowserCard'
 import { ChatFindExpansion } from '../chat-disclosure'
 

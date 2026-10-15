@@ -163,7 +163,7 @@ function LinkedImages({ node }: { node: HastElement | undefined }) {
 }
 
 // react-markdown drops what it cannot tell is safe, a.ts:12 and file:// among it; a file is shown
-// by Kando rather than followed, so its link is kept, as is a note's, which main opens in Obsidian.
+// by Antumi rather than followed, so its link is kept, as is a note's, which main opens in Obsidian.
 function urlTransform(url: string): string {
   const kind = linkTarget(url)?.kind
   return kind === 'file' || kind === 'app' ? url : defaultUrlTransform(url)
@@ -177,7 +177,7 @@ function languageOf(code: HastElement | undefined): string | null {
 
 // Raw HTML in a reply stays text (react-markdown does not render it without rehype-raw). A web link
 // opens a new window, which main hands to the browser for http(s) and refuses otherwise; a file's
-// link and image are Kando's to show. A code block carries its language and a copy button above it.
+// link and image are Antumi's to show. A code block carries its language and a copy button above it.
 const components: Components = {
   a: ({ node: _node, href, title, children }) => <ChatLink href={href} title={title}>{children}</ChatLink>,
   img: ({ node: _node, src, alt }) => <ReplyImage src={typeof src === 'string' ? src : undefined} alt={alt} />,

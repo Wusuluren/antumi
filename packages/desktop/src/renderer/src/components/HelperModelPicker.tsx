@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { AgentKind, ChatCatalog, Conversation } from '@kando/protocol'
+import type { AgentKind, ChatCatalog, Conversation } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
 import { ChatModelPicker } from './ChatPicker'
 import { effortLabel } from './ChatOptionsBar'

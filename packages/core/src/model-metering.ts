@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { ModelMetering, ModelTokens } from '@kando/protocol'
+import type { ModelMetering, ModelTokens } from '@antumi/protocol'
 
 const count = z.number().int().nonnegative()
 const cost = z.number().nonnegative()

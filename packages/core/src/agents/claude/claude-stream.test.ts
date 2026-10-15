@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 import type { ChatRecord, ChatStageOptions } from '../../chat-driver'
 import { parseChatRecord } from '../../chat-log'
 import { ClaudeStream } from './claude-stream'
@@ -544,7 +544,7 @@ describe('ClaudeStream commands', () => {
   it('says what remembering a call would let through, and answers by the choice picked', () => {
     const driver = started()
     driver.apply({ dir: 'out', at, frame: driver.send('fetch').wire, ref: 'ref-1' })
-    // Claude suggests the command whole; Kando keeps it by what it does, for this project.
+    // Claude suggests the command whole; Antumi keeps it by what it does, for this project.
     const claudes = [{ type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'git fetch origin main --prune' }], behavior: 'allow', destination: 'localSettings' }]
     const suggestions = [{ type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'git fetch *' }], behavior: 'allow', destination: 'localSettings' }]
     const request = canUseTool('req-2')
@@ -652,7 +652,7 @@ describe('ClaudeStream commands', () => {
     driver.apply({ dir: 'out', at, frame: pause })
     expect(driver.suggestion()).toBeNull()
     expect(driver.pauseSuggestions(false)).toEqual([expect.objectContaining({ request_id: 'kando-suggestions-2' })])
-    // The CLI's answer is Kando's own, so it is kept rather than treated as a stranger's.
+    // The CLI's answer is Antumi's own, so it is kept rather than treated as a stranger's.
     expect(driver.logged({ type: 'control_response', response: { subtype: 'success', request_id: 'kando-suggestions-1' } })).toEqual({
       type: 'control_response', response: { subtype: 'success', request_id: 'kando-suggestions-1' }
     })
@@ -775,7 +775,7 @@ describe('ClaudeStream usage limits', () => {
     expect(replayed.items.get('t:t1')).toMatchObject({ output: 'saved', images: [{ id, width: 8, height: 6 }] })
   })
 
-  it("shows Kando's own screenshot once, from its image block like any tool's picture", () => {
+  it("shows Antumi's own screenshot once, from its image block like any tool's picture", () => {
     const id = `${'c'.repeat(64)}.jpg`
     const taken: string[] = []
     const driver = new ClaudeStream('stage-1', { ...OPTIONS, keepImage: (data) => { taken.push(data); return { id, width: 1400, height: 1100 } } })
@@ -797,7 +797,7 @@ describe('ClaudeStream usage limits', () => {
 
 describe('ClaudeStream background tasks, as recorded', () => {
   // Claude Code 2.1.288: a command run with run_in_background, the turn ending while it runs, its
-  // task reporting, and the turn the CLI then starts for it, as Kando logged them.
+  // task reporting, and the turn the CLI then starts for it, as Antumi logged them.
   const records = fixture('claude-background-command.jsonl')
   const reported = records.findIndex((record) => record.dir === 'in' && JSON.stringify(record.frame).includes('task_notification'))
 

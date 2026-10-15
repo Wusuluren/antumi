@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Environment, EnvironmentCheck } from '@kando/protocol'
+import type { Environment, EnvironmentCheck } from '@antumi/protocol'
 import { detectedAgents, installedAgents, otherInstalledAgent } from './installed-agents'
 
 const check = (tool: EnvironmentCheck['tool'], status: EnvironmentCheck['status']): EnvironmentCheck => ({ tool, status, version: null, path: null, signedIn: null })

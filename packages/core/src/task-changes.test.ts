@@ -17,7 +17,7 @@ describe('task changes', () => {
   }
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-changes-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-changes-'))
     repo = path.join(root, 'app')
     execFileSync('git', ['init', '-q', '-b', 'main', repo])
     writeFileSync(path.join(repo, 'a.txt'), 'one\ntwo\n')
@@ -69,7 +69,7 @@ describe('task changes', () => {
     expect(changes.files.map((file) => file.path)).toEqual(['task.txt'])
   })
 
-  it('counts from the start Kando recorded, which need not be anywhere near the repo\'s HEAD', async () => {
+  it('counts from the start Antumi recorded, which need not be anywhere near the repo\'s HEAD', async () => {
     git(repo, 'branch', 'upstream')
     const upstream = worktree('upstream-wt', 'upstream')
     git(upstream, 'commit', '-q', '--allow-empty', '-m', 'upstream moved on')

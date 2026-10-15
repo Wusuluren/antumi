@@ -4,7 +4,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Conversation, Task, type GitTarget } from '@kando/protocol'
+import { Conversation, Task, type GitTarget } from '@antumi/protocol'
 import { GitService } from './git-service'
 import { committedDiff, filesBetween } from './git-repository'
 
@@ -21,11 +21,11 @@ describe('Git management', () => {
   const record = vi.fn(async () => {})
   const commit = (name: string, content: string, message = name) => { writeFileSync(path.join(repo, name), content); git(repo, 'add', '--', name); git(repo, 'commit', '-q', '-m', message); return git(repo, 'rev-parse', 'HEAD') }
   beforeEach(() => {
-    root = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'kando-git-management-')))
+    root = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'antumi-git-management-')))
     repo = path.join(root, 'repo'); remote = path.join(root, 'origin.git')
     git(root, 'init', '-q', '--bare', '-b', 'main', remote)
     git(root, 'init', '-q', '-b', 'main', repo)
-    git(repo, 'config', 'user.name', 'Kando Test'); git(repo, 'config', 'user.email', 'test@example.com')
+    git(repo, 'config', 'user.name', 'Antumi Test'); git(repo, 'config', 'user.email', 'test@example.com')
     git(repo, 'remote', 'add', 'origin', remote)
     commit('file.txt', 'base\n', 'initial')
     git(repo, 'push', '-q', '-u', 'origin', 'main')
@@ -183,7 +183,7 @@ describe('Git management', () => {
     expect(second.commits).toHaveLength(11); expect(second.next).toBeNull()
     expect(new Set([...first.commits, ...second.commits].map((commit) => commit.sha)).size).toBe(111)
     expect((await service.history(target, 'HEAD', 0, 'commit 0')).commits).toHaveLength(1)
-    expect((await service.history(target, 'HEAD', 0, 'Kando Test')).commits).toHaveLength(100)
+    expect((await service.history(target, 'HEAD', 0, 'Antumi Test')).commits).toHaveLength(100)
   })
 
   it('compares divergence, fast-forwards pull and refuses a divergent pull', async () => {

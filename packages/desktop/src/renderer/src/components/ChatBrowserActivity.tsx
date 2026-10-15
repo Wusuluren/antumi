@@ -1,4 +1,4 @@
-import type { ChatItem, ChatToolStatus } from '@kando/protocol'
+import type { ChatItem, ChatToolStatus } from '@antumi/protocol'
 import { browserActivity } from '../browser-activity'
 import { toolLabel } from '../chat-tools'
 

@@ -1,4 +1,4 @@
-import { checkCleanWorktree, type Conversation, type ManagedWorktree, type Task, type WorktreeCleanBlocker } from '@kando/protocol'
+import { checkCleanWorktree, type Conversation, type ManagedWorktree, type Task, type WorktreeCleanBlocker } from '@antumi/protocol'
 
 export type WorktreeRow = { worktree: ManagedWorktree; task: Task | null; conversation: Conversation | null; blocker: WorktreeCleanBlocker | null }
 

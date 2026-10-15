@@ -21,7 +21,7 @@ describe('computer awake policy', () => {
   })
 
   it('defaults to off and persists the machine setting', async () => {
-    const root = mkdtempSync(path.join(os.tmpdir(), 'kando-awake-'))
+    const root = mkdtempSync(path.join(os.tmpdir(), 'antumi-awake-'))
     roots.push(root)
     const file = path.join(root, 'awake.json')
     const config = new AwakeConfigStore(file)

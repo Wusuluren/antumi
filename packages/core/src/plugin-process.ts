@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { dirname } from 'node:path'
-import { PLUGIN_PROTOCOL_VERSION, PluginMessage, pluginSchemas, type PluginManifest, type PluginMethod, type PluginParams, type PluginResult } from '@kando/protocol'
+import { PLUGIN_PROTOCOL_VERSION, PluginMessage, pluginSchemas, type PluginManifest, type PluginMethod, type PluginParams, type PluginResult } from '@antumi/protocol'
 import { SourceError } from './source-error'
 import type { LoginSession, SourceCredential, SourceProvider } from './source-provider'
 

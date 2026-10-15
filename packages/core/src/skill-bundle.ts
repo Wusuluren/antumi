@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { copyFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { CommitSha, SkillName, SkillRepoId, type SkillRef, type SkillRepo } from '@kando/protocol'
+import { CommitSha, SkillName, SkillRepoId, type SkillRef, type SkillRepo } from '@antumi/protocol'
 import { Rejection } from './rejection'
 
 // The one plugin every bundle is, so a skill keeps its name (kando-skills:<skill>) and the

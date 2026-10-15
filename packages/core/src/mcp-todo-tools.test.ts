@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { createRpcClient, rpcSchemas, type RpcConnection } from '@kando/protocol'
+import { createRpcClient, rpcSchemas, type RpcConnection } from '@antumi/protocol'
 import { createMcpHandler } from './mcp-server'
 import { todoToolsOverCore } from './mcp-todo-tools'
 import { TaskStore } from './task-store'
@@ -19,7 +19,7 @@ describe('to-do MCP tools', () => {
 
   // A core that answers the to-do methods from a store of its own.
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-mcp-todos-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-mcp-todos-'))
     const file = path.join(root, 'kando.db')
     tasks = new TaskStore(file)
     todos = new TodoStore(file)

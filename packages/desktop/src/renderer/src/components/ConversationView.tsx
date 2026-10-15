@@ -62,7 +62,7 @@ export function ConversationView({ id }: { id: string }) {
   }, [id, routineId, turn])
   if (!conversation) return null
   // The agent starts with the next message and goes when idle: no continue or stop to press.
-  // A managed workspace is Kando's own scratch folder: nothing of the user's to compare, but the
+  // A managed workspace is Antumi's own scratch folder: nothing of the user's to compare, but the
   // inspector still shows the agent's plans.
   const inspectable = conversation.projectPaths.length > 0
   const hasPanel = helperSupported || inspectable || plans.length > 0 || wire || files.tabs.length > 0 || todosShown

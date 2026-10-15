@@ -1,4 +1,4 @@
-import type { RoutineSchedule } from '@kando/protocol'
+import type { RoutineSchedule } from '@antumi/protocol'
 
 // A template is a routine written out for a common chore, to start from: the user picks one,
 // changes what they like in the editor, and creates it. The icon names one in icons.tsx; the

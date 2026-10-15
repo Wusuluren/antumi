@@ -1,4 +1,4 @@
-// Bundles daemon, core and Kando's MCP server into out/backend for a packaged app: one ESM file
+// Bundles daemon, core and Antumi's MCP server into out/backend for a packaged app: one ESM file
 // each, run by Electron's binary as plain Node (ELECTRON_RUN_AS_NODE), so users need no Node
 // install. node-pty stays external: its prebuilt binding is copied beside the bundles.
 import { execFileSync } from 'node:child_process'
@@ -18,7 +18,7 @@ mkdirSync(out, { recursive: true })
 cpSync(path.join(repo, 'packages/plugin-github/dist'), path.join(out, 'plugins/github'), { recursive: true })
 
 // Some bundled CJS dependencies call require() at runtime; give the ESM output one.
-const banner = `import { createRequire as __kandoRequire } from 'node:module';\nconst require = __kandoRequire(import.meta.url);\n`
+const banner = `import { createRequire as __antumiRequire } from 'node:module';\nconst require = __antumiRequire(import.meta.url);\n`
 
 for (const [name, entry] of [
   ['daemon', 'packages/daemon/src/main.ts'],

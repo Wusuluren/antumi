@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { SourceId } from '@kando/protocol'
-import { readJsonIfExists, writePrivateJson } from '@kando/protocol/node'
+import { SourceId } from '@antumi/protocol'
+import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 
 export const InstanceConfig = z.object({
   provider: SourceId,
@@ -24,11 +24,11 @@ export class SourceConfigStore {
       const raw = await readJsonIfExists(this.file)
       const parsed = raw === undefined ? null : SourcesFile.safeParse(raw)
       if (parsed && !parsed.success) {
-        console.error(`[kando-core] ${this.file} is not a sources file; ignoring it until settings are saved`)
+        console.error(`[antumi-core] ${this.file} is not a sources file; ignoring it until settings are saved`)
       }
       this.instances = parsed?.success ? parsed.data.instances : []
     } catch (error) {
-      console.error(`[kando-core] cannot read ${this.file}:`, error instanceof Error ? error.message : error)
+      console.error(`[antumi-core] cannot read ${this.file}:`, error instanceof Error ? error.message : error)
       this.instances = []
     }
   }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChatPermissionMode, checkSquadStart, squadModes, type Task } from '@kando/protocol'
+import { ChatPermissionMode, checkSquadStart, squadModes, type Task } from '@antumi/protocol'
 import { dismissError, openChatWhileStarting, perform, selectSquad, useCore } from '../core-store'
 import { useOccludesBrowser } from '../browser-occlusion'
 import { reasonText } from '../labels'

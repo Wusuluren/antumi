@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StateCreator } from 'zustand'
-import { Conversation, Task, createRpcClient, type Routine, type RpcConnection, type ScheduledRun } from '@kando/protocol'
+import { Conversation, Task, createRpcClient, type Routine, type RpcConnection, type ScheduledRun } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { useQuotes } from '../chat-quotes'
 import { receiveTodos } from '../conversation-todos'
@@ -86,9 +86,9 @@ beforeEach(() => {
 
 describe('overview page', () => {
   it.each([
-    ['/w/kando-agents', '/w/orca', '/w/lobehub'],
-    ['C:\\work\\kando-agents', 'C:\\work\\orca'],
-    ['/w/kando-agents']
+    ['/w/antumi-agents', '/w/orca', '/w/lobehub'],
+    ['C:\\work\\antumi-agents', 'C:\\work\\orca'],
+    ['/w/antumi-agents']
   ])('shows only the primary project in row metadata (%j)', (...projectPaths) => {
     connect()
     useCore.setState({
@@ -100,7 +100,7 @@ describe('overview page', () => {
     const projects = captured.nodes.filter((entry) => entry.type === 'span' && entry.props.className === 'overview-project')
     expect(projects).toHaveLength(4)
     for (const { props } of projects) {
-      expect(props.children).toBe('kando-agents')
+      expect(props.children).toBe('antumi-agents')
       expect(props.title).toBe(projectPaths.join('\n'))
     }
   })

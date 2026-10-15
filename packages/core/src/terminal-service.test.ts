@@ -2,8 +2,8 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { Terminal } from '@kando/protocol'
-import type { DaemonMethod, DaemonParams, DaemonResult } from '@kando/protocol/node'
+import type { Terminal } from '@antumi/protocol'
+import type { DaemonMethod, DaemonParams, DaemonResult } from '@antumi/protocol/node'
 import type { SessionHost } from './daemon-client'
 import { TaskStore } from './task-store'
 import { commandShell, plainOutput, TerminalService, userShell } from './terminal-service'
@@ -53,7 +53,7 @@ describe('TerminalService', () => {
   let service: TerminalService
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-terminals-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-terminals-'))
     database = path.join(root, 'kando.db')
     tasks = new TaskStore(database)
     daemon = fakeDaemon()
@@ -77,13 +77,13 @@ describe('TerminalService', () => {
   })
 
   it('says the terminal takes colour, and asks for a prompt in colour only when the client does', async () => {
-    const prompt = { env: async () => ({ ZDOTDIR: '/kando/shell/zsh' }) }
+    const prompt = { env: async () => ({ ZDOTDIR: '/antumi/shell/zsh' }) }
     const coloured = new TerminalService(database, daemon, () => {}, Date.now, prompt)
     await coloured.open(root)
     await coloured.open(root, true)
-    expect(daemon.spawns[0]?.env).toMatchObject({ COLORTERM: 'truecolor', TERM_PROGRAM: 'Kando' })
+    expect(daemon.spawns[0]?.env).toMatchObject({ COLORTERM: 'truecolor', TERM_PROGRAM: 'Antumi' })
     expect(daemon.spawns[0]?.env).not.toHaveProperty('ZDOTDIR')
-    expect(daemon.spawns[1]?.env).toMatchObject({ COLORTERM: 'truecolor', ZDOTDIR: '/kando/shell/zsh' })
+    expect(daemon.spawns[1]?.env).toMatchObject({ COLORTERM: 'truecolor', ZDOTDIR: '/antumi/shell/zsh' })
   })
 
   it('keeps its terminals across a core restart', async () => {

@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import * as privateFiles from '@kando/protocol/node'
+import * as privateFiles from '@antumi/protocol/node'
 import { AttachmentStore } from './attachment-store'
 import { CredentialStore } from './credential-store'
 import { LoginFlows } from './source-login-flow'
@@ -19,7 +19,7 @@ describe('plugin installation and activation', () => {
   const createService = () => new PluginService(path.join(root, 'plugins'), '0.15.11', sources, config, [])
 
   beforeEach(async () => {
-    root = await mkdtemp(path.join(os.tmpdir(), 'kando-plugin-service-'))
+    root = await mkdtemp(path.join(os.tmpdir(), 'antumi-plugin-service-'))
     config = new SourceConfigStore(path.join(root, 'sources.json'))
     await config.load()
     const credentials = new CredentialStore(path.join(root, 'credentials.json'))

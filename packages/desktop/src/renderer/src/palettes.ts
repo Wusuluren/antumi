@@ -5,7 +5,7 @@ export type Palette = (typeof PALETTES)[number]
 
 // Each palette's name, and where its colours come from, for the settings.
 export const PALETTE_LABEL: Record<Palette, { name: string; origin: string }> = {
-  terracotta: { name: '赤陶', origin: 'Kando 的默认，中性灰阶配赤陶色' },
+  terracotta: { name: '赤陶', origin: 'Antumi 的默认，中性灰阶配赤陶色' },
   indigo: { name: '靛蓝', origin: '取自 Linear：冷灰和一点靛蓝' },
   nord: { name: '极夜', origin: '取自 Nord：极地的蓝灰和霜色' },
   paper: { name: '宣纸', origin: '取自 Notion 和阅读器的暖纸色，配古铜' },

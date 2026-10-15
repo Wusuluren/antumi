@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Conversation, Task, type TodoGroup } from '@kando/protocol'
+import { Conversation, Task, type TodoGroup } from '@antumi/protocol'
 import { overviewTodos, STALE_TODO_MS } from './overview-todos'
 
 const now = new Date(2026, 9, 15, 12).getTime()

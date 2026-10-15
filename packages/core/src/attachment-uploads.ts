@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { ATTACHMENT_CHUNK_BYTES, type AttachmentInfo } from '@kando/protocol'
+import { ATTACHMENT_CHUNK_BYTES, type AttachmentInfo } from '@antumi/protocol'
 import type { AttachmentStore } from './attachment-store'
 import { Rejection } from './rejection'
 import type { Connection } from './rpc-server'

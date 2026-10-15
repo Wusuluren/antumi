@@ -1,9 +1,9 @@
 import { z } from 'zod'
 import { AgentKind } from './task'
 
-// What passed between Kando and a chat agent's process, as it went, for the user to debug with:
-// spawn, the command it started with · stdin, a line Kando wrote · stdout, a line the agent wrote,
-// whether or not it is JSON · stderr, a chunk as it came · exit, how it ended · note, Kando's own
+// What passed between Antumi and a chat agent's process, as it went, for the user to debug with:
+// spawn, the command it started with · stdin, a line Antumi wrote · stdout, a line the agent wrote,
+// whether or not it is JSON · stderr, a chunk as it came · exit, how it ended · note, Antumi's own
 // word on the record itself (a gap, the size limit reached).
 export const WIRE_DIRECTIONS = ['spawn', 'stdin', 'stdout', 'stderr', 'exit', 'note'] as const
 export const WireDirection = z.enum(WIRE_DIRECTIONS)
@@ -14,7 +14,7 @@ export const WireEntry = z.object({
   pos: z.number().int().nonnegative(),
   at: z.number(),
   dir: WireDirection,
-  // The line as it went, without its newline; spawn and exit carry JSON of Kando's own.
+  // The line as it went, without its newline; spawn and exit carry JSON of Antumi's own.
   text: z.string(),
   // The text's length before it was cut short, when it was.
   cut: z.number().int().optional()

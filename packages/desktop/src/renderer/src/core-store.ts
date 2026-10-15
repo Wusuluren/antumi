@@ -1,4 +1,4 @@
-import { isHelper } from '@kando/protocol'
+import { isHelper } from '@antumi/protocol'
 import { useEffect, useMemo, useState } from 'react'
 import { create } from 'zustand'
 import {
@@ -31,13 +31,13 @@ import {
   type Squad,
   type SquadRun,
   type SquadPlanRef
-} from '@kando/protocol'
+} from '@antumi/protocol'
 import { receiveChatDelta, receiveChatItems } from './chat-state'
 import { forgetDiscussionPosts, receiveDiscussionPosts } from './discussions'
 import { forgetFileTabs } from './file-tabs'
 import { usePreferences } from './preferences'
 import { activeInboxes, inboxKey } from './source-inboxes'
-import type { BrowserStatus } from '@kando/protocol'
+import type { BrowserStatus } from '@antumi/protocol'
 import { focusBrowserConversation, focusBrowserTab, receiveBrowserTabs } from './browser-state'
 import type { InspectorTab } from './components/Inspector'
 import type { InspectorFile } from './inspector-file'
@@ -967,7 +967,7 @@ export function dismissError(): void {
 export async function perform<T>(action: (rpc: RpcConnection) => Promise<T>): Promise<T | null> {
   const { rpc } = useCore.getState()
   if (!rpc) {
-    useCore.setState({ error: '尚未连接到 Kando core' })
+    useCore.setState({ error: '尚未连接到 Antumi core' })
     return null
   }
   try {

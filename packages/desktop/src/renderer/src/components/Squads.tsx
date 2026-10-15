@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from 'react'
-import { AgentKind, SquadFields, type Squad, type SquadMember } from '@kando/protocol'
+import { AgentKind, SquadFields, type Squad, type SquadMember } from '@antumi/protocol'
 import { useAgentCatalog } from '../agent-models'
 import { perform, selectSquad, useCore, useSquadsSupported } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'

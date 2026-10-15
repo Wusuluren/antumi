@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
 import { z } from 'zod'
-import { SourceSnapshot, Task, TaskAttempt, TaskImage, TaskLaunchOptions, TaskPlan, TaskSource, TaskStart, type TaskStatus } from '@kando/protocol'
+import { SourceSnapshot, Task, TaskAttempt, TaskImage, TaskLaunchOptions, TaskPlan, TaskSource, TaskStart, type TaskStatus } from '@antumi/protocol'
 
 // Append-only: each entry upgrades PRAGMA user_version by one.
 export const MIGRATIONS = [
@@ -354,7 +354,7 @@ function parseColumn<T>(schema: z.ZodType<T>, raw: string | null, where: string)
   }
   const parsed = schema.safeParse(jsonOrUndefined(raw))
   if (!parsed.success) {
-    console.error(`[kando-core] unreadable ${where}; treating it as empty`)
+    console.error(`[antumi-core] unreadable ${where}; treating it as empty`)
     return null
   }
   return parsed.data

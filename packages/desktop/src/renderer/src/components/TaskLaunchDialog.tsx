@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChatPermissionMode, checkStart, checkStartMode, type AgentKind, type Task } from '@kando/protocol'
+import { ChatPermissionMode, checkStart, checkStartMode, type AgentKind, type Task } from '@antumi/protocol'
 import { resolveModel, useAgentCatalog, type ModelChoice } from '../agent-models'
 import { dismissError, openChatWhileStarting, perform, updateTask, useCore } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'

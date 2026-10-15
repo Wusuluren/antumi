@@ -8,7 +8,7 @@ import {
   type BrowserHostMethod,
   type BrowserHostParams,
   type BrowserHostResult
-} from '@kando/protocol/node'
+} from '@antumi/protocol/node'
 import { Rejection } from './rejection'
 
 // Core's side of the browser host's socket. No reconnecting: the socket going is the app going,

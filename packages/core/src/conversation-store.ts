@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { z } from 'zod'
-import { AgentKind, Conversation, ConversationMessage, ConversationStage, TaskSource } from '@kando/protocol'
+import { AgentKind, Conversation, ConversationMessage, ConversationStage, TaskSource } from '@antumi/protocol'
 
 const lastEnded = (column: string) => `(SELECT ${column} FROM conversation_stages
   WHERE conversation_id = conversations.id AND ended_at IS NOT NULL ORDER BY started_at DESC, rowid DESC LIMIT 1)`

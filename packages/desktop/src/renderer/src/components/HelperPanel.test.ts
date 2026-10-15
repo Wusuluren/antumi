@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StateCreator } from 'zustand'
-import { createRpcClient, Task, ChatItem, type Conversation, type RpcConnection } from '@kando/protocol'
+import { createRpcClient, Task, ChatItem, type Conversation, type RpcConnection } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { useChat } from '../chat-state'
 import { HandToHelperItem } from './ChatContextMenu'
@@ -13,7 +13,7 @@ import { TaskToolbar } from './TaskActions'
 import { HelperPanel } from './HelperPanel'
 
 vi.hoisted(() => {
-  vi.stubGlobal('window', { kando: undefined, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) })
+  vi.stubGlobal('window', { antumi: undefined, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) })
   vi.stubGlobal('navigator', { userAgent: 'Mac', platform: 'MacIntel' })
 })
 

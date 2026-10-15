@@ -1,17 +1,17 @@
-import { CHAT_COMMAND_ARGUMENTS, type ChatCommand, type SavedChatCommand } from '@kando/protocol'
+import { CHAT_COMMAND_ARGUMENTS, type ChatCommand, type SavedChatCommand } from '@antumi/protocol'
 import { isInside } from './terminal-commands'
 
 // A command the composer offers: the user's own, which it expands into the input, or the agent's,
 // which goes to the agent as typed.
 export type CommandEntry =
-  | { source: 'kando'; name: string; description: string; argumentHint: string | null; command: SavedChatCommand }
+  | { source: 'antumi'; name: string; description: string; argumentHint: string | null; command: SavedChatCommand }
   | { source: 'agent'; name: string; description: string; argumentHint: string | null }
 
-export function kandoEntries(commands: readonly SavedChatCommand[], projectPaths: readonly string[]): CommandEntry[] {
+export function antumiEntries(commands: readonly SavedChatCommand[], projectPaths: readonly string[]): CommandEntry[] {
   return commands
     .filter((command) => command.projectPath === null || projectPaths.some((project) => isInside(project, command.projectPath ?? '')))
     .map((command) => ({
-      source: 'kando',
+      source: 'antumi',
       name: command.name,
       description: command.description || command.prompt.split('\n')[0] || '',
       argumentHint: takesArguments(command) ? '参数' : null,
@@ -58,10 +58,10 @@ export function expandPrompt(prompt: string, args: string): string {
 }
 
 // The user's own command a message names, with what follows it: `/name args`.
-export function typedKandoCommand(text: string, entries: readonly CommandEntry[]): { command: SavedChatCommand; args: string } | null {
+export function typedAntumiCommand(text: string, entries: readonly CommandEntry[]): { command: SavedChatCommand; args: string } | null {
   const match = /^\/(\S+)(?:\s+([\s\S]*))?$/.exec(text.trim())
   if (!match) return null
   const name = match[1]?.toLowerCase()
-  const entry = entries.find((each) => each.source === 'kando' && each.name.toLowerCase() === name)
-  return entry?.source === 'kando' ? { command: entry.command, args: match[2] ?? '' } : null
+  const entry = entries.find((each) => each.source === 'antumi' && each.name.toLowerCase() === name)
+  return entry?.source === 'antumi' ? { command: entry.command, args: match[2] ?? '' } : null
 }

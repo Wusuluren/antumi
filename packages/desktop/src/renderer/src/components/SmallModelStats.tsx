@@ -1,4 +1,4 @@
-import type { SmallModelStats as Stats } from '@kando/protocol'
+import type { SmallModelStats as Stats } from '@antumi/protocol'
 import { coverage, dollars, SMALL_MODEL_LABELS } from '../model-cost-format'
 import { compact } from '../stat-format'
 

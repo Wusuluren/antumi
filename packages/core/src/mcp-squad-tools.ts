@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { SQUAD_TOOL_NAMES, type RpcConnection, type SquadRun } from '@kando/protocol'
+import { SQUAD_TOOL_NAMES, type RpcConnection, type SquadRun } from '@antumi/protocol'
 
 const argumentsFor = {
   roster: z.object({}),

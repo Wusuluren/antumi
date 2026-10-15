@@ -1,4 +1,4 @@
-import type { Conversation, RpcConnection } from '@kando/protocol'
+import type { Conversation, RpcConnection } from '@antumi/protocol'
 
 export type AttentionSummaryMode = 'complete' | 'limited'
 

@@ -1,4 +1,4 @@
-import type { LoginNotice, LoginPrompt, SettingField, SourceIssue } from '@kando/protocol'
+import type { LoginNotice, LoginPrompt, SettingField, SourceIssue } from '@antumi/protocol'
 
 // The seam a task source plugs into. Core owns everything around it (settings and credential
 // storage, polling, the inbox, turning issues into tasks); a provider only talks to its tracker.

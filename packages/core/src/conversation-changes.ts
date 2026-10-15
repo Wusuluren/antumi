@@ -1,4 +1,4 @@
-import type { FileDiff, FolderChanges } from '@kando/protocol'
+import type { FileDiff, FolderChanges } from '@antumi/protocol'
 import { changedFileAt, changedFiles, commitsSince, diffOf, gitOrNull } from './git-changes'
 import { Rejection } from './rejection'
 

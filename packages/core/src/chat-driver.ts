@@ -1,10 +1,10 @@
-import type { ChatDecision, ChatImage, ChatItem, ChatOption, ChatPermissionMode, ChatTurnActivity, KnowledgeBase } from '@kando/protocol'
+import type { ChatDecision, ChatImage, ChatItem, ChatOption, ChatPermissionMode, ChatTurnActivity, KnowledgeBase } from '@antumi/protocol'
 import type { AttachmentFile } from './attachment-store'
 import type { ChatItems } from './chat-items'
 import type { UsageReport } from './usage-source'
 import type { AgentMcpServer, McpServer } from './agent-command'
 
-// What happened in a chat stage, in order: a frame from the agent or to it, a note Kando made,
+// What happened in a chat stage, in order: a frame from the agent or to it, a note Antumi made,
 // the process ending. A stage's log holds these, and replaying them rebuilds the stage.
 export type ChatRecord =
   | { dir: 'in'; at: number; frame: unknown }
@@ -24,7 +24,7 @@ export type ChatRecord =
   // that one, or with release lets a held one go; text null alone drops them all.
   | { dir: 'queue'; at: number; text: string | null; ref?: string; images?: ChatImage[]; release?: boolean; held?: boolean }
   | { dir: 'exit'; at: number; code: number | null; stderr: string }
-  // Kando asked the user something mid-chat (the site its browser may open), and what they answered.
+  // Antumi asked the user something mid-chat (the site its browser may open), and what they answered.
   | { dir: 'ask'; at: number; requestId: string; ask: { kind: 'browser-host'; host: string; url: string } | { kind: 'terminal-run'; command: string; cwd: string } }
   | { dir: 'answer'; at: number; requestId: string; resolution: 'allowed' | 'allowedForSession' | 'denied' | 'cancelled'; message?: string }
   // The user answered a question the agent asked in passing (answers null: put it aside); what
@@ -54,7 +54,7 @@ export type ChatOutgoing = { wire: unknown; logged: unknown }
 // choice: one of the approval's choices, which the driver turns into its decision.
 export type ChatAnswer = { decision: ChatDecision; choice?: string; mode?: ChatPermissionMode; message?: string; answers?: Record<string, string[]>; saved?: boolean }
 
-// Where and how a chat stage's agent works; the driver speaks for Kando within these bounds.
+// Where and how a chat stage's agent works; the driver speaks for Antumi within these bounds.
 export type ChatStageOptions = {
   cwd: string
   mcp?: McpServer
@@ -89,7 +89,7 @@ export type ChatStageOptions = {
 
 export type ChatPreferences = { permissionMode?: string; model?: string; effort?: string }
 
-// What a frame means to the turn Kando watches: going out, the prompt that starts one, a session
+// What a frame means to the turn Antumi watches: going out, the prompt that starts one, a session
 // being opened, or a cancel; coming in, a frame that belongs to it.
 export type TurnSignal = 'prompt' | 'session-new' | 'session-load' | 'cancel' | 'turn'
 
@@ -98,7 +98,7 @@ export type TurnSignal = 'prompt' | 'session-new' | 'session-load' | 'cancel' | 
 export interface ChatDriver {
   readonly items: ChatItems
   apply(record: ChatRecord): void
-  // Frames owed to the agent now: the handshake, answers to requests Kando does not handle.
+  // Frames owed to the agent now: the handshake, answers to requests Antumi does not handle.
   due(): unknown[]
   // The handshake is done and a message may be sent.
   ready(): boolean
@@ -142,6 +142,6 @@ export interface ChatDriver {
   suggestion?(): string | null
   // Frames that stop (or restart) the suggestions without restarting the agent.
   pauseSuggestions?(paused: boolean): unknown[]
-  // For an agent whose turns Kando watches for a stall (AgentAdapter.turns.firstFrameTimeoutMs).
+  // For an agent whose turns Antumi watches for a stall (AgentAdapter.turns.firstFrameTimeoutMs).
   turnSignal?(frame: unknown, dir: 'in' | 'out'): TurnSignal | null
 }

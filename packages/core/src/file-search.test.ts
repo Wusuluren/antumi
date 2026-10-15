@@ -8,7 +8,7 @@ import { findFiles, searchFiles } from './file-search'
 describe('findFiles', () => {
   let root: string
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-find-file-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-find-file-'))
     execFileSync('git', ['init', '-q'], { cwd: root })
     mkdirSync(path.join(root, 'src/rules/deep'), { recursive: true })
     mkdirSync(path.join(root, 'node_modules/pkg'), { recursive: true })
@@ -37,7 +37,7 @@ describe('findFiles', () => {
 describe('searchFiles', () => {
   let root: string
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-search-files-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-search-files-'))
     execFileSync('git', ['init', '-q'], { cwd: root })
     mkdirSync(path.join(root, 'src/components'), { recursive: true })
     mkdirSync(path.join(root, 'dist'), { recursive: true })
@@ -72,7 +72,7 @@ describe('searchFiles', () => {
   })
 
   it('walks a folder outside git, skipping dot folders and node_modules', async () => {
-    const plain = mkdtempSync(path.join(os.tmpdir(), 'kando-search-plain-'))
+    const plain = mkdtempSync(path.join(os.tmpdir(), 'antumi-search-plain-'))
     try {
       mkdirSync(path.join(plain, 'notes'), { recursive: true })
       mkdirSync(path.join(plain, 'node_modules/pkg'), { recursive: true })

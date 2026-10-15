@@ -1,5 +1,5 @@
 {
-  "name": "@kando/desktop",
+  "name": "@antumi/desktop",
   "version": "0.16.6",
   "private": true,
   "description": "Kando desktop client",
@@ -28,7 +28,7 @@
     "@codemirror/search": "6.7.2",
     "@codemirror/state": "6.7.6",
     "@codemirror/view": "6.43.13",
-    "@kando/protocol": "workspace:*",
+    "@antumi/protocol": "workspace:*",
     "@lezer/common": "1.5.2",
     "@lezer/highlight": "1.2.3",
     "@types/node": "catalog:",

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { checkDiscussionAction, checkEditDiscussionProjects, checkNewDiscussionTopic, checkRemoveDiscussionMember, currentTopic, MAX_DETAILS_LENGTH, memberLetter, type Discussion, type DiscussionAction, type DiscussionMember, type DiscussionPost } from '@kando/protocol'
+import { checkDiscussionAction, checkEditDiscussionProjects, checkNewDiscussionTopic, checkRemoveDiscussionMember, currentTopic, MAX_DETAILS_LENGTH, memberLetter, type Discussion, type DiscussionAction, type DiscussionMember, type DiscussionPost } from '@antumi/protocol'
 import { loadConversation, openDiscussionDraft, perform, selectConversation, selectDiscussion, selectTask, useCore, useDiscussionMembersSupported, useDiscussionProjectsSupported, useDiscussionTopicsSupported } from '../core-store'
 import { archiveDiscussion, controlDiscussion, discussionProgress, EVERYONE, loadDiscussionPosts, newDiscussionTopic, removeDiscussionMember, setDiscussionProjects, MEMBER_STATUS_LABEL, mentionedMembers, postToDiscussion, renameDiscussion, useDiscussionPosts } from '../discussions'
 import { agentLabel, messageTime, reasonText } from '../labels'
@@ -166,7 +166,7 @@ function PendingPost({ member }: { member: DiscussionMember | undefined }) {
 }
 
 // One post, as a chat app lays a group out: a member's on the left, its face beside a bubble under
-// its name; the user's on the right; Kando's own notes in the middle; the summary as a card.
+// its name; the user's on the right; Antumi's own notes in the middle; the summary as a card.
 function Post({ post, discussion, topic, question }: { post: DiscussionPost; discussion: Discussion; topic: Topic; question?: DiscussionPost }) {
   if (post.kind === 'notice') return <p className="discussion-system">{post.text}</p>
   if (post.kind === 'user') {

@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { z } from 'zod'
-import type { ChatCatalog, ChatItem } from '@kando/protocol'
-import { createLineDecoder } from '@kando/protocol/node'
+import type { ChatCatalog, ChatItem } from '@antumi/protocol'
+import { createLineDecoder } from '@antumi/protocol/node'
 import type { AgentCommand } from './agent-command'
 import type { ChatDriver } from './chat-driver'
 

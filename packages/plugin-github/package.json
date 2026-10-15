@@ -1,5 +1,5 @@
 {
-  "name": "@kando/plugin-github",
+  "name": "@antumi/plugin-github",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@kando/protocol": "workspace:*",
+    "@antumi/protocol": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

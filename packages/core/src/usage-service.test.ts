@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentUsage, UsageWindow } from '@kando/protocol'
+import type { AgentUsage, UsageWindow } from '@antumi/protocol'
 import { readableUsage, UsageService } from './usage-service'
 import { UsageFetchError, type UsageReading } from './usage-source'
 

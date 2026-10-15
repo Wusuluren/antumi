@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { chmodSync, existsSync, lstatSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { chmod, lstat, open, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { ATTACHMENT_ID_PATTERN, MAX_ATTACHMENT_BYTES, type AttachmentInfo } from '@kando/protocol'
+import { ATTACHMENT_ID_PATTERN, MAX_ATTACHMENT_BYTES, type AttachmentInfo } from '@antumi/protocol'
 import { IMAGE_MIME, ImageError, inspectImage, type ImageFacts } from './image-file'
 import { Rejection } from './rejection'
 

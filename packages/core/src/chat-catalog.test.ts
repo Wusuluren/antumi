@@ -38,7 +38,7 @@ require('readline').createInterface({ input: process.stdin }).on('line', (line) 
 
 describe('probeChatCatalog', () => {
   let root: string
-  beforeEach(() => { root = mkdtempSync(path.join(os.tmpdir(), 'kando-catalog-')) })
+  beforeEach(() => { root = mkdtempSync(path.join(os.tmpdir(), 'antumi-catalog-')) })
   afterEach(() => rmSync(root, { recursive: true, force: true }))
 
   const driver = (agent: 'claude' | 'codex') =>

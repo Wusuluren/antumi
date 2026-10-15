@@ -1,4 +1,4 @@
-import type { SourceFailure, SourceProblem } from '@kando/protocol'
+import type { SourceFailure, SourceProblem } from '@antumi/protocol'
 
 // A provider's failure, in terms every client can explain without knowing the tracker.
 export class SourceError extends Error {

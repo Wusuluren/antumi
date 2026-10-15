@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react'
-import { checkEditStart, START_HEAD, type RepoStartOptions, type Task, type TaskRepo } from '@kando/protocol'
+import { checkEditStart, START_HEAD, type RepoStartOptions, type Task, type TaskRepo } from '@antumi/protocol'
 import { perform, updateTask, useCore, useTaskStartSupported } from '../core-store'
 import { dayAndTime, reasonText } from '../labels'
 import { fallbackText, pickedText, shortRef, START_NOTE_TEXT } from '../task-starts'

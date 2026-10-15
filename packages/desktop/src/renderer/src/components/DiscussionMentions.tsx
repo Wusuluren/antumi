@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject, type TextareaHTMLAttributes } from 'react'
-import type { DiscussionMember } from '@kando/protocol'
+import type { DiscussionMember } from '@antumi/protocol'
 import { EVERYONE, mentionChoices, mentionQuery } from '../discussions'
 import { agentLabel } from '../labels'
 import { AgentIcon } from './icons'

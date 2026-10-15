@@ -1,15 +1,15 @@
-import { BROWSER_HOST_TOOL, TERMINAL_RUN_TOOL } from '@kando/protocol'
+import { BROWSER_HOST_TOOL, TERMINAL_RUN_TOOL } from '@antumi/protocol'
 import type { ChatRecord } from './chat-driver'
 import type { ChatItems } from './chat-items'
 
-export type KandoAsk = Extract<ChatRecord, { dir: 'ask' }>['ask']
-export type KandoResolution = Extract<ChatRecord, { dir: 'answer' }>['resolution']
+export type AntumiAsk = Extract<ChatRecord, { dir: 'ask' }>['ask']
+export type AntumiResolution = Extract<ChatRecord, { dir: 'answer' }>['resolution']
 
-// Questions Kando itself puts to the user mid-chat (the site its browser may open, a command an
+// Questions Antumi itself puts to the user mid-chat (the site its browser may open, a command an
 // agent wants run in a terminal of its own), shown as
 // approvals beside the agent's own. Both drivers hold one, fed from the stage's records, so a
 // replayed stage shows them answered as they were.
-export class KandoRequests {
+export class AntumiRequests {
   private readonly open = new Set<string>()
 
   constructor(private readonly items: ChatItems) {}

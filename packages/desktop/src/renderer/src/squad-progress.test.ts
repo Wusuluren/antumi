@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Squad, SquadRun, type Conversation } from '@kando/protocol'
+import { Squad, SquadRun, type Conversation } from '@antumi/protocol'
 import { clockText, memberProgress, orderedWorks, workHeadline } from './squad-progress'
 
 const id = (n: number) => `${String(n).padStart(8, '0')}-0000-4000-8000-000000000000`

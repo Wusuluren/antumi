@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState, type RefObject } from 'react'
-import { browserToolKind, parseBrowserPage, toolImagePath, type ChatItem } from '@kando/protocol'
+import { browserToolKind, parseBrowserPage, toolImagePath, type ChatItem } from '@antumi/protocol'
 import { useImageUrl } from '../attachment-images'
 import { useNearView } from '../near-view'
 import { useBrowserTabs, ALL_TABS } from '../browser-state'

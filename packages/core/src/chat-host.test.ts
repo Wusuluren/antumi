@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { ChatItem } from '@kando/protocol'
+import type { ChatItem } from '@antumi/protocol'
 import type { StageMessage } from './chat-driver'
 import type { UsageReport } from './usage-source'
 import { ChatHost, type ChatSink, type ChatStage } from './chat-host'
@@ -52,7 +52,7 @@ describe('ChatHost', () => {
   let attachments: AttachmentStore
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-chat-host-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-chat-host-'))
     mkdirSync(path.join(root, 'attachments'))
     attachments = new AttachmentStore(path.join(root, 'attachments'))
     daemon = fakeChatDaemon()

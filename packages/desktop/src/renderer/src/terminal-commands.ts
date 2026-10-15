@@ -1,4 +1,4 @@
-import type { Task, TerminalCommand } from '@kando/protocol'
+import type { Task, TerminalCommand } from '@antumi/protocol'
 
 export function commandTitle(command: Pick<TerminalCommand, 'label' | 'command'>): string {
   return command.label || command.command

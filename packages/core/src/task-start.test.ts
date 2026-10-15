@@ -28,7 +28,7 @@ describe('task starts', () => {
   }
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(os.tmpdir(), 'kando-start-'))
+    root = mkdtempSync(path.join(os.tmpdir(), 'antumi-start-'))
     remote = path.join(root, 'remote.git')
     git(root, 'init', '-q', '--bare', '-b', 'main', remote)
     const seed = path.join(root, 'seed')

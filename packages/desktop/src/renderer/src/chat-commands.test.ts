@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { SavedChatCommand } from '@kando/protocol'
-import { agentEntries, commandQuery, expandPrompt, kandoEntries, matchCommands, typedKandoCommand } from './chat-commands'
+import type { SavedChatCommand } from '@antumi/protocol'
+import { agentEntries, commandQuery, expandPrompt, antumiEntries, matchCommands, typedAntumiCommand } from './chat-commands'
 
 const saved = (name: string, prompt: string, projectPath: string | null = null): SavedChatCommand => ({
   id: `00000000-0000-4000-8000-${name.padStart(12, '0').slice(-12)}`,
@@ -23,7 +23,7 @@ describe('commandQuery', () => {
 
 describe('matchCommands', () => {
   const entries = [
-    ...kandoEntries([saved('fix-test', 'Fix $ARGUMENTS')], []),
+    ...antumiEntries([saved('fix-test', 'Fix $ARGUMENTS')], []),
     ...agentEntries([
       { name: 'compact', description: 'Free up context', argumentHint: null },
       { name: 'code-review', description: 'Review the diff', argumentHint: null },
@@ -41,15 +41,15 @@ describe('matchCommands', () => {
   })
 })
 
-describe('kandoEntries', () => {
+describe('antumiEntries', () => {
   it('offers a project\'s commands only in conversations on it', () => {
     const commands = [saved('all', 'x'), saved('repo', 'y', '/work/repo'), saved('other', 'z', '/work/other')]
-    expect(kandoEntries(commands, ['/work/repo']).map((entry) => entry.name)).toEqual(['all', 'repo'])
-    expect(kandoEntries(commands, []).map((entry) => entry.name)).toEqual(['all'])
+    expect(antumiEntries(commands, ['/work/repo']).map((entry) => entry.name)).toEqual(['all', 'repo'])
+    expect(antumiEntries(commands, []).map((entry) => entry.name)).toEqual(['all'])
   })
 
   it('says a command takes arguments when its prompt has a place for them', () => {
-    const [withArgs, without] = kandoEntries([saved('a', 'Fix $ARGUMENTS'), saved('b', 'Explain\nthe code')], [])
+    const [withArgs, without] = antumiEntries([saved('a', 'Fix $ARGUMENTS'), saved('b', 'Explain\nthe code')], [])
     expect(withArgs?.argumentHint).toBe('参数')
     expect(without).toMatchObject({ argumentHint: null, description: 'Explain' })
   })
@@ -67,16 +67,16 @@ describe('expandPrompt', () => {
   })
 })
 
-describe('typedKandoCommand', () => {
-  const entries = [...kandoEntries([saved('fix', 'Fix $ARGUMENTS')], []), ...agentEntries([{ name: 'compact', description: '', argumentHint: null }])]
+describe('typedAntumiCommand', () => {
+  const entries = [...antumiEntries([saved('fix', 'Fix $ARGUMENTS')], []), ...agentEntries([{ name: 'compact', description: '', argumentHint: null }])]
 
   it('finds the user\'s own command a message names, whatever its case', () => {
-    expect(typedKandoCommand('/Fix the login\ntest', entries)).toMatchObject({ command: { name: 'fix' }, args: 'the login\ntest' })
-    expect(typedKandoCommand('/fix', entries)).toMatchObject({ args: '' })
+    expect(typedAntumiCommand('/Fix the login\ntest', entries)).toMatchObject({ command: { name: 'fix' }, args: 'the login\ntest' })
+    expect(typedAntumiCommand('/fix', entries)).toMatchObject({ args: '' })
   })
 
   it('leaves the agent\'s commands and plain messages alone', () => {
-    expect(typedKandoCommand('/compact', entries)).toBeNull()
-    expect(typedKandoCommand('please /fix', entries)).toBeNull()
+    expect(typedAntumiCommand('/compact', entries)).toBeNull()
+    expect(typedAntumiCommand('please /fix', entries)).toBeNull()
   })
 })

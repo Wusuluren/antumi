@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createRpcClient, RpcRequest, type ChatImage, type Conversation, type RpcConnection } from '@kando/protocol'
+import { createRpcClient, RpcRequest, type ChatImage, type Conversation, type RpcConnection } from '@antumi/protocol'
 import { acknowledgeInitialMessage, keepInitialMessage, restoredInitialMessages, sendInitialMessage, useInitialMessages } from './initial-messages'
 
 const id = 'd964b86b-6a8c-4e23-9b79-dff4fdb4a3ad'

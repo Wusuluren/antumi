@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Squad, SquadRun, Task, type Conversation, type Routine, type ScheduledRun } from '@kando/protocol'
+import { Squad, SquadRun, Task, type Conversation, type Routine, type ScheduledRun } from '@antumi/protocol'
 import { actionableItems } from './attention'
 import { laterByDay, overview, waitBreakdown, type OverviewInput } from './overview'
 

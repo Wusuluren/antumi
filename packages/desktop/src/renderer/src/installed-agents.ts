@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
-import { AGENT_KINDS, type AgentKind, type Environment } from '@kando/protocol'
+import { AGENT_KINDS, type AgentKind, type Environment } from '@antumi/protocol'
 import { useCore } from './core-store'
 import { usePreferences } from './preferences'
 
-// The agents core found on its path, in Kando's own order. Before core says, or on a core that
-// does not look, every agent Kando knows, as before. None found also offers every one: the user
+// The agents core found on its path, in Antumi's own order. Before core says, or on a core that
+// does not look, every agent Antumi knows, as before. None found also offers every one: the user
 // then sees what there is to install, not an empty list, and the environment notice says what is
 // wrong.
 export function detectedAgents(environment: Environment | null): readonly AgentKind[] {
@@ -13,7 +13,7 @@ export function detectedAgents(environment: Environment | null): readonly AgentK
   return found.length > 0 ? found : AGENT_KINDS
 }
 
-// The agents Kando offers here: those found, less the ones the user turned off. Turning off every
+// The agents Antumi offers here: those found, less the ones the user turned off. Turning off every
 // one is not allowed, but should it happen the found ones stand, so there is always a choice.
 export function installedAgents(environment: Environment | null, disabled: readonly AgentKind[] = []): readonly AgentKind[] {
   const detected = detectedAgents(environment)

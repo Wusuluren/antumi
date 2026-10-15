@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import os from 'node:os'
-import type { DaemonParsedParams } from '@kando/protocol/node'
+import type { DaemonParsedParams } from '@antumi/protocol/node'
 import { resolveCommand } from './command-lookup'
 import type { HostedProcess, ProcessEvents } from './session-host'
 

@@ -7,7 +7,7 @@ import {
   type DaemonMethod,
   type DaemonParams,
   type DaemonResult
-} from '@kando/protocol/node'
+} from '@antumi/protocol/node'
 import { Rejection } from './rejection'
 
 export type SessionHost = {
@@ -69,14 +69,14 @@ export class DaemonClient implements SessionHost {
     socket.on('connect', () => {
       this.socket = socket
       this.warned = false
-      console.log(`[kando-core] ${this.everConnected ? 're' : ''}connected to daemon`)
+      console.log(`[antumi-core] ${this.everConnected ? 're' : ''}connected to daemon`)
       this.everConnected = true
       this.connectListeners.forEach((listener) => listener())
     })
     socket.on('data', createLineDecoder((line) => this.receive(line)))
     socket.on('error', () => {
       if (!this.warned) {
-        console.log(`[kando-core] waiting for daemon at ${this.socketPath}`)
+        console.log(`[antumi-core] waiting for daemon at ${this.socketPath}`)
         this.warned = true
       }
     })

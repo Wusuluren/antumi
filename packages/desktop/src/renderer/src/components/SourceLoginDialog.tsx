@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
-import type { LoginPrompt } from '@kando/protocol'
+import type { LoginPrompt } from '@antumi/protocol'
 import { answerLogin, closeLogin, useCore } from '../core-store'
 import { sourceProblemText } from '../labels'
 

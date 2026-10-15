@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StateCreator } from 'zustand'
-import { createRpcClient, type RpcConnection } from '@kando/protocol'
+import { createRpcClient, type RpcConnection } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { KnowledgeBaseSettings } from './KnowledgeBaseSettings'
 

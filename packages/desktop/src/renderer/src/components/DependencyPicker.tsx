@@ -1,5 +1,5 @@
 import { useCallback, useState, type KeyboardEvent } from 'react'
-import { createsCycle, shortTaskId, type Task } from '@kando/protocol'
+import { createsCycle, shortTaskId, type Task } from '@antumi/protocol'
 import { selectTask, useCore } from '../core-store'
 import { STATUS_LABEL } from '../labels'
 import { waitingOn } from '../task-waiting'

@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import type { CommitPushResult, CommitResult, PushResult } from '@kando/protocol'
+import type { CommitPushResult, CommitResult, PushResult } from '@antumi/protocol'
 import { git, gitOrNull } from './git-changes'
 import { Rejection } from './rejection'
 

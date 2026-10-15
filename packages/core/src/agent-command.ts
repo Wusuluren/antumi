@@ -1,11 +1,11 @@
-import { browserToolName } from '@kando/protocol'
+import { browserToolName } from '@antumi/protocol'
 
 export type AgentCommand = { command: string; args: string[] }
 
 // An MCP server the agent starts over stdio.
 export type McpServer = { command: string; args: string[] }
 
-// One of the user's MCP servers as an agent is given it: started through Kando's launcher, which
+// One of the user's MCP servers as an agent is given it: started through Antumi's launcher, which
 // adds what is secret, or reached at its address where nothing is.
 export type AgentMcpServer = { name: string } & ({ type: 'stdio'; command: string; args: string[] } | { type: 'http'; url: string })
 

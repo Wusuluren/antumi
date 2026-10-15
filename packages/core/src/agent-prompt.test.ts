@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Task } from '@kando/protocol'
+import type { Task } from '@antumi/protocol'
 import { agentPrompt, chatPlanPrompt, chatStartPrompt, knowledgeBaseNote } from './agent-prompt'
 import type { RefineWorkspace, Workspace } from './workspace'
 
@@ -175,7 +175,7 @@ describe('chatStartPrompt', () => {
 describe('chatPlanPrompt for a task waiting on others', () => {
   const task = { title: 'Use token API', details: '', source: null, sourceSnapshot: null }
 
-  it('plans read-only and asks for a plan to keep, with no kando tools to call', () => {
+  it('plans read-only and asks for a plan to keep, with no antumi tools to call', () => {
     const prompt = chatPlanPrompt(task, refining(), [])
     expect(prompt).toContain('这次只读代码、讨论和规划，不要修改任何文件')
     expect(prompt).toContain('我保存后，它会在依赖完成、开始执行时交给执行的 agent')

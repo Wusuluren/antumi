@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { McpServer, McpServerInput } from '@kando/protocol'
+import type { McpServer, McpServerInput } from '@antumi/protocol'
 import { CredentialStore } from './credential-store'
 import { McpServerStore } from './mcp-servers'
 
@@ -15,7 +15,7 @@ const command = { type: 'stdio' as const, command: 'npx', args: ['-y', '@modelco
 const github: McpServerInput = { name: 'github', previousName: null, enabled: true, agents: ['claude', 'cursor'], transport: command }
 
 beforeEach(async () => {
-  dir = mkdtempSync(path.join(os.tmpdir(), 'kando-mcp-'))
+  dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-mcp-'))
   credentials = new CredentialStore(path.join(dir, 'credentials.json'))
   changes = []
   store = new McpServerStore(path.join(dir, 'mcp-servers.json'), credentials, (servers) => changes.push([...servers]))

@@ -11,7 +11,7 @@ const executable = (name: string, body: string) => {
   return file
 }
 
-beforeEach(() => { root = mkdtempSync(path.join(os.tmpdir(), 'kando-cursor-cli-')) })
+beforeEach(() => { root = mkdtempSync(path.join(os.tmpdir(), 'antumi-cursor-cli-')) })
 afterEach(() => { vi.unstubAllEnvs(); rmSync(root, { recursive: true, force: true }) })
 
 describe('Cursor CLI identity and compatibility', () => {

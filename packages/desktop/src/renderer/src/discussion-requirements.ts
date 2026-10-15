@@ -1,4 +1,4 @@
-import { DEFAULT_DISCUSSION_REQUIREMENTS } from '@kando/protocol'
+import { DEFAULT_DISCUSSION_REQUIREMENTS } from '@antumi/protocol'
 
 export const DISCUSSION_REQUIREMENT_PRESETS = [
   { id: 'concise', label: '简洁讨论', description: '观点具体、说明理由，每次尽量在 600 字以内', text: DEFAULT_DISCUSSION_REQUIREMENTS },

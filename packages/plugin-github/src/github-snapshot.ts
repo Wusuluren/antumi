@@ -1,4 +1,4 @@
-import { MAX_SNAPSHOT_LENGTH } from '@kando/protocol'
+import { MAX_SNAPSHOT_LENGTH } from '@antumi/protocol'
 import type { GitHubIssue } from './github-client'
 
 const pad = (value: number) => String(value).padStart(2, '0')

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { agentDescriptor, checkSquadStart, SquadFields, squadModes, squadWorkOpen, squadWorkActive, type AgentKind, type ChatItem, type Conversation, type Squad, type SquadPlanRef, type SquadRun, type SquadWork, type Task, type TaskLaunchOptions } from '@kando/protocol'
+import { agentDescriptor, checkSquadStart, SquadFields, squadModes, squadWorkOpen, squadWorkActive, type AgentKind, type ChatItem, type Conversation, type Squad, type SquadPlanRef, type SquadRun, type SquadWork, type Task, type TaskLaunchOptions } from '@antumi/protocol'
 import type { ConversationService } from './conversation-service'
 import type { TaskService } from './task-service'
 import { Rejection } from './rejection'
@@ -264,7 +264,7 @@ export class SquadService {
       for (const run of this.store.runs().filter((each) => each.state === 'running')) {
         if (this.starting.has(run.taskId)) continue
         void this.serially(run.id, () => this.advance(run.id)).catch((error: unknown) => {
-          console.error('[kando-core] advancing squad failed', error)
+          console.error('[antumi-core] advancing squad failed', error)
           if (!this.closed) this.announce(this.store.patchRun(run.id, { state: 'paused' }))
         })
       }

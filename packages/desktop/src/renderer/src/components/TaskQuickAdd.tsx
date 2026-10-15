@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { create } from 'zustand'
-import type { AgentKind } from '@kando/protocol'
+import type { AgentKind } from '@antumi/protocol'
 import { perform, setNewTaskOpen, useCore } from '../core-store'
 import { defaultAgent } from '../default-agent'
 import { canPickFolder, pickFolder } from '../desktop-bridge'

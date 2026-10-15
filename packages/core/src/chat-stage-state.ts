@@ -1,4 +1,4 @@
-import type { ChatContextUse, ChatItem, ChatModel, ChatTodo } from '@kando/protocol'
+import type { ChatContextUse, ChatItem, ChatModel, ChatTodo } from '@antumi/protocol'
 import type { ChatItems } from './chat-items'
 
 type StateItem = Extract<ChatItem, { kind: 'state' }>

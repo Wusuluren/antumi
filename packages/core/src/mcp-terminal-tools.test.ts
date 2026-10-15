@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { RpcError, type RpcConnection } from '@kando/protocol'
+import { RpcError, type RpcConnection } from '@antumi/protocol'
 import { describeOutput, terminalToolsOverCore } from './mcp-terminal-tools'
 
 const ID = '00000000-0000-4000-8000-000000000001'

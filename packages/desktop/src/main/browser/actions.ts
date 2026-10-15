@@ -1,5 +1,5 @@
 import type { Locator, Page } from 'playwright-core'
-import { BROWSER_VIEWPORT, type browserActions, type BrowserViewport } from '@kando/protocol'
+import { BROWSER_VIEWPORT, type browserActions, type BrowserViewport } from '@antumi/protocol'
 import type { z } from 'zod'
 import { HostError } from './host-error'
 

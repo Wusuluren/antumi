@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { browserHostOf, describeBrowserPage, isLocalHost, normalizeBrowserUrl, parseBrowserPage } from './browser'
-import { browserToolKind, imageMarker, isBrowserTool, isPreviewImage, isPreviewTool, kandoToolName, takeImageMarkers, toolImagePath } from './chat'
+import { browserToolKind, imageMarker, isBrowserTool, isPreviewImage, isPreviewTool, antumiToolName, takeImageMarkers, toolImagePath } from './chat'
 
 describe('isLocalHost', () => {
   it('takes the names a developer serves on', () => {
@@ -17,11 +17,11 @@ describe('isLocalHost', () => {
 })
 
 describe('tool names', () => {
-  it('reads Kando tools as either agent names them', () => {
-    expect(kandoToolName('mcp__kando__browser_click')).toBe('browser_click')
-    expect(kandoToolName('kando.show_preview')).toBe('show_preview')
-    expect(kandoToolName('Bash')).toBeNull()
-    expect(kandoToolName('mcp__other__browser_click')).toBeNull()
+  it('reads Antumi tools as either agent names them', () => {
+    expect(antumiToolName('mcp__kando__browser_click')).toBe('browser_click')
+    expect(antumiToolName('kando.show_preview')).toBe('show_preview')
+    expect(antumiToolName('Bash')).toBeNull()
+    expect(antumiToolName('mcp__other__browser_click')).toBeNull()
     expect(isPreviewTool('kando.show_preview')).toBe(true)
   })
 
@@ -88,7 +88,7 @@ describe('normalizeBrowserUrl', () => {
 })
 
 describe('browser page text', () => {
-  const tab = { id: '8a0b5f7c-5b0e-4e8d-9d1e-0c1c2b3a4d5e', url: 'http://localhost:5173/', title: 'Kando 测试页' }
+  const tab = { id: '8a0b5f7c-5b0e-4e8d-9d1e-0c1c2b3a4d5e', url: 'http://localhost:5173/', title: 'Antumi 测试页' }
 
   it('reads the page back out of what the tool told the model', () => {
     expect(parseBrowserPage(describeBrowserPage(tab, '- heading [ref=e1]'))).toEqual(tab)

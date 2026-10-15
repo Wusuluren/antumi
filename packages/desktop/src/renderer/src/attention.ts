@@ -1,5 +1,5 @@
-import { isHelper } from '@kando/protocol'
-import { isScheduleOpen, limitOf, PLAN_TOOLS, type AgentKind, type Conversation, type ConversationRequest, type Routine, type ScheduledRun, type SquadRun, type Task } from '@kando/protocol'
+import { isHelper } from '@antumi/protocol'
+import { isScheduleOpen, limitOf, PLAN_TOOLS, type AgentKind, type Conversation, type ConversationRequest, type Routine, type ScheduledRun, type SquadRun, type Task } from '@antumi/protocol'
 
 // What waits on the user: a task or a conversation.
 export type ActionableTarget = { kind: 'task' | 'conversation'; id: string }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Task } from '@kando/protocol'
+import type { Task } from '@antumi/protocol'
 import { boardColumns, boardProjects, DONE_SHOWN, latestProjects, type BoardFilter } from './task-board'
 
 const task = (id: string, patch: Partial<Task> = {}): Task => ({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createRpcClient, rpcSchemas, type Conversation, type RpcConnection } from '@kando/protocol'
+import { createRpcClient, rpcSchemas, type Conversation, type RpcConnection } from '@antumi/protocol'
 import { attentionSummaryMode, fetchAttentionSummaries, replaySummaryChanges } from './attention-summaries'
 
 const chat: Conversation = {
