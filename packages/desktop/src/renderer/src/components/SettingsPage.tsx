@@ -63,7 +63,7 @@ function AppearanceSettings() {
     <>
       <SettingsRow
         label="主题"
-        description="跟随系统时，会随 macOS / Windows 的浅色、深色设置自动切换。"
+        description="跟随系统时，随系统的浅色、深色设置切换。"
         control={(labelId) => (
           <Segmented
             labelId={labelId}
@@ -79,12 +79,12 @@ function AppearanceSettings() {
       />
       <SettingsRow
         label="配色"
-        description="界面的整套颜色，各有浅色和深色两面，跟着上面的主题切换；色卡左浅右深。"
+        description="整套界面颜色，随主题切换浅色或深色；色卡左浅右深。"
         control={(labelId) => <PalettePicker labelId={labelId} />}
       />
       <SettingsRow
         label="终端字号"
-        description="终端面板里文字的大小，已经打开的终端会立即生效。"
+        description="对已打开的终端立即生效。"
         control={(labelId) => (
           <Stepper
             labelId={labelId}
@@ -98,7 +98,7 @@ function AppearanceSettings() {
       />
       <SettingsRow
         label="终端行高"
-        description="终端里行与行的间距，是字体自身行高的倍数。Geist Mono 用 1.0 就够；换成 Menlo 这类行距紧的字体时可以调大。已经打开的终端会立即生效。"
+        description="字体自身行高的倍数。Geist Mono 用 1.0 即可，Menlo 这类行距紧的字体可调大。"
         control={(labelId) => (
           <Segmented
             labelId={labelId}
@@ -115,18 +115,18 @@ function AppearanceSettings() {
       {colorPromptSupported && (
         <SettingsRow
           label="彩色提示符"
-          description="终端用的是 zsh、而你没有自己设置过提示符时，换成带颜色和 git 分支的提示符；上一条命令失败时 % 变红。只影响 Antumi 里新开的终端，不改你的 ~/.zshrc；自己配过提示符（或用 oh-my-zsh、starship）的不受影响。"
+          description="zsh 未自定义提示符时，换成带颜色和 git 分支的提示符，命令失败时 % 变红。只影响 Antumi 新开的终端，不改 ~/.zshrc。"
           control={(labelId) => <Toggle labelId={labelId} checked={colorPrompt} onChange={(next) => setPreference('colorPrompt', next)} />}
         />
       )}
       <SettingsRow
         label="代码字体"
-        description="终端、代码块、改动和文件里的代码用的字体。默认是内置的 Geist Mono；也可以选这台电脑上装的等宽字体，中文回落到系统中文字体。"
+        description="终端、代码块、改动和文件预览的字体。默认 Geist Mono，也可选本机等宽字体。"
         control={(labelId) => <CodeFontPicker labelId={labelId} />}
       />
       <SettingsRow
         label="聊天字号"
-        description="聊天消息、过程信息和输入框文字的大小，会立即生效。"
+        description="消息、过程信息和输入框的文字大小。"
         control={(labelId) => (
           <Stepper
             labelId={labelId}
@@ -140,12 +140,12 @@ function AppearanceSettings() {
       />
       <SettingsRow
         label="聊天字体"
-        description="聊天消息用的字体。衬线只改正文，代码不变；字体里缺的字回落到系统字体。"
+        description="衬线只改正文，代码不变。"
         control={(labelId) => <ChatFontPicker labelId={labelId} />}
       />
       <SettingsRow
         label="聊天页宽度"
-        description="消息和输入框的最大宽度：窄 800px，中等 1200px，全宽占满聊天区域。"
+        description="消息和输入框的最大宽度：窄 800px，中等 1200px。"
         control={(labelId) => (
           <Segmented
             labelId={labelId}
@@ -161,7 +161,7 @@ function AppearanceSettings() {
       />
       <SettingsRow
         label="折叠做完的回合"
-        description="一轮回完后，把思考、命令和中间的回复收进「工作了 N 秒」，只留最后的回答，点开仍能看。"
+        description="把思考、命令和中间回复收进「工作了 N 秒」，只留最终回答，点开可看。"
         control={(labelId) => (
           <Toggle labelId={labelId} checked={foldTurns} onChange={(next) => setPreference('foldTurns', next)} />
         )}
@@ -178,14 +178,14 @@ function NotificationSettings() {
       {canNotify() && (
         <SettingsRow
           label="系统通知"
-          description="窗口不在前台时，Agent 等你确认、一轮做完、异常退出，或定时任务跑完时发通知，点它回到对应的会话或任务。不影响 Dock 图标上的待处理数字。"
+          description="窗口不在前台时，Agent 等你确认、做完一轮、异常退出或定时任务完成时通知你，点击回到对应会话。"
           control={(labelId) => <Toggle labelId={labelId} checked={notifications} onChange={(next) => setPreference('notifications', next)} />}
         />
       )}
       {canShowRequestPopup() && (
         <SettingsRow
           label="离开时在屏幕顶部弹出待处理的请求"
-          description="你在别的应用里时，Agent 等你确认的请求以卡片弹在屏幕顶部，可以直接选，不会抢走焦点。打开后这类请求不再另发系统通知。"
+          description="在别的应用里时，待确认的请求以卡片弹出，可直接选择，不抢焦点；这类请求不再另发系统通知。"
           control={(labelId) => <Toggle labelId={labelId} checked={requestPopup} onChange={(next) => setPreference('requestPopup', next)} />}
         />
       )}
@@ -201,7 +201,7 @@ function QuickModelPicker({ agent }: { agent: AgentKind }) {
   const cheapest = quickModel(agentDescriptor(agent).quickModels, catalog)
   const cheapestLabel = catalog?.models.find((model) => model.id === cheapest)?.label ?? (catalog === undefined ? '…' : '默认模型')
   const options = [
-    { value: '', label: `自动（${cheapestLabel}）`, description: '它最便宜的小模型' },
+    { value: '', label: `自动（${cheapestLabel}）`, description: '最便宜的小模型' },
     ...(catalog?.models ?? []).map((model) => ({ value: model.id, label: model.label, description: model.description || undefined })),
     // A pick the catalog no longer lists stays shown, saying what translates in its place, so it can
     // be changed; core falls back on the cheapest the same way.
@@ -248,11 +248,11 @@ function TranslationSettings() {
       />
       <SettingsRow
         label="自动翻译"
-        description="回复显示到屏幕上时自动翻译，点「原文」看原文。只翻你看到的，不会一下子翻完整条旧会话。"
+        description="只翻译显示在屏幕上的回复，点「原文」查看原文。"
         control={(labelId) => <Toggle labelId={labelId} checked={auto} onChange={(next) => setPreference('autoTranslate', next)} />}
       />
       <p className="settings-note">
-        由会话里同一个 Agent 翻译，用的模型在 智能体 →「轻量任务用的模型」里选。每次翻译单独发一次请求，不进会话、不占上下文，但会计入这个 Agent 的用量；同一条回复只翻一次。
+        由会话所用的 Agent 翻译，模型在 智能体 →「轻量任务用的模型」里选。翻译单独请求，不占会话上下文，但计入该 Agent 的用量；同一条回复只翻一次。
       </p>
     </>
   )
@@ -265,14 +265,14 @@ function UsageSettings() {
     <>
       <SettingsRow
         label="在状态栏显示用量额度"
-        description="Claude Code 与 Codex 订阅的 5 小时和每周额度。"
+        description="各 Agent 订阅的额度窗口，如 5 小时、每周或每月。"
         control={(labelId) => (
           <Toggle labelId={labelId} checked={showUsage} onChange={(next) => setPreference('showUsage', next)} />
         )}
       />
       <SettingsRow
         label="百分比显示"
-        description="只改变显示的数字；快用完时的黄色、红色提醒不受影响。"
+        description="只改显示的数字，不影响快用完时的颜色提醒。"
         control={(labelId) => (
           <Segmented
             labelId={labelId}
@@ -311,12 +311,12 @@ function BrowserRows() {
     <>
       <SettingsRow
         label="浏览器"
-        description="Agent 用 Antumi 自带的浏览器打开页面、截图和点击，页面显示在右侧面板。本地地址直接打开，其他网站第一次访问会先问你。Antumi 关掉时不可用。"
+        description="Agent 用内置浏览器打开、截图和点击页面，显示在右侧面板。本地地址直接打开，其他网站首次访问先问你。"
         control={() => <span className="muted">{browserStatusText(status)}</span>}
       />
       <SettingsRow
         label="Agent 打开页面时自动显示浏览器"
-        description="Agent 第一次用浏览器时自动打开右侧的浏览器面板。关掉时，在页面卡片上点「打开」才显示。"
+        description="关闭后，在页面卡片上点「打开」才显示。"
         control={(labelId) => (
           <Toggle labelId={labelId} checked={openOnTab} onChange={(next) => setPreference('openBrowserOnTab', next)} />
         )}
@@ -336,7 +336,7 @@ function AgentSettings() {
       {chatSettings?.maxConcurrentAgents !== undefined && (
         <SettingsRow
           label="同时运行的 Agent 总数"
-          description="到上限后，新会话会提示稍后再试，预约任务排队等空位。等你确认的 Agent 也占名额；调低不会停掉正在运行的会话。"
+          description="到上限后新会话需稍后再试，预约任务排队。等你确认的也占名额；调低不会停掉运行中的会话。下面各 Agent 的上限同样受此约束。"
           control={(labelId) => (
             <Stepper labelId={labelId} value={chatSettings.maxConcurrentAgents ?? 20} min={1} max={50} unit="个" onChange={(maxConcurrentAgents) => void setChatSettings({ maxConcurrentAgents })} />
           )}
@@ -346,7 +346,6 @@ function AgentSettings() {
         <SettingsRow
           key={agent}
           label={`${agentLabel(agent)} 同时运行`}
-          description="同一 Agent 的上限；实际可启动数量也受总数上限约束。"
           control={(labelId) => (
             <Stepper labelId={labelId} value={chatSettings.agentConcurrency?.[agent] ?? 6} min={1} max={50} unit="个" onChange={(count) => void setChatSettings({ agentConcurrency: { [agent]: count } })} />
           )}
@@ -355,7 +354,7 @@ function AgentSettings() {
       {awakeSupported && awake && (
         <SettingsRow
           label="保持电脑唤醒"
-          description="「Agent 工作时」：有 Agent 在执行或有预约待运行时阻止睡眠，等你输入时不阻止。合上笔记本仍会睡眠。"
+          description="Agent 等你输入时不阻止睡眠；合上笔记本仍会睡眠。"
           control={(labelId) => (
             <Segmented
               labelId={labelId}
@@ -373,7 +372,7 @@ function AgentSettings() {
       {chatSettings && (
         <SettingsRow
           label="回合结束后建议下一步"
-          description="Claude Code 每轮回复后，在输入框里用灰字预测你的下一句，按 Tab 或 → 填入。每次多发一个简短请求，会计入少量用量。打开后从下次启动 Claude 起生效；Codex 不支持。"
+          description="每轮回复后用灰字预测你的下一句，按 Tab 或 → 填入。每轮多一次简短请求。仅 Claude Code 支持，下次启动起生效。"
           control={(labelId) => (
             <Toggle labelId={labelId} checked={chatSettings.promptSuggestions} onChange={(next) => void setChatSettings({ promptSuggestions: next })} />
           )}
@@ -383,7 +382,7 @@ function AgentSettings() {
       {chatSettings?.userBrowser !== undefined && (
         <SettingsRow
           label="让 Claude Code 操作你的 Chrome"
-          description="Claude Code 通过 Claude in Chrome 扩展，在你自己的 Chrome 里用已登录的账号打开、点击和填写网页。需要先装好扩展。从下次启动 Agent 起生效；Codex 和 Cursor 不支持。"
+          description="通过 Claude in Chrome 扩展，用你已登录的 Chrome 打开、点击和填写网页。需先装好扩展，下次启动起生效。"
           control={(labelId) => (
             <Toggle labelId={labelId} checked={chatSettings.userBrowser ?? true} onChange={(next) => void setChatSettings({ userBrowser: next })} />
           )}
@@ -392,7 +391,7 @@ function AgentSettings() {
       {chatSettings?.readHistory !== undefined && (
         <SettingsRow
           label="让 Agent 读你在 Antumi 里的记录"
-          description="每个 Agent 都能用两个只读工具，列出和读取你在 Antumi 里的会话、任务和群聊（包括其他 Agent 的），比如让定时任务总结本周工作。从下次启动 Agent 起生效。"
+          description="Agent 可只读地列出和读取你的会话、任务和群聊（含其他 Agent 的），比如让定时任务总结本周工作。下次启动起生效。"
           control={(labelId) => (
             <Toggle labelId={labelId} checked={chatSettings.readHistory ?? true} onChange={(next) => void setChatSettings({ readHistory: next })} />
           )}
@@ -401,7 +400,7 @@ function AgentSettings() {
       {chatSettings?.unattendedMode && (
         <SettingsRow
           label="预约运行的权限"
-          description="预约的任务和会话到点时无人值守，以这个模式直接开始。「自动接受编辑」：改文件不问，其他操作仍会问，没人回答就停下；「全部放行」：什么都不问，Codex 也不受沙箱限制，只用于你信任的任务。"
+          description="预约的任务和会话到点后以此模式无人值守地开始。「自动接受编辑」遇到其他确认会停下；「全部放行」什么都不问、不受沙箱限制，只用于信任的任务。"
           control={(labelId) => (
             <Segmented
               labelId={labelId}
@@ -414,7 +413,7 @@ function AgentSettings() {
       )}
       <SettingsRow
         label="轻量任务用的模型"
-        description="小助手、翻译回复、生成提交信息和总结会话标题时用会话里同一个 Agent 的这个模型。不选就自动用它最便宜的模型（Haiku、Luna、Flash 一类），没有就用默认模型。"
+        description="翻译、提交信息、会话标题等小活用同一 Agent 的这个模型；默认用它最便宜的模型。"
         control={() => (
           <span className="quick-models">
             {installed.map((agent) => <QuickModelPicker key={agent} agent={agent} />)}
@@ -490,12 +489,12 @@ function DebugSettings() {
     <>
       <SettingsRow
         label="记录和 Agent 之间的原始数据"
-        description="原样记下 Antumi 和 Agent 之间收发的每一行（含 stderr、启动命令和退出码），在会话或任务检查器的「原始数据」里查看、搜索和复制。正在运行的 Agent 从下一行开始记。"
+        description="原样记录收发的每一行（含 stderr、启动命令和退出码），在检查器的「原始数据」里查看。运行中的 Agent 从下一行开始记。"
         control={(labelId) => <Toggle labelId={labelId} checked={wireLog} onChange={(next) => void setChatSettings({ wireLog: next })} />}
       />
       <SettingsRow
         label="已经记下的"
-        description={`${usage ? `${usage.files} 段，共 ${formatBytes(usage.bytes)}。` : ''}存在 ~/.antumi/sessions/<会话>/wire/ 下，每段最多 50 MB，7 天后自动删除。里面有文件内容和命令输出，分享前看一眼。`}
+        description={`${usage ? `${usage.files} 段，共 ${formatBytes(usage.bytes)}。` : ''}存在 ~/.antumi/sessions/<会话>/wire/，每段最多 50 MB，7 天后自动删除。含文件内容和命令输出，分享前请检查。`}
         control={() => (
           <button type="button" className="button" disabled={clearing || !usage || usage.files === 0} onClick={() => void clear()}>
             全部删除
@@ -583,7 +582,7 @@ const SECTIONS: readonly Section[] = [
     id: 'appearance',
     group: '界面',
     title: '外观',
-    description: '主题、终端和聊天页的显示方式。',
+    description: '主题、终端和聊天页的显示。',
     keywords: ['主题', '浅色', '深色', '跟随系统', '终端', '字号', '字体', '聊天', '宽度', '全宽', '折叠', '回合', '工作了'],
     Icon: ContrastIcon,
     Body: AppearanceSettings
@@ -592,7 +591,7 @@ const SECTIONS: readonly Section[] = [
     id: 'translation',
     group: '界面',
     title: '翻译',
-    description: 'Agent 的回复不是你常用的语言时，翻译成你选的语言。',
+    description: '把 Agent 的回复翻译成你的语言。',
     keywords: ['翻译', '语言', '中文', '英文', 'english', '日语', '韩语', '自动翻译', '原文', '译文', 'haiku'],
     Icon: TranslateIcon,
     Body: TranslationSettings
@@ -601,7 +600,7 @@ const SECTIONS: readonly Section[] = [
     id: 'usage',
     group: '界面',
     title: '用量额度',
-    description: '底部状态栏里的 Agent 订阅额度。',
+    description: '状态栏里的 Agent 订阅额度。',
     keywords: ['状态栏', '额度', '百分比', '已用', '剩余', ...AGENT_KINDS],
     Icon: GaugeIcon,
     Body: UsageSettings
@@ -611,7 +610,7 @@ const SECTIONS: readonly Section[] = [
     id: 'notifications',
     group: '界面',
     title: '通知',
-    description: 'Agent 需要你的时候，怎么告诉你。',
+    description: 'Agent 需要你时如何提醒。',
     keywords: ['通知', '提醒', '角标', 'dock', '前台', '等待', '确认', '做完', '异常退出', '弹窗', '卡片', '顶部', '审批', '允许'],
     Icon: BellIcon,
     Body: NotificationSettings
@@ -620,7 +619,7 @@ const SECTIONS: readonly Section[] = [
     id: 'agents',
     group: '任务',
     title: '智能体',
-    description: '这台电脑上的 Agent：是否安装、版本和登录状态（缺什么会给出命令），以及新任务和会话的默认行为。',
+    description: '本机 Agent 的安装与登录状态，以及运行时的默认行为。',
     keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', '模型', '轻量', '提交信息', 'haiku', '标题', '命名', '重命名', '首轮', '每轮'],
     Icon: SparkIcon,
     Body: AgentSettings
@@ -629,7 +628,7 @@ const SECTIONS: readonly Section[] = [
     id: 'agent-stats',
     group: '任务',
     title: '智能体表现',
-    description: '每个 Agent 和模型的表现。任务看你接受、继续修改、重做的比例（从 0.10.0 起记录）；自由会话看用量：回合、失败、撞额度、耗时和 token。',
+    description: '按 Agent 和模型统计：任务看验收结果，会话看用量。',
     keywords: ['表现', '统计', '通过率', '接受', '继续修改', '重做', '耗时', 'token', '模型', '会话', '用量', '回合', '失败', '额度', ...AGENT_KINDS],
     Icon: GaugeIcon,
     Body: AgentStatsSettings
@@ -638,7 +637,7 @@ const SECTIONS: readonly Section[] = [
     id: 'projects',
     group: '项目',
     title: '最近使用',
-    description: '添加项目时「最近使用」里列出的项目。移除只是不再列出，不影响已有的任务和会话。',
+    description: '添加项目时列出的最近项目。移除不影响已有任务和会话。',
     keywords: ['项目', '仓库', '最近使用', '路径', '文件夹'],
     Icon: FolderIcon,
     Body: ProjectSettings
@@ -659,7 +658,7 @@ const CHAT_COMMANDS_SECTION: Section = {
   id: 'chat-commands',
   group: '任务',
   title: '聊天命令',
-  description: '自己的斜杠命令：在输入框里输入 / 选用，把存好的提示词填进输入框，改完再发。Claude Code 和 Codex 都能用。',
+  description: '存好的提示词，在输入框输入 / 选用，填入后可改再发；所有 Agent 通用。',
   keywords: ['命令', '斜杠', '/', '提示词', '模板', 'prompt', '聊天', '会话', '快捷'],
   Icon: ChatIcon,
   Body: ChatCommandSettings
@@ -670,7 +669,7 @@ const SKILLS_SECTION: Section = {
   id: 'skills',
   group: '任务',
   title: '技能',
-  description: '给 Agent 安装 Agent Skills（SKILL.md）：从 Git 仓库装一次，固定在安装时的提交，启动时交给 Claude Code 和 Cursor。',
+  description: '从 Git 仓库安装 Agent Skills（SKILL.md），Agent 启动时带上。',
   keywords: ['技能', 'skill', 'skills', '插件', 'plugin', 'obsidian', 'markdown', '安装', '更新', '回退', '仓库', 'git', ...AGENT_KINDS],
   Icon: SparkIcon,
   Body: SkillsSettingsSection
@@ -681,7 +680,7 @@ const MCP_SECTION: Section = {
   id: 'mcp',
   group: '任务',
   title: 'MCP',
-  description: '在 Antumi 里维护 MCP 服务器，启动时交给你选的 Agent，不改它们自己的配置；可以测试连接，也可以从 Claude、Codex、Cursor 导入。',
+  description: '统一管理 MCP 服务器，启动时交给你选的 Agent，也可从各 Agent 的配置导入。',
   keywords: ['mcp', '服务器', 'server', '工具', 'tool', '导入', '连接', '测试', 'token', '令牌', '环境变量', '请求头', ...AGENT_KINDS],
   Icon: PlugIcon,
   Body: McpSettingsSection
@@ -692,7 +691,7 @@ const DEBUG_SECTION: Section = {
   id: 'debug',
   group: '其他',
   title: '调试',
-  description: '原样记下 Antumi 和 Agent 之间收发的数据，在检查器的「原始数据」里查看。',
+  description: 'Antumi 与 Agent 之间的原始数据。',
   keywords: ['调试', 'debug', '原始数据', '日志', 'log', 'stdout', 'stderr', 'stdin', 'json', '协议', '抓包', 'wire'],
   Icon: BugIcon,
   Body: DebugSettings
@@ -703,7 +702,7 @@ const KNOWLEDGE_SECTION: Section = {
   id: 'knowledge',
   group: '集成',
   title: '知识库',
-  description: '连接 Markdown 文件夹或 Obsidian 库，让 Agent 读取资料、保存总结和笔记。',
+  description: '连接 Markdown 文件夹或 Obsidian 库，让 Agent 读资料、记笔记。',
   keywords: ['知识库', 'obsidian', 'vault', '笔记', '总结', '记录', 'markdown', '双链', '集成'],
   Icon: BookIcon,
   Body: KnowledgeBaseSettings
@@ -714,7 +713,7 @@ const BROWSER_SECTION: Section = {
   id: 'browser',
   group: '集成',
   title: '浏览器',
-  description: 'Antumi 托管的 Chromium：安装状态，以及 Agent 打开页面时是否自动显示浏览器面板。',
+  description: 'Agent 使用的内置浏览器。',
   keywords: ['浏览器', 'chromium', '网页', '截图', '安装', '面板', '集成'],
   Icon: GlobeIcon,
   Body: BrowserRows
@@ -724,7 +723,7 @@ const PLUGINS_SECTION: Section = {
   id: 'plugins',
   group: '集成',
   title: '插件',
-  description: '安装和管理任务来源插件。登录和筛选条件在对应的集成页面设置。',
+  description: '任务来源插件。登录和筛选在对应的集成页设置。',
   keywords: ['插件', '安装', '更新', '卸载', 'GitHub', 'ZIP'],
   Icon: PuzzleIcon,
   Body: PluginSettings
@@ -736,7 +735,7 @@ function sourceSections(sources: readonly SourceDescriptor[]): Section[] {
     id: settingsSectionOf(source.provider),
     group: '集成',
     title: source.name,
-    description: `把分给你的 issue 从 ${source.name} 同步到左侧的收件箱，挑出要做的导入成任务。`,
+    description: `把 ${source.name} 里分给你的 issue 同步到收件箱，挑选后导入为任务。`,
     keywords: [source.name, source.provider, 'token', '登录', '收件箱', 'issue', 'bug', '集成', ...source.settings.map((field) => field.label)],
     Icon: () => <SourceIcon provider={source.provider} />,
     Body: () => <SourceSettingsSection source={source} />

@@ -35,8 +35,8 @@ describe('title naming settings', () => {
     useCore.setState({ chatSettings: { promptSuggestions: true, titleNaming: mode } })
     const html = render()
     expect(html).toContain('会话标题命名')
-    expect(html).toContain('手动重命名始终优先')
-    expect(html).toContain('额外计入用量')
+    expect(html).toContain('手动重命名优先')
+    expect(html).toContain('计入少量用量')
     const label = { off: '关闭', first: '首轮总结', latest: '每轮更新' }[mode]
     expect(html).toContain(`aria-checked="true">${label}`)
   })

@@ -116,8 +116,8 @@ export function SkillsSettingsSection() {
   return (
     <>
       <p className="settings-note">
-        装一次，启动 Agent 时交给它，不改你自己的 ~/.claude、~/.codex。仓库固定在安装时的提交，更新前先看会变什么，可以回退。技能是第三方代码，可能带脚本：安装后先看说明再依赖它。
-        {takers.length > 0 && `${takers.join('、')} 启动时会带上技能`}{others.length > 0 && `；${others.join('、')} 暂不支持`}。
+        固定在安装时的提交，更新前可预览变化，也能回退；不改 Agent 自己的配置。技能是第三方代码，可能带脚本，只装你信任的。
+        {[takers.length > 0 && `${takers.join('、')} 支持`, others.length > 0 && `${others.join('、')} 暂不支持`].filter(Boolean).join('；')}。
       </p>
       <h3 className="settings-stats-heading">已安装</h3>
       {repos.length === 0 ? <p className="settings-empty">还没有安装技能。</p> : (

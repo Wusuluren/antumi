@@ -55,7 +55,7 @@ export function KnowledgeBaseSettings() {
   return (
     <>
       <p className="settings-note">
-        选择存放笔记的本地文件夹，Agent 可读取资料，并在你要求时保存总结和笔记。写入只在普通阶段，规划、只读和群聊阶段只读。从下次启动 Agent 起生效。
+        Agent 可读取资料，并在你要求时保存总结和笔记；规划、只读和群聊阶段只读。下次启动起生效。
       </p>
       {kindsSupported && <SettingsRow
         label="知识库类型"
@@ -82,7 +82,7 @@ export function KnowledgeBaseSettings() {
           )}
           {folder && folder.skillDirs.length > 0 && (
             <p className="settings-note warning">
-              库里有 {folder.skillDirs.join('、')}：Claude Code 和 Cursor 会把里面的技能一并加载，每次启动多花 token。不需要的话把它们移出知识库。
+              库里有 {folder.skillDirs.join('、')}：Agent 会把里面的技能一并加载，每次启动多花 token；不需要就移出知识库。
             </p>
           )}
           <SettingsRow

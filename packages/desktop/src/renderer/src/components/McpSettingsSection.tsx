@@ -292,10 +292,10 @@ function ImportPanel({ onDone }: { onDone: (imported: string[]) => void }) {
     }
   }
 
-  if (candidates === null) return <p className="settings-empty">正在读取 Claude、Codex 和 Cursor 的配置…</p>
+  if (candidates === null) return <p className="settings-empty">正在读取各 Agent 的配置…</p>
   return (
     <div className="chat-command-form">
-      {candidates.length === 0 ? <p className="settings-empty">Claude、Codex 和 Cursor 的用户配置里都没有 MCP 服务器。</p> : (
+      {candidates.length === 0 ? <p className="settings-empty">各 Agent 的用户配置里都没有 MCP 服务器。</p> : (
         <ul className="settings-project-list">
           {candidates.map((candidate) => {
             const key = keyOf(candidate)
@@ -356,8 +356,7 @@ export function McpSettingsSection() {
   return (
     <>
       <p className="settings-note">
-        启动 Agent 时交给它，和 Antumi 自己的工具一起；不改 ~/.claude.json、~/.codex/config.toml、~/.cursor/mcp.json，Agent 自己配的服务器照常加载。改动从下次启动 Agent 起生效。
-        MCP 服务器能读写你的数据、能联网：只添加你信任的。需要确认的工具调用会在聊天里请你确认。
+        不改 Agent 自己的配置，它自己配的服务器照常加载；改动下次启动起生效。MCP 服务器能读写数据、能联网，只添加你信任的；需要确认的调用会在聊天里问你。
       </p>
       {servers.length === 0 ? <p className="settings-empty">还没有 MCP 服务器。</p> : servers.map((server) => (
         <ServerRow key={server.name} server={server} probe={probes[server.name]} onProbe={() => void probe(server.name)} onEdit={() => setDraft(draftOf(server))} />
