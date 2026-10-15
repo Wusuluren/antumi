@@ -5,11 +5,11 @@ import { CheckIcon, ChevronDownIcon } from './icons'
 import { Popover } from './Popover'
 import { Segmented } from './SettingsControls'
 
-type Listing = { state: 'loading' } | { state: 'ready'; families: readonly string[] } | { state: 'unavailable' }
+export type Listing = { state: 'loading' } | { state: 'ready'; families: readonly string[] } | { state: 'unavailable' }
 
-// The installed families to pick the chat's font from, each shown in itself. A name typed that is
-// not listed can still be used: where the browser cannot list fonts, that is the only way.
-function FontList({ current, onPick, listing }: { current: string; onPick: (family: string) => void; listing: Listing }) {
+// The installed families to pick a font from, each shown in itself. A name typed that is not
+// listed can still be used: where the browser cannot list fonts, that is the only way.
+export function FontList({ current, onPick, listing }: { current: string; onPick: (family: string) => void; listing: Listing }) {
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()
   const families = listing.state === 'ready' ? listing.families : []

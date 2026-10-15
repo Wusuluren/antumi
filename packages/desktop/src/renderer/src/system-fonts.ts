@@ -22,6 +22,15 @@ export function systemFontFamilies(): Promise<string[] | null> {
   return families
 }
 
+// Whether every glyph of the family is as wide as the next, by measuring: what the terminal and
+// code may be set in. Nothing marks a family monospaced in what the browser lists.
+export function isMonospace(family: string): boolean {
+  const context = document.createElement('canvas').getContext('2d')
+  if (!context) return true
+  context.font = `16px ${cssFontFamily(family)}, sans-serif`
+  return Math.abs(context.measureText('iiiiii').width - context.measureText('MMMMMM').width) < 0.5
+}
+
 // A family name as a CSS font-family value: quoted, so names with spaces or digits read right.
 export function cssFontFamily(family: string): string {
   return `"${family.trim().replace(/["\\]/g, '\\$&')}"`

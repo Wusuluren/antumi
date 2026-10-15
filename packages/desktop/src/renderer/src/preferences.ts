@@ -15,6 +15,11 @@ const Preferences = z.object({
   // The set of colours the interface is drawn in; each has a light and a dark side.
   palette: z.enum(PALETTES).catch('terracotta'),
   terminalFontSize: z.number().int().min(10).max(20).catch(12),
+  // How far apart the terminal's lines are, as a multiple of the font's own line: Geist Mono's is
+  // already a third taller than its size, enough as it is.
+  terminalLineHeight: z.number().min(1).max(2).catch(1),
+  // The family code and the terminal are set in, as the user picked it; empty, the bundled one.
+  codeFontFamily: z.string().max(200).catch(''),
   chatFontSize: z.number().int().min(10).max(20).catch(14),
   // What the chat is set in: the system's font, a serif for the prose, or a family the user
   // picked from those installed (chatFontFamily). A preset since dropped reads as the system's.

@@ -51,7 +51,8 @@
   /* Something floating over other apps' windows (the card of waiting requests). */
   --shadow-float: 0 6px 20px light-dark(rgb(0 0 0 / 16%), transparent);
   --font: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Kept in step with code-font.ts, which overrides it when the user picks a font. */
+  --mono: 'Geist Mono Variable', Menlo, Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
   /* Page widths on a wide window, by what a page is for (DESIGN.md, 页面宽度): what is read keeps
      to a measure, a form a little wider, the sidebar's pages wider still and all alike. Only the
      board and true multi-column tables take the whole pane. */

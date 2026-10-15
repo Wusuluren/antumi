@@ -1,0 +1,7 @@
+Use case: precise-object-edit / logo-brand.
+Edit the supplied Antumi logo according to the user's request: remove the rice grain completely and change the entire background to pure white.
+Keep the same friendly ant identity, rounded geometry, three body segments, two bent antennae, small charcoal eyes and overall three-quarter orientation. Since the background is now white, recolor the entire ant body, antennae and legs to the project's terracotta accent #c2542d. Preserve the two small charcoal #080808 eyes.
+Remove the terracotta rounded-square tile completely. The whole square canvas must be a perfectly uniform solid white #ffffff, including corners. No border or tile outline. No rice, no grain, no leaf or other object in its hands.
+Gently lower and relax the two front legs so the ant no longer looks like it is holding an invisible object; retain the friendly forward-facing pose. Make six coherent legs with smooth solid connected shapes, avoiding disconnected fragments.
+Recenter the ant alone with balanced generous white margins. Clean flat vector-like rendering, crisp edges, solid fills. No gradients, texture, shading, shadows, glow, transparency, text, captions or watermark. One ant logo only.
+

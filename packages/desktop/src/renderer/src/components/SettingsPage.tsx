@@ -13,6 +13,7 @@ import { PluginSettings } from './PluginSettings'
 import { InstalledAgentsSettings } from './InstalledAgentsSettings'
 import { TitleNamingSettings } from './TitleNamingSettings'
 import { ChatFontPicker } from './ChatFontPicker'
+import { CodeFontPicker } from './CodeFontPicker'
 import { agentLabel } from '../labels'
 import { canNotify, canShowRequestPopup } from '../desktop-bridge'
 import { formatBytes } from '../wire-entries'
@@ -52,6 +53,7 @@ import { useOccludesBrowser } from '../browser-occlusion'
 function AppearanceSettings() {
   const theme = usePreferences((s) => s.theme)
   const terminalFontSize = usePreferences((s) => s.terminalFontSize)
+  const terminalLineHeight = usePreferences((s) => s.terminalLineHeight)
   const chatFontSize = usePreferences((s) => s.chatFontSize)
   const chatWidth = usePreferences((s) => s.chatWidth)
   const foldTurns = usePreferences((s) => s.foldTurns)
@@ -91,6 +93,27 @@ function AppearanceSettings() {
             onChange={(next) => setPreference('terminalFontSize', next)}
           />
         )}
+      />
+      <SettingsRow
+        label="终端行高"
+        description="终端里行与行的间距，是字体自身行高的倍数。Geist Mono 用 1.0 就够；换成 Menlo 这类行距紧的字体时可以调大。已经打开的终端会立即生效。"
+        control={(labelId) => (
+          <Segmented
+            labelId={labelId}
+            value={String(terminalLineHeight)}
+            onChange={(next) => setPreference('terminalLineHeight', Number(next))}
+            options={[
+              { value: '1', label: '1.0' },
+              { value: '1.2', label: '1.2' },
+              { value: '1.4', label: '1.4' }
+            ]}
+          />
+        )}
+      />
+      <SettingsRow
+        label="代码字体"
+        description="终端、代码块、改动和文件里的代码用的字体。默认是内置的 Geist Mono；也可以选这台电脑上装的等宽字体，中文回落到系统中文字体。"
+        control={(labelId) => <CodeFontPicker labelId={labelId} />}
       />
       <SettingsRow
         label="聊天字号"

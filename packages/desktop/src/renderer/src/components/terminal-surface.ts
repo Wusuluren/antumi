@@ -2,6 +2,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import type { RpcConnection } from '@kando/protocol'
 import { onThemeChange } from '../appearance'
+import { codeFontStack } from '../code-font'
 import { usePreferences } from '../preferences'
 import { pastedCommand } from '../terminal-commands'
 import { terminalTheme } from './terminal-theme'
@@ -38,9 +39,11 @@ export function terminalSelection(sessionId: string): string {
 }
 
 export function createTerminalSurface(element: HTMLElement, rpc: RpcConnection, sessionId: string | null) {
+  const preferences = usePreferences.getState()
   const term = new Terminal({
-    fontSize: usePreferences.getState().terminalFontSize,
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+    fontSize: preferences.terminalFontSize,
+    fontFamily: codeFontStack(preferences.codeFontFamily),
+    lineHeight: preferences.terminalLineHeight,
     cursorBlink: Boolean(sessionId), theme: terminalTheme()
   })
   const fit = new FitAddon()
@@ -54,16 +57,37 @@ export function createTerminalSurface(element: HTMLElement, rpc: RpcConnection, 
   const stopTheming = onThemeChange(() => { term.options.theme = terminalTheme() })
   const observer = new ResizeObserver(() => { fit.fit(); sendSize() })
   observer.observe(element)
+  let disposed = false
+  const refit = () => {
+    if (disposed) return
+    fit.fit()
+    sendSize()
+  }
+  // xterm sizes its cells once, by the font as it is then, and a bundled font may still be loading:
+  // once it is in, the cells are measured again.
+  const remeasure = () => {
+    const { fontFamily } = term.options
+    void document.fonts.load(`${term.options.fontSize}px ${fontFamily}`).then(() => {
+      if (disposed || term.options.fontFamily !== fontFamily) return
+      term.options.fontFamily = 'monospace'
+      term.options.fontFamily = fontFamily
+      refit()
+    }, () => {})
+  }
+  if (!document.fonts.check(`${term.options.fontSize}px ${term.options.fontFamily}`)) remeasure()
   const stopFontSizing = usePreferences.subscribe((next, previous) => {
-    if (next.terminalFontSize !== previous.terminalFontSize) {
-      term.options.fontSize = next.terminalFontSize
-      fit.fit()
-      sendSize()
+    if (next.terminalFontSize !== previous.terminalFontSize) term.options.fontSize = next.terminalFontSize
+    if (next.terminalLineHeight !== previous.terminalLineHeight) term.options.lineHeight = next.terminalLineHeight
+    if (next.codeFontFamily !== previous.codeFontFamily) {
+      term.options.fontFamily = codeFontStack(next.codeFontFamily)
+      remeasure()
     }
+    if (next.terminalFontSize !== previous.terminalFontSize || next.terminalLineHeight !== previous.terminalLineHeight || next.codeFontFamily !== previous.codeFontFamily) refit()
   })
   return {
     term, sendSize,
     dispose: () => {
+      disposed = true
       stopTheming()
       stopFontSizing()
       observer.disconnect()

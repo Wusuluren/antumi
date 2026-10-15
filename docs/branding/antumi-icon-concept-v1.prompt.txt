@@ -1,0 +1,25 @@
+Antumi icon concept v1
+Generated with built-in imagegen, then refined with built-in imagegen.
+
+INITIAL GENERATION PROMPT
+
+Use case: logo-brand.
+Asset type: original master app icon for Antumi (安图米), an open-source local-first desktop workspace that coordinates Claude Code, Codex and Cursor coding agents.
+Create ONE polished, distinctive icon, not a presentation board or multiple variants.
+Visual inspiration: modern app-icon gallery conventions observed on Applore — bold simple silhouette, generous margins, very few elements, friendly rounded mascot geometry and instant small-size recognition. Create original artwork.
+
+Composition: a single centered rounded-square macOS-style icon tile occupying about 88 percent of a square canvas. Fully transparent canvas outside the tile. Tile background is a flat terracotta #c2542d taken from the project's existing accent token. No gradients, texture, glass, 3D effects, shadows, neon or decorative stars.
+Subject: a friendly compact white ant mascot carrying ONE simple white rice grain above and slightly to the right of its head. It must read clearly as an ANT, not a bee, spider, cat or robot. Use three connected rounded body segments, an enlarged rounded head, two short clearly bent antennae, and six short sturdy legs arranged cleanly. A gentle three-quarter pose leaning slightly forward/upward suggests bringing completed work back. Two very small charcoal #080808 eyes lend quiet intelligence; no mouth required. Make the rice grain and antennae unambiguous and avoid tangles.
+Graphic construction: near-vector crisp solid shapes, broad rounded forms, restrained tasteful geometry. Rice is a simple rounded tapered capsule, not a leaf, lightbulb, checkmark or speech bubble. Maintain clear negative space between body, legs, antennae and rice. Reduce detail for legibility at 32px; prioritize an elegant logo silhouette over anatomical realism.
+Only colors: terracotta #c2542d, white #ffffff, tiny charcoal #080808 eye details. Comfortable safe margins inside tile.
+No letters, no wordmark, no slogan, no captions, no watermark, no UI, no mockup, no sample grid.
+The result should feel like a mature, approachable developer tool with a memorable industrious ant mascot, not a children's game.
+
+REFINEMENT PROMPT
+
+Use case: logo-brand refinement.
+Edit target: the supplied Antumi ant-and-rice app icon. Preserve the recognizable ant, its friendly pose, white silhouette, small black eyes, and single rice grain.
+Change ONLY rendering cleanliness and background treatment: make all fills perfectly flat and crisp, with no gradients, no texture, no shadow, no glow, no grain, no speckling, no black holes, no translucent blotches and no red fringe. Replace the entire icon tile interior with ONE completely uniform solid terracotta #c2542d. Retain a generous rounded-square tile shape, centered on a pure solid white square canvas, and make its entire outside corner area clean pure white. Output must be FULLY OPAQUE, no transparency or alpha cutouts anywhere.
+The ant and rice must be solid pure white #ffffff with smooth sharp edges. Eyes solid charcoal #080808. Clean up disconnected stray shapes and keep the limb silhouette simple and coherent. The tile should occupy about 88% of the canvas with an even white margin. Keep the same overall composition and identity.
+One icon only, no text, no wordmark, no labels, no mockup, no watermark.
+

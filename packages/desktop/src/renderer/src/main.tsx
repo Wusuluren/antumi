@@ -1,9 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import '@fontsource-variable/geist-mono/wght.css'
 import '@xterm/xterm/css/xterm.css'
 import './styles.css'
 import { App } from './App'
 import { startAppearance } from './appearance'
+import { startCodeFont } from './code-font'
 import { followRequestPopupWanted, RequestPopup } from './components/RequestPopup'
 import { startCoreConnection } from './core-store'
 import { applyTitleBar } from './desktop-bridge'
@@ -22,10 +24,12 @@ if (popup) {
   followRequestPopupWanted()
   startCoreConnection('requests')
   startAppearance()
+  startCodeFont()
   followPreferences()
 } else {
   startCoreConnection()
   startAppearance()
+  startCodeFont()
   applyTitleBar()
   startUnsavedEditRetries()
   startWorktreeUpdates()
