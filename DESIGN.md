@@ -68,6 +68,7 @@ Kando 是内容优先的 Agent 工作台：会话、代码、diff 和 Agent 的�
 ## 字体与字号
 
 - 界面字体走 `--font`，等宽走 `--mono`。等宽给代码、路径、耗时、按键提示。聊天区可以在设置里切换（系统 / 衬线 / 本机装的任一字体），实现是 `.chat-view[data-font]` 重定义这两个令牌；其他区域不跟着变。
+- 界面和聊天用系统字体，英文在前、中文在后：`-apple-system, BlinkMacSystemFont, 'Segoe UI'` 之后才是 `'PingFang SC', 'Microsoft YaHei'`。微软雅黑自带英文字形，排在 Segoe UI 前面会让 Windows 上的英文变成雅黑的。
 - 等宽字体是打包进来的 Geist Mono（`@fontsource-variable/geist-mono`），各平台一样，不走 CDN。Chromium 认不出 `ui-monospace` 和 `SFMono-Regular`，不要再把它们放在栈首。中文字体排在等宽字体后面（PingFang SC、微软雅黑），中文按平台自己的中文字体显示，不落到宋体。设置里的「代码字体」可以换成本机装的等宽字体，终端和 `--mono` 一起换（`code-font.ts`）。
 - 终端：字号默认 12，行高默认 1.0。xterm 的行高是字体自身行高的倍数，Geist Mono 的行本来就是字号的 1.33 倍，所以 1.0 就够；设置里可选 1.2、1.4。
 - 字号只有**两档**：正文和小字。聊天区正文是 `--chat-font-size`（设置里 10–20，默认 14），小字是它减 2（`--chat-font-small`）。不要再造 13、11 这种中间值。`--chat-font-compact` 和 `--chat-font-tiny` 现在分别等于正文和小字，只为兼容旧的选择器。

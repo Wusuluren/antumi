@@ -50,7 +50,9 @@
   --shadow: 0 1px 2px light-dark(rgb(0 0 0 / 6%), transparent);
   /* Something floating over other apps' windows (the card of waiting requests). */
   --shadow-float: 0 6px 20px light-dark(rgb(0 0 0 / 16%), transparent);
-  --font: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  /* Latin fonts before Chinese ones: Microsoft YaHei has Latin letters of its own, and ahead of
+     Segoe UI it would set Windows' English in them. */
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   /* Kept in step with code-font.ts, which overrides it when the user picks a font. */
   --mono: 'Geist Mono Variable', Menlo, Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
   /* Page widths on a wide window, by what a page is for (DESIGN.md, 页面宽度): what is read keeps
@@ -5286,7 +5288,7 @@ body.side-panel-resizing * {
 }
 /* A family the user picked from those installed; what it lacks falls back to the system font. */
 .chat-view[data-font='custom'] {
-  --font: var(--chat-font-custom), -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  --font: var(--chat-font-custom), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 .chat-view[data-font-size='10'] { --chat-font-size: 10px; }
