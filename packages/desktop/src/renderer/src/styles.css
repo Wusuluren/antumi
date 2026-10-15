@@ -1038,12 +1038,10 @@ button.task-tag:hover {
 }
 
 /* The sidebar's pages share one centred column (DESIGN.md, 页面宽度). */
-.detail.inbox > *,
+.inbox-page > *,
 .routines-page > *,
 .schedules-page > * { width: 100%; max-width: var(--page-wide); margin-inline: auto; }
-/* Under an inset title bar the inbox's header is the window's drag strip, edge to edge (see
-   below): it stays so, and only its content lines up with the column. */
-[data-titlebar='inset'] .detail.inbox > .detail-header { width: auto; max-width: none; margin: 0 -20px; padding-inline: calc(20px + max(0px, (100% - var(--page-wide)) / 2)); }
+.inbox-page > .restore-bar { margin-bottom: 12px; }
 
 .detail {
   flex: 1;
@@ -4602,12 +4600,6 @@ body.side-panel-resizing * {
   background: color-mix(in srgb, var(--danger) 14%, transparent);
   color: var(--danger);
   font-weight: 700;
-}
-
-.inbox-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
 }
 
 .inbox-synced {

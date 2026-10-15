@@ -193,13 +193,14 @@ function InboxSection({
 // A page of its own, opened from the sidebar, so it closes as the overview does.
 function InboxHeader() {
   return (
-    <header className="detail-header">
-      <h2 className="inbox-title">收件箱</h2>
-      <span className="toolbar">
-        <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => setInboxOpen(false)}>
-          <CloseIcon />
-        </button>
-      </span>
+    <header className="worktrees-header">
+      <div className="worktrees-heading">
+        <h2>收件箱</h2>
+        <p className="muted">从任务来源同步来的 issue：导入成任务，或先开会话排查。</p>
+      </div>
+      <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => setInboxOpen(false)}>
+        <CloseIcon />
+      </button>
     </header>
   )
 }
@@ -223,7 +224,7 @@ export function SourceInboxView() {
   if (active.length === 0) {
     const first = sources?.[0]
     return (
-      <section className="detail inbox" aria-label="收件箱">
+      <section className="worktrees-page inbox-page" aria-label="收件箱">
         <InboxHeader />
         <div className="inbox-setup">
           <InboxIcon />
@@ -237,7 +238,7 @@ export function SourceInboxView() {
   }
 
   return (
-    <section className="detail inbox" aria-label="收件箱">
+    <section className="worktrees-page inbox-page" aria-label="收件箱">
       <InboxHeader />
       {imported && (
         <p className="restore-bar" role="status">
