@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { checkArchiveDiscussion, type Discussion } from '@kando/protocol'
 import { openDiscussionDraft, selectDiscussion, useCore, useDiscussionArchiveSupported, useDiscussionsSupported } from '../core-store'
 import { archiveDiscussion, deleteDiscussion, discussionProgress, renameDiscussion, setDiscussionPinned } from '../discussions'
 import { agentLabel } from '../labels'
-import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
-import { AgentIcon, ChevronDownIcon, GroupChatIcon, PlusIcon } from './icons'
+import { setPreference, usePreferences } from '../preferences'
+import { ContextMenu, MenuCheckboxItem, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
+import { AgentIcon, ChevronDownIcon, GroupChatIcon, PlusIcon, SlidersIcon } from './icons'
 import { SidebarCollapseButton } from './SidebarCollapseButton'
 import { TitleEditor } from './TitleEditor'
 
@@ -51,12 +52,18 @@ export function SidebarDiscussions() {
   const [menu, setMenu] = useState<{ id: string; at: MenuPoint } | null>(null)
   const closeMenu = useCallback(() => setMenu(null), [])
   const [renamingId, setRenamingId] = useState<string | null>(null)
-  const [archivedOpen, setArchivedOpen] = useState(false)
+  const [archivedOpen, setArchivedOpen] = useState(true)
   const archivable = useDiscussionArchiveSupported()
+  const showArchived = usePreferences((p) => p.showArchivedDiscussions)
+  const [viewAt, setViewAt] = useState<MenuPoint | null>(null)
+  const closeView = useCallback(() => setViewAt(null), [])
+  const viewButton = useRef<HTMLButtonElement>(null)
   if (!supported) return null
-  // Archived ones wait at the end, folded.
+  // Archived ones are out of the list unless asked for in the view menu, as conversations are; then
+  // they wait at the end.
   const list = arranged(discussions).filter((discussion) => discussion.archivedAt === null)
-  const archived = arranged(discussions).filter((discussion) => discussion.archivedAt !== null)
+  const archivedAll = arranged(discussions).filter((discussion) => discussion.archivedAt !== null)
+  const archived = showArchived ? archivedAll : []
   const menuDiscussion = menu ? discussions[menu.id] : undefined
   const pick = (action: () => void) => () => {
     closeMenu()
@@ -94,10 +101,32 @@ export function SidebarDiscussions() {
     <nav className="sidebar-discussions" data-collapsed={collapsed} aria-label="群聊">
       <header className="task-list-header">
         <SidebarCollapseButton icon={<GroupChatIcon />} label="群聊" count={list.length} collapsed={collapsed} controls="sidebar-discussions" onToggle={() => setCollapsed((value) => !value)} />
+        {archivedAll.length > 0 && (
+          <button
+            ref={viewButton}
+            type="button"
+            className="icon-button sidebar-tool"
+            aria-label="列表选项"
+            aria-haspopup="menu"
+            aria-expanded={viewAt !== null}
+            data-tooltip="列表选项"
+            onClick={(event) => {
+              const box = event.currentTarget.getBoundingClientRect()
+              setViewAt((current) => (current ? null : { x: box.right, y: box.bottom + 4 }))
+            }}
+          >
+            <SlidersIcon />
+          </button>
+        )}
         <button type="button" className="icon-button task-list-add sidebar-add" aria-label="新建群聊" data-tooltip="新建群聊" onClick={() => openDiscussionDraft()}><PlusIcon /></button>
       </header>
+      {viewAt && (
+        <ContextMenu at={viewAt} align="end" trigger={viewButton.current} label="群聊的列表选项" onClose={closeView}>
+          <MenuCheckboxItem label={`显示已归档（${archivedAll.length}）`} checked={showArchived} onSelect={() => setPreference('showArchivedDiscussions', !showArchived)} />
+        </ContextMenu>
+      )}
       <div id="sidebar-discussions" className="sidebar-section-content" hidden={collapsed}>
-        {list.length === 0 && archived.length === 0 ? <p className="task-list-empty">让几个 Agent 一起讨论一个主题，点右上角的 ＋ 开始。</p> : (
+        {(list.length > 0 || archived.length > 0) && (
           <>
             <ul>{list.map(row)}</ul>
             {archived.length > 0 && (

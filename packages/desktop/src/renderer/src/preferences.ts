@@ -59,6 +59,9 @@ const Preferences = z.object({
   // Conversation groups folded in the sidebar, by grouping and group ("project:group:kando").
   foldedConversationGroups: z.array(z.string()).catch([]),
   conversationSort: z.enum(CONVERSATION_SORTS).catch('recent'),
+  // Off, archived conversations and group chats stay out of the sidebar, found only by a search.
+  showArchivedConversations: z.boolean().catch(false),
+  showArchivedDiscussions: z.boolean().catch(false),
   // On, a group chat's first round shows its independent answers side by side, for comparing them.
   discussionSideBySide: z.boolean().catch(false),
   // What an agent's reply in another language is translated into, and whether that happens as it

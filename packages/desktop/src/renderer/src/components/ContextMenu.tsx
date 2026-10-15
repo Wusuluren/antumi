@@ -233,6 +233,20 @@ export function MenuSubmenu({ label, value, open, onOpen, onClose, children }: {
   )
 }
 
+// A setting turned on and off from the menu; the menu stays open, so the change shows behind it.
+export function MenuCheckboxItem({ label, checked, onSelect }: { label: string; checked: boolean; onSelect: () => void }) {
+  return (
+    <button type="button" role="menuitemcheckbox" aria-checked={checked} className="menu-item" onClick={onSelect}>
+      <span className="menu-item-title">{label}</span>
+      {checked && (
+        <span className="menu-check">
+          <CheckIcon />
+        </span>
+      )}
+    </button>
+  )
+}
+
 export function MenuRadioItem({ label, checked, onSelect }: { label: string; checked: boolean; onSelect: () => void }) {
   return (
     <button type="button" role="menuitemradio" aria-checked={checked} className="menu-item" onClick={onSelect}>

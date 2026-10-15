@@ -8,7 +8,7 @@ import { CONVERSATION_GROUPS, CONVERSATION_SORTS, setPreference, usePreferences,
 import { beginHandoff, ConversationContextMenu, newConversation, renameConversation } from './ConversationActions'
 import { ConversationStatus } from './ConversationStatus'
 import { conversationActivity } from '../work-activity'
-import { ContextMenu, menuPoint, MenuRadioItem, MenuSubmenu, type MenuPoint } from './ContextMenu'
+import { ContextMenu, MenuCheckboxItem, menuPoint, MenuRadioItem, MenuSubmenu, type MenuPoint } from './ContextMenu'
 import { AgentIcon, ChatIcon, ChevronDownIcon, PlusIcon, SlidersIcon } from './icons'
 import { primaryProjectName, projectName, projectNames } from './ProjectPicker'
 import { SidebarCollapseButton } from './SidebarCollapseButton'
@@ -134,9 +134,10 @@ function useMinute(): number {
   return now
 }
 
-function ViewMenu({ at, trigger, onClose }: { at: MenuPoint; trigger: HTMLElement | null; onClose: () => void }) {
+function ViewMenu({ at, trigger, archived, onClose }: { at: MenuPoint; trigger: HTMLElement | null; archived: number; onClose: () => void }) {
   const groupBy = usePreferences((p) => p.conversationGroup)
   const sortBy = usePreferences((p) => p.conversationSort)
+  const showArchived = usePreferences((p) => p.showArchivedConversations)
   const [open, setOpen] = useState<'group' | 'sort' | null>(null)
   const closeSubmenu = () => setOpen(null)
   return (
@@ -167,6 +168,12 @@ function ViewMenu({ at, trigger, onClose }: { at: MenuPoint; trigger: HTMLElemen
           />
         ))}
       </MenuSubmenu>
+      {archived > 0 && (
+        <>
+          <div className="menu-separator" role="separator" />
+          <MenuCheckboxItem label={`显示已归档（${archived}）`} checked={showArchived} onSelect={() => setPreference('showArchivedConversations', !showArchived)} />
+        </>
+      )}
     </ContextMenu>
   )
 }
@@ -182,10 +189,12 @@ export function ConversationList() {
   // A task's conversation is reached from its task; a routine's from the routine's history; a group
   // chat member's from the group chat.
   const free = Object.values(conversations).filter((conversation) => !isHelper(conversation) && !conversation.taskId && !conversation.routineId && !conversation.discussionId && !conversation.squadRunId)
-  // Archived ones wait in a group of their own at the end, folded, and come up in a search.
+  // Archived ones are out of the list unless asked for in the view menu, then in a group of their
+  // own at the end; a search finds them either way.
   const all = free.filter((conversation) => conversation.archivedAt == null)
   const archivedAll = free.filter((conversation) => conversation.archivedAt != null).sort(COMPARE[sortBy])
-  const [archivedOpen, setArchivedOpen] = useState(false)
+  const showArchived = usePreferences((p) => p.showArchivedConversations)
+  const [archivedOpen, setArchivedOpen] = useState(true)
   // Null while the search box is closed. Groups left empty by a search drop out.
   const [query, setQuery] = useState<string | null>(null)
   const needle = query?.trim() ?? ''
@@ -197,7 +206,7 @@ export function ConversationList() {
     ? all.filter((conversation) => matches(conversation, needle) || snippets?.has(conversation.id))
     : all
   const groups = arrange(visible, groupBy, sortBy)
-  const archived = searching ? archivedAll.filter((conversation) => matches(conversation, needle) || snippets?.has(conversation.id)) : archivedAll
+  const archived = searching ? archivedAll.filter((conversation) => matches(conversation, needle) || snippets?.has(conversation.id)) : showArchived ? archivedAll : []
   // A search opens every group, so nothing it found is folded away.
   const folded = usePreferences((p) => p.foldedConversationGroups)
   const foldKey = (key: string) => `${groupBy}:${key}`
@@ -314,7 +323,7 @@ export function ConversationList() {
         </section>
       )}
       </div>
-      {viewAt && <ViewMenu at={viewAt} trigger={viewButton.current} onClose={closeView} />}
+      {viewAt && <ViewMenu at={viewAt} trigger={viewButton.current} archived={archivedAll.length} onClose={closeView} />}
       {menu && menuConversation && (
         <ConversationContextMenu
           conversation={menuConversation}
