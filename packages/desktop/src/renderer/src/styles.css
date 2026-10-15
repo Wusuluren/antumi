@@ -1221,8 +1221,10 @@ button.task-tag:hover {
 }
 
 /* Drag regions ignore what's painted over them, so a modal would otherwise let
-   clicks on its backdrop move the window. */
-[data-titlebar='inset']:has(dialog[open]) * {
+   clicks on its backdrop move the window. Only the regions themselves are named: a :has() on the
+   root over every element (*) had Chromium restyle the whole page at each DOM change, seconds on a
+   long chat whenever a terminal mounted. */
+[data-titlebar='inset']:has(dialog[open]) :is(.sidebar, .settings-nav, .detail-header, .detail-empty, .titlebar-drag, .window-brand) {
   -webkit-app-region: no-drag;
 }
 
