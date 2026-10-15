@@ -26,9 +26,10 @@ import {
   FolderIcon,
   GaugeIcon,
   GlobeIcon,
-  InboxIcon,
   InfoIcon,
   PlugIcon,
+  PuzzleIcon,
+  SourceIcon,
   SearchIcon,
   SparkIcon,
   TranslateIcon
@@ -713,7 +714,7 @@ const PLUGINS_SECTION: Section = {
   title: '插件',
   description: '安装和管理任务来源插件。登录和筛选条件在对应的集成页面设置。',
   keywords: ['插件', '安装', '更新', '卸载', 'GitHub', 'ZIP'],
-  Icon: FolderIcon,
+  Icon: PuzzleIcon,
   Body: PluginSettings
 }
 
@@ -725,7 +726,7 @@ function sourceSections(sources: readonly SourceDescriptor[]): Section[] {
     title: source.name,
     description: `把分给你的 issue 从 ${source.name} 同步到左侧的收件箱，挑出要做的导入成任务。`,
     keywords: [source.name, source.provider, 'token', '登录', '收件箱', 'issue', 'bug', '集成', ...source.settings.map((field) => field.label)],
-    Icon: InboxIcon,
+    Icon: () => <SourceIcon provider={source.provider} />,
     Body: () => <SourceSettingsSection source={source} />
   }))
 }
