@@ -13,6 +13,7 @@ import { copyFileText } from '../file-actions'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
 import { CheckIcon, CopyIcon, DocumentIcon } from './icons'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
+import { createFileSearchPanel } from '../file-search-panel'
 
 const highlight = HighlightStyle.define([
   { tag: tags.keyword, color: 'var(--code-keyword)' },
@@ -156,8 +157,8 @@ export function FileSource({ conversationId, tab, disk, wrap, writable, ref }: {
           Prec.highest(keymap.of([{ key: 'Mod-s', preventDefault: true, run: () => { void saveRef.current(); return true } }])),
           lineNumbers(), fold, codeFolding(), highlightActiveLine(), highlightActiveLineGutter(), drawSelection(),
           history(), indentOnInput(), bracketMatching(), markers,
-          keymap.of([...searchKeymap, ...historyKeymap, ...foldKeymap, ...defaultKeymap, indentWithTab]), search({ top: true }),
-          EditorState.phrases.of({ 'Find': '搜索', 'Replace': '替换', 'next': '下一个', 'previous': '上一个', 'all': '全部', 'match case': '区分大小写', 'regexp': '正则', 'by word': '全词', 'replace': '替换', 'replace all': '全部替换', 'close': '关闭', 'Fold line': '折叠', 'Unfold line': '展开', 'folded code': '已折叠的代码' }),
+          keymap.of([...searchKeymap, ...historyKeymap, ...foldKeymap, ...defaultKeymap, indentWithTab]), search({ top: true, createPanel: createFileSearchPanel }),
+          EditorState.phrases.of({ 'Fold line': '折叠', 'Unfold line': '展开', 'folded code': '已折叠的代码' }),
           EditorView.updateListener.of((update) => { if (update.docChanged) syncDirty(update.view) }),
           wrapping.of(wrap ? EditorView.lineWrapping : []), language.of([]), syntaxHighlighting(highlight), theme
         ]
