@@ -7070,6 +7070,7 @@ body.side-panel-resizing * {
   cursor: zoom-in;
 }
 
+.chat-image-button[data-square] { width: 64px; }
 .chat-image-button:hover { border-color: var(--text-muted); }
 .chat-image-button:focus-visible { outline: 2px solid var(--focus); }
 
