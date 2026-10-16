@@ -1059,8 +1059,11 @@ button.task-tag:hover {
 
 /* The sidebar's pages share one centred column (DESIGN.md, 页面宽度). */
 .inbox-page > *,
-.routines-page > *,
-.schedules-page > * { width: 100%; max-width: var(--page-wide); margin-inline: auto; }
+.routines-page > * { width: 100%; max-width: var(--page-wide); margin-inline: auto; }
+.routines-page .worktrees-header { align-items: center; }
+/* Under the page's head, what the tab holds and how it runs. */
+.routines-intro { margin-bottom: 16px; }
+.routines-intro p { margin: 0 0 2px; font-size: 12px; line-height: 1.6; }
 .inbox-page > .restore-bar { margin-bottom: 12px; }
 
 .detail {
@@ -4649,6 +4652,8 @@ body.side-panel-resizing * {
   color: var(--danger);
   font-weight: 700;
 }
+
+.inbox-entry-count + .inbox-entry-alert { margin-left: 4px; }
 
 .inbox-synced {
   margin-right: 4px;

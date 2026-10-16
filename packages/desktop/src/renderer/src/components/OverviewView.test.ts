@@ -265,9 +265,9 @@ describe('overview page', () => {
     expect(markup).toContain('role="img" aria-label="定时任务"')
     expect(markup).toContain('aria-hidden="true"')
     click('查看失败的预约：预约工作')
-    expect(useCore.getState()).toMatchObject({ schedulesOpen: true, overviewOpen: false })
+    expect(useCore.getState()).toMatchObject({ routinesOpen: true, routinesTab: 'schedules', overviewOpen: false })
     click('查看失败的定时任务：定时巡检')
-    expect(useCore.getState()).toMatchObject({ routinesOpen: true, schedulesOpen: false })
+    expect(useCore.getState()).toMatchObject({ routinesOpen: true, routinesTab: 'routines' })
   })
 
   it('opens a running task from the row by keyboard', () => {

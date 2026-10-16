@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { setAwakeMode, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, toggleBrowserPanel, togglePortsPanel, toggleTerminalPanel, useAwakeSupported, useBrowserSupported, useCore, useSchedulesSupported, useWorktreesSupported, type ConnectionState } from '../core-store'
+import { setAwakeMode, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, toggleBrowserPanel, togglePortsPanel, toggleTerminalPanel, useAwakeSupported, useBrowserSupported, useCore, useSchedulesOpen, useSchedulesSupported, useWorktreesSupported, type ConnectionState } from '../core-store'
 import { ALL_TABS, useBrowserTabs } from '../browser-state'
 import { formatBytes, worktreeRows, worktreeSummary } from '../worktree-groups'
 import { useWorktrees } from '../worktree-store'
@@ -182,7 +182,7 @@ function ScheduleButton() {
   const supported = useSchedulesSupported()
   // A routine's runs are the routine's, shown on its own page.
   const runs = useCore((s) => s.schedules).filter((run) => run.target.kind !== 'routine')
-  const open = useCore((s) => s.schedulesOpen)
+  const open = useSchedulesOpen()
   if (!supported || (runs.length === 0 && !open)) return null
   const waiting = openRuns(runs).length
   const failed = runs.filter((run) => run.status === 'failed').length

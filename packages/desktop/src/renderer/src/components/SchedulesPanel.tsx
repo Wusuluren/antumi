@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { ScheduledRun } from '@antumi/protocol'
-import { selectConversation, selectTask, setAwakeMode, setSchedulesOpen, showView, useCore } from '../core-store'
+import { selectConversation, selectTask, setAwakeMode, showView, useCore } from '../core-store'
 import { agentLabel } from '../labels'
 import { cancelSchedule, clearSchedules, openQueueRuns, reorderSchedules, rescheduleRun, runAction, runScheduleNow, scheduleState, TARGET_LABEL, UNATTENDED_LABEL } from '../schedules'
 import { AgentIcon, ArrowDownIcon, ArrowUpIcon, ClockIcon, CloseIcon, PlayIcon } from './icons'
@@ -101,8 +101,9 @@ function SettledRow({ run, now }: { run: ScheduledRun; now: number }) {
   )
 }
 
-// Every run scheduled to start later, in the order they go, then what became of the recent ones.
-export function SchedulesView() {
+// The 预约 tab of the routines' page: every run scheduled to start once later, in the order they
+// go, then what became of the recent ones.
+export function SchedulesPanel() {
   const runs = useCore((s) => s.schedules)
   const mode = useCore((s) => s.chatSettings?.unattendedMode ?? 'acceptEdits')
   const awake = useCore((s) => s.awake)
@@ -118,25 +119,19 @@ export function SchedulesView() {
     reorderSchedules(ids)
   }
   return (
-    <section className="worktrees-page schedules-page" aria-label="预约">
-      <header className="worktrees-header">
-        <div className="worktrees-heading">
-          <h2>预约</h2>
-          <p className="muted">
-            到点、而且 agent 的额度够用时自动开始；同一个 agent 的预约按下面的顺序一个接一个运行。
-            你预约的以「{UNATTENDED_LABEL[mode]}」无人值守运行，<SettingsLink />；撞到额度后的续跑沿用会话原来的模式。
+    <>
+      <div className="routines-intro">
+        <p className="muted">
+          指定的任务或会话跑一次：到点、而且 agent 的额度够用时自动开始；同一个 agent 的预约按下面的顺序一个接一个运行。
+          你预约的以「{UNATTENDED_LABEL[mode]}」无人值守运行，<SettingsLink />；撞到额度后的续跑沿用会话原来的模式。
+        </p>
+        {awake?.mode === 'off' && open.length > 0 && (
+          <p className="schedule-warning">
+            「保持电脑唤醒」已关闭，电脑睡着时预约不会运行。
+            <button type="button" className="link-button" onClick={() => void setAwakeMode('auto')}>改为有预约时保持唤醒</button>
           </p>
-          {awake?.mode === 'off' && open.length > 0 && (
-            <p className="schedule-warning">
-              「保持电脑唤醒」已关闭，电脑睡着时预约不会运行。
-              <button type="button" className="link-button" onClick={() => void setAwakeMode('auto')}>改为有预约时保持唤醒</button>
-            </p>
-          )}
-        </div>
-        <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => setSchedulesOpen(false)}>
-          <CloseIcon />
-        </button>
-      </header>
+        )}
+      </div>
       <section className="worktree-group" aria-label="等待中">
         <h3 className="worktree-group-title">等待中 · {open.length}</h3>
         {open.length === 0
@@ -152,6 +147,6 @@ export function SchedulesView() {
           <ul className="worktree-list">{settled.map((run) => <SettledRow key={run.id} run={run} now={now} />)}</ul>
         </section>
       )}
-    </section>
+    </>
   )
 }

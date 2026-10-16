@@ -191,7 +191,7 @@ Agent 打开页面、点击输入、切手机尺寸、截图、看控制台报�
 
 </td>
 <td width="58%">
-  <img src="docs/assets/schedules.png" alt="定时任务页的八个模板：每日代码审查、测试健康检查、周报……" width="100%" />
+  <img src="docs/assets/schedules.png" alt="定时页的八个模板：每日代码审查、测试健康检查、周报……" width="100%" />
 </td>
 </tr>
 </table>

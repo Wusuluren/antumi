@@ -92,7 +92,7 @@ export function ConversationView({ id }: { id: string }) {
         {conversation.routineId && (
           <span className="muted conversation-origin">
             来自定时任务{routine ? `「${routine.title}」` : ''} ·
-            <button type="button" className="link-button" onClick={() => setRoutinesOpen(true)}>回到定时任务</button>
+            <button type="button" className="link-button" onClick={() => setRoutinesOpen(true, 'routines')}>回到定时任务</button>
           </span>
         )}
         {conversation.discussionId && (

@@ -190,15 +190,32 @@ export function AntDelivery({ status, playing = true }: { status: AntDeliverySta
 // Walking speed across a lane, in pixels a second, and how long the turn at either end takes.
 const LANE_SPEED = 30
 const LANE_TURN_MS = 320
+// A walk that ends stands still this long before the ant goes: the turn's end and its outcome
+// (whether to set the parcel down) can arrive a render or two apart, and the parcel must go down
+// where the ant stopped, not back at the start.
+const LANE_LINGER_MS = 800
 
 // An ant pacing a strip of whatever width it is given, carrying a parcel to and fro; it stops where
 // it is to wait or to set the parcel down. The pacing is a Web Animation sized from the strip, so a
 // wider window means a longer walk at the same speed, and pausing it leaves the ant where it stood.
-export function AntLane({ scene, className = '' }: { scene: AntLaneScene | null; className?: string }) {
+export function AntLane({ scene: wanted, className = '' }: { scene: AntLaneScene | null; className?: string }) {
   const enabled = usePreferences((s) => s.antAnimations)
   const lane = useRef<HTMLSpanElement>(null)
   const walker = useRef<HTMLSpanElement>(null)
   const pacing = useRef<Animation | null>(null)
+  // Set while rendering, not in an effect, so not even one frame drops the ant from where it stood.
+  const [previous, setPrevious] = useState(wanted)
+  const [lingering, setLingering] = useState(false)
+  if (wanted !== previous) {
+    setPrevious(wanted)
+    setLingering(wanted === null && (previous === 'carry' || previous === 'wait'))
+  }
+  useEffect(() => {
+    if (!lingering) return
+    const timer = setTimeout(() => setLingering(false), LANE_LINGER_MS)
+    return () => clearTimeout(timer)
+  }, [lingering])
+  const scene = wanted ?? (lingering ? 'wait' : null)
   const shown = enabled && scene !== null
   useEffect(() => {
     const strip = lane.current

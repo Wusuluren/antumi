@@ -52,6 +52,7 @@ import { attentionSummaryMode, fetchAttentionSummaries, replaySummaryChanges, ty
 
 export type OverviewFilter = null | 'mine' | 'todos' | 'running' | 'next' | 'unread'
 export type OverviewPane = 'now' | 'stats'
+export type RoutinesTab = 'routines' | 'schedules'
 
 export type ConnectionState = 'waiting-for-core' | 'connecting' | 'connected'
 
@@ -138,10 +139,9 @@ export type CoreState = {
   inboxTab: string | null
   // So does the page of worktrees, over whatever else was shown there.
   worktreesOpen: boolean
-  // And the page of scheduled runs.
-  schedulesOpen: boolean
-  // And the page of routines.
+  // And the page of what runs later: its routines, or its reservations (预约).
   routinesOpen: boolean
+  routinesTab: RoutinesTab
   // The routines as core keeps them, each with how many of its runs the user has yet to look at;
   // empty on a core without them.
   routines: Routine[]
@@ -229,8 +229,8 @@ export const useCore = create<CoreState>()(() => ({
   inboxOpen: false,
   inboxTab: null,
   worktreesOpen: false,
-  schedulesOpen: false,
   routinesOpen: false,
+  routinesTab: 'routines',
   overviewOpen: true,
   overviewView: 'now',
   overviewFilter: null,
@@ -280,7 +280,6 @@ export function selectTask(id: string | null): void {
       section: 'tasks',
       inboxOpen: false,
       worktreesOpen: false,
-      schedulesOpen: false,
       routinesOpen: false,
       overviewOpen: false,
       settingsOpen: false,
@@ -492,7 +491,7 @@ export function setBrowserMaximized(maximized: boolean): void {
 export function selectConversation(id: string | null): void {
   useCore.setState((s) => {
     const { [id ?? '']: _seen, ...unseen } = s.unseen
-    return { selectedConversationId: id, section: 'conversations', inspectorFile: s.section === 'conversations' && s.selectedConversationId === id ? s.inspectorFile : null, settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: false, unseen }
+    return { selectedConversationId: id, section: 'conversations', inspectorFile: s.section === 'conversations' && s.selectedConversationId === id ? s.inspectorFile : null, settingsOpen: false, worktreesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: false, unseen }
   })
   if (id) markRoutineRunSeen(id)
 }
@@ -520,7 +519,7 @@ export type DraftIssue = { provider: string; instance: string; key: string; titl
 // `projects`: what the page starts with, as from a project's group; without, it starts with none.
 // `issue`: the inbox issue the conversation is opened to look into.
 export function openConversationDraft(projects?: readonly string[], issue: DraftIssue | null = null): void {
-  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: true, conversationDraftProjects: projects ? { paths: [...projects] } : null, conversationDraftIssue: issue })
+  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: true, conversationDraftProjects: projects ? { paths: [...projects] } : null, conversationDraftIssue: issue })
 }
 
 export function useSourceInvestigateSupported(): boolean {
@@ -531,7 +530,7 @@ export function closeConversationDraft(): void {
   useCore.setState({ conversationDraft: false })
 }
 
-const PAGES_CLOSED = { settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false } as const
+const PAGES_CLOSED = { settingsOpen: false, worktreesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false } as const
 
 export function selectSquad(id: string | null, draft = false): void {
   useCore.setState({ section: 'squads', selectedSquadId: id, squadDraft: draft, ...PAGES_CLOSED })
@@ -620,7 +619,6 @@ export function setInboxOpen(open: boolean): void {
         conversationDraft: false,
         settingsOpen: false,
         worktreesOpen: false,
-        schedulesOpen: false,
         routinesOpen: false,
         overviewOpen: false
       }
@@ -663,20 +661,27 @@ export function setSettingsOpen(open: boolean, section: string | null = null): v
 }
 
 export function setWorktreesOpen(open: boolean): void {
-  useCore.setState({ worktreesOpen: open, schedulesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
+  useCore.setState({ worktreesOpen: open, routinesOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
 }
 
+// The reservations are a tab of the routines' page: what runs once, beside what runs again.
 export function setSchedulesOpen(open: boolean): void {
-  useCore.setState({ schedulesOpen: open, routinesOpen: false, worktreesOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
+  if (open) setRoutinesOpen(true, 'schedules')
+  else useCore.setState({ routinesOpen: false })
 }
 
-export function setRoutinesOpen(open: boolean): void {
-  useCore.setState({ routinesOpen: open, schedulesOpen: false, worktreesOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
+// Without a tab, the page opens on the one it was left on.
+export function setRoutinesOpen(open: boolean, tab?: RoutinesTab): void {
+  useCore.setState({ routinesOpen: open, ...(tab ? { routinesTab: tab } : {}), worktreesOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
+}
+
+export function useSchedulesOpen(): boolean {
+  return useCore((s) => s.routinesOpen && s.routinesTab === 'schedules')
 }
 
 export function setOverviewOpen(open: boolean): void {
   useCore.setState(open
-    ? { overviewOpen: true, section: 'tasks', selectedId: null, selectedConversationId: null, conversationDraft: false, inboxOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, settingsOpen: false }
+    ? { overviewOpen: true, section: 'tasks', selectedId: null, selectedConversationId: null, conversationDraft: false, inboxOpen: false, worktreesOpen: false, routinesOpen: false, settingsOpen: false }
     : { overviewOpen: false })
 }
 
@@ -833,7 +838,7 @@ export function useFileMentionsSupported(): boolean {
 
 // The task board stands where a task would: the tasks section with none open and no page over it.
 export function useTaskBoardOpen(): boolean {
-  return useCore((s) => s.section === 'tasks' && s.selectedId === null && !s.inboxOpen && !s.worktreesOpen && !s.schedulesOpen
+  return useCore((s) => s.section === 'tasks' && s.selectedId === null && !s.inboxOpen && !s.worktreesOpen
     && !s.routinesOpen && !s.overviewOpen && !s.settingsOpen)
 }
 

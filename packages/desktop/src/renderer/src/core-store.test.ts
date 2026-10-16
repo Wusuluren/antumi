@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { Task, createRpcClient, type Conversation, type RpcConnection } from '@antumi/protocol'
 import { actionableItems } from './attention'
 import {
-  openAttentionItem, openConversationDraft, selectConversation, selectTask, setOverviewOpen, setOverviewFilter, setOverviewScroll, setOverviewView,
+  openAttentionItem, openConversationDraft, selectConversation, selectTask, setOverviewOpen, setOverviewFilter, setOverviewScroll, setOverviewView, setRoutinesOpen,
   refreshAttentionSummaries, setInboxOpen, setTaskStarting, openChatWhileStarting, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, useCore,
   clearInspectorFile, installAgentCli, showConversationChanges, showInspectorFile, showTaskChanges
 } from './core-store'
@@ -107,15 +107,27 @@ describe('overview navigation', () => {
     expect(useCore.getState().overviewView).toBe('stats')
   })
 
+  it('opens reservations as a tab of the routines, and the page on the tab it was left on', () => {
+    setSchedulesOpen(true)
+    expect(useCore.getState()).toMatchObject({ routinesOpen: true, routinesTab: 'schedules', overviewOpen: false })
+    setOverviewOpen(true)
+    setRoutinesOpen(true)
+    expect(useCore.getState()).toMatchObject({ routinesOpen: true, routinesTab: 'schedules' })
+    setRoutinesOpen(true, 'routines')
+    expect(useCore.getState().routinesTab).toBe('routines')
+    setSchedulesOpen(false)
+    expect(useCore.getState().routinesOpen).toBe(false)
+  })
+
   it('closes every other main page when the aggregate opens', () => {
     useCore.setState({
       selectedId: 'task', selectedConversationId: 'chat', section: 'conversations', conversationDraft: true,
-      settingsOpen: true, schedulesOpen: true, worktreesOpen: true, inboxOpen: true
+      settingsOpen: true, routinesOpen: true, worktreesOpen: true, inboxOpen: true
     })
     setOverviewOpen(true)
     expect(useCore.getState()).toMatchObject({
       overviewOpen: true, selectedId: null, selectedConversationId: null, section: 'tasks', conversationDraft: false,
-      settingsOpen: false, schedulesOpen: false, worktreesOpen: false, inboxOpen: false
+      settingsOpen: false, routinesOpen: false, worktreesOpen: false, inboxOpen: false
     })
   })
 

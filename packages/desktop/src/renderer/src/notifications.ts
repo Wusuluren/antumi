@@ -38,7 +38,7 @@ export function startNotifications(): void {
   onNotificationClick((target) => {
     if (target.kind === 'task') selectTask(target.id)
     else if (target.kind === 'conversation') selectConversation(target.id)
-    else setRoutinesOpen(true)
+    else setRoutinesOpen(true, 'routines')
   })
 }
 

@@ -38,7 +38,7 @@ function openRow(row: OverviewRow): void {
     }
   } else if (row.conversationId && state.conversations[row.conversationId]) {
     selectConversation(row.conversationId)
-  } else if (row.routineId) setRoutinesOpen(true)
+  } else if (row.routineId) setRoutinesOpen(true, 'routines')
   else if (row.scheduleId) setSchedulesOpen(true)
 }
 
@@ -197,7 +197,7 @@ function Row({ row, section }: { row: OverviewRow; section: 'mine' | 'running' |
         <time className="overview-time" dateTime={new Date(row.at).toISOString()} title={chatDayAndTime(row.at)}>{agoText(row.at)}</time>
         <div className="overview-actions">
           {section === 'mine' && (failure
-            ? <button type="button" className="button" aria-label={`查看失败的${KIND_LABEL[row.kind]}：${row.title}`} onClick={() => row.kind === 'schedule' ? setSchedulesOpen(true) : setRoutinesOpen(true)}>{row.kind === 'schedule' ? '去预约页' : '查看'}</button>
+            ? <button type="button" className="button" aria-label={`查看失败的${KIND_LABEL[row.kind]}：${row.title}`} onClick={() => row.kind === 'schedule' ? setSchedulesOpen(true) : setRoutinesOpen(true, 'routines')}>{row.kind === 'schedule' ? '去预约页' : '查看'}</button>
             : row.attention && <ApprovalActions item={row.attention} />)}
           {section === 'unread' && <>
             <span className="overview-secondary"><button type="button" className="button ghost" aria-label={`标为已读：${row.title}`} onClick={() => markSeen(row)}>标为已读</button></span>

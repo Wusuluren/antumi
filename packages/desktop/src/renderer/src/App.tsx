@@ -20,7 +20,6 @@ import { StatusBar } from './components/StatusBar'
 import { hasPrimaryModifier } from './shortcut-keys'
 import { UtilityPanelDock } from './components/UtilityPanelDock'
 import { WorktreeManager } from './components/WorktreeManager'
-import { SchedulesView } from './components/SchedulesView'
 import { RoutinesView } from './components/RoutinesView'
 import { RoutinesEntry } from './components/RoutinesEntry'
 import { SidebarDiscussions } from './components/SidebarDiscussions'
@@ -40,7 +39,7 @@ import { usePortPolling } from './port-state'
 function leavesTask(event: KeyboardEvent): boolean {
   const s = useCore.getState()
   if (event.defaultPrevented || s.section !== 'tasks' || s.selectedId === null) return false
-  if (s.settingsOpen || s.newTaskOpen || s.taskLaunchId || s.worktreesOpen || s.schedulesOpen || s.routinesOpen || s.overviewOpen || s.inboxOpen) return false
+  if (s.settingsOpen || s.newTaskOpen || s.taskLaunchId || s.worktreesOpen || s.routinesOpen || s.overviewOpen || s.inboxOpen) return false
   const typing = event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"], .xterm, [role="menu"], dialog')
   return !typing && !document.querySelector('dialog[open]')
 }
@@ -60,7 +59,6 @@ export function App() {
   const taskLaunchId = useCore((s) => s.taskLaunchId)
   const settingsOpen = useCore((s) => s.settingsOpen)
   const worktreesOpen = useCore((s) => s.worktreesOpen)
-  const schedulesOpen = useCore((s) => s.schedulesOpen)
   const routinesOpen = useCore((s) => s.routinesOpen)
   const overviewOpen = useCore((s) => s.overviewOpen)
   const inboxOpen = useCore((s) => s.inboxOpen)
@@ -164,8 +162,6 @@ export function App() {
               <SourceInboxView />
             ) : worktreesOpen ? (
               <WorktreeManager />
-            ) : schedulesOpen ? (
-              <SchedulesView />
             ) : routinesOpen ? (
               <RoutinesView />
             ) : section === 'squads' ? (
