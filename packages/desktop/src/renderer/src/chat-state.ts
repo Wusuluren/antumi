@@ -390,40 +390,6 @@ function unfoldedTurn(body: ChatBlock[], end: ChatBlock): ChatBlock[] {
   return [...body, { kind: 'changes', key: `changes:${end.key}`, fold: `fold:${end.key}`, files, turn, reply, collapsible: false }]
 }
 
-// The disclosure keys of everything in a fold that opens: to open or close the whole turn's work
-// at once. Each matches the key its component reads (ChatToolCard, ChatSubagents, ChatTodos,
-// ConversationChat's Reasoning).
-export function foldRowKeys(blocks: readonly ChatBlock[]): string[] {
-  return blocks.flatMap((block) => {
-    switch (block.kind) {
-      case 'tools':
-      case 'browser': {
-        const [first] = block.tools
-        const run = (block.kind === 'browser' || block.tools.length > 1) && first ? [`run:${itemKey(first)}`] : []
-        return [...run, ...block.tools.map((tool) => `call:${itemKey(tool)}`)]
-      }
-      case 'edits': {
-        const [first] = block.tools
-        return first ? [`edits:${itemKey(first)}`] : []
-      }
-      case 'agents':
-        return block.tools.map((tool) => `agent:${itemKey(tool)}`)
-      case 'fold':
-        return foldRowKeys(block.blocks)
-      case 'changes':
-        return []
-      case 'entry': {
-        const item = itemOf(block)
-        if (!item) return []
-        if (item.kind === 'tool') return [`card:${itemKey(item)}`]
-        if (item.kind === 'todos') return [`todos:${itemKey(item)}`]
-        if (item.kind === 'reasoning') return [`thought:${itemKey(item)}`]
-        return []
-      }
-    }
-  })
-}
-
 export function chatBlocks(entries: readonly TimelineEntry[], { foldTurns = true }: { foldTurns?: boolean } = {}): ChatBlock[] {
   const runs: ChatBlock[] = []
   let browser: Extract<ChatBlock, { kind: 'browser' }> | null = null

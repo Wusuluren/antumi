@@ -7,7 +7,7 @@ export function textMatches(text: string, query: string): TextMatch[] {
   return [...text.matchAll(pattern)].map((match) => ({ start: match.index, end: match.index + match[0].length }))
 }
 
-const IGNORE = 'script, style, input, textarea, select, [hidden], [aria-hidden="true"], [data-find-ignore], .chat-message-actions, .chat-user-footer, .discussion-msg-actions, .discussion-summary-foot, .discussion-reply-foot, .chat-fold-bar, .chat-working, .chat-latest, .chat-older, .chat-skeleton'
+const IGNORE = 'script, style, input, textarea, select, [hidden], [aria-hidden="true"], [data-find-ignore], .chat-message-actions, .chat-user-footer, .discussion-msg-actions, .discussion-summary-foot, .discussion-reply-foot, .chat-working, .chat-latest, .chat-older, .chat-skeleton'
 const BLOCK = 'div, p, pre, li, td, th, blockquote, h1, h2, h3, h4, h5, h6, article, section'
 
 // Inline Markdown may split a phrase across text nodes; messages and paragraphs never join.

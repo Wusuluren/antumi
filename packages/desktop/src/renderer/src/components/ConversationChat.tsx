@@ -5,7 +5,7 @@ import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutE
 import { cursorProviderError, isBrowserTool, isPlanApproval, isPreviewTool, parseHandoffMessage, toolImagePath, type AgentKind, type ChatItem, type Conversation, type ConversationStage } from '@antumi/protocol'
 import { firstBrowserCall, shouldOpenBrowser } from '../browser-state'
 import { ChatBrowserCard, ChatBrowserRun, ChatShotCard } from './ChatBrowserCard'
-import { foldRowKeys, chatBlocks, dropChat, finalReplies, itemKey, pathShortener, prependChatPage, previousTodos, saidText, setChatPage, stageAgents, thoughtDurations, timeline, useChat, type ChatBlock, type TimelineEntry, type TurnAgent, type TurnFile } from '../chat-state'
+import { chatBlocks, dropChat, finalReplies, itemKey, pathShortener, prependChatPage, previousTodos, saidText, setChatPage, stageAgents, thoughtDurations, timeline, useChat, type ChatBlock, type TimelineEntry, type TurnAgent, type TurnFile } from '../chat-state'
 import { ChatDisclosureScope, ChatFindExpansion, setOpened, useDisclosure } from '../chat-disclosure'
 import { isCompaction, noticeSummary, readableNotice } from '../chat-notices'
 import { parseQuotes, withoutQuoteMarkers } from '../chat-quotes'
@@ -424,13 +424,6 @@ const Folds = createContext<FoldState>({ reveal: () => {} })
 function TurnFold({ foldKey, conversationId, turn, blocks, task, replies, steps, workMs }: { foldKey: string; conversationId: string; turn: TurnItem; blocks: readonly ChatBlock[]; task: boolean; replies: ReadonlyMap<string, number>; steps: number; workMs: number | null }) {
   const compact = useContext(ChatVariant) === 'compact'
   const [open, setOpen] = useDisclosure(foldKey)
-  // Open, the work is a list of rows, each closed until asked; a second step opens them all.
-  const [allOpen, setAllOpen] = useDisclosure(`all:${foldKey}`)
-  const rows = useMemo(() => foldRowKeys(blocks), [blocks])
-  const openAll = (next: boolean) => {
-    setAllOpen(next)
-    for (const key of rows) setOpened(conversationId, key, next)
-  }
   // The header stays where the work is, so the fold opens under the line that opened it.
   return (
     <div className="chat-entry">
@@ -442,11 +435,6 @@ function TurnFold({ foldKey, conversationId, turn, blocks, task, replies, steps,
         </button>
         {open && (
           <div className="chat-fold-body">
-            {rows.length > 1 && (
-              <div className="chat-fold-bar">
-                <button type="button" className="link-button" onClick={() => openAll(!allOpen)}>{allOpen ? '收起每一步' : '展开每一步'}</button>
-              </div>
-            )}
             {blocks.map((block) => <Block key={block.key} conversationId={conversationId} block={block} task={task} replies={replies} />)}
           </div>
         )}

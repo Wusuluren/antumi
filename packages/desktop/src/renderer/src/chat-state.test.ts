@@ -5,7 +5,6 @@ import {
   chatBlocks,
   finalReplies,
   flushChatDeltas,
-  foldRowKeys,
   mergeItems,
   pathShortener,
   prependChatPage,
@@ -203,9 +202,6 @@ describe('chatBlocks', () => {
     expect(shape(blocksOf(items))).toEqual(['u', 'tools:cmd', 'checking', 'shot', 'browser:open+click+refresh', 'answer'])
     const browser = blocksOf(items).find((block) => block.kind === 'browser')
     expect(browser?.key).toBe('browser:item:chat-stage/open')
-    expect(foldRowKeys(browser ? [browser] : [])).toEqual([
-      'run:chat-stage/open', 'call:chat-stage/open', 'call:chat-stage/click', 'call:chat-stage/refresh'
-    ])
     expect(items).toHaveLength(8)
   })
 
