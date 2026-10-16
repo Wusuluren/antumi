@@ -92,6 +92,7 @@ const REASON_TEXT: Record<string, string> = {
   'branch-not-found': '找不到这个分支',
   'branch-switch-failed': '切换分支失败',
   'invalid-branch-name': '分支名不合法',
+  'invalid-tag-name': '标签名不合法',
   'branch-name-taken': '已经有同名的分支',
   'git-no-changes': '没有可以提交的改动',
   'git-no-branch': '当前没有检出的本地分支，请先切换或新建分支',

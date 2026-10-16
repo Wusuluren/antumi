@@ -23,7 +23,11 @@ export const GitComparison = z.object({ base: z.string(), target: z.string(), an
 export type GitComparison = z.infer<typeof GitComparison>
 export const GitAction = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('switch'), ref: Ref }),
+  // A commit checked out with no branch (detached HEAD); needs git-commit-actions.
+  z.object({ kind: z.literal('detach'), ref: Ref }),
   z.object({ kind: z.literal('create'), name: Ref, ref: Ref, checkout: z.boolean() }),
+  // A lightweight tag on a commit, kept local; needs git-commit-actions.
+  z.object({ kind: z.literal('tag'), name: Ref, ref: Ref }),
   z.object({ kind: z.literal('rename'), ref: Ref, name: Ref }),
   z.object({ kind: z.literal('delete'), ref: Ref }),
   z.object({ kind: z.literal('fetch'), remote: z.string().optional() }),
@@ -42,12 +46,12 @@ export type GitResult = z.infer<typeof GitResult>
 // Task worktrees keep their binding even while their agent is idle.
 export function checkGitOperation(kind: GitTarget['kind'], action: GitAction, busy: boolean, status?: GitStatus): string | null {
   if (busy) return 'chat-busy'
-  if (kind === 'task' && (action.kind === 'switch' || (action.kind === 'create' && action.checkout))) return 'task-conversation'
+  if (kind === 'task' && (action.kind === 'switch' || action.kind === 'detach' || (action.kind === 'create' && action.checkout))) return 'task-conversation'
   if (!status) return null
   const mergeAction = ['resolve', 'continue', 'abort'].includes(action.kind)
   if (status.operation && !mergeAction) return 'git-in-progress'
   if (mergeAction && status.operation !== 'merge') return 'git-in-progress'
-  if (['switch', 'pull', 'merge'].includes(action.kind) && status.changes > 0) return 'uncommitted-changes'
+  if (['switch', 'detach', 'pull', 'merge'].includes(action.kind) && status.changes > 0) return 'uncommitted-changes'
   if (['commit', 'push', 'pull', 'merge'].includes(action.kind) && !status.branch) return 'git-no-branch'
   if (action.kind === 'rename' || action.kind === 'delete') {
     const branch = status.branches.find((branch) => branch.ref === action.ref)

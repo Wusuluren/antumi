@@ -196,13 +196,13 @@ export class GitService {
       if (target.kind === 'task' && status.branch !== this.tasks.get(target.id).repos.find((repo) => repo.path === target.project)?.branch) throw new Rejection('git-task-branch', 'worktree 的实际分支与任务绑定不符，请先在终端修复。')
       const result = await this.perform(dir, status, action)
       const after = await projectHead(dir)
-      const moved = ['switch', 'merge', 'pull', 'continue', 'abort', 'resolve'].includes(action.kind) || (action.kind === 'create' && action.checkout) || (action.kind === 'rename' && action.ref === `refs/heads/${status.branch}`)
+      const moved = ['switch', 'detach', 'merge', 'pull', 'continue', 'abort', 'resolve'].includes(action.kind) || (action.kind === 'create' && action.checkout) || (action.kind === 'rename' && action.ref === `refs/heads/${status.branch}`)
       if (moved) {
         for (const conversation of this.conversations.listAll()) {
           for (const project of conversation.projectPaths) {
             const root = await gitOrNull(project, ['rev-parse', '--show-toplevel'])
             if (root === await gitOrNull(dir, ['rev-parse', '--show-toplevel'])) {
-              await this.conversations.recordGitChange(conversation.id, project, after.branch ?? '分离 HEAD', action.kind === 'switch' || (action.kind === 'create' && action.checkout))
+              await this.conversations.recordGitChange(conversation.id, project, after.branch ?? '分离 HEAD', action.kind === 'switch' || action.kind === 'detach' || (action.kind === 'create' && action.checkout))
             }
           }
         }
@@ -248,6 +248,14 @@ export class GitService {
         await writeGit(dir, action.ref.startsWith('refs/remotes/') ? (action.checkout ? ['switch', '--track', '-c', action.name, action.ref] : ['branch', '--track', action.name, action.ref]) : action.checkout ? ['switch', '-c', action.name, sha] : ['branch', action.name, sha])
         return { state: 'done', branch: action.name }
       }
+      case 'tag': {
+        if (action.name.startsWith('-') || !await writeGit(dir, ['check-ref-format', `refs/tags/${action.name}`]).then(() => true, () => false)) throw new Rejection('invalid-tag-name')
+        await writeGit(dir, ['tag', action.name, await commitRef(dir, action.ref)])
+        break
+      }
+      case 'detach':
+        await writeGit(dir, ['switch', '--detach', await commitRef(dir, action.ref)])
+        break
       case 'switch': {
         const branch = branchAt(action.ref)
         await validName(branch.name)

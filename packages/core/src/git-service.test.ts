@@ -128,6 +128,7 @@ describe('Git management', () => {
     tasks.push(Task.parse({ id: 'task', title: '', details: '', status: 'running', repos: [{ path: repo, worktreePath: repo, branch: 'main' }], dependsOn: [], agent: 'claude', createdAt: 0, updatedAt: 0 }))
     const taskTarget: GitTarget = { kind: 'task', id: 'task', project: repo }
     await expect(service.execute(taskTarget, { kind: 'switch', ref: 'refs/remotes/origin/main' })).rejects.toMatchObject({ reason: 'task-conversation' })
+    await expect(service.execute(taskTarget, { kind: 'detach', ref: 'HEAD' })).rejects.toMatchObject({ reason: 'task-conversation' })
     await service.execute(taskTarget, { kind: 'create', name: 'candidate', ref: 'HEAD', checkout: false })
     expect(git(repo, 'branch', '--show-current')).toBe('main')
     launching = true
@@ -143,6 +144,23 @@ describe('Git management', () => {
     writeFileSync(path.join(repo, 'file.txt'), 'unsaved')
     await expect(service.execute(target, { kind: 'switch', ref: 'refs/heads/main' })).rejects.toMatchObject({ reason: 'uncommitted-changes' })
     expect(git(repo, 'diff')).toContain('unsaved')
+  })
+
+  it('tags a commit and checks one out detached, refusing bad names and unsaved work', async () => {
+    const first = git(repo, 'rev-parse', 'HEAD')
+    commit('next.txt', 'next\n')
+    await service.execute(target, { kind: 'tag', name: 'v1.0', ref: first })
+    expect(git(repo, 'rev-parse', 'v1.0^{commit}')).toBe(first)
+    await expect(service.execute(target, { kind: 'tag', name: 'v1.0', ref: 'HEAD' })).rejects.toMatchObject({ reason: 'git-operation-failed' })
+    for (const name of ['-f', 'bad name', 'a..b']) await expect(service.execute(target, { kind: 'tag', name, ref: 'HEAD' })).rejects.toMatchObject({ reason: 'invalid-tag-name' })
+    await expect(service.execute(target, { kind: 'detach', ref: '--orphan' })).rejects.toMatchObject({ reason: 'branch-not-found' })
+    writeFileSync(path.join(repo, 'file.txt'), 'unsaved')
+    await expect(service.execute(target, { kind: 'detach', ref: first })).rejects.toMatchObject({ reason: 'uncommitted-changes' })
+    git(repo, 'checkout', '--', 'file.txt')
+    await service.execute(target, { kind: 'detach', ref: first })
+    expect(git(repo, 'rev-parse', 'HEAD')).toBe(first)
+    expect(git(repo, 'branch', '--show-current')).toBe('')
+    expect(record).toHaveBeenCalledWith(target.id, repo, git(repo, 'rev-parse', '--short', 'HEAD'), true)
   })
 
   it('safely deletes merged branches and remote branches but refuses current and unmerged ones', async () => {

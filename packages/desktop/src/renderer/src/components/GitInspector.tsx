@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode, type MouseEvent } from 'react'
-import type { GitAction, GitBranch, GitComparison, GitDetail, GitHistory, GitStatus, GitTarget, ProjectHead } from '@antumi/protocol'
+import type { GitAction, GitBranch, GitCommit, GitComparison, GitDetail, GitHistory, GitStatus, GitTarget, ProjectHead } from '@antumi/protocol'
 import { checkGitOperation } from '@antumi/protocol'
 import { perform, openTerminal, useCore } from '../core-store'
 import { gitGraph } from '../git-graph'
@@ -58,8 +58,9 @@ export function GitInspector({ target, heads, updatedAt, refresh, maximized, onM
   </div>
 }
 
-type DialogKind = 'create' | 'rename' | 'delete' | 'push' | 'commit' | 'merge' | 'abort'
-type DialogChoice = { kind: DialogKind; branch?: GitBranch }
+type DialogKind = 'create' | 'tag' | 'detach' | 'rename' | 'delete' | 'push' | 'commit' | 'merge' | 'abort'
+// What the dialog acts on: a branch from the tree, or a commit from the history.
+type DialogChoice = { kind: DialogKind; branch?: GitBranch; commit?: GitCommit }
 
 function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; updatedAt: number; refresh: number }) {
   const rpc = useCore((s) => s.rpc)
@@ -70,7 +71,8 @@ function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; upda
   const [query, setQuery] = useState('')
   const [selectedCommit, setSelectedCommit] = useState<string | null>(null)
   const [detailView, setDetailView] = useState(false)
-  const [comparison, setComparison] = useState(false)
+  // The branch or commit compared with HEAD, while a comparison shows.
+  const [comparison, setComparison] = useState<string | null>(null)
   const [branchesCollapsed, setBranchesCollapsed] = useState(false)
   const [direct, setDirect] = useState(false)
   const [dialog, setDialog] = useState<DialogChoice | null>(null)
@@ -96,8 +98,8 @@ function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; upda
       const result = await perform((rpc) => rpc.call('git.execute', { ...target, action }))
       if (!result) return false
       setNote(result.state === 'conflicts' ? 'Merge 出现冲突，请处理下面列出的文件。' : 'Git 操作已完成。')
-      if (action.kind === 'switch' || (action.kind === 'create' && action.checkout) || action.kind === 'rename') {
-        setSelected('HEAD'); setSelectedCommit(null); setComparison(false)
+      if (action.kind === 'switch' || action.kind === 'detach' || (action.kind === 'create' && action.checkout) || action.kind === 'rename') {
+        setSelected('HEAD'); setSelectedCommit(null); setComparison(null)
       }
       return true
     } finally { setBusy(false); retry() }
@@ -107,17 +109,32 @@ function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; upda
     const done = await commitWithWrittenMessage(target, async (message) => (await run({ kind: 'commit', message, push })) || null)
     if (done) setNote(`已提交「${commitSubject(done.message)}」${push ? '并推送' : ''}。`)
   }
-  const pick = (ref: string) => { setSelected(ref); setSelectedCommit(null); setComparison(false); setDetailView(false) }
+  const pick = (ref: string) => { setSelected(ref); setSelectedCommit(null); setComparison(null); setDetailView(false) }
   const can = (action: GitAction) => !disabled && checkGitOperation(target.kind, action, false, status) === null
   const branchActions = (entry: GitBranch, close: () => void) => <>
     <MenuItem label="查看历史" onSelect={() => { pick(entry.ref); close() }} />
     <MenuItem label="切换到此分支" disabled={!can({ kind: 'switch', ref: entry.ref }) || entry.ref === `refs/heads/${status?.branch}` || Boolean(entry.worktree && entry.worktree !== status?.directory)} onSelect={() => { close(); void run({ kind: 'switch', ref: entry.ref }) }} />
     <MenuItem label="从此分支新建" disabled={!can({ kind: 'create', ref: entry.ref, name: 'new', checkout: false })} onSelect={() => { setDialog({ kind: 'create', branch: entry }); close() }} />
-    <MenuItem label="与当前分支比较" disabled={!status?.head} onSelect={() => { pick(entry.ref); setComparison(true); setDetailView(true); close() }} />
+    <MenuItem label="与当前分支比较" disabled={!status?.head} onSelect={() => { pick(entry.ref); setComparison(entry.ref); setDetailView(true); close() }} />
     <MenuItem label="合并到当前分支" disabled={!can({ kind: 'merge', ref: entry.ref }) || entry.ref === `refs/heads/${status?.branch}`} onSelect={() => { setDialog({ kind: 'merge', branch: entry }); close() }} />
     {!entry.remote && <MenuItem label="重命名" disabled={!can({ kind: 'rename', ref: entry.ref, name: 'new' }) || entry.protected || Boolean(entry.worktree && entry.worktree !== status?.directory)} onSelect={() => { setDialog({ kind: 'rename', branch: entry }); close() }} />}
     <MenuItem label={entry.remote ? '删除远端分支…' : '删除本地分支…'} disabled={!can({ kind: 'delete', ref: entry.ref }) || entry.protected || Boolean(entry.worktree)} onSelect={() => { setDialog({ kind: 'delete', branch: entry }); close() }} />
     <MenuItem label="复制分支名" onSelect={() => { void navigator.clipboard.writeText(entry.name); close() }} />
+  </>
+  const commitActionsSupported = rpc?.features.includes('git-commit-actions') ?? false
+  const copyMessage = async (sha: string) => {
+    const detail = await perform((rpc) => rpc.call('git.detail', { ...target, sha }))
+    if (detail) await navigator.clipboard.writeText(detail.message)
+  }
+  const commitActions = (commit: GitCommit, close: () => void) => <>
+    <MenuItem label="复制 SHA" onSelect={() => { void navigator.clipboard.writeText(commit.sha); close() }} />
+    <MenuItem label="复制提交信息" onSelect={() => { close(); void copyMessage(commit.sha) }} />
+    <div className="menu-separator" role="separator" />
+    <MenuItem label="从此提交新建分支…" disabled={!can({ kind: 'create', name: 'new', ref: commit.sha, checkout: false })} onSelect={() => { setDialog({ kind: 'create', commit }); close() }} />
+    {commitActionsSupported && <MenuItem label="新建标签…" disabled={!can({ kind: 'tag', name: 'new', ref: commit.sha })} onSelect={() => { setDialog({ kind: 'tag', commit }); close() }} />}
+    {commitActionsSupported && <MenuItem label="检出此提交…" disabled={!can({ kind: 'detach', ref: commit.sha }) || (!status?.branch && commit.sha === status?.head)} onSelect={() => { setDialog({ kind: 'detach', commit }); close() }} />}
+    <div className="menu-separator" role="separator" />
+    <MenuItem label="与当前分支比较" disabled={!status?.head || commit.sha === status.head} onSelect={() => { setSelectedCommit(commit.sha); setComparison(commit.sha); setDetailView(true); close() }} />
   </>
   return <ReadState error={state?.error ?? null} retry={retry}>
     {!status ? <p className="git-message muted">正在读取 Git…</p> : !status.git ? <p className="git-message muted">这个项目不在 Git 仓库中。</p> : <>
@@ -153,11 +170,11 @@ function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; upda
           <div className="git-history-tools"><span className="mono" title={ref}>{ref === 'all' ? '全部分支' : ref === 'HEAD' ? '当前分支' : ref.replace(/^refs\/(heads|remotes)\//, '')}</span>
             <input className="input" aria-label="搜索提交" placeholder="标题、作者或 SHA" value={query} onChange={(event) => setQuery(event.target.value)} />
           </div>
-          <History target={target} gitRef={ref} query={query} refreshKey={refreshKey} remotes={status.remotes} selected={selectedCommit} pick={(sha) => { setSelectedCommit(sha); setComparison(false); setDetailView(true) }} />
+          <History target={target} gitRef={ref} query={query} refreshKey={refreshKey} remotes={status.remotes} selected={selectedCommit} pick={(sha) => { setSelectedCommit(sha); setComparison(null); setDetailView(true) }} actions={commitActions} />
         </div>
         <div className="git-details">
           <button className="button git-detail-back" onClick={() => setDetailView(false)}>← 返回历史</button>
-          {comparison ? <Comparison target={target} gitRef={ref} direct={direct} setDirect={setDirect} refreshKey={refreshKey} retry={retry} />
+          {comparison ? <Comparison target={target} gitRef={comparison} what={status.branches.some((entry) => entry.ref === comparison) ? '分支' : '提交'} direct={direct} setDirect={setDirect} refreshKey={refreshKey} retry={retry} />
             : selectedCommit ? <CommitDetail target={target} sha={selectedCommit} refreshKey={refreshKey} retry={retry} /> : <p className="git-message muted">选择提交查看说明、文件和 diff。</p>}
         </div>
       </div>
@@ -216,8 +233,9 @@ function BranchTree({ branches, selected, current, pick, actions }: { branches: 
   </>
 }
 
-function History({ target, gitRef, query, refreshKey, remotes, selected, pick }: { target: GitTarget; gitRef: string; query: string; refreshKey: string; remotes: readonly string[]; selected: string | null; pick: (sha: string) => void }) {
+function History({ target, gitRef, query, refreshKey, remotes, selected, pick, actions }: { target: GitTarget; gitRef: string; query: string; refreshKey: string; remotes: readonly string[]; selected: string | null; pick: (sha: string) => void; actions: (commit: GitCommit, close: () => void) => ReactNode }) {
   const rpc = useCore((s) => s.rpc)
+  const [menu, setMenu] = useState<{ commit: GitCommit; at: MenuPoint } | null>(null)
   const key = `${gitRef}:${query}:${refreshKey}`
   const [page, setPage] = useState<{ key: string; history: GitHistory } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -243,7 +261,14 @@ function History({ target, gitRef, query, refreshKey, remotes, selected, pick }:
   }
   const graph = gitGraph(history?.commits ?? [])
   return <div className="git-history-list"><ReadState error={error} retry={() => setRetry((n) => n + 1)}>
-    {history?.commits.map((commit, index) => <button key={commit.sha} className="git-commit-row" data-selected={selected === commit.sha || undefined} onClick={() => pick(commit.sha)} title={`${commit.sha}\n${commit.subject}\n${commit.author} · ${new Date(commit.date).toLocaleString()}`}>
+    {history?.commits.map((commit, index) => <button key={commit.sha} className="git-commit-row" data-selected={selected === commit.sha || undefined} onClick={() => pick(commit.sha)}
+      onContextMenu={(event) => { event.preventDefault(); setMenu({ commit, at: menuPoint(event) }) }}
+      onKeyDown={(event) => {
+        if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+          event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); setMenu({ commit, at: { x: bounds.left, y: bounds.bottom } })
+        }
+      }}
+      title={`${commit.sha}\n${commit.subject}\n${commit.author} · ${new Date(commit.date).toLocaleString()}`}>
       {/* Each row as wide as its own lanes, as IDEA's log: a busy stretch does not push every subject right. */}
       <svg className="git-graph" width={Math.max(16, graph[index]?.width ?? 0)} height="32" aria-hidden="true">{graph[index]?.paths.map((path, i) => <path key={i} d={path.d} data-color={path.color} />)}<circle cx={8 + (graph[index]?.lane ?? 0) * 12} cy="16" r="3" data-color={graph[index]?.color} /></svg>
       <span className="git-commit-subject"><GitRefLabel refs={commitRefs(commit.refs, remotes)} />{commit.subject}</span>
@@ -252,6 +277,7 @@ function History({ target, gitRef, query, refreshKey, remotes, selected, pick }:
     {!busy && history?.commits.length === 0 && <p className="git-message muted">没有匹配的提交。</p>}
     {busy && <p className="git-message muted">正在读取历史…</p>}
     {history?.next !== null && history && <button className="button git-load-more" disabled={busy} onClick={() => void more()}>加载更多</button>}
+    {menu && <ContextMenu at={menu.at} label="提交操作" onClose={() => setMenu(null)}>{actions(menu.commit, () => setMenu(null))}</ContextMenu>}
   </ReadState></div>
 }
 
@@ -323,7 +349,7 @@ function CommitFiles({ files, select }: { files: GitDetail['files']; select: (fi
   return <div className="git-commit-files">{[...folders].map(([folder, entries]) => folder ? <details key={folder} open><summary title={folder}>{folder} · {entries.length}</summary><FileList files={entries} onOpen={select} /></details> : <FileList key="root" files={entries} onOpen={select} />)}{!files.length && <p className="git-message muted">没有文件改动。</p>}</div>
 }
 
-function Comparison({ target, gitRef, direct, setDirect, refreshKey, retry }: { target: GitTarget; gitRef: string; direct: boolean; setDirect: (value: boolean) => void; refreshKey: string; retry: () => void }) {
+function Comparison({ target, gitRef, what, direct, setDirect, refreshKey, retry }: { target: GitTarget; gitRef: string; what: '分支' | '提交'; direct: boolean; setDirect: (value: boolean) => void; refreshKey: string; retry: () => void }) {
   const rpc = useCore((s) => s.rpc)
   const [file, setFile] = useState<string | null>(null)
   const key = `${gitRef}:${direct}:${refreshKey}`
@@ -335,10 +361,10 @@ function Comparison({ target, gitRef, direct, setDirect, refreshKey, retry }: { 
   return <>
     <label className="git-parent"><input type="checkbox" checked={direct} onChange={(event) => { setDirect(event.target.checked); setFile(null) }} />两端直接比较</label>
     <ReadState error={result?.error ?? null} retry={retry}>
-      {!comparison ? <p className="git-message muted">正在比较分支…</p> : <>
-        <p className="git-message">当前分支独有 {comparison.ahead} 个提交 · 所选分支独有 {comparison.behind} 个提交</p>
-        <p className="git-message muted">{direct ? '两端' : '共同祖先到所选分支'}：<span className="mono">{comparison.base.slice(0, 8)} → {comparison.target.slice(0, 8)}</span></p>
-        <div className="git-comparison-commits">{comparison.commits.map((commit) => <div key={commit.sha}><span className="git-branch-badge">{commit.side === "current" ? "当前分支" : "所选分支"}</span> <span className="mono muted">{commit.sha.slice(0, 8)}</span> {commit.subject}</div>)}{comparison.commits.length >= 100 && <p className="muted">这里只显示前 100 个提交，完整记录请查看历史。</p>}</div>
+      {!comparison ? <p className="git-message muted">正在比较…</p> : <>
+        <p className="git-message">当前分支独有 {comparison.ahead} 个提交 · 所选{what}独有 {comparison.behind} 个提交</p>
+        <p className="git-message muted">{direct ? '两端' : `共同祖先到所选${what}`}：<span className="mono">{comparison.base.slice(0, 8)} → {comparison.target.slice(0, 8)}</span></p>
+        <div className="git-comparison-commits">{comparison.commits.map((commit) => <div key={commit.sha}><span className="git-branch-badge">{commit.side === 'current' ? '当前分支' : `所选${what}`}</span> <span className="mono muted">{commit.sha.slice(0, 8)}</span> {commit.subject}</div>)}{comparison.commits.length >= 100 && <p className="muted">这里只显示前 100 个提交，完整记录请查看历史。</p>}</div>
         <CommitFiles files={comparison.files} select={setFile} />
         {file && rpc && <FileDiffView file={file} loadKey={`${key}:${file}`} load={() => rpc.call('git.diff', { ...target, sha: comparison.target, base: comparison.base, file })} onBack={() => setFile(null)} />}
       </>}
@@ -346,12 +372,12 @@ function Comparison({ target, gitRef, direct, setDirect, refreshKey, retry }: { 
   </>
 }
 
-const TITLES: Record<DialogKind, string> = { create: '新建分支', rename: '重命名本地分支', delete: '删除分支', push: 'Push', commit: 'Commit', merge: 'Merge', abort: '中止 Merge' }
+const TITLES: Record<DialogKind, string> = { create: '新建分支', tag: '新建标签', detach: '检出提交', rename: '重命名本地分支', delete: '删除分支', push: 'Push', commit: 'Commit', merge: 'Merge', abort: '中止 Merge' }
 function ActionDialog({ choice, target, status, busy, run, commitWritten, close }: { choice: DialogChoice; target: GitTarget; status: GitStatus; busy: boolean; run: (action: GitAction) => Promise<boolean>; commitWritten: (push: boolean) => void; close: () => void }) {
   useOccludesBrowser()
   const dialog = useRef<HTMLDialogElement>(null)
   const [name, setName] = useState(choice.kind === 'push' ? status.upstream?.split('/').slice(1).join('/') || status.branch || '' : choice.kind === 'rename' ? choice.branch?.name ?? '' : '')
-  const [source, setSource] = useState(choice.branch?.ref ?? 'HEAD')
+  const [source, setSource] = useState(choice.commit?.sha ?? choice.branch?.ref ?? 'HEAD')
   const [checkout, setCheckout] = useState(target.kind === 'conversation')
   const [remote, setRemote] = useState(status.upstream?.split('/')[0] ?? (status.remotes.includes('origin') ? 'origin' : status.remotes[0] ?? ''))
   const [message, setMessage] = useState('')
@@ -363,6 +389,8 @@ function ActionDialog({ choice, target, status, busy, run, commitWritten, close 
     event.preventDefault()
     switch (choice.kind) {
       case 'create': void performAction({ kind: 'create', name: name.trim(), ref: source, checkout }); break
+      case 'tag': if (choice.commit) void performAction({ kind: 'tag', name: name.trim(), ref: choice.commit.sha }); break
+      case 'detach': if (choice.commit) void performAction({ kind: 'detach', ref: choice.commit.sha }); break
       case 'rename': if (choice.branch) void performAction({ kind: 'rename', ref: choice.branch.ref, name: name.trim() }); break
       case 'delete': if (choice.branch) void performAction({ kind: 'delete', ref: choice.branch.ref }); break
       case 'push': void performAction({ kind: 'push', remote, name: name.trim() }); break
@@ -374,12 +402,14 @@ function ActionDialog({ choice, target, status, busy, run, commitWritten, close 
       case 'abort': void performAction({ kind: 'abort' }); break
     }
   }
-  const enabled = !busy && (choice.kind === 'commit' ? Boolean(message.trim()) || writable : ['create', 'rename', 'push'].includes(choice.kind) ? Boolean(name.trim()) : choice.kind === 'delete' && choice.branch?.remote ? confirm === `${choice.branch.remote}/${choice.branch.name}` : true)
+  const enabled = !busy && (choice.kind === 'commit' ? Boolean(message.trim()) || writable : ['create', 'tag', 'rename', 'push'].includes(choice.kind) ? Boolean(name.trim()) : choice.kind === 'delete' && choice.branch?.remote ? confirm === `${choice.branch.remote}/${choice.branch.name}` : true)
   return <dialog ref={dialog} className="modal branch-dialog git-dialog" onCancel={(event) => { event.preventDefault(); if (!busy) close() }}>
     <div className="modal-body">
       <h2>{TITLES[choice.kind]}</h2><p className="muted">{projectName(target.project)} · {status.branch ?? '分离 HEAD'}</p>
-      {(choice.kind === 'create' || choice.kind === 'rename' || choice.kind === 'push') && <label>分支名<input className="input" autoFocus value={name} onChange={(event) => setName(event.target.value)} /></label>}
-      {choice.kind === 'create' && <><label>起点<select className="input" value={source} onChange={(event) => setSource(event.target.value)}><option value="HEAD">HEAD · 当前提交</option>{status.branches.map((branch) => <option key={branch.ref} value={branch.ref}>{branch.remote ? `${branch.remote}/` : ''}{branch.name}</option>)}</select></label>{target.kind === 'conversation' && <label><input type="checkbox" checked={checkout} onChange={(event) => setCheckout(event.target.checked)} /> 创建后切换</label>}</>}
+      {(choice.kind === 'create' || choice.kind === 'tag' || choice.kind === 'rename' || choice.kind === 'push') && <label>{choice.kind === 'tag' ? '标签名' : '分支名'}<input className="input" autoFocus value={name} onChange={(event) => setName(event.target.value)} /></label>}
+      {choice.kind === 'create' && <><label>起点<select className="input" value={source} onChange={(event) => setSource(event.target.value)}><option value="HEAD">HEAD · 当前提交</option>{choice.commit && <option value={choice.commit.sha}>{choice.commit.sha.slice(0, 8)} · {choice.commit.subject}</option>}{status.branches.map((branch) => <option key={branch.ref} value={branch.ref}>{branch.remote ? `${branch.remote}/` : ''}{branch.name}</option>)}</select></label>{target.kind === 'conversation' && <label><input type="checkbox" checked={checkout} onChange={(event) => setCheckout(event.target.checked)} /> 创建后切换</label>}</>}
+      {choice.kind === 'tag' && choice.commit && <p>在 <span className="mono">{choice.commit.sha.slice(0, 8)}</span> {choice.commit.subject} 上建一个轻量标签。标签只建在本地，不会推送到远端。</p>}
+      {choice.kind === 'detach' && choice.commit && <p>检出 <span className="mono">{choice.commit.sha.slice(0, 8)}</span> {choice.commit.subject}。之后不在任何分支上（分离 HEAD）：在这里做的提交要新建分支才能留住，切回一个分支即可回来。</p>}
       {choice.kind === 'push' && <label>Remote<select className="input" value={remote} onChange={(event) => setRemote(event.target.value)}>{status.remotes.map((remote) => <option key={remote}>{remote}</option>)}</select></label>}
       {choice.kind === 'commit' && <><textarea className="input branch-commit-message" aria-label="提交信息" autoFocus maxLength={10000} placeholder={writable ? '提交标题，空一行后填写说明。留空则由 Agent 用小模型写好后直接提交' : '提交标题，空一行后填写说明'} value={message} onChange={(event) => setMessage(event.target.value)} /><p className="muted">提交这个仓库的全部改动。推送失败时，本地提交保留。</p></>}
       {choice.kind === 'delete' && <><p>仓库：<span className="mono">{status.directory}</span><br />{choice.branch?.remote ? `删除远端 ${choice.branch.remote}/${choice.branch.name}` : `安全删除本地 ${choice.branch?.name}，未合并时 Git 会拒绝。`}</p>{choice.branch?.remote && <label>输入完整远端分支名确认<input className="input" autoFocus placeholder={`${choice.branch.remote}/${choice.branch.name}`} value={confirm} onChange={(event) => setConfirm(event.target.value)} /></label>}</>}
