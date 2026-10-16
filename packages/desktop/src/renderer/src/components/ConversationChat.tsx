@@ -93,6 +93,8 @@ const Thoughts = createContext<ReadonlyMap<string, number>>(new Map())
 // reply's own line of actions, and the turn's own line is left out.
 const Endings = createContext<ReadonlyMap<string, TurnItem>>(new Map())
 const MergedTurns = createContext<ReadonlySet<string>>(new Set())
+// Final replies whose actions a turn's change card carries: finished, though they show no time.
+const CarriedReplies = createContext<ReadonlySet<string>>(new Set())
 
 type ReasoningItem = Extract<ChatItem, { kind: 'reasoning' }>
 
@@ -319,7 +321,9 @@ function AssistantReply({ conversationId, item, completedAt, ending, blockKey }:
   const text = failure ? failure.rest : item.text
   const parentId = useCore((s) => s.conversations[conversationId]?.helperOf)
   const box = useRef<HTMLDivElement>(null)
-  const translated = useTranslated(conversationId, blockKey, text, completedAt !== undefined && !item.streaming, box)
+  // Finished once it has its time, or once a change card below carries its actions.
+  const carried = useContext(CarriedReplies).has(blockKey)
+  const translated = useTranslated(conversationId, blockKey, text, (completedAt !== undefined || carried) && !item.streaming, box)
   const { shown } = translated
   return (
     <div ref={box} className="chat-assistant" data-streaming={item.streaming || undefined} data-translated={shown !== text || undefined}>
@@ -446,8 +450,12 @@ function TurnFold({ foldKey, conversationId, turn, blocks, task, replies, steps,
 
 // The files a finished turn changed, under its answer: three up front, then the rest on demand.
 // Each file opens its current diff in the inspector, where changes are available.
-function TurnChanges({ fold, files, turn, reply, collapsible }: { fold: string; files: readonly TurnFile[]; turn: TurnItem; reply: { text: string } | null; collapsible: boolean }) {
+function TurnChanges({ conversationId, fold, files, turn, reply, collapsible }: { conversationId: string; fold: string; files: readonly TurnFile[]; turn: TurnItem; reply: { key: string; text: string } | null; collapsible: boolean }) {
   const [showAll, setShowAll] = useDisclosure(`changes:${fold}`)
+  // The reply above shares its translation by its key; it is the one that comes into view to start
+  // one on its own, so this keeps no box.
+  const noBox = useRef<HTMLElement>(null)
+  const translated = useTranslated(reply ? conversationId : null, reply?.key ?? '', reply?.text ?? '', reply !== null, noBox)
   const folds = useContext(Folds)
   const surface = useChatSurface()
   const shorten = useContext(ChatPaths)
@@ -503,9 +511,10 @@ function TurnChanges({ fold, files, turn, reply, collapsible }: { fold: string; 
         </div>
       </div>
       <div className="chat-message-actions chat-turn-actions">
-        {reply && <CopyButton text={reply.text} label="复制回复" />}
+        {reply && <CopyButton text={translated.shown} label={translated.shown !== reply.text ? '复制译文' : '复制回复'} />}
         {reply && <MessageTime at={turn.at} />}
         <span className="chat-turn-summary-static" data-state={turn.state}>{turnText(turn)}</span>
+        {translated.foreign && <TranslateButton translated={translated} what="这条回复" />}
         <ForkButton item={turn} />
       </div>
     </div>
@@ -521,7 +530,7 @@ function Block({ conversationId, block, task, replies, fresh }: { conversationId
   if (block.kind === 'tools') return <ChatCopyRegion text={block.tools.map(copyTextForItem).join('\n\n')}><div className="chat-entry" data-fresh={entering}><ChatToolRun tools={block.tools} /></div></ChatCopyRegion>
   if (block.kind === 'agents') return <ChatCopyRegion text={block.tools.map(copyTextForItem).join('\n\n')}><div className="chat-entry" data-fresh={entering}><ChatSubagents tools={block.tools} fresh={fresh} /></div></ChatCopyRegion>
   if (block.kind === 'edits') return <ChatCopyRegion text={block.tools.map(copyTextForItem).join('\n\n')}><div className="chat-entry" data-fresh={entering}><ChatEditsCard path={block.path} tools={block.tools} /></div></ChatCopyRegion>
-  if (block.kind === 'changes') return <ChatCopyRegion text={block.files.map((file) => `${file.path} +${file.added} −${file.removed}`).join('\n')}><div className="chat-entry" data-fresh={entering}><TurnChanges fold={block.fold} files={block.files} turn={block.turn} reply={block.reply} collapsible={block.collapsible} /></div></ChatCopyRegion>
+  if (block.kind === 'changes') return <ChatCopyRegion text={block.files.map((file) => `${file.path} +${file.added} −${file.removed}`).join('\n')}><div className="chat-entry" data-fresh={entering}><TurnChanges conversationId={conversationId} fold={block.fold} files={block.files} turn={block.turn} reply={block.reply} collapsible={block.collapsible} /></div></ChatCopyRegion>
   if (block.kind === 'fold') return <TurnFold foldKey={block.key} conversationId={conversationId} turn={block.turn} blocks={block.blocks} task={task} replies={replies} steps={block.steps} workMs={block.workMs} />
   const { entry } = block
   const merged = useContext(MergedTurns)
@@ -631,13 +640,17 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
     olderLoaded.current = false
   }, [page, blocks])
   const foldedTurns = useMemo(() => new Set(blocks.flatMap((block) => block.kind === 'fold' ? [itemKey(block.turn)] : [])), [blocks])
-  const replies = useMemo(() => {
+  const { replies, carried } = useMemo(() => {
     const found = finalReplies(entries)
+    const carried = new Set<string>()
     // A turn with a change card moves these actions below that card.
     for (const block of blocks) {
-      if (variant !== 'compact' && block.kind === 'changes' && block.reply) found.delete(block.reply.key)
+      if (variant !== 'compact' && block.kind === 'changes' && block.reply) {
+        found.delete(block.reply.key)
+        carried.add(block.reply.key)
+      }
     }
-    return found
+    return { replies: found, carried }
   }, [entries, blocks, variant])
   // A turn's own line, when it follows the reply it closes and that reply keeps its actions, joins
   // that line instead of standing under it.
@@ -826,6 +839,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
     <Thoughts.Provider value={thoughts}>
     <Endings.Provider value={endings}>
     <MergedTurns.Provider value={mergedTurns}>
+    <CarriedReplies.Provider value={carried}>
     <ChatDisclosureScope.Provider value={id}>
     <ChatFindExpansion.Provider value={find.searching}>
     <Folds.Provider value={folds}>
@@ -910,6 +924,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
     </Folds.Provider>
     </ChatFindExpansion.Provider>
     </ChatDisclosureScope.Provider>
+    </CarriedReplies.Provider>
     </MergedTurns.Provider>
     </Endings.Provider>
     </Thoughts.Provider>
