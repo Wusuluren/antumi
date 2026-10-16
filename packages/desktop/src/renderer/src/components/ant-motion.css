@@ -277,10 +277,21 @@
 @keyframes ant-hop { 0% { transform: none; } 35% { transform: translateY(-10px); } 65% { transform: translateY(1px); } 100% { transform: none; } }
 
 /* Where the app places them. */
-.chat-working .ant-inline { --ant-inline-height: 24px; margin-left: 4px; }
-.chat-delivered { display: flex; padding: 4px 0 0; animation: ant-delivered-out .4s 4.6s ease-in both; }
-.chat-delivered .ant-inline { --ant-inline-height: 36px; }
-@keyframes ant-delivered-out { to { opacity: 0; } }
+/* The dock's walker: one ant at the toolbar's own scale, pacing its free width. While the user is
+   asked it stands still, mid-stride; after setting the parcel down it fades out. */
+.ant-lane-strip { display: flex; align-items: center; align-self: stretch; min-width: 0; overflow: hidden; }
+.ant-lane-walker { display: block; flex-shrink: 0; }
+.ant-motion.ant-lane { display: block; height: 22px; }
+.ant-motion.ant-lane > svg { width: auto; height: 100%; mask-image: none; }
+.ant-lane :is(.ant-ground, .ant-pebbles) { display: none; }
+.ant-lane :is(.ant-leg, .ant-antenna path) { stroke-width: 4.5; }
+.ant-lane.ant-motion-carry .ant-performer { --ant-step: .22s; animation: none; transform: translate(40px, 26px); }
+/* Setting down starts where the walk-in would have ended: it is already standing there. */
+.ant-lane.ant-motion-place :is(.ant-performer, .ant-pose, .ant-cargo, .ant-puff) { animation-delay: -1.5s; }
+.ant-lane.ant-motion-place .ant-spark { animation-delay: 1.5s; }
+.ant-lane-strip[data-scene='wait'] .ant-stage * { animation-play-state: paused; }
+.ant-lane-strip[data-scene='place'] { animation: ant-lane-out .4s 4.6s ease-in both; }
+@keyframes ant-lane-out { to { opacity: 0; } }
 .chat-archived-note { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .chat-archived-note .ant-inline { --ant-inline-height: 24px; margin: -4px 0; }
 .working-chip .ant-inline { --ant-inline-height: 24px; margin-left: 4px; }
@@ -344,7 +355,7 @@
 /* Without motion every scene shows its declared pose: the walkers mid-stride, the one-shot scenes
    their last frame. */
 @media (prefers-reduced-motion: reduce) {
-  .ant-stage *, .chat-delivered { animation: none !important; }
+  .ant-stage *, .ant-lane-strip { animation: none !important; }
   .chat-subagent-lane { transition: none; }
   .ant-gallery-reduced { display: block; }
 }

@@ -36,7 +36,7 @@ import { effortLabel } from './ChatOptionsBar'
 import { ChatMessageRelay, useMessageRelay } from './chat-message-relay'
 import { useChatTypeface } from '../chat-typeface'
 import { freshKeys, useJustFinished } from '../chat-motion'
-import { AntMotion } from './AntMotion'
+import type { AntLaneScene } from './AntMotion'
 import { acknowledgeInitialMessage, sendInitialMessage, useInitialMessages, type InitialMessage } from '../initial-messages'
 import { Spinner } from './Spinner'
 import { TranslateButton, useTranslated } from './TranslateButton'
@@ -792,12 +792,13 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
           : tools.length > 0 ? 'waiting' : 'working'
     return { phase, background: { subagents, commands } }
   }, [items, turn])
-  // A turn that completed while the user watched: the ant sets its parcel down where the working
-  // line was, then the line goes. Not for one interrupted or failed.
+  // The dock's ant carries while the turn runs and stands while the user is asked; a turn that
+  // completed while the user watched has it set the parcel down. Not one interrupted or failed.
   const turnActive = turn === 'running' || turn === 'awaiting'
   const turnEnded = useJustFinished(turnActive, 5200)
   const lastTurn = items.findLast((item) => item.kind === 'turn')
   const delivered = turnEnded && !turnActive && lastTurn?.kind === 'turn' && lastTurn.state === 'completed'
+  const antScene: AntLaneScene | null = turn === 'running' ? 'carry' : turn === 'awaiting' ? 'wait' : delivered ? 'place' : null
   // The model as the stage runs it, or as the next stage would start; by its label where the agent gives one.
   const modelId = state?.model ?? conversation.chatOptions?.model ?? null
   // The effort the same way; left out where the agent runs its default without saying which.
@@ -876,7 +877,6 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
             since={since}
           />
         )}
-        {variant !== 'compact' && delivered && <div className="chat-delivered"><AntMotion action="place" size="inline" /></div>}
         {away && (
           <button
             type="button"
@@ -891,7 +891,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
           </button>
         )}
       </div>
-      <ChatDock compact={variant === 'compact'} conversation={conversation} state={state} pending={pending} tools={tools} finishedCalls={finishedCalls} onPrevious={previous} sent={sent} onJump={jump} />
+      <ChatDock compact={variant === 'compact'} antScene={antScene} conversation={conversation} state={state} pending={pending} tools={tools} finishedCalls={finishedCalls} onPrevious={previous} sent={sent} onJump={jump} />
       {variant !== 'compact' && <SelectionComment
         conversationId={id}
         container={list}

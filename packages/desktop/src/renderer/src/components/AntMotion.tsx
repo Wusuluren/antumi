@@ -4,8 +4,12 @@ import './ant-motion.css'
 
 export type AntAction = 'walk' | 'carry' | 'place' | 'throw' | 'team' | 'rest'
 export type AntDeliveryStatus = 'running' | 'waiting' | 'done'
-// `stage` is the preview's roomy box; `inline` crops to the band the ants use, sized by its height.
-export type AntSize = 'stage' | 'inline'
+// `stage` is the preview's roomy box; `inline` crops to the band the ants use, sized by its height;
+// `lane` is the one ant of a walker (AntLane), with no ground of its own.
+export type AntSize = 'stage' | 'inline' | 'lane'
+// What the dock's ant does for the turn: carries while it runs, stands while the user is asked,
+// sets the parcel down when it completed.
+export type AntLaneScene = 'carry' | 'wait' | 'place'
 
 // Offscreen previews and background windows keep their pose without spending animation frames.
 // Switched off in settings, nothing is left behind, not even the room the ant would take.
@@ -126,7 +130,7 @@ function Sparkle() {
 export function AntMotion({ action, size = 'stage', playing = true }: { action: AntAction; size?: AntSize; playing?: boolean }) {
   return (
     <AntStage className={`ant-motion ant-motion-${action} ant-${size}`} playing={playing}>
-      <svg viewBox={size === 'inline' ? INLINE_VIEW[action] : '0 0 240 112'} focusable="false">
+      <svg viewBox={size === 'inline' ? INLINE_VIEW[action] : size === 'lane' ? '40 4 140 96' : '0 0 240 112'} focusable="false">
         <path className="ant-ground" d="M0 96.5h240" />
         <path className="ant-pebbles" d="M38 96.5h2 M131 96.5h3 M196 96.5h2" />
         {action === 'team' ? (
@@ -180,5 +184,67 @@ export function AntDelivery({ status, playing = true }: { status: AntDeliverySta
         {status === 'done' && <g transform="translate(186 40)"><Sparkle /></g>}
       </svg>
     </AntStage>
+  )
+}
+
+// Walking speed across a lane, in pixels a second, and how long the turn at either end takes.
+const LANE_SPEED = 30
+const LANE_TURN_MS = 320
+
+// An ant pacing a strip of whatever width it is given, carrying a parcel to and fro; it stops where
+// it is to wait or to set the parcel down. The pacing is a Web Animation sized from the strip, so a
+// wider window means a longer walk at the same speed, and pausing it leaves the ant where it stood.
+export function AntLane({ scene, className = '' }: { scene: AntLaneScene | null; className?: string }) {
+  const enabled = usePreferences((s) => s.antAnimations)
+  const lane = useRef<HTMLSpanElement>(null)
+  const walker = useRef<HTMLSpanElement>(null)
+  const pacing = useRef<Animation | null>(null)
+  const shown = enabled && scene !== null
+  useEffect(() => {
+    const strip = lane.current
+    const ant = walker.current
+    if (!shown || !strip || !ant || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const pace = () => {
+      const span = strip.clientWidth - ant.offsetWidth
+      const was = pacing.current
+      const progress = was?.effect?.getComputedTiming().progress ?? 0
+      const paused = was?.playState === 'paused'
+      was?.cancel()
+      pacing.current = null
+      if (span <= 0) return
+      const duration = (span / LANE_SPEED) * 2000 + LANE_TURN_MS * 2
+      const turn = LANE_TURN_MS / duration
+      const there = 0.5 - turn
+      pacing.current = ant.animate([
+        { transform: 'translateX(0) scaleX(1)', offset: 0 },
+        { transform: `translateX(${span}px) scaleX(1)`, offset: there },
+        { transform: `translateX(${span}px) scaleX(-1)`, offset: 0.5 },
+        { transform: 'translateX(0) scaleX(-1)', offset: 1 - turn },
+        { transform: 'translateX(0) scaleX(1)', offset: 1 }
+      ], { duration, iterations: Infinity })
+      pacing.current.currentTime = progress * duration
+      if (paused) pacing.current.pause()
+    }
+    pace()
+    const observer = new ResizeObserver(pace)
+    observer.observe(strip)
+    return () => {
+      observer.disconnect()
+      pacing.current?.cancel()
+      pacing.current = null
+    }
+  }, [shown])
+  useEffect(() => {
+    if (scene === 'carry') pacing.current?.play()
+    else pacing.current?.pause()
+  }, [scene, shown])
+  return (
+    <span ref={lane} className={`ant-lane-strip ${className}`} data-scene={shown ? scene : undefined}>
+      {shown && (
+        <span ref={walker} className="ant-lane-walker">
+          <AntMotion key={scene === 'place' ? 'place' : 'carry'} action={scene === 'place' ? 'place' : 'carry'} size="lane" />
+        </span>
+      )}
+    </span>
   )
 }
