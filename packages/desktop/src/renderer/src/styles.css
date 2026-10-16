@@ -1405,6 +1405,9 @@ button.task-tag:hover {
   animation: pulse 1s ease-in-out infinite;
 }
 
+.menu-item-icon { display: grid; flex-shrink: 0; color: var(--text-muted); }
+.menu-item-danger .menu-item-icon { color: inherit; }
+
 .menu-item-danger {
   color: var(--danger);
 }

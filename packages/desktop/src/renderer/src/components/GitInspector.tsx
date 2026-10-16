@@ -12,7 +12,7 @@ import { commitSubject, commitWithWrittenMessage, useCanWriteCommitMessage, useW
 import { GitRefLabel, GitRefName } from './GitRefLabel'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
 import { FileDiffView, FileList, useFocusCount } from './Inspector'
-import { BranchIcon, MoreIcon, MaximizeIcon, RestoreIcon, CheckIcon, FolderIcon } from './icons'
+import { BranchIcon, MoreIcon, MaximizeIcon, RestoreIcon, CheckIcon, ClockIcon, CommitIcon, CompareIcon, CopyIcon, DocumentIcon, FolderIcon, MergeIcon, PencilIcon, TagIcon, TrashIcon } from './icons'
 import { ChatPicker } from './ChatPicker'
 import { CopyButton } from './CopyButton'
 import { projectName } from './ProjectPicker'
@@ -112,14 +112,14 @@ function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; upda
   const pick = (ref: string) => { setSelected(ref); setSelectedCommit(null); setComparison(null); setDetailView(false) }
   const can = (action: GitAction) => !disabled && checkGitOperation(target.kind, action, false, status) === null
   const branchActions = (entry: GitBranch, close: () => void) => <>
-    <MenuItem label="查看历史" onSelect={() => { pick(entry.ref); close() }} />
-    <MenuItem label="切换到此分支" disabled={!can({ kind: 'switch', ref: entry.ref }) || entry.ref === `refs/heads/${status?.branch}` || Boolean(entry.worktree && entry.worktree !== status?.directory)} onSelect={() => { close(); void run({ kind: 'switch', ref: entry.ref }) }} />
-    <MenuItem label="从此分支新建" disabled={!can({ kind: 'create', ref: entry.ref, name: 'new', checkout: false })} onSelect={() => { setDialog({ kind: 'create', branch: entry }); close() }} />
-    <MenuItem label="与当前分支比较" disabled={!status?.head} onSelect={() => { pick(entry.ref); setComparison(entry.ref); setDetailView(true); close() }} />
-    <MenuItem label="合并到当前分支" disabled={!can({ kind: 'merge', ref: entry.ref }) || entry.ref === `refs/heads/${status?.branch}`} onSelect={() => { setDialog({ kind: 'merge', branch: entry }); close() }} />
-    {!entry.remote && <MenuItem label="重命名" disabled={!can({ kind: 'rename', ref: entry.ref, name: 'new' }) || entry.protected || Boolean(entry.worktree && entry.worktree !== status?.directory)} onSelect={() => { setDialog({ kind: 'rename', branch: entry }); close() }} />}
-    <MenuItem label={entry.remote ? '删除远端分支…' : '删除本地分支…'} disabled={!can({ kind: 'delete', ref: entry.ref }) || entry.protected || Boolean(entry.worktree)} onSelect={() => { setDialog({ kind: 'delete', branch: entry }); close() }} />
-    <MenuItem label="复制分支名" onSelect={() => { void navigator.clipboard.writeText(entry.name); close() }} />
+    <MenuItem label="查看历史" icon={<ClockIcon />} onSelect={() => { pick(entry.ref); close() }} />
+    <MenuItem label="切换到此分支" icon={<CheckIcon />} disabled={!can({ kind: 'switch', ref: entry.ref }) || entry.ref === `refs/heads/${status?.branch}` || Boolean(entry.worktree && entry.worktree !== status?.directory)} onSelect={() => { close(); void run({ kind: 'switch', ref: entry.ref }) }} />
+    <MenuItem label="从此分支新建" icon={<BranchIcon />} disabled={!can({ kind: 'create', ref: entry.ref, name: 'new', checkout: false })} onSelect={() => { setDialog({ kind: 'create', branch: entry }); close() }} />
+    <MenuItem label="与当前分支比较" icon={<CompareIcon />} disabled={!status?.head} onSelect={() => { pick(entry.ref); setComparison(entry.ref); setDetailView(true); close() }} />
+    <MenuItem label="合并到当前分支" icon={<MergeIcon />} disabled={!can({ kind: 'merge', ref: entry.ref }) || entry.ref === `refs/heads/${status?.branch}`} onSelect={() => { setDialog({ kind: 'merge', branch: entry }); close() }} />
+    {!entry.remote && <MenuItem label="重命名" icon={<PencilIcon />} disabled={!can({ kind: 'rename', ref: entry.ref, name: 'new' }) || entry.protected || Boolean(entry.worktree && entry.worktree !== status?.directory)} onSelect={() => { setDialog({ kind: 'rename', branch: entry }); close() }} />}
+    <MenuItem label={entry.remote ? '删除远端分支…' : '删除本地分支…'} icon={<TrashIcon />} disabled={!can({ kind: 'delete', ref: entry.ref }) || entry.protected || Boolean(entry.worktree)} onSelect={() => { setDialog({ kind: 'delete', branch: entry }); close() }} />
+    <MenuItem label="复制分支名" icon={<CopyIcon />} onSelect={() => { void navigator.clipboard.writeText(entry.name); close() }} />
   </>
   const commitActionsSupported = rpc?.features.includes('git-commit-actions') ?? false
   const copyMessage = async (sha: string) => {
@@ -127,14 +127,14 @@ function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; upda
     if (detail) await navigator.clipboard.writeText(detail.message)
   }
   const commitActions = (commit: GitCommit, close: () => void) => <>
-    <MenuItem label="复制 SHA" onSelect={() => { void navigator.clipboard.writeText(commit.sha); close() }} />
-    <MenuItem label="复制提交信息" onSelect={() => { close(); void copyMessage(commit.sha) }} />
+    <MenuItem label="复制 SHA" icon={<CopyIcon />} onSelect={() => { void navigator.clipboard.writeText(commit.sha); close() }} />
+    <MenuItem label="复制提交信息" icon={<DocumentIcon />} onSelect={() => { close(); void copyMessage(commit.sha) }} />
     <div className="menu-separator" role="separator" />
-    <MenuItem label="从此提交新建分支…" disabled={!can({ kind: 'create', name: 'new', ref: commit.sha, checkout: false })} onSelect={() => { setDialog({ kind: 'create', commit }); close() }} />
-    {commitActionsSupported && <MenuItem label="新建标签…" disabled={!can({ kind: 'tag', name: 'new', ref: commit.sha })} onSelect={() => { setDialog({ kind: 'tag', commit }); close() }} />}
-    {commitActionsSupported && <MenuItem label="检出此提交…" disabled={!can({ kind: 'detach', ref: commit.sha }) || (!status?.branch && commit.sha === status?.head)} onSelect={() => { setDialog({ kind: 'detach', commit }); close() }} />}
+    <MenuItem label="从此提交新建分支…" icon={<BranchIcon />} disabled={!can({ kind: 'create', name: 'new', ref: commit.sha, checkout: false })} onSelect={() => { setDialog({ kind: 'create', commit }); close() }} />
+    {commitActionsSupported && <MenuItem label="新建标签…" icon={<TagIcon />} disabled={!can({ kind: 'tag', name: 'new', ref: commit.sha })} onSelect={() => { setDialog({ kind: 'tag', commit }); close() }} />}
+    {commitActionsSupported && <MenuItem label="检出此提交…" icon={<CommitIcon />} disabled={!can({ kind: 'detach', ref: commit.sha }) || (!status?.branch && commit.sha === status?.head)} onSelect={() => { setDialog({ kind: 'detach', commit }); close() }} />}
     <div className="menu-separator" role="separator" />
-    <MenuItem label="与当前分支比较" disabled={!status?.head || commit.sha === status.head} onSelect={() => { setSelectedCommit(commit.sha); setComparison(commit.sha); setDetailView(true); close() }} />
+    <MenuItem label="与当前分支比较" icon={<CompareIcon />} disabled={!status?.head || commit.sha === status.head} onSelect={() => { setSelectedCommit(commit.sha); setComparison(commit.sha); setDetailView(true); close() }} />
   </>
   return <ReadState error={state?.error ?? null} retry={retry}>
     {!status ? <p className="git-message muted">正在读取 Git…</p> : !status.git ? <p className="git-message muted">这个项目不在 Git 仓库中。</p> : <>

@@ -117,8 +117,10 @@ export function ContextMenu({ at, align = 'start', above = false, trigger, scrol
   )
 }
 
-export function MenuItem({ label, hint, danger, disabled, onSelect }: {
+export function MenuItem({ label, icon, hint, danger, disabled, onSelect }: {
   label: string
+  // Before the label; a menu gives every item one or none, so the labels line up.
+  icon?: ReactNode
   hint?: string | null
   danger?: boolean
   disabled?: boolean
@@ -132,6 +134,7 @@ export function MenuItem({ label, hint, danger, disabled, onSelect }: {
       disabled={disabled}
       onClick={onSelect}
     >
+      {icon && <span className="menu-item-icon">{icon}</span>}
       <span className="menu-item-title">{label}</span>
       {hint && <span className="menu-item-path">{hint}</span>}
     </button>

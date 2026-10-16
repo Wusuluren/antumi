@@ -609,6 +609,79 @@ export function BranchIcon() {
   )
 }
 
+// A folder with a minus, for taking a checkout away and keeping what it holds elsewhere.
+export function FolderRemoveIcon() {
+  return (
+    <svg {...stroked}>
+      <path d="M2.8 5.6A1.6 1.6 0 0 1 4.4 4h3l1.7 1.9h6.5a1.6 1.6 0 0 1 1.6 1.6v6.9a1.6 1.6 0 0 1-1.6 1.6H4.4a1.6 1.6 0 0 1-1.6-1.6zM7.5 11h5" />
+    </svg>
+  )
+}
+
+// A pushpin, for keeping something at the top.
+export function PinIcon() {
+  return (
+    <svg {...stroked}>
+      <path d="M11 3l6 6M12.2 4.2 8.4 7.4l-3.2.5 6.9 6.9.5-3.2 3.2-3.8M8.6 11.4 3.5 16.5" />
+    </svg>
+  )
+}
+
+// A box with its lid, for putting something away.
+export function ArchiveIcon() {
+  return (
+    <svg {...stroked}>
+      <rect x="3" y="4" width="14" height="3.5" rx="1" />
+      <path d="M4.5 7.5v7.8a1.2 1.2 0 0 0 1.2 1.2h8.6a1.2 1.2 0 0 0 1.2-1.2V7.5M8 10.5h4" />
+    </svg>
+  )
+}
+
+export function CodeIcon() {
+  return (
+    <svg {...stroked}>
+      <path d="M6.5 6 2.8 10l3.7 4M13.5 6l3.7 4-3.7 4M11.3 4.5l-2.6 11" />
+    </svg>
+  )
+}
+
+export function LinkIcon() {
+  return (
+    <svg {...stroked}>
+      <path d="M8.6 11.4a3 3 0 0 0 4.2 0l2.6-2.6a3 3 0 0 0-4.2-4.2l-.9.9M11.4 8.6a3 3 0 0 0-4.2 0l-2.6 2.6a3 3 0 0 0 4.2 4.2l.9-.9" />
+    </svg>
+  )
+}
+
+// Two ways, for comparing one side with the other.
+export function CompareIcon() {
+  return (
+    <svg {...stroked}>
+      <path d="M4 7h11.5m0 0-3-3m3 3-3 3M16 13H4.5m0 0 3-3m-3 3 3 3" />
+    </svg>
+  )
+}
+
+// A branch joining back into the line it left.
+export function MergeIcon() {
+  return (
+    <svg {...stroked}>
+      <circle cx="6" cy="4.8" r="1.8" />
+      <circle cx="6" cy="15.2" r="1.8" />
+      <circle cx="14" cy="11" r="1.8" />
+      <path d="M6 6.6v6.8M6 6.6c0 2.6 3.2 4.4 6.2 4.4" />
+    </svg>
+  )
+}
+
+export function TrashIcon() {
+  return (
+    <svg {...stroked}>
+      <path d="M4 6h12M8 6V4.3h4V6M5.6 6l.7 9.7a.9.9 0 0 0 .9.8h5.6a.9.9 0 0 0 .9-.8L14.4 6M8.6 9v4.6M11.4 9v4.6" />
+    </svg>
+  )
+}
+
 export function ForkIcon() {
   return (
     <svg {...stroked}>

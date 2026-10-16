@@ -5,7 +5,7 @@ import { archiveDiscussion, deleteDiscussion, discussionProgress, renameDiscussi
 import { agentLabel } from '../labels'
 import { setPreference, usePreferences } from '../preferences'
 import { ContextMenu, MenuCheckboxItem, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
-import { AgentIcon, ChevronDownIcon, GroupChatIcon, PlusIcon, SlidersIcon } from './icons'
+import { AgentIcon, ArchiveIcon, ChevronDownIcon, GroupChatIcon, PencilIcon, PinIcon, PlusIcon, SlidersIcon, TrashIcon } from './icons'
 import { SidebarCollapseButton } from './SidebarCollapseButton'
 import { TitleEditor } from './TitleEditor'
 
@@ -146,19 +146,20 @@ export function SidebarDiscussions() {
       </div>
       {menu && menuDiscussion && (
         <ContextMenu at={menu.at} label={`群聊「${menuDiscussion.title}」的操作`} onClose={closeMenu}>
-          <MenuItem label={menuDiscussion.pinnedAt !== null ? '取消置顶' : '置顶'} onSelect={pick(() => void setDiscussionPinned(menuDiscussion.id, menuDiscussion.pinnedAt === null))} />
-          <MenuItem label="重命名" onSelect={pick(() => setRenamingId(menuDiscussion.id))} />
-          <MenuItem label="用相同成员新建群聊" onSelect={pick(() => openDiscussionDraft(menuDiscussion))} />
+          <MenuItem label={menuDiscussion.pinnedAt !== null ? '取消置顶' : '置顶'} icon={<PinIcon />} onSelect={pick(() => void setDiscussionPinned(menuDiscussion.id, menuDiscussion.pinnedAt === null))} />
+          <MenuItem label="重命名" icon={<PencilIcon />} onSelect={pick(() => setRenamingId(menuDiscussion.id))} />
+          <MenuItem label="用相同成员新建群聊" icon={<GroupChatIcon />} onSelect={pick(() => openDiscussionDraft(menuDiscussion))} />
           {archivable && (menuDiscussion.archivedAt !== null
-            ? <MenuItem label="取消归档" onSelect={pick(() => void archiveDiscussion(menuDiscussion.id, false))} />
+            ? <MenuItem label="取消归档" icon={<ArchiveIcon />} onSelect={pick(() => void archiveDiscussion(menuDiscussion.id, false))} />
             : <MenuItem
               label="归档"
+              icon={<ArchiveIcon />}
               hint={checkArchiveDiscussion(menuDiscussion) ? '等成员说完，或先暂停' : null}
               disabled={checkArchiveDiscussion(menuDiscussion) !== null}
               onSelect={pick(() => void archiveDiscussion(menuDiscussion.id, true))}
             />)}
           <div className="menu-separator" role="separator" />
-          <MenuItem label="删除群聊" danger onSelect={pick(() => void removeDiscussion(menuDiscussion))} />
+          <MenuItem label="删除群聊" icon={<TrashIcon />} danger onSelect={pick(() => void removeDiscussion(menuDiscussion))} />
         </ContextMenu>
       )}
     </nav>

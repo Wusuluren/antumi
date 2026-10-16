@@ -9,6 +9,7 @@ import { tags } from '@lezer/highlight'
 import { saveFileScroll, updateFileTabs, useFileTabs, type FileTab } from '../file-tabs'
 import { copyFileText } from '../file-actions'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
+import { CopyIcon, DocumentIcon } from './icons'
 
 const highlight = HighlightStyle.define([
   { tag: tags.keyword, color: 'var(--code-keyword)' },
@@ -114,8 +115,8 @@ export function FileSource({ conversationId, tab, text, wrap, ref }: {
     setMenu({ at: menuPoint(event), selected: view.state.sliceDoc(selection.from, selection.to), text: view.state.doc.toString() })
   }}>
     {menu && <ContextMenu at={menu.at} label="文件内容" onClose={close}>
-      {menu.selected && <MenuItem label="复制选中内容" onSelect={() => { close(); void copyFileText(menu.selected) }} />}
-      <MenuItem label="复制全部内容" onSelect={() => { close(); void copyFileText(menu.text) }} />
+      {menu.selected && <MenuItem label="复制选中内容" icon={<CopyIcon />} onSelect={() => { close(); void copyFileText(menu.selected) }} />}
+      <MenuItem label="复制全部内容" icon={<DocumentIcon />} onSelect={() => { close(); void copyFileText(menu.text) }} />
     </ContextMenu>}
   </div>
 }

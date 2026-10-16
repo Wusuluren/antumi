@@ -27,7 +27,7 @@ import { confirmQuota, modelText } from './AgentQuota'
 import { PickerItem } from './ChatPicker'
 import { effortLabel, modeLabel, modeOptions } from './ChatOptionsBar'
 import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
-import { ChatIcon, CheckIcon, ChevronDownIcon, ClockIcon, CloseIcon, DocumentIcon, HandoffIcon, InspectorIcon, MoreIcon, PlayIcon, ReopenIcon, SubmitIcon } from './icons'
+import { ChatIcon, CheckIcon, ChevronDownIcon, ClockIcon, CloseIcon, CopyIcon, DocumentIcon, FolderRemoveIcon, HandoffIcon, InspectorIcon, MoreIcon, PencilIcon, PlayIcon, ReopenIcon, SubmitIcon, TrashIcon } from './icons'
 import { Popover } from './Popover'
 import { cleanWithConfirm } from './WorktreeManager'
 import { TaskExecutorPicker } from './TaskExecutorPicker'
@@ -208,16 +208,16 @@ export function reopenTask(task: Task): Promise<Task | null> {
 }
 
 // What the task menus offer for giving a task up or bringing it back, where core takes them.
-function useCancelling(task: Task): { label: string; run: () => void } | null {
+function useCancelling(task: Task): { label: string; Icon: () => ReactElement; run: () => void } | null {
   const supported = useTaskCancelSupported()
   const tasks = useCore((s) => s.tasks)
   if (!supported) return null
   if (task.status === 'abandoned') {
     // One abandoned for a redo, before redoing kept the task, has its successor carrying on.
     if (Object.values(tasks).some((other) => other.derivedFrom === task.id)) return null
-    return { label: '重新打开', run: () => void reopenTask(task) }
+    return { label: '重新打开', Icon: ReopenIcon, run: () => void reopenTask(task) }
   }
-  return checkCancel(task) === null ? { label: '取消任务', run: () => void cancelTask(task) } : null
+  return checkCancel(task) === null ? { label: '取消任务', Icon: CloseIcon, run: () => void cancelTask(task) } : null
 }
 
 function copyTaskId(taskId: string): void {
@@ -538,6 +538,7 @@ function MoreMenu({ task }: { task: Task }) {
               copyTaskId(task.id)
             }}
           >
+            <span className="menu-item-icon"><CopyIcon /></span>
             复制任务 id
             <span className="menu-item-path mono">{shortTaskId(task.id)}…</span>
           </button>
@@ -550,6 +551,7 @@ function MoreMenu({ task }: { task: Task }) {
                 clean()
               }}
             >
+              <span className="menu-item-icon"><FolderRemoveIcon /></span>
               清理 worktree
               <span className="menu-item-path">分支保留</span>
             </button>
@@ -563,6 +565,7 @@ function MoreMenu({ task }: { task: Task }) {
                 cancelling.run()
               }}
             >
+              <span className="menu-item-icon"><cancelling.Icon /></span>
               {cancelling.label}
             </button>
           )}
@@ -575,6 +578,7 @@ function MoreMenu({ task }: { task: Task }) {
               void deleteTask(task)
             }}
           >
+            <span className="menu-item-icon"><TrashIcon /></span>
             删除任务
           </button>
         </Popover>
@@ -788,15 +792,15 @@ export function TaskContextMenu({ task, at, onClose, onRename }: {
   const cancelling = useCancelling(task)
   const actions: ReactElement[] = []
   if (task.status === 'pending' && startBlocker !== 'planning') {
-    const label = startKind(dependencies) === 'plan' ? '开始规划' : '开始执行'
+    const plan = startKind(dependencies) === 'plan'
     actions.push(
-      <MenuItem key="start" label={label} hint={hint(startBlocker)} disabled={startBlocker !== null} onSelect={pick(() => void startTask(task.id))} />
+      <MenuItem key="start" label={plan ? '开始规划' : '开始执行'} icon={plan ? <ChatIcon /> : <PlayIcon />} hint={hint(startBlocker)} disabled={startBlocker !== null} onSelect={pick(() => void startTask(task.id))} />
     )
   }
   if (task.status === 'running') {
     const blocker = checkSubmit(task, turn)
     actions.push(
-      <MenuItem key="submit" label="提交验收" hint={blocker && reasonText(blocker, blocker)} disabled={blocker !== null} onSelect={pick(() => void submitTask(task.id))} />
+      <MenuItem key="submit" label="提交验收" icon={<SubmitIcon />} hint={blocker && reasonText(blocker, blocker)} disabled={blocker !== null} onSelect={pick(() => void submitTask(task.id))} />
     )
   }
   for (const status of manualMoves(task.status)) {
@@ -804,7 +808,7 @@ export function TaskContextMenu({ task, at, onClose, onRename }: {
     const blocker = moveBlocker(task, status)
     if (action) {
       actions.push(
-        <MenuItem key={status} label={action.label} hint={blocker} disabled={blocker !== null} onSelect={pick(() => void moveTask(task.id, status))} />
+        <MenuItem key={status} label={action.label} icon={<action.Icon />} hint={blocker} disabled={blocker !== null} onSelect={pick(() => void moveTask(task.id, status))} />
       )
     }
   }
@@ -813,6 +817,7 @@ export function TaskContextMenu({ task, at, onClose, onRename }: {
       <MenuItem
         key="work"
         label="查看聊天"
+        icon={<ChatIcon />}
         onSelect={pick(() => {
           selectTask(task.id)
           showView('chat')
@@ -824,12 +829,12 @@ export function TaskContextMenu({ task, at, onClose, onRename }: {
     <ContextMenu at={at} label={`任务「${task.title}」的操作`} onClose={onClose}>
       {actions}
       {actions.length > 0 && <div className="menu-separator" role="separator" />}
-      <MenuItem label="重命名" onSelect={pick(onRename)} />
-      <MenuItem label="复制任务 id" hint={`${shortTaskId(task.id)}…`} onSelect={pick(() => copyTaskId(task.id))} />
-      {clean && <MenuItem label="清理 worktree" hint="分支保留" onSelect={pick(clean)} />}
-      {cancelling && <MenuItem label={cancelling.label} onSelect={pick(cancelling.run)} />}
+      <MenuItem label="重命名" icon={<PencilIcon />} onSelect={pick(onRename)} />
+      <MenuItem label="复制任务 id" icon={<CopyIcon />} hint={`${shortTaskId(task.id)}…`} onSelect={pick(() => copyTaskId(task.id))} />
+      {clean && <MenuItem label="清理 worktree" icon={<FolderRemoveIcon />} hint="分支保留" onSelect={pick(clean)} />}
+      {cancelling && <MenuItem label={cancelling.label} icon={<cancelling.Icon />} onSelect={pick(cancelling.run)} />}
       <div className="menu-separator" role="separator" />
-      <MenuItem label="删除任务" danger onSelect={pick(() => void deleteTask(task))} />
+      <MenuItem label="删除任务" icon={<TrashIcon />} danger onSelect={pick(() => void deleteTask(task))} />
     </ContextMenu>
   )
 }

@@ -3,17 +3,18 @@ import type { ResolvedFile } from '@antumi/protocol'
 import { canOpenFile, canRevealFile } from '../desktop-bridge'
 import { copyFileText, FILE_MANAGER, openResolvedFile, revealResolvedFile, showResolvedFile, type ChatFileScope } from '../file-actions'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
+import { CopyIcon, ExternalIcon, FolderIcon, InspectorIcon } from './icons'
 
 export function FileMenuItems({ scope, file, line = null, onClose }: {
   scope: ChatFileScope; file: ResolvedFile; line?: number | null; onClose(): void
 }) {
   const act = (action: () => void | Promise<void>) => { onClose(); void action() }
   return <>
-    <MenuItem label="在侧栏预览" onSelect={() => act(() => showResolvedFile(scope, file, line))} />
-    <MenuItem label="复制绝对路径" onSelect={() => act(() => copyFileText(file.path))} />
-    {file.relative !== null && <MenuItem label="复制项目相对路径" onSelect={() => act(() => copyFileText(file.relative ?? file.path))} />}
-    {canRevealFile() && <MenuItem label={`在${FILE_MANAGER}中显示`} onSelect={() => act(() => revealResolvedFile(file))} />}
-    {canOpenFile() && <MenuItem label="用系统默认应用打开" onSelect={() => act(() => openResolvedFile(file))} />}
+    <MenuItem label="在侧栏预览" icon={<InspectorIcon />} onSelect={() => act(() => showResolvedFile(scope, file, line))} />
+    <MenuItem label="复制绝对路径" icon={<CopyIcon />} onSelect={() => act(() => copyFileText(file.path))} />
+    {file.relative !== null && <MenuItem label="复制项目相对路径" icon={<CopyIcon />} onSelect={() => act(() => copyFileText(file.relative ?? file.path))} />}
+    {canRevealFile() && <MenuItem label={`在${FILE_MANAGER}中显示`} icon={<FolderIcon />} onSelect={() => act(() => revealResolvedFile(file))} />}
+    {canOpenFile() && <MenuItem label="用系统默认应用打开" icon={<ExternalIcon />} onSelect={() => act(() => openResolvedFile(file))} />}
   </>
 }
 
