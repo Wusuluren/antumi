@@ -9,7 +9,7 @@
 本地优先的 AI 编程工作台。一块看板管理 Claude Code、Codex 和 Cursor：<br/>
 每个任务在独立的 Git worktree 里跑，先确认计划，再执行，最后由你验收。
 
-[![Version](https://img.shields.io/badge/version-0.18.3-blue?style=flat)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.18.4-blue?style=flat)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green?style=flat)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey?style=flat)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor-8A2BE2?style=flat)
