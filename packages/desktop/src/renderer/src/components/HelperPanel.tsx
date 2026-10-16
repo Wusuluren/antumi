@@ -10,7 +10,7 @@ import { useChatTypeface } from '../chat-typeface'
 import { confirmQuota } from './AgentQuota'
 import { ConversationChat } from './ConversationChat'
 import { conversationSurface } from './chat-surface'
-import { HelperModelPicker, useHelperCatalog } from './HelperModelPicker'
+import { HelperModePicker, HelperModelPicker, helperMode, helperModes, useHelperCatalog } from './HelperModelPicker'
 import { sendsMessage } from './ChatComposer'
 import { EnterIcon } from './icons'
 import { composerDraft, saveComposerDraft, EMPTY_DRAFT } from '../composer-drafts'
@@ -18,16 +18,19 @@ import { composerDraft, saveComposerDraft, EMPTY_DRAFT } from '../composer-draft
 function HelperDraft({ parent }: { parent: Conversation }) {
   const [text, setText] = useState(() => composerDraft(`helper:${parent.id}`).text)
   const [choice, setChoice] = useState<{ model: string | null; effort: string | null } | null>(null)
+  const [picked, setPicked] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const rpc = useCore((state) => state.rpc)
   const catalog = useHelperCatalog(parent.agent)
   const preference = usePreferences((state) => state.quickModels[parent.agent])
   const model = choice?.model ?? (preference || helperModel(parent, catalog ?? null))
   const effort = choice?.effort ?? null
+  const offered = helperModes(parent.agent, catalog, model)
+  const permissionMode = helperMode(offered, picked)
   const send = async () => {
     if (busy || !text.trim() || !rpc || catalog === undefined || !confirmQuota(parent.agent, model)) return
     setBusy(true)
-    const helper = await ensureHelper(parent, { model, effort })
+    const helper = await ensureHelper(parent, { model, effort, permissionMode })
     if (helper) {
       keepInitialMessage(helper.id, text.trim(), [])
       saveComposerDraft(`helper:${parent.id}`, EMPTY_DRAFT)
@@ -44,8 +47,9 @@ function HelperDraft({ parent }: { parent: Conversation }) {
         saveComposerDraft(`helper:${parent.id}`, { ...EMPTY_DRAFT, text: event.target.value })
       }} onKeyDown={(event) => { if (sendsMessage(event)) { event.preventDefault(); void send() } }} />
       <div className="chat-options">
-        <HelperModelPicker catalog={catalog} model={model} effort={effort} disabled={busy} onModel={(model) => setChoice({ model, effort: null })} onEffort={(effort) => setChoice({ model, effort })} />
+        {catalog !== undefined && <HelperModePicker agent={parent.agent} offered={offered} mode={permissionMode} disabled={busy} onMode={setPicked} />}
         <span className="chat-dock-spacer" />
+        <HelperModelPicker catalog={catalog} model={model} effort={effort} disabled={busy} onModel={(model) => setChoice({ model, effort: null })} onEffort={(effort) => setChoice({ model, effort })} />
         <button type="button" className="chat-input-button" data-tooltip-side="top-end" aria-label="发送（Enter）" data-tooltip={busy ? '正在启动小助手…' : '发送（Enter）'} disabled={busy || !text.trim() || catalog === undefined} onClick={() => void send()}>
           <EnterIcon />
         </button>
@@ -74,7 +78,7 @@ export function HelperPanel({ parent }: { parent: Conversation }) {
   }
   const base = helper ? conversationSurface(helper) : null
   return <section className="helper-panel" aria-label="小助手">
-    <header className="helper-header"><span className="muted">写操作需要逐次批准</span><button type="button" className="button ghost" disabled={!helper || busy} onClick={() => void reset()}>新对话</button></header>
+    <header className="helper-header"><span className="muted">不能跳过批准</span><button type="button" className="button ghost" disabled={!helper || busy} onClick={() => void reset()}>新对话</button></header>
     {helper && base ? <ConversationChat key={helper.id} conversation={helper} variant="compact" surface={{ ...base, fork: null, handoff: null, changes: null, showPlan: () => {}, showBrowser: () => {}, showChanges: () => {}, showFileChange: () => {} }} /> : <HelperDraft key={parent.id} parent={parent} />}
   </section>
 }

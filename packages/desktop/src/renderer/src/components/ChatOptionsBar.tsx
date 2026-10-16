@@ -1,4 +1,4 @@
-import { agentDescriptor, agentModeText, type AgentKind, type ChatContextUse, type ChatItem, type ChatModel, type ChatOption, type ChatPermissionMode, type Conversation } from '@antumi/protocol'
+import { agentDescriptor, agentModeText, helperAllowsMode, isHelper, type AgentKind, type ChatContextUse, type ChatItem, type ChatModel, type ChatOption, type ChatPermissionMode, type Conversation } from '@antumi/protocol'
 import { perform } from '../core-store'
 import { ChatModelPicker, ChatPicker, type PickerOption } from './ChatPicker'
 
@@ -100,10 +100,12 @@ export function ChatOptionsBar({ conversation, state, compact = false }: { conve
   // A model picked since takes its own default effort unless one was picked for it too.
   const effort = running ? state.effort : (next?.effort ?? (next?.model && next.model !== state.model ? null : state.effort))
   // The next start offers bypass where the agent has it, even if this one started without; a task
-  // that only plans never.
-  const offered = running || conversation.planOnly
-    ? state.permissionModes
-    : [...state.permissionModes.filter((mode) => mode !== 'bypass'), ...(agentDescriptor(agent).capabilities.bypass ? ['bypass'] : [])]
+  // that only plans never, nor a helper.
+  const offered = isHelper(conversation)
+    ? state.permissionModes.filter(helperAllowsMode)
+    : running || conversation.planOnly
+      ? state.permissionModes
+      : [...state.permissionModes.filter((mode) => mode !== 'bypass'), ...(agentDescriptor(agent).capabilities.bypass ? ['bypass'] : [])]
   const model = state.models.find((each) => each.id === modelId)
   const modes = withCurrent(offered, permissionMode)
   const models = model || !modelId
@@ -112,7 +114,7 @@ export function ChatOptionsBar({ conversation, state, compact = false }: { conve
   const later = running ? null : '发下一条消息时按这个启动'
   return (
     <>
-      {!compact && modes.length > 0 && (
+      {modes.length > 0 && (
         <ChatPicker
           label="权限模式"
           value={permissionMode}

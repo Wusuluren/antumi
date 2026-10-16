@@ -12,6 +12,7 @@ import { TaskInspector } from './TaskInspector'
 import { ConversationView } from './ConversationView'
 import { TaskToolbar } from './TaskActions'
 import { HelperPanel } from './HelperPanel'
+import { helperMode, helperModes } from './HelperModelPicker'
 
 vi.hoisted(() => {
   vi.stubGlobal('window', { antumi: undefined, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) })
@@ -91,6 +92,20 @@ describe('helper UI', () => {
     expect(html).toContain('data-font-size="17"')
     expect(html).toContain('data-font="custom"')
     expect(html).toContain('--chat-font-custom:')
+  })
+
+  it('offers the helper every start mode but bypass and plan, and asks when the pick no longer fits', () => {
+    const catalog = { models: [
+      { id: 'sonnet', label: 'Sonnet', description: null, efforts: ['high'], isDefault: true, autoMode: true },
+      { id: 'haiku', label: 'Haiku', description: null, efforts: [], isDefault: false }
+    ] }
+    expect(helperModes('claude', catalog, null)).toEqual(['ask', 'acceptEdits', 'auto'])
+    const haiku = helperModes('claude', catalog, 'haiku')
+    expect(haiku).toEqual(['ask', 'acceptEdits'])
+    expect(helperMode(haiku, 'acceptEdits')).toBe('acceptEdits')
+    expect(helperMode(haiku, 'plan')).toBe('ask')
+    expect(helperMode(haiku, 'auto')).toBe('ask')
+    expect(helperMode(haiku, null)).toBe('ask')
   })
 
   it('removes the entry and tab on older cores', () => {

@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react'
 import { setSchedulesOpen, useCore } from '../core-store'
 import { cancelSchedule, openRunsForConversation, runAction, scheduleState } from '../schedules'
-import { isPlanApproval, type ChatItem, type Conversation } from '@antumi/protocol'
+import { helperAllowsMode, isHelper, isPlanApproval, type ChatItem, type Conversation } from '@antumi/protocol'
 import { itemKey } from '../chat-state'
 import { toolLabel } from '../chat-tools'
 import { useChatSurface } from './chat-surface'
@@ -146,7 +146,7 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
         </button>
       </div>}
       <ChatSchedules conversationId={conversation.id} />
-      {waiting && <PendingRequests conversation={conversation} pending={pending} tools={tools} modes={conversation.helperOf ? ['ask'] : state?.permissionModes ?? []} />}
+      {waiting && <PendingRequests conversation={conversation} pending={pending} tools={tools} modes={(state?.permissionModes ?? []).filter((mode) => !isHelper(conversation) || helperAllowsMode(mode))} />}
       {archived && <ArchivedBar what="会话" fresh={justArchived} onRestore={() => archiveConversation(conversation.id, false)} />}
       {/* The composer stays mounted while a request or the archive takes its place, so a draft is not lost. */}
       <div className="chat-dock-composer" hidden={waiting || archived}>

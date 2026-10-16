@@ -191,6 +191,12 @@ export function isHelper(conversation: Pick<Conversation, 'helperOf'>): boolean 
   return conversation.helperOf != null
 }
 
+// A helper runs beside the user, never unwatched, and does a small thing rather than plan one:
+// any mode but the one that asks nothing and planning.
+export function helperAllowsMode(mode: string): boolean {
+  return mode !== 'bypass' && mode !== 'plan'
+}
+
 export function canHaveHelper(conversation: Conversation): boolean {
   return !isHelper(conversation) && !conversation.discussionId && !conversation.squadRunId && !conversation.routineId && conversation.archivedAt == null
 }

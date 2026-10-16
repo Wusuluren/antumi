@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ant in Pieces</title>
+<style>
+  /* five body shades, light to dark, plus the legs; the face and parcel stay the same */
+  :root, [data-palette='peach'] {
+    --l2: #ffd6c6; --l1: #ffbaa1; --m: #ff9e82; --d1: #f3846a; --d2: #de6b55;
+    --leg: #c95a47; --leg-far: #a8473a; --tip: #ff9e82;
+  }
+  [data-palette='lemon'] {
+    --l2: #fff4b8; --l1: #ffe880; --m: #ffdb52; --d1: #f7c93d; --d2: #e8b32e;
+    --leg: #c8902a; --leg-far: #a37420; --tip: #ffdb52;
+  }
+  [data-palette='mint'] {
+    --l2: #d2f5e4; --l1: #a9e9cc; --m: #84dbb5; --d1: #66c99f; --d2: #4fb388;
+    --leg: #3f9772; --leg-far: #2f7a5b; --tip: #84dbb5;
+  }
+  [data-palette='grape'] {
+    --l2: #ebe3ff; --l1: #d4c6ff; --m: #bda9f8; --d1: #a68fee; --d2: #8e77dc;
+    --leg: #7660c2; --leg-far: #5d4b9e; --tip: #bda9f8;
+  }
+  [data-palette='terracotta'] {
+    --l2: #f3ae8c; --l1: #e5835c; --m: #c95f38; --d1: #ad4b27; --d2: #923d1e;
+    --leg: #7a3018; --leg-far: #5e2412; --tip: #e5835c;
+  }
+  :root {
+    --eye: #2b1d1a;
+    --shine: #ffffff;
+    --cheek: #ff8fa3;
+    /* kraft parcel */
+    --k1: #f0d09f; --k1b: #f5dcb3; --k2: #ddb075; --k2b: #d4a468;
+    --k3: #bf8e52; --k3b: #b08046; --tape: #fbf1e1;
+  }
+  html, body { margin: 0; height: 100%; background: #ffffff; }
+  body {
+    display: grid;
+    place-items: center;
+    font: 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+    color: #666;
+  }
+  .stage {
+    position: relative;
+    width: min(80vmin, 600px);
+    aspect-ratio: 1;
+    cursor: pointer;
+  }
+  /* Species in Pieces: one full-size div per shard, shaped by a clip-path polygon */
+  .shard {
+    position: absolute;
+    inset: 0;
+    transition-property: clip-path, background-color;
+    transition-timing-function: cubic-bezier(1, 0, 0, 1);
+  }
+  .controls {
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; padding: 0 16px; }
+  .row button {
+    font: inherit;
+    color: #666;
+    background: rgb(0 0 0 / 3%);
+    border: 0;
+    border-radius: 999px;
+    padding: 6px 14px;
+    cursor: pointer;
+  }
+  .row button:hover { background: rgb(0 0 0 / 6%); }
+  .row button[aria-pressed='true'] { color: #080808; background: rgb(0 0 0 / 8%); }
+  .row .swatch { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch i { width: 12px; height: 12px; border-radius: 50%; background: var(--c); }
+  @media (prefers-reduced-motion: reduce) {
+    .shard { transition: none !important; }
+  }
+</style>
+</head>
+<body data-palette="peach">
+<div class="stage" id="stage" aria-label="由碎片拼成的小蚂蚁"></div>
+<div class="controls">
+  <div class="row">
+    <button data-pose="walk" aria-pressed="true">走路</button>
+    <button data-pose="carry" aria-pressed="false">搬箱子</button>
+    <button data-action="scatter">打散重拼</button>
+  </div>
+  <div class="row">
+    <button class="swatch" data-palette="peach" aria-pressed="true"><i style="--c:#ff9e82"></i>蜜桃</button>
+    <button class="swatch" data-palette="lemon" aria-pressed="false"><i style="--c:#ffdb52"></i>柠檬</button>
+    <button class="swatch" data-palette="mint" aria-pressed="false"><i style="--c:#84dbb5"></i>薄荷</button>
+    <button class="swatch" data-palette="grape" aria-pressed="false"><i style="--c:#bda9f8"></i>葡萄</button>
+    <button class="swatch" data-palette="terracotta" aria-pressed="false"><i style="--c:#c95f38"></i>赤陶</button>
+  </div>
+</div>
+
+<script>
+// Points are percentages of the stage. Every pose lists the same shards in the same order,
+// back to front, each with the same number of corners, so switching poses morphs each
+// shard into its counterpart.
+
+const shape = (p, c) => ({ p, c });
+const point = (pt, n, c) => shape(Array.from({ length: n }, () => pt), c);
+
+// low-poly ellipse: n corners, the first one at `start` radians
+const ring = (cx, cy, rx, ry, n, start = -Math.PI / 2) =>
+  Array.from({ length: n }, (_, i) => {
+    const a = start + (i / n) * Math.PI * 2;
+    return [cx + rx * Math.cos(a), cy + ry * Math.sin(a)];
+  });
+
+// light from the upper left: a facet's shade follows which way its outer edge faces
+const SHADES = ['l2', 'l1', 'm', 'd1', 'd2'];
+const LIGHT = [-0.6, -0.8];
+function facets(center, apex, pts) {
+  return pts.map((a, i) => {
+    const b = pts[(i + 1) % pts.length];
+    const mx = (a[0] + b[0]) / 2 - center[0], my = (a[1] + b[1]) / 2 - center[1];
+    const lit = (mx * LIGHT[0] + my * LIGHT[1]) / Math.hypot(mx, my);
+    return shape([a, b, apex], SHADES[Math.round((1 - lit) / 2 * (SHADES.length - 1))]);
+  });
+}
+
+// A stubby leg sharing a wide edge across the knee, so the bend reads as one limb. The
+// thigh tapers back to the hip, hidden under the body; the shin ends in a blunt foot.
+function leg(hip, knee, foot, color) {
+  const [kx, ky] = knee;
+  const ux = foot[0] - hip[0], uy = foot[1] - hip[1];
+  const len = Math.hypot(ux, uy);
+  const nx = -uy / len, ny = ux / len;
+  const a = [kx + nx * 2.6, ky + ny * 2.6], b = [kx - nx * 2.6, ky - ny * 2.6];
+  const fa = [foot[0] + nx * 1.6, foot[1] + ny * 1.6], fb = [foot[0] - nx * 1.6, foot[1] - ny * 1.6];
+  return [shape([hip, a, b], color), shape([a, b, fb, fa], color)];
+}
+
+const HIPS = { farHind: [42, 60], farMid: [48, 61], farFront: [54, 59], hind: [40, 62], mid: [46, 64], front: [52, 62] };
+const legs = {
+  walk: [
+    ...leg(HIPS.farHind, [39, 70], [36, 82], 'leg-far'),
+    ...leg(HIPS.farMid, [50, 71], [52, 83], 'leg-far'),
+    ...leg(HIPS.farFront, [60, 69], [64, 81], 'leg-far'),
+    ...leg(HIPS.hind, [35, 72], [31, 84], 'leg'),
+    ...leg(HIPS.mid, [46, 74], [44, 85], 'leg'),
+    ...leg(HIPS.front, [57, 72], [61, 84], 'leg'),
+  ],
+  carry: [
+    ...leg(HIPS.farHind, [37, 70], [33, 82], 'leg-far'),
+    ...leg(HIPS.farMid, [47, 71], [46, 83], 'leg-far'),
+    ...leg(HIPS.farFront, [60, 70], [62, 82], 'leg-far'),
+    ...leg(HIPS.hind, [38, 73], [38, 84], 'leg'),
+    ...leg(HIPS.mid, [49, 74], [51, 85], 'leg'),
+    ...leg(HIPS.front, [57, 73], [57, 84], 'leg'),
+  ],
+};
+
+// antennae are lollipops: a tapering stalk and a little hexagon ball
+const antenna = (base, tip) => [
+  shape([...base, tip], 'leg'),
+  shape(ring(tip[0], tip[1], 2.8, 2.8, 6, 0), 'tip'),
+];
+const antennae = {
+  walk: [...antenna([[59, 26], [63, 23.5]], [55, 10]), ...antenna([[69, 22.5], [73, 23.5]], [79, 8])],
+  // drooping forward with the load
+  carry: [...antenna([[59, 26], [63, 23.5]], [62, 11]), ...antenna([[69, 22.5], [73, 23.5]], [87, 14])],
+};
+
+const body = [
+  ...facets([27, 61], [24, 57], ring(27, 61, 16, 13.5, 9, -Math.PI / 2 - 0.2)), // gaster
+  ...facets([46, 58], [45, 56], ring(46, 58, 8.5, 8, 6)), // thorax
+  ...facets([66, 40], [62, 35], ring(66, 40, 19, 18, 10)), // the big round head
+];
+
+const NEAR_EYE = [73, 39], FAR_EYE = [81.5, 38];
+const face = {
+  walk: [
+    shape(ring(72, 46.5, 3.2, 2, 6, 0), 'cheek'),
+    shape(ring(83, 45.5, 1.6, 1.6, 6, 0), 'cheek'),
+    shape(ring(...NEAR_EYE, 3.9, 4.7, 8), 'eye'),
+    shape(ring(...FAR_EYE, 2.6, 4.3, 8), 'eye'),
+    shape(ring(71.8, 36.8, 1.3, 1.3, 6), 'shine'),
+    shape(ring(80.8, 36.2, 0.9, 1, 6), 'shine'),
+    shape([[76.2, 45.8], [78.2, 47.6], [80.2, 45.8], [80.6, 46.6], [78.2, 48.8], [75.8, 46.6]], 'eye'),
+  ],
+};
+// carrying, the eyes squeeze into happy ^ ^ arcs, the same eight corners each
+const arc = ([cx, cy], w) => [
+  [cx - w, cy + 1.8], [cx - w * 0.5, cy - 1.2], [cx + w * 0.5, cy - 1.2], [cx + w, cy + 1.8],
+  [cx + w * 0.7, cy + 2.6], [cx + w * 0.35, cy + 0.6], [cx - w * 0.35, cy + 0.6], [cx - w * 0.7, cy + 2.6],
+];
+face.carry = [
+  face.walk[0], face.walk[1],
+  shape(arc(NEAR_EYE, 3.4), 'eye'),
+  shape(arc(FAR_EYE, 2.3), 'eye'),
+  point([72.5, 38], 6, 'shine'),
+  point([81.4, 37], 6, 'shine'),
+  shape([[75.6, 45.6], [78.2, 48.2], [80.8, 45.6], [81.2, 46.4], [78.2, 49.8], [75.2, 46.4]], 'eye'),
+];
+
+// the parcel rests on the back; walking, it shrinks to a point between the shoulders
+const TL = [16, 34], TT = [30, 30], TR = [44, 34], TF = [30, 38];
+const BL = [16, 48], BF = [30, 52], BR = [44, 48];
+const parcel = {
+  carry: [
+    shape([TL, TF, BF], 'k2'), shape([TL, BF, BL], 'k2b'),
+    shape([TF, TR, BR], 'k3'), shape([TF, BR, BF], 'k3b'),
+    shape([TL, TT, TF], 'k1'), shape([TT, TR, TF], 'k1b'),
+    shape([[21.7, 32.4], [24.3, 31.6], [38.3, 35.6]], 'tape'),
+    shape([[21.7, 32.4], [38.3, 35.6], [35.7, 36.4]], 'tape'),
+  ],
+};
+parcel.walk = parcel.carry.map(s => point([30, 52], 3, s.c));
+
+const poses = Object.fromEntries(['walk', 'carry'].map(name => [
+  name,
+  [...legs[name], ...antennae[name], ...body, ...face[name], ...parcel[name]],
+]));
+
+// each shard is anti-aliased on its own, so neighbours would leave a hairline seam;
+// pushing every corner a little away from the centroid makes them overlap
+const BLEED = 0.25;
+function poly(pts) {
+  const cx = pts.reduce((sum, [x]) => sum + x, 0) / pts.length;
+  const cy = pts.reduce((sum, [, y]) => sum + y, 0) / pts.length;
+  return `polygon(${pts.map(([x, y]) => {
+    const d = Math.hypot(x - cx, y - cy);
+    const k = d < 0.01 ? 0 : BLEED / d;
+    return `${(x + (x - cx) * k).toFixed(2)}% ${(y + (y - cy) * k + 4).toFixed(2)}%`;
+  }).join(', ')})`;
+}
+
+const stage = document.getElementById('stage');
+const els = poses.walk.map(() => {
+  const el = document.createElement('div');
+  el.className = 'shard';
+  stage.append(el);
+  return el;
+});
+let current = 'walk';
+
+function show(name, stagger) {
+  current = name;
+  poses[name].forEach((s, i) => {
+    const el = els[i];
+    el.style.transitionDuration = `${0.3 + Math.random() * 0.5}s`;
+    el.style.transitionDelay = `${i * stagger}s`;
+    el.style.clipPath = poly(s.p);
+    el.style.backgroundColor = `var(--${s.c})`;
+  });
+  document.querySelectorAll('[data-pose]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.pose === name)));
+}
+
+// collapse every shard to a speck somewhere on the stage, then let it fly home
+function replay() {
+  els.forEach((el, i) => {
+    el.style.transitionDuration = '0s';
+    el.style.transitionDelay = '0s';
+    const x = Math.random() * 100, y = Math.random() * 100;
+    el.style.clipPath = poly(poses[current][i].p.map((_, j) => [x + (j % 3), y + (j % 2) * 2]));
+    el.style.backgroundColor = '#eeeeee';
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() => show(current, 0.02)));
+}
+
+stage.addEventListener('click', () => show(current === 'walk' ? 'carry' : 'walk', 0.01));
+document.querySelectorAll('[data-pose]').forEach(b =>
+  b.addEventListener('click', () => show(b.dataset.pose, 0.01)));
+document.querySelector('[data-action="scatter"]').addEventListener('click', replay);
+document.querySelectorAll('[data-palette]:not(body)').forEach(b =>
+  b.addEventListener('click', () => {
+    document.body.dataset.palette = b.dataset.palette;
+    document.querySelectorAll('.swatch').forEach(s =>
+      s.setAttribute('aria-pressed', String(s === b)));
+  }));
+replay();
+</script>
+</body>
+</html>

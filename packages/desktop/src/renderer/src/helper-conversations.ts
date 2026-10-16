@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { agentDescriptor, canHaveHelper, quickModel, type ChatCatalog, type Conversation, type RpcConnection } from '@antumi/protocol'
+import { agentDescriptor, canHaveHelper, quickModel, type ChatCatalog, type ChatPermissionMode, type Conversation, type RpcConnection } from '@antumi/protocol'
 import { perform, useCore } from './core-store'
 import { addQuote } from './chat-quotes'
 import { usePreferences } from './preferences'
@@ -54,7 +54,7 @@ export function useHelper(parentId: string | null): Conversation | null {
 
 // A double click shares discovery and creation; uniqueness is also enforced by core.
 const pending = new WeakMap<RpcConnection, Map<string, Promise<Conversation | null>>>()
-export function ensureHelper(parent: Conversation, choice?: { model: string | null; effort: string | null }): Promise<Conversation | null> {
+export function ensureHelper(parent: Conversation, choice?: { model: string | null; effort: string | null; permissionMode: ChatPermissionMode }): Promise<Conversation | null> {
   const rpc = useCore.getState().rpc
   if (!rpc?.features.includes('conversation-helper') || !canHaveHelper(parent)) return Promise.resolve(null)
   const known = helperFor(useCore.getState().conversations, parent.id)
@@ -70,7 +70,7 @@ export function ensureHelper(parent: Conversation, choice?: { model: string | nu
     const model = choice ? choice.model : helperModel(parent, catalog)
     const created = await rpc.call('conversations.create', {
       agent: parent.agent, projectPaths: parent.projectPaths, helperOf: parent.id,
-      deferStart: true, permissionMode: 'ask', allowBypass: false,
+      deferStart: true, permissionMode: choice?.permissionMode ?? 'ask', allowBypass: false,
       ...(model ? { model } : {}), ...(choice?.effort ? { effort: choice.effort } : {})
     })
     return remember(created)
