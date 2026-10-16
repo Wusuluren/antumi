@@ -123,7 +123,7 @@ export function CommitList({ commits, label }: { commits: readonly Commit[]; lab
   const count = commits.length >= 50 ? '50+' : commits.length
   if (commits.length === 0) return <InspectorRow label={label} count={0} />
   return (
-    <details className="inspector-commits">
+    <details className="inspector-fold inspector-commits">
       <summary className="inspector-row">
         <span className="chat-tool-chevron" aria-hidden="true"><ChevronRightIcon /></span>
         <span className="inspector-row-label">{label}</span>
@@ -140,26 +140,37 @@ export function CommitList({ commits, label }: { commits: readonly Commit[]; lab
   )
 }
 
-// The files changed, under a row with how many and how much; `empty` reads when there are none.
+// The files changed, open under a row with how many and how much, which folds them away; `empty`
+// reads when there are none.
 export function ChangedFiles({ label, files, empty, onOpen }: { label: string; files: readonly ChangedFile[]; empty: string; onOpen: (file: string) => void }) {
+  if (files.length === 0) {
+    return (
+      <>
+        <InspectorRow label={label} count={0} />
+        <p className="inspector-row-empty">{empty}</p>
+      </>
+    )
+  }
   return (
-    <>
-      <InspectorRow label={label} count={files.length > 0 ? `${files.length} 个文件` : 0}>
-        {files.length > 0 && <span className="inspector-row-counts mono">{lineTotals(files)}</span>}
-      </InspectorRow>
-      {files.length === 0 ? <p className="inspector-row-empty">{empty}</p> : <FileList files={files} onOpen={onOpen} />}
-    </>
+    <details className="inspector-fold" open>
+      <summary className="inspector-row">
+        <span className="chat-tool-chevron" aria-hidden="true"><ChevronRightIcon /></span>
+        <span className="inspector-row-label">{label}</span>
+        <span className="inspector-pill">{files.length} 个文件</span>
+        <LineCounts className="inspector-row-counts" {...changeLineTotals(files)} />
+      </summary>
+      <FileList files={files} onOpen={onOpen} />
+    </details>
   )
 }
 
-function counts(file: ChangedFile): string {
-  if (file.additions === null || file.deletions === null) return file.kind === 'untracked' ? '新文件' : '二进制'
-  return `+${file.additions} −${file.deletions}`
-}
-
-export function lineTotals(files: readonly ChangedFile[]): string {
-  const { added, removed } = changeLineTotals(files)
-  return `+${added} −${removed}`
+// Lines added and removed, in the colours the chat's change summary uses.
+function LineCounts({ className, added, removed }: { className: string; added: number; removed: number }) {
+  return (
+    <span className={`${className} mono`}>
+      <span className="chat-diff-added">+{added}</span> <span className="chat-diff-removed">−{removed}</span>
+    </span>
+  )
 }
 
 export function changeLineTotals(files: readonly ChangedFile[]): { added: number; removed: number } {
@@ -186,7 +197,9 @@ export function FileList({ files, onOpen }: { files: readonly ChangedFile[]; onO
                 {file.path.slice(slash + 1)}
                 {slash > 0 && <span className="muted"> {file.path.slice(0, slash)}</span>}
               </span>
-              <span className="changed-file-counts mono">{counts(file)}</span>
+              {file.additions === null || file.deletions === null
+                ? <span className="changed-file-counts mono">{file.kind === 'untracked' ? '新文件' : '二进制'}</span>
+                : <LineCounts className="changed-file-counts" added={file.additions} removed={file.deletions} />}
             </button>
           </li>
         )

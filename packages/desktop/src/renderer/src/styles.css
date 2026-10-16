@@ -2959,25 +2959,26 @@ body.side-panel-resizing * {
   font-size: 12px;
 }
 
-.inspector-commits summary {
+/* A row that folds what it counts away: the commits, and the changed files. */
+.inspector-fold > summary {
   list-style: none;
   cursor: pointer;
   border-radius: var(--radius-xs);
 }
 
-.inspector-commits summary::-webkit-details-marker {
+.inspector-fold > summary::-webkit-details-marker {
   display: none;
 }
 
-.inspector-commits summary:hover {
+.inspector-fold > summary:hover {
   background: var(--fill);
 }
 
-.inspector-commits summary .chat-tool-chevron {
+.inspector-fold > summary .chat-tool-chevron {
   transition: transform 0.15s;
 }
 
-.inspector-commits[open] summary .chat-tool-chevron {
+.inspector-fold[open] > summary .chat-tool-chevron {
   transform: rotate(90deg);
 }
 
