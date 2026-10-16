@@ -37,6 +37,8 @@ Task-first multi-agent manager. See docs/ARCHITECTURE.md for the architecture di
 
 `pnpm typecheck && pnpm test`, plus `pnpm build` for desktop changes.
 
+To try the app by hand, run it against the test home instead of the user's real data: `ANTUMI_HOME=~/.antumi-demo pnpm dev` (see docs/ARCHITECTURE.md, 从源码运行).
+
 ## Commits
 
 A trimmed version of Angular's [commit message format](https://github.com/angular/angular/blob/main/contributing-docs/commit-message-guidelines.md).

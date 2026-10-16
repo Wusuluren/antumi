@@ -387,6 +387,14 @@ pnpm dev:core
 pnpm dev:desktop
 ```
 
+测试或截图时不要碰 `~/.antumi` 里的真实数据：用 `ANTUMI_HOME` 指到另一个目录，daemon、core 和桌面端就是一套独立的实例（各自的数据库、socket、worktree 和 core.json）。`~/.antumi-demo` 是这样一个现成的测试目录，里面有一个 `todo-web` 小项目可以拿来建任务：
+
+```bash
+ANTUMI_HOME=~/.antumi-demo pnpm dev
+# 要用 CDP 驱动或截图时，给桌面端加调试端口：
+ANTUMI_HOME=~/.antumi-demo pnpm --filter @antumi/desktop run dev --remoteDebuggingPort 9333
+```
+
 ## 8. 打包与安装
 
 
