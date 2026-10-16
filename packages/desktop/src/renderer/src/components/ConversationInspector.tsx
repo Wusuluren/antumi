@@ -12,7 +12,7 @@ import { TodoPanel } from './TodoPanel'
 import { useConversationTodos, useTodosSupported } from '../conversation-todos'
 import { projectName } from './ProjectPicker'
 import { WireLogView } from './WireLogView'
-import { FilePreview } from './FilePreview'
+import { FileEditor } from './FileEditor'
 import { EMPTY_FILE_TABS, updateFileTabs, useFileTabs } from '../file-tabs'
 
 // Read again whenever the conversation changes (every agent turn and exit), the window regains
@@ -72,6 +72,8 @@ export function ConversationInspector({ conversation, widthRatio, onWidthRatioCh
   const helper = useHelper(helperSupported ? conversation.id : null)
   const conversationId = conversation.id
   const files = useFileTabs((state) => state[conversationId] ?? EMPTY_FILE_TABS)
+  const fileEditor = useCore((state) => state.rpc?.features.includes('file-editor') ?? false)
+  const fileRoots = conversation.projectPaths
   const gitRevision = useCore((state) => state.gitRevision)
   const rpc = useCore((state) => state.rpc)
   const wanted = useCore((state) => state.conversationInspectorTab)
@@ -79,7 +81,7 @@ export function ConversationInspector({ conversation, widthRatio, onWidthRatioCh
   const plans = usePlans(conversation.id)
   const todosShown = useTodosSupported()
   const todos = useConversationTodos(todosShown ? conversation.id : null)
-  const tabs: InspectorTab[] = [...(helperSupported ? ['helper' as const] : []),...(conversation.projectPaths.length > 0 ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(todosShown ? ['todos' as const] : []), ...(wire ? ['wire' as const] : []), ...(files.tabs.length > 0 ? ['files' as const] : [])]
+  const tabs: InspectorTab[] = [...(helperSupported ? ['helper' as const] : []),...(conversation.projectPaths.length > 0 ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(todosShown ? ['todos' as const] : []), ...(wire ? ['wire' as const] : []), ...(files.tabs.length > 0 || (fileEditor && fileRoots.length > 0) ? ['files' as const] : [])]
   const tab = tabs.includes(wanted) ? wanted : (tabs[0] ?? 'changes')
   useEffect(() => {
     if (wanted !== 'files') updateFileTabs(conversationId, (state) => state.maximized ? { ...state, maximized: false } : state)
@@ -120,7 +122,7 @@ export function ConversationInspector({ conversation, widthRatio, onWidthRatioCh
       ) : tab === 'todos' ? (
         <TodoPanel conversationId={conversation.id} />
       ) : tab === 'files' ? (
-        <FilePreview conversationId={conversationId} updatedAt={conversation.updatedAt} inspector="conversation" onEmpty={onEmpty} />
+        <FileEditor conversationId={conversationId} roots={fileRoots} updatedAt={conversation.updatedAt} inspector="conversation" editor={fileEditor} onEmpty={onEmpty} />
       ) : tab === 'wire' ? (
         <WireLogView conversationId={conversation.id} />
       ) : tab === 'plan' ? (

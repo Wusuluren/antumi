@@ -10,7 +10,7 @@ export function FileMenuItems({ scope, file, line = null, onClose }: {
 }) {
   const act = (action: () => void | Promise<void>) => { onClose(); void action() }
   return <>
-    <MenuItem label="在侧栏预览" icon={<InspectorIcon />} onSelect={() => act(() => showResolvedFile(scope, file, line))} />
+    <MenuItem label="在侧栏打开" icon={<InspectorIcon />} onSelect={() => act(() => showResolvedFile(scope, file, line))} />
     <MenuItem label="复制绝对路径" icon={<CopyIcon />} onSelect={() => act(() => copyFileText(file.path))} />
     {file.relative !== null && <MenuItem label="复制项目相对路径" icon={<CopyIcon />} onSelect={() => act(() => copyFileText(file.relative ?? file.path))} />}
     {canRevealFile() && <MenuItem label={`在${FILE_MANAGER}中显示`} icon={<FolderIcon />} onSelect={() => act(() => revealResolvedFile(file))} />}

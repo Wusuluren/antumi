@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from 'vitest'
 import type { ResolvedFile } from '@antumi/protocol'
-import { closedFile, EMPTY_FILE_TABS, forgetFileTabs, openedFile, saveFileScroll, updateFileTabs, useFileTabs } from './file-tabs'
+import { closedFile, EMPTY_FILE_TABS, expandedFolders, forgetFileTabs, markedDirty, openedFile, revealedFile, revealedFolder, saveFileScroll, toggledFolder, updateFileTabs, useFileTabs } from './file-tabs'
 
 const file: ResolvedFile = { path: '/project/a.ts', root: '/project', relative: 'a.ts', kind: 'file' }
 afterEach(() => useFileTabs.setState({}, true))
@@ -13,13 +13,13 @@ it('deduplicates file tabs while honoring another request to reveal a line', () 
   expect(again.tabs[0]).toMatchObject({ line: 20, reveal: 2, scrollTop: 300 })
 })
 
-it('selects a neighboring tab on close and exits maximized mode on the last close', () => {
+it('selects a neighboring tab on close and stays maximized, the file tree still showing', () => {
   const next = { ...file, path: '/project/b.ts', relative: 'b.ts' }
   const both = { ...openedFile(openedFile(EMPTY_FILE_TABS, file, null), next, null), maximized: true }
   const one = closedFile(both, next.path)
   expect(one.active).toBe(file.path)
   expect(one.maximized).toBe(true)
-  expect(closedFile(one, file.path)).toMatchObject({ tabs: [], active: null, maximized: false })
+  expect(closedFile(one, file.path)).toMatchObject({ tabs: [], active: null, maximized: true })
 })
 
 it('isolates selections and scroll positions between conversations and cleans deleted ones', () => {
@@ -30,4 +30,25 @@ it('isolates selections and scroll positions between conversations and cleans de
   forgetFileTabs('first')
   expect(useFileTabs.getState().first).toBeUndefined()
   expect(useFileTabs.getState().second).toBeDefined()
+})
+
+it('marks a tab dirty and keeps it so when the file is opened again', () => {
+  const dirty = markedDirty(openedFile(EMPTY_FILE_TABS, file, null), file.path, true)
+  expect(dirty.tabs[0]?.dirty).toBe(true)
+  expect(markedDirty(dirty, file.path, true)).toBe(dirty)
+  expect(openedFile(dirty, file, 3).tabs[0]?.dirty).toBe(true)
+})
+
+it('opens every project until a folder is folded, and reveals a file by opening its folders', () => {
+  const roots = ['/project', '/other']
+  expect(expandedFolders(EMPTY_FILE_TABS, roots)).toEqual(roots)
+  const folded = toggledFolder(EMPTY_FILE_TABS, roots, '/project')
+  expect(expandedFolders(folded, roots)).toEqual(['/other'])
+  const revealed = revealedFile(folded, roots, '/project/src/deep/a.ts')
+  expect(expandedFolders(revealed, roots)).toEqual(['/other', '/project', '/project/src', '/project/src/deep'])
+  expect(revealedFile(revealed, roots, '/project/src/b.ts')).toBe(revealed)
+  expect(revealedFile(folded, roots, '/elsewhere/a.ts')).toBe(folded)
+  expect(revealedFile(folded, ['/project'], '/project-other/a.ts')).toBe(folded)
+  expect(expandedFolders(revealedFolder(folded, roots, '/project'), roots)).toEqual(['/other', '/project'])
+  expect(expandedFolders(revealedFile(EMPTY_FILE_TABS, ['C:\\repo'], 'C:\\repo\\src\\a.ts'), ['C:\\repo'])).toEqual(['C:\\repo', 'C:\\repo\\src'])
 })

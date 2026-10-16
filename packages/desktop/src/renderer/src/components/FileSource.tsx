@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
-import { defaultKeymap } from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { languages } from '@codemirror/language-data'
-import { HighlightStyle, LanguageDescription, syntaxHighlighting } from '@codemirror/language'
+import { bracketMatching, codeFolding, foldGutter, foldKeymap, HighlightStyle, indentOnInput, LanguageDescription, syntaxHighlighting } from '@codemirror/language'
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search'
-import { Compartment, EditorState } from '@codemirror/state'
+import { Compartment, EditorState, Prec, type Text } from '@codemirror/state'
 import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view'
+import { indentationMarkers } from '@replit/codemirror-indentation-markers'
 import { tags } from '@lezer/highlight'
-import { saveFileScroll, updateFileTabs, useFileTabs, type FileTab } from '../file-tabs'
+import { perform } from '../core-store'
+import { dropFileDraft, fileDraft, keepFileDraft, markedDirty, saveFileScroll, updateFileTabs, useFileTabs, type FileTab } from '../file-tabs'
 import { copyFileText } from '../file-actions'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
-import { CopyIcon, DocumentIcon } from './icons'
+import { CheckIcon, CopyIcon, DocumentIcon } from './icons'
+import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 
 const highlight = HighlightStyle.define([
   { tag: tags.keyword, color: 'var(--code-keyword)' },
@@ -25,48 +28,143 @@ const theme = EditorView.theme({
   '&': { height: '100%', color: 'var(--text)', backgroundColor: 'var(--surface)' },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': { fontFamily: 'var(--mono)', fontSize: 'var(--chat-font-size, 14px)', lineHeight: '1.7' },
-  '.cm-content': { padding: '8px 0' },
+  '.cm-content': { padding: '8px 0', caretColor: 'var(--text)' },
+  '.cm-cursor': { borderLeftColor: 'var(--text)' },
   '.cm-line': { padding: '0 12px' },
   '.cm-gutters': { color: 'var(--text-3)', backgroundColor: 'var(--surface)', borderRight: '1px solid var(--border)' },
+  '.cm-foldGutter .cm-gutterElement': { cursor: 'pointer', padding: '0 4px' },
+  '.cm-foldPlaceholder': { color: 'var(--text-muted)', backgroundColor: 'var(--fill-2)', border: 'none', borderRadius: 'var(--radius-xs)' },
   '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'var(--fill-2)' },
+  '&.cm-focused .cm-matchingBracket': { backgroundColor: 'var(--fill-2)', outline: '1px solid var(--text-3)' },
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { backgroundColor: 'var(--accent-bg)' },
   '.cm-panels': { color: 'var(--text)', backgroundColor: 'var(--surface)', borderColor: 'var(--border)' },
   '.cm-searchMatch': { backgroundColor: 'var(--fill-2)', outline: '1px solid var(--text-3)' },
   '.cm-searchMatch-selected': { backgroundColor: 'var(--accent-bg)', outline: '1px solid var(--accent)' }
 })
 
-export type FileSourceHandle = { search(): void }
+const markers = indentationMarkers({ thickness: 1, colors: { light: 'var(--border-2)', dark: 'var(--border-2)', activeLight: 'var(--text-3)', activeDark: 'var(--text-3)' } })
 
-export function FileSource({ conversationId, tab, text, wrap, ref }: {
-  conversationId: string; tab: FileTab; text: string; wrap: boolean; ref?: Ref<FileSourceHandle>
+const fold = foldGutter({
+  markerDOM: (open) => {
+    const marker = document.createElement('span')
+    marker.className = 'file-fold-marker'
+    marker.dataset.open = String(open)
+    marker.textContent = '›'
+    return marker
+  }
+})
+
+// Shared by every editor, so a draft's state could move between them; a compartment is only a key.
+const wrapping = new Compartment()
+const editing = new Compartment()
+
+function editable(on: boolean, label: string) {
+  return [
+    EditorState.readOnly.of(!on), EditorView.editable.of(on),
+    EditorView.contentAttributes.of({ 'aria-label': label, 'aria-readonly': String(!on), tabindex: '0' })
+  ]
+}
+
+// CodeMirror counts any line break as one; a file written with CRLF keeps them when saved.
+function lineSeparator(text: string) {
+  return text.includes('\r\n') ? [EditorState.lineSeparator.of('\r\n')] : []
+}
+
+// What is on disk: the text the editor was loaded from or last saved, and its mtime.
+export type FileDisk = { text: string; mtimeMs: number | null }
+export type FileSourceHandle = { search(): void; save(): void }
+// `disk`: the file changed on disk under unsaved edits; `conflict`: a save found it changed.
+type Notice = 'disk' | 'conflict' | null
+
+export function FileSource({ conversationId, tab, disk, wrap, writable, ref }: {
+  conversationId: string; tab: FileTab; disk: FileDisk; wrap: boolean; writable: boolean; ref?: Ref<FileSourceHandle>
 }) {
   const host = useRef<HTMLDivElement>(null)
   const editor = useRef<EditorView | null>(null)
-  const wrapping = useRef(new Compartment())
+  const base = useRef<{ text: string; doc: Text | null; mtimeMs: number | null }>({ text: disk.text, doc: null, mtimeMs: disk.mtimeMs })
   const [menu, setMenu] = useState<{ at: MenuPoint; selected: string; text: string } | null>(null)
+  const [notice, setNotice] = useState<Notice>(null)
+  const [saving, setSaving] = useState(false)
   const close = useCallback(() => setMenu(null), [])
   const path = tab.file.path
-  useImperativeHandle(ref, () => ({ search: () => { if (editor.current) openSearchPanel(editor.current) } }), [])
+  const writableNow = useRef(writable)
+  writableNow.current = writable
+
+  const baseDoc = (view: EditorView) => {
+    base.current.doc ??= view.state.toText(base.current.text)
+    return base.current.doc
+  }
+  const setBase = (text: string, mtimeMs: number | null) => { base.current = { text, doc: null, mtimeMs } }
+  const syncDirty = (view: EditorView) => {
+    const dirty = !view.state.doc.eq(baseDoc(view))
+    updateFileTabs(conversationId, (state) => markedDirty(state, path, dirty))
+    return dirty
+  }
+  const replace = (view: EditorView, text: string) => {
+    const top = view.scrollDOM.scrollTop
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: view.state.toText(text) } })
+    view.scrollDOM.scrollTop = top
+  }
+
+  const save = async (force = false) => {
+    const view = editor.current
+    if (!view || !writableNow.current || saving) return
+    const text = view.state.sliceDoc()
+    setSaving(true)
+    const result = await perform((rpc) => rpc.call('files.write', { conversationId, path, text, expectedMtimeMs: force ? null : base.current.mtimeMs }))
+    setSaving(false)
+    if (!result || editor.current !== view) return
+    if (result.kind === 'conflict') { setNotice('conflict'); return }
+    setBase(text, result.mtimeMs)
+    setNotice(null)
+    if (!syncDirty(view)) dropFileDraft(conversationId, path)
+  }
+  const saveRef = useRef(save)
+  saveRef.current = save
+
+  // Throws the unsaved edits away for what is on disk now.
+  const reload = async () => {
+    const view = editor.current
+    if (!view) return
+    const read = await perform((rpc) => rpc.call('files.read', { conversationId, path }))
+    if (read?.kind !== 'text' || editor.current !== view) return
+    setBase(read.text, read.mtimeMs ?? null)
+    replace(view, read.text)
+    setNotice(null)
+    syncDirty(view)
+    dropFileDraft(conversationId, path)
+  }
+
+  useImperativeHandle(ref, () => ({
+    search: () => { if (editor.current) openSearchPanel(editor.current) },
+    save: () => { void saveRef.current() }
+  }), [])
 
   useEffect(() => {
     if (!host.current) return
     let current = true
     const language = new Compartment()
+    const draft = fileDraft(conversationId, path)
+    if (draft) setBase(draft.base, draft.mtimeMs)
     const view = new EditorView({
       parent: host.current,
       state: EditorState.create({
-        doc: text,
+        doc: draft?.text ?? disk.text,
         extensions: [
-          EditorState.readOnly.of(true), EditorView.editable.of(false),
-          EditorView.contentAttributes.of({ 'aria-label': path, 'aria-readonly': 'true', tabindex: '0' }),
-          lineNumbers(), highlightActiveLine(), highlightActiveLineGutter(), drawSelection(),
-          keymap.of([...searchKeymap, ...defaultKeymap]), search({ top: true }),
-          EditorState.phrases.of({ 'Find': '搜索', 'next': '下一个', 'previous': '上一个', 'all': '全部', 'match case': '区分大小写', 'regexp': '正则', 'by word': '全词', 'close': '关闭' }),
-          wrapping.current.of(wrap ? EditorView.lineWrapping : []), language.of([]), syntaxHighlighting(highlight), theme
+          lineSeparator(draft?.base ?? disk.text),
+          editing.of(editable(writableNow.current, path)),
+          Prec.highest(keymap.of([{ key: 'Mod-s', preventDefault: true, run: () => { void saveRef.current(); return true } }])),
+          lineNumbers(), fold, codeFolding(), highlightActiveLine(), highlightActiveLineGutter(), drawSelection(),
+          history(), indentOnInput(), bracketMatching(), markers,
+          keymap.of([...searchKeymap, ...historyKeymap, ...foldKeymap, ...defaultKeymap, indentWithTab]), search({ top: true }),
+          EditorState.phrases.of({ 'Find': '搜索', 'Replace': '替换', 'next': '下一个', 'previous': '上一个', 'all': '全部', 'match case': '区分大小写', 'regexp': '正则', 'by word': '全词', 'replace': '替换', 'replace all': '全部替换', 'close': '关闭', 'Fold line': '折叠', 'Unfold line': '展开', 'folded code': '已折叠的代码' }),
+          EditorView.updateListener.of((update) => { if (update.docChanged) syncDirty(update.view) }),
+          wrapping.of(wrap ? EditorView.lineWrapping : []), language.of([]), syntaxHighlighting(highlight), theme
         ]
       })
     })
     editor.current = view
+    syncDirty(view)
     const saved = useFileTabs.getState()[conversationId]?.tabs.find((tab) => tab.file.path === path)
     const restore = requestAnimationFrame(() => {
       view.scrollDOM.scrollTop = saved?.scrollTop ?? 0
@@ -82,19 +180,32 @@ export function FileSource({ conversationId, tab, text, wrap, ref }: {
       current = false
       cancelAnimationFrame(restore)
       view.scrollDOM.removeEventListener('scroll', scroll)
+      // Kept while the tab stays open, so switching tabs or panels loses nothing; a closed tab was confirmed.
+      const open = useFileTabs.getState()[conversationId]?.tabs.some((tab) => tab.file.path === path)
+      if (open && !view.state.doc.eq(baseDoc(view))) keepFileDraft(conversationId, path, { text: view.state.sliceDoc(), base: base.current.text, mtimeMs: base.current.mtimeMs })
+      else dropFileDraft(conversationId, path)
       view.destroy()
       editor.current = null
     }
   }, [conversationId, path])
 
+  // A fresh read: taken as is under no edits, else only noted, so typing is never thrown away.
   useEffect(() => {
     const view = editor.current
-    if (!view || view.state.doc.toString() === text) return
-    const top = view.scrollDOM.scrollTop
-    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } })
-    view.scrollDOM.scrollTop = top
-  }, [text])
-  useEffect(() => { editor.current?.dispatch({ effects: wrapping.current.reconfigure(wrap ? EditorView.lineWrapping : []) }) }, [wrap])
+    if (!view) return
+    if (view.state.sliceDoc() === disk.text) {
+      setBase(disk.text, disk.mtimeMs)
+      setNotice(null)
+      syncDirty(view)
+    } else if (view.state.doc.eq(baseDoc(view))) {
+      setBase(disk.text, disk.mtimeMs)
+      replace(view, disk.text)
+    } else if (disk.text !== base.current.text) {
+      setNotice((notice) => notice ?? 'disk')
+    }
+  }, [disk])
+  useEffect(() => { editor.current?.dispatch({ effects: wrapping.reconfigure(wrap ? EditorView.lineWrapping : []) }) }, [wrap])
+  useEffect(() => { editor.current?.dispatch({ effects: editing.reconfigure(editable(writable, path)) }) }, [writable, path])
   useEffect(() => {
     const view = editor.current
     if (!view || tab.line === null) return
@@ -107,16 +218,26 @@ export function FileSource({ conversationId, tab, text, wrap, ref }: {
     return () => cancelAnimationFrame(frame)
   }, [conversationId, path, tab.line, tab.reveal])
 
-  return <div className="file-source" ref={host} onContextMenu={(event) => {
-    event.preventDefault()
-    const view = editor.current
-    if (!view) return
-    const selection = view.state.selection.main
-    setMenu({ at: menuPoint(event), selected: view.state.sliceDoc(selection.from, selection.to), text: view.state.doc.toString() })
-  }}>
-    {menu && <ContextMenu at={menu.at} label="文件内容" onClose={close}>
-      {menu.selected && <MenuItem label="复制选中内容" icon={<CopyIcon />} onSelect={() => { close(); void copyFileText(menu.selected) }} />}
-      <MenuItem label="复制全部内容" icon={<DocumentIcon />} onSelect={() => { close(); void copyFileText(menu.text) }} />
-    </ContextMenu>}
-  </div>
+  return <>
+    {notice && <div className="file-notice" role="alert">
+      <span>{notice === 'conflict' ? '保存失败：文件已在磁盘上被修改。' : '文件已在磁盘上被修改，你有未保存的修改。'}</span>
+      <button type="button" className="link-button" onClick={() => { if (window.confirm('丢弃未保存的修改，重新载入磁盘上的文件？')) void reload() }}>重新载入</button>
+      {notice === 'conflict'
+        ? <button type="button" className="link-button" onClick={() => void save(true)}>覆盖</button>
+        : <button type="button" className="link-button" onClick={() => setNotice(null)}>保留我的修改</button>}
+    </div>}
+    <div className="file-source" ref={host} onContextMenu={(event) => {
+      event.preventDefault()
+      const view = editor.current
+      if (!view) return
+      const selection = view.state.selection.main
+      setMenu({ at: menuPoint(event), selected: view.state.sliceDoc(selection.from, selection.to), text: view.state.sliceDoc() })
+    }}>
+      {menu && <ContextMenu at={menu.at} label="文件内容" onClose={close}>
+        {writable && tab.dirty && <MenuItem label="保存" icon={<CheckIcon />} hint={`${PRIMARY_KEY_LABEL}S`} onSelect={() => { close(); void save() }} />}
+        {menu.selected && <MenuItem label="复制选中内容" icon={<CopyIcon />} onSelect={() => { close(); void copyFileText(menu.selected) }} />}
+        <MenuItem label="复制全部内容" icon={<DocumentIcon />} onSelect={() => { close(); void copyFileText(menu.text) }} />
+      </ContextMenu>}
+    </div>
+  </>
 }

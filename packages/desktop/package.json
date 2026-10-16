@@ -21,6 +21,7 @@
     "playwright-core": "catalog:"
   },
   "devDependencies": {
+    "@antumi/protocol": "workspace:*",
     "@codemirror/commands": "6.11.1",
     "@codemirror/lang-markdown": "6.5.2",
     "@codemirror/language": "6.12.4",
@@ -28,9 +29,9 @@
     "@codemirror/search": "6.7.2",
     "@codemirror/state": "6.7.6",
     "@codemirror/view": "6.43.13",
-    "@antumi/protocol": "workspace:*",
     "@lezer/common": "1.5.2",
     "@lezer/highlight": "1.2.3",
+    "@replit/codemirror-indentation-markers": "6.5.3",
     "@types/node": "catalog:",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

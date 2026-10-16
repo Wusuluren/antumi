@@ -13,7 +13,7 @@ import { TodoPanel } from './TodoPanel'
 import { useConversationTodos, useTodosSupported } from '../conversation-todos'
 import { projectName } from './ProjectPicker'
 import { WireLogView } from './WireLogView'
-import { FilePreview } from './FilePreview'
+import { FileEditor } from './FileEditor'
 import { EMPTY_FILE_TABS, updateFileTabs, useFileTabs } from '../file-tabs'
 
 // Read again whenever the task changes (every agent turn and exit), the window regains focus,
@@ -59,6 +59,8 @@ function ChangeList({ changes, onOpen }: { changes: RepoChanges[] | null; onOpen
   )
 }
 
+const NO_ROOTS: readonly string[] = []
+
 // Beside the terminal: what the agent changed since its branch started, to judge a result under
 // review before accepting it.
 // A chat task's inspector also shows the plans its agent proposed, and has no git to show while the
@@ -79,6 +81,8 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
   const helperSupported = useHelperSupported(parent)
   const helper = useHelper(helperSupported ? conversationId : null)
   const files = useFileTabs((state) => state[conversationId] ?? EMPTY_FILE_TABS)
+  const fileEditor = useCore((state) => state.rpc?.features.includes('file-editor') ?? false)
+  const fileRoots = parent?.projectPaths ?? NO_ROOTS
   const gitRevision = useCore((state) => state.gitRevision)
   const rpc = useCore((state) => state.rpc)
   const wanted = useCore((state) => state.taskInspectorTab)
@@ -86,7 +90,7 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
   const worktree = task.repos.some((repo) => repo.worktreePath !== null)
   const todosShown = useTodosSupported() && task.conversationId !== null
   const todos = useConversationTodos(todosShown ? task.conversationId : null)
-  const tabs: InspectorTab[] = [...(helperSupported ? ['helper' as const] : []),...(squadRuns.length ? ['squad' as const] : []),...(worktree ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(todosShown ? ['todos' as const] : []), ...(wire && task.conversationId ? ['wire' as const] : []), ...(files.tabs.length > 0 ? ['files' as const] : [])]
+  const tabs: InspectorTab[] = [...(helperSupported ? ['helper' as const] : []),...(squadRuns.length ? ['squad' as const] : []),...(worktree ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(todosShown ? ['todos' as const] : []), ...(wire && task.conversationId ? ['wire' as const] : []), ...(files.tabs.length > 0 || (fileEditor && fileRoots.length > 0) ? ['files' as const] : [])]
   const tab = tabs.includes(wanted) ? wanted : (tabs[0] ?? 'changes')
   useEffect(() => {
     if (wanted !== 'files') updateFileTabs(conversationId, (state) => state.maximized ? { ...state, maximized: false } : state)
@@ -130,7 +134,7 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
       ) : tab === 'todos' && task.conversationId ? (
         <TodoPanel conversationId={task.conversationId} />
       ) : tab === 'files' ? (
-        <FilePreview conversationId={conversationId} updatedAt={task.updatedAt} inspector="task" onEmpty={onEmpty} />
+        <FileEditor conversationId={conversationId} roots={fileRoots} updatedAt={task.updatedAt} inspector="task" editor={fileEditor} onEmpty={onEmpty} />
       ) : tab === 'wire' && task.conversationId ? (
         <WireLogView conversationId={task.conversationId} />
       ) : tab === 'plan' ? (
