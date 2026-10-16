@@ -1,7 +1,7 @@
 import { readFile, realpath, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { extname, isAbsolute, join } from 'node:path'
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, Notification, protocol, shell, type OpenDialogOptions } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, nativeTheme, Notification, protocol, shell, type OpenDialogOptions } from 'electron'
 import { z } from 'zod'
 import { antumiPaths, readCoreEndpoint } from '@antumi/protocol/node'
 import { ensureBackend } from './backend'
@@ -226,9 +226,10 @@ let apps: Promise<InstalledApp[]> | null = null
 const exists = (path: string) => stat(path).then(() => true, () => false)
 const foundApps = () => (apps ??= installedApps(process.platform, homedir(), exists))
 
-// Each with its own icon, read from the app itself, so nothing of a brand is bundled here.
+// Each with its own icon, read from the app itself, so nothing of a brand is bundled here. As the
+// Finder shows it: getFileIcon goes by the extension on macOS, so every .app gets the same one.
 ipcMain.handle('antumi:open-with-apps', async () => Promise.all((await foundApps()).map(async ({ path, ...entry }) => {
-  const icon = await app.getFileIcon(path, { size: 'normal' }).then((image) => image.toDataURL(), () => null)
+  const icon = await nativeImage.createThumbnailFromPath(path, { width: 64, height: 64 }).then((image) => image.toDataURL(), () => null)
   return { ...entry, icon }
 })))
 
