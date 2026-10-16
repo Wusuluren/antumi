@@ -15,7 +15,7 @@ import { Segmented } from './SettingsControls'
 const MAX_MEMBERS = 5
 const LEADER_DUTY = '队长只读：拆分工作、分派给成员、汇总验证结果，自己不改代码。'
 
-// The squads live on a page of their own, opened from here like the dashboard; the sidebar keeps
+// The squads live on a page of their own, opened from here like the routines; the sidebar keeps
 // no list of them.
 export function SquadsEntry() {
   const supported = useSquadsSupported()
@@ -24,7 +24,7 @@ export function SquadsEntry() {
   return (
     <button type="button" className="inbox-entry sidebar-squads" aria-current={open} onClick={() => selectSquad(null)}>
       <SquadIcon />
-      <span>研发小队</span>
+      <span>小队</span>
     </button>
   )
 }

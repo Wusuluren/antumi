@@ -46,7 +46,7 @@ describe('development squad user paths', () => {
     selectSquad(null)
     // The sidebar holds an entry only; the squads are listed on their page.
     const sidebar = renderToStaticMarkup(createElement(SquadsEntry))
-    expect(sidebar).toContain('研发小队')
+    expect(sidebar).toContain('<span>小队</span>')
     expect(sidebar).not.toContain('Delivery')
     const list = renderToStaticMarkup(createElement(SquadsView))
     expect(list).toContain('Delivery')
