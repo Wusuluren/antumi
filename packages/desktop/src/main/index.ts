@@ -9,6 +9,7 @@ import { popupWindowOptions, RequestPopup } from './request-popup'
 import { startBrowserHost, type BrowserHost } from './browser/browser-host'
 import { WindowSlot } from './browser/window-slot'
 import { adoptLegacyUserData } from './user-data'
+import { installedApps, openWith, type InstalledApp } from './open-with'
 
 adoptLegacyUserData()
 
@@ -216,6 +217,31 @@ ipcMain.handle('antumi:open-file', async (_event, file: unknown) => {
     return await shell.openPath(file)
   } catch {
     return `无法打开文件：${file}`
+  }
+})
+
+// The editors and terminals installed here, looked for once a run: apps come and go rarely, and a
+// new one shows after a restart.
+let apps: Promise<InstalledApp[]> | null = null
+const exists = (path: string) => stat(path).then(() => true, () => false)
+const foundApps = () => (apps ??= installedApps(process.platform, homedir(), exists))
+
+// Each with its own icon, read from the app itself, so nothing of a brand is bundled here.
+ipcMain.handle('antumi:open-with-apps', async () => Promise.all((await foundApps()).map(async ({ path, ...entry }) => {
+  const icon = await app.getFileIcon(path, { size: 'normal' }).then((image) => image.toDataURL(), () => null)
+  return { ...entry, icon }
+})))
+
+// A file opened in one of those apps, named by its id: the renderer never names what runs.
+ipcMain.handle('antumi:open-with', async (_event, file: unknown, id: unknown) => {
+  if (typeof file !== 'string' || !isAbsolute(file) || file.includes('\0')) return '文件路径无效'
+  const chosen = (await foundApps()).find((entry) => entry.id === id)
+  if (!chosen) return '找不到这个应用'
+  try {
+    await openWith(chosen, file)
+    return ''
+  } catch {
+    return `无法用 ${chosen.name} 打开：${file}`
   }
 })
 

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import type { FileRead, ResolvedFile } from '@antumi/protocol'
 import { useCore } from '../core-store'
+import { canOpenWith } from '../desktop-bridge'
 import type { ChatFileScope } from '../file-actions'
 import { closedFile, dropFileDraft, EMPTY_FILE_TABS, expandedFolders, openedFile, revealedFile, revealedFolder, toggledFolder, updateFileTabs, useFileTabs, type FileTab } from '../file-tabs'
 import { MAX_FILE_TREE_WIDTH, MIN_FILE_TREE_WIDTH, setPreference, usePreferences } from '../preferences'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { FileSource, type FileDisk, type FileSourceHandle } from './FileSource'
 import { FileTree } from './FileTree'
+import { OpenWithButton } from './OpenWithButton'
 import { useFocusCount } from './Inspector'
 import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
 import { FileMenu, FileMenuItems } from './FileMenu'
@@ -138,6 +140,7 @@ export function FileEditor({ conversationId, roots, updatedAt, onEmpty, inspecto
           </button>
         </div>)}
       </div>
+      {active && canOpenWith() && <OpenWithButton file={active.file} />}
       {active && <button type="button" className="tool-button" aria-label="搜索文件内容" title={`搜索 · ${PRIMARY_KEY_LABEL}F`} onClick={() => source.current?.search()}><SearchIcon /></button>}
       <button type="button" className="tool-button" ref={more} aria-label="更多操作" aria-haspopup="menu" aria-expanded={menu !== null} onClick={(event) => {
         const bounds = event.currentTarget.getBoundingClientRect()

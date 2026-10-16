@@ -16,6 +16,8 @@ declare global {
       // Absent from a main older than the renderer.
       revealFile?(candidates: string[]): Promise<unknown>
       openFile?(path: string): Promise<unknown>
+      openWithApps?(): Promise<unknown>
+      openWith?(path: string, app: string): Promise<unknown>
       notify?(notice: unknown): Promise<unknown>
       setBadge?(count: number): Promise<unknown>
       onNotificationClick?(listener: (target: unknown) => void): () => void
@@ -69,6 +71,25 @@ export function canOpenFile(): boolean {
 export async function openFile(path: string): Promise<string | null> {
   const error = await window.antumi?.openFile?.(path)
   return typeof error === 'string' ? error || null : '当前客户端不支持系统打开'
+}
+
+const OpenWithApp = z.object({ id: z.string(), name: z.string(), kind: z.enum(['editor', 'terminal']), icon: z.string().nullable() })
+export type OpenWithApp = z.infer<typeof OpenWithApp>
+
+export function canOpenWith(): boolean {
+  return window.antumi?.openWithApps !== undefined
+}
+
+// The editors and terminals installed here, asked of main once.
+let openWithApps: Promise<OpenWithApp[]> | null = null
+export function installedOpenWithApps(): Promise<OpenWithApp[]> {
+  openWithApps ??= (window.antumi?.openWithApps?.() ?? Promise.resolve([])).then((found) => z.array(OpenWithApp).catch([]).parse(found), () => [])
+  return openWithApps
+}
+
+export async function openWith(path: string, app: string): Promise<string | null> {
+  const error = await window.antumi?.openWith?.(path, app)
+  return typeof error === 'string' ? error || null : '当前客户端不支持用其他应用打开'
 }
 
 // Shows the first of the paths that exists in the system's file manager; which one, or null.

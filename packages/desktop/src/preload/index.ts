@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('antumi', {
   setTheme: (theme: string): Promise<unknown> => ipcRenderer.invoke('antumi:set-theme', theme),
   revealFile: (candidates: string[]): Promise<unknown> => ipcRenderer.invoke('antumi:reveal-file', candidates),
   openFile: (path: string): Promise<unknown> => ipcRenderer.invoke('antumi:open-file', path),
+  openWithApps: (): Promise<unknown> => ipcRenderer.invoke('antumi:open-with-apps'),
+  openWith: (path: string, app: string): Promise<unknown> => ipcRenderer.invoke('antumi:open-with', path, app),
   notify: (notice: unknown): Promise<unknown> => ipcRenderer.invoke('antumi:notify', notice),
   setBadge: (count: number): Promise<unknown> => ipcRenderer.invoke('antumi:set-badge', count),
   onNotificationClick: (listener: (target: unknown) => void): (() => void) => {
