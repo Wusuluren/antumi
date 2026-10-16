@@ -466,6 +466,31 @@ describe('ClaudeStream options', () => {
     expect(ofKind(driver.items.list(), 'state')[0]?.model).toBe('haiku')
   })
 
+  it("shows the user's note with a denial as their message, and nothing for a bare one", () => {
+    const start = () => {
+      const driver = new ClaudeStream('stage-1', OPTIONS)
+      driver.apply({ dir: 'out', at, frame: { type: 'control_request', request_id: 'antumi-init', request: { subtype: 'initialize' } } })
+      driver.apply({ dir: 'in', at, frame: { type: 'control_response', response: { subtype: 'success', request_id: 'antumi-init' } } })
+      driver.apply({ dir: 'out', at, frame: driver.send('plan it').wire, ref: 'ref-1' })
+      driver.apply({ dir: 'in', at, frame: { type: 'control_request', request_id: 'plan-1', request: { subtype: 'can_use_tool', tool_name: 'ExitPlanMode', input: { plan: '# Plan' }, tool_use_id: 'toolu_p' } } })
+      driver.apply({ dir: 'in', at, frame: { type: 'control_request', request_id: 'bash-1', request: { subtype: 'can_use_tool', tool_name: 'Bash', input: { command: 'rm -rf build' }, tool_use_id: 'toolu_b' } } })
+      return driver
+    }
+    const noted = start()
+    noted.apply({ dir: 'out', at, frame: noted.respond('plan-1', { decision: 'deny', message: 'split step 2' })[0] })
+    noted.apply({ dir: 'out', at, frame: noted.respond('bash-1', { decision: 'deny', message: 'keep the build folder' })[0] })
+    expect(noted.items.get('a:plan-1')).toMatchObject({ resolution: 'denied' })
+    expect(ofKind(noted.items.list(), 'user').map((item) => item.text)).toEqual(['plan it', 'split step 2', 'keep the build folder'])
+    expect(noted.items.list().at(-1)).toMatchObject({ id: 'deny:bash-1', kind: 'user' })
+    const bare = start()
+    bare.apply({ dir: 'out', at, frame: bare.respond('plan-1', { decision: 'deny' })[0] })
+    bare.apply({ dir: 'out', at, frame: bare.respond('bash-1', { decision: 'deny' })[0] })
+    expect(ofKind(bare.items.list(), 'user').map((item) => item.text)).toEqual(['plan it'])
+    const saved = start()
+    saved.apply({ dir: 'out', at, frame: saved.respond('plan-1', { decision: 'deny', saved: true })[0] })
+    expect(ofKind(saved.items.list(), 'user').map((item) => item.text)).toEqual(['plan it'])
+  })
+
   it('carries out an approved plan asking each edit, or taking edits as they come', () => {
     const driver = new ClaudeStream('stage-1', OPTIONS)
     driver.apply({ dir: 'out', at, frame: { type: 'control_request', request_id: 'antumi-init', request: { subtype: 'initialize' } } })

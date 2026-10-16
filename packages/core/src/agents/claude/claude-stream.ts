@@ -33,6 +33,10 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 // Calls that are Claude Code's own machinery, or that another item already shows: no tool card.
 // A plan kept for later: the tasks it builds on are unfinished, so it is not to be carried out now.
 const PLAN_SAVED = 'The plan is saved to the task for later: the tasks it builds on are not done yet. Do not implement it or revise it now. Reply with one short line and end your turn.'
+// A plan sent back carries the user's note after this; without one, the default asks for a revision.
+const KEEP_PLANNING = 'Keep planning. '
+const REVISE_PLAN = 'Keep planning: revise the plan and present it again.'
+const DECLINED_CALL = 'The user declined this tool call.'
 const HIDDEN_TOOLS: ReadonlySet<string> = new Set(['AskUserQuestion', 'ToolSearch', ...CLAUDE_TASK_TOOLS])
 const FILE_TOOLS: ReadonlySet<string> = new Set(['Write', 'Edit', 'MultiEdit'])
 // Plan mode drafts its plan in a file of its own (~/.claude/plans/<name>.md) before proposing it.
@@ -209,6 +213,7 @@ const Answered = z.looseObject({
   behavior: z.string(),
   // A denial that also stops the turn.
   interrupt: z.boolean().optional(),
+  message: z.string().optional(),
   updatedInput: Input.optional(),
   updatedPermissions: z.array(z.unknown()).optional()
 })
@@ -757,7 +762,7 @@ export class ClaudeStream implements ChatDriver {
     if (pending.tool === 'ExitPlanMode') {
       if (answer.saved) return { behavior: 'deny', message: PLAN_SAVED }
       if (answer.decision === 'deny') {
-        return { behavior: 'deny', message: answer.message ? `Keep planning. ${answer.message}` : 'Keep planning: revise the plan and present it again.' }
+        return { behavior: 'deny', message: answer.message ? `${KEEP_PLANNING}${answer.message}` : REVISE_PLAN }
       }
       // Its checkout stays read-only however the plan is answered.
       if (this.options.planOnly || this.options.readOnly) throw new Rejection('plan-only', 'this stage may only plan')
@@ -777,7 +782,7 @@ export class ClaudeStream implements ChatDriver {
           ? { behavior: 'allow', updatedInput: pending.input, updatedPermissions: pending.suggestions }
           : { behavior: 'allow', updatedInput: pending.input }
       case 'deny':
-        return { behavior: 'deny', message: answer.message || 'The user declined this tool call.' }
+        return { behavior: 'deny', message: answer.message || DECLINED_CALL }
     }
   }
 
@@ -1342,6 +1347,10 @@ export class ClaudeStream implements ChatDriver {
     } else {
       if (pending?.toolItemId) this.denied.add(pending.toolItemId)
       this.resolve(requestId, 'denied', null, at)
+      // What the user wrote with the denial reaches the agent inside the answer; shown as their
+      // message, as for the agents that take it as one.
+      const note = pending ? denialNote(pending.tool, answered.data.message) : null
+      if (note) this.items.put({ id: `deny:${requestId}`, kind: 'user', text: note, images: [] }, at)
     }
   }
 
@@ -1383,4 +1392,11 @@ export class ClaudeStream implements ChatDriver {
       this.items.notice('warning', `Claude Code 异常退出（code ${code}）：\n${tail}`, at)
     }
   }
+}
+
+// The user's own words in a denial Antumi sent, apart from the wording it adds or uses without them.
+export function denialNote(tool: string | undefined, message: string | undefined): string | null {
+  if (!message) return null
+  if (tool === 'ExitPlanMode') return message.startsWith(KEEP_PLANNING) ? message.slice(KEEP_PLANNING.length).trim() || null : null
+  return message === DECLINED_CALL ? null : message
 }

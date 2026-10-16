@@ -2,7 +2,7 @@
 
 <img src="docs/assets/icon.png" alt="Antumi" width="96" height="96" />
 
-# Antumi
+# Antumi (安图米)
 
 **把活交给 AI Agent，进度和结果你都看得到。**
 
@@ -24,7 +24,7 @@
 
 ---
 
-## 为什么需要 Antumi
+## 为什么需要 Antumi (安图米)
 
 你开着三个终端：Claude Code 在修 bug，Codex 在写导出，第三个窗口你已经忘了它在干嘛。哪个在等你批准？哪两个改到了同一个文件？想换个 Agent 接手，又得把需求和踩过的坑从头讲一遍。
 

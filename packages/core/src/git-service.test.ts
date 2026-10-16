@@ -202,7 +202,8 @@ describe('Git management', () => {
     expect(new Set([...first.commits, ...second.commits].map((commit) => commit.sha)).size).toBe(111)
     expect((await service.history(target, 'HEAD', 0, 'commit 0')).commits).toHaveLength(1)
     expect((await service.history(target, 'HEAD', 0, 'Antumi Test')).commits).toHaveLength(100)
-  })
+    // 110 commits, one git process each, take most of the default 5s on a busy machine.
+  }, 20_000)
 
   it('compares divergence, fast-forwards pull and refuses a divergent pull', async () => {
     const peer = path.join(root, 'peer')
