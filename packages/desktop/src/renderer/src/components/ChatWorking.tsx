@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { formatTokens, workedFor } from '../chat-tools'
 import { useTick } from '../chat-motion'
+import { AntMotion } from './AntMotion'
 
 // What kind of thing the agent is at, when nothing more specific is known.
 export type WorkingPhase = 'tools' | 'thinking' | 'replying' | 'waiting' | 'asking' | 'working'
@@ -97,6 +98,7 @@ export function ChatWorking({ phase, tokens, background, since }: {
         </span>
       ))}
       <span className="chat-working-part"><span className="chat-working-dot" aria-hidden="true">·</span><span className={phase === 'asking' ? undefined : 'chat-sheen chat-working-sheen'}>{step}</span></span>
+      {phase !== 'asking' && <AntMotion key={phase === 'thinking' ? 'walk' : 'carry'} action={phase === 'thinking' ? 'walk' : 'carry'} size="inline" />}
     </div>
   )
 }

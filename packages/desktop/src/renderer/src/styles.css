@@ -183,6 +183,24 @@
   --status-done: light-dark(#40a02b, #a6e3a1);
 }
 
+/* The ant mascot. Its shell is the palette's hue taken toward black, so every palette has its own
+   ant; the parcel is kraft paper in all of them. Set on every palette element so a retinted
+   swatch retints the ant too. */
+:root,
+[data-palette] {
+  --ant-body: light-dark(color-mix(in oklab, var(--accent) 60%, #000), color-mix(in oklab, var(--accent) 80%, #000));
+  --ant-limb: light-dark(color-mix(in oklab, var(--accent) 38%, #000), color-mix(in oklab, var(--accent) 58%, #000));
+  --ant-sheen: color-mix(in oklab, var(--accent) 50%, #fff);
+  --ant-blush: color-mix(in oklab, var(--accent) 35%, #ff8f9c);
+  --ant-eye: #fffdf9;
+  --ant-pupil: #1c120d;
+  --ant-parcel: light-dark(#e2b67c, #c99a5e);
+  --ant-parcel-top: light-dark(#eeca97, #dab076);
+  --ant-parcel-side: light-dark(#c8975c, #a57a45);
+  --ant-parcel-tape: light-dark(#f8e8cb, #ecd6ac);
+  --ant-parcel-line: light-dark(#9e6c36, #5c4023);
+}
+
 /* Dark follows the system unless a theme is pinned in settings ([data-theme]). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) { color-scheme: dark; }

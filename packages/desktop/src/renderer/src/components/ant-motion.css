@@ -1,0 +1,350 @@
+/* A scene animates these few numbers and the figure follows: how far the legs swing (gait), whether
+   the front pair holds a parcel up (hold), whether the head looks about (curious). Registered so
+   they interpolate, and so a pose can blend from walking into lifting without a jump. */
+@property --ant-gait { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --ant-hold { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --ant-curious { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --ant-swing { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --ant-lift { syntax: '<number>'; inherits: false; initial-value: 0; }
+
+.ant-stage { --ant-step: .42s; --ant-offset: 0s; --ant-rest: 0; --ant-sway: 2.5deg; pointer-events: none; }
+.ant-stage svg { display: block; width: 100%; height: 100%; overflow: hidden; }
+.ant-stage[data-paused] *, .ant-gallery[data-paused] .ant-stage * { animation-play-state: paused !important; }
+
+/* Figure */
+.ant-shell { fill: var(--ant-body); }
+.ant-sheen { fill: var(--ant-sheen); opacity: .42; }
+.ant-stripe { fill: none; stroke: var(--ant-limb); stroke-width: 1.5; stroke-linecap: round; opacity: .55; }
+.ant-leg, .ant-antenna path { fill: none; stroke: var(--ant-limb); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.ant-antenna path { stroke-width: 2; }
+.ant-antenna circle { fill: var(--ant-limb); }
+.ant-legs-far, .ant-antenna-far { opacity: .6; }
+.ant-eye-white, .ant-glint { fill: var(--ant-eye); }
+.ant-pupil { fill: var(--ant-pupil); }
+.ant-eye-closed, .ant-smile { fill: none; stroke: var(--ant-sheen); stroke-width: 1.6; stroke-linecap: round; }
+.ant-blush { fill: var(--ant-blush); opacity: .5; }
+
+.ant-figure {
+  transform: translateY(calc(var(--ant-swing) * var(--ant-gait) * -1.2px));
+  animation: ant-bounce calc(var(--ant-step) / 2) var(--ant-offset) ease-in-out infinite alternate;
+}
+/* The abdomen trails the body a beat behind: the one bit of follow-through that makes it read as soft. */
+.ant-gaster {
+  transform-origin: 42px 44px;
+  transform: rotate(calc(var(--ant-swing) * var(--ant-gait) * 2.5deg));
+  animation: ant-bounce calc(var(--ant-step) / 2) calc(var(--ant-offset) - .08s) ease-in-out infinite alternate;
+}
+.ant-head { transform-origin: 62px 38px; transform: rotate(calc(var(--ant-curious) * -7deg + var(--ant-rest) * 7deg)); }
+.ant-antenna {
+  transform: rotate(calc(var(--ant-hold) * 30deg - var(--ant-curious) * 16deg + var(--ant-rest) * 34deg + var(--ant-swing) * 1deg));
+  animation: ant-feel 1.7s ease-in-out infinite alternate;
+}
+.ant-antenna-near { transform-origin: 74px 20px; }
+.ant-antenna-far { transform-origin: 68px 20px; animation-duration: 2.1s; animation-delay: -.7s; }
+.ant-eye { transform-origin: 77px 28px; animation: ant-blink 4.6s infinite; }
+
+.ant-leg {
+  transform: translateY(calc(var(--ant-lift) * var(--ant-gait) * -2.4px)) rotate(calc(var(--ant-swing) * var(--ant-gait) * 1deg));
+  animation: ant-stride var(--ant-step) var(--ant-offset) linear infinite;
+}
+.ant-leg[data-tripod='b'] { animation-delay: calc(var(--ant-offset) - var(--ant-step) / 2); }
+/* The front pair is the arms: at hold 1 the thigh swings up and the shin reaches for the parcel. */
+.ant-leg-front {
+  transform: translateY(calc(var(--ant-lift) * var(--ant-gait) * (1 - var(--ant-hold)) * -2.4px))
+    rotate(calc(var(--ant-hold) * -100deg + var(--ant-swing) * var(--ant-gait) * (1 - var(--ant-hold)) * 1deg));
+}
+.ant-tibia { transform: rotate(calc(var(--ant-hold) * var(--ant-tibia-hold))); }
+.ant-leg-fn { transform-origin: 58px 46px; --ant-tibia-hold: -62deg; }
+.ant-leg-fn .ant-tibia { transform-origin: 66px 52px; }
+.ant-leg-ff { transform-origin: 61px 45px; --ant-tibia-hold: -52deg; }
+.ant-leg-ff .ant-tibia { transform-origin: 70px 51px; }
+.ant-leg-mn { transform-origin: 53px 47px; }
+.ant-leg-mf { transform-origin: 56px 46px; }
+.ant-leg-hn { transform-origin: 48px 46px; }
+.ant-leg-hf { transform-origin: 51px 45px; }
+
+/* Parcel */
+.ant-parcel :is(path, rect) { stroke: var(--ant-parcel-line); stroke-width: 1.1; stroke-linejoin: round; }
+.ant-parcel-front { fill: var(--ant-parcel); }
+.ant-parcel-top { fill: var(--ant-parcel-top); }
+.ant-parcel-side { fill: var(--ant-parcel-side); }
+.ant-parcel .ant-parcel-tape { fill: var(--ant-parcel-tape); stroke: none; opacity: .85; }
+.ant-parcel .ant-parcel-mark { fill: none; stroke-linecap: round; opacity: .55; }
+.ant-cargo { transform: translate(58px, 19.5px); }
+.ant-cargo-sway {
+  transform: translateY(calc(var(--ant-swing) * var(--ant-gait) * -1.4px)) rotate(calc(var(--ant-swing) * var(--ant-gait) * var(--ant-sway)));
+  animation: ant-bounce calc(var(--ant-step) / 2) calc(var(--ant-offset) - .1s) ease-in-out infinite alternate;
+}
+
+.ant-ground { stroke: var(--border-2); stroke-width: 1; }
+.ant-pebbles { stroke: var(--text-3); stroke-width: 1.4; stroke-linecap: round; opacity: .5; }
+.ant-spark { fill: none; stroke: var(--status-done); stroke-width: 1.8; stroke-linecap: round; opacity: 0; }
+.ant-puff { fill: var(--text-3); opacity: 0; transform-box: fill-box; transform-origin: center; }
+
+@keyframes ant-stride {
+  0% { --ant-swing: -13; --ant-lift: 0; }
+  60% { --ant-swing: 13; --ant-lift: 0; }
+  80% { --ant-lift: 1; }
+  100% { --ant-swing: -13; --ant-lift: 0; }
+}
+@keyframes ant-bounce { from { --ant-swing: 0; } to { --ant-swing: 1; } }
+@keyframes ant-feel { from { --ant-swing: -6; } to { --ant-swing: 9; } }
+@keyframes ant-blink { 0%, 93%, 100% { transform: none; } 95% { transform: scaleY(.1); } }
+@keyframes ant-spark { 0% { opacity: 0; transform: scale(.4); } 30% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(1.15); } }
+
+/* Scenes in the 240×112 stage; the performer stands with its feet on the ground line. */
+.ant-motion { height: 144px; display: grid; place-items: center; }
+.ant-motion > svg { width: 240px; max-width: 100%; mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent); }
+.ant-performer { transform: translate(70px, 26px); }
+
+/* Inline: the band the ants use, at the height the place gives it; strokes thicken so legs and
+   antennae still read at a third of the size. */
+.ant-motion.ant-inline { --ant-inline-height: 28px; display: block; flex-shrink: 0; height: var(--ant-inline-height); }
+.ant-motion.ant-inline > svg { width: auto; height: 100%; }
+.ant-inline :is(.ant-leg, .ant-antenna path) { stroke-width: 4; }
+/* Too small to cross and come back: walkers keep to the middle and the ground goes by under them. */
+.ant-inline:is(.ant-motion-walk, .ant-motion-carry, .ant-motion-team) .ant-performer { animation: none; transform: translate(74px, 26px); }
+.ant-inline.ant-motion-team .ant-performer { transform: translate(36px, 26px); }
+.ant-inline:is(.ant-motion-walk, .ant-motion-carry, .ant-motion-team) .ant-ground { stroke: var(--text-3); stroke-width: 1.4; stroke-dasharray: 3 21; animation: ant-ground-roll .6s linear infinite; }
+.ant-inline:is(.ant-motion-carry, .ant-motion-team) .ant-ground { animation-duration: .7s; }
+.ant-inline .ant-pebbles { display: none; }
+@keyframes ant-ground-roll { to { stroke-dashoffset: 24; } }
+
+/* Walk: across, a pause to look about, then on. */
+.ant-motion-walk .ant-performer { --ant-gait: 1; animation: ant-walk-route 10s -2.4s linear infinite; }
+@keyframes ant-walk-route {
+  0% { transform: translate(-100px, 26px); --ant-gait: 1; --ant-curious: 0; }
+  37% { transform: translate(70px, 26px); --ant-gait: 1; }
+  40% { --ant-gait: 0; --ant-curious: 0; }
+  44%, 49% { --ant-curious: 1; }
+  52% { --ant-gait: 0; --ant-curious: 0; }
+  54% { transform: translate(70px, 26px); --ant-gait: 1; }
+  92%, 100% { transform: translate(250px, 26px); --ant-gait: 1; }
+}
+
+/* Carry: heavier, slower steps, the parcel bobbing a beat behind. */
+.ant-motion-carry .ant-performer { --ant-gait: 1; --ant-hold: 1; --ant-step: .5s; animation: ant-carry-route 10s -4s linear infinite; }
+@keyframes ant-carry-route { from { transform: translate(-110px, 26px); } to { transform: translate(250px, 26px); } }
+
+/* Place: walk in, bow, set it down with a little squash, straighten, one pleased hop. */
+.ant-motion-place .ant-performer { --ant-step: .32s; transform: translate(40px, 26px); animation: ant-place-route 4s linear both; }
+.ant-motion-place .ant-pose { transform-origin: 72px 70px; animation: ant-place-pose 4s ease-in-out both; }
+.ant-motion-place .ant-cargo { transform: translate(110px, 70px); animation: ant-place-cargo 4s ease-in-out both; }
+.ant-motion-place .ant-puff { animation: ant-place-puff 4s ease-out both; }
+.ant-motion-place .ant-puff-back { --ant-drift: -6px; }
+.ant-motion-place .ant-puff-front { --ant-drift: 6px; }
+.ant-motion-place .ant-spark { animation: ant-spark 1.2s 3s ease-out both; }
+@keyframes ant-place-route {
+  0% { transform: translate(-40px, 26px); --ant-gait: 1; --ant-hold: 1; }
+  35% { transform: translate(40px, 26px); --ant-gait: 1; }
+  39% { --ant-gait: 0; }
+  44% { --ant-hold: 1; }
+  60% { --ant-hold: 0; }
+  100% { transform: translate(40px, 26px); --ant-gait: 0; --ant-hold: 0; }
+}
+@keyframes ant-place-pose {
+  0%, 40% { transform: none; }
+  52%, 62% { transform: rotate(11deg); }
+  72% { transform: rotate(-3deg); }
+  78% { transform: none; }
+  84% { transform: translateY(-6px); }
+  90%, 100% { transform: none; }
+}
+@keyframes ant-place-cargo {
+  0%, 42% { transform: translate(58px, 19.5px); }
+  47% { transform: translate(74px, 10px) rotate(6deg); }
+  53% { transform: translate(108px, 18px) rotate(10deg); }
+  60% { transform: translate(110px, 70px) scale(1.1, .86); }
+  66% { transform: translate(110px, 70px) scale(.96, 1.05); }
+  72%, 100% { transform: translate(110px, 70px); }
+}
+@keyframes ant-place-puff {
+  0%, 59% { opacity: 0; transform: scale(.3); }
+  63% { opacity: .45; transform: scale(.8); }
+  80%, 100% { opacity: 0; transform: translateX(var(--ant-drift)) scale(1.5); }
+}
+
+/* Throw: lean back, fling, and the parcel arcs into the bin, which wobbles once. */
+.ant-motion-throw .ant-performer { transform: translate(10px, 26px); animation: ant-throw-route 3s linear both; }
+.ant-motion-throw .ant-pose { transform-origin: 50px 70px; animation: ant-throw-pose 3s ease-in-out both; }
+.ant-motion-throw .ant-cargo { transform: translate(194px, 66px); animation: ant-throw-cargo 3s linear both; }
+.ant-bin { transform-origin: 204px 96px; animation: ant-bin-wobble 3s ease-out both; }
+.ant-bin-body { fill: var(--surface); stroke: var(--text-3); stroke-width: 1.4; stroke-linejoin: round; }
+.ant-bin-ribs { stroke: var(--border-2); stroke-width: 1.4; stroke-linecap: round; }
+.ant-bin-rim { stroke: var(--text-3); stroke-width: 2.4; stroke-linecap: round; }
+@keyframes ant-throw-route {
+  0%, 30% { --ant-hold: 1; }
+  40% { --ant-hold: .2; }
+  100% { --ant-hold: 0; }
+}
+@keyframes ant-throw-pose {
+  0% { transform: none; }
+  28% { transform: rotate(-14deg); }
+  36% { transform: rotate(10deg); }
+  46% { transform: rotate(5deg); }
+  60%, 78% { transform: none; }
+  84% { transform: translateY(-6px); }
+  90%, 100% { transform: none; }
+}
+/* A parabola sampled every sixth of the flight. */
+@keyframes ant-throw-cargo {
+  0% { transform: translate(58px, 19.5px) rotate(0deg); animation-timing-function: ease-in-out; }
+  28% { transform: translate(44px, 14px) rotate(-18deg); animation-timing-function: ease-in; }
+  38% { transform: translate(64px, 10px) rotate(10deg); }
+  43.7% { transform: translate(85.7px, .8px) rotate(70deg); }
+  49.3% { transform: translate(107.3px, -2px) rotate(130deg); }
+  55% { transform: translate(129px, 1.5px) rotate(190deg); }
+  60.7% { transform: translate(150.7px, 11.3px) rotate(250deg); }
+  66.3% { transform: translate(172.3px, 27.5px) rotate(310deg); }
+  72% { transform: translate(194px, 50px) rotate(360deg); animation-timing-function: ease-in; }
+  78% { transform: translate(194px, 66px) rotate(360deg); animation-timing-function: ease-out; }
+  82% { transform: translate(194px, 62px) rotate(360deg); animation-timing-function: ease-in; }
+  86%, 100% { transform: translate(194px, 66px) rotate(360deg); }
+}
+@keyframes ant-bin-wobble {
+  0%, 76% { transform: none; }
+  80% { transform: rotate(4deg); }
+  85% { transform: rotate(-2.5deg); }
+  90% { transform: rotate(1deg); }
+  95%, 100% { transform: none; }
+}
+
+/* Team: two ants one behind the other, a long parcel across both, their steps a little out of time. */
+.ant-motion-team .ant-performer { --ant-gait: 1; --ant-hold: 1; --ant-step: .5s; animation: ant-team-route 13s -5.5s linear infinite; }
+.ant-mate-front { --ant-offset: -.17s; }
+.ant-cargo-team { --ant-sway: 1deg; transform: translate(106px, 19.5px); }
+@keyframes ant-team-route { from { transform: translate(-180px, 26px); } to { transform: translate(250px, 26px); } }
+
+/* Rest: folded legs against the parcel, breathing slowly. */
+.ant-motion-rest .ant-performer { --ant-rest: 1; transform: translate(76px, 26px); }
+.ant-motion-rest .ant-pose { transform: translateY(5px); }
+.ant-motion-rest :is(.ant-leg, .ant-antenna, .ant-figure) { animation: none; }
+.ant-motion-rest .ant-leg { transform: scaleY(.78); }
+.ant-motion-rest .ant-gaster { animation: ant-breathe 4.8s ease-in-out infinite; transform: none; }
+.ant-cargo-rest { transform: translate(10px, 70px); }
+.ant-snore { fill: var(--text-3); font: 600 9px var(--font); }
+.ant-snore text + text { font-size: 7px; }
+@keyframes ant-breathe { 50% { transform: scale(1.04); } }
+
+/* Delivery: 220×56 on the card's top edge, the ant at half size. Its transform keeps one function
+   list in every frame so the turn at the slot interpolates through a squash instead of a flip. */
+.ant-delivery { position: absolute; right: 12px; bottom: 100%; width: 220px; height: 56px; }
+.ant-delivery svg { mask-image: linear-gradient(90deg, transparent, black 32px); }
+.ant-delivery .ant-performer { --ant-step: .2s; transform: translate(130px, 21px) scale(.5) translate(46px) scaleX(1) translate(-46px); }
+.ant-delivery .ant-pose { transform-origin: 72px 70px; }
+.ant-slot { stroke: var(--text-3); stroke-width: 3; stroke-linecap: round; transform-box: fill-box; transform-origin: center; }
+.ant-delivery-running .ant-performer { --ant-hold: 1; animation: ant-delivery-route 8s linear infinite; }
+.ant-delivery-running .ant-pose { animation: ant-delivery-pose 8s ease-in-out infinite; }
+.ant-delivery-running .ant-cargo { animation: ant-delivery-cargo 8s ease-in-out infinite; }
+.ant-delivery-running .ant-slot { animation: ant-slot-gulp 8s ease-out infinite; }
+.ant-delivery-waiting .ant-performer { --ant-curious: 1; }
+.ant-delivery-waiting :is(.ant-antenna, .ant-eye) { animation: none; }
+.ant-delivery-done .ant-pose { animation: ant-hop .8s ease-out both; }
+.ant-delivery-done .ant-spark { animation: ant-spark 1s .2s ease-out both; }
+.ant-delivery-done .ant-slot { stroke: var(--status-done); }
+@keyframes ant-delivery-route {
+  0% { transform: translate(-56px, 21px) scale(.5) translate(46px) scaleX(1) translate(-46px); --ant-gait: 1; --ant-hold: 1; }
+  36% { transform: translate(130px, 21px) scale(.5) translate(46px) scaleX(1) translate(-46px); --ant-gait: 1; }
+  38% { --ant-gait: 0; }
+  42% { --ant-hold: 1; }
+  50% { --ant-hold: 0; }
+  56% { transform: translate(130px, 21px) scale(.5) translate(46px) scaleX(1) translate(-46px); }
+  60% { transform: translate(130px, 21px) scale(.5) translate(46px) scaleX(-1) translate(-46px); --ant-gait: 0; }
+  62% { --ant-gait: 1; }
+  100% { transform: translate(-60px, 21px) scale(.5) translate(46px) scaleX(-1) translate(-46px); --ant-gait: 1; --ant-hold: 0; }
+}
+@keyframes ant-delivery-pose {
+  0%, 38% { transform: none; }
+  43% { transform: rotate(-9deg); }
+  48% { transform: rotate(10deg); }
+  56%, 100% { transform: none; }
+}
+@keyframes ant-delivery-cargo {
+  0%, 41% { transform: translate(58px, 19.5px); opacity: 1; }
+  44% { transform: translate(50px, 14px) rotate(-12deg); }
+  49% { transform: translate(86px, 2px) rotate(18deg); }
+  54% { transform: translate(112px, 48px) rotate(6deg); }
+  57% { transform: translate(112px, 70px) rotate(0deg); }
+  63% { transform: translate(112px, 118px); opacity: 1; }
+  64%, 100% { transform: translate(112px, 118px); opacity: 0; }
+}
+@keyframes ant-slot-gulp {
+  0%, 56% { stroke: var(--text-3); transform: none; }
+  59% { stroke: var(--status-running); transform: scaleX(1.25); }
+  64% { stroke: var(--status-running); transform: none; }
+  74%, 100% { stroke: var(--text-3); }
+}
+@keyframes ant-hop { 0% { transform: none; } 35% { transform: translateY(-10px); } 65% { transform: translateY(1px); } 100% { transform: none; } }
+
+/* Where the app places them. */
+.chat-working .ant-inline { --ant-inline-height: 24px; margin-left: 4px; }
+.chat-delivered { display: flex; padding: 4px 0 0; animation: ant-delivered-out .4s 4.6s ease-in both; }
+.chat-delivered .ant-inline { --ant-inline-height: 36px; }
+@keyframes ant-delivered-out { to { opacity: 0; } }
+.chat-archived-note { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.chat-archived-note .ant-inline { --ant-inline-height: 24px; margin: -4px 0; }
+.working-chip .ant-inline { --ant-inline-height: 24px; margin-left: 4px; }
+.detail-empty-body { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.detail-empty-body .ant-inline { --ant-inline-height: 64px; }
+/* A sub-agent card's courier walks the gap above it: the lanes open up while one is out. */
+.chat-subagent-lane { position: relative; transition: padding .3s ease; }
+.chat-subagents[data-ants] .chat-subagent-lane { padding: 18px 0; }
+.chat-subagent-lane .ant-delivery { top: -12px; right: 16px; bottom: auto; width: 116px; height: 30px; }
+.chat-subagent-lane .ant-delivery :is(.ant-performer, .ant-pose, .ant-cargo, .ant-slot) { animation-delay: calc(var(--chat-lane, 0) * -2.7s); }
+
+/* Gallery */
+.ant-gallery { --ant-preview-size: 240px; }
+.ant-gallery[data-size='small'] { --ant-preview-size: 120px; }
+.ant-gallery-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 0; }
+.ant-gallery-toolbar > span { color: var(--text-muted); font-size: 12px; }
+.ant-gallery-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ant-gallery-item { min-width: 0; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+.ant-gallery-item .ant-motion > svg { width: var(--ant-preview-size); }
+.ant-gallery-item header { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.ant-gallery-item h4 { font-size: 14px; font-weight: 500; margin: 0; }
+.ant-gallery-item p, .ant-gallery-note { color: var(--text-muted); font-size: 12px; line-height: 1.7; margin: 8px 0 0; }
+.ant-gallery-replay { border: 0; background: none; color: var(--text-muted); cursor: pointer; font: inherit; font-size: 12px; padding: 4px 8px; border-radius: var(--radius-sm); }
+.ant-gallery-replay:hover { background: var(--fill); color: var(--text); }
+.ant-gallery-replay:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ant-gallery-replay:disabled { opacity: .4; cursor: default; }
+.ant-gallery-section { padding: 24px 0; }
+.ant-gallery-section > h3 { font-size: 14px; font-weight: 600; margin: 0; }
+.ant-demo-flow { display: flex; align-items: center; justify-content: center; padding: 80px 16px 24px; }
+.ant-demo-root { border: 1px solid var(--border-2); border-radius: var(--radius); padding: 12px 16px; flex-shrink: 0; }
+.ant-demo-root strong, .ant-demo-root span { display: block; font-size: 12px; }
+.ant-demo-root span { color: var(--text-muted); margin-top: 4px; }
+.ant-demo-wire { width: 64px; min-width: 16px; border-top: 1px dashed var(--border-2); }
+.ant-demo-card { position: relative; border: 1px solid var(--border-2); border-radius: var(--radius); padding: 24px 16px 16px; width: 280px; background: var(--surface); }
+.ant-demo-card header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ant-demo-card strong { font-size: 14px; font-weight: 500; }
+.ant-demo-status { font-size: 12px; color: var(--status-running); white-space: nowrap; }
+.ant-demo-card[data-status='waiting'] .ant-demo-status { color: var(--warning); }
+.ant-demo-card[data-status='done'] .ant-demo-status { color: var(--status-done); }
+.ant-demo-card p { font-size: 12px; color: var(--text-muted); margin: 8px 0 0; }
+.ant-gallery-disabled, .ant-gallery-reduced { font-size: 12px; color: var(--text-muted); padding: 12px 0; }
+.ant-gallery-reduced { display: none; }
+.ant-settings-preview { padding: 0 16px 16px; }
+.ant-settings-preview > summary { cursor: pointer; color: var(--text-muted); padding: 8px 0; font-size: 12px; }
+.ant-settings-preview > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+.ant-preview-page { height: 100%; overflow: auto; background: var(--bg); }
+.ant-preview-content { max-width: var(--page-form); margin: 0 auto; padding: 40px 24px; }
+.ant-preview-heading { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.ant-preview-heading h1 { font-size: 24px; font-weight: 600; margin: 8px 0; letter-spacing: -.5px; }
+.ant-preview-eyebrow { font: 12px var(--mono); letter-spacing: 2px; color: var(--text-3); }
+.ant-preview-heading p { font-size: 14px; color: var(--text-muted); margin: 0; line-height: 1.7; }
+.ant-preview-appearance { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+@media (max-width: 600px) {
+  .ant-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ant-preview-content { padding: 24px 16px; }
+  .ant-demo-flow { padding-left: 0; padding-right: 0; }
+  .ant-demo-root { padding: 12px 8px; }
+  .ant-demo-wire { width: 24px; }
+  .ant-demo-card { min-width: 0; padding-left: 12px; padding-right: 12px; }
+}
+/* Without motion every scene shows its declared pose: the walkers mid-stride, the one-shot scenes
+   their last frame. */
+@media (prefers-reduced-motion: reduce) {
+  .ant-stage *, .chat-delivered { animation: none !important; }
+  .chat-subagent-lane { transition: none; }
+  .ant-gallery-reduced { display: block; }
+}

@@ -11,6 +11,8 @@ import { ChatToolIcon } from './ChatToolIcon'
 import { useJustFinished } from '../chat-motion'
 import { ChatCopyRegion } from './ChatCopyRegion'
 import { copyTextForItem } from '../message-copy'
+import { usePreferences } from '../preferences'
+import { AntDelivery } from './AntMotion'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 
@@ -54,8 +56,10 @@ function SubagentCard({ tool, lane, open, panel, onToggle, onHover }: {
 }) {
   const brief = subagentBrief(tool.input)
   const finished = useJustFinished(tool.status === 'running')
+  const delivery = tool.status === 'running' ? 'running' : finished && !failed(tool) ? 'done' : null
   return (
     <div className="chat-subagent-lane" style={{ '--chat-lane': lane }}>
+      {delivery && <AntDelivery status={delivery} />}
       <ChatCopyRegion text={copyTextForItem(tool)}>
         <button
           type="button"
@@ -122,8 +126,12 @@ export function ChatSubagents({ tools, fresh }: { tools: readonly ToolItem[]; fr
   const running = tools.filter((tool) => tool.status === 'running').length
   const broken = tools.filter(failed).length
   const open = chosen ? tools[keys.indexOf(chosen)] : undefined
+  // The lanes open up while an ant is out, top and bottom alike so the wires still meet the cards'
+  // middles, and close once the last one has finished its hop.
+  const antsOn = usePreferences((s) => s.antAnimations)
+  const settling = useJustFinished(running > 0, 1600)
   return (
-    <div className="chat-subagents" data-fresh={fresh || undefined}>
+    <div className="chat-subagents" data-fresh={fresh || undefined} data-ants={(antsOn && (running > 0 || settling)) || undefined}>
       <div className="chat-subagents-graph">
         <div className="chat-subagents-root" data-live={running > 0 || undefined}>
           <span className="chat-subagents-root-name">主 Agent</span>

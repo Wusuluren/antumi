@@ -35,7 +35,8 @@ import { SelectionComment } from './SelectionComment'
 import { effortLabel } from './ChatOptionsBar'
 import { ChatMessageRelay, useMessageRelay } from './chat-message-relay'
 import { useChatTypeface } from '../chat-typeface'
-import { freshKeys } from '../chat-motion'
+import { freshKeys, useJustFinished } from '../chat-motion'
+import { AntMotion } from './AntMotion'
 import { acknowledgeInitialMessage, sendInitialMessage, useInitialMessages, type InitialMessage } from '../initial-messages'
 import { Spinner } from './Spinner'
 import { TranslateButton, useTranslated } from './TranslateButton'
@@ -791,6 +792,12 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
           : tools.length > 0 ? 'waiting' : 'working'
     return { phase, background: { subagents, commands } }
   }, [items, turn])
+  // A turn that completed while the user watched: the ant sets its parcel down where the working
+  // line was, then the line goes. Not for one interrupted or failed.
+  const turnActive = turn === 'running' || turn === 'awaiting'
+  const turnEnded = useJustFinished(turnActive, 5200)
+  const lastTurn = items.findLast((item) => item.kind === 'turn')
+  const delivered = turnEnded && !turnActive && lastTurn?.kind === 'turn' && lastTurn.state === 'completed'
   // The model as the stage runs it, or as the next stage would start; by its label where the agent gives one.
   const modelId = state?.model ?? conversation.chatOptions?.model ?? null
   // The effort the same way; left out where the agent runs its default without saying which.
@@ -869,6 +876,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
             since={since}
           />
         )}
+        {variant !== 'compact' && delivered && <div className="chat-delivered"><AntMotion action="place" size="inline" /></div>}
         {away && (
           <button
             type="button"

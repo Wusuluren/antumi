@@ -14,6 +14,7 @@ import { TitleEditor } from './TitleEditor'
 import { useDiscussionMentionMenu } from './DiscussionMentions'
 import { AddMemberButton } from './DiscussionMemberForm'
 import { ArchivedBar } from './ArchivedBar'
+import { useJustFinished } from '../chat-motion'
 import { CopyButton } from './CopyButton'
 import { ChatFind, useChatFindState } from './ChatFind'
 
@@ -301,6 +302,8 @@ export function DiscussionView({ id }: { id: string }) {
   const topicsSupported = useDiscussionTopicsSupported()
   // An archived group is read-only until it is taken out again.
   const archived = (discussion?.archivedAt ?? null) !== null
+  // Archived before it loaded is not archived just now.
+  const justArchived = useJustFinished(discussion !== undefined && !archived, null)
   const membersEditable = useDiscussionMembersSupported() && !archived
   // A group begun without projects has none to change.
   const projectsEditable = useDiscussionProjectsSupported() && (discussion?.projectPaths.length ?? 0) > 0 && !archived
@@ -422,7 +425,7 @@ export function DiscussionView({ id }: { id: string }) {
             {posts ? <Rounds discussion={discussion} posts={posts} /> : <p className="muted"><Spinner /> 正在读取发言…</p>}
           </div>
           <div className="chat-dock">
-            {archived && <ArchivedBar what="群聊" onRestore={() => archiveDiscussion(id, false)} />}
+            {archived && <ArchivedBar what="群聊" fresh={justArchived} onRestore={() => archiveDiscussion(id, false)} />}
             <div className="chat-input-card" data-working={busy || undefined} hidden={archived}>
               {mentionMenu.menu}
               <textarea

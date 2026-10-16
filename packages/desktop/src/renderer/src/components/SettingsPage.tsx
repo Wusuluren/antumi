@@ -48,6 +48,7 @@ import { projectName } from './ProjectPicker'
 import { Segmented, SettingsGroup, SettingsRow, Stepper, Toggle } from './SettingsControls'
 import { PalettePicker } from './PalettePicker'
 import { useOccludesBrowser } from '../browser-occlusion'
+import { AntSettings } from './AntPreview'
 
 function AppearanceSettings() {
   const theme = usePreferences((s) => s.theme)
@@ -83,6 +84,7 @@ function AppearanceSettings() {
           control={(labelId) => <PalettePicker labelId={labelId} />}
         />
       </SettingsGroup>
+      <AntSettings />
       <SettingsGroup title="聊天">
         <SettingsRow
           label="字号"

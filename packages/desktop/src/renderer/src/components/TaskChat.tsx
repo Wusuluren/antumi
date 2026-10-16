@@ -24,6 +24,7 @@ import { BoardCrumb } from './TaskBoard'
 import { useTaskHandoff } from './TaskHandoff'
 import { useTodosSupported } from '../conversation-todos'
 import { WorkingSummary } from './WorkingSummary'
+import { AntMotion } from './AntMotion'
 import { useTaskActivity } from '../work-activity'
 
 // What the task kept of a plan in its chat: saved for when it can run. An approved one reads as its
@@ -164,6 +165,8 @@ export function TaskChat({ taskId }: { taskId: string }) {
         {task.squadId && activity && (
           <button type="button" className="working-chip" title="在检查器里看小队" onClick={() => useCore.setState({ inspectorOpen: true, taskInspectorTab: 'squad' })}>
             <WorkingSummary activity={activity} detail={false} />
+            {/* A squad at work is the one place ants carry together. */}
+            {activity.state === 'running' && <AntMotion action={activity.workers.length > 1 ? 'team' : 'carry'} size="inline" />}
           </button>
         )}
         <TaskToolbar task={task} view="chat" />

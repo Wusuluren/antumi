@@ -5,6 +5,7 @@ import { isPlanApproval, type ChatItem, type Conversation } from '@antumi/protoc
 import { itemKey } from '../chat-state'
 import { toolLabel } from '../chat-tools'
 import { useChatSurface } from './chat-surface'
+import { useJustFinished } from '../chat-motion'
 import { ArchivedBar } from './ArchivedBar'
 import { ChatComposer } from './ChatComposer'
 import { archiveConversation } from './ConversationActions'
@@ -128,6 +129,7 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
   const running = conversation.sessionId !== null
   const waiting = running && pending.length > 0
   const archived = conversation.archivedAt != null
+  const justArchived = useJustFinished(!archived, null)
   return (
     <div className="chat-dock">
       {!compact && <div className="chat-dock-header">
@@ -142,7 +144,7 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
       </div>}
       <ChatSchedules conversationId={conversation.id} />
       {waiting && <PendingRequests conversation={conversation} pending={pending} tools={tools} modes={conversation.helperOf ? ['ask'] : state?.permissionModes ?? []} />}
-      {archived && <ArchivedBar what="会话" onRestore={() => archiveConversation(conversation.id, false)} />}
+      {archived && <ArchivedBar what="会话" fresh={justArchived} onRestore={() => archiveConversation(conversation.id, false)} />}
       {/* The composer stays mounted while a request or the archive takes its place, so a draft is not lost. */}
       <div className="chat-dock-composer" hidden={waiting || archived}>
         <ChatComposer compact={compact} conversation={conversation} state={state} />

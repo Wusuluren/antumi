@@ -6,7 +6,8 @@ const FINISHED_MS = 1200
 // True for a moment after `running` drops from true to false while the component is mounted: a call
 // or a step that finished before the user's eyes animates its finish, while one that was already
 // finished when the chat opened keeps still.
-export function useJustFinished(running: boolean): boolean {
+// `ms` null keeps it until unmount, for a mark that should stay once earned.
+export function useJustFinished(running: boolean, ms: number | null = FINISHED_MS): boolean {
   const was = useRef(running)
   const [finished, setFinished] = useState(false)
   useEffect(() => {
@@ -14,9 +15,10 @@ export function useJustFinished(running: boolean): boolean {
     was.current = running
     if (!dropped) return
     setFinished(true)
-    const timer = setTimeout(() => setFinished(false), FINISHED_MS)
+    if (ms === null) return
+    const timer = setTimeout(() => setFinished(false), ms)
     return () => clearTimeout(timer)
-  }, [running])
+  }, [running, ms])
   return finished
 }
 

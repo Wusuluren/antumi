@@ -14,6 +14,7 @@ const Preferences = z.object({
   theme: z.enum(['system', 'light', 'dark']).catch('system'),
   // The set of colours the interface is drawn in; each has a light and a dark side.
   palette: z.enum(PALETTES).catch('terracotta'),
+  antAnimations: z.boolean().catch(true),
   terminalFontSize: z.number().int().min(10).max(20).catch(12),
   // How far apart the terminal's lines are, as a multiple of the font's own line: Geist Mono's is
   // already a third taller than its size, enough as it is.
