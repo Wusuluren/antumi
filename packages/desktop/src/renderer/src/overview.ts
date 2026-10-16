@@ -274,7 +274,7 @@ export function overview(input: OverviewInput): Overview {
   const upcoming = new Set([...byTime, ...byCondition, ...later].map((row) => row.key))
   for (const id of Object.keys(unseen)) {
     const conversation = conversations[id]
-    if (!conversation || isHelper(conversation) || routineOwners.has(id)) continue
+    if (!conversation || isHelper(conversation) || conversation.archivedAt != null || routineOwners.has(id)) continue
     const row = rowForConversation(conversation)
     if (mine.has(row.key) || running.has(row.key) || upcoming.has(row.key)) continue
     row.reason = '未读'

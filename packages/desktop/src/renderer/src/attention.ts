@@ -25,6 +25,9 @@ export const waiting = (conversation: Conversation) => conversation.sessionId !=
 const asking = (conversation: Conversation) => conversation.sessionId !== null && conversation.chat?.turn === 'idle' && conversation.chat.request?.async === true
 const working = (conversation: Conversation) => conversation.chat?.turn === 'running' || conversation.chat?.turn === 'awaiting'
 const crashed = (conversation: Conversation) => conversation.sessionId === null && (conversation.lastExit?.code ?? 0) !== 0
+// Put away by the user: its agent was stopped and it takes no message until it is taken out, so
+// nothing in it waits on them.
+const archived = (conversation: Conversation) => conversation.archivedAt != null
 
 export type ActionableReason = 'awaiting' | 'crashed' | 'review' | 'reply'
 export type ActionableItem = {
@@ -95,7 +98,7 @@ export function actionableItems(s: Pick<Snapshot, 'tasks' | 'conversations' | 's
     })
   }
   for (const conversation of Object.values(s.conversations)) {
-    if (isHelper(conversation)) continue
+    if (isHelper(conversation) || archived(conversation)) continue
     if (owned.has(conversation.id)) continue
     if (conversation.squadRunId) {
       const run = s.squadRuns?.[conversation.squadRunId]
@@ -129,7 +132,7 @@ export function actionableItems(s: Pick<Snapshot, 'tasks' | 'conversations' | 's
 export function attentionCount(s: Snapshot): number {
   const counted = new Set<string>()
   for (const conversation of Object.values(s.conversations)) {
-    if (isHelper(conversation)) continue
+    if (isHelper(conversation) || archived(conversation)) continue
     if (conversation.routineId || (conversation.squadRunId && !waitingOrAsking(conversation))) continue
     const coordinated = conversation.taskId && s.tasks[conversation.taskId]?.squadId
     if (coordinated && !waitingOrAsking(conversation)) continue

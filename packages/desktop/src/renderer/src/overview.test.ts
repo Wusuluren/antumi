@@ -136,6 +136,13 @@ describe('overview unread and ownership', () => {
     expect(result.counts).toEqual({ mine: 0, running: 0, next: 0, unread: 1 })
   })
 
+  it('leaves an archived conversation out of what needs me and of unread', () => {
+    const crashed = conversation(id(1), { sessionId: null, lastExit: { code: 1, at: now }, archivedAt: now })
+    const finished = conversation(id(2), { sessionId: null, lastExit: { code: 0, at: now }, archivedAt: now })
+    const result = overview(input({ conversations: { [crashed.id]: crashed, [finished.id]: finished }, unseen: { [crashed.id]: true, [finished.id]: true } }))
+    expect(result.counts).toEqual({ mine: 0, running: 0, next: 0, unread: 0 })
+  })
+
   it('keeps routine unread under its rule with the next time in its detail', () => {
     const rule = routine(id(1), { unread: 3, lastRun: run(id(2), { status: 'started', outcome: 'completed', finishedAt: now, conversationId: id(3) }) })
     const chat = conversation(id(3), { routineId: rule.id })

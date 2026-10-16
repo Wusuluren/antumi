@@ -247,6 +247,18 @@ describe('noticesBetween', () => {
   })
 })
 
+describe('archived attention', () => {
+  it('leaves out an archived conversation, crashed or unread, until it is taken out', () => {
+    const crashed = { sessionId: null, lastExit: { code: 1, at: 1 } }
+    const archived = snapshot([conversation('gone', { ...crashed, archivedAt: 2 })], [], ['gone'])
+    expect(actionableItems(archived)).toEqual([])
+    expect(attentionCount(archived)).toBe(0)
+    const restored = snapshot([conversation('gone', { ...crashed, archivedAt: null })], [], ['gone'])
+    expect(actionableItems(restored).map((item) => item.primaryReason)).toEqual(['crashed'])
+    expect(attentionCount(restored)).toBe(1)
+  })
+})
+
 describe('helper attention', () => {
   it('excludes helper approvals, failures, unread turns and completion notices', () => {
     const before = snapshot([conversation('helper', { helperOf: 'parent', chat: { turn: 'running' } })])
