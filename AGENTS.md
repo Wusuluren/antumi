@@ -54,7 +54,7 @@ A trimmed version of Angular's [commit message format](https://github.com/angula
 - **summary**: imperative, present tense, lowercase first letter, no trailing period, under 72 characters.
 - **body**: why the change is needed, and how behavior differs from before. Required except for `docs` and `chore`.
 - **footer**: `BREAKING CHANGE: <summary>` plus migration steps for anything that bumps `PROTOCOL_VERSION` or `DAEMON_PROTOCOL_VERSION`. `Fixes #<issue>` when there is one.
-- One self-contained change per commit, with its tests. No `Co-Authored-By` trailers for agents.
+- One self-contained change per commit, with its tests.
 
 ```
 refactor(protocol): drop the ~/.ripen fallback
