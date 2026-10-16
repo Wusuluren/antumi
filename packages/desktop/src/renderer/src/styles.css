@@ -6430,7 +6430,8 @@ body.side-panel-resizing * {
   color: transparent;
   animation: chat-sheen 2.4s linear infinite;
 }
-.chat-working-sheen { background-image: linear-gradient(90deg, var(--text-3) 35%, var(--text-muted) 50%, var(--text-3) 65%); }
+/* The working line rests in the faintest grey, so its light runs up to full text to be seen passing. */
+.chat-working-sheen { background-image: linear-gradient(90deg, var(--text-3) 38%, var(--text) 50%, var(--text-3) 62%); }
 
 @keyframes chat-sheen {
   from { background-position: 100% 0; }
