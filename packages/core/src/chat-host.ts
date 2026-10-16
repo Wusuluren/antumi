@@ -169,6 +169,9 @@ export class ChatHost {
       live.started = null
       throw error
     }
+    // The chat appeared: a client that listed the conversation before now holds it without one,
+    // and flush() tells only of a change from what the log replayed.
+    this.sink.activity(stage.conversationId)
     if (started) await this.withinStartTimeout(started, adapterOf(stage.agent).startTimeoutMs ?? START_TIMEOUT_MS)
   }
 

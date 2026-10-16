@@ -129,6 +129,20 @@ describe('ChatHost', () => {
     expect(restarted.items(STAGE).find((item) => item.kind === 'approval')).toMatchObject({ resolution: 'allowed' })
   })
 
+  it('tells of a stage it picks up after a restart even when it is idle as it was', async () => {
+    const first = recordingSink()
+    const { host, sessionId } = await started(first.sink)
+    await host.send(STAGE.conversationId, 'hello')
+    await flushMicrotasks()
+
+    // A client that listed the conversation before the stage was open has it without a chat.
+    const second = recordingSink()
+    const restarted = new ChatHost(daemon, root, attachments, second.sink)
+    await restarted.open(STAGE, sessionId, first.offsets.at(-1) ?? 0, false)
+    expect(restarted.activity(STAGE.conversationId)).toBe('idle')
+    expect(second.activity()).toBe(1)
+  })
+
   it('tells of the oldest open request, and tells again when one of several is answered', async () => {
     const recorded = recordingSink()
     const { host } = await started(recorded.sink)
