@@ -1,18 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import type { DirectoryEntry, ProjectFileMatch, ResolvedFile } from '@antumi/protocol'
+import type { ProjectFileMatch, ResolvedFile } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import type { ChatFileScope } from '../file-actions'
 import { FileMenu } from './FileMenu'
 import { ChevronRightIcon, DocumentIcon, SearchIcon } from './icons'
-
-type Listing = { entries: DirectoryEntry[]; truncated: boolean } | 'error'
-type Row = { path: string; name: string; kind: DirectoryEntry['kind']; depth: number; root: string; detail?: string }
+import { baseName, treeRows, type Listing, type Row } from '../file-tree-rows'
 
 const SEARCH_DELAY_MS = 150
 
-function baseName(path: string): string {
-  return path.split(/[\\/]/).filter(Boolean).at(-1) ?? path
-}
 
 function relativeTo(root: string, path: string): string {
   return path === root ? '.' : path.slice(root.length + 1)
@@ -53,26 +48,9 @@ export function FileTree({ scope, roots, expanded, active, refresh, onToggle, on
 
   useEffect(() => { setListings({}); requested.current = { refresh, folders: new Set() } }, [conversationId])
 
-  const rows = useMemo(() => {
-    const rows: Row[] = []
-    const walk = (folder: string, root: string, depth: number) => {
-      const listing = listings[folder]
-      if (!listing || listing === 'error') return
-      for (const entry of listing.entries) {
-        rows.push({ path: entry.path, name: entry.name, kind: entry.kind, depth, root })
-        if (entry.kind === 'directory' && expanded.includes(entry.path)) walk(entry.path, root, depth + 1)
-      }
-      if (listing.truncated) rows.push({ path: `${folder}\0more`, name: '只显示了前面的条目', kind: 'other', depth, root })
-    }
-    for (const root of roots) {
-      rows.push({ path: root, name: baseName(root), kind: 'directory', depth: 0, root })
-      if (expanded.includes(root)) walk(root, root, 1)
-    }
-    return rows
-  }, [roots, expanded, listings])
+  const { rows, needed: shown } = useMemo(() => treeRows(roots, expanded, listings), [roots, expanded, listings])
 
   // The open folders the tree shows; again, all of them, when the disk may have changed.
-  const shown = rows.filter((row) => row.kind === 'directory' && expanded.includes(row.path)).map((row) => row.path)
   useEffect(() => {
     if (!rpc) return
     if (requested.current.refresh !== refresh) requested.current = { refresh, folders: new Set() }
@@ -105,7 +83,11 @@ export function FileTree({ scope, roots, expanded, active, refresh, onToggle, on
     list.current?.querySelector(`[data-path="${CSS.escape(active)}"]`)?.scrollIntoView({ block: 'nearest' })
   }, [active, filter, rows])
 
-  const resolved = (row: Row): ResolvedFile => ({ path: row.path, root: row.root, relative: relativeTo(row.root, row.path), kind: row.kind === 'directory' ? 'directory' : 'file' })
+  // A compacted chain acts as its last folder: what it shows, and what its menu reveals.
+  const resolved = (row: Row): ResolvedFile => {
+    const path = row.folder ?? row.path
+    return { path, root: row.root, relative: relativeTo(row.root, path), kind: row.kind === 'directory' ? 'directory' : 'file' }
+  }
   const choose = (row: Row) => {
     if (row.kind === 'directory') {
       if (filter) {
@@ -145,7 +127,7 @@ export function FileTree({ scope, roots, expanded, active, refresh, onToggle, on
     <div className="file-tree-list" ref={list} role="tree" aria-label="项目文件" onKeyDown={onKeyDown}>
       {shownRows.map((row) => {
         const open = row.kind === 'directory' && !row.detail && expanded.includes(row.path)
-        const failed = open && listings[row.path] === 'error'
+        const failed = open && listings[row.folder ?? row.path] === 'error'
         const button = <button
           type="button"
           className="file-tree-row"
@@ -156,7 +138,7 @@ export function FileTree({ scope, roots, expanded, active, refresh, onToggle, on
           data-path={row.path}
           data-kind={row.kind}
           disabled={row.kind === 'other'}
-          title={row.detail ?? row.path}
+          title={row.detail ?? row.folder ?? row.path}
           onClick={() => choose(row)}
         >
           {Array.from({ length: row.depth }, (_, index) => <span key={index} className="file-tree-indent" aria-hidden />)}
