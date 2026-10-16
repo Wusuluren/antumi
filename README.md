@@ -7,7 +7,7 @@
 本地优先的 AI 编程工作台。一块看板管理 Claude Code、Codex 和 Cursor：<br/>
 每个任务在独立的 Git worktree 中运行，先确认计划，再执行，最后由你验收成果。
 
-[![Version](https://img.shields.io/badge/version-0.17.0-blue?style=flat)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.18.1-blue?style=flat)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green?style=flat)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey?style=flat)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor-8A2BE2?style=flat)
@@ -253,7 +253,7 @@ pnpm dist:mac     # 产物在 packages/desktop/dist/Antumi-<版本>-arm64.dmg
 
 ## 现状
 
-Antumi 目前是**开发者预览版**（0.17.0），主要在 macOS 上开发和测试，需要从源码运行或自行打包。接下来的重点是验收闭环：按项目配置的测试命令在 worktree 里跑，把结果作为验收证据放进检查器，再到 PR 和合并。
+Antumi 目前是**开发者预览版**（0.18.1），主要在 macOS 上开发和测试，需要从源码运行或自行打包。接下来的重点是验收闭环：按项目配置的测试命令在 worktree 里跑，把结果作为验收证据放进检查器，再到 PR 和合并。
 
 ## 关于名字
 
