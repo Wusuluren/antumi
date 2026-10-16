@@ -5,6 +5,7 @@ import type { StateCreator } from 'zustand'
 import { createRpcClient, Task, ChatItem, type Conversation, type RpcConnection } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { useChat } from '../chat-state'
+import { usePreferences } from '../preferences'
 import { HandToHelperItem } from './ChatContextMenu'
 import { ConversationInspector } from './ConversationInspector'
 import { TaskInspector } from './TaskInspector'
@@ -80,6 +81,16 @@ describe('helper UI', () => {
     expect(html).toContain('不占主会话的上下文')
     expect(html).toContain('placeholder="交给小助手…"')
     expect(html).toContain('正在读取模型')
+  })
+
+  it('sets the empty helper in the chat font the settings choose', () => {
+    const before = usePreferences.getState()
+    usePreferences.setState({ chatFontSize: 17, chatFont: 'custom', chatFontFamily: 'LXGW WenKai' })
+    const html = renderToStaticMarkup(createElement(HelperPanel, { parent }))
+    usePreferences.setState(before, true)
+    expect(html).toContain('data-font-size="17"')
+    expect(html).toContain('data-font="custom"')
+    expect(html).toContain('--chat-font-custom:')
   })
 
   it('removes the entry and tab on older cores', () => {

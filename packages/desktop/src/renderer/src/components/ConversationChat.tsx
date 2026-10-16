@@ -34,7 +34,7 @@ import { ChatPreviewCard } from './ChatPreviewCard'
 import { SelectionComment } from './SelectionComment'
 import { effortLabel } from './ChatOptionsBar'
 import { ChatMessageRelay, useMessageRelay } from './chat-message-relay'
-import { cssFontFamily } from '../system-fonts'
+import { useChatTypeface } from '../chat-typeface'
 import { freshKeys } from '../chat-motion'
 import { acknowledgeInitialMessage, sendInitialMessage, useInitialMessages, type InitialMessage } from '../initial-messages'
 import { Spinner } from './Spinner'
@@ -555,17 +555,8 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
   const { id } = conversation
   const initialMessage = useInitialMessages((messages) => messages[id])
   const width = usePreferences((s) => s.chatWidth)
-  const fontSize = usePreferences((s) => s.chatFontSize)
-  const font = usePreferences((s) => s.chatFont)
-  const fontFamily = usePreferences((s) => s.chatFontFamily)
-  // A family picked from those installed goes in as a token, which the stylesheet puts first.
+  const typeface = useChatTypeface()
   const view = useRef<HTMLDivElement>(null)
-  useLayoutEffect(() => {
-    const element = view.current
-    if (!element) return
-    if (font === 'custom' && fontFamily) element.style.setProperty('--chat-font-custom', cssFontFamily(fontFamily))
-    else element.style.removeProperty('--chat-font-custom')
-  }, [font, fontFamily])
   const forkSupported = useCore((s) => s.rpc?.features.includes('conversation-fork') ?? false)
   const fork = useCallback((item: ChatItem) => void forkConversation(conversation.id, item), [conversation.id])
   const own = useMemo(() => conversationSurface(conversation, onHandoff ?? null, forkSupported ? fork : null), [conversation, onHandoff, forkSupported, fork])
@@ -845,7 +836,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
     <TodoHistory.Provider value={todoHistory}>
     <JumpToEntry.Provider value={jumpTo}>
     <ChatMessageRelay.Provider value={beginRelay}>
-    <div className="chat-view" data-variant={variant} data-conversation-id={id} ref={view} data-searching={find.searching || undefined} data-width={width} data-font-size={fontSize} data-font={font === 'custom' && !fontFamily ? 'system' : font}>
+    <div className="chat-view" data-variant={variant} data-conversation-id={id} ref={view} data-searching={find.searching || undefined} data-width={width} {...typeface}>
       {variant !== 'compact' && <ChatFind key={id} state={find} scope={view} container={list} onOpen={findOpened} hasOlder={Boolean(page?.before)} loadOlder={loadOlder} />}
       <div
         className="chat-list"

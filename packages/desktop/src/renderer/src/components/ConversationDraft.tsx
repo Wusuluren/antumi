@@ -7,6 +7,7 @@ import { agentLabel } from '../labels'
 import { antumiEntries } from '../chat-commands'
 import { AgentQuotaHint, confirmQuota, modelText } from './AgentQuota'
 import { usePreferences } from '../preferences'
+import { useChatTypeface } from '../chat-typeface'
 import { startOptions } from './ConversationActions'
 import { sendsMessage } from './ChatComposer'
 import { ChatAddMenu, ChatImageStrip, useComposerImages } from './ChatImages'
@@ -66,8 +67,7 @@ export function ConversationDraft() {
   const attached = useComposerImages(draft.images)
   useEffect(() => saveComposerDraft(null, { ...value, images: attached.images }), [value, attached.images])
   const width = usePreferences((s) => s.chatWidth)
-  const fontSize = usePreferences((s) => s.chatFontSize)
-  const font = usePreferences((s) => s.chatFont)
+  const typeface = useChatTypeface()
   const canSend = agent !== null && !busy && attached.uploading === 0 && (issue !== null || text.trim() !== '' || attached.images.length > 0)
   // Only the user's own commands: the agent has not started to say what it takes.
   const chatCommands = useCore((s) => s.chatCommands)
@@ -173,7 +173,7 @@ export function ConversationDraft() {
         </div>
       </header>
       <div className="terminal-body">
-        <div className="chat-view" data-width={width} data-font-size={fontSize} data-font={font}>
+        <div className="chat-view" data-width={width} {...typeface}>
           <div className="chat-list chat-draft">
             <div className="chat-draft-start">
               {issue && (

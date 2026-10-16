@@ -6,6 +6,7 @@ import { keepInitialMessage, sendInitialMessage } from '../initial-messages'
 import { useChat } from '../chat-state'
 import { setQuotes, useQuotes } from '../chat-quotes'
 import { usePreferences } from '../preferences'
+import { useChatTypeface } from '../chat-typeface'
 import { confirmQuota } from './AgentQuota'
 import { ConversationChat } from './ConversationChat'
 import { conversationSurface } from './chat-surface'
@@ -33,7 +34,8 @@ function HelperDraft({ parent }: { parent: Conversation }) {
     }
     setBusy(false)
   }
-  return <div className="helper-draft chat-view" data-variant="compact">
+  const typeface = useChatTypeface()
+  return <div className="helper-draft chat-view" data-variant="compact" {...typeface}>
     <p className="helper-empty muted">把选中的内容交给一个小模型去问或去办，不占主会话的上下文。</p>
     <div className="chat-dock"><div className="chat-input-card">
       <textarea className="chat-input" aria-label="交给小助手" placeholder="交给小助手…" autoFocus value={text} disabled={busy} onChange={(event) => {
