@@ -15,7 +15,7 @@ import { Terminal, TerminalCommand, TerminalCommandFields, TerminalOutput, Termi
 import { PortList, PortRef } from './ports'
 import { ChatCommandFields, SavedChatCommand } from './chat-commands'
 import { ProjectFileMatch } from './project-files'
-import { FileRead, ResolvedFile } from './files'
+import { DirectoryListing, FileRead, FileWrite, MAX_FILE_PREVIEW_BYTES, ResolvedFile } from './files'
 import { ManagedWorktree, WorktreeCleanResult } from './worktree'
 import { browserActions, BrowserAction, BrowserConsole, BrowserNavigateTo, BrowserNavigation, BrowserScreenshot, BrowserScreenshotOptions, BrowserSnapshot, BrowserStatus, BrowserTab, BrowserTabId, BrowserUrl, BrowserViewport } from './browser'
 import { ComputerAwakeMode, ComputerAwakeStatus } from './awake'
@@ -69,6 +69,7 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // chat-commands: core keeps the user's own slash commands for the chat composer (chatCommands.*).
 // file-mentions: core searches projects' files and folders for the composer's @ menu (projects.searchFiles).
 // file-preview: core resolves chat file references and reads their text (files.resolve, files.read).
+// file-editor: core lists project folders and saves edited project files (files.list, files.write).
 // dashboard: core adds up runs and turns by day for the dashboard (dashboard.stats).
 // git-commit-branches: core lists the branches holding a commit (git.containing).
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
@@ -77,7 +78,7 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // todo-overview: core gathers what is left to do across conversations, for the overview (todos.open).
 // terminal-color-prompt: terminals.open takes colorPrompt, a prompt in colour for a zsh whose prompt the user never set.
 // git-commit-actions: git.execute takes tag and detach, for a commit in the history.
-export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions'] as const
+export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor'] as const
 // knowledge-base: core hands agents the user's local knowledge base and lists the vaults Obsidian knows (knowledge.*).
 // knowledge-base-kind: Markdown folders and Obsidian use their own prompts and skills; missing kind means Obsidian.
 // skills-library: core installs Agent Skills repositories pinned to a commit and hands bundles of them to agents (skills.*).
@@ -152,6 +153,11 @@ export const rpcMethods = {
   'system.awakeStatus': { params: z.object({}), result: ComputerAwakeStatus },
   'files.resolve': { params: z.object({ conversationId: z.string().uuid(), path: z.string().min(1).max(32_768) }), result: ResolvedFile.nullable() },
   'files.read': { params: z.object({ conversationId: z.string().uuid(), path: z.string().min(1).max(32_768) }), result: FileRead },
+  'files.list': { params: z.object({ conversationId: z.string().uuid(), path: z.string().min(1).max(32_768) }), result: DirectoryListing },
+  'files.write': {
+    params: z.object({ conversationId: z.string().uuid(), path: z.string().min(1).max(32_768), text: z.string().max(MAX_FILE_PREVIEW_BYTES), expectedMtimeMs: z.number().nullable() }),
+    result: FileWrite
+  },
   'system.setAwakeMode': { params: z.object({ mode: ComputerAwakeMode }), result: ComputerAwakeStatus },
   'system.chatSettings': { params: z.object({}), result: ChatSettings },
   'system.setChatSettings': { params: ChatSettings.partial(), result: ChatSettings },
