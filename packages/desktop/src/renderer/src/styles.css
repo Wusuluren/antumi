@@ -4122,6 +4122,10 @@ body.side-panel-resizing * {
   color: var(--text-muted);
 }
 
+/* A section split by what its settings shape: a small title over each card. */
+.settings-subsection + .settings-subsection { margin-top: 28px; }
+.settings-subsection-title { margin: 0 0 8px; padding: 0 4px; font-size: 13px; font-weight: 600; color: var(--text-muted); }
+
 /* The body sits in its own card so rows read as contained, not as page text. */
 .settings-card {
   padding: 4px 24px;

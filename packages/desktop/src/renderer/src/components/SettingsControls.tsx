@@ -23,6 +23,18 @@ export function SettingsRow({
   )
 }
 
+// A card of rows, for a section that splits its settings by what they shape; untitled where the
+// card heads itself.
+export function SettingsGroup({ title, children }: { title?: string; children: ReactNode }) {
+  const titleId = useId()
+  return (
+    <section className="settings-subsection" aria-labelledby={title ? titleId : undefined}>
+      {title && <h3 id={titleId} className="settings-subsection-title">{title}</h3>}
+      <div className="settings-card">{children}</div>
+    </section>
+  )
+}
+
 export function Segmented<T extends string>({
   labelId,
   value,

@@ -45,7 +45,7 @@ import { checkStatusText, GIT_INSTALL_HINT } from '../environment-text'
 import { settingsSectionOf } from './SourceInboxView'
 import { SourceSettingsSection } from './SourceSettingsSection'
 import { projectName } from './ProjectPicker'
-import { Segmented, SettingsRow, Stepper, Toggle } from './SettingsControls'
+import { Segmented, SettingsGroup, SettingsRow, Stepper, Toggle } from './SettingsControls'
 import { PalettePicker } from './PalettePicker'
 import { useOccludesBrowser } from '../browser-occlusion'
 
@@ -60,111 +60,117 @@ function AppearanceSettings() {
   const foldTurns = usePreferences((s) => s.foldTurns)
   return (
     <>
-      <SettingsRow
-        label="主题"
-        description="跟随系统时，随系统的浅色、深色设置切换。"
-        control={(labelId) => (
-          <Segmented
-            labelId={labelId}
-            value={theme}
-            onChange={(next) => setPreference('theme', next)}
-            options={[
-              { value: 'system', label: '跟随系统' },
-              { value: 'light', label: '浅色' },
-              { value: 'dark', label: '深色' }
-            ]}
-          />
-        )}
-      />
-      <SettingsRow
-        label="配色"
-        description="整套界面颜色，随主题切换浅色或深色；色卡左浅右深。"
-        control={(labelId) => <PalettePicker labelId={labelId} />}
-      />
-      <SettingsRow
-        label="终端字号"
-        description="对已打开的终端立即生效。"
-        control={(labelId) => (
-          <Stepper
-            labelId={labelId}
-            value={terminalFontSize}
-            min={10}
-            max={20}
-            unit="px"
-            onChange={(next) => setPreference('terminalFontSize', next)}
-          />
-        )}
-      />
-      <SettingsRow
-        label="终端行高"
-        description="字体自身行高的倍数。Geist Mono 用 1.0 即可，Menlo 这类行距紧的字体可调大。"
-        control={(labelId) => (
-          <Segmented
-            labelId={labelId}
-            value={String(terminalLineHeight)}
-            onChange={(next) => setPreference('terminalLineHeight', Number(next))}
-            options={[
-              { value: '1', label: '1.0' },
-              { value: '1.2', label: '1.2' },
-              { value: '1.4', label: '1.4' }
-            ]}
-          />
-        )}
-      />
-      {colorPromptSupported && (
+      <SettingsGroup title="颜色">
         <SettingsRow
-          label="彩色提示符"
-          description="zsh 未自定义提示符时，换成带颜色和 git 分支的提示符，命令失败时 % 变红。只影响 Antumi 新开的终端，不改 ~/.zshrc。"
-          control={(labelId) => <Toggle labelId={labelId} checked={colorPrompt} onChange={(next) => setPreference('colorPrompt', next)} />}
+          label="主题"
+          description="跟随系统时，随系统的浅色、深色设置切换。"
+          control={(labelId) => (
+            <Segmented
+              labelId={labelId}
+              value={theme}
+              onChange={(next) => setPreference('theme', next)}
+              options={[
+                { value: 'system', label: '跟随系统' },
+                { value: 'light', label: '浅色' },
+                { value: 'dark', label: '深色' }
+              ]}
+            />
+          )}
         />
-      )}
-      <SettingsRow
-        label="代码字体"
-        description="终端、代码块、改动和文件预览的字体。默认 Geist Mono，也可选本机等宽字体。"
-        control={(labelId) => <CodeFontPicker labelId={labelId} />}
-      />
-      <SettingsRow
-        label="聊天字号"
-        description="消息、过程信息和输入框的文字大小。"
-        control={(labelId) => (
-          <Stepper
-            labelId={labelId}
-            value={chatFontSize}
-            min={10}
-            max={20}
-            unit="px"
-            onChange={(next) => setPreference('chatFontSize', next)}
+        <SettingsRow
+          label="配色"
+          description="整套界面颜色，随主题切换浅色或深色；色卡左浅右深。"
+          control={(labelId) => <PalettePicker labelId={labelId} />}
+        />
+      </SettingsGroup>
+      <SettingsGroup title="聊天">
+        <SettingsRow
+          label="字号"
+          description="消息、过程信息和输入框的文字大小。"
+          control={(labelId) => (
+            <Stepper
+              labelId={labelId}
+              value={chatFontSize}
+              min={10}
+              max={20}
+              unit="px"
+              onChange={(next) => setPreference('chatFontSize', next)}
+            />
+          )}
+        />
+        <SettingsRow
+          label="字体"
+          description="衬线只改正文，代码不变。"
+          control={(labelId) => <ChatFontPicker labelId={labelId} />}
+        />
+        <SettingsRow
+          label="页面宽度"
+          description="消息和输入框的最大宽度：窄 800px，中等 1200px。"
+          control={(labelId) => (
+            <Segmented
+              labelId={labelId}
+              value={chatWidth}
+              onChange={(next) => setPreference('chatWidth', next)}
+              options={[
+                { value: 'narrow', label: '窄' },
+                { value: 'medium', label: '中等' },
+                { value: 'full', label: '全宽' }
+              ]}
+            />
+          )}
+        />
+        <SettingsRow
+          label="折叠做完的回合"
+          description="把思考、命令和中间回复收进「工作了 N 秒」，只留最终回答，点开可看。"
+          control={(labelId) => (
+            <Toggle labelId={labelId} checked={foldTurns} onChange={(next) => setPreference('foldTurns', next)} />
+          )}
+        />
+      </SettingsGroup>
+      <SettingsGroup title="终端与代码">
+        <SettingsRow
+          label="代码字体"
+          description="终端、代码块、改动和文件预览的字体。默认 Geist Mono，也可选本机等宽字体。"
+          control={(labelId) => <CodeFontPicker labelId={labelId} />}
+        />
+        <SettingsRow
+          label="终端字号"
+          description="对已打开的终端立即生效。"
+          control={(labelId) => (
+            <Stepper
+              labelId={labelId}
+              value={terminalFontSize}
+              min={10}
+              max={20}
+              unit="px"
+              onChange={(next) => setPreference('terminalFontSize', next)}
+            />
+          )}
+        />
+        <SettingsRow
+          label="终端行高"
+          description="字体自身行高的倍数。Geist Mono 用 1.0 即可，Menlo 这类行距紧的字体可调大。"
+          control={(labelId) => (
+            <Segmented
+              labelId={labelId}
+              value={String(terminalLineHeight)}
+              onChange={(next) => setPreference('terminalLineHeight', Number(next))}
+              options={[
+                { value: '1', label: '1.0' },
+                { value: '1.2', label: '1.2' },
+                { value: '1.4', label: '1.4' }
+              ]}
+            />
+          )}
+        />
+        {colorPromptSupported && (
+          <SettingsRow
+            label="彩色提示符"
+            description="zsh 未自定义提示符时，换成带颜色和 git 分支的提示符，命令失败时 % 变红。只影响 Antumi 新开的终端，不改 ~/.zshrc。"
+            control={(labelId) => <Toggle labelId={labelId} checked={colorPrompt} onChange={(next) => setPreference('colorPrompt', next)} />}
           />
         )}
-      />
-      <SettingsRow
-        label="聊天字体"
-        description="衬线只改正文，代码不变。"
-        control={(labelId) => <ChatFontPicker labelId={labelId} />}
-      />
-      <SettingsRow
-        label="聊天页宽度"
-        description="消息和输入框的最大宽度：窄 800px，中等 1200px。"
-        control={(labelId) => (
-          <Segmented
-            labelId={labelId}
-            value={chatWidth}
-            onChange={(next) => setPreference('chatWidth', next)}
-            options={[
-              { value: 'narrow', label: '窄' },
-              { value: 'medium', label: '中等' },
-              { value: 'full', label: '全宽' }
-            ]}
-          />
-        )}
-      />
-      <SettingsRow
-        label="折叠做完的回合"
-        description="把思考、命令和中间回复收进「工作了 N 秒」，只留最终回答，点开可看。"
-        control={(labelId) => (
-          <Toggle labelId={labelId} checked={foldTurns} onChange={(next) => setPreference('foldTurns', next)} />
-        )}
-      />
+      </SettingsGroup>
     </>
   )
 }
@@ -329,96 +335,110 @@ function AgentSettings() {
   const awake = useCore((s) => s.awake)
   const chatSettings = useCore((s) => s.chatSettings)
   const installed = useInstalledAgents()
+  const running = chatSettings?.maxConcurrentAgents !== undefined || Boolean(chatSettings?.agentConcurrency) || (awakeSupported && Boolean(awake)) || Boolean(chatSettings?.unattendedMode)
+  const access = chatSettings?.userBrowser !== undefined || chatSettings?.readHistory !== undefined
   return (
     <>
-      <InstalledAgentsSettings />
-      {chatSettings?.maxConcurrentAgents !== undefined && (
-        <SettingsRow
-          label="同时运行的 Agent 总数"
-          description="到上限后新会话需稍后再试，预约任务排队。等你确认的也占名额；调低不会停掉运行中的会话。下面各 Agent 的上限同样受此约束。"
-          control={(labelId) => (
-            <Stepper labelId={labelId} value={chatSettings.maxConcurrentAgents ?? 20} min={1} max={50} unit="个" onChange={(maxConcurrentAgents) => void setChatSettings({ maxConcurrentAgents })} />
-          )}
-        />
-      )}
-      {chatSettings?.agentConcurrency && AGENT_KINDS.map((agent) => (
-        <SettingsRow
-          key={agent}
-          label={`${agentLabel(agent)} 同时运行`}
-          control={(labelId) => (
-            <Stepper labelId={labelId} value={chatSettings.agentConcurrency?.[agent] ?? 6} min={1} max={50} unit="个" onChange={(count) => void setChatSettings({ agentConcurrency: { [agent]: count } })} />
-          )}
-        />
-      ))}
-      {awakeSupported && awake && (
-        <SettingsRow
-          label="保持电脑唤醒"
-          description="Agent 等你输入时不阻止睡眠；合上笔记本仍会睡眠。"
-          control={(labelId) => (
-            <Segmented
-              labelId={labelId}
-              value={awake.mode}
-              onChange={(mode) => void setAwakeMode(mode)}
-              options={[
-                { value: 'on', label: '始终' },
-                { value: 'auto', label: 'Agent 工作或有预约时' },
-                { value: 'off', label: '关闭' }
-              ]}
+      <SettingsGroup>
+        <InstalledAgentsSettings />
+      </SettingsGroup>
+      {running && (
+        <SettingsGroup title="运行">
+          {chatSettings?.maxConcurrentAgents !== undefined && (
+            <SettingsRow
+              label="同时运行的 Agent 总数"
+              description="到上限后新会话需稍后再试，预约任务排队。等你确认的也占名额；调低不会停掉运行中的会话。下面各 Agent 的上限同样受此约束。"
+              control={(labelId) => (
+                <Stepper labelId={labelId} value={chatSettings.maxConcurrentAgents ?? 20} min={1} max={50} unit="个" onChange={(maxConcurrentAgents) => void setChatSettings({ maxConcurrentAgents })} />
+              )}
             />
           )}
-        />
-      )}
-      {chatSettings && (
-        <SettingsRow
-          label="回合结束后建议下一步"
-          description="每轮回复后用灰字预测你的下一句，按 Tab 或 → 填入。每轮多一次简短请求。仅 Claude Code 支持，下次启动起生效。"
-          control={(labelId) => (
-            <Toggle labelId={labelId} checked={chatSettings.promptSuggestions} onChange={(next) => void setChatSettings({ promptSuggestions: next })} />
-          )}
-        />
-      )}
-      <TitleNamingSettings />
-      {chatSettings?.userBrowser !== undefined && (
-        <SettingsRow
-          label="让 Claude Code 操作你的 Chrome"
-          description="通过 Claude in Chrome 扩展，用你已登录的 Chrome 打开、点击和填写网页。需先装好扩展，下次启动起生效。"
-          control={(labelId) => (
-            <Toggle labelId={labelId} checked={chatSettings.userBrowser ?? true} onChange={(next) => void setChatSettings({ userBrowser: next })} />
-          )}
-        />
-      )}
-      {chatSettings?.readHistory !== undefined && (
-        <SettingsRow
-          label="让 Agent 读你在 Antumi 里的记录"
-          description="Agent 可只读地列出和读取你的会话、任务和群聊（含其他 Agent 的），比如让定时任务总结本周工作。下次启动起生效。"
-          control={(labelId) => (
-            <Toggle labelId={labelId} checked={chatSettings.readHistory ?? true} onChange={(next) => void setChatSettings({ readHistory: next })} />
-          )}
-        />
-      )}
-      {chatSettings?.unattendedMode && (
-        <SettingsRow
-          label="预约运行的权限"
-          description="预约的任务和会话到点后以此模式无人值守地开始。「自动接受编辑」遇到其他确认会停下；「全部放行」什么都不问、不受沙箱限制，只用于信任的任务。"
-          control={(labelId) => (
-            <Segmented
-              labelId={labelId}
-              value={chatSettings.unattendedMode ?? 'acceptEdits'}
-              onChange={(unattendedMode) => void setChatSettings({ unattendedMode })}
-              options={UNATTENDED_MODES.map((value) => ({ value, label: UNATTENDED_LABEL[value] }))}
+          {chatSettings?.agentConcurrency && AGENT_KINDS.map((agent) => (
+            <SettingsRow
+              key={agent}
+              label={`${agentLabel(agent)} 同时运行`}
+              control={(labelId) => (
+                <Stepper labelId={labelId} value={chatSettings.agentConcurrency?.[agent] ?? 6} min={1} max={50} unit="个" onChange={(count) => void setChatSettings({ agentConcurrency: { [agent]: count } })} />
+              )}
+            />
+          ))}
+          {awakeSupported && awake && (
+            <SettingsRow
+              label="保持电脑唤醒"
+              description="Agent 等你输入时不阻止睡眠；合上笔记本仍会睡眠。"
+              control={(labelId) => (
+                <Segmented
+                  labelId={labelId}
+                  value={awake.mode}
+                  onChange={(mode) => void setAwakeMode(mode)}
+                  options={[
+                    { value: 'on', label: '始终' },
+                    { value: 'auto', label: 'Agent 工作或有预约时' },
+                    { value: 'off', label: '关闭' }
+                  ]}
+                />
+              )}
             />
           )}
-        />
+          {chatSettings?.unattendedMode && (
+            <SettingsRow
+              label="预约运行的权限"
+              description="预约的任务和会话到点后以此模式无人值守地开始。「自动接受编辑」遇到其他确认会停下；「全部放行」什么都不问、不受沙箱限制，只用于信任的任务。"
+              control={(labelId) => (
+                <Segmented
+                  labelId={labelId}
+                  value={chatSettings.unattendedMode ?? 'acceptEdits'}
+                  onChange={(unattendedMode) => void setChatSettings({ unattendedMode })}
+                  options={UNATTENDED_MODES.map((value) => ({ value, label: UNATTENDED_LABEL[value] }))}
+                />
+              )}
+            />
+          )}
+        </SettingsGroup>
       )}
-      <SettingsRow
-        label="轻量任务用的模型"
-        description="翻译、提交信息、会话标题等小活用同一 Agent 的这个模型；默认用它最便宜的模型。"
-        control={() => (
-          <span className="quick-models">
-            {installed.map((agent) => <QuickModelPicker key={agent} agent={agent} />)}
-          </span>
+      <SettingsGroup title="会话">
+        {chatSettings && (
+          <SettingsRow
+            label="回合结束后建议下一步"
+            description="每轮回复后用灰字预测你的下一句，按 Tab 或 → 填入。每轮多一次简短请求。仅 Claude Code 支持，下次启动起生效。"
+            control={(labelId) => (
+              <Toggle labelId={labelId} checked={chatSettings.promptSuggestions} onChange={(next) => void setChatSettings({ promptSuggestions: next })} />
+            )}
+          />
         )}
-      />
+        <TitleNamingSettings />
+        <SettingsRow
+          label="轻量任务用的模型"
+          description="翻译、提交信息、会话标题等小活用同一 Agent 的这个模型；默认用它最便宜的模型。"
+          control={() => (
+            <span className="quick-models">
+              {installed.map((agent) => <QuickModelPicker key={agent} agent={agent} />)}
+            </span>
+          )}
+        />
+      </SettingsGroup>
+      {access && (
+        <SettingsGroup title="访问">
+          {chatSettings?.userBrowser !== undefined && (
+            <SettingsRow
+              label="让 Claude Code 操作你的 Chrome"
+              description="通过 Claude in Chrome 扩展，用你已登录的 Chrome 打开、点击和填写网页。需先装好扩展，下次启动起生效。"
+              control={(labelId) => (
+                <Toggle labelId={labelId} checked={chatSettings.userBrowser ?? true} onChange={(next) => void setChatSettings({ userBrowser: next })} />
+              )}
+            />
+          )}
+          {chatSettings?.readHistory !== undefined && (
+            <SettingsRow
+              label="让 Agent 读你在 Antumi 里的记录"
+              description="Agent 可只读地列出和读取你的会话、任务和群聊（含其他 Agent 的），比如让定时任务总结本周工作。下次启动起生效。"
+              control={(labelId) => (
+                <Toggle labelId={labelId} checked={chatSettings.readHistory ?? true} onChange={(next) => void setChatSettings({ readHistory: next })} />
+              )}
+            />
+          )}
+        </SettingsGroup>
+      )}
     </>
   )
 }
@@ -574,6 +594,8 @@ type Section = {
   keywords: readonly string[]
   Icon: () => ReactElement
   Body: () => ReactElement
+  // Its body is titled cards of its own (SettingsGroup), not rows for the page to put in one.
+  grouped?: true
 }
 
 const SECTIONS: readonly Section[] = [
@@ -581,10 +603,11 @@ const SECTIONS: readonly Section[] = [
     id: 'appearance',
     group: '界面',
     title: '外观',
-    description: '主题、终端和聊天页的显示。',
-    keywords: ['主题', '浅色', '深色', '跟随系统', '终端', '字号', '字体', '聊天', '宽度', '全宽', '折叠', '回合', '工作了'],
+    description: '颜色、聊天页和终端的显示。',
+    keywords: ['主题', '浅色', '深色', '跟随系统', '颜色', '配色', '终端', '代码', '字号', '字体', '行高', '提示符', 'zsh', '聊天', '宽度', '全宽', '折叠', '回合', '工作了'],
     Icon: ContrastIcon,
-    Body: AppearanceSettings
+    Body: AppearanceSettings,
+    grouped: true
   },
   {
     id: 'translation',
@@ -618,10 +641,11 @@ const SECTIONS: readonly Section[] = [
     id: 'agents',
     group: '任务',
     title: '智能体',
-    description: '本机 Agent 的安装与登录状态，以及运行时的默认行为。',
+    description: '本机 Agent 的安装与登录状态，以及运行、会话和访问的默认设置。',
     keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', '模型', '轻量', '提交信息', 'haiku', '标题', '命名', '重命名', '首轮', '每轮'],
     Icon: SparkIcon,
-    Body: AgentSettings
+    Body: AgentSettings,
+    grouped: true
   },
   {
     id: 'projects',
@@ -813,9 +837,11 @@ export function SettingsPage() {
                 <h2 id={`settings-${active.id}`}>{active.title}</h2>
                 <p>{active.description}</p>
               </header>
-              <div className="settings-card">
-                <active.Body />
-              </div>
+              {active.grouped ? <active.Body /> : (
+                <div className="settings-card">
+                  <active.Body />
+                </div>
+              )}
             </section>
           ) : (
             <p className="settings-none">没有找到与「{query.trim()}」相关的设置</p>
