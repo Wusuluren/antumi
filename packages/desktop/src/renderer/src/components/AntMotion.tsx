@@ -7,9 +7,9 @@ export type AntDeliveryStatus = 'running' | 'waiting' | 'done'
 // `stage` is the preview's roomy box; `inline` crops to the band the ants use, sized by its height;
 // `lane` is the one ant of a walker (AntLane), with no ground of its own.
 export type AntSize = 'stage' | 'inline' | 'lane'
-// What the dock's ant does for the turn: carries while it runs, stands while the user is asked,
-// sets the parcel down when it completed.
-export type AntLaneScene = 'carry' | 'wait' | 'place'
+// What the dock's ant does for the turn: carries while it runs (two of them together while several
+// sub-agents work), stands while the user is asked, sets the parcel down when it completed.
+export type AntLaneScene = 'carry' | 'team' | 'wait' | 'place'
 
 // Offscreen previews and background windows keep their pose without spending animation frames.
 // Switched off in settings, nothing is left behind, not even the room the ant would take.
@@ -130,7 +130,7 @@ function Sparkle() {
 export function AntMotion({ action, size = 'stage', playing = true }: { action: AntAction; size?: AntSize; playing?: boolean }) {
   return (
     <AntStage className={`ant-motion ant-motion-${action} ant-${size}`} playing={playing}>
-      <svg viewBox={size === 'inline' ? INLINE_VIEW[action] : size === 'lane' ? '40 4 140 96' : '0 0 240 112'} focusable="false">
+      <svg viewBox={size === 'inline' ? INLINE_VIEW[action] : size === 'lane' ? (action === 'team' ? '40 4 180 96' : '40 4 140 96') : '0 0 240 112'} focusable="false">
         <path className="ant-ground" d="M0 96.5h240" />
         <path className="ant-pebbles" d="M38 96.5h2 M131 96.5h3 M196 96.5h2" />
         {action === 'team' ? (
@@ -208,7 +208,7 @@ export function AntLane({ scene: wanted, className = '' }: { scene: AntLaneScene
   const [lingering, setLingering] = useState(false)
   if (wanted !== previous) {
     setPrevious(wanted)
-    setLingering(wanted === null && (previous === 'carry' || previous === 'wait'))
+    setLingering(wanted === null && (previous === 'carry' || previous === 'team' || previous === 'wait'))
   }
   useEffect(() => {
     if (!lingering) return
@@ -217,6 +217,7 @@ export function AntLane({ scene: wanted, className = '' }: { scene: AntLaneScene
   }, [lingering])
   const scene = wanted ?? (lingering ? 'wait' : null)
   const shown = enabled && scene !== null
+  const action = scene === 'place' ? 'place' : scene === 'team' ? 'team' : 'carry'
   useEffect(() => {
     const strip = lane.current
     const ant = walker.current
@@ -243,8 +244,10 @@ export function AntLane({ scene: wanted, className = '' }: { scene: AntLaneScene
       if (paused) pacing.current.pause()
     }
     pace()
+    // The pair is wider than one ant: a change of crew re-measures the walk too.
     const observer = new ResizeObserver(pace)
     observer.observe(strip)
+    observer.observe(ant)
     return () => {
       observer.disconnect()
       pacing.current?.cancel()
@@ -252,14 +255,14 @@ export function AntLane({ scene: wanted, className = '' }: { scene: AntLaneScene
     }
   }, [shown])
   useEffect(() => {
-    if (scene === 'carry') pacing.current?.play()
+    if (scene === 'carry' || scene === 'team') pacing.current?.play()
     else pacing.current?.pause()
   }, [scene, shown])
   return (
     <span ref={lane} className={`ant-lane-strip ${className}`} data-scene={shown ? scene : undefined}>
       {shown && (
         <span ref={walker} className="ant-lane-walker">
-          <AntMotion key={scene === 'place' ? 'place' : 'carry'} action={scene === 'place' ? 'place' : 'carry'} size="lane" />
+          <AntMotion key={action} action={action} size="lane" />
         </span>
       )}
     </span>

@@ -285,7 +285,8 @@
 .ant-motion.ant-lane > svg { width: auto; height: 100%; mask-image: none; }
 .ant-lane :is(.ant-ground, .ant-pebbles) { display: none; }
 .ant-lane :is(.ant-leg, .ant-antenna path) { stroke-width: 4.5; }
-.ant-lane.ant-motion-carry .ant-performer { --ant-step: .22s; animation: none; transform: translate(40px, 26px); }
+.ant-lane:is(.ant-motion-carry, .ant-motion-team) .ant-performer { --ant-step: .22s; animation: none; transform: translate(40px, 26px); }
+.ant-lane .ant-mate-front { --ant-offset: -.07s; }
 /* Setting down starts where the walk-in would have ended: it is already standing there. */
 .ant-lane.ant-motion-place :is(.ant-performer, .ant-pose, .ant-cargo, .ant-puff) { animation-delay: -1.5s; }
 .ant-lane.ant-motion-place .ant-spark { animation-delay: 1.5s; }

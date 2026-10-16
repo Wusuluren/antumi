@@ -811,7 +811,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
   const turnEnded = useJustFinished(turnActive, 5200)
   const lastTurn = items.findLast((item) => item.kind === 'turn')
   const delivered = turnEnded && !turnActive && lastTurn?.kind === 'turn' && lastTurn.state === 'completed'
-  const antScene: AntLaneScene | null = turn === 'running' ? 'carry' : turn === 'awaiting' ? 'wait' : delivered ? 'place' : null
+  const antScene: AntLaneScene | null = turn === 'running' ? (running.background.subagents > 1 ? 'team' : 'carry') : turn === 'awaiting' ? 'wait' : delivered ? 'place' : null
   // The model as the stage runs it, or as the next stage would start; by its label where the agent gives one.
   const modelId = state?.model ?? conversation.chatOptions?.model ?? null
   // The effort the same way; left out where the agent runs its default without saying which.
