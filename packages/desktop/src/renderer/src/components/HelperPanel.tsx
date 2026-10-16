@@ -12,6 +12,7 @@ import { ConversationChat } from './ConversationChat'
 import { conversationSurface } from './chat-surface'
 import { HelperModelPicker, useHelperCatalog } from './HelperModelPicker'
 import { sendsMessage } from './ChatComposer'
+import { EnterIcon } from './icons'
 import { composerDraft, saveComposerDraft, EMPTY_DRAFT } from '../composer-drafts'
 
 function HelperDraft({ parent }: { parent: Conversation }) {
@@ -45,7 +46,9 @@ function HelperDraft({ parent }: { parent: Conversation }) {
       <div className="chat-options">
         <HelperModelPicker catalog={catalog} model={model} effort={effort} disabled={busy} onModel={(model) => setChoice({ model, effort: null })} onEffort={(effort) => setChoice({ model, effort })} />
         <span className="chat-dock-spacer" />
-        <button type="button" className="button" disabled={busy || !text.trim() || catalog === undefined} onClick={() => void send()}>发送</button>
+        <button type="button" className="chat-input-button" data-tooltip-side="top-end" aria-label="发送（Enter）" data-tooltip={busy ? '正在启动小助手…' : '发送（Enter）'} disabled={busy || !text.trim() || catalog === undefined} onClick={() => void send()}>
+          <EnterIcon />
+        </button>
       </div>
     </div></div>
   </div>
