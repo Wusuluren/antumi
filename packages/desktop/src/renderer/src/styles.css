@@ -5551,6 +5551,8 @@ body.side-panel-resizing * {
 .copy-button:focus-visible { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
 .copy-button[data-copied] { color: var(--status-done); }
 .copy-button svg { width: 14px; height: 14px; }
+.copy-button.copy-button-text { display: inline-flex; gap: 4px; width: auto; padding: 0 6px; font-size: inherit; }
+.copy-button.copy-button-text svg { width: 12px; height: 12px; }
 
 /* A message's own actions, showing when the pointer is over it. */
 .chat-message-actions { display: flex; gap: 2px; height: 22px; margin-top: 2px; opacity: 0; transition: opacity 0.12s; }

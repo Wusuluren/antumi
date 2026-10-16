@@ -14,6 +14,7 @@ import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
 import { FileDiffView, FileList, useFocusCount } from './Inspector'
 import { BranchIcon, MoreIcon, MaximizeIcon, RestoreIcon, CheckIcon, FolderIcon } from './icons'
 import { ChatPicker } from './ChatPicker'
+import { CopyButton } from './CopyButton'
 import { projectName } from './ProjectPicker'
 
 function ReadState({ error, retry, children }: { error: string | null; retry: () => void; children?: ReactNode }) {
@@ -246,7 +247,7 @@ function History({ target, gitRef, query, refreshKey, remotes, selected, pick }:
       {/* Each row as wide as its own lanes, as IDEA's log: a busy stretch does not push every subject right. */}
       <svg className="git-graph" width={Math.max(16, graph[index]?.width ?? 0)} height="32" aria-hidden="true">{graph[index]?.paths.map((path, i) => <path key={i} d={path.d} data-color={path.color} />)}<circle cx={8 + (graph[index]?.lane ?? 0) * 12} cy="16" r="3" data-color={graph[index]?.color} /></svg>
       <span className="git-commit-subject"><GitRefLabel refs={commitRefs(commit.refs, remotes)} />{commit.subject}</span>
-      <span className="git-commit-author muted">{commit.author}</span><span className="git-commit-date muted">{new Date(commit.date).toLocaleDateString()}</span><span className="mono muted">{commit.sha.slice(0, 8)}</span>
+      <span className="git-commit-author muted">{commit.author}</span><span className="git-commit-date muted">{new Date(commit.date).toLocaleDateString()}</span>
     </button>)}
     {!busy && history?.commits.length === 0 && <p className="git-message muted">没有匹配的提交。</p>}
     {busy && <p className="git-message muted">正在读取历史…</p>}
@@ -304,7 +305,7 @@ function CommitDetail({ target, sha, refreshKey, retry }: { target: GitTarget; s
   const detail = result?.data
   return <ReadState error={result?.error ?? null} retry={retry}>
     {!detail ? <p className="git-message muted">正在读取提交…</p> : <>
-      <div className="git-detail-meta"><button className="button mono" title="复制完整 SHA" onClick={() => void navigator.clipboard.writeText(sha)}>{sha.slice(0, 8)}</button><span>{detail.commit.author}</span><time>{new Date(detail.commit.date).toLocaleString()}</time></div>
+      <div className="git-detail-meta"><CopyButton text={sha} label="复制完整 SHA"><span className="mono">{sha.slice(0, 8)}</span></CopyButton><span>{detail.commit.author}</span><time>{new Date(detail.commit.date).toLocaleString()}</time></div>
       <CommitMessage message={detail.message} />
       <CommitBranches target={target} sha={sha} refreshKey={refreshKey} />
       {detail.commit.parents.length > 1 && <div className="git-parent">比较父提交 <ChatPicker label="比较父提交" value={detail.parent ?? ''} placeholder="父提交 1" placement="below"
