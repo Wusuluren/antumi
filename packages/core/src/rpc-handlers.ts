@@ -172,6 +172,8 @@ export function createRpcHandlers(
     'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'squads' || Boolean(squads)) && (feature !== 'plugins' || Boolean(plugins)) && (feature !== 'skills-library' || Boolean(skills)) && (feature !== 'mcp-servers' || Boolean(mcpServers)) && (feature !== 'small-model-stats' || Boolean(smallModels))) }),
     'files.resolve': ({ conversationId, path }) => files.resolve(conversationId, path),
     'files.read': ({ conversationId, path }) => files.read(conversationId, path),
+    'files.list': ({ conversationId, path }) => files.list(conversationId, path),
+    'files.write': ({ conversationId, path, text, expectedMtimeMs }) => files.write(conversationId, path, text, expectedMtimeMs),
     'system.awakeStatus': () => awake.status(),
     'system.setAwakeMode': ({ mode }) => awake.setMode(mode),
     'system.chatSettings': () => chatSettings.current(),

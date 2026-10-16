@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -48,8 +48,8 @@ describe('conversation files', () => {
     const text = path.join(primary, 'text.md')
     const empty = path.join(primary, 'empty.txt')
     await Promise.all([writeFile(text, '你好\ncontent\n'), writeFile(empty, '')])
-    expect(await files.read('chat', text)).toEqual({ kind: 'text', text: '你好\ncontent\n' })
-    expect(await files.read('chat', empty)).toEqual({ kind: 'text', text: '' })
+    expect(await files.read('chat', text)).toMatchObject({ kind: 'text', text: '你好\ncontent\n', mtimeMs: expect.any(Number) })
+    expect(await files.read('chat', empty)).toMatchObject({ kind: 'text', text: '' })
     expect(await files.read('chat', path.join(primary, 'gone'))).toEqual({ kind: 'unavailable', reason: 'not-found' })
     expect(await files.read('chat', primary)).toEqual({ kind: 'unavailable', reason: 'is-directory' })
   })
@@ -83,6 +83,66 @@ describe('conversation files', () => {
     const deleted = new ConversationFiles(() => { throw new Error('conversation not found') })
     await expect(deleted.read('deleted', primary)).rejects.toThrow('conversation not found')
     await expect(deleted.resolve('deleted', primary)).rejects.toThrow('conversation not found')
+  })
+
+  it('lists a project folder with folders first in natural order, hiding .git', async () => {
+    await Promise.all([writeFile(path.join(primary, 'b10.ts'), ''), writeFile(path.join(primary, 'b2.ts'), ''), writeFile(path.join(primary, 'A.md'), '')])
+    const listing = await files.list('chat', primary)
+    expect(listing.truncated).toBe(false)
+    expect(listing.entries.map((entry) => [entry.name, entry.kind])).toEqual([['src', 'directory'], ['A.md', 'file'], ['b2.ts', 'file'], ['b10.ts', 'file']])
+    expect(listing.entries[0]?.path).toBe(path.join(primary, 'src'))
+    expect((await files.list('chat', path.join(primary, 'src'))).entries.map((entry) => entry.name)).toEqual(['deep'])
+  })
+
+  it.skipIf(process.platform === 'win32')('lists links by what they point at', async () => {
+    await symlink(extra, path.join(primary, 'linked'))
+    await symlink(path.join(root, 'gone'), path.join(primary, 'broken'))
+    const { entries } = await files.list('chat', primary)
+    expect(entries.find((entry) => entry.name === 'linked')).toMatchObject({ kind: 'directory', symlink: true })
+    expect(entries.find((entry) => entry.name === 'broken')).toMatchObject({ kind: 'other', symlink: true })
+    expect(entries.find((entry) => entry.name === 'src')).toMatchObject({ kind: 'directory', symlink: false })
+  })
+
+  it('refuses to list folders outside the projects', async () => {
+    await expect(files.list('chat', root)).rejects.toThrow('项目')
+    await expect(files.list('chat', 'src')).rejects.toThrow('项目')
+    await expect(files.list('chat', path.join(primary, 'missing'))).rejects.toThrow('无法读取目录')
+  })
+
+  it('saves a project file in place when it has not changed since it was read', async () => {
+    const file = path.join(primary, 'edit.ts')
+    await writeFile(file, 'before')
+    await chmod(file, 0o640)
+    const read = await files.read('chat', file)
+    const mtimeMs = read.kind === 'text' ? read.mtimeMs ?? null : null
+    const saved = await files.write('chat', file, '之后', mtimeMs)
+    expect(saved).toEqual({ kind: 'saved', mtimeMs: (await stat(file)).mtimeMs })
+    expect(await readFile(file, 'utf8')).toBe('之后')
+    if (process.platform !== 'win32') expect((await stat(file)).mode & 0o777).toBe(0o640)
+  })
+
+  it('reports a conflict when the file changed or vanished after it was read', async () => {
+    const file = path.join(primary, 'edit.ts')
+    await writeFile(file, 'before')
+    const { mtimeMs } = await stat(file)
+    await utimes(file, new Date(), new Date(mtimeMs + 5000))
+    expect(await files.write('chat', file, 'mine', mtimeMs)).toEqual({ kind: 'conflict', mtimeMs: (await stat(file)).mtimeMs })
+    expect(await readFile(file, 'utf8')).toBe('before')
+    expect(await files.write('chat', file, 'mine', null)).toMatchObject({ kind: 'saved' })
+    expect(await files.write('chat', path.join(primary, 'gone.ts'), 'mine', null)).toEqual({ kind: 'conflict', mtimeMs: null })
+  })
+
+  it('refuses to save outside the projects, through a link, or into a folder', async () => {
+    const outside = path.join(root, 'outside.txt')
+    await writeFile(outside, 'outside')
+    await expect(files.write('chat', outside, 'x', null)).rejects.toThrow('项目')
+    await expect(files.write('chat', 'edit.ts', 'x', null)).rejects.toThrow('绝对路径')
+    await expect(files.write('chat', primary, 'x', null)).rejects.toThrow('无法写入')
+    if (process.platform !== 'win32') {
+      await symlink(outside, path.join(primary, 'link.txt'))
+      await expect(files.write('chat', path.join(primary, 'link.txt'), 'x', null)).rejects.toThrow('项目')
+      expect(await readFile(outside, 'utf8')).toBe('outside')
+    }
   })
 })
 
