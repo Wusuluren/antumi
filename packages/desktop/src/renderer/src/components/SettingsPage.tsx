@@ -562,8 +562,8 @@ function AboutSettings() {
       <SettingsRow
         label="项目地址"
         control={() => (
-          <a className="settings-about-link" href="https://github.com/flyhero/antumi-agents" target="_blank" rel="noreferrer">
-            https://github.com/flyhero/antumi-agents
+          <a className="settings-about-link" href="https://github.com/flyhero/antumi" target="_blank" rel="noreferrer">
+            https://github.com/flyhero/antumi
           </a>
         )}
       />
