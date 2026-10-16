@@ -1,6 +1,7 @@
 import { AgentKind, TranslateLanguage } from '@antumi/protocol'
 import { z } from 'zod'
 import { create } from 'zustand'
+import { BACKDROPS } from './backdrops'
 import { PALETTES } from './palettes'
 import { DEFAULT_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from './sidebar-width'
 
@@ -17,6 +18,8 @@ const Preferences = z.object({
   theme: z.enum(['system', 'light', 'dark']).catch('system'),
   // The set of colours the interface is drawn in; each has a light and a dark side.
   palette: z.enum(PALETTES).catch('terracotta'),
+  // Experimental: the gradient behind the sidebar and status bar; none keeps the flat canvas.
+  backdrop: z.enum(['none', ...BACKDROPS]).catch('none'),
   antAnimations: z.boolean().catch(true),
   terminalFontSize: z.number().int().min(10).max(20).catch(12),
   // How far apart the terminal's lines are, as a multiple of the font's own line: Geist Mono's is

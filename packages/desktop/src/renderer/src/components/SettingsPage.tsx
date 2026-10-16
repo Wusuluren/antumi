@@ -47,6 +47,7 @@ import { SourceSettingsSection } from './SourceSettingsSection'
 import { projectName } from './ProjectPicker'
 import { Segmented, SettingsGroup, SettingsRow, Stepper, Toggle } from './SettingsControls'
 import { PalettePicker } from './PalettePicker'
+import { BackdropPicker } from './BackdropPicker'
 import { useOccludesBrowser } from '../browser-occlusion'
 import { AntSettings } from './AntPreview'
 
@@ -82,6 +83,11 @@ function AppearanceSettings() {
           label="配色"
           description="整套界面颜色，随主题切换浅色或深色；色卡左浅右深。"
           control={(labelId) => <PalettePicker labelId={labelId} />}
+        />
+        <SettingsRow
+          label="渐变背景（实验）"
+          description="侧边栏和窗口四周铺一层渐变，内容区浮在上面。取自 Slack 的主题，和配色分开选，左浅右深。"
+          control={(labelId) => <BackdropPicker labelId={labelId} />}
         />
       </SettingsGroup>
       <AntSettings />

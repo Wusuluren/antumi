@@ -207,6 +207,38 @@
 }
 :root[data-theme='dark'] { color-scheme: dark; }
 
+/* Experimental backdrops, after Slack's themes: the window's frame is a gradient of two shades
+   (a radial wash over a conic sweep, as Slack draws it), and the sidebar and status bar sit on it
+   while the panes float above. A light gradient keeps dark ink on the frame; every other one, and
+   every gradient in dark, takes light ink. See backdrops.ts. */
+[data-backdrop='aubergine'] { --backdrop-primary: light-dark(#4a154b, #431349); --backdrop-highlight: light-dark(#39063a, #200221); }
+[data-backdrop='lagoon'] { --backdrop-primary: light-dark(#0b527b, #003d61); --backdrop-highlight: light-dark(#1c405f, #001a2d); }
+[data-backdrop='mood-indigo'] { --backdrop-primary: light-dark(#112377, #12206c); --backdrop-highlight: light-dark(#091861, #040b3d); }
+[data-backdrop='sea-glass'] { --backdrop-primary: light-dark(#a9edef, #053c48); --backdrop-highlight: light-dark(#df9ff4, #200221); --backdrop-ink-light: light; }
+[data-backdrop='kind-of-blue'] { --backdrop-primary: light-dark(#1f407d, #002d63); --backdrop-highlight: light-dark(#002034, #00101c); }
+[data-backdrop='funky-fresh'] { --backdrop-primary: light-dark(#c5b8ff, #272665); --backdrop-highlight: light-dark(#5bbb7b, #001204); --backdrop-ink-light: light; }
+[data-backdrop='sunglasses-inside'] { --backdrop-primary: #2e1331; --backdrop-highlight: #1c0227; }
+[data-backdrop] {
+  --backdrop:
+    radial-gradient(circle at 50% 50%, var(--backdrop-primary) 20%, transparent 80%),
+    conic-gradient(from 45deg at 50% 50%, var(--backdrop-highlight) 0%, var(--backdrop-primary) 25%, var(--backdrop-highlight) 50%, var(--backdrop-primary) 75%, var(--backdrop-highlight) 100%);
+}
+/* The window's own surfaces, kept for what pops up from the frame (menus, tooltips) so they stay
+   solid and in the window's scheme while the frame around them is see-through. */
+:root[data-backdrop] {
+  --frame-scheme: var(--backdrop-ink-light, dark);
+  --root-scheme: light;
+  --root-bg: var(--bg);
+  --root-surface: var(--surface);
+  --root-border: var(--border);
+  --root-border-2: var(--border-2);
+  --root-shadow: var(--shadow);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-backdrop]:not([data-theme='light']) { --frame-scheme: dark; --root-scheme: dark; }
+}
+:root[data-backdrop][data-theme='dark'] { --frame-scheme: dark; --root-scheme: dark; }
+
 /* Scrollbars as a thumb alone, on no track: the system's track would sit as a grey band down the
    chat and every list. The thumb's inset keeps it clear of the content's edge. */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -4268,6 +4300,10 @@ body.side-panel-resizing * {
 
 .settings-row:has(.title-naming-options) { flex-wrap: wrap; }
 .settings-row:has(.title-naming-options) .settings-row-text { flex: 1 1 32ch; }
+/* Eight swatches: they go under the label, on a narrow window too. */
+.settings-row:has(.backdrop-picker) { flex-wrap: wrap; }
+.settings-row:has(.backdrop-picker) .settings-row-text { flex: 1 1 100%; }
+.backdrop-picker { justify-content: flex-start; }
 
 .segmented {
   display: inline-flex;
@@ -4350,6 +4386,52 @@ body.side-panel-resizing * {
 }
 .palette-swatch-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--accent); }
 .palette-swatch-line { flex: 1; height: 2px; border-radius: 1px; background: var(--text-3); }
+
+/* A backdrop's swatch: each half resolves the gradient's light-dark() its own way. */
+.backdrop-swatch { display: flex; width: 64px; height: 40px; overflow: hidden; border-radius: var(--radius-sm); box-shadow: 0 0 0 1px var(--border); background: var(--bg); }
+.palette-option[aria-checked='true'] .backdrop-swatch { box-shadow: 0 0 0 2px var(--accent); }
+.backdrop-swatch-half { flex: 1; background: var(--backdrop, var(--bg)); }
+.backdrop-swatch-half[data-scheme='light'] { color-scheme: light; }
+.backdrop-swatch-half[data-scheme='dark'] { color-scheme: dark; }
+.backdrop-swatch:not([data-backdrop]) { background: linear-gradient(to top right, transparent calc(50% - 1px), var(--border-2) 50%, transparent calc(50% + 1px)), var(--bg); }
+.backdrop-swatch:not([data-backdrop]) .backdrop-swatch-half { background: transparent; }
+
+/* The frame on a backdrop. The sidebar, status bar and the brand over the sidebar take the
+   frame's ink and see-through surfaces; the pane beside the sidebar becomes a solid card. */
+:root[data-backdrop] .app { background: var(--backdrop); }
+:root[data-backdrop] :is(.sidebar, .statusbar),
+:root[data-backdrop] .app:not([data-sidebar-hidden]) > .window-brand {
+  color-scheme: var(--frame-scheme);
+  /* Declared here, or the frame inherits the body's colour, already resolved in the window's scheme. */
+  color: var(--text);
+  --bg: transparent;
+  --surface: light-dark(rgb(255 255 255 / 55%), rgb(255 255 255 / 12%));
+  --border: light-dark(rgb(0 0 0 / 8%), rgb(255 255 255 / 12%));
+  --border-2: light-dark(rgb(0 0 0 / 14%), rgb(255 255 255 / 20%));
+  --shadow: none;
+}
+:root[data-backdrop] :is(.sidebar, .statusbar, .window-brand) :is(.menu, [role='menu'], [role='dialog'], [role='listbox']),
+:root[data-backdrop] :is(.sidebar, .statusbar, .window-brand) [data-tooltip]::after {
+  color-scheme: var(--root-scheme);
+  color: var(--text);
+  --bg: var(--root-bg);
+  --surface: var(--root-surface);
+  --border: var(--root-border);
+  --border-2: var(--root-border-2);
+  --shadow: var(--root-shadow);
+}
+:root[data-backdrop] .sidebar { border-right-color: transparent; }
+:root[data-backdrop] .statusbar { background: transparent; border-top-color: transparent; }
+:root[data-backdrop] .workspace > :not(.sidebar, .utility-panel-dock) {
+  margin: 8px 8px 0 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+/* Only for a pane with no background of its own, which would otherwise show the gradient. */
+:where(:root[data-backdrop] .workspace > :not(.sidebar, .utility-panel-dock)) { background: var(--bg); }
+:root[data-backdrop] .workspace > :first-child:not(.sidebar),
+:root[data-backdrop] .workspace > .sidebar[hidden] + * { margin-left: 8px; }
+:root[data-backdrop] .utility-panel-dock { margin-bottom: 0; }
 
 .stepper {
   display: inline-flex;
