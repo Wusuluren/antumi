@@ -6913,7 +6913,11 @@ body.side-panel-resizing * {
 .chat-schedule-button svg { width: 15px; height: 15px; }
 .chat-input-button svg { width: 16px; height: 16px; }
 .chat-input-button:disabled { background: transparent; color: var(--text-muted); cursor: default; }
-.chat-input-button[data-stop] { background: var(--text); color: var(--surface); }
+/* Stopping is there to reach, not to look at: a quiet fill beside the accent send, and the filled
+   square every chat app uses. The fills are translucent, so hover stacks one more. */
+.chat-input-button[data-stop] { background: var(--fill-2); color: var(--text); transition: background 0.12s; }
+.chat-input-button[data-stop]:hover { background: linear-gradient(var(--fill), var(--fill)), var(--fill-2); }
+.chat-input-button[data-stop] svg { fill: currentColor; }
 @keyframes chat-button-in {
   from { transform: rotate(-90deg) scale(0.6); opacity: 0; }
 }
