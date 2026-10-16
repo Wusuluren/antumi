@@ -3044,8 +3044,14 @@ body.side-panel-resizing * {
 
 .change-kind[data-kind='modified'],
 .change-kind[data-kind='renamed'] {
-  color: var(--warning);
+  color: var(--info);
 }
+
+/* The name in its change's colour too, as an IDE's change list: new green, changed blue, gone red;
+   its folder stays muted. */
+.changed-file:is([data-kind='added'], [data-kind='untracked']) .changed-file-name { color: var(--status-done); }
+.changed-file:is([data-kind='modified'], [data-kind='renamed']) .changed-file-name { color: var(--info); }
+.changed-file[data-kind='deleted'] .changed-file-name { color: var(--danger); }
 
 .changed-file-name {
   flex: 1;
@@ -6073,6 +6079,9 @@ body.side-panel-resizing * {
 .chat-changes-kind[data-kind='delete'] { color: var(--danger); }
 .chat-changes-path { flex: 1; min-width: 0; display: flex; align-items: baseline; }
 .chat-changes-directory { min-width: 0; overflow: hidden; color: var(--text-muted); text-overflow: ellipsis; white-space: nowrap; }
+.chat-changes-file[data-change='add'] .chat-changes-name { color: var(--status-done); }
+.chat-changes-file[data-change='update'] .chat-changes-name { color: var(--info); }
+.chat-changes-file[data-change='delete'] .chat-changes-name { color: var(--danger); }
 .chat-changes-name { flex-shrink: 0; max-width: 56%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-changes-name:first-child { max-width: 100%; }
 .chat-changes-file > .chat-diff-count { gap: 5px; font-size: 12px; }

@@ -490,7 +490,7 @@ function TurnChanges({ fold, files, turn, reply, collapsible }: { fold: string; 
             const directory = slash === -1 ? '' : path.slice(0, slash + 1)
             const name = slash === -1 ? path : path.slice(slash + 1)
             return (
-              <button key={file.path} type="button" className="chat-changes-file" data-file-path={file.path} title={file.path} onClick={() => surface.changes ? surface.showFileChange(file.path) : folds.reveal(collapsible ? fold : null, file.path)}>
+              <button key={file.path} type="button" className="chat-changes-file" data-change={file.change} data-file-path={file.path} title={file.path} onClick={() => surface.changes ? surface.showFileChange(file.path) : folds.reveal(collapsible ? fold : null, file.path)}>
                 {file.change !== 'update' && (
                   <span className="chat-changes-kind" data-kind={file.change}>{file.change === 'add' ? '新建' : '删除'}</span>
                 )}

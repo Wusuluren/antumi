@@ -189,6 +189,7 @@ export function FileList({ files, onOpen }: { files: readonly ChangedFile[]; onO
             <button
               type="button"
               className="changed-file"
+              data-kind={file.kind}
               title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
               onClick={() => onOpen(file.path)}
             >
