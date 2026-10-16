@@ -3,9 +3,11 @@ import type { ChatDecision } from '@antumi/protocol'
 import { quickApproval, type ActionableItem } from '../attention'
 import {
   openAttentionItem, perform, refreshAttentionSummaries, selectConversation, selectTask, setConversationInspectorOpen,
-  setConversationInspectorTab, setInspectorOpen, setOverviewFilter, setOverviewOpen, setOverviewScroll, setRoutinesOpen,
-  setSchedulesOpen, setTaskInspectorTab, showView, useOverview, useCore, type OverviewFilter
+  setConversationInspectorTab, setInspectorOpen, setOverviewFilter, setOverviewOpen, setOverviewScroll, setOverviewView, setRoutinesOpen,
+  setSchedulesOpen, setTaskInspectorTab, showView, useDashboardSupported, useOverview, useCore, type OverviewFilter
 } from '../core-store'
+import { DashboardPanel } from './DashboardPanel'
+import { Segmented } from './SettingsControls'
 import { addQuote } from '../chat-quotes'
 import { useAllTodos, useTodoOverviewSupported } from '../conversation-todos'
 import { overviewTodos, type TodoEntry, type TodoLine } from '../overview-todos'
@@ -304,11 +306,16 @@ function TodoEntryView({ entry, now }: { entry: TodoEntry; now: number }) {
 }
 
 const WEEKDAY = '日一二三四五六'
+const PANES = [{ value: 'now', label: '现在' }, { value: 'stats', label: '统计' }] as const
 
 export function OverviewView() {
   const data = useOverview()
   const [laterOpen, setLaterOpen] = useState(false)
   const filter = useCore((s) => s.overviewFilter)
+  // The stats are the overview's other side, where core keeps them.
+  const statsSupported = useDashboardSupported()
+  const chosenPane = useCore((s) => s.overviewView)
+  const pane = statsSupported ? chosenPane : 'now'
   const connected = useCore((s) => s.connection === 'connected')
   const loading = useCore((s) => s.attentionSummaryLoading)
   const mode = useCore((s) => s.attentionSummaryMode)
@@ -381,8 +388,16 @@ export function OverviewView() {
           <h2>总览</h2>
           <p className="muted">{today.getMonth() + 1}月{today.getDate()}日 周{WEEKDAY[today.getDay()]}</p>
         </div>
+        {statsSupported && <>
+          <Segmented labelId="overview-pane" value={pane} options={PANES} onChange={(next) => {
+            setOverviewView(next)
+            if (page.current) page.current.scrollTop = 0
+          }} />
+          <span id="overview-pane" hidden>总览的内容</span>
+        </>}
         <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => setOverviewOpen(false)}><CloseIcon /></button>
       </header>
+      {pane === 'stats' ? <DashboardPanel /> : <>
       {!connected && <p className="attention-notice muted" role="status">尚未连接到 core，事项尚未更新。{!empty ? '以下为最近收到的信息。' : '连接后将显示工作总览。'}</p>}
       {connected && loading && <p className="attention-notice muted" role="status">正在读取待处理事项…</p>}
       {mode === 'limited' && <p className="attention-notice muted">当前 core 的任务聊天详情不完整</p>}
@@ -409,6 +424,7 @@ export function OverviewView() {
         {(running || next) && <div className="overview-column">{running}{next}</div>}
       </div>
       {empty && emptyConfirmed && <p className="attention-empty muted">暂时没有进行中的工作</p>}
+      </>}
     </section>
   )
 }

@@ -19,7 +19,7 @@ const LEADER_DUTY = '队长只读：拆分工作、分派给成员、汇总验�
 // no list of them.
 export function SquadsEntry() {
   const supported = useSquadsSupported()
-  const open = useCore((state) => state.section === 'squads' && !state.dashboardOpen && !state.routinesOpen && !state.overviewOpen && !state.schedulesOpen && !state.worktreesOpen)
+  const open = useCore((state) => state.section === 'squads' && !state.routinesOpen && !state.overviewOpen && !state.schedulesOpen && !state.worktreesOpen)
   if (!supported) return null
   return (
     <button type="button" className="inbox-entry sidebar-squads" aria-current={open} onClick={() => selectSquad(null)}>

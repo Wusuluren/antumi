@@ -22,8 +22,6 @@ import { UtilityPanelDock } from './components/UtilityPanelDock'
 import { WorktreeManager } from './components/WorktreeManager'
 import { SchedulesView } from './components/SchedulesView'
 import { RoutinesView } from './components/RoutinesView'
-import { DashboardView } from './components/DashboardView'
-import { DashboardEntry } from './components/DashboardEntry'
 import { RoutinesEntry } from './components/RoutinesEntry'
 import { SidebarDiscussions } from './components/SidebarDiscussions'
 import { DiscussionView } from './components/DiscussionView'
@@ -42,7 +40,7 @@ import { usePortPolling } from './port-state'
 function leavesTask(event: KeyboardEvent): boolean {
   const s = useCore.getState()
   if (event.defaultPrevented || s.section !== 'tasks' || s.selectedId === null) return false
-  if (s.settingsOpen || s.newTaskOpen || s.taskLaunchId || s.worktreesOpen || s.schedulesOpen || s.routinesOpen || s.dashboardOpen || s.overviewOpen || s.inboxOpen) return false
+  if (s.settingsOpen || s.newTaskOpen || s.taskLaunchId || s.worktreesOpen || s.schedulesOpen || s.routinesOpen || s.overviewOpen || s.inboxOpen) return false
   const typing = event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"], .xterm, [role="menu"], dialog')
   return !typing && !document.querySelector('dialog[open]')
 }
@@ -64,7 +62,6 @@ export function App() {
   const worktreesOpen = useCore((s) => s.worktreesOpen)
   const schedulesOpen = useCore((s) => s.schedulesOpen)
   const routinesOpen = useCore((s) => s.routinesOpen)
-  const dashboardOpen = useCore((s) => s.dashboardOpen)
   const overviewOpen = useCore((s) => s.overviewOpen)
   const inboxOpen = useCore((s) => s.inboxOpen)
   const loginOpen = useCore((s) => s.login !== null)
@@ -154,7 +151,6 @@ export function App() {
             <Sidebar hidden={sidebarHidden}>
               <OverviewEntry />
               <InboxEntry />
-              <DashboardEntry />
               <RoutinesEntry />
               <SquadsEntry />
               <EnvironmentNotice />
@@ -172,8 +168,6 @@ export function App() {
               <SchedulesView />
             ) : routinesOpen ? (
               <RoutinesView />
-            ) : dashboardOpen ? (
-              <DashboardView />
             ) : section === 'squads' ? (
               <SquadsView />
             ) : section === 'discussions' ? (

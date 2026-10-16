@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { Task, createRpcClient, type Conversation, type RpcConnection } from '@antumi/protocol'
 import { actionableItems } from './attention'
 import {
-  openAttentionItem, openConversationDraft, selectConversation, selectTask, setOverviewOpen, setOverviewFilter, setOverviewScroll,
-  refreshAttentionSummaries, setDashboardOpen, setInboxOpen, setTaskStarting, openChatWhileStarting, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, useCore,
+  openAttentionItem, openConversationDraft, selectConversation, selectTask, setOverviewOpen, setOverviewFilter, setOverviewScroll, setOverviewView,
+  refreshAttentionSummaries, setInboxOpen, setTaskStarting, openChatWhileStarting, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, useCore,
   clearInspectorFile, installAgentCli, showConversationChanges, showInspectorFile, showTaskChanges
 } from './core-store'
 import { conversationSurface } from './components/chat-surface'
@@ -97,22 +97,32 @@ describe('overview navigation', () => {
     expect(useCore.getState().overviewScroll).toBe(0)
   })
 
+  it('keeps the stats pane it was left on, from the top', () => {
+    expect(useCore.getState().overviewView).toBe('now')
+    setOverviewScroll(240)
+    setOverviewView('stats')
+    expect(useCore.getState()).toMatchObject({ overviewView: 'stats', overviewScroll: 0 })
+    selectTask('task')
+    setOverviewOpen(true)
+    expect(useCore.getState().overviewView).toBe('stats')
+  })
+
   it('closes every other main page when the aggregate opens', () => {
     useCore.setState({
       selectedId: 'task', selectedConversationId: 'chat', section: 'conversations', conversationDraft: true,
-      settingsOpen: true, dashboardOpen: true, schedulesOpen: true, worktreesOpen: true, inboxOpen: true
+      settingsOpen: true, schedulesOpen: true, worktreesOpen: true, inboxOpen: true
     })
     setOverviewOpen(true)
     expect(useCore.getState()).toMatchObject({
       overviewOpen: true, selectedId: null, selectedConversationId: null, section: 'tasks', conversationDraft: false,
-      settingsOpen: false, dashboardOpen: false, schedulesOpen: false, worktreesOpen: false, inboxOpen: false
+      settingsOpen: false, schedulesOpen: false, worktreesOpen: false, inboxOpen: false
     })
   })
 
   it.each([
     ['task', () => selectTask('task')], ['conversation', () => selectConversation('chat')],
     ['draft', openConversationDraft], ['inbox', () => setInboxOpen(true)], ['settings', () => setSettingsOpen(true)],
-    ['dashboard', () => setDashboardOpen(true)], ['schedules', () => setSchedulesOpen(true)],
+    ['schedules', () => setSchedulesOpen(true)],
     ['worktrees', () => setWorktreesOpen(true)]
   ])('closes the aggregate when opening %s', (_label, open) => {
     setOverviewOpen(true)
@@ -123,7 +133,7 @@ describe('overview navigation', () => {
   it.each([
     ['task', () => selectTask('task')], ['conversation', () => selectConversation('chat')],
     ['draft', openConversationDraft], ['overview', () => setOverviewOpen(true)],
-    ['dashboard', () => setDashboardOpen(true)], ['schedules', () => setSchedulesOpen(true)],
+    ['schedules', () => setSchedulesOpen(true)],
     ['worktrees', () => setWorktreesOpen(true)]
   ])('closes the inbox, a page of its own, when opening %s', (_label, open) => {
     setInboxOpen(true)

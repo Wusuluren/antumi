@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { TASK_STATUSES, type DashboardStats } from '@antumi/protocol'
-import { perform, setDashboardOpen, useCore } from '../core-store'
+import { perform, useCore } from '../core-store'
 import { DASHBOARD_RANGES, type DashboardRange } from '../dashboard-model'
 import { STATUS_LABEL } from '../labels'
 import { percent } from '../stat-format'
@@ -8,7 +8,7 @@ import { ActivityHeatmap } from './ActivityHeatmap'
 import { DailyBars } from './DailyBars'
 import { DashboardKpis } from './DashboardKpis'
 import { SmallModelStats } from './SmallModelStats'
-import { CloseIcon, RefreshIcon } from './icons'
+import { RefreshIcon } from './icons'
 import { ModelBreakdown } from './ModelBreakdown'
 import { Segmented } from './SettingsControls'
 import { StatusIcon } from './StatusIcon'
@@ -68,20 +68,18 @@ function TaskStatuses() {
   )
 }
 
-export function DashboardView() {
+// The overview's 统计: the days before, as its 现在 is the work at hand.
+export function DashboardPanel() {
   const [range, setRange] = useState<DashboardRange>(7)
   const { report, loading, load } = useDashboard(range)
   const days = report?.stats.days.slice(-range) ?? []
   const empty = report !== null && report.stats.days.every((day) => day.runs === 0 && day.turns === 0 && (day.quickRequests ?? 0) === 0)
   return (
-    <section className="worktrees-page dashboard-page" aria-label="统计">
-      <header className="worktrees-header">
-        <div className="worktrees-heading">
-          <h2>统计</h2>
-          <p className="muted">
-            任务运行、对话和轻量请求的用量，按这台电脑的日期计{report && ` · 更新于 ${TIME.format(report.at)}`}
-          </p>
-        </div>
+    <div className="dashboard-stats">
+      <div className="dashboard-toolbar">
+        <p className="muted">
+          任务运行、对话和轻量请求的用量，按这台电脑的日期计{report && ` · 更新于 ${TIME.format(report.at)}`}
+        </p>
         <Segmented
           labelId="dashboard-range"
           value={String(range)}
@@ -92,10 +90,7 @@ export function DashboardView() {
         <button type="button" className="tool-button" aria-label="刷新" data-tooltip="刷新" disabled={loading} onClick={() => void load()}>
           <span className="dashboard-refresh" data-loading={loading || undefined}><RefreshIcon /></span>
         </button>
-        <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => setDashboardOpen(false)}>
-          <CloseIcon />
-        </button>
-      </header>
+      </div>
       {report === null ? (
         <p className="dashboard-empty muted">正在读取…</p>
       ) : (
@@ -113,6 +108,6 @@ export function DashboardView() {
           </div>
         </div>
       )}
-    </section>
+    </div>
   )
 }

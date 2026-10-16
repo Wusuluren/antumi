@@ -51,6 +51,7 @@ import { overview, type Overview } from './overview'
 import { attentionSummaryMode, fetchAttentionSummaries, replaySummaryChanges, type AttentionSummaryMode } from './attention-summaries'
 
 export type OverviewFilter = null | 'mine' | 'todos' | 'running' | 'next' | 'unread'
+export type OverviewPane = 'now' | 'stats'
 
 export type ConnectionState = 'waiting-for-core' | 'connecting' | 'connected'
 
@@ -144,9 +145,9 @@ export type CoreState = {
   // The routines as core keeps them, each with how many of its runs the user has yet to look at;
   // empty on a core without them.
   routines: Routine[]
-  // And the dashboard of stats.
-  dashboardOpen: boolean
   overviewOpen: boolean
+  // What the overview shows: the work now, or the stats of the days before.
+  overviewView: OverviewPane
   overviewFilter: OverviewFilter
   overviewScroll: number
   attentionSummaryMode: AttentionSummaryMode | null
@@ -230,8 +231,8 @@ export const useCore = create<CoreState>()(() => ({
   worktreesOpen: false,
   schedulesOpen: false,
   routinesOpen: false,
-  dashboardOpen: false,
   overviewOpen: true,
+  overviewView: 'now',
   overviewFilter: null,
   overviewScroll: 0,
   attentionSummaryMode: null,
@@ -281,7 +282,6 @@ export function selectTask(id: string | null): void {
       worktreesOpen: false,
       schedulesOpen: false,
       routinesOpen: false,
-      dashboardOpen: false,
       overviewOpen: false,
       settingsOpen: false,
       view: chat ? 'chat' : 'detail',
@@ -492,7 +492,7 @@ export function setBrowserMaximized(maximized: boolean): void {
 export function selectConversation(id: string | null): void {
   useCore.setState((s) => {
     const { [id ?? '']: _seen, ...unseen } = s.unseen
-    return { selectedConversationId: id, section: 'conversations', inspectorFile: s.section === 'conversations' && s.selectedConversationId === id ? s.inspectorFile : null, settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: false, unseen }
+    return { selectedConversationId: id, section: 'conversations', inspectorFile: s.section === 'conversations' && s.selectedConversationId === id ? s.inspectorFile : null, settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: false, unseen }
   })
   if (id) markRoutineRunSeen(id)
 }
@@ -520,7 +520,7 @@ export type DraftIssue = { provider: string; instance: string; key: string; titl
 // `projects`: what the page starts with, as from a project's group; without, it starts with none.
 // `issue`: the inbox issue the conversation is opened to look into.
 export function openConversationDraft(projects?: readonly string[], issue: DraftIssue | null = null): void {
-  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: true, conversationDraftProjects: projects ? { paths: [...projects] } : null, conversationDraftIssue: issue })
+  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: true, conversationDraftProjects: projects ? { paths: [...projects] } : null, conversationDraftIssue: issue })
 }
 
 export function useSourceInvestigateSupported(): boolean {
@@ -531,7 +531,7 @@ export function closeConversationDraft(): void {
   useCore.setState({ conversationDraft: false })
 }
 
-const PAGES_CLOSED = { settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false, inboxOpen: false } as const
+const PAGES_CLOSED = { settingsOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false } as const
 
 export function selectSquad(id: string | null, draft = false): void {
   useCore.setState({ section: 'squads', selectedSquadId: id, squadDraft: draft, ...PAGES_CLOSED })
@@ -622,7 +622,6 @@ export function setInboxOpen(open: boolean): void {
         worktreesOpen: false,
         schedulesOpen: false,
         routinesOpen: false,
-        dashboardOpen: false,
         overviewOpen: false
       }
     : { inboxOpen: false })
@@ -664,27 +663,20 @@ export function setSettingsOpen(open: boolean, section: string | null = null): v
 }
 
 export function setWorktreesOpen(open: boolean): void {
-  useCore.setState({ worktreesOpen: open, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
+  useCore.setState({ worktreesOpen: open, schedulesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
 }
 
 export function setSchedulesOpen(open: boolean): void {
-  useCore.setState({ schedulesOpen: open, routinesOpen: false, worktreesOpen: false, dashboardOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
+  useCore.setState({ schedulesOpen: open, routinesOpen: false, worktreesOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
 }
 
 export function setRoutinesOpen(open: boolean): void {
-  useCore.setState({ routinesOpen: open, schedulesOpen: false, worktreesOpen: false, dashboardOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
-}
-
-// Opened from the task list, so it takes the place of the selected task as the inbox does.
-export function setDashboardOpen(open: boolean): void {
-  useCore.setState(open
-    ? { dashboardOpen: true, overviewOpen: false, section: 'tasks', selectedId: null, inboxOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, settingsOpen: false }
-    : { dashboardOpen: false })
+  useCore.setState({ routinesOpen: open, schedulesOpen: false, worktreesOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
 }
 
 export function setOverviewOpen(open: boolean): void {
   useCore.setState(open
-    ? { overviewOpen: true, section: 'tasks', selectedId: null, selectedConversationId: null, conversationDraft: false, inboxOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, dashboardOpen: false, settingsOpen: false }
+    ? { overviewOpen: true, section: 'tasks', selectedId: null, selectedConversationId: null, conversationDraft: false, inboxOpen: false, worktreesOpen: false, schedulesOpen: false, routinesOpen: false, settingsOpen: false }
     : { overviewOpen: false })
 }
 
@@ -695,6 +687,10 @@ export function useActionableItems(): ActionableItem[] {
   const schedules = useCore((s) => s.schedules)
   const squadRuns = useCore((state) => state.squadRuns)
   return useMemo(() => actionableItems({ tasks, conversations, schedules, squadRuns }, mode === 'complete'), [tasks, conversations, schedules, squadRuns, mode])
+}
+
+export function setOverviewView(view: OverviewPane): void {
+  useCore.setState({ overviewView: view, overviewScroll: 0 })
 }
 
 export function setOverviewFilter(filter: OverviewFilter): void {
@@ -838,7 +834,7 @@ export function useFileMentionsSupported(): boolean {
 // The task board stands where a task would: the tasks section with none open and no page over it.
 export function useTaskBoardOpen(): boolean {
   return useCore((s) => s.section === 'tasks' && s.selectedId === null && !s.inboxOpen && !s.worktreesOpen && !s.schedulesOpen
-    && !s.routinesOpen && !s.dashboardOpen && !s.overviewOpen && !s.settingsOpen)
+    && !s.routinesOpen && !s.overviewOpen && !s.settingsOpen)
 }
 
 // Whether a task's chat can go to another agent (tasks.handoff).
