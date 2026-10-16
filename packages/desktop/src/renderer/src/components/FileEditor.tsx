@@ -10,7 +10,7 @@ import { FileTree } from './FileTree'
 import { useFocusCount } from './Inspector'
 import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
 import { FileMenu, FileMenuItems } from './FileMenu'
-import { CheckIcon, CloseIcon, ListIcon, MaximizeIcon, MoreIcon, RefreshIcon, RestoreIcon, SearchIcon } from './icons'
+import { CheckIcon, CloseIcon, MaximizeIcon, MoreIcon, RefreshIcon, RestoreIcon, SearchIcon, SidebarIcon } from './icons'
 
 const REASON: Record<Extract<FileRead, { kind: 'unavailable' }>['reason'], string> = {
   'not-found': '文件不存在，可能已被移动或删除。',
@@ -100,7 +100,8 @@ export function FileEditor({ conversationId, roots, updatedAt, onEmpty, inspecto
   const refresh = `${focus}:${updatedAt}:${refreshCount}`
   const active = state.tabs.find((tab) => tab.file.path === state.active)
   const scope: ChatFileScope = { conversationId, inspector, roots }
-  const tree = editor && roots.length > 0 && state.tree
+  const browsable = editor && roots.length > 0
+  const tree = browsable && state.tree
   const expanded = expandedFolders(state, roots)
 
   useEffect(() => {
@@ -116,13 +117,14 @@ export function FileEditor({ conversationId, roots, updatedAt, onEmpty, inspecto
   }
   const open = (file: ResolvedFile) => updateFileTabs(conversationId, (state) => openedFile(state, file, null))
   const showFolder = (folder: string) => updateFileTabs(conversationId, (state) => revealedFolder({ ...state, tree: true }, roots, folder))
-  if (!active && !tree) return <p className="inspector-empty muted">点击聊天中的文件即可预览。</p>
+  // With a tree to browse, the bar stays even with the tree folded away, so it can be opened again.
+  if (!active && !browsable) return <p className="inspector-empty muted">点击聊天中的文件即可预览。</p>
 
   const writable = editor && active?.file.root != null
   const name = (tab: FileTab) => tab.file.path.split(/[\\/]/).at(-1) ?? tab.file.path
   return <div className="file-editor">
     <div className="file-editor-bar">
-      {editor && roots.length > 0 && <button type="button" className="tool-button" aria-label="文件树" aria-pressed={state.tree} title="文件树" onClick={() => updateFileTabs(conversationId, (state) => ({ ...state, tree: !state.tree }))}><ListIcon /></button>}
+      {browsable && <button type="button" className="tool-button" aria-label={state.tree ? '收起文件树' : '打开文件树'} aria-pressed={state.tree} title={state.tree ? '收起文件树' : '打开文件树'} onClick={() => updateFileTabs(conversationId, (state) => ({ ...state, tree: !state.tree }))}><SidebarIcon /></button>}
       <div className="file-editor-tabs" role="tablist" aria-label="已打开的文件">
         {state.tabs.map((tab) => <div className="file-editor-tab" key={tab.file.path} data-active={tab.file.path === state.active || undefined} data-dirty={tab.dirty || undefined}>
           <FileMenu scope={scope} file={tab.file}>
@@ -161,7 +163,7 @@ export function FileEditor({ conversationId, roots, updatedAt, onEmpty, inspecto
         {active ? <>
           <Breadcrumb file={active.file} onFolder={showFolder} />
           <FileContent key={active.file.path} conversationId={conversationId} tab={active} wrap={state.wrap} writable={writable} source={source} refresh={refresh} />
-        </> : <p className="inspector-empty muted">从左侧选择文件。</p>}
+        </> : <p className="inspector-empty muted">{tree ? '从左侧选择文件。' : '打开文件树选择文件。'}</p>}
       </div>
     </div>
   </div>
