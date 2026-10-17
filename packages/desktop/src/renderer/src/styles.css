@@ -1462,7 +1462,10 @@ button.task-tag:hover {
 .menu-item-icon .open-with-icon { width: 16px; height: 16px; }
 /* The file panel's open button: the app last used, and beside it the menu of others. */
 .open-with { display: inline-flex; flex-shrink: 0; }
-.open-with .open-with-main { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.open-with .open-with-main { display: inline-flex; align-items: center; gap: 6px; width: auto; max-width: 160px; padding: 0 4px 0 8px; font: inherit; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+/* The app goes by name, as the tabs beside it do: their size, cut short rather than wrapped. */
+.open-with-name { min-width: 0; overflow: hidden; font-size: var(--chat-font-small, 12px); line-height: 20px; white-space: nowrap; text-overflow: ellipsis; }
+.open-with .open-with-main:disabled .open-with-name { opacity: 0.45; }
 .open-with .open-with-more { width: 16px; margin-left: -2px; border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .open-with .open-with-more svg { width: 12px; height: 12px; }
 .open-with-icon { display: block; width: 16px; height: 16px; }

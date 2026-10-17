@@ -36,6 +36,7 @@ export function OpenWithButton({ file }: { file: ResolvedFile }) {
     <button type="button" className="tool-button open-with-main" aria-label={label} title={label} disabled={!chosen && !canOpenFile()}
       onClick={() => void (chosen ? open(chosen) : openResolvedFile(file))}>
       {chosen ? <AppIcon app={chosen} /> : <ExternalIcon />}
+      <span className="open-with-name">{chosen?.name ?? '打开'}</span>
     </button>
     <button type="button" className="tool-button open-with-more" ref={more} aria-label="用其他方式打开" title="用其他方式打开" aria-haspopup="menu" aria-expanded={menu !== null}
       onClick={(event) => {
