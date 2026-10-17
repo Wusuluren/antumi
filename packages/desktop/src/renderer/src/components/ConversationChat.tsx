@@ -16,6 +16,7 @@ import { forkConversation } from './ConversationActions'
 import { agentLabel, chatDayAndTime, dayAndTime, messageTime } from '../labels'
 import { usePreferences } from '../preferences'
 import { ChatDock } from './ChatDock'
+import { ProjectRunNotice } from './ProjectRunNotice'
 import { ChatImageStrip } from './ChatImages'
 import { ChatMarkdown, ChatRoots } from './ChatMarkdown'
 import { ChatFilesContext, useChatContextMenu } from './ChatContextMenu'
@@ -905,6 +906,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
           </button>
         )}
       </div>
+      <ProjectRunNotice conversationId={conversation.id} />
       <ChatDock compact={variant === 'compact'} antScene={antScene} conversation={conversation} state={state} pending={pending} tools={tools} finishedCalls={finishedCalls} onPrevious={previous} sent={sent} onJump={jump} />
       {variant !== 'compact' && <SelectionComment
         conversationId={id}

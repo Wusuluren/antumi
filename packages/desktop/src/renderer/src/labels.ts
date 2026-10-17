@@ -159,6 +159,11 @@ const REASON_TEXT: Record<string, string> = {
   'not-running': '只有执行中的任务可以提交验收',
   'not-chat': '这个任务没有聊天，不能提交验收',
   'agent-working': 'Agent 还在处理，等这一轮结束再提交',
+  'check-running': '项目检查正在运行，等它结束',
+  'check-failed': '项目检查没通过，输出已交给 Agent 修复，修好后再提交',
+  'project-config-untrusted': '项目配置里的命令还没有允许运行',
+  'project-config-changed': '项目配置已经变了，请重新确认',
+  'project-config-unavailable': '这个 core 不支持项目配置',
   'no-chat': '这个任务还没有开始聊天',
   abandoned: '已取消的任务不能继续，先重新打开',
   'task-done': '已完成的任务不能取消',
@@ -215,7 +220,9 @@ const REASON_WITH_DETAIL: Record<string, string> = {
   'browser-navigation-failed': '页面打不开',
   'git-commit-failed': '提交失败',
   'git-push-failed': '提交已经保留在本地，但推送失败',
-  'git-operation-failed': 'Git 操作失败'
+  'git-operation-failed': 'Git 操作失败',
+  // Which file and what is wrong with it.
+  'project-config-invalid': '项目配置 .antumi/project.json 有误'
 }
 
 export function reasonText(reason: string, fallback: string): string {

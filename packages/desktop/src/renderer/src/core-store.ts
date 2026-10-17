@@ -43,6 +43,7 @@ import type { InspectorTab } from './components/Inspector'
 import type { InspectorFile } from './inspector-file'
 import { resolveCoreEndpoint } from './core-endpoint'
 import { reasonText } from './labels'
+import { askProjectTrust } from './project-trust'
 import { receiveTodos } from './conversation-todos'
 import { openUtilityPanel, visibleUtilityPanelOrder, type UtilityPanelKind, type UtilityPanelsOpen } from './utility-panel-order'
 import { exclusivePanels } from './side-panels'
@@ -964,8 +965,9 @@ export async function perform<T>(action: (rpc: RpcConnection) => Promise<T>): Pr
     return null
   }
   try {
-    return await action(rpc)
+    return await withProjectTrust(rpc, action)
   } catch (error) {
+    if (error === DECLINED) return null
     const message =
       error instanceof RpcError && error.reason
         ? reasonText(error.reason, error.message)
@@ -974,6 +976,28 @@ export async function perform<T>(action: (rpc: RpcConnection) => Promise<T>): Pr
           : String(error)
     useCore.setState({ error: message })
     return null
+  }
+}
+
+const DECLINED = Symbol('declined')
+
+// A start or submit refused until the user allows a project's setup and check is asked about and
+// tried again; each project is asked at most once. Declining ends it without an error.
+async function withProjectTrust<T>(rpc: RpcConnection, action: (rpc: RpcConnection) => Promise<T>): Promise<T> {
+  const asked = new Set<string>()
+  for (;;) {
+    try {
+      return await action(rpc)
+    } catch (error) {
+      if (!(error instanceof RpcError) || error.reason !== 'project-config-untrusted' || asked.has(error.message)) throw error
+      asked.add(error.message)
+      const info = await rpc.call('projects.config', { path: error.message })
+      if (!info) throw error
+      if (!info.trusted) {
+        if (!(await askProjectTrust(info))) throw DECLINED
+        await rpc.call('projects.trustConfig', { path: info.path, hash: info.hash })
+      }
+    }
   }
 }
 

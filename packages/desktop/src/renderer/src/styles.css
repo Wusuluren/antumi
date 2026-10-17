@@ -9150,3 +9150,23 @@ button.squad-member-main { cursor: pointer; }
 .helper-turn-cost { color: var(--text-3); font-size: var(--chat-font-small); font-variant-numeric: tabular-nums; }
 .chat-view[data-variant="compact"] .chat-fold-header { flex-wrap: wrap; }
 .dashboard-swatch[data-series="quick"], .dashboard-bar-stack [data-series="quick"] { background: var(--text-3); }
+
+/* Asking before a project's own setup and check run (ProjectTrustDialog). */
+.project-trust-dialog .modal-footer { justify-content: flex-end; }
+.project-trust-path { margin: 0; color: var(--text-muted); overflow-wrap: anywhere; }
+.project-trust-command { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.project-trust-command pre {
+  margin: 0;
+  padding: 10px 12px;
+  max-height: 160px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.project-trust-note { margin: 0; font-size: 13px; color: var(--text-muted); }
+/* Lined up with the composer under it (.chat-dock). */
+.project-run-notice { margin: 8px max(16px, calc((100% - var(--chat-width)) / 2)) 0; }

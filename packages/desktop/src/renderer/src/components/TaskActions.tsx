@@ -24,6 +24,7 @@ import { useFileTabs } from '../file-tabs'
 import { waitingOn } from '../task-waiting'
 import { AgentPicker } from './AgentPicker'
 import { confirmQuota, modelText } from './AgentQuota'
+import { useProjectCheckRunning } from './ProjectRunNotice'
 import { PickerItem } from './ChatPicker'
 import { effortLabel, modeLabel, modeOptions } from './ChatOptionsBar'
 import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
@@ -473,10 +474,11 @@ function StartSplitButton({ task, dependencies, launch }: { task: Task; dependen
 }
 
 function SubmitButton({ task, labelled }: { task: Task; labelled: boolean }) {
-  const blocker = checkSubmit(task, useChatTurn(task))
+  const checking = useProjectCheckRunning(task.conversationId)
+  const blocker = checking ? 'check-running' : checkSubmit(task, useChatTurn(task))
   return (
     <LaunchButton
-      label="提交验收"
+      label={checking ? '检查中…' : '提交验收'}
       className={labelled ? 'primary' : 'run-button'}
       Icon={SubmitIcon}
       reason={blocker && reasonText(blocker, blocker)}
