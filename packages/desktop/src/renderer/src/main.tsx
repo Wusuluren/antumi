@@ -6,6 +6,7 @@ import '@xterm/xterm/css/xterm.css'
 import './styles.css'
 import { App } from './App'
 import { startAppearance } from './appearance'
+import { startBackgroundRest } from './background-rest'
 import { startCodeFont } from './code-font'
 import { followRequestPopupWanted, RequestPopup } from './components/RequestPopup'
 import { startCoreConnection } from './core-store'
@@ -35,6 +36,7 @@ if (antPreview) {
 } else {
   startCoreConnection()
   startAppearance()
+  startBackgroundRest()
   startCodeFont()
   applyTitleBar()
   startUnsavedEditRetries()
