@@ -370,6 +370,24 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 可以在项目或任务 worktree 的 `.antumi/ports.json`（改名前的 `.kando/ports.json` 也认）中给端口命名：`{"ports":[{"port":3000,"label":"Frontend"},{"port":8080,"label":"API"}]}`。配置只给已发现的端口加标签，修改后自动生效，格式有误时仍显示端口。端口面板不分配端口，也不提供远程转发。
 
+### 项目配置：setup 与 check
+
+项目可以在仓库里提交 `.antumi/project.json`，三个字段都可选：
+
+```json
+{ "copy": [".env", "apps/web/.env.local"], "setup": "pnpm install", "check": "pnpm typecheck && pnpm test" }
+```
+
+- `copy`：新建 worktree 时，从项目里复制到 worktree 的文件或目录，只认相对路径。默认不复制任何东西，也不按 gitignore 复制，因为被忽略的文件里还有缓存、构建产物和本机凭据。源头缺失的路径跳过，worktree 里已有的不覆盖，指向项目外（`..`、符号链接）的路径不复制。
+- `setup`：复制完成后，在新建的 worktree 里运行。只在这次启动新建 worktree 时运行一次，复用已有 worktree 不再运行。任务的 Agent 等 setup 结束后才收到第一条消息；setup 失败不阻止启动，失败输出的末尾会附在第一条消息里。在 worktree 里开始的会话同样会先运行 setup。
+- `check`：用户提交验收时，在每个 worktree 里运行。全部通过后任务才进入待验收；任何一个失败，任务保持执行中，输出末尾发给 Agent 修复。小队任务暂不运行 check。
+
+配置始终从项目本身的 checkout 读取，不读 worktree，所以 Agent 改 worktree 里那份不会改变要运行的命令。命令由用户的登录 shell 执行，cwd 是 worktree 根目录，另有环境变量 `ANTUMI_ROOT_PATH`（项目）和 `ANTUMI_WORKTREE_PATH`。命令显示在终端面板的独立标签里（`Terminal.purpose`），Agent 也能用 `terminal_read` 读取；用户可以在面板里停止。
+
+命令来自仓库，不一定是用户写的，所以第一次运行前要用户确认：core 在 `~/.antumi/project-trust.json` 里按仓库记下 setup 和 check 的哈希，哈希对不上时拒绝启动或提交（`project-config-untrusted`）。桌面端随后显示这些命令，用户允许后再试一次。只改 `copy` 不需要重新确认。文件格式有误时同样拒绝（`project-config-invalid`），不会悄悄跳过 setup。
+
+第一版不做服务启动编排、拆除和端口自动分配，这些和端口面板、浏览器的职责重叠。
+
 ## 7. 从源码运行
 
 需要 Node ≥ 22.13 和 pnpm 12（`npm i -g pnpm@12` 或 `brew install pnpm`）。
