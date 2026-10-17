@@ -5486,6 +5486,13 @@ body.side-panel-resizing * {
   box-shadow: 0 20px 60px rgb(0 0 0 / 30%);
 }
 
+/* A fixed frame the image is fitted to, zoomed and turned in. */
+.image-viewer[open] {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 48px);
+}
+
 .image-viewer::backdrop {
   background: rgb(0 0 0 / 55%);
 }
@@ -5523,23 +5530,35 @@ body.side-panel-resizing * {
 }
 
 .image-viewer-stage {
+  position: relative;
+  flex: 1;
+  min-height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 200px;
-  padding: 12px;
+  overflow: hidden;
   background: var(--surface-muted);
+  touch-action: none;
 }
 
 .image-viewer-stage img {
-  max-width: calc(100% - 96px);
-  max-height: calc(100vh - 200px);
-  object-fit: contain;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  max-height: none;
+  transition: transform 0.12s ease-out;
+  user-select: none;
 }
 
+.image-viewer-stage[data-movable] img { cursor: grab; }
+.image-viewer-stage[data-dragging] img { cursor: grabbing; transition: none; }
+
 .image-viewer-step {
-  flex-shrink: 0;
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  transform: translateY(-50%);
   width: 36px;
   height: 36px;
   border: 1px solid var(--border);
@@ -5551,15 +5570,30 @@ body.side-panel-resizing * {
   cursor: pointer;
 }
 
+.image-viewer-step:first-child { left: 12px; }
+.image-viewer-step:last-child { right: 12px; }
+
 .image-viewer-step:hover {
   border-color: var(--text-muted);
 }
 
 .image-viewer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 6px 12px;
+  border-top: 1px solid var(--border);
   font: 12px var(--mono);
-  text-align: right;
 }
+
+.image-viewer-tools { display: flex; align-items: center; gap: 2px; }
+.image-viewer-tools .icon-button { display: inline-grid; place-items: center; }
+.image-viewer-tools .icon-button svg { width: 16px; height: 16px; }
+.image-viewer-tools-gap { width: 8px; }
+.image-viewer-scale { min-width: 52px; height: 24px; padding: 0 6px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font: inherit; cursor: pointer; }
+.image-viewer-scale:hover:not(:disabled) { background: var(--surface-muted); color: var(--text); }
+.image-viewer-tools button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 /* Chat view: a conversation in chat mode, its stages in order, then the composer. */
 /* On a wide screen the messages and the composer keep to one reading width in the middle, which

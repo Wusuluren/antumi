@@ -347,6 +347,43 @@ export function SearchIcon() {
   )
 }
 
+export function ZoomInIcon() {
+  return (
+    <svg {...stroked}>
+      <circle cx="9" cy="9" r="5.5" />
+      <path d="M13.2 13.2L17 17M6.8 9h4.4M9 6.8v4.4" />
+    </svg>
+  )
+}
+
+export function ZoomOutIcon() {
+  return (
+    <svg {...stroked}>
+      <circle cx="9" cy="9" r="5.5" />
+      <path d="M13.2 13.2L17 17M6.8 9h4.4" />
+    </svg>
+  )
+}
+
+// Most of a circle, its arrow pointing the way it turns.
+export function RotateRightIcon() {
+  return (
+    <svg {...stroked}>
+      <path d="M15.5 10.5A5.5 5.5 0 1 1 12.75 5.74" />
+      <path d="M11.98 2.84L12.75 5.74L9.85 6.51" />
+    </svg>
+  )
+}
+
+export function RotateLeftIcon() {
+  return (
+    <svg {...stroked}>
+      <path d="M4.5 10.5A5.5 5.5 0 1 0 7.25 5.74" />
+      <path d="M8.02 2.84L7.25 5.74L10.15 6.51" />
+    </svg>
+  )
+}
+
 export function ContrastIcon() {
   return (
     <svg {...stroked}>
