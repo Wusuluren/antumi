@@ -31,7 +31,7 @@ import { UsageLimitResumes } from './usage-limit-resume'
 import { ScheduleService } from './schedule-service'
 import { RoutineService } from './routine-service'
 import { UsageService } from './usage-service'
-import type { UsageSource } from './usage-source'
+import type { ResetCreditUse, UsageSource } from './usage-source'
 import { antumiChatMcpServer, userMcpServer } from './antumi-mcp-server'
 import { SourceConfigStore } from './source-config'
 import { LoginFlows } from './source-login-flow'
@@ -213,17 +213,21 @@ const plugins = new PluginService(path.join(paths.home, 'plugins'), packageJson.
 await plugins.load(bundledGitHub())
 
 const usageSources: Partial<Record<AgentKind, UsageSource>> = {}
+const resetCreditUses: Partial<Record<AgentKind, ResetCreditUse>> = {}
 const signedIn: Partial<Record<AgentKind, () => Promise<boolean>>> = {}
 for (const kind of AGENT_KINDS) {
   const adapter = adapterOf(kind)
   if (adapter.usage) usageSources[kind] = adapter.usage
+  if (adapter.useResetCredit) resetCreditUses[kind] = adapter.useResetCredit
   if (adapter.signedIn) signedIn[kind] = adapter.signedIn
 }
 
 const usage = new UsageService(usageSources, (entry) =>
   server?.connections.forEach((connection) => {
     if (usageReadable(connection.usageKinds, entry)) connection.notify('usage.changed', { usage: entry })
-  })
+  }),
+  Date.now,
+  resetCreditUses
 )
 
 const schedules = new ScheduleService(paths.database, {

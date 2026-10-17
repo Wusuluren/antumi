@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseClaudeResets, parseClaudeUsage, parseCliVersion, rateLimitReport } from './agents/claude/claude-usage'
-import { parseCodexUsage, parseResetCredits } from './agents/codex/codex-usage'
+import { consumeRequest, parseCodexUsage, parseConsumeOutcome, parseResetCredits } from './agents/codex/codex-usage'
 import { parseCursorPlan, parseCursorUsage } from './agents/cursor/cursor-usage'
 
 describe('parseClaudeUsage', () => {
@@ -87,6 +87,16 @@ describe('parseResetCredits', () => {
     expect(credits?.available).toBe(3)
     expect(credits?.credits.map((credit) => credit.expiresAt)).toEqual([1791272640_000, Date.parse('2026-10-23T05:07:00+08:00'), null])
     expect(credits?.credits[0]).toEqual({ expiresAt: 1791272640_000, label: null, clears: ['session', 'weekly'] })
+  })
+
+  it("keeps each credit's id and title, to spend that one by name", () => {
+    const credits = parseResetCredits({
+      available_count: 1,
+      credits: [{ id: 'RateLimitResetCredit_2c5c', status: 'available', expires_at: '2026-10-22T21:07:13Z', title: 'Full reset (Weekly + 5 hr)' }]
+    })
+    expect(credits?.credits).toEqual([
+      { id: 'RateLimitResetCredit_2c5c', expiresAt: Date.parse('2026-10-22T21:07:13Z'), label: 'Full reset (Weekly + 5 hr)', clears: ['session', 'weekly'] }
+    ])
   })
 
   it('falls back to counting the list, and gives nothing for a reply it cannot read', () => {
@@ -224,5 +234,30 @@ describe('parseCursorUsage', () => {
   it('names the plan when GetPlanInfo does', () => {
     expect(parseCursorPlan({ planInfo: { planName: 'Team', price: '$40/mo', includedUsagePeriod: 'INCLUDED_USAGE_PERIOD_MONTHLY' } })).toBe('Team')
     expect(parseCursorPlan(null)).toBeNull()
+  })
+})
+
+describe('parseConsumeOutcome', () => {
+  it('names what spending a reset came to', () => {
+    expect(parseConsumeOutcome({ code: 'reset' })).toBe('reset')
+    expect(parseConsumeOutcome({ code: 'nothing_to_reset' })).toBe('nothing-to-reset')
+    expect(parseConsumeOutcome({ code: 'no_credit' })).toBe('no-credit')
+    expect(parseConsumeOutcome({ code: 'already_redeemed' })).toBe('already-used')
+  })
+
+  it('refuses a reply it cannot read rather than guess whether a reset was spent', () => {
+    expect(() => parseConsumeOutcome({ code: 'later' })).toThrow('无法识别')
+    expect(() => parseConsumeOutcome({})).toThrow('无法识别')
+  })
+})
+
+describe('consumeRequest', () => {
+  it('names the credit to spend, as the Codex CLI does', () => {
+    expect(consumeRequest('request-1', 'RateLimitResetCredit_2c5c')).toEqual({
+      redeem_request_id: 'request-1',
+      credit_id: 'RateLimitResetCredit_2c5c',
+      credit_type: 'usage_limit'
+    })
+    expect(consumeRequest('request-1')).toEqual({ redeem_request_id: 'request-1', credit_type: 'usage_limit' })
   })
 })

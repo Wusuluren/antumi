@@ -27,6 +27,8 @@ export type UsageStatus = z.infer<typeof UsageStatus>
 
 // A "usage limit reset" the account holds: using it restores the windows in `clears` once.
 export const ResetCredit = z.object({
+  // The service's id for it, where it names one: spending this one rather than whichever it picks.
+  id: z.string().optional(),
   expiresAt: z.number().nullable(),
   // The service's own description, such as the promotion it came with.
   label: z.string().nullable().default(null),
@@ -39,9 +41,16 @@ export const ResetCredits = z.object({
   // The available ones the service listed, soonest to expire first; may be fewer than `available`.
   credits: z.array(ResetCredit),
   // Why the service would not say, when that is something the user can fix: 'cli_version'.
-  blockedBy: z.string().nullable().default(null)
+  blockedBy: z.string().nullable().default(null),
+  // Core can spend one itself (usage.useResetCredit); otherwise only the agent's own app can.
+  usable: z.boolean().optional()
 })
 export type ResetCredits = z.infer<typeof ResetCredits>
+
+// reset: one was spent and the windows cleared · nothing-to-reset: nothing was used up, so none was
+// spent · no-credit: none left · already-used: this request id was spent before.
+export const ResetCreditOutcome = z.enum(['reset', 'nothing-to-reset', 'no-credit', 'already-used'])
+export type ResetCreditOutcome = z.infer<typeof ResetCreditOutcome>
 
 export const AgentUsage = z.object({
   agent: AgentKind,

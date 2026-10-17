@@ -2,13 +2,24 @@ import { readFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { z } from 'zod'
-import type { ResetCredits, UsageWindow } from '@antumi/protocol'
+import type { ResetCreditOutcome, ResetCredits, UsageWindow } from '@antumi/protocol'
 import { fetchUsageJson, parseJson, type UsageReading } from '../../usage-source'
 
 // The endpoint behind Codex's /status; only ChatGPT sign-ins have plan limits.
 const USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'
 // Asked only when the usage reply leaves the reset credits out or incomplete.
 const RESET_CREDITS_URL = 'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits'
+// Spends one, as the Codex CLI does: the credit named by id, of the one type it sends. The service
+// may take longer over it than over a reading.
+const CONSUME_URL = `${RESET_CREDITS_URL}/consume`
+const CONSUME_TIMEOUT_MS = 30_000
+const CONSUME_CREDIT_TYPE = 'usage_limit'
+const CONSUME_OUTCOMES: Record<string, ResetCreditOutcome> = {
+  reset: 'reset',
+  nothing_to_reset: 'nothing-to-reset',
+  no_credit: 'no-credit',
+  already_redeemed: 'already-used'
+}
 const SESSION_MINUTES = 300
 const WEEK_MINUTES = 10_080
 // Older Codex builds report window lengths a minute off.
@@ -25,11 +36,19 @@ const Window = z.object({
   reset_at: z.number().nullish()
 })
 
-// Field names as Orca reads them; every part is optional, since the service does not document it.
+// Field names as the credits endpoint answers; every part is optional, since the service does not document it.
 const Credits = z.object({
   available_count: z.number().nullish().catch(null),
   credits: z
-    .array(z.object({ status: z.string().nullish(), expires_at: z.union([z.string(), z.number()]).nullish() }))
+    .array(
+      z.object({
+        id: z.string().nullish().catch(null),
+        status: z.string().nullish(),
+        expires_at: z.union([z.string(), z.number()]).nullish(),
+        // Such as "Full reset (Weekly + 5 hr)".
+        title: z.string().nullish().catch(null)
+      })
+    )
     .nullish()
     .catch(null)
 })
@@ -65,9 +84,13 @@ export function parseResetCredits(body: unknown): ResetCredits | null {
   }
   // Soonest first, credits without an expiry last. Codex's resets are full ones (weekly + 5 hr).
   const listed = available
-    .map((credit) => timestamp(credit.expires_at))
-    .sort((a, b) => (a ?? Number.POSITIVE_INFINITY) - (b ?? Number.POSITIVE_INFINITY))
-    .map((expiresAt) => ({ expiresAt, label: null, clears: ['session' as const, 'weekly' as const] }))
+    .map((credit) => ({
+      ...(credit.id ? { id: credit.id } : {}),
+      expiresAt: timestamp(credit.expires_at),
+      label: credit.title?.trim() || null,
+      clears: ['session' as const, 'weekly' as const]
+    }))
+    .sort((a, b) => (a.expiresAt ?? Number.POSITIVE_INFINITY) - (b.expiresAt ?? Number.POSITIVE_INFINITY))
   return { available: Math.max(0, Math.floor(count)), credits: listed, blockedBy: null }
 }
 
@@ -158,21 +181,45 @@ export async function hasCodexCredentials(): Promise<boolean> {
   return (await readTokens()) !== null
 }
 
+// Sent as the Codex client, the one these endpoints serve; same headers as Orca.
+function codexHeaders(tokens: NonNullable<z.infer<typeof Auth>['tokens']>): Record<string, string> {
+  return {
+    Authorization: `Bearer ${tokens.access_token}`,
+    'User-Agent': 'codex-cli',
+    'OpenAI-Beta': 'codex-1',
+    originator: 'Codex Desktop',
+    ...(tokens.account_id ? { 'ChatGPT-Account-Id': tokens.account_id } : {})
+  }
+}
+
 export async function readCodexUsage(): Promise<UsageReading> {
   const tokens = await readTokens()
   if (!tokens) {
     return { signedIn: false }
   }
-  // Sent as the Codex client, the one this endpoint serves; same headers as Orca.
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${tokens.access_token}`,
-    'User-Agent': 'codex-cli',
-    'OpenAI-Beta': 'codex-1',
-    originator: 'Codex Desktop'
-  }
-  if (tokens.account_id) {
-    headers['ChatGPT-Account-Id'] = tokens.account_id
-  }
+  const headers = codexHeaders(tokens)
   const usage = parseCodexUsage(await fetchUsageJson(USAGE_URL, headers))
   return { signedIn: true, ...usage, resetCredits: await supplementResetCredits(usage.resetCredits, headers) }
+}
+
+export function parseConsumeOutcome(body: unknown): ResetCreditOutcome {
+  const code = z.object({ code: z.string() }).safeParse(body)
+  const outcome = code.success ? CONSUME_OUTCOMES[code.data.code] : undefined
+  if (!outcome) {
+    throw new Error(`Codex 返回了无法识别的结果：${JSON.stringify(body)}`)
+  }
+  return outcome
+}
+
+export function consumeRequest(requestId: string, creditId?: string): Record<string, string> {
+  return { redeem_request_id: requestId, ...(creditId ? { credit_id: creditId } : {}), credit_type: CONSUME_CREDIT_TYPE }
+}
+
+export async function useCodexResetCredit(requestId: string, creditId?: string): Promise<ResetCreditOutcome> {
+  const tokens = await readTokens()
+  if (!tokens) {
+    throw new Error('Codex 没有登录')
+  }
+  const headers = { ...codexHeaders(tokens), 'Content-Type': 'application/json' }
+  return parseConsumeOutcome(await fetchUsageJson(CONSUME_URL, headers, JSON.stringify(consumeRequest(requestId, creditId)), CONSUME_TIMEOUT_MS))
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentUsage, UsageWindow } from '@antumi/protocol'
+import type { AgentUsage, ResetCreditOutcome, UsageWindow } from '@antumi/protocol'
 import { readableUsage, UsageService } from './usage-service'
 import { UsageFetchError, type UsageReading } from './usage-source'
 
@@ -68,6 +68,63 @@ describe('UsageService', () => {
     })
     const [claude] = await service.refresh()
     expect(claude).toMatchObject({ status: 'error', error: 'request-failed', windows: [] })
+  })
+})
+
+describe('UsageService.useResetCredit', () => {
+  const credits = { available: 1, credits: [{ expiresAt: 5, label: null, clears: [] }], blockedBy: null }
+
+  function withResets(use: (requestId: string) => Promise<ResetCreditOutcome>) {
+    let reads = 0
+    const used: (string | undefined)[][] = []
+    const service = new UsageService(
+      {
+        claude: async () => ({ signedIn: true, windows: [window], plan: null, resetCredits: credits }),
+        codex: async () => {
+          reads++
+          return { signedIn: true, windows: [window], plan: null, resetCredits: credits }
+        }
+      },
+      () => {},
+      () => 1_000_000,
+      {
+        codex: (requestId, creditId) => {
+          used.push([requestId, creditId])
+          return use(requestId)
+        }
+      }
+    )
+    return { service, used, reads: () => reads }
+  }
+
+  it('marks the credits core can spend itself', async () => {
+    const { service } = withResets(async () => 'reset')
+    await service.refresh()
+    expect(service.list().map((u) => [u.agent, u.resetCredits?.usable])).toEqual([
+      ['claude', false],
+      ['codex', true]
+    ])
+  })
+
+  it('spends one and reads the usage again at once, throttle or not', async () => {
+    const { service, used, reads } = withResets(async () => 'reset')
+    await service.refresh()
+    expect(await service.useResetCredit('codex', 'request-1', 'credit-1')).toBe('reset')
+    expect(used).toEqual([['request-1', 'credit-1']])
+    expect(reads()).toBe(2)
+  })
+
+  it('reads again after a failed attempt too, and says what to do about it', async () => {
+    const { service, reads } = withResets(async () => {
+      throw new UsageFetchError('auth-expired', '401')
+    })
+    await expect(service.useResetCredit('codex', 'request-1')).rejects.toThrow('运行一次 codex')
+    expect(reads()).toBe(1)
+  })
+
+  it('refuses an agent whose resets only its own app can spend', async () => {
+    const { service } = withResets(async () => 'reset')
+    await expect(service.useResetCredit('claude', 'request-1')).rejects.toThrow('只能在它自己的应用里使用')
   })
 })
 

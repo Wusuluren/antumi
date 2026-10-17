@@ -4,7 +4,7 @@ import { AgentKind, MAX_DETAILS_LENGTH, MAX_TASK_REPOS, RepoStartOptions, Task, 
 import { ATTACHMENT_CHUNK_BYTES, AttachmentId, AttachmentInfo, Base64Chunk, ImageRef, MAX_ATTACHMENT_BYTES, MAX_CHAT_IMAGES, MAX_TASK_IMAGES } from './attachments'
 import { LoginNotice, LoginPrompt, SourceDescriptor, SourceId, SourceInbox, SourceProblem } from './source'
 import { PluginId, PluginInfo, PluginInstallSource, PluginVersion } from './plugin'
-import { AgentUsage } from './usage'
+import { AgentUsage, ResetCreditOutcome } from './usage'
 import { AgentStats, ConversationStats } from './agent-stats'
 import { DashboardParams, DashboardStats } from './dashboard'
 import { CommitPushResult, CommitResult, Conversation, ConversationMessage, ConversationSearchHit, ConversationStage, ProjectBranches, ProjectHead, PushResult } from './conversation'
@@ -550,6 +550,14 @@ export const rpcMethods = {
   'usage.list': { params: UsageParams, result: z.array(AgentUsage) },
   // Refetches now instead of waiting for the next poll; core rate-limits repeats.
   'usage.refresh': { params: UsageParams, result: z.array(AgentUsage) },
+  // Spends one of the agent's resets where its credits say `usable`: the one `creditId` names, or
+  // without one whichever the service picks. Then reads its usage again (usage.changed). The client
+  // picks the request id and sends the same one on a retry, so a request that timed out is never
+  // spent twice.
+  'usage.useResetCredit': {
+    params: z.object({ agent: AgentKind, requestId: z.string().uuid(), creditId: z.string().min(1).max(200).optional() }),
+    result: z.object({ outcome: ResetCreditOutcome })
+  },
   'agents.stats': { params: z.object({}), result: z.array(AgentStats) },
   'agents.conversationStats': { params: z.object({}), result: z.array(ConversationStats) },
   'dashboard.stats': { params: DashboardParams, result: DashboardStats },

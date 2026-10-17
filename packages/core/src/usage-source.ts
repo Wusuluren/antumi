@@ -1,10 +1,14 @@
-import type { ResetCredits, UsageWindow } from '@antumi/protocol'
+import type { ResetCreditOutcome, ResetCredits, UsageWindow } from '@antumi/protocol'
 
 export type UsageReading =
   | { signedIn: false }
   | { signedIn: true; windows: UsageWindow[]; plan: string | null; resetCredits?: ResetCredits | null }
 
 export type UsageSource = () => Promise<UsageReading>
+
+// Spends one usage reset, the one `creditId` names if given, under an id the service uses to spend
+// it at most once.
+export type ResetCreditUse = (requestId: string, creditId?: string) => Promise<ResetCreditOutcome>
 
 // What a running agent said about its limits, and when: the frame's time as it came in, which a
 // stage replayed from its log keeps. The windows it named (the rest unchanged), and whether the full
@@ -36,10 +40,10 @@ export class UsageFetchError extends Error {
 const TIMEOUT_MS = 10_000
 
 // A body makes it a POST, as an RPC-style endpoint wants.
-export async function fetchUsageJson(url: string, headers: Record<string, string>, body?: string): Promise<unknown> {
+export async function fetchUsageJson(url: string, headers: Record<string, string>, body?: string, timeoutMs = TIMEOUT_MS): Promise<unknown> {
   let response: Response
   try {
-    response = await fetch(url, { headers, signal: AbortSignal.timeout(TIMEOUT_MS), ...(body === undefined ? {} : { method: 'POST', body }) })
+    response = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs), ...(body === undefined ? {} : { method: 'POST', body }) })
   } catch (error) {
     throw new UsageFetchError('request-failed', error instanceof Error ? error.message : String(error))
   }

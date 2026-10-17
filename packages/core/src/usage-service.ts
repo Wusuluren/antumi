@@ -1,5 +1,5 @@
-import { AGENT_KINDS, usageReadable, type AgentKind, type AgentUsage, type UsageWindow } from '@antumi/protocol'
-import { UsageFetchError, type UsageReport, type UsageSource } from './usage-source'
+import { AGENT_KINDS, agentDescriptor, usageReadable, type AgentKind, type AgentUsage, type ResetCreditOutcome, type UsageWindow } from '@antumi/protocol'
+import { UsageFetchError, type ResetCreditUse, type UsageReport, type UsageSource } from './usage-source'
 
 const POLL_MS = 15 * 60_000
 // Manual refreshes and session exits come in bursts, and the provider endpoints are rate-limited too.
@@ -24,7 +24,8 @@ export class UsageService {
   constructor(
     private readonly sources: Partial<Record<AgentKind, UsageSource>>,
     private readonly emit: (usage: AgentUsage) => void,
-    private readonly now: () => number = Date.now
+    private readonly now: () => number = Date.now,
+    private readonly resets: Partial<Record<AgentKind, ResetCreditUse>> = {}
   ) {}
 
   list(): AgentUsage[] {
@@ -54,6 +55,30 @@ export class UsageService {
       this.inFlight = null
     })
     return this.inFlight
+  }
+
+  // Spends one of the agent's resets, then reads its usage again at once, rate limit or not: what
+  // was cleared and what is left are the point. A refresh already under way read from before.
+  async useResetCredit(agent: AgentKind, requestId: string, creditId?: string): Promise<ResetCreditOutcome> {
+    const use = this.resets[agent]
+    if (!use) {
+      throw new Error(`${agentDescriptor(agent).label} 的重置卡只能在它自己的应用里使用`)
+    }
+    try {
+      return await use(requestId, creditId)
+    } catch (error) {
+      if (error instanceof UsageFetchError) {
+        throw new Error(
+          error.code === 'auth-expired'
+            ? `登录凭据已过期，运行一次 ${agentDescriptor(agent).cli} 刷新后再试`
+            : `没有连上 ${agentDescriptor(agent).label} 的服务（${error.message}），可以重试，同一次使用不会重复扣卡`
+        )
+      }
+      throw error
+    } finally {
+      await this.inFlight
+      await this.refreshAgent(agent)
+    }
   }
 
   // A running agent's own word on its limits. Only the windows it names change; until a poll has
@@ -103,7 +128,7 @@ export class UsageService {
             plan: reading.plan,
             error: null,
             updatedAt: this.now(),
-            resetCredits: reading.resetCredits ?? null
+            resetCredits: reading.resetCredits ? { ...reading.resetCredits, usable: this.resets[agent] !== undefined } : null
           }
         : { agent, status: 'signed-out', windows: [], plan: null, error: null, updatedAt: this.now(), resetCredits: null }
     } catch (error) {

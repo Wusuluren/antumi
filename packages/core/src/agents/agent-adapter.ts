@@ -1,7 +1,7 @@
 import type { AgentCliInstallation, AgentKind, ChatCatalog, ChatPermissionMode, EnvironmentCheck, KnowledgeBase } from '@antumi/protocol'
 import type { AgentCommand, AgentMcpServer, McpServer } from '../agent-command'
 import type { ChatDriver, ChatPreferences, ChatStageOptions } from '../chat-driver'
-import type { UsageSource } from '../usage-source'
+import type { ResetCreditUse, UsageSource } from '../usage-source'
 import type { QuickAnswer } from '../model-metering'
 
 // What a chat stage's agent starts with, which its adapter turns into its own command line. The
@@ -77,6 +77,8 @@ export interface AgentAdapter {
   detect?(pathEnv: string, platform: NodeJS.Platform): Promise<AgentDetection>
   signedIn?(): Promise<boolean>
   readonly usage?: UsageSource
+  // Spends one of the usage resets its reading reports, without the agent's own app.
+  readonly useResetCredit?: ResetCreditUse
   // The command that installs its CLI, offered when its application is found without the CLI.
   installation?(platform: NodeJS.Platform): AgentCliInstallation | null
   // What discovery looks for besides its CLI: other executable names, and application bundles.

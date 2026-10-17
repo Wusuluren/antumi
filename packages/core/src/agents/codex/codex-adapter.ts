@@ -2,7 +2,7 @@ import { parseCodexQuick } from '../../model-metering'
 import type { AgentAdapter } from '../agent-adapter'
 import { CODEX_MODES, CodexAppServer } from './codex-app-server'
 import { codexCommand } from './codex-command'
-import { hasCodexCredentials, readCodexUsage } from './codex-usage'
+import { hasCodexCredentials, readCodexUsage, useCodexResetCredit } from './codex-usage'
 
 export const codex: AgentAdapter = {
   kind: 'codex',
@@ -16,6 +16,7 @@ export const codex: AgentAdapter = {
   mcpApproval: 'antumi',
   signedIn: hasCodexCredentials,
   usage: readCodexUsage,
+  useResetCredit: useCodexResetCredit,
   // At low effort, read-only, and not kept in its history. Its progress goes to stdout too, so the
   // answer comes from a file.
   quick: {
