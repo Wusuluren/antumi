@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { composeFeedback, composeMessage, FEEDBACK_LIMIT, parseQuotes } from './chat-quotes'
+import { composeFeedback, composeMessage, FEEDBACK_LIMIT, parseQuotes, type ChatQuote } from './chat-quotes'
 
 describe('composeMessage', () => {
   it('puts each quote before the message: its marker, the passage, then the note', () => {
@@ -26,6 +26,11 @@ describe('composeMessage', () => {
   it('keeps a note to one line, and leaves a message without quotes as it is', () => {
     expect(composeMessage([{ source: null, text: 'x', note: 'a\nb ' }], '')).toBe('<!-- quote 1 -->\n> x\n\na b')
     expect(composeMessage([], ' hello ')).toBe('hello')
+  })
+
+  it('leaves a diff comment\'s anchor out of the message', () => {
+    const quote: ChatQuote = { id: 'q1', source: null, text: 'src/a.ts:11\n+  const limit = 40', note: 'why 40?', anchor: { diff: 'task:t\0repo\0src/a.ts', rows: ['n11:+  const limit = 40'] } }
+    expect(composeMessage([quote], '')).toBe('<!-- quote 1 -->\n> src/a.ts:11\n> +  const limit = 40\n\nwhy 40?')
   })
 })
 

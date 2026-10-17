@@ -14,6 +14,7 @@ import { useConversationTodos, useTodosSupported } from '../conversation-todos'
 import { projectName } from './ProjectPicker'
 import { WireLogView } from './WireLogView'
 import { FileEditor } from './FileEditor'
+import { DiffCommentConversation } from './DiffComments'
 import { EMPTY_FILE_TABS, updateFileTabs, useFileTabs } from '../file-tabs'
 
 // Read again whenever the task changes (every agent turn and exit), the window regains focus,
@@ -127,30 +128,33 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
       onRefresh={() => setRefreshCount((count) => count + 1)}
       onClose={() => setInspectorOpen(false)}
     >
-      {tab === 'helper' && parent ? (
-        <HelperPanel key={parent.id} parent={parent} />
-      ) : tab === 'squad' ? (
-        <SquadWorkPanel runs={squadRuns} onConversation={(id) => onMemberConversation?.(id)} />
-      ) : tab === 'todos' && task.conversationId ? (
-        <TodoPanel conversationId={task.conversationId} />
-      ) : tab === 'files' ? (
-        <FileEditor conversationId={conversationId} roots={fileRoots} updatedAt={task.updatedAt} inspector="task" editor={fileEditor} onEmpty={onEmpty} />
-      ) : tab === 'wire' && task.conversationId ? (
-        <WireLogView conversationId={task.conversationId} />
-      ) : tab === 'plan' ? (
-        <ChatPlanView conversationId={task.conversationId ?? null} plans={plans} selected={selectedPlan} onSelect={showTaskPlan} note={planNote} />
-      ) : tab === 'branch' ? (
-        <GitInspector target={{ kind: 'task', id: task.id }} heads={heads} updatedAt={task.updatedAt} refresh={refreshCount} maximized={gitMaximized} onMaximize={() => setGitMaximized((value) => !value)} />
-      ) : selected && rpc ? (
-        <FileDiffView
-          file={selectedFolder ? pathShortener([selectedFolder])(selected.file) : selected.file}
-          loadKey={`${task.id}\0${selected.project}\0${selected.file}\0${selected.revision}\0${refreshCount}`}
-          load={() => rpc.call('tasks.diff', { id: task.id, repo: selected.project, file: selected.file })}
-          onBack={clearInspectorFile}
-        />
-      ) : (
-        <ChangeList changes={changes} onOpen={(repo, file) => showInspectorFile('task', task.id, repo, file)} />
-      )}
+      <DiffCommentConversation.Provider value={task.conversationId}>
+        {tab === 'helper' && parent ? (
+          <HelperPanel key={parent.id} parent={parent} />
+        ) : tab === 'squad' ? (
+          <SquadWorkPanel runs={squadRuns} onConversation={(id) => onMemberConversation?.(id)} />
+        ) : tab === 'todos' && task.conversationId ? (
+          <TodoPanel conversationId={task.conversationId} />
+        ) : tab === 'files' ? (
+          <FileEditor conversationId={conversationId} roots={fileRoots} updatedAt={task.updatedAt} inspector="task" editor={fileEditor} onEmpty={onEmpty} />
+        ) : tab === 'wire' && task.conversationId ? (
+          <WireLogView conversationId={task.conversationId} />
+        ) : tab === 'plan' ? (
+          <ChatPlanView conversationId={task.conversationId ?? null} plans={plans} selected={selectedPlan} onSelect={showTaskPlan} note={planNote} />
+        ) : tab === 'branch' ? (
+          <GitInspector target={{ kind: 'task', id: task.id }} heads={heads} updatedAt={task.updatedAt} refresh={refreshCount} maximized={gitMaximized} onMaximize={() => setGitMaximized((value) => !value)} />
+        ) : selected && rpc ? (
+          <FileDiffView
+            file={selectedFolder ? pathShortener([selectedFolder])(selected.file) : selected.file}
+            loadKey={`${task.id}\0${selected.project}\0${selected.file}\0${selected.revision}\0${refreshCount}`}
+            commentKey={`task:${task.id}\0${selected.project}\0${selected.file}`}
+            load={() => rpc.call('tasks.diff', { id: task.id, repo: selected.project, file: selected.file })}
+            onBack={clearInspectorFile}
+          />
+        ) : (
+          <ChangeList changes={changes} onOpen={(repo, file) => showInspectorFile('task', task.id, repo, file)} />
+        )}
+      </DiffCommentConversation.Provider>
     </InspectorPanel>
   )
 }

@@ -1,8 +1,11 @@
 import { create } from 'zustand'
 
 // A passage of the agent's reply the user quotes in their next message, with what they say about
-// it. source is the entry it came from, to find it again; null when it is not known.
-export type ChatQuote = { id: string; source: string | null; text: string; note: string }
+// it. source is the entry it came from, to find it again; null when it is not known. anchor ties a
+// comment on a diff to the lines it marks there (DiffComments); it lives only here, never in the
+// message.
+export type QuoteAnchor = { diff: string; rows: readonly string[] }
+export type ChatQuote = { id: string; source: string | null; text: string; note: string; anchor?: QuoteAnchor }
 
 // The passages waiting in each chat's input, in the order they were picked.
 const useQuoteStore = create<Record<string, readonly ChatQuote[]>>()(() => ({}))
@@ -20,11 +23,11 @@ function update(conversationId: string, change: (quotes: readonly ChatQuote[]) =
 }
 
 // The new quote's id, to tie it to anything shown for it.
-export function addQuote(conversationId: string, source: string | null, text: string, note = ''): string | null {
+export function addQuote(conversationId: string, source: string | null, text: string, note = '', anchor?: QuoteAnchor): string | null {
   const clean = text.trim()
   if (!clean) return null
   const id = `q${++nextId}`
-  update(conversationId, (quotes) => [...quotes, { id, source, text: clean, note: note.trim() }])
+  update(conversationId, (quotes) => [...quotes, { id, source, text: clean, note: note.trim(), ...(anchor ? { anchor } : {}) }])
   return id
 }
 

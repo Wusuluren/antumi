@@ -13,6 +13,7 @@ import { useConversationTodos, useTodosSupported } from '../conversation-todos'
 import { projectName } from './ProjectPicker'
 import { WireLogView } from './WireLogView'
 import { FileEditor } from './FileEditor'
+import { DiffCommentConversation } from './DiffComments'
 import { EMPTY_FILE_TABS, updateFileTabs, useFileTabs } from '../file-tabs'
 
 // Read again whenever the conversation changes (every agent turn and exit), the window regains
@@ -117,28 +118,31 @@ export function ConversationInspector({ conversation, widthRatio, onWidthRatioCh
       onRefresh={() => setRefreshCount((count) => count + 1)}
       onClose={() => setConversationInspectorOpen(false)}
     >
-      {tab === 'helper' ? (
-        <HelperPanel key={conversation.id} parent={conversation} />
-      ) : tab === 'todos' ? (
-        <TodoPanel conversationId={conversation.id} />
-      ) : tab === 'files' ? (
-        <FileEditor conversationId={conversationId} roots={fileRoots} updatedAt={conversation.updatedAt} inspector="conversation" editor={fileEditor} onEmpty={onEmpty} />
-      ) : tab === 'wire' ? (
-        <WireLogView conversationId={conversation.id} />
-      ) : tab === 'plan' ? (
-        <ChatPlanView conversationId={conversation.id} plans={plans} selected={selectedPlan} onSelect={showConversationPlan} />
-      ) : tab === 'branch' ? (
-        <GitInspector target={{ kind: 'conversation', id: conversation.id }} heads={heads} updatedAt={conversation.updatedAt} refresh={refreshCount} maximized={gitMaximized} onMaximize={() => setGitMaximized((value) => !value)} />
-      ) : selected && rpc ? (
-        <FileDiffView
-          file={pathShortener([selected.project])(selected.file)}
-          loadKey={`${conversation.id}\0${selected.project}\0${selected.file}\0${selected.revision}\0${refreshCount}`}
-          load={() => rpc.call('conversations.diff', { id: conversation.id, project: selected.project, file: selected.file })}
-          onBack={clearInspectorFile}
-        />
-      ) : (
-        <ChangeList changes={changes} onOpen={(project, file) => showInspectorFile('conversation', conversation.id, project, file)} />
-      )}
+      <DiffCommentConversation.Provider value={conversation.id}>
+        {tab === 'helper' ? (
+          <HelperPanel key={conversation.id} parent={conversation} />
+        ) : tab === 'todos' ? (
+          <TodoPanel conversationId={conversation.id} />
+        ) : tab === 'files' ? (
+          <FileEditor conversationId={conversationId} roots={fileRoots} updatedAt={conversation.updatedAt} inspector="conversation" editor={fileEditor} onEmpty={onEmpty} />
+        ) : tab === 'wire' ? (
+          <WireLogView conversationId={conversation.id} />
+        ) : tab === 'plan' ? (
+          <ChatPlanView conversationId={conversation.id} plans={plans} selected={selectedPlan} onSelect={showConversationPlan} />
+        ) : tab === 'branch' ? (
+          <GitInspector target={{ kind: 'conversation', id: conversation.id }} heads={heads} updatedAt={conversation.updatedAt} refresh={refreshCount} maximized={gitMaximized} onMaximize={() => setGitMaximized((value) => !value)} />
+        ) : selected && rpc ? (
+          <FileDiffView
+            file={pathShortener([selected.project])(selected.file)}
+            loadKey={`${conversation.id}\0${selected.project}\0${selected.file}\0${selected.revision}\0${refreshCount}`}
+            commentKey={`conversation:${conversation.id}\0${selected.project}\0${selected.file}`}
+            load={() => rpc.call('conversations.diff', { id: conversation.id, project: selected.project, file: selected.file })}
+            onBack={clearInspectorFile}
+          />
+        ) : (
+          <ChangeList changes={changes} onOpen={(project, file) => showInspectorFile('conversation', conversation.id, project, file)} />
+        )}
+      </DiffCommentConversation.Provider>
     </InspectorPanel>
   )
 }

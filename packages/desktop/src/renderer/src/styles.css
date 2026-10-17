@@ -3242,6 +3242,81 @@ body.side-panel-resizing * {
   color: var(--text-muted);
 }
 
+/* The inspector's diff: a line's number picks it to comment on, in a gutter that takes the place
+   of the left padding. */
+.diff-view-commentable > div { padding-left: 0; }
+
+.diff-gutter {
+  display: inline-block;
+  min-width: 5ch;
+  margin-right: 8px;
+  text-align: right;
+  vertical-align: top;
+}
+
+.diff-line-number {
+  width: 100%;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  cursor: pointer;
+}
+
+.diff-line-number[data-old] { opacity: 0.6; }
+
+.diff-view-commentable > div:hover .diff-line-number,
+.diff-line-number:focus-visible {
+  background: var(--accent-bg);
+  color: var(--accent);
+  opacity: 1;
+}
+
+.diff-view-commentable > div[data-commented] .diff-line-number { color: var(--accent); opacity: 1; }
+
+.diff-view-commentable > div[data-picked] {
+  box-shadow: inset 2px 0 var(--accent);
+  background-color: var(--accent-bg);
+}
+
+.diff-view-commentable > div[data-commented]:not([data-picked]) { box-shadow: inset 2px 0 var(--accent); }
+
+/* Comments sit under their lines, and stay in view while the code scrolls sideways. */
+.diff-view-commentable > .diff-comment {
+  position: sticky;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 8px;
+  padding: 4px 4px 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--fill);
+  font-family: var(--font);
+  white-space: normal;
+}
+
+.diff-comment-note {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.diff-comment-draft input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+.diff-comment-draft input::placeholder { color: var(--text-3); }
+
 .terminal-frame {
   flex: 1;
   display: flex;

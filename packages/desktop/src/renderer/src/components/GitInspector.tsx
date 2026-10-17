@@ -338,7 +338,7 @@ function CommitDetail({ target, sha, refreshKey, retry }: { target: GitTarget; s
         options={detail.commit.parents.map((parent, index) => ({ value: parent, label: `父提交 ${index + 1} · ${parent.slice(0, 8)}` }))}
         onChange={(parent) => { setParent(parent); setFile(null) }} /></div>}
       <CommitFiles files={detail.files} select={setFile} />
-      {file && rpc && <FileDiffView file={file} loadKey={`${key}:${file}`} load={() => rpc.call('git.diff', { ...target, sha, base: detail.parent, file })} onBack={() => setFile(null)} />}
+      {file && rpc && <FileDiffView file={file} loadKey={`${key}:${file}`} commentKey={`git:${target.kind}:${target.id}\0${target.project}\0${detail.parent ?? ''}..${sha}\0${file}`} load={() => rpc.call('git.diff', { ...target, sha, base: detail.parent, file })} onBack={() => setFile(null)} />}
     </>}
   </ReadState>
 }
@@ -366,7 +366,7 @@ function Comparison({ target, gitRef, what, direct, setDirect, refreshKey, retry
         <p className="git-message muted">{direct ? '两端' : `共同祖先到所选${what}`}：<span className="mono">{comparison.base.slice(0, 8)} → {comparison.target.slice(0, 8)}</span></p>
         <div className="git-comparison-commits">{comparison.commits.map((commit) => <div key={commit.sha}><span className="git-branch-badge">{commit.side === 'current' ? '当前分支' : `所选${what}`}</span> <span className="mono muted">{commit.sha.slice(0, 8)}</span> {commit.subject}</div>)}{comparison.commits.length >= 100 && <p className="muted">这里只显示前 100 个提交，完整记录请查看历史。</p>}</div>
         <CommitFiles files={comparison.files} select={setFile} />
-        {file && rpc && <FileDiffView file={file} loadKey={`${key}:${file}`} load={() => rpc.call('git.diff', { ...target, sha: comparison.target, base: comparison.base, file })} onBack={() => setFile(null)} />}
+        {file && rpc && <FileDiffView file={file} loadKey={`${key}:${file}`} commentKey={`git:${target.kind}:${target.id}\0${target.project}\0${comparison.base}..${comparison.target}\0${file}`} load={() => rpc.call('git.diff', { ...target, sha: comparison.target, base: comparison.base, file })} onBack={() => setFile(null)} />}
       </>}
     </ReadState>
   </>
