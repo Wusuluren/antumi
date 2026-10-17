@@ -84,6 +84,8 @@ export class TaskService {
   setGitGuard(guard: (dirs: readonly string[]) => Promise<void>): void { this.gitGuard = guard }
   private setup: Pick<WorktreeSetup, 'requireTrusted' | 'setUp' | 'check'> | null = null
   private readonly checking = new Set<string>()
+  // Tasks whose agent is up but waits on setup: not yet waiting on the user.
+  private readonly settingUp = new Set<string>()
   setWorktreeSetup(setup: Pick<WorktreeSetup, 'requireTrusted' | 'setUp' | 'check'>): void { this.setup = setup }
   private namer: BranchNamer | null = null
   private readonly naming = new Map<string, Promise<void>>()
@@ -476,9 +478,16 @@ export class TaskService {
       })
       // The planning agent stopped for the new stage, so nothing reads there any more.
       await removePlanningCheckouts(task.id, this.worktreesRoot)
-      this.save(task.id, { status: 'running', awaitingInput: false })
-      // The agent waits for setup, so its first message finds the worktrees ready.
-      const failures = await this.setUp(conversation.id, workspace, setups)
+      // The agent waits for setup, so its first message finds the worktrees ready; the task shows
+      // as running meanwhile.
+      this.settingUp.add(task.id)
+      let failures: string[]
+      try {
+        this.changed(this.save(task.id, { status: 'running', awaitingInput: false }))
+        failures = await this.setUp(conversation.id, workspace, setups)
+      } finally {
+        this.settingUp.delete(task.id)
+      }
       if (!(coordinator && resume)) {
         const prompt = coordinator
           ? leaderStartPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, task.plan, coordinator)
@@ -641,7 +650,7 @@ export class TaskService {
       return
     }
     const turn = conversation.chat?.turn ?? null
-    const waiting = task.squadId && task.status !== 'pending' ? (this.squads?.awaiting(task.id) ?? false) : task.status === 'running' ? turn !== 'running' : task.status === 'pending' && (turn === 'idle' || turn === 'awaiting')
+    const waiting = this.settingUp.has(task.id) ? false : task.squadId && task.status !== 'pending' ? (this.squads?.awaiting(task.id) ?? false) : task.status === 'running' ? turn !== 'running' : task.status === 'pending' && (turn === 'idle' || turn === 'awaiting')
     if (task.awaitingInput !== waiting) {
       this.changed(this.store.update(task.id, { awaitingInput: waiting }))
     }

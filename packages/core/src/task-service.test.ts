@@ -1009,16 +1009,21 @@ describe('TaskService', () => {
       const ran: { cwd: string; command: string; purpose: string | undefined }[] = []
       const codes: Record<string, number> = {}
       const commands = new Map<string, string>()
+      // Holds every command until released, so a test sees what happens while one runs.
+      let release: () => void = () => {}
+      let held: Promise<void> = Promise.resolve()
       return {
         ran,
         codes,
+        hold: () => { held = new Promise((resolve) => { release = resolve }) },
+        release: () => release(),
         run: async (conversationId: string, cwd: string, command: string, options: { purpose?: 'setup' | 'check' } = {}): Promise<Terminal> => {
           ran.push({ cwd, command, purpose: options.purpose })
           const id = randomUUID()
           commands.set(id, command)
           return { id, sessionId: command, cwd, title: command, createdAt: 0, conversationId, command }
         },
-        waitForExit: async (id: string) => codes[commands.get(id) ?? ''] ?? 0,
+        waitForExit: async (id: string) => { await held; return codes[commands.get(id) ?? ''] ?? 0 },
         read: async (_: string, id: string) => ({ id, command: '', output: 'test failed: login.spec', truncated: false, running: false, exitCode: 1 })
       }
     }
@@ -1042,7 +1047,17 @@ describe('TaskService', () => {
       expect(service.get(task.id).repos[0]?.worktreePath).toBeNull()
       await configs.trust(repo, (await configs.info(repo))?.hash ?? '')
 
-      await service.start(task.id)
+      terminals.hold()
+      const starting = service.start(task.id)
+      while (terminals.ran.length === 0) await settle()
+      await settle()
+      // The agent is up but has nothing to answer yet: the task runs, and is not waiting on the user,
+      // even as the agent reports itself idle.
+      service.chatChanged(conversations.get(service.get(task.id).conversationId ?? ''))
+      expect(service.get(task.id)).toMatchObject({ status: 'running', awaitingInput: false })
+      expect(told(task.id)).toBe('')
+      terminals.release()
+      await starting
       await settle()
       const worktree = service.get(task.id).repos[0]?.worktreePath ?? ''
       expect(readFileSync(path.join(worktree, '.env'), 'utf8')).toBe('TOKEN=1')
