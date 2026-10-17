@@ -14,7 +14,9 @@ export const Terminal = z.object({
   conversationId: z.string().nullable().optional(),
   command: z.string().nullable().optional(),
   exited: z.boolean().optional(),
-  exitCode: z.number().int().nullable().optional()
+  exitCode: z.number().int().nullable().optional(),
+  // A project's own command Antumi ran in a worktree (ProjectConfig), not the agent's.
+  purpose: z.enum(['setup', 'check']).nullable().optional()
 })
 export type Terminal = z.infer<typeof Terminal>
 
