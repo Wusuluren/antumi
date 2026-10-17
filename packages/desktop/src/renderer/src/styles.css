@@ -9133,7 +9133,7 @@ button.squad-member-main { cursor: pointer; }
 /* The helper gives the inspector's height to the chat's own list and dock. */
 .inspector-body:has(> .helper-panel) { display: flex; overflow: hidden; padding: 0; }
 .helper-panel { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
-.helper-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: var(--chat-font-small); }
+.helper-header { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: var(--chat-font-small); }
 .helper-empty { flex: 1; display: grid; place-content: center; margin: 0; padding: 24px; line-height: 1.7; }
 .helper-attention-dot { display: inline-block; flex-shrink: 0; width: 8px; height: 8px; margin-left: 4px; border-radius: 50%; background: var(--warning); }
 .tool-button-dot { position: absolute; top: 4px; right: 4px; }

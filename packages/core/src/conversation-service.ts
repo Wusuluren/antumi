@@ -431,7 +431,7 @@ export class ConversationService {
       const parent = this.get(start.helperOf)
       if (this.retiring.has(parent.id) || !canHaveHelper(parent) || routine || discussion || squad || start.worktree || start.branch) throw new Rejection('invalid-params', '这个会话不能创建小助手')
       const permissionMode = start.permissionMode ?? 'ask'
-      if (allowBypass || !helperAllowsMode(permissionMode)) throw new Rejection('chat-option-invalid', '小助手不能跳过批准或只做规划')
+      if (!helperAllowsMode(permissionMode)) throw new Rejection('chat-option-invalid', '小助手不能只做规划')
       if (this.store.helper(parent.id)) throw new Rejection('invalid-params', '这个会话已有小助手')
       if (!start.deferStart && !this.capacityAvailable(agent)) throw new Rejection('agent-capacity')
       await this.validateStartOptions(agent, { ...start, permissionMode })
@@ -439,7 +439,7 @@ export class ConversationService {
       const currentParent = this.get(parent.id)
       if (this.retiring.has(parent.id) || !canHaveHelper(currentParent) || this.store.helper(parent.id)) throw new Rejection('invalid-params', '不能创建小助手或已有小助手')
       this.store.create(agent, currentParent.workspacePath, currentParent.projectPaths, id, this.store.projectStarts(parent.id), null, null, null, parent.id)
-      this.store.setChatOptions(id, { permissionMode, allowBypass: false, [agent]: { model: start.model, effort: start.effort } })
+      this.store.setChatOptions(id, { permissionMode, allowBypass: allowBypass ?? false, [agent]: { model: start.model, effort: start.effort } })
       this.changed(this.get(id))
       return start.deferStart ? this.get(id) : this.start(id, agent, '', false)
     }
@@ -647,7 +647,7 @@ export class ConversationService {
     const current = this.free(id)
     if (this.launching.has(id)) throw new Rejection('conversation-running')
     if (current.sessionId && this.chats.activity(id) !== null) return current
-    if (allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass: isHelper(current) ? false : allowBypass })
+    if (allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass })
     if (current.sessionId) await this.stop(id)
     return this.start(id, current.agent, '', false, { readable })
   }
@@ -983,7 +983,7 @@ export class ConversationService {
         // Both constraints survive a restart; coordination is not task planning.
         planOnly: Boolean(stage.planOnly),
         readOnly: !stage.planOnly && Boolean(conversation.workspaceReadOnly),
-        allowBypass: !isHelper(conversation) && !stage.planOnly && !conversation.workspaceReadOnly && (chosen.allowBypass ?? false),
+        allowBypass: !stage.planOnly && !conversation.workspaceReadOnly && (chosen.allowBypass ?? false),
         promptSuggestions: this.promptSuggestions,
         preferred: { permissionMode, ...chosen[stage.agent] },
         keepImage: (data) => this.keepImage(data),
@@ -1003,7 +1003,7 @@ export class ConversationService {
   async setOption(id: string, option: ChatOption, value: string): Promise<void> {
     const conversation = this.get(id)
     if (conversation.squadRunId || conversation.workspaceReadOnly) throw new Rejection('squad-managed', '本次运行沿用小队配置')
-    if (isHelper(conversation) && option === 'permissionMode' && !helperAllowsMode(value)) throw new Rejection('chat-option-invalid', '小助手不能跳过批准或只做规划')
+    if (isHelper(conversation) && option === 'permissionMode' && !helperAllowsMode(value)) throw new Rejection('chat-option-invalid', '小助手不能只做规划')
     const { agent } = conversation
     if (isHelper(conversation) && this.chats.activity(id) === null && this.store.stages(id).length === 0) {
       if (option === 'permissionMode') {

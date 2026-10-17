@@ -70,7 +70,7 @@ export function ensureHelper(parent: Conversation, choice?: { model: string | nu
     const model = choice ? choice.model : helperModel(parent, catalog)
     const created = await rpc.call('conversations.create', {
       agent: parent.agent, projectPaths: parent.projectPaths, helperOf: parent.id,
-      deferStart: true, permissionMode: choice?.permissionMode ?? 'ask', allowBypass: false,
+      deferStart: true, permissionMode: choice?.permissionMode ?? 'ask', allowBypass: true,
       ...(model ? { model } : {}), ...(choice?.effort ? { effort: choice.effort } : {})
     })
     return remember(created)

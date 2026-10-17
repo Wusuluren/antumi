@@ -77,7 +77,7 @@ describe('ConversationService', () => {
     rmSync(root, { recursive: true, force: true })
   })
 
-  it('creates a deferred helper in the parent workspace, with a locked title, asking by default and never bypassing', async () => {
+  it('creates a deferred helper in the parent workspace, with a locked title and asking by default', async () => {
     const parent = await service.create('claude', [], true, { deferStart: true })
     const helper = await service.create('claude', ['/ignored'], undefined, { helperOf: parent.id, deferStart: true })
     expect(helper).toMatchObject({ helperOf: parent.id, title: '小助手', titleLocked: true,
@@ -90,14 +90,13 @@ describe('ConversationService', () => {
     expect(reopened.helper(parent.id)?.id).toBe(helper.id)
     reopened.close()
     expect(() => service.rename(helper.id, 'renamed')).toThrow()
-    await expect(service.setOption(helper.id, 'permissionMode', 'bypass')).rejects.toMatchObject({ reason: 'chat-option-invalid' })
     await expect(service.respond(helper.id, 'request', { decision: 'allowForSession' })).rejects.toMatchObject({ reason: 'chat-option-invalid' })
     await service.continue(helper.id, true)
-    expect(store.chatOptions(helper.id).allowBypass).toBe(false)
+    expect(store.chatOptions(helper.id).allowBypass).toBe(true)
     expect(service.get(helper.id).chatOptions?.permissionMode).toBe('ask')
   })
 
-  it('starts a helper in the mode picked for it, any but bypass and plan, and keeps one picked since', async () => {
+  it('starts a helper in the mode picked for it, any but plan, and keeps one picked since', async () => {
     const parent = await service.create('claude', [], false, { deferStart: true })
     const helper = await service.create('claude', [], false, { helperOf: parent.id, deferStart: true, permissionMode: 'acceptEdits' })
     expect(service.get(helper.id).chatOptions?.permissionMode).toBe('acceptEdits')
@@ -114,7 +113,15 @@ describe('ConversationService', () => {
     expect(daemon.spawns.at(-1)?.args).not.toContain('--allow-dangerously-skip-permissions')
     // No such request is open: what matters is that the mode is not what turns it down.
     await expect(service.respond(helper.id, 'request', { decision: 'allow', mode: 'acceptEdits' })).rejects.not.toMatchObject({ reason: 'chat-option-invalid' })
-    await expect(service.respond(helper.id, 'request', { decision: 'allow', mode: 'bypass' })).rejects.toMatchObject({ reason: 'chat-option-invalid' })
+    await expect(service.respond(helper.id, 'request', { decision: 'allow', mode: 'plan' })).rejects.toMatchObject({ reason: 'chat-option-invalid' })
+  })
+
+  it('starts a helper allowed to bypass with nothing asked', async () => {
+    const parent = await service.create('claude', [], false, { deferStart: true })
+    const helper = await service.create('claude', [], true, { helperOf: parent.id, deferStart: true, permissionMode: 'bypass' })
+    expect(store.chatOptions(helper.id).allowBypass).toBe(true)
+    await service.continue(helper.id)
+    expect(daemon.spawns.at(-1)?.args).toEqual(expect.arrayContaining(['--permission-mode', 'bypassPermissions', '--allow-dangerously-skip-permissions']))
   })
 
   it('lets a deferred helper choose its model and effort before its first stage', async () => {
@@ -173,8 +180,6 @@ describe('ConversationService', () => {
     for (const id of [randomUUID(), helper.id, group.id, squad.id, routine.id, archived.id]) {
       await expect(service.create('claude', [], false, { helperOf: id, deferStart: true })).rejects.toThrow()
     }
-    await expect(service.create('claude', [], true, { helperOf: parent.id, deferStart: true })).rejects.toMatchObject({ reason: 'chat-option-invalid' })
-    await expect(service.create('claude', [], false, { helperOf: parent.id, permissionMode: 'bypass', deferStart: true })).rejects.toMatchObject({ reason: 'chat-option-invalid' })
   })
 
   it('allows only one helper even when created concurrently, and allows a new one after clearing', async () => {

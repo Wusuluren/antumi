@@ -94,14 +94,15 @@ describe('helper UI', () => {
     expect(html).toContain('--chat-font-custom:')
   })
 
-  it('offers the helper every start mode but bypass and plan, and asks when the pick no longer fits', () => {
+  it('offers the helper every start mode but plan, and asks when the pick no longer fits', () => {
     const catalog = { models: [
       { id: 'sonnet', label: 'Sonnet', description: null, efforts: ['high'], isDefault: true, autoMode: true },
       { id: 'haiku', label: 'Haiku', description: null, efforts: [], isDefault: false }
     ] }
-    expect(helperModes('claude', catalog, null)).toEqual(['ask', 'acceptEdits', 'auto'])
+    expect(helperModes('claude', catalog, null)).toEqual(['ask', 'acceptEdits', 'auto', 'bypass'])
     const haiku = helperModes('claude', catalog, 'haiku')
-    expect(haiku).toEqual(['ask', 'acceptEdits'])
+    expect(haiku).toEqual(['ask', 'acceptEdits', 'bypass'])
+    expect(helperMode(haiku, 'bypass')).toBe('bypass')
     expect(helperMode(haiku, 'acceptEdits')).toBe('acceptEdits')
     expect(helperMode(haiku, 'plan')).toBe('ask')
     expect(helperMode(haiku, 'auto')).toBe('ask')

@@ -100,12 +100,11 @@ export function ChatOptionsBar({ conversation, state, compact = false }: { conve
   // A model picked since takes its own default effort unless one was picked for it too.
   const effort = running ? state.effort : (next?.effort ?? (next?.model && next.model !== state.model ? null : state.effort))
   // The next start offers bypass where the agent has it, even if this one started without; a task
-  // that only plans never, nor a helper.
-  const offered = isHelper(conversation)
-    ? state.permissionModes.filter(helperAllowsMode)
-    : running || conversation.planOnly
-      ? state.permissionModes
-      : [...state.permissionModes.filter((mode) => mode !== 'bypass'), ...(agentDescriptor(agent).capabilities.bypass ? ['bypass'] : [])]
+  // that only plans never. A helper never plans.
+  const offered = (running || conversation.planOnly
+    ? state.permissionModes
+    : [...state.permissionModes.filter((mode) => mode !== 'bypass'), ...(agentDescriptor(agent).capabilities.bypass ? ['bypass'] : [])]
+  ).filter((mode) => !isHelper(conversation) || helperAllowsMode(mode))
   const model = state.models.find((each) => each.id === modelId)
   const modes = withCurrent(offered, permissionMode)
   const models = model || !modelId

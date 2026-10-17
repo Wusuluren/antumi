@@ -37,7 +37,7 @@ export function HelperModelPicker({ catalog, model, effort, disabled = false, on
   />
 }
 
-// What a helper can start in with the model picked: a new chat's modes, less bypass.
+// What a helper can start in with the model picked: a new chat's modes, less planning.
 export function helperModes(agent: AgentKind, catalog: ChatCatalog | null | undefined, model: string | null): ChatPermissionMode[] {
   return startModes(agent, catalog?.models.find((each) => model ? each.id === model : each.isDefault)).filter(helperAllowsMode)
 }

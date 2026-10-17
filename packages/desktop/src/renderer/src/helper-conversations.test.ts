@@ -55,7 +55,7 @@ describe('helper conversations', () => {
     await settle()
     expect(sent[2]).toMatchObject({ method: 'conversations.create', params: {
       agent: parent.agent, helperOf: parent.id, projectPaths: parent.projectPaths, model,
-      deferStart: true, permissionMode: 'ask', allowBypass: false
+      deferStart: true, permissionMode: 'ask', allowBypass: true
     } })
     reply(2, helper)
     await opening
