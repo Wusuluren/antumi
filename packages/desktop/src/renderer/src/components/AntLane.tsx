@@ -8,7 +8,7 @@ const UNIT = 22 / 96
 const BOX_W = 26 * UNIT
 const BOX_H = 18 * UNIT
 const BOX_DEPTH = 4 * UNIT
-// The ground, above the strip's bottom edge; the ant, the supply and the stacks stand on it.
+// The ground, above the strip's bottom edge; the ant and the stacks stand on it.
 const GROUND = 4
 // How far above the ground the boxes are drawn: a full stack and a toss over it.
 const SKY = 56
@@ -16,11 +16,12 @@ const ROWS = 6
 const STACKS = 4
 const STACK_GAP = 4
 const EDGE = 4
-const SUPPLY_RIGHT = BOX_W + BOX_DEPTH + 2
+// The door: the strip's left edge, out of which each box slides as the ant comes up to it.
+const DOOR = 0
 const SPEED = 30
 const TURN_MS = 320
 const TOSS_MS = 520
-const PICKUP_MS = 380
+const PICKUP_MS = 560
 // A walk that ends stands still this long before the ant goes: the turn's end and its outcome
 // (whether to set the parcel down) can arrive a render or two apart, and the parcel must go down
 // where the ant stopped, not back at the start.
@@ -65,7 +66,7 @@ function slotAt(slot: Slot, width: number): { x: number; y: number } {
 const walkerAt = (x: number, face: Face) => `translateX(${x}px) scaleX(${face})`
 const boxAt = (x: number, y: number, turn = 0) => `translate(${x}px, ${y}px) rotate(${turn}deg) scale(${UNIT})`
 
-// An ant moving boxes from a little supply at the strip's left to stacks at its right, one trip
+// An ant moving boxes from a door at the strip's left edge to stacks at its right, one trip
 // at a time, so the stacks grow with the turn: a tier of two boxes, six tiers to a stack, then a
 // new stack beside it. How high they stand comes from how long the turn has run, so coming back to
 // the chat finds them as high as before. It stops where it stands to wait, and when the turn
@@ -152,7 +153,8 @@ export function AntLane({ scene: wanted, since = null, className = '' }: { scene
         animations.delete(animation)
       }
     }
-    const home = () => SUPPLY_RIGHT + 2 - along(CREW[crewRef.current].front, -1)
+    // Close enough to the door for a box to come out just in front of the ant.
+    const home = () => DOOR + BOX_W + BOX_DEPTH + 3 - along(CREW[crewRef.current].front, -1)
     const target = () => nextSlot(placedRef.current, crewRef.current) ?? placedRef.current.at(-1) ?? null
     const destination = () => {
       const slot = target()
@@ -200,12 +202,17 @@ export function AntLane({ scene: wanted, since = null, className = '' }: { scene
       const to = { x: position.x + along(CREW[crewRef.current].hands, position.face), y: SKY - HANDS_HIGH }
       ant.style.setProperty('--lane-hold', '1')
       box.style.opacity = '1'
-      await play(box, [{ transform: boxAt(BOX_W / 2 + 1, SKY - BOX_H) }, { transform: boxAt(to.x, to.y) }], PICKUP_MS, 'ease-out')
+      const out = DOOR + BOX_W / 2 + 1
+      await play(box, [
+        { transform: boxAt(DOOR - BOX_W, SKY), easing: 'ease-out' },
+        { transform: boxAt(out, SKY), offset: 0.5, easing: 'ease-in-out' },
+        { transform: boxAt(to.x, to.y) }
+      ], PICKUP_MS)
       box.style.opacity = '0'
       hands(true)
     }
 
-    // Start at the supply with a box in hand, the stacks as high as the turn's time so far has built.
+    // Start at the door with a box in hand, the stacks as high as the turn's time so far has built.
     position.x = home()
     ant.style.transform = walkerAt(position.x, 1)
     hands(true)
@@ -259,9 +266,6 @@ export function AntLane({ scene: wanted, since = null, className = '' }: { scene
       {shown && (
         <>
           <svg className="ant-lane-boxes" height={SKY} aria-hidden="true" focusable="false">
-            {[1, 0].map((row) => (
-              <g key={row} transform={`translate(${BOX_W / 2 + 1} ${SKY - row * BOX_H}) scale(${UNIT})`}><Parcel /></g>
-            ))}
             {placed.map((slot) => {
               const { x, y } = slotAt(slot, width)
               return <g key={`${slot.stack}-${slot.row}-${slot.place}`} transform={`translate(${x} ${y}) scale(${UNIT})`}><Parcel width={slot.place === 'long' ? 52 : 26} /></g>

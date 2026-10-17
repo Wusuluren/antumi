@@ -277,13 +277,14 @@
 @keyframes ant-hop { 0% { transform: none; } 35% { transform: translateY(-10px); } 65% { transform: translateY(1px); } 100% { transform: none; } }
 
 /* Where the app places them. */
-/* The dock's lane (AntLane): an ant at the toolbar's own scale moving boxes from a supply at the
+/* The dock's lane (AntLane): an ant at the toolbar's own scale moving boxes from a door at the
    left to stacks at the right. AntLane sets the walker's --lane-* as it goes: legs walking or still,
    arms up or down, a parcel in hand or not. While the user is asked it stands still, mid-stride;
    after setting the parcel down it fades out. The stacks may stand a little above the toolbar. */
 .ant-lane-strip { position: relative; display: block; align-self: stretch; min-width: 0; }
 .ant-lane-walker { position: absolute; left: 0; display: block; }
-.ant-lane-boxes { position: absolute; left: 0; bottom: 4px; width: 100%; overflow: visible; pointer-events: none; }
+/* Clipped at the left edge only: that edge is the door a box slides out of. */
+.ant-lane-boxes { position: absolute; left: 0; bottom: 4px; width: 100%; overflow: visible; clip-path: inset(-80px -80px -80px 0); pointer-events: none; }
 .ant-lane-flying { opacity: 0; }
 :is(.ant-lane, .ant-lane-boxes) .ant-parcel :is(path, rect) { stroke-width: 2.6; }
 .ant-lane:is(.ant-motion-carry, .ant-motion-team) .ant-performer { --ant-gait: var(--lane-gait, 1); --ant-hold: var(--lane-hold, 1); transition: --ant-gait .15s, --ant-hold .3s; }
