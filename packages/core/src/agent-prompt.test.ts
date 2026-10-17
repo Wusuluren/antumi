@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Task } from '@antumi/protocol'
-import { agentPrompt, chatPlanPrompt, chatStartPrompt, knowledgeBaseNote } from './agent-prompt'
+import { agentPrompt, chatPlanPrompt, chatStartPrompt, knowledgeBaseNote, startNote } from './agent-prompt'
 import type { RefineWorkspace, Workspace } from './workspace'
 
 const workspace: Workspace = {
@@ -61,6 +61,18 @@ function dependency(overrides: Partial<Task> = {}): Task {
     ...overrides
   }
 }
+
+describe('startNote', () => {
+  it('says when to note down what is left for the user, after the vault, and nothing with neither', () => {
+    const vault = { path: '/notes/vault', write: true }
+    expect(startNote({ todos: false })).toBeNull()
+    expect(startNote({ knowledgeBase: vault, todos: false })).toBe(knowledgeBaseNote(vault))
+    const both = startNote({ knowledgeBase: vault, todos: true })
+    expect(both?.startsWith(`${knowledgeBaseNote(vault)}\n\n`)).toBe(true)
+    expect(both).toContain('user_todo_add')
+    expect(both).toContain('user_todo_check')
+  })
+})
 
 describe('chatPlanPrompt', () => {
   it('lists every directory it may read, marking the cwd', () => {

@@ -1,19 +1,23 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type RefObject } from 'react'
-import { canHaveHelper, type Conversation, type ResolvedFile } from '@antumi/protocol'
+import { canHaveHelper, LANGUAGE_NAMES, type Conversation, type ResolvedFile } from '@antumi/protocol'
 import { handToHelper } from '../helper-conversations'
-import { useCore } from '../core-store'
+import { useCore, useTranslateSupported } from '../core-store'
+import { usePreferences } from '../preferences'
+import { translate, translationKey, useTranslations } from '../translation'
 import { canRevealFile } from '../desktop-bridge'
 import { copyFileText, filePreviewSupported, showChatFile, type ChatFileScope } from '../file-actions'
 import { linkTarget, type FileReference } from '../file-links'
 import { copyRegionText } from './ChatCopyRegion'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
 import { FileMenuItems } from './FileMenu'
-import { CodeIcon, CopyIcon, DocumentIcon, FolderIcon, LinkIcon, SparkIcon } from './icons'
+import { CodeIcon, CopyIcon, DocumentIcon, FolderIcon, LinkIcon, RefreshIcon, SparkIcon, TranslateIcon } from './icons'
+import { Spinner } from './Spinner'
 
 export const ChatFilesContext = createContext<ChatFileScope | null>(null)
 export function useChatFiles(): ChatFileScope | null { return useContext(ChatFilesContext) }
 
-type Menu = { at: MenuPoint; selection: string; text: string; code: string | null; href: string | null; reference: FileReference | null; file: ResolvedFile | null; resolving: boolean; error: string | null }
+// `translating`: the selection, once the user asked for it in their language; the menu then shows that.
+type Menu = { at: MenuPoint; selection: string; text: string; code: string | null; href: string | null; reference: FileReference | null; file: ResolvedFile | null; resolving: boolean; error: string | null; translating?: string }
 
 export function selectedChatText(root: HTMLElement): string {
   const selection = document.getSelection()
@@ -24,6 +28,7 @@ export function selectedChatText(root: HTMLElement): string {
 export function useChatContextMenu(list: RefObject<HTMLDivElement | null>, scope: ChatFileScope) {
   const parent = useCore((state) => state.conversations[scope.conversationId])
   const [menu, setMenu] = useState<Menu | null>(null)
+  const translateSupported = useTranslateSupported()
   const sequence = useRef(0)
   const close = useCallback(() => { sequence.current++; setMenu(null) }, [])
   useEffect(() => { close(); return () => { sequence.current++ } }, [scope.conversationId, close])
@@ -62,8 +67,13 @@ export function useChatContextMenu(list: RefObject<HTMLDivElement | null>, scope
     if (event.button === 2 || (mac && event.ctrlKey)) event.preventDefault()
   }
   const copy = (text: string) => { close(); void copyFileText(text) }
-  const content = menu && <ContextMenu at={menu.at} scrollBoundary={list.current} label="聊天内容" onClose={close}>
+  const content = menu && (menu.translating !== undefined
+    ? <ContextMenu at={menu.at} scrollBoundary={list.current} label="选中内容的翻译" onClose={close}>
+      <SelectionTranslation conversationId={scope.conversationId} text={menu.translating} onClose={close} />
+    </ContextMenu>
+    : <ContextMenu at={menu.at} scrollBoundary={list.current} label="聊天内容" onClose={close}>
     <HandToHelperItem parent={parent} selection={menu.selection} inspector={scope.inspector} onClose={close} />
+    {menu.selection.trim() && translateSupported && <MenuItem label="翻译" icon={<TranslateIcon />} onSelect={() => setMenu({ ...menu, translating: menu.selection.trim() })} />}
     {menu.selection && <MenuItem label="复制选中内容" icon={<CopyIcon />} onSelect={() => copy(menu.selection)} />}
     {menu.text && <MenuItem label="复制所在内容" icon={<DocumentIcon />} onSelect={() => copy(menu.text)} />}
     {menu.code !== null && <MenuItem label="复制代码" icon={<CodeIcon />} onSelect={() => copy(menu.code ?? '')} />}
@@ -73,8 +83,27 @@ export function useChatContextMenu(list: RefObject<HTMLDivElement | null>, scope
     {menu.resolving && <div className="menu-label" role="status">正在查找文件…</div>}
     {menu.error && <div className="menu-label" role="status">{menu.error}</div>}
     {!menu.selection && !menu.text && menu.code === null && !menu.reference && !menu.href && <MenuItem label="没有可复制的内容" disabled onSelect={close} />}
-  </ContextMenu>
+  </ContextMenu>)
   return { onContextMenu, onKeyDown, onPointerDown, menu: content, open: menu !== null }
+}
+
+// A passage the user selected, put into their language by the conversation's agent's small model,
+// where the menu was: kept by its text, so the same words are not asked for twice.
+export function SelectionTranslation({ conversationId, text, onClose }: { conversationId: string; text: string; onClose: () => void }) {
+  const to = usePreferences((preferences) => preferences.translateTo)
+  const agent = useCore((state) => state.conversations[conversationId]?.agent)
+  const model = usePreferences((preferences) => (agent ? preferences.quickModels[agent] : undefined)) ?? ''
+  const key = translationKey(conversationId, `selection:${text}`, to, model)
+  const result = useTranslations((state) => state.results[key])
+  useEffect(() => { void translate(conversationId, key, text, to, model) }, [conversationId, key, text, to, model])
+  return <>
+    <div className="menu-label">译成{LANGUAGE_NAMES[to]}{result?.state === 'done' && result.model ? ` · 由 ${result.model} 翻译` : ''}</div>
+    <div className="selection-translation" role="status" data-failed={result?.state === 'failed' || undefined}>
+      {result?.state === 'done' ? result.text : result?.state === 'failed' ? result.error : <><Spinner />翻译中…</>}
+    </div>
+    {result?.state === 'done' && <MenuItem label="复制译文" icon={<CopyIcon />} onSelect={() => { onClose(); void copyFileText(result.text) }} />}
+    {result?.state === 'failed' && <MenuItem label="重试" icon={<RefreshIcon />} onSelect={() => void translate(conversationId, key, text, to, model)} />}
+  </>
 }
 
 export function HandToHelperItem({ parent, selection, inspector, onClose }: {

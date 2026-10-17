@@ -4,6 +4,7 @@ import {
   knowledgeBaseKind,
   shortTaskId,
   taskPrompt,
+  todoToolName,
   untrustedSource,
   type KnowledgeBase,
   type SnapshotImagePath,
@@ -203,8 +204,18 @@ export const CONTINUE_TEXT = 'I hit my usage limit while you were working, but i
 // What a scheduled message says when the user left it empty: go on with the plan the chat has.
 export const SCHEDULED_GO_TEXT = '按上面定下的计划开始实现。'
 
-// Where the user's notes are and how to treat them, said once as the agent starts: through
-// its system prompt where it has one, else ahead of its first message.
+// What the agent is told once as it starts, through its system prompt where it has one, else
+// ahead of its first message: where the user's notes are, and, where Antumi's tools are at hand,
+// when to note down what is left for the user. The tools' own descriptions say how; an agent that
+// defers them (Claude Code) reads those only once it goes looking, so this is what makes it look.
+export function startNote({ knowledgeBase, todos }: { knowledgeBase?: KnowledgeBase | undefined; todos: boolean }): string | null {
+  const notes = [...(knowledgeBase ? [knowledgeBaseNote(knowledgeBase)] : []), ...(todos ? [USER_TODO_NOTE] : [])]
+  return notes.length ? notes.join('\n\n') : null
+}
+
+const USER_TODO_NOTE = `回复里列出要用户之后去做的事时（上线前要做的、要用户去验证或配置的、要和别人对齐的、这一轮做不完留到以后的），用 Antumi 的 ${todoToolName('add')} 工具把它们记成这条会话的待办，用户会在 Antumi 里逐项勾掉；记之前用 ${todoToolName('list')} 看看是否已经记过，用户说某件事办完了就用 ${todoToolName('check')} 勾掉。你这一轮自己要做的步骤不要记。`
+
+// Where the user's notes are and how to treat them.
 export function knowledgeBaseNote(base: KnowledgeBase): string {
   const obsidian = knowledgeBaseKind(base) === 'obsidian'
   const format = obsidian

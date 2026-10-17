@@ -7,7 +7,7 @@ import { AntumiRequests } from '../../antumi-requests'
 import { markKeptImages, keepImageBlocks, stripImageBytes } from '../../image-frames'
 import { messageText, type ChatAnswer, type ChatDriver, type ChatImageFile, type ChatOutgoing, type ChatRecord, type ChatStageOptions, type StageMessage, type TurnSignal } from '../../chat-driver'
 import { Rejection } from '../../rejection'
-import { knowledgeBaseNote } from '../../agent-prompt'
+import { startNote } from '../../agent-prompt'
 import type { AcpDialect } from './acp-dialect'
 import { AcpConfig, valuesOf, type AcpOptionValue } from './acp-schema'
 
@@ -212,9 +212,10 @@ export class AcpDriver implements ChatDriver {
     if (images.length && !this.images) throw new Rejection('chat-images-unsupported', `此 ${this.name} CLI 不支持图片输入`)
     const base = { sessionId: this.session, prompt: [{ type: 'text', text }] }
     const logged = rpc(this.id(`prompt-${this.turns + 1}`), 'session/prompt', base)
-    // ACP has no system prompt, so the note on the user's vault goes ahead of the process's first
-    // prompt, and only on the wire: the chat, its search and its handoffs show the message alone.
-    const note = this.turns === 0 && this.options.knowledgeBase ? `${knowledgeBaseNote(this.options.knowledgeBase)}\n\n` : ''
+    // ACP has no system prompt, so the start note goes ahead of the process's first prompt, and
+    // only on the wire: the chat, its search and its handoffs show the message alone.
+    const start = this.turns === 0 ? startNote({ knowledgeBase: this.options.knowledgeBase, todos: Boolean(this.options.mcp) }) : null
+    const note = start ? `${start}\n\n` : ''
     const wire = rpc(this.id(`prompt-${this.turns + 1}`), 'session/prompt', { ...base, prompt: [{ type: 'text', text: `${note}${text}` }, ...images.map((image) => ({ type: 'image', mimeType: image.mime, data: Buffer.from(image.read()).toString('base64') }))] })
     return { wire, logged }
   }

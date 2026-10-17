@@ -24,7 +24,7 @@ const descriptions: Record<TodoToolKind, string> = {
     '每项标明谁来做：user 是要用户去做（默认），agent 是 Agent 能代做、用户可以交给 Agent。回复里照常说明，记完提一句已记成待办即可。',
   check:
     '把待办里的一项标成已完成（或改回未完成）；不给 item 就是整组。你做完了某一项，或用户告诉你某件事已经办了时用，' +
-    'id 来自 todo_list 或 todo_add 的结果。'
+    `id 来自 ${todoToolName('list')} 或 ${todoToolName('add')} 的结果。`
 }
 
 const schemas: Record<TodoToolKind, object> = {

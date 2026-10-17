@@ -1,6 +1,6 @@
 import { RESERVED_MCP_SERVER_NAME, SQUAD_TOOL_NAMES, HISTORY_TOOLS, historyToolName, SHOW_PREVIEW_TOOL, terminalToolName, TODO_TOOLS, todoToolName } from '@antumi/protocol'
 import { BROWSER_READ_TOOLS, type AgentCommand } from '../../agent-command'
-import { knowledgeBaseNote } from '../../agent-prompt'
+import { startNote } from '../../agent-prompt'
 import type { AgentLaunch } from '../agent-adapter'
 import { CLAUDE_MODE_NAMES } from './claude-stream'
 
@@ -54,6 +54,7 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     ...(mcp ? [...Object.values(SQUAD_TOOL_NAMES), SHOW_PREVIEW_TOOL, ...BROWSER_READ_TOOLS, terminalToolName('read'), terminalToolName('stop'), ...HISTORY_TOOLS.map(historyToolName), ...TODO_TOOLS.map(todoToolName)].map((tool) => `mcp__${RESERVED_MCP_SERVER_NAME}__${tool}`) : [])
   ]
   const denials = fenced ? claudeEditDenials(fenced.dirs) : []
+  const note = startNote({ knowledgeBase, todos: Boolean(mcp) })
   const servers = {
     ...(mcp ? { [RESERVED_MCP_SERVER_NAME]: { type: 'stdio', command: mcp.command, args: mcp.args } } : {}),
     ...Object.fromEntries(userMcp.map((server) => [server.name, server.type === 'stdio' ? { type: 'stdio', command: server.command, args: server.args } : { type: 'http', url: server.url }]))
@@ -70,7 +71,7 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     ...extraProjects.flatMap((project) => ['--add-dir', project]),
     // A vault it may write is a working folder, edits in it going by the mode as a project's do.
     ...(knowledgeBase?.write ? ['--add-dir', knowledgeBase.path] : []),
-    ...(knowledgeBase ? ['--append-system-prompt', knowledgeBaseNote(knowledgeBase)] : []),
+    ...(note ? ['--append-system-prompt', note] : []),
     // Antumi's skills as a plugin: read, not a working folder.
     ...(skills ? ['--plugin-dir', skills.dir] : []),
     ...(denials.length ? ['--disallowedTools', denials.join(',')] : []),

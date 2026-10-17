@@ -47,11 +47,12 @@ export function openTodoCount(groups: readonly Pick<TodoGroup, 'items'>[]): numb
   return groups.reduce((sum, group) => sum + group.items.filter((item) => !item.done).length, 0)
 }
 
-// The agent's tools for them, through Antumi's MCP server.
+// The agent's tools for them, through Antumi's MCP server. Named for the user: an agent that sees
+// only the names (Claude Code defers MCP tools) would take a bare todo for its own plan.
 export const TODO_TOOLS = ['list', 'add', 'check'] as const
 export type TodoToolKind = (typeof TODO_TOOLS)[number]
 export function todoToolName(kind: TodoToolKind): string {
-  return `todo_${kind}`
+  return `user_todo_${kind}`
 }
 export function todoToolKind(name: string): TodoToolKind | null {
   const own = antumiToolName(name)

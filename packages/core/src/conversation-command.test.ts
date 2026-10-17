@@ -84,6 +84,21 @@ describe('chatCommand', () => {
     expect(chatCommand('claude', 's', false, null, []).args).not.toContain('--append-system-prompt')
   })
 
+  it('tells each agent with Antumi\'s tools when to note down what is left for the user, beside its vault', () => {
+    const mcp = { command: 'node', args: ['mcp.mjs'] }
+    const vault = { path: '/notes/vault', write: true }
+    const claude = chatCommand('claude', 's', false, null, [], { mcp, knowledgeBase: vault }).args
+    // One system prompt carries both notes.
+    expect(claude.filter((arg) => arg === '--append-system-prompt')).toHaveLength(1)
+    const note = claude[claude.indexOf('--append-system-prompt') + 1]
+    expect(note).toContain('/notes/vault')
+    expect(note).toContain('user_todo_add')
+    expect(claude[claude.indexOf('--allowedTools') + 1]).toContain('mcp__antumi__user_todo_add')
+    expect(chatCommand('codex', null, false, null, [], { mcp }).args).toContainEqual(expect.stringMatching(/^developer_instructions=".*user_todo_add.*"$/))
+    // Without Antumi's tools there is nothing to note them down with.
+    expect(chatCommand('claude', 's', false, null, []).args).not.toContain('--append-system-prompt')
+  })
+
   it('hands Antumi\'s skills to the agents that load a folder of them, each its own way', () => {
     const skills = { dir: '/antumi/skills/bundles/abc' }
     expect(chatCommand('claude', 's', false, null, [], { skills }).args).toEqual(expect.arrayContaining(['--plugin-dir', '/antumi/skills/bundles/abc']))

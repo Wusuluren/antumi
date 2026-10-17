@@ -2040,6 +2040,23 @@ button.task-tag:hover {
   color: var(--text-muted);
 }
 
+/* A selection's translation, in the menu it was asked from: read as text, wide enough for a passage. */
+.selection-translation {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 360px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 4px 8px 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.selection-translation[data-failed] { color: var(--danger); }
+
 .menu-list {
   margin: 0;
   padding: 0;
