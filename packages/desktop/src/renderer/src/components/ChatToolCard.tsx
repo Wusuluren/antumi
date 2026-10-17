@@ -43,12 +43,15 @@ export function clipped(text: string): string {
 function ToolTimer({ since }: { since: number }) {
   const [now, setNow] = useState(() => Date.now())
   // The reading carries tenths for its first minute and whole seconds past it, so a long call
-  // redraws once a second instead of ten times: the same text, nine times fewer renders.
-  const step = now - since < 60_000 ? 100 : 1000
+  // redraws once a second instead of ten times: the same text, nine times fewer renders. Each wake
+  // lands just past the next step rather than repeating, since a drifting interval would now and
+  // then skip or repeat a second.
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), step)
-    return () => clearInterval(timer)
-  }, [step])
+    const elapsed = Math.max(0, now - since)
+    const step = elapsed < 60_000 ? 100 : 1000
+    const timer = setTimeout(() => setNow(Date.now()), step - (elapsed % step) + 5)
+    return () => clearTimeout(timer)
+  }, [now, since])
   return <span className="chat-tool-time" aria-hidden="true">{elapsedText(Math.max(0, now - since))}</span>
 }
 
