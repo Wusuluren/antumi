@@ -475,10 +475,11 @@ function StartSplitButton({ task, dependencies, launch }: { task: Task; dependen
 
 function SubmitButton({ task, labelled }: { task: Task; labelled: boolean }) {
   const checking = useProjectCheckRunning(task.conversationId)
-  const blocker = checking ? 'check-running' : checkSubmit(task, useChatTurn(task))
+  const turn = useChatTurn(task)
+  const blocker = checking ? 'check-running' : checkSubmit(task, turn)
   return (
     <LaunchButton
-      label={checking ? '检查中…' : '提交验收'}
+      label="提交验收"
       className={labelled ? 'primary' : 'run-button'}
       Icon={SubmitIcon}
       reason={blocker && reasonText(blocker, blocker)}
