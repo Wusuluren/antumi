@@ -14,7 +14,7 @@
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor-8A2BE2)
 
-[快速开始](#快速开始) · [功能导览](#功能导览) · [支持的 Agent](#支持的-agent) · [文档](#文档) · [更新日志](CHANGELOG.md) · [反馈](https://github.com/flyhero/antumi/issues)
+[功能导览](#功能导览) · [支持的 Agent](#支持的-agent) · [快速开始](#快速开始) · [文档](#文档) · [更新日志](CHANGELOG.md) · [反馈](https://github.com/flyhero/antumi/issues)
 
 <img src="docs/assets/hero.png" alt="Antumi 的任务看板：Claude Code 正在写文档，另外两个任务等你回复，Codex 的功能等待验收，一个修复已完成" width="100%" />
 
@@ -34,57 +34,6 @@ Antumi 把这些收进一块看板。每件事是一张卡片，交给一个 Age
 - 🔔 **离开窗口也不会让 Agent 干等**：要你批准时，屏幕顶部弹出卡片直接回答。
 - 💰 **省钱**：轻活交给小模型，额度一眼看到，撞到上限会在恢复后自动续跑。
 - 🔒 **本地优先**：数据都在你的机器上，Agent 进程由后台 daemon 托管，关窗口不中断。
-
-## 快速开始
-
-**前提**：至少装好并登录一个 Agent CLI（Claude Code、Codex 或 Cursor）。Antumi 不自带模型，驱动的是你已经在用的 CLI。
-
-**从源码运行**，需要 Node ≥ 22.13 和 pnpm 12：
-
-```bash
-git clone https://github.com/flyhero/antumi.git
-cd antumi
-pnpm install
-pnpm dev          # 同时启动 daemon、core 和桌面端
-```
-
-**打包成 macOS 应用**（Apple Silicon）：
-
-```bash
-pnpm dist:mac     # 产物在 packages/desktop/dist/Antumi-<版本>-arm64.dmg
-```
-
-装了 App 的机器不需要 Node 和 pnpm。产物没有签名，拷到别的机器上首次要右键「打开」。
-
-**第一个任务**：
-
-1. **检查环境**：打开 设置 → 智能体，确认 Agent 显示「已登录」。缺什么，这里给出可以直接复制的安装或登录命令。
-2. **记下任务**：在「任务」看板上按 <kbd>N</kbd>，写标题，选项目和 Agent。详情可以不写。
-3. **开始并验收**：点「开始」，Agent 在独立 worktree 里先出计划，你确认后它开始改代码。做完点「提交验收」，在检查器里看 diff，然后接受、接着改或重做。
-
-<p align="center">
-  <img src="docs/assets/agents.png" alt="设置 → 智能体：Claude Code、Codex、Cursor 都已安装并登录" width="720" />
-</p>
-
-<details>
-<summary><b>常用快捷键</b></summary>
-
-<br/>
-
-| 按键 | 作用 |
-|---|---|
-| <kbd>N</kbd>（看板上） | 在「未执行」列顶部快速记一个任务 |
-| <kbd>⌘</kbd> <kbd>N</kbd> | 打开完整的新建任务对话框 |
-| <kbd>Ctrl</kbd> <kbd>`</kbd> | 打开 / 关闭终端面板 |
-| <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>`</kbd> | 打开 / 关闭浏览器面板 |
-| <kbd>⌘</kbd> <kbd>,</kbd> | 设置 |
-| <kbd>⌘</kbd> <kbd>F</kbd> | 搜索当前聊天 |
-| <kbd>⌘</kbd> <kbd>S</kbd> | 保存检查器里正在编辑的文件 |
-| <kbd>Enter</kbd> / <kbd>Shift</kbd> <kbd>Enter</kbd> | 发送 / 换行；Agent 忙时 Enter 会把消息排队 |
-| <kbd>Tab</kbd> 或 <kbd>→</kbd> | 采用 Claude Code 预测的下一句 |
-| <kbd>Esc</kbd> | 中断当前回合；在任务页里回到看板 |
-
-</details>
 
 ## 它怎么工作
 
@@ -211,6 +160,57 @@ Antumi 驱动的是你已经装好、登录好的 Agent CLI。
 | **Cursor** | `cursor-agent acp` | Agent · Plan · Ask | ✓ | ✓ | — |
 
 「全部放行」不会默认选中。设置 → 智能体 还会列出 Antumi 认识、但尚未接入的 Agent CLI。
+
+## 快速开始
+
+**前提**：至少装好并登录一个上面表格里的 Agent CLI。
+
+**从源码运行**，需要 Node ≥ 22.13 和 pnpm 12：
+
+```bash
+git clone https://github.com/flyhero/antumi.git
+cd antumi
+pnpm install
+pnpm dev          # 同时启动 daemon、core 和桌面端
+```
+
+**打包成 macOS 应用**（Apple Silicon）：
+
+```bash
+pnpm dist:mac     # 产物在 packages/desktop/dist/Antumi-<版本>-arm64.dmg
+```
+
+装了 App 的机器不需要 Node 和 pnpm。产物没有签名，拷到别的机器上首次要右键「打开」。
+
+**第一个任务**：
+
+1. **检查环境**：打开 设置 → 智能体，确认 Agent 显示「已登录」。缺什么，这里给出可以直接复制的安装或登录命令。
+2. **记下任务**：在「任务」看板上按 <kbd>N</kbd>，写标题，选项目和 Agent。详情可以不写。
+3. **开始并验收**：点「开始」，Agent 在独立 worktree 里先出计划，你确认后它开始改代码。做完点「提交验收」，在检查器里看 diff，然后接受、接着改或重做。
+
+<p align="center">
+  <img src="docs/assets/agents.png" alt="设置 → 智能体：Claude Code、Codex、Cursor 都已安装并登录" width="720" />
+</p>
+
+<details>
+<summary><b>常用快捷键</b></summary>
+
+<br/>
+
+| 按键 | 作用 |
+|---|---|
+| <kbd>N</kbd>（看板上） | 在「未执行」列顶部快速记一个任务 |
+| <kbd>⌘</kbd> <kbd>N</kbd> | 打开完整的新建任务对话框 |
+| <kbd>Ctrl</kbd> <kbd>`</kbd> | 打开 / 关闭终端面板 |
+| <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>`</kbd> | 打开 / 关闭浏览器面板 |
+| <kbd>⌘</kbd> <kbd>,</kbd> | 设置 |
+| <kbd>⌘</kbd> <kbd>F</kbd> | 搜索当前聊天 |
+| <kbd>⌘</kbd> <kbd>S</kbd> | 保存检查器里正在编辑的文件 |
+| <kbd>Enter</kbd> / <kbd>Shift</kbd> <kbd>Enter</kbd> | 发送 / 换行；Agent 忙时 Enter 会把消息排队 |
+| <kbd>Tab</kbd> 或 <kbd>→</kbd> | 采用 Claude Code 预测的下一句 |
+| <kbd>Esc</kbd> | 中断当前回合；在任务页里回到看板 |
+
+</details>
 
 ## 本地优先，成果优先
 
