@@ -93,8 +93,9 @@ function ViewportPicker({ tab }: { tab: BrowserTab }) {
 // How long the per-frame watch keeps measuring after the rectangle last moved, so a drag or a
 // slide stays glued across the frames where nothing happens to change.
 const SETTLE_MS = 400
-// What can move the stage without resizing it: a drag on a separator, a scroll, a panel sliding.
-// Each only wakes the watch; what actually moved is read off the rectangle.
+// What can move the stage without resizing it: a drag on a separator, a scroll, a panel sliding,
+// and (watched apart, below) any change to the page's elements. Each only wakes the watch; what
+// actually moved is read off the rectangle.
 const WAKE_EVENTS = ['resize', 'scroll', 'pointerdown', 'pointerup', 'transitionstart', 'transitionend', 'animationstart', 'animationend'] as const
 
 // Where the page goes: the tab's native view, placed by main over this rectangle and kept there
@@ -138,10 +139,14 @@ function NativeStage({ tab }: { tab: BrowserTab }) {
     const observer = new ResizeObserver(wake)
     observer.observe(element)
     observer.observe(document.documentElement)
+    // A panel shown beside the stage by a key, with no transition, moves it without resizing it.
+    const changes = new MutationObserver(wake)
+    changes.observe(document.body, { subtree: true, childList: true, attributes: true })
     for (const name of WAKE_EVENTS) window.addEventListener(name, wake, { capture: true, passive: true })
     return () => {
       if (handle) cancelAnimationFrame(handle)
       observer.disconnect()
+      changes.disconnect()
       for (const name of WAKE_EVENTS) window.removeEventListener(name, wake, { capture: true })
       showNativeBrowserTab(null)
     }
