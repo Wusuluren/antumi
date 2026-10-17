@@ -9276,6 +9276,3 @@ button.squad-member-main { cursor: pointer; }
 :root[data-resting] .chat-reasoning-body[data-streaming]::before,
 :root[data-resting] .chat-input-card[data-working]::before,
 :root[data-resting] .chat-turn-head-icon[data-live]::before { animation-play-state: paused; }
-/* The ant is half of everything moving while a turn runs. It rests offscreen and in a hidden
-   window already (AntMotion), but an unfocused window on another screen kept it walking. */
-:root[data-resting] .ant-stage * { animation-play-state: paused; }

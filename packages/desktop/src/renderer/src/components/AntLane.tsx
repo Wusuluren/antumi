@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useBackgroundRest } from '../background-rest'
 import { usePreferences } from '../preferences'
 import { AntMotion, Parcel, type AntLaneScene } from './AntMotion'
 
@@ -72,12 +73,14 @@ const boxAt = (x: number, y: number, turn = 0) => `translate(${x}px, ${y}px) rot
 // the strip, so a wider window means longer walks at the same pace.
 export function AntLane({ scene: wanted, since = null, className = '' }: { scene: AntLaneScene | null; since?: number | null; className?: string }) {
   const enabled = usePreferences((s) => s.antAnimations)
+  const resting = useBackgroundRest((s) => s.resting)
   const strip = useRef<HTMLSpanElement>(null)
   const walker = useRef<HTMLSpanElement>(null)
   const flyingSmall = useRef<SVGGElement>(null)
   const flyingLong = useRef<SVGGElement>(null)
   const live = useRef(new Set<Animation>())
-  const waiting = useRef(false)
+  // Waiting on the user, or the window resting: the trips hold where they are either way.
+  const still = useRef(false)
   const crewRef = useRef<Crew>('carry')
   const sinceRef = useRef(since)
   const placedRef = useRef<Slot[]>([])
@@ -117,12 +120,12 @@ export function AntLane({ scene: wanted, since = null, className = '' }: { scene
   }, [shown])
 
   useEffect(() => {
-    waiting.current = scene === 'wait'
+    still.current = scene === 'wait' || resting
     for (const animation of live.current) {
-      if (waiting.current) animation.pause()
+      if (still.current) animation.pause()
       else animation.play()
     }
-  }, [scene])
+  }, [scene, resting])
 
   // The trips themselves: one loop for as long as the turn works, paused while it waits.
   useEffect(() => {
@@ -140,7 +143,7 @@ export function AntLane({ scene: wanted, since = null, className = '' }: { scene
     const play = async (element: Element, keyframes: Keyframe[], duration: number, easing = 'linear') => {
       const animation = element.animate(keyframes, { duration, easing, fill: 'forwards' })
       animations.add(animation)
-      if (waiting.current) animation.pause()
+      if (still.current) animation.pause()
       try {
         await animation.finished
         animation.commitStyles()

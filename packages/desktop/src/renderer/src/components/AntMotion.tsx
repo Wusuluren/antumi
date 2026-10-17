@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useBackgroundRest } from '../background-rest'
 import { usePreferences } from '../preferences'
 import './ant-motion.css'
 
@@ -11,10 +12,12 @@ export type AntSize = 'stage' | 'inline' | 'lane'
 // sub-agents work), stands while the user is asked, sets the parcel down when it completed.
 export type AntLaneScene = 'carry' | 'team' | 'wait' | 'place'
 
-// Offscreen previews and background windows keep their pose without spending animation frames.
+// Offscreen previews and background windows keep their pose without spending animation frames, as
+// does a window left unfocused on another screen (background-rest.ts).
 // Switched off in settings, nothing is left behind, not even the room the ant would take.
 function AntStage({ className, children, playing = true }: { className: string; children: ReactNode; playing?: boolean }) {
   const enabled = usePreferences((s) => s.antAnimations)
+  const resting = useBackgroundRest((s) => s.resting)
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(true)
   const [foreground, setForeground] = useState(true)
@@ -31,7 +34,7 @@ function AntStage({ className, children, playing = true }: { className: string; 
   }, [enabled])
   if (!enabled) return null
   return (
-    <div ref={ref} className={`ant-stage ${className}`} data-paused={!playing || !visible || !foreground || undefined} aria-hidden="true">
+    <div ref={ref} className={`ant-stage ${className}`} data-paused={!playing || !visible || !foreground || resting || undefined} aria-hidden="true">
       {children}
     </div>
   )
