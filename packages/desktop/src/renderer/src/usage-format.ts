@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { UsageWindow } from '@antumi/protocol'
+import { tightestWindow, type AgentUsage, type ResetCreditOutcome, type UsageWindow } from '@antumi/protocol'
 import type { Preferences } from './preferences'
 
 // How usage numbers read wherever they show: the status bar, and next to an agent being picked.
@@ -63,4 +63,28 @@ export function shownPercent(window: UsageWindow, display: Preferences['usageDis
 export function percentText(window: UsageWindow, display: Preferences['usageDisplay']): string {
   const value = Math.round(shownPercent(window, display))
   return display === 'remaining' ? `剩 ${value}%` : `${value}%`
+}
+
+export function clearsText(clears: readonly UsageWindow['kind'][]): string {
+  const session = clears.includes('session')
+  const weekly = clears.includes('weekly')
+  if (session && weekly) {
+    return '清零 5h 和每周额度'
+  }
+  return session ? '清零 5h 额度' : weekly ? '清零每周额度' : ''
+}
+
+// Said before a reset is spent: it cannot be taken back, and windows with room left waste it.
+export function spendNote(usage: AgentUsage, clearing: readonly UsageWindow['kind'][]): string {
+  const clears = clearsText(clearing)
+  const tightest = tightestWindow(usage.windows)
+  const room = tightest && tightest.usedPercent < 100 ? `现在额度还剩 ${100 - Math.round(tightest.usedPercent)}%，用完再用更划算。` : ''
+  return `用掉一张，立即${clears || '恢复额度'}，用掉后不能退回。${room}`
+}
+
+export const SPEND_OUTCOME_TEXT: Record<ResetCreditOutcome, string> = {
+  reset: '已使用一张重置卡，额度已恢复',
+  'nothing-to-reset': '现在没有用掉的额度需要清零，重置卡没有扣',
+  'no-credit': '没有可用的重置卡了',
+  'already-used': '这张重置卡已经用过了，额度已恢复'
 }

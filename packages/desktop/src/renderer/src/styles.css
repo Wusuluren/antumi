@@ -3696,6 +3696,68 @@ body.side-panel-resizing * {
   font-weight: 600;
 }
 
+/* A credit the user can spend from here: its title and expiry, its own button beside them. */
+.usage-card-credit-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+}
+
+.usage-card-credit-item + .usage-card-credit-item {
+  border-top: 1px solid var(--border);
+}
+
+.usage-card-credit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.usage-card-credit-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.usage-card-credit-expiry {
+  color: var(--text-muted);
+}
+
+.usage-card-credit-expiry[data-soon] {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.usage-card-spend {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.usage-card-spend .button,
+.usage-card-credit-row .button {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.usage-card-spend-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+.usage-card-spend-note[data-failed] {
+  color: var(--danger);
+}
+
+.usage-card-spend-note[data-outcome='reset'],
+.usage-card-spend-note[data-outcome='already-used'] {
+  color: var(--status-done);
+}
+
 .usage-card-footer {
   display: flex;
   align-items: center;

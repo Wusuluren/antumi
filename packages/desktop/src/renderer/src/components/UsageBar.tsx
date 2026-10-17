@@ -7,15 +7,18 @@ import {
   usageLevel,
   type AgentKind,
   type AgentUsage,
+  type ResetCredit,
+  type ResetCreditOutcome,
   type ResetCredits,
   type UsageWindow
 } from '@antumi/protocol'
-import { refreshUsage, useCore } from '../core-store'
+import { refreshUsage, spendResetCredit, useCore } from '../core-store'
 import { agentLabel } from '../labels'
 import { usePreferences } from '../preferences'
-import { formatClock, formatDuration, percentText, resetText, shownPercent, useNow, windowLabel } from '../usage-format'
+import { clearsText, formatClock, formatDuration, percentText, resetText, shownPercent, SPEND_OUTCOME_TEXT, spendNote, useNow, windowLabel } from '../usage-format'
 import { agentNames } from '../environment-text'
 import { AgentIcon } from './icons'
+import { Spinner } from './Spinner'
 
 function errorText(usage: AgentUsage): string {
   return usage.error === 'auth-expired'
@@ -40,21 +43,58 @@ function expiryText(expiresAt: number | null, now: number): string {
   return `${date.getMonth() + 1}月${date.getDate()}日 ${time} 过期（还有 ${formatDuration(expiresAt - now)}）`
 }
 
-function clearsText(clears: readonly UsageWindow['kind'][]): string {
-  const session = clears.includes('session')
-  const weekly = clears.includes('weekly')
-  if (session && weekly) {
-    return '清零 5h 和每周额度'
-  }
-  return session ? '清零 5h 额度' : weekly ? '清零每周额度' : ''
+// Spending a reset, from asking first to what came of it: the credit picked by id, or without one
+// whichever the service picks. A failed attempt keeps its request id, so retrying it can never
+// spend a second one.
+type Spending =
+  | { phase: 'confirm'; creditId?: string }
+  | { phase: 'pending'; creditId?: string; requestId: string }
+  | { phase: 'failed'; creditId?: string; requestId: string; error: string }
+  | { phase: 'done'; outcome: ResetCreditOutcome }
+
+type SpendProps = {
+  spending: Spending | null
+  onSpend: (requestId: string, creditId?: string) => void
+  onChange: (spending: Spending | null) => void
 }
 
-function ResetCreditList({ agent, credits, now }: { agent: AgentKind; credits: ResetCredits; now: number }) {
+// Under the credit being spent: what it will do, then waiting, or why it did not go through.
+function SpendSteps({ usage, credit, spending, onSpend, onChange }: SpendProps & { usage: AgentUsage; credit: ResetCredit | undefined; spending: Spending }) {
+  if (spending.phase === 'done') {
+    return null
+  }
+  if (spending.phase === 'pending') {
+    return <div className="usage-card-spend-note" role="status"><Spinner />正在使用重置卡…</div>
+  }
+  const failed = spending.phase === 'failed'
+  return (
+    <>
+      <div className="usage-card-spend-note" role={failed ? 'alert' : undefined} data-failed={failed || undefined}>
+        {failed ? spending.error : spendNote(usage, credit?.clears ?? [])}
+      </div>
+      <div className="usage-card-spend">
+        <button type="button" className="button primary" onClick={() => onSpend(failed ? spending.requestId : crypto.randomUUID(), spending.creditId)}>
+          {failed ? '重试' : '确认使用'}
+        </button>
+        <button type="button" className="button" onClick={() => onChange(null)}>
+          取消
+        </button>
+      </div>
+    </>
+  )
+}
+
+export function ResetCreditList({ usage, credits, now, spending, onSpend, onChange }: SpendProps & { usage: AgentUsage; credits: ResetCredits; now: number }) {
   if (credits.blockedBy === 'cli_version') {
     return <div className="usage-card-credits muted">升级 Claude Code 后，这里会显示可用的重置卡</div>
   }
-  const labels = [...new Set(credits.credits.flatMap((credit) => (credit.label ? [credit.label] : [])))]
   const unlisted = credits.available - credits.credits.length
+  const busy = spending !== null && spending.phase !== 'done'
+  const steps = (credit: ResetCredit | undefined) => spending && <SpendSteps usage={usage} credit={credit} spending={spending} onSpend={onSpend} onChange={onChange} />
+  // Spent one by one where the service names them; where it does not, it picks the one to spend.
+  const byId = credits.usable === true && credits.credits.some((credit) => credit.id)
+  const unnamed = credits.usable === true && !byId && credits.available > 0
+  const labels = byId ? [] : [...new Set(credits.credits.flatMap((credit) => (credit.label ? [credit.label] : [])))]
   return (
     <div className="usage-card-credits">
       <div className="usage-card-credits-title">可用重置卡 {credits.available} 张</div>
@@ -65,6 +105,27 @@ function ResetCreditList({ agent, credits, now }: { agent: AgentKind; credits: R
       ))}
       {credits.credits.map((credit, index) => {
         const clears = clearsText(credit.clears)
+        if (byId && credit.id) {
+          const picked = spending !== null && spending.phase !== 'done' && spending.creditId === credit.id
+          return (
+            <div key={credit.id} className="usage-card-credit-item">
+              <div className="usage-card-credit-row">
+                <div className="usage-card-credit-text">
+                  <div className="usage-card-credit-label">{credit.label ?? (clears || '重置卡')}</div>
+                  <div className="usage-card-credit-expiry" data-soon={expiresSoon(credit.expiresAt, now) || undefined}>
+                    {expiryText(credit.expiresAt, now)}
+                  </div>
+                </div>
+                {!picked && (
+                  <button type="button" className="button" disabled={busy} onClick={() => onChange({ phase: 'confirm', creditId: credit.id })}>
+                    使用
+                  </button>
+                )}
+              </div>
+              {picked && steps(credit)}
+            </div>
+          )
+        }
         return (
           <div key={index} className="usage-card-credit" data-soon={expiresSoon(credit.expiresAt, now) || undefined}>
             {expiryText(credit.expiresAt, now)}
@@ -73,7 +134,17 @@ function ResetCreditList({ agent, credits, now }: { agent: AgentKind; credits: R
         )
       })}
       {unlisted > 0 && <div className="usage-card-credit">另有 {unlisted} 张没有给出过期时间</div>}
-      <div className="usage-card-credits-hint">{agentDescriptor(agent).usageWhere}</div>
+      {unnamed && (spending === null || spending.phase === 'done' ? (
+        <div className="usage-card-spend">
+          <button type="button" className="button" onClick={() => onChange({ phase: 'confirm' })}>
+            使用一张重置卡
+          </button>
+        </div>
+      ) : steps(credits.credits[0]))}
+      {spending?.phase === 'done' && (
+        <div className="usage-card-spend-note" role="status" data-outcome={spending.outcome}>{SPEND_OUTCOME_TEXT[spending.outcome]}</div>
+      )}
+      {!credits.usable && <div className="usage-card-credits-hint">{agentDescriptor(usage.agent).usageWhere}</div>}
     </div>
   )
 }
@@ -85,7 +156,7 @@ const CARD_HIDE_DELAY_MS = 200
 
 // Every window in full, above the segment. Rendered into <body> at a fixed position: inside the
 // status bar it would be clipped, and a button may not contain it.
-function UsageCard({ usage, now, anchor, id, cardRef, onEnter, onLeave, onRefresh, refreshing }: {
+function UsageCard({ usage, now, anchor, id, cardRef, onEnter, onLeave, onRefresh, refreshing, spending, onSpend, onSpendingChange }: {
   usage: AgentUsage
   now: number
   anchor: DOMRect
@@ -95,6 +166,9 @@ function UsageCard({ usage, now, anchor, id, cardRef, onEnter, onLeave, onRefres
   onLeave: () => void
   onRefresh: () => void
   refreshing: boolean
+  spending: Spending | null
+  onSpend: (requestId: string, creditId?: string) => void
+  onSpendingChange: (spending: Spending | null) => void
 }) {
   const left = Math.max(8, Math.min(anchor.left, window.innerWidth - CARD_WIDTH - 8))
   const bottom = window.innerHeight - anchor.top + 6
@@ -134,8 +208,8 @@ function UsageCard({ usage, now, anchor, id, cardRef, onEnter, onLeave, onRefres
           </div>
         )
       })}
-      {usage.resetCredits && (usage.resetCredits.available > 0 || usage.resetCredits.blockedBy) && (
-        <ResetCreditList agent={usage.agent} credits={usage.resetCredits} now={now} />
+      {usage.resetCredits && (usage.resetCredits.available > 0 || usage.resetCredits.blockedBy || spending) && (
+        <ResetCreditList usage={usage} credits={usage.resetCredits} now={now} spending={spending} onSpend={onSpend} onChange={onSpendingChange} />
       )}
       <div className="usage-card-footer">
         <span>{footer}</span>
@@ -161,6 +235,9 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
   const [pinned, setPinned] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [spending, setSpending] = useState<Spending | null>(null)
+  // Asking, waiting or failed: the card stays put however the pointer wanders.
+  const holding = spending !== null && spending.phase !== 'done'
   const trigger = useRef<HTMLButtonElement>(null)
   const card = useRef<HTMLDivElement>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -176,7 +253,7 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
   }
   const hide = () => {
     clearTimeout(timer.current)
-    if (!pinned) timer.current = setTimeout(() => setAnchor(null), CARD_HIDE_DELAY_MS)
+    if (!pinned && !holding) timer.current = setTimeout(() => setAnchor(null), CARD_HIDE_DELAY_MS)
   }
   const keepOpen = () => clearTimeout(timer.current)
   const refresh = async () => {
@@ -188,7 +265,19 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
       setRefreshing(false)
     }
   }
+  const spend = async (requestId: string, creditId?: string) => {
+    setSpending({ phase: 'pending', creditId, requestId })
+    try {
+      setSpending({ phase: 'done', outcome: await spendResetCredit(usage.agent, requestId, creditId) })
+    } catch (error) {
+      setSpending({ phase: 'failed', creditId, requestId, error: error instanceof Error ? error.message : String(error) })
+    }
+  }
   useEffect(() => () => clearTimeout(timer.current), [])
+  // A closed card starts over, but one still spending reports when it is next opened.
+  useEffect(() => {
+    if (!anchor) setSpending((spending) => (spending?.phase === 'pending' ? spending : null))
+  }, [anchor])
   useEffect(() => {
     if (!anchor) return
     const onPointerDown = (event: PointerEvent) => {
@@ -268,6 +357,9 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
           onLeave={hide}
           onRefresh={() => void refresh()}
           refreshing={refreshing}
+          spending={spending}
+          onSpend={(requestId, creditId) => void spend(requestId, creditId)}
+          onSpendingChange={setSpending}
         />,
         document.body
       )}

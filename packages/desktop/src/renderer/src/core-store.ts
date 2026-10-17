@@ -8,6 +8,7 @@ import {
   coreUrl,
   type AgentKind,
   type AgentUsage,
+  type ResetCreditOutcome,
   type LoginNotice,
   type LoginPrompt,
   type RpcConnection,
@@ -765,6 +766,16 @@ export async function refreshUsage(): Promise<void> {
   if (usage) {
     useCore.setState({ usage: byAgent(usage) })
   }
+}
+
+// Fails with core's own words, for the usage card to show beside the button pressed; the usage it
+// reads again afterwards comes in as usage.changed.
+export async function spendResetCredit(agent: AgentKind, requestId: string, creditId?: string): Promise<ResetCreditOutcome> {
+  const { rpc } = useCore.getState()
+  if (!rpc) {
+    throw new Error('尚未连接到 Antumi core')
+  }
+  return (await rpc.call('usage.useResetCredit', { agent, requestId, creditId })).outcome
 }
 
 function patchLogin(flowId: string, patch: (login: LoginState) => Partial<LoginState>): void {
