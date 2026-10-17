@@ -9257,11 +9257,15 @@ button.squad-member-main { cursor: pointer; }
 .todo-item .title-editor, .todo-group-title .title-editor { flex: 1; min-width: 0; margin: -2px 0; font-size: 13px; }
 .todo-owner { flex-shrink: 0; padding: 0 6px; border-radius: var(--radius-xs); background: var(--fill-2); font-size: 12px; line-height: 20px; color: var(--text-muted); }
 .todo-group input[type='checkbox'] { width: 14px; height: 14px; margin: 3px 0 0; flex-shrink: 0; accent-color: var(--accent); cursor: pointer; }
-.todo-actions { display: none; gap: 2px; flex-shrink: 0; }
-.todo-item:hover .todo-actions, .todo-item:focus-within .todo-actions, .todo-group-head:hover .todo-actions, .todo-group-head:focus-within .todo-actions { display: flex; }
-.todo-item:hover .todo-owner { display: none; }
-.todo-actions button { height: 20px; padding: 0 6px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; }
+.todo-side { position: relative; flex-shrink: 0; display: flex; justify-content: flex-end; min-width: 70px; min-height: 20px; }
+.todo-group-head .todo-side { min-width: 46px; }
+.todo-actions { position: absolute; top: 0; right: 0; display: flex; gap: 2px; visibility: hidden; }
+.todo-item:is(:hover, :focus-within) .todo-actions, .todo-group-head:is(:hover, :focus-within) .todo-actions { visibility: visible; }
+.todo-item:is(:hover, :focus-within) .todo-owner, .todo-group-head:is(:hover, :focus-within) .todo-group-count { visibility: hidden; }
+.todo-actions button { display: grid; place-items: center; width: 22px; height: 20px; padding: 0; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-muted); cursor: pointer; }
 .todo-actions button:hover { background: var(--fill-2); color: var(--text); }
+.todo-actions button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.todo-actions svg { width: 14px; height: 14px; }
 .todo-finished summary { cursor: pointer; font-size: 12px; color: var(--text-muted); }
 .todo-finished .todo-group { margin-top: 8px; }
 .todo-new { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border-2); border-radius: var(--radius-lg); }

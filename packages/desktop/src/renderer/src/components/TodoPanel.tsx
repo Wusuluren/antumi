@@ -3,6 +3,7 @@ import { openTodoCount, todoGroupDone, type RpcMethod, type RpcParams, type Todo
 import { addQuote } from '../chat-quotes'
 import { receiveTodos, useConversationTodos } from '../conversation-todos'
 import { perform } from '../core-store'
+import { PencilIcon, PlusIcon, QuoteIcon, TrashIcon } from './icons'
 import { TitleEditor } from './TitleEditor'
 
 const OWNER_LABEL: Record<TodoOwner, string> = { user: '需要你', agent: 'Agent 可做' }
@@ -69,10 +70,12 @@ function Group({ conversationId, group }: { conversationId: string; group: TodoG
             : <button type="button" className="todo-text-button" title="点击修改标题" onClick={() => setRenaming(true)}>{group.title}</button>}
           {group.note && <span className="todo-group-note">{group.note}</span>}
         </span>
-        <span className="todo-group-count">{done}/{group.items.length}</span>
-        <span className="todo-actions">
-          <button type="button" onClick={() => setAdding(true)}>添加一项</button>
-          <button type="button" onClick={remove}>删除</button>
+        <span className="todo-side">
+          <span className="todo-group-count">{done}/{group.items.length}</span>
+          <span className="todo-actions">
+            <button type="button" aria-label="添加一项" data-tooltip="添加一项" onClick={() => setAdding(true)}><PlusIcon /></button>
+            <button type="button" aria-label="删除这一组" data-tooltip="删除这一组" onClick={remove}><TrashIcon /></button>
+          </span>
         </span>
       </div>
       <ul className="todo-items">
@@ -100,18 +103,21 @@ function Item({ conversationId, groupId, item }: { conversationId: string; group
       {editing
         ? <TitleEditor title={item.text} label="这一项" maxLength={500} onSave={(text) => void change('todos.edit', { id: conversationId, groupId, itemId: item.id, text })} onDone={() => setEditing(false)} />
         : <span className="todo-item-text">{item.text}</span>}
-      <span className="todo-owner" data-owner={item.owner}>{OWNER_LABEL[item.owner]}</span>
-      {!editing && (
-        <span className="todo-actions">
-          {!item.done && (
-            <button type="button" data-tooltip="放进输入框，让 Agent 去做" onClick={() => addQuote(conversationId, null, item.text, '请处理这一项待办，做完后在待办里把它勾掉。')}>
-              交给 Agent
-            </button>
-          )}
-          <button type="button" onClick={() => setEditing(true)}>编辑</button>
-          <button type="button" onClick={() => void change('todos.remove', { id: conversationId, groupId, itemId: item.id })}>删除</button>
-        </span>
-      )}
+      {/* The owner, or on hover the actions in its place: a slot as wide as both, so the text never rewraps. */}
+      <span className="todo-side">
+        <span className="todo-owner" data-owner={item.owner}>{OWNER_LABEL[item.owner]}</span>
+        {!editing && (
+          <span className="todo-actions">
+            {!item.done && (
+              <button type="button" aria-label="交给 Agent" data-tooltip="交给 Agent：放进输入框，让它去做" onClick={() => addQuote(conversationId, null, item.text, '请处理这一项待办，做完后在待办里把它勾掉。')}>
+                <QuoteIcon />
+              </button>
+            )}
+            <button type="button" aria-label="编辑" data-tooltip="编辑" onClick={() => setEditing(true)}><PencilIcon /></button>
+            <button type="button" aria-label="删除" data-tooltip="删除" onClick={() => void change('todos.remove', { id: conversationId, groupId, itemId: item.id })}><TrashIcon /></button>
+          </span>
+        )}
+      </span>
     </li>
   )
 }
