@@ -90,10 +90,19 @@ function ViewportPicker({ tab }: { tab: BrowserTab }) {
   return <ChatPicker label="页面尺寸" value={current} placeholder="跟随面板" options={options} onChange={choose} align="end" placement="below" />
 }
 
+// How long the per-frame watch keeps measuring after the rectangle last moved, so a drag or a
+// slide stays glued across the frames where nothing happens to change.
+const SETTLE_MS = 400
+// What can move the stage without resizing it: a drag on a separator, a scroll, a panel sliding.
+// Each only wakes the watch; what actually moved is read off the rectangle.
+const WAKE_EVENTS = ['resize', 'scroll', 'pointerdown', 'pointerup', 'transitionstart', 'transitionend', 'animationstart', 'animationend'] as const
+
 // Where the page goes: the tab's native view, placed by main over this rectangle and kept there
-// as the panel moves. Checked each frame rather than on the events that move it (a separator
-// dragged, the sidebar folding, the panel sliding in), of which there are many; only a change
-// is reported. A tab held at a size stands centred here, framed, as main places it.
+// as the panel moves. The events that move it (a separator dragged, the sidebar folding, the panel
+// sliding in) are too many to place by hand, so each only starts a per-frame watch that follows the
+// rectangle until it settles and then stops: standing still costs no frames, which matters because
+// a panel left open otherwise holds the compositor awake for as long as it is on screen. Only a
+// change is reported. A tab held at a size stands centred here, framed, as main places it.
 function NativeStage({ tab }: { tab: BrowserTab }) {
   const stage = useRef<HTMLDivElement>(null)
   const [frame, setFrame] = useState<{ width: number; height: number } | null>(null)
@@ -104,22 +113,36 @@ function NativeStage({ tab }: { tab: BrowserTab }) {
     showNativeBrowserTab(tab.id)
     let last = ''
     let handle = 0
-    const tick = () => {
+    let until = 0
+    const measure = () => {
       const rect = element.getBoundingClientRect()
       const key = `${rect.x},${rect.y},${rect.width},${rect.height}`
-      if (key !== last) {
-        last = key
-        reportBrowserBounds(rect)
-        if (held) {
-          const scale = Math.min(1, rect.width / held.width, rect.height / held.height)
-          setFrame({ width: Math.round(held.width * scale), height: Math.round(held.height * scale) })
-        }
+      if (key === last) return false
+      last = key
+      reportBrowserBounds(rect)
+      if (held) {
+        const scale = Math.min(1, rect.width / held.width, rect.height / held.height)
+        setFrame({ width: Math.round(held.width * scale), height: Math.round(held.height * scale) })
       }
-      handle = requestAnimationFrame(tick)
+      return true
     }
-    handle = requestAnimationFrame(tick)
+    const tick = () => {
+      if (measure()) until = performance.now() + SETTLE_MS
+      handle = performance.now() < until ? requestAnimationFrame(tick) : 0
+    }
+    const wake = () => {
+      until = performance.now() + SETTLE_MS
+      if (!handle) handle = requestAnimationFrame(tick)
+    }
+    measure()
+    const observer = new ResizeObserver(wake)
+    observer.observe(element)
+    observer.observe(document.documentElement)
+    for (const name of WAKE_EVENTS) window.addEventListener(name, wake, { capture: true, passive: true })
     return () => {
-      cancelAnimationFrame(handle)
+      if (handle) cancelAnimationFrame(handle)
+      observer.disconnect()
+      for (const name of WAKE_EVENTS) window.removeEventListener(name, wake, { capture: true })
       showNativeBrowserTab(null)
     }
   }, [tab.id, held])
