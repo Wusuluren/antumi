@@ -7,7 +7,8 @@ import { toolLabel } from '../chat-tools'
 import { useChatSurface } from './chat-surface'
 import { useJustFinished } from '../chat-motion'
 import { ArchivedBar } from './ArchivedBar'
-import { AntLane, type AntLaneScene } from './AntMotion'
+import type { AntLaneScene } from './AntMotion'
+import { AntLane } from './AntLane'
 import { ChatComposer } from './ChatComposer'
 import { archiveConversation } from './ConversationActions'
 import { ChatMessageList, type SentMessage } from './ChatMessageList'
@@ -114,10 +115,12 @@ function ChatSchedules({ conversationId }: { conversationId: string }) {
 }
 
 // Everything that waits on the user sits here, above the composer, so it cannot scroll out of view.
-export function ChatDock({ conversation, state, pending, tools, finishedCalls, onPrevious, sent, onJump, compact = false, antScene = null }: {
+export function ChatDock({ conversation, state, pending, tools, finishedCalls, onPrevious, sent, onJump, compact = false, antScene = null, antSince = null }: {
   compact?: boolean
   // The ant pacing the header's free width for the turn.
   antScene?: AntLaneScene | null
+  // When the turn began: how high the lane's stacks already stand.
+  antSince?: number | null
   conversation: Conversation
   // The running stage's state; null for an older core or before the stage reports one.
   state: StateItem | null
@@ -139,7 +142,7 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
         <ChatProjects conversation={conversation} />
         {running && state && <ChatTodosChip todos={state.todos} />}
         {inspectable && <ChangesChip conversation={conversation} finishedCalls={finishedCalls} />}
-        <AntLane scene={antScene} className="chat-dock-spacer" />
+        <AntLane scene={antScene} since={antSince} className="chat-dock-spacer" />
         <ChatMessageList messages={sent} onJump={onJump} />
         <button type="button" className="tool-button" aria-label="上一条消息" data-tooltip="上一条消息" onClick={onPrevious}>
           <ArrowUpIcon />

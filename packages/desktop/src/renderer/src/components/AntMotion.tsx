@@ -38,7 +38,7 @@ function AntStage({ className, children, playing = true }: { className: string; 
 }
 
 // Drawn from its bottom centre, so a pose places it by where it rests.
-function Parcel({ width = 26, height = 18 }: { width?: number; height?: number }) {
+export function Parcel({ width = 26, height = 18 }: { width?: number; height?: number }) {
   const half = width / 2
   const depth = 4
   return (
@@ -184,87 +184,5 @@ export function AntDelivery({ status, playing = true }: { status: AntDeliverySta
         {status === 'done' && <g transform="translate(186 40)"><Sparkle /></g>}
       </svg>
     </AntStage>
-  )
-}
-
-// Walking speed across a lane, in pixels a second, and how long the turn at either end takes.
-const LANE_SPEED = 30
-const LANE_TURN_MS = 320
-// A walk that ends stands still this long before the ant goes: the turn's end and its outcome
-// (whether to set the parcel down) can arrive a render or two apart, and the parcel must go down
-// where the ant stopped, not back at the start.
-const LANE_LINGER_MS = 800
-
-// An ant pacing a strip of whatever width it is given, carrying a parcel to and fro; it stops where
-// it is to wait or to set the parcel down. The pacing is a Web Animation sized from the strip, so a
-// wider window means a longer walk at the same speed, and pausing it leaves the ant where it stood.
-export function AntLane({ scene: wanted, className = '' }: { scene: AntLaneScene | null; className?: string }) {
-  const enabled = usePreferences((s) => s.antAnimations)
-  const lane = useRef<HTMLSpanElement>(null)
-  const walker = useRef<HTMLSpanElement>(null)
-  const pacing = useRef<Animation | null>(null)
-  // Set while rendering, not in an effect, so not even one frame drops the ant from where it stood.
-  const [previous, setPrevious] = useState(wanted)
-  const [lingering, setLingering] = useState(false)
-  if (wanted !== previous) {
-    setPrevious(wanted)
-    setLingering(wanted === null && (previous === 'carry' || previous === 'team' || previous === 'wait'))
-  }
-  useEffect(() => {
-    if (!lingering) return
-    const timer = setTimeout(() => setLingering(false), LANE_LINGER_MS)
-    return () => clearTimeout(timer)
-  }, [lingering])
-  const scene = wanted ?? (lingering ? 'wait' : null)
-  const shown = enabled && scene !== null
-  const action = scene === 'place' ? 'place' : scene === 'team' ? 'team' : 'carry'
-  useEffect(() => {
-    const strip = lane.current
-    const ant = walker.current
-    if (!shown || !strip || !ant || matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const pace = () => {
-      const span = strip.clientWidth - ant.offsetWidth
-      const was = pacing.current
-      const progress = was?.effect?.getComputedTiming().progress ?? 0
-      const paused = was?.playState === 'paused'
-      was?.cancel()
-      pacing.current = null
-      if (span <= 0) return
-      const duration = (span / LANE_SPEED) * 2000 + LANE_TURN_MS * 2
-      const turn = LANE_TURN_MS / duration
-      const there = 0.5 - turn
-      pacing.current = ant.animate([
-        { transform: 'translateX(0) scaleX(1)', offset: 0 },
-        { transform: `translateX(${span}px) scaleX(1)`, offset: there },
-        { transform: `translateX(${span}px) scaleX(-1)`, offset: 0.5 },
-        { transform: 'translateX(0) scaleX(-1)', offset: 1 - turn },
-        { transform: 'translateX(0) scaleX(1)', offset: 1 }
-      ], { duration, iterations: Infinity })
-      pacing.current.currentTime = progress * duration
-      if (paused) pacing.current.pause()
-    }
-    pace()
-    // The pair is wider than one ant: a change of crew re-measures the walk too.
-    const observer = new ResizeObserver(pace)
-    observer.observe(strip)
-    observer.observe(ant)
-    return () => {
-      observer.disconnect()
-      pacing.current?.cancel()
-      pacing.current = null
-    }
-  }, [shown])
-  useEffect(() => {
-    if (scene === 'carry' || scene === 'team') pacing.current?.play()
-    else pacing.current?.pause()
-  }, [scene, shown])
-  return (
-    <span ref={lane} className={`ant-lane-strip ${className}`} data-scene={shown ? scene : undefined}>
-      {shown && (
-        <span ref={walker} className="ant-lane-walker">
-          <AntMotion key={action} action={action} size="lane" />
-        </span>
-      )}
-    </span>
   )
 }

@@ -907,7 +907,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
         )}
       </div>
       <ProjectRunNotice conversationId={conversation.id} />
-      <ChatDock compact={variant === 'compact'} antScene={antScene} conversation={conversation} state={state} pending={pending} tools={tools} finishedCalls={finishedCalls} onPrevious={previous} sent={sent} onJump={jump} />
+      <ChatDock compact={variant === 'compact'} antScene={antScene} antSince={since} conversation={conversation} state={state} pending={pending} tools={tools} finishedCalls={finishedCalls} onPrevious={previous} sent={sent} onJump={jump} />
       {variant !== 'compact' && <SelectionComment
         conversationId={id}
         container={list}
