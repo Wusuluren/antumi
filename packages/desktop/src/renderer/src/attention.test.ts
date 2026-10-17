@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Conversation, ScheduledRun, Task } from '@antumi/protocol'
-import { actionableItems, attentionCount, noticesBetween, quickApproval, type Snapshot } from './attention'
+import { actionableItems, attentionCount, noticesBetween, quickApproval, tasksWaitingOnUser, type Snapshot } from './attention'
 
 const conversation = (id: string, patch: Partial<Conversation> = {}): Conversation => ({
   id,
@@ -210,6 +210,17 @@ describe('actionableItems', () => {
     expect(actionableItems({ ...s, schedules: [{ ...run, status: 'cancelled' }] })[0]?.reasons).toEqual(['reply'])
     expect(actionableItems({ ...s, schedules: [{ ...run, status: 'failed' }] })[0]?.reasons).toEqual(['reply'])
     expect(actionableItems({ ...s, conversations: { a: { ...c, chat: { turn: 'awaiting' } } } })[0]?.reasons).toEqual(['awaiting'])
+  })
+})
+
+describe('tasksWaitingOnUser', () => {
+  it('counts the tasks held up on the user, not the ones at work or only to look over', () => {
+    const s = snapshot(
+      [conversation('asks', { taskId: 'a', chat: { turn: 'awaiting' } }), conversation('works', { taskId: 'b', chat: { turn: 'running' } }), conversation('done', { taskId: 'c' })],
+      [task('a', { conversationId: 'asks' }), task('b', { conversationId: 'works' }), task('c', { status: 'review', conversationId: 'done' }), task('d', { status: 'review', conversationId: null, awaitingInput: true })]
+    )
+    expect(tasksWaitingOnUser(actionableItems(s))).toBe(2)
+    expect(tasksWaitingOnUser(actionableItems(snapshot([], [task('c', { status: 'review' })])))).toBe(0)
   })
 })
 

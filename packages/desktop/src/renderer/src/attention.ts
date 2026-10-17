@@ -125,6 +125,13 @@ export function actionableItems(s: Pick<Snapshot, 'tasks' | 'conversations' | 's
   )
 }
 
+// The tasks the user must act on for work to go on: an agent asking or waiting for a reply, or one
+// that stopped. A task waiting only to be looked over is not, nor is one at work; a squad's task
+// with several members asking counts once.
+export function tasksWaitingOnUser(items: readonly ActionableItem[]): number {
+  return new Set(items.filter((item) => item.target.kind === 'task' && item.reasons.some((reason) => reason !== 'review')).map((item) => targetKey(item.target))).size
+}
+
 // How many things wait on the user: an agent asking, a turn that finished while they were
 // elsewhere, a task's agent done with its turn, and a routine's runs not yet looked at. A task's
 // chat is counted once; a routine's conversation counts through the routine, which keeps the

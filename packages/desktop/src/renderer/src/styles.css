@@ -8786,7 +8786,6 @@ body.side-panel-resizing * {
 .sidebar-tasks-entry { position: relative; display: flex; }
 .sidebar-tasks-entry .inbox-entry { margin: 0 8px; padding-right: 40px; }
 .sidebar-tasks-add { position: absolute; top: 50%; right: 14px; transform: translateY(-50%); }
-.sidebar-tasks-counts { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--text-muted); white-space: nowrap; }
 
 /* The card of waiting requests, alone in its own window at the top of the screen (main's
    request-popup.ts). The window is clear: the card draws its edge and shadow inside a margin, and
