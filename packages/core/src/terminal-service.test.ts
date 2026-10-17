@@ -121,6 +121,22 @@ describe('TerminalService', () => {
     expect(service.list()).toEqual([])
   })
 
+  it('runs a project command with its own title and environment, and says when it ends', async () => {
+    const run = await service.run('conv-1', root, 'pnpm install', { title: 'setup · app', env: { ANTUMI_ROOT_PATH: '/code/app' }, purpose: 'setup' })
+    expect(run).toMatchObject({ title: 'setup · app', purpose: 'setup' })
+    expect(daemon.spawns[0]?.env).toMatchObject({ ANTUMI_ROOT_PATH: '/code/app' })
+    const ended = service.waitForExit(run.id)
+    service.handleExit(run.sessionId, 1)
+    expect(await ended).toBe(1)
+    expect(await service.waitForExit(run.id)).toBe(1)
+
+    // A tab closed while its command runs ends the wait too.
+    const closed = await service.run('conv-1', root, 'pnpm test', { purpose: 'check' })
+    const waiting = service.waitForExit(closed.id)
+    await service.kill(closed.id)
+    expect(await waiting).toBeNull()
+  })
+
   it('lets a conversation reach only the terminals it opened', async () => {
     const mine = await service.run('conv-1', root, 'pnpm dev')
     const shell = await service.open(root)

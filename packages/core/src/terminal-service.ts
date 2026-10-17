@@ -38,12 +38,18 @@ export function plainOutput(raw: string): string {
 
 const DEFAULT_TAIL = 8000
 
-type Row = { id: string; sessionId: string; cwd: string; title: string; createdAt: number; conversationId: string | null; command: string | null; exited: number; exitCode: number | null }
+type Row = { id: string; sessionId: string; cwd: string; title: string; createdAt: number; conversationId: string | null; command: string | null; exited: number; exitCode: number | null; purpose: TerminalPurpose | null }
+
+type TerminalPurpose = NonNullable<Terminal['purpose']>
+
+// A command Antumi runs for a project rather than for the agent: its own tab title and environment.
+export type RunOptions = { title?: string; env?: Record<string, string>; purpose?: TerminalPurpose }
 
 // Rows live in `terminals`, which TaskStore's migrations create. They outlive a core restart
 // because the daemon keeps the shells running; reconcile drops the ones it no longer has.
 export class TerminalService {
   private readonly db: DatabaseSync
+  private readonly exits = new Map<string, ((exitCode: number | null) => void)[]>()
 
   constructor(
     file: string,
@@ -67,11 +73,11 @@ export class TerminalService {
   private rows(): Row[] {
     const rows: unknown[] = this.db
       .prepare(`SELECT id, session_id AS sessionId, cwd, title, created_at AS createdAt, conversation_id AS conversationId,
-        command, exited, exit_code AS exitCode FROM terminals ORDER BY created_at`)
+        command, exited, exit_code AS exitCode, purpose FROM terminals ORDER BY created_at`)
       .all()
     return rows.flatMap((row) => {
       const parsed = Terminal.extend({ exited: Terminal.shape.createdAt }).safeParse(row)
-      return parsed.success ? [{ ...parsed.data, conversationId: parsed.data.conversationId ?? null, command: parsed.data.command ?? null, exitCode: parsed.data.exitCode ?? null }] : []
+      return parsed.success ? [{ ...parsed.data, conversationId: parsed.data.conversationId ?? null, command: parsed.data.command ?? null, exitCode: parsed.data.exitCode ?? null, purpose: parsed.data.purpose ?? null }] : []
     })
   }
 
@@ -103,16 +109,35 @@ export class TerminalService {
   }
 
   // An agent's command in a tab of its own, in the folder it asked for (else the conversation's).
-  async run(conversationId: string, cwd: string, command: string): Promise<Terminal> {
+  async run(conversationId: string, cwd: string, command: string, options: RunOptions = {}): Promise<Terminal> {
     const folder = path.isAbsolute(cwd) && (await stat(cwd).catch(() => null))?.isDirectory() ? cwd : os.homedir()
     const shell = commandShell(command)
-    const { sessionId } = await this.daemon.request('spawn', { command: shell.command, args: shell.args, cwd: folder, env: terminalEnv(), cols: 120, rows: 32 })
-    const title = command.length > 60 ? `${command.slice(0, 59)}…` : command
-    const terminal = { id: randomUUID(), sessionId, cwd: folder, title, createdAt: this.now(), conversationId, command }
-    this.db.prepare('INSERT INTO terminals (id, session_id, cwd, title, created_at, conversation_id, command) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(terminal.id, terminal.sessionId, terminal.cwd, terminal.title, terminal.createdAt, conversationId, command)
+    const { sessionId } = await this.daemon.request('spawn', { command: shell.command, args: shell.args, cwd: folder, env: { ...terminalEnv(), ...options.env }, cols: 120, rows: 32 })
+    const title = options.title ?? (command.length > 60 ? `${command.slice(0, 59)}…` : command)
+    const purpose = options.purpose ?? null
+    const terminal = { id: randomUUID(), sessionId, cwd: folder, title, createdAt: this.now(), conversationId, command, purpose }
+    this.db.prepare('INSERT INTO terminals (id, session_id, cwd, title, created_at, conversation_id, command, purpose) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(terminal.id, terminal.sessionId, terminal.cwd, terminal.title, terminal.createdAt, conversationId, command, purpose)
     this.changed()
-    return { ...terminal, exited: false, exitCode: null }
+    // A command that fails at once can end before the spawn reply reaches core.
+    const attached = await this.daemon.request('attach', { sessionId }).catch(() => null)
+    if (attached?.exited) this.handleExit(sessionId, attached.exitCode)
+    return this.list().find((each) => each.id === terminal.id) ?? { ...terminal, exited: false, exitCode: null }
+  }
+
+  // Resolves with the exit code once the command ends, however it does: by itself, stopped from
+  // the panel, or its tab closed (null).
+  waitForExit(id: string): Promise<number | null> {
+    const row = this.rows().find((each) => each.id === id)
+    if (!row) return Promise.resolve(null)
+    if (row.exited === 1) return Promise.resolve(row.exitCode)
+    return new Promise((resolve) => this.exits.set(row.sessionId, [...(this.exits.get(row.sessionId) ?? []), resolve]))
+  }
+
+  private settle(sessionId: string, exitCode: number | null): void {
+    const waiting = this.exits.get(sessionId)
+    this.exits.delete(sessionId)
+    for (const resolve of waiting ?? []) resolve(exitCode)
   }
 
   // A user-started installer is a finite command, retained just like an agent's command.
@@ -181,8 +206,10 @@ export class TerminalService {
     const row = this.rows().find((each) => each.sessionId === sessionId)
     if (!row) return
     if (row.command === null) return this.remove(sessionId)
+    if (row.exited === 1) return
     this.db.prepare('UPDATE terminals SET exited = 1, exit_code = ? WHERE session_id = ?').run(exitCode, sessionId)
     this.changed()
+    this.settle(sessionId, exitCode)
   }
 
   // Finished commands stay while the daemon still holds their output.
@@ -197,6 +224,7 @@ export class TerminalService {
 
   private remove(sessionId: string): void {
     if (this.db.prepare('DELETE FROM terminals WHERE session_id = ?').run(sessionId).changes > 0) this.changed()
+    this.settle(sessionId, null)
   }
 
   private changed(): void {

@@ -1,3 +1,4 @@
+import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import {
   agentDescriptor,
@@ -48,6 +49,8 @@ import { needsSlug } from './branch-slug'
 import { Rejection } from './rejection'
 import { fileDiff, repoChanges } from './task-changes'
 import type { TaskPatch, TaskStore } from './task-store'
+import type { TrustedSetup } from './project-config'
+import type { WorktreeSetup } from './worktree-setup'
 import { normalizeRepoPath, prepareRefineWorkspace, prepareWorkspace, projectHead, removePlanningCheckouts, restartBranches, startOptions, withKnownWorktrees } from './workspace'
 
 export type TaskEvent = { type: 'changed'; task: Task } | { type: 'deleted'; id: string }
@@ -79,6 +82,9 @@ export class TaskService {
   private readonly launching = new Set<string>()
   private gitGuard: ((dirs: readonly string[]) => Promise<void>) | null = null
   setGitGuard(guard: (dirs: readonly string[]) => Promise<void>): void { this.gitGuard = guard }
+  private setup: Pick<WorktreeSetup, 'requireTrusted' | 'setUp' | 'check'> | null = null
+  private readonly checking = new Set<string>()
+  setWorktreeSetup(setup: Pick<WorktreeSetup, 'requireTrusted' | 'setUp' | 'check'>): void { this.setup = setup }
   private namer: BranchNamer | null = null
   private readonly naming = new Map<string, Promise<void>>()
   setBranchNamer(namer: BranchNamer): void { this.namer = namer }
@@ -457,6 +463,7 @@ export class TaskService {
         await chats.send(conversation.id, chatPlanPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt), imageIds)
         return this.changed(this.get(task.id))
       }
+      const setups = await this.trustedSetups(task)
       // The worktrees are kept before the agent starts, so a failed start is retried in the same trees.
       const workspace = await prepareWorkspace(await this.withSlug(task), dependencies, this.worktreesRoot)
       this.store.update(task.id, { repos: workspace.repos })
@@ -470,11 +477,13 @@ export class TaskService {
       // The planning agent stopped for the new stage, so nothing reads there any more.
       await removePlanningCheckouts(task.id, this.worktreesRoot)
       this.save(task.id, { status: 'running', awaitingInput: false })
+      // The agent waits for setup, so its first message finds the worktrees ready.
+      const failures = await this.setUp(conversation.id, workspace, setups)
       if (!(coordinator && resume)) {
         const prompt = coordinator
           ? leaderStartPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, task.plan, coordinator)
           : chatStartPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, task.plan, unattended !== undefined, permissionMode)
-        await chats.send(conversation.id, prompt, imageIds)
+        await chats.send(conversation.id, [prompt, projectNote(setups, failures)].filter(Boolean).join('\n\n'), imageIds)
       }
       return this.changed(this.get(task.id))
     })
@@ -533,16 +542,65 @@ export class TaskService {
         })
         return kept()
       }
+      const setups = await this.trustedSetups(task)
       const workspace = await prepareWorkspace(await this.withSlug(task), dependencies, this.worktreesRoot)
       this.store.update(task.id, { repos: workspace.repos })
-      await chats.startForTask({ id: task.id, title: task.title, agent }, {
+      const conversation = await chats.startForTask({ id: task.id, title: task.title, agent }, {
         cwd: workspace.cwd, extraDirs: workspace.extraDirs, planOnly: false, session: 'resume', readable: images.readable, allowBypass, handoffNote, ...choice
       })
+      // A worktree the user removed comes back without what setup put there; a failure shows in its tab.
+      await this.setUp(conversation.id, workspace, setups)
       return task.status === 'running' ? kept() : this.changed(this.save(task.id, { agent, status: 'running', awaitingInput: false }))
     })
   }
 
-  // A chat task is handed in for review by the user: its agent does not end with the work.
+  // Handed in by the user, the task goes for review only once each project's check passes; a check
+  // that fails goes back to the agent to fix, and the task keeps running.
+  async submitChecked(id: string): Promise<Task> {
+    const task = this.get(id)
+    const blocker = checkSubmit(task, this.turnOf(task))
+    if (blocker) throw new Rejection(blocker)
+    if (this.squads?.busy(task.id)) throw new Rejection('squad-busy')
+    const { conversationId } = task
+    if (!this.setup || !conversationId) return this.submit(id)
+    if (this.checking.has(task.id)) throw new Rejection('check-running')
+    this.checking.add(task.id)
+    try {
+      const failures = await this.setup.check(conversationId, task.repos.map((repo) => ({ path: repo.path, dir: repo.worktreePath ?? repo.path })))
+      // The user may have gone on with the agent while it ran.
+      const now = this.get(id)
+      const after = checkSubmit(now, this.turnOf(now))
+      if (after) throw new Rejection(after)
+      if (failures?.length) {
+        await this.requireChats().send(conversationId, checkFailedPrompt(failures))
+        throw new Rejection('check-failed')
+      }
+    } finally {
+      this.checking.delete(task.id)
+    }
+    return this.submit(id)
+  }
+
+  private turnOf(task: Task) {
+    return task.conversationId ? (this.requireChats().get(task.conversationId).chat?.turn ?? null) : null
+  }
+
+  // The config of each project whose worktree this start lays out, refused before anything is laid
+  // out when the user has yet to trust its commands; going on in worktrees already there asks nothing.
+  private async trustedSetups(task: Task): Promise<TrustedSetup[]> {
+    if (!this.setup) return []
+    const laidOut = await Promise.all(task.repos.map(async (repo) => repo.worktreePath !== null && (await stat(repo.worktreePath).catch(() => null))?.isDirectory() === true))
+    return this.setup.requireTrusted(task.repos.filter((_, index) => !laidOut[index]).map((repo) => repo.path))
+  }
+
+  private async setUp(conversationId: string, workspace: { entries: readonly { topLevel: string | null; dir: string; created: boolean }[] }, setups: readonly TrustedSetup[]): Promise<string[]> {
+    if (!this.setup || setups.length === 0) return []
+    const made = workspace.entries.flatMap(({ topLevel, dir, created }) => (created && topLevel ? [{ topLevel, dir }] : []))
+    return made.length ? this.setup.setUp(conversationId, made, setups) : []
+  }
+
+  // A chat task is handed in for review by the user: its agent does not end with the work. A squad
+  // hands its task in this way, without the projects' check.
   submit(id: string): Task {
     const task = this.get(id)
     const turn = task.conversationId ? (this.requireChats().get(task.conversationId).chat?.turn ?? null) : null
@@ -591,7 +649,7 @@ export class TaskService {
 
   async squadContext(id: string): Promise<{ text: string; readable: string[] }> {
     const task = this.get(id)
-    const entries = task.repos.map((repo) => ({ name: path.basename(repo.path), source: repo.path, dir: repo.worktreePath ?? repo.path, branch: repo.branch, base: null, startRef: repo.startRef, start: repo.start }))
+    const entries = task.repos.map((repo) => ({ name: path.basename(repo.path), source: repo.path, dir: repo.worktreePath ?? repo.path, branch: repo.branch, base: null, startRef: repo.startRef, start: repo.start, topLevel: null, created: false }))
     const cwd = entries[0]?.dir
     if (!cwd) throw new Rejection('missing-repo')
     const images = await this.images(task)
@@ -638,6 +696,7 @@ export class TaskService {
     const conversation = task.conversationId ? this.requireChats().get(task.conversationId) : null
     if (!conversation) throw new Rejection('no-chat')
     return this.launchChat(task, async () => {
+      const setups = await this.trustedSetups(task)
       const workspace = await prepareWorkspace(task, dependencies, this.worktreesRoot)
       this.store.update(task.id, { repos: workspace.repos })
       const images = await this.images(task)
@@ -645,6 +704,7 @@ export class TaskService {
         cwd: workspace.cwd, extraDirs: workspace.extraDirs, planOnly: false, readable: images.readable,
         workspaceReadOnly: true, session: 'resume', allowBypass: false
       })
+      await this.setUp(conversation.id, workspace, setups)
       return task.status === 'running' ? this.get(id) : this.changed(this.save(task.id, { status: 'running', awaitingInput: false }))
     })
   }
@@ -750,4 +810,18 @@ export class TaskService {
     }
     return after
   }
+}
+
+// What the agent's first message says of the projects' own commands: that check runs before review,
+// and any setup that failed.
+function projectNote(setups: readonly TrustedSetup[], failures: readonly string[]): string {
+  const checks = [...new Set(setups.flatMap((setup) => (setup.config.check ? [setup.config.check] : [])))]
+  return [
+    checks.length ? `提交验收时 Antumi 会运行项目配置的检查：${checks.map((check) => `\`${check}\``).join('、')}，没通过就退回给你修复。交付前先自己运行一遍。` : null,
+    ...failures.map((failure) => `工作区准备（项目配置的 setup）没有成功，需要的话先处理：${failure}`)
+  ].filter(Boolean).join('\n\n')
+}
+
+function checkFailedPrompt(failures: readonly string[]): string {
+  return `提交验收前运行项目配置的检查，没有通过，任务没有提交：\n\n${failures.join('\n\n')}\n\n请修复后告诉我，我会再提交。`
 }

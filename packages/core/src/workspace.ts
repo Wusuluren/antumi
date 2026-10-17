@@ -20,6 +20,10 @@ export type WorkspaceEntry = {
   base: string | null
   startRef: string | null
   start: TaskStart | null
+  // The repo's top level, for a git repo; and whether this start laid its worktree out, which is
+  // when a project's setup runs.
+  topLevel: string | null
+  created: boolean
 }
 
 export type Workspace = { cwd: string; extraDirs: string[]; multi: boolean; entries: WorkspaceEntry[]; repos: TaskRepo[] }
@@ -62,7 +66,7 @@ async function isDirectory(dir: string): Promise<boolean> {
   }
 }
 
-async function gitTopLevel(dir: string): Promise<string | null> {
+export async function gitTopLevel(dir: string): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync('git', ['-C', dir, 'rev-parse', '--show-toplevel'])
     return path.normalize(stdout.trim())
@@ -199,18 +203,19 @@ export async function prepareWorkspace(
     const name = repo.worktreePath ? path.basename(repo.worktreePath) : uniqueName(path.basename(topLevel ?? repo.path), taken)
     const { startRef } = repo
     if (repo.worktreePath && (await isDirectory(repo.worktreePath))) {
-      entries.push({ name, source: repo.path, dir: repo.worktreePath, branch: repo.branch, base: null, startRef, start: repo.start })
+      entries.push({ name, source: repo.path, dir: repo.worktreePath, branch: repo.branch, base: null, startRef, start: repo.start, topLevel, created: false })
     } else if (!topLevel) {
-      entries.push({ name, source: repo.path, dir: repo.path, branch: null, base: null, startRef, start: null })
+      entries.push({ name, source: repo.path, dir: repo.path, branch: null, base: null, startRef, start: null, topLevel, created: false })
     } else {
       // A start the task picked wins over a dependency's branch.
       const base = startRef === null ? onlyBranch(stackable, topLevel) : null
       const worktreePath = repo.worktreePath ?? path.join(taskDir, name)
       const repoBranch = repo.branch ?? branch
       let start = repo.start
+      const created = !(await isDirectory(worktreePath))
       // A leftover from a run that failed part-way is picked up as is, and a branch left by an
       // earlier, since-removed worktree is checked out again rather than recreated.
-      if (!(await isDirectory(worktreePath))) {
+      if (created) {
         if (await branchExists(topLevel, repoBranch)) {
           await addWorktree(topLevel, worktreePath, [worktreePath, repoBranch])
         } else {
@@ -220,7 +225,7 @@ export async function prepareWorkspace(
           start = resolved.start
         }
       }
-      entries.push({ name, source: repo.path, dir: worktreePath, branch: repoBranch, base, startRef, start })
+      entries.push({ name, source: repo.path, dir: worktreePath, branch: repoBranch, base, startRef, start, topLevel, created })
     }
   }
 
@@ -251,7 +256,9 @@ export async function prepareWorkspace(
 // stay behind in the project. A start tried again with the same id finds what it laid out.
 // primaryStart: the commit the first project's branch starts from, where the user picked one;
 // every other one starts from its project's HEAD.
-export async function prepareConversationWorktrees(conversationId: string, projects: readonly string[], worktreesRoot: string, primaryStart?: string): Promise<string[]> {
+export type ConversationWorktree = { dir: string; topLevel: string; created: boolean }
+
+export async function prepareConversationWorktrees(conversationId: string, projects: readonly string[], worktreesRoot: string, primaryStart?: string): Promise<ConversationWorktree[]> {
   const shortId = shortTaskId(conversationId)
   const branch = `antumi/${shortId}`
   const topLevels: string[] = []
@@ -262,19 +269,19 @@ export async function prepareConversationWorktrees(conversationId: string, proje
     topLevels.push(topLevel)
   }
   const taken = new Set<string>()
-  const made: { topLevel: string; dir: string; branched: boolean }[] = []
+  const made: { topLevel: string; dir: string; branched: boolean; created: boolean }[] = []
   try {
     for (const topLevel of topLevels) {
       const dir = path.join(worktreesRoot, shortId, uniqueName(path.basename(topLevel), taken))
       if (await isDirectory(dir)) {
-        made.push({ topLevel, dir, branched: false })
+        made.push({ topLevel, dir, branched: false, created: false })
         continue
       }
       const branched = !(await branchExists(topLevel, branch))
       // --no-track: the branch is the conversation's own, not a copy of the one it started from.
       const base = topLevel === topLevels[0] && primaryStart ? primaryStart : 'HEAD'
       await addWorktree(topLevel, dir, branched ? ['--quiet', '--no-track', '-b', branch, dir, base] : ['--quiet', dir, branch])
-      made.push({ topLevel, dir, branched })
+      made.push({ topLevel, dir, branched, created: true })
     }
   } catch (error) {
     // What this start laid out holds nothing yet, and goes without force; a leftover it picked up stays.
@@ -286,7 +293,7 @@ export async function prepareConversationWorktrees(conversationId: string, proje
     await rmdir(path.join(worktreesRoot, shortId)).catch(() => {})
     throw error
   }
-  return made.map(({ dir }) => dir)
+  return made.map(({ dir, topLevel, created }) => ({ dir, topLevel, created }))
 }
 
 async function worktreeOutput(dir: string, args: readonly string[]): Promise<string> {

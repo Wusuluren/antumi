@@ -22,6 +22,7 @@ import type { ConversationService } from './conversation-service'
 import type { TerminalCommandStore } from './terminal-commands'
 import type { ChatCommandStore } from './chat-commands'
 import type { TerminalService } from './terminal-service'
+import type { ProjectConfigStore } from './project-config'
 import type { WorktreeService } from './worktree-service'
 import type { ComputerAwakeService } from './computer-awake-service'
 import type { ChatSettingsStore } from './chat-settings'
@@ -75,9 +76,14 @@ export function createRpcHandlers(
   plugins?: PluginService,
   skills?: SkillsLibrary,
   mcpServers?: McpServerStore,
-  smallModels?: SmallModelStore
+  smallModels?: SmallModelStore,
+  projectConfigs?: ProjectConfigStore
 ): RpcHandlers {
   const git = new GitService(service, conversations, gitChanged)
+  const requireProjectConfigs = (): ProjectConfigStore => {
+    if (!projectConfigs) throw new Rejection('project-config-unavailable')
+    return projectConfigs
+  }
   conversations.setGitGuard((dirs) => git.guardAgent(dirs))
   service.setGitGuard((dirs) => git.guardAgent(dirs))
   conversations.setGitPreparation((dirs, run) => git.withRepositories(dirs, run))
@@ -243,7 +249,7 @@ export function createRpcHandlers(
       const { conversationId } = service.get(id)
       return conversationId ? userActed(conversationId, () => service.resumeChat(id, allowBypass)) : service.resumeChat(id, allowBypass)
     },
-    'tasks.submit': ({ id }) => service.submit(id),
+    'tasks.submit': ({ id }) => service.submitChecked(id),
     'tasks.handoff': ({ id, agent, note, allowBypass, model, effort }) => service.handoff(id, agent, note, allowBypass, { model, effort }),
     'tasks.savePlan': ({ id, stageId, requestId }) => service.savePlan(id, stageId, requestId),
     'tasks.delete': async ({ id }) => {
@@ -447,6 +453,11 @@ export function createRpcHandlers(
     'projects.searchFiles': ({ roots, query }) => searchFiles(roots, query),
     'projects.forget': ({ path }) => {
       projects.forget(path)
+      return OK
+    },
+    'projects.config': ({ path }) => requireProjectConfigs().info(path),
+    'projects.trustConfig': async ({ path, hash }) => {
+      await requireProjectConfigs().trust(path, hash)
       return OK
     },
     'repos.recent': () => projects.recent(),

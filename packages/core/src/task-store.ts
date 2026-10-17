@@ -313,7 +313,9 @@ export const MIGRATIONS = [
    ALTER TABLE conversations ADD COLUMN title_rounds INTEGER NOT NULL DEFAULT 0;
    UPDATE conversations SET title_sequence = COALESCE((SELECT MAX(sequence) FROM conversation_messages
      WHERE conversation_id = conversations.id AND role = 'assistant' AND complete = 1), 0);
-   UPDATE conversations SET title_rounds = 1 WHERE title_sequence > 0;`
+   UPDATE conversations SET title_rounds = 1 WHERE title_sequence > 0;`,
+  // A project's setup or check run in a worktree (Terminal.purpose), rather than an agent's command.
+  `ALTER TABLE terminals ADD COLUMN purpose TEXT;`
 ]
 
 

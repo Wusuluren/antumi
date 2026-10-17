@@ -89,6 +89,15 @@ describe('prepareWorkspace', () => {
   const task = (repoPath: string) => ({ id: '76b8c0de-0000-4000-8000-000000000000', title: 'Fix login', repos: [{ path: repoPath, worktreePath: null, branch: null, startRef: null, start: null }], source: null })
   const registered = (dir: string) => git(dir, 'worktree', 'list', '--porcelain')
 
+  it('says which start laid a worktree out, for setup to run there once', async () => {
+    const source = repo()
+    const root = tempDir()
+    const first = await prepareWorkspace(task(source), [], root)
+    expect(first.entries[0]).toMatchObject({ created: true, topLevel: path.normalize(git(source, 'rev-parse', '--show-toplevel')) })
+    const again = await prepareWorkspace({ ...task(source), repos: first.repos }, [], root)
+    expect(again.entries[0]?.created).toBe(false)
+  })
+
   it('lays out again, on its branch, a worktree whose folder was deleted by hand', async () => {
     const source = repo()
     const root = tempDir()

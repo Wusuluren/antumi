@@ -1,10 +1,11 @@
 import { execFileSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import type { Task } from '@antumi/protocol'
+import type { Task, Terminal } from '@antumi/protocol'
 import { AgentRunStore } from './agent-run-store'
 import { AttachmentStore } from './attachment-store'
 import { ConversationService } from './conversation-service'
@@ -14,6 +15,8 @@ import { gifBytes, pngBytes } from './image-fixtures'
 import { ProjectRegistry } from './project-registry'
 import { TaskService, type TaskEvent } from './task-service'
 import { TaskStore } from './task-store'
+import { ProjectConfigStore } from './project-config'
+import { WorktreeSetup } from './worktree-setup'
 
 // A message to a Claude chat agent: its text, after any images as blocks of their own.
 const UserMessage = z.object({
@@ -998,5 +1001,63 @@ describe('TaskService', () => {
     await service.delete(task.id)
     expect(() => conversations.get(started.conversationId ?? '')).toThrow(expect.objectContaining({ reason: 'conversation-not-found' }))
     expect(existsSync(started.repos[0]?.worktreePath ?? '')).toBe(true)
+  })
+
+  describe('with a project config', () => {
+    // Runs nothing: setup and check end with the codes the test sets.
+    function projectTerminals() {
+      const ran: { cwd: string; command: string; purpose: string | undefined }[] = []
+      const codes: Record<string, number> = {}
+      const commands = new Map<string, string>()
+      return {
+        ran,
+        codes,
+        run: async (conversationId: string, cwd: string, command: string, options: { purpose?: 'setup' | 'check' } = {}): Promise<Terminal> => {
+          ran.push({ cwd, command, purpose: options.purpose })
+          const id = randomUUID()
+          commands.set(id, command)
+          return { id, sessionId: command, cwd, title: command, createdAt: 0, conversationId, command }
+        },
+        waitForExit: async (id: string) => codes[commands.get(id) ?? ''] ?? 0,
+        read: async (_: string, id: string) => ({ id, command: '', output: 'test failed: login.spec', truncated: false, running: false, exitCode: 1 })
+      }
+    }
+
+    function configured(name: string): string {
+      const repo = initRepo(name)
+      mkdirSync(path.join(repo, '.antumi'))
+      writeFileSync(path.join(repo, '.antumi', 'project.json'), JSON.stringify({ copy: ['.env'], setup: 'pnpm install', check: 'pnpm test' }))
+      writeFileSync(path.join(repo, '.env'), 'TOKEN=1')
+      return repo
+    }
+
+    it('asks for trust first, sets the worktree up before the agent hears of it, and checks before review', async () => {
+      const configs = new ProjectConfigStore(path.join(dir, 'project-trust.json'))
+      const terminals = projectTerminals()
+      service.setWorktreeSetup(new WorktreeSetup(configs, terminals))
+      const repo = configured('app')
+      const task = readyTask('Set up', [repo])
+
+      await expect(service.start(task.id)).rejects.toMatchObject({ reason: 'project-config-untrusted' })
+      expect(service.get(task.id).repos[0]?.worktreePath).toBeNull()
+      await configs.trust(repo, (await configs.info(repo))?.hash ?? '')
+
+      await service.start(task.id)
+      await settle()
+      const worktree = service.get(task.id).repos[0]?.worktreePath ?? ''
+      expect(readFileSync(path.join(worktree, '.env'), 'utf8')).toBe('TOKEN=1')
+      expect(terminals.ran).toEqual([{ cwd: worktree, command: 'pnpm install', purpose: 'setup' }])
+      expect(told(task.id)).toContain('`pnpm test`')
+
+      terminals.codes['pnpm test'] = 1
+      await expect(service.submitChecked(task.id)).rejects.toMatchObject({ reason: 'check-failed' })
+      expect(service.get(task.id).status).toBe('running')
+      await settle()
+      expect(told(task.id)).toContain('test failed: login.spec')
+
+      terminals.codes['pnpm test'] = 0
+      expect((await service.submitChecked(task.id)).status).toBe('review')
+      expect(terminals.ran.filter((run) => run.purpose === 'check')).toHaveLength(2)
+    })
   })
 })

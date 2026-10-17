@@ -27,6 +27,7 @@ import type { ProjectRegistry } from './project-registry'
 import { Rejection } from './rejection'
 import type { UsageReport } from './usage-source'
 import { normalizeRepoPath, prepareConversationWorktrees, projectHead } from './workspace'
+import type { NewWorktree, WorktreeSetup } from './worktree-setup'
 import { DEFAULT_AGENT_CONCURRENCY } from './chat-settings'
 import { WireLog } from './wire-log'
 import { ConversationTitles, type TitleGenerator } from './conversation-titles'
@@ -133,6 +134,8 @@ export class ConversationService {
   isGitPending(id: string): boolean { return this.launching.has(id) || this.gitSending.has(id) }
 
   setGitGuard(guard: (dirs: readonly string[]) => Promise<void>): void { this.gitGuard = guard }
+  private worktreeSetup: Pick<WorktreeSetup, 'requireTrusted' | 'setUp'> | null = null
+  setWorktreeSetup(setup: Pick<WorktreeSetup, 'requireTrusted' | 'setUp'>): void { this.worktreeSetup = setup }
 
   async recordGitChange(id: string, project: string, branch: string, resetStart: boolean): Promise<void> {
     const conversation = this.get(id)
@@ -453,14 +456,18 @@ export class ConversationService {
     const { picked } = resolved
     const primary = resolved.projects[0]
     if (branch && !primary) throw new Rejection('missing-repo', 'a branch needs a project')
+    // Asked before anything is laid out, so a refusal leaves nothing behind.
+    const setups = worktreesRoot && this.worktreeSetup ? await this.worktreeSetup.requireTrusted(resolved.projects) : []
+    let made: NewWorktree[] = []
     // The primary's branch: in a worktree, where its branch starts (a remote one fetched first);
     // in the project itself, switched to before anything else, so a refusal makes nothing.
     const prepare = async () => {
       const primaryStart = branch && primary && worktreesRoot ? (await resolveStart(primary, branch, null, Date.now())).commit : undefined
       if (branch && primary && !worktreesRoot) await switchProjectBranch(primary, branch)
-      return worktreesRoot
-        ? await Promise.all((await prepareConversationWorktrees(id, resolved.projects, worktreesRoot, primaryStart)).map((dir) => realpath(dir)))
-        : resolved.projects
+      if (!worktreesRoot) return resolved.projects
+      const worktrees = await prepareConversationWorktrees(id, resolved.projects, worktreesRoot, primaryStart)
+      made = worktrees.flatMap(({ dir, topLevel, created }) => (created ? [{ dir, topLevel }] : []))
+      return await Promise.all(worktrees.map(({ dir }) => realpath(dir)))
     }
     const projects = this.gitPreparation && (branch || worktree)
       ? await this.gitPreparation(resolved.projects, prepare) : await prepare()
@@ -483,6 +490,11 @@ export class ConversationService {
     if (model || effort) this.store.setChatOptions(id, { [agent]: { model, effort } })
     // The paths as picked, not resolved: the same strings a task stores for them.
     this.projects.remember(picked)
+    // The agent starts once setup ends; a failure shows in its tab, with no first message to tell the agent in.
+    if (made.length && setups.length && this.worktreeSetup) {
+      this.changed(created)
+      await this.worktreeSetup.setUp(id, made, setups)
+    }
     if (start.deferStart) return this.changed(this.get(id))
     this.changed(created)
     return this.start(id, agent, '', false)

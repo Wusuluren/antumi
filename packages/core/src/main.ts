@@ -43,6 +43,8 @@ import { TerminalCommandStore } from './terminal-commands'
 import { ChatCommandStore } from './chat-commands'
 import { ShellPrompt } from './shell-prompt'
 import { TerminalService } from './terminal-service'
+import { ProjectConfigStore } from './project-config'
+import { WorktreeSetup } from './worktree-setup'
 import { WorktreeService } from './worktree-service'
 import { AwakeConfigStore } from './awake-config'
 import { ComputerAwakeService } from './computer-awake-service'
@@ -274,6 +276,10 @@ service.setSquads(squads)
 conversations.setSquadGuard((conversation) => squads.guardMember(conversation))
 
 const terminals = new TerminalService(paths.database, daemon, (list) => server?.broadcast('terminals.changed', { terminals: list }), Date.now, new ShellPrompt(path.join(paths.home, 'shell')))
+const projectConfigs = new ProjectConfigStore(paths.projectTrust)
+const worktreeSetup = new WorktreeSetup(projectConfigs, terminals)
+service.setWorktreeSetup(worktreeSetup)
+conversations.setWorktreeSetup(worktreeSetup)
 const terminalCommands = new TerminalCommandStore(paths.database, (commands) => server?.broadcast('terminalCommands.changed', { commands }))
 const chatCommands = new ChatCommandStore(paths.database, (commands) => server?.broadcast('chatCommands.changed', { commands }))
 const worktrees = new WorktreeService(paths.worktrees, service, () => server?.broadcast('worktrees.changed', {}), conversations)
@@ -364,7 +370,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()

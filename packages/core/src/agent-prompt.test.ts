@@ -7,7 +7,7 @@ const workspace: Workspace = {
   cwd: '/wt/app',
   extraDirs: [],
   multi: false,
-  entries: [{ name: 'app', source: '/code/app', dir: '/wt/app', branch: 'antumi/b-use', base: 'antumi/a-add', startRef: null, start: null }],
+  entries: [{ name: 'app', source: '/code/app', dir: '/wt/app', branch: 'antumi/b-use', base: 'antumi/a-add', startRef: null, start: null, topLevel: '/code/app', created: true }],
   repos: []
 }
 
@@ -109,7 +109,7 @@ describe('agentPrompt', () => {
   it('describes sibling worktrees from the primary repo', () => {
     const multi: Workspace = {
       ...workspace, multi: true, extraDirs: ['/wt/web'],
-      entries: [...workspace.entries, { name: 'web', source: '/code/web', dir: '/wt/web', branch: 'antumi/web', base: null, startRef: null, start: null }]
+      entries: [...workspace.entries, { name: 'web', source: '/code/web', dir: '/wt/web', branch: 'antumi/web', base: null, startRef: null, start: null, topLevel: '/code/web', created: true }]
     }
     const task = dependency()
     for (const prompt of [agentPrompt(task, multi, [])]) {
