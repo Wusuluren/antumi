@@ -4770,7 +4770,7 @@ body.side-panel-resizing * {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 10px 8px 0;
+  margin: 0 8px 4px;
   padding: 8px 12px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -4781,10 +4781,8 @@ body.side-panel-resizing * {
   cursor: pointer;
 }
 
-/* Above the lists, the dashboard's entry keeps the lists' own inset and a little air below. */
-.sidebar-dashboard { margin: 8px 8px 4px; }
-.sidebar-routines { margin: 0 8px 4px; }
-.overview-entry { margin: 8px 8px 0; gap: 8px; }
+/* The entries above the lists stand 4px apart; the first keeps a little air above. */
+.overview-entry { margin-top: 8px; gap: 8px; }
 .inbox-entry.overview-entry[aria-current='true'] { box-shadow: none; }
 
 .inbox-entry svg {
@@ -9033,7 +9031,6 @@ body.side-panel-resizing * {
 .task-executor-picker, .squad-member-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 /* 研发小队: a page like the routines', listing the squads; a squad reads as its leader, then its
    members one line each, opened in place to edit. */
-.sidebar-squads { margin: 0 8px 4px; }
 .squads-page .worktrees-header > .tool-button:first-child { margin-left: -6px; }
 .squad-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
 .squad-cards > li { display: flex; }
@@ -9258,8 +9255,6 @@ button.squad-member-main { cursor: pointer; }
   .launch-button[aria-busy='true'] svg,
   .connection[data-state='connecting'] .connection-dot,
   .tool-button[aria-busy='true'] svg,
-  .chat-assistant[data-streaming] .chat-markdown > :last-child::after,
-  .chat-reasoning-body[data-streaming]::before,
   .chat-tool-icon[data-status='running'] *,
   .chat-spinner,
   .chat-subagents-wires path[data-status='running'],
@@ -9270,10 +9265,17 @@ button.squad-member-main { cursor: pointer; }
   .chat-working-line,
   .chat-working-ask,
   .chat-sheen,
-  .chat-input-card[data-working]::before,
-  .chat-turn-head-icon[data-live]::before,
   .chat-browser-activity[data-status='running'] *,
   .dashboard-refresh[data-loading] svg,
   .discussion-dot[data-tone='awaiting'],
   .discussion-typing i
 ) { animation-play-state: paused; }
+/* A pseudo-element cannot stand inside :is(): the list is forgiving and drops what it cannot
+   parse without a word, which left both halos turning through a rest. They get their own rule. */
+:root[data-resting] .chat-assistant[data-streaming] .chat-markdown > :last-child::after,
+:root[data-resting] .chat-reasoning-body[data-streaming]::before,
+:root[data-resting] .chat-input-card[data-working]::before,
+:root[data-resting] .chat-turn-head-icon[data-live]::before { animation-play-state: paused; }
+/* The ant is half of everything moving while a turn runs. It rests offscreen and in a hidden
+   window already (AntMotion), but an unfocused window on another screen kept it walking. */
+:root[data-resting] .ant-stage * { animation-play-state: paused; }
