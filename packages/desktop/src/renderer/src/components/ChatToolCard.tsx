@@ -42,10 +42,13 @@ export function clipped(text: string): string {
 // How long a call has run so far, ticking beside its spinner; gone once it finishes.
 function ToolTimer({ since }: { since: number }) {
   const [now, setNow] = useState(() => Date.now())
+  // The reading carries tenths for its first minute and whole seconds past it, so a long call
+  // redraws once a second instead of ten times: the same text, nine times fewer renders.
+  const step = now - since < 60_000 ? 100 : 1000
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 100)
+    const timer = setInterval(() => setNow(Date.now()), step)
     return () => clearInterval(timer)
-  }, [])
+  }, [step])
   return <span className="chat-tool-time" aria-hidden="true">{elapsedText(Math.max(0, now - since))}</span>
 }
 
