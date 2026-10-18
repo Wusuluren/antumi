@@ -4695,6 +4695,12 @@ body.side-panel-resizing * {
 :root[data-backdrop] .workspace > .sidebar[hidden] + * { margin-left: 8px; }
 :root[data-backdrop] .utility-panel-dock { margin-bottom: 0; }
 
+.settings-resettable { display: inline-flex; align-items: center; gap: 6px; }
+/* Hidden keeps its room: the control beside it stays put as it comes and goes. */
+.settings-reset[hidden] { display: inline-grid; visibility: hidden; }
+.settings-reset { display: inline-grid; place-items: center; }
+.settings-reset svg { width: 16px; height: 16px; }
+
 .stepper {
   display: inline-flex;
   align-items: center;

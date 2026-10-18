@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react'
+import { RotateLeftIcon } from './icons'
 
 export function SettingsRow({
   label,
@@ -118,5 +119,25 @@ export function Stepper({
         +
       </button>
     </div>
+  )
+}
+
+// A control with a way back to its default beside it, shown once it is off the default; its room is
+// kept meanwhile, so the control does not shift as it comes and goes.
+export function Resettable({ changed, label, onReset, children }: { changed: boolean; label: string; onReset: () => void; children: ReactNode }) {
+  return (
+    <span className="settings-resettable">
+      <button
+        type="button"
+        className="icon-button settings-reset"
+        aria-label={`${label}恢复默认`}
+        data-tooltip="恢复默认"
+        hidden={!changed}
+        onClick={onReset}
+      >
+        <RotateLeftIcon />
+      </button>
+      {children}
+    </span>
   )
 }

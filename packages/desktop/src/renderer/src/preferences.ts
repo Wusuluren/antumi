@@ -109,6 +109,9 @@ function load(): Preferences {
   return parsed.success ? parsed.data : Preferences.parse({})
 }
 
+// What each preference is before the user changes it, for a setting's 恢复默认.
+export const DEFAULT_PREFERENCES: Preferences = Preferences.parse({})
+
 export const usePreferences = create<Preferences>()(() => load())
 
 // Another window of the app changed them (the card of waiting requests follows the main window's

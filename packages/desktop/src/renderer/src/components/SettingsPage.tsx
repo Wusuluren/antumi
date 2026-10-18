@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { AGENT_KINDS, agentDescriptor, LANGUAGE_NAMES, PROTOCOL_VERSION, quickModel, TRANSLATE_LANGUAGES, UNATTENDED_MODES, type AgentKind, type SourceDescriptor } from '@antumi/protocol'
 import packageJson from '../../../../package.json'
 import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useMcpServersSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
-import { setPreference, usePreferences } from '../preferences'
+import { DEFAULT_PREFERENCES, setPreference, usePreferences } from '../preferences'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { UNATTENDED_LABEL } from '../schedules'
 import { useInstalledAgents } from '../installed-agents'
@@ -46,7 +46,7 @@ import { checkStatusText, GIT_INSTALL_HINT } from '../environment-text'
 import { settingsSectionOf } from './SourceInboxView'
 import { SourceSettingsSection } from './SourceSettingsSection'
 import { projectName } from './ProjectPicker'
-import { Segmented, SettingsGroup, SettingsRow, Stepper, Toggle } from './SettingsControls'
+import { Resettable, Segmented, SettingsGroup, SettingsRow, Stepper, Toggle } from './SettingsControls'
 import { PalettePicker } from './PalettePicker'
 import { BackdropPicker } from './BackdropPicker'
 import { useOccludesBrowser } from '../browser-occlusion'
@@ -97,14 +97,16 @@ function AppearanceSettings() {
           label="字号"
           description="消息、过程信息和输入框的文字大小。"
           control={(labelId) => (
-            <Stepper
-              labelId={labelId}
-              value={chatFontSize}
-              min={10}
-              max={20}
-              unit="px"
-              onChange={(next) => setPreference('chatFontSize', next)}
-            />
+            <Resettable label="聊天字号" changed={chatFontSize !== DEFAULT_PREFERENCES.chatFontSize} onReset={() => setPreference('chatFontSize', DEFAULT_PREFERENCES.chatFontSize)}>
+              <Stepper
+                labelId={labelId}
+                value={chatFontSize}
+                min={10}
+                max={20}
+                unit="px"
+                onChange={(next) => setPreference('chatFontSize', next)}
+              />
+            </Resettable>
           )}
         />
         <SettingsRow
@@ -146,30 +148,34 @@ function AppearanceSettings() {
           label="终端字号"
           description="对已打开的终端立即生效。"
           control={(labelId) => (
-            <Stepper
-              labelId={labelId}
-              value={terminalFontSize}
-              min={10}
-              max={20}
-              unit="px"
-              onChange={(next) => setPreference('terminalFontSize', next)}
-            />
+            <Resettable label="终端字号" changed={terminalFontSize !== DEFAULT_PREFERENCES.terminalFontSize} onReset={() => setPreference('terminalFontSize', DEFAULT_PREFERENCES.terminalFontSize)}>
+              <Stepper
+                labelId={labelId}
+                value={terminalFontSize}
+                min={10}
+                max={20}
+                unit="px"
+                onChange={(next) => setPreference('terminalFontSize', next)}
+              />
+            </Resettable>
           )}
         />
         <SettingsRow
           label="终端行高"
           description="字体自身行高的倍数。Geist Mono 用 1.0 即可，Menlo 这类行距紧的字体可调大。"
           control={(labelId) => (
-            <Segmented
-              labelId={labelId}
-              value={String(terminalLineHeight)}
-              onChange={(next) => setPreference('terminalLineHeight', Number(next))}
-              options={[
-                { value: '1', label: '1.0' },
-                { value: '1.2', label: '1.2' },
-                { value: '1.4', label: '1.4' }
-              ]}
-            />
+            <Resettable label="终端行高" changed={terminalLineHeight !== DEFAULT_PREFERENCES.terminalLineHeight} onReset={() => setPreference('terminalLineHeight', DEFAULT_PREFERENCES.terminalLineHeight)}>
+              <Segmented
+                labelId={labelId}
+                value={String(terminalLineHeight)}
+                onChange={(next) => setPreference('terminalLineHeight', Number(next))}
+                options={[
+                  { value: '1', label: '1.0' },
+                  { value: '1.2', label: '1.2' },
+                  { value: '1.4', label: '1.4' }
+                ]}
+              />
+            </Resettable>
           )}
         />
         {colorPromptSupported && (
@@ -624,7 +630,7 @@ const SECTIONS: readonly Section[] = [
     group: '界面',
     title: '外观',
     description: '颜色、聊天页和终端的显示。',
-    keywords: ['主题', '浅色', '深色', '跟随系统', '颜色', '配色', '终端', '代码', '字号', '字体', '行高', '提示符', 'zsh', '聊天', '宽度', '全宽', '折叠', '回合', '工作了'],
+    keywords: ['主题', '浅色', '深色', '跟随系统', '颜色', '配色', '终端', '代码', '字号', '字体', '行高', '提示符', 'zsh', '聊天', '宽度', '全宽', '折叠', '回合', '工作了', '恢复默认', '默认'],
     Icon: ContrastIcon,
     Body: AppearanceSettings,
     grouped: true
