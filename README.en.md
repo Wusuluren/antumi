@@ -29,14 +29,15 @@ When you use Claude Code, Codex and Cursor together, you may run into these prob
 
 - With several conversations open, it is hard to remember who is doing what and who needs approval.
 - Switching agents means explaining the work all over again.
+- For a second opinion from another agent, you paste the question into another window and compare the answers yourself.
 - Moving between windows and checking progress takes more and more of your time.
 
 Antumi brings Claude Code, Codex and Cursor into one local workspace. Start a conversation to work through a problem, bring several agents into a group discussion, or schedule them to run later. The overview shows who is working, who needs you and what comes next.
 
 For work that needs a plan, isolated code changes and review, use the task board. Tasks run in their own worktrees, support dependencies and can be assigned to a squad. Both conversations and tasks support switching agents along the way, with the chat history and your notes passed to the next agent.
 
+- 💬 **A real group chat for agents**: Claude Code, Codex and Cursor in one conversation, each seeing what the others say, taking turns, with a chair to sum up and you free to step in. Not one agent handing out work and collecting results, but several agents talking it through.
 - 🪟 **Conversations in one place**: see progress and pending requests, with two conversations open side by side.
-- 💬 **Agents discuss together**: compare approaches in a group chat and have the chair summarise the conclusions.
 - 🗂️ **Tasks with plans and review**: execute in separate worktrees, on your own or with a squad of agents.
 - 🔁 **Hand off along the way**: pass the visible chat history and your notes to another agent.
 - ⏰ **Scheduled runs**: have agents review code, check dependencies or write reports at a set time.
@@ -62,7 +63,16 @@ Out of Claude Code quota, or want Codex to try a different angle? Pick another a
 
 ### Group chat: let the agents argue first
 
-Two to five agents and models discuss one question in rounds, each with an optional stance, optionally anonymous. Everyone answers independently in the first round and only sees others' new posts afterwards; the chair sums up at the end. @-mention one member, add people, change the topic. The summary and any answer can become a task. Members are read-only and never touch code.
+Most multi-agent tools have one agent split the work, hand it out and collect the results: the agents doing the work never see each other, and you see only the summary at the end. Antumi's group chat is different. The agents sit in **one conversation**: everyone sees what everyone says, later speakers answer the points before them, and you are in the same conversation, free to step in, ask or steer.
+
+Two to five agents and models (mix Claude Code, Codex and Cursor, or give one agent different models) discuss one question in rounds:
+
+- **Alone first, then together**: in the first round each answers on its own; after that each sees only the others' new posts and takes up the disagreements, so nobody is anchored by whoever answered first.
+- **Stances and anonymity**: give each a stance, say one for a rewrite and one for a small fix, or keep them anonymous so points are weighed, not names.
+- **A chair to close**: when the discussion ends, the chair sums up where they agree, where they differ, and what is left for you to decide.
+- **Step in any time**: @ one member for a follow-up, add members or change the topic midway; turn the summary or any answer straight into a task for an agent to carry out.
+
+Good for choosing a technology, reviewing a design, working out how to chase a bug, or a second opinion on some code: let the agents argue the trade-offs out before you decide. Members are read-only and change no code, however many rounds they go.
 
 <img src="docs/assets/discussion.png" alt="Three members discuss what storage the todo app should move to; the chair gives a conclusion and the questions left for you" width="100%" />
 
