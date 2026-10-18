@@ -4680,10 +4680,11 @@ body.side-panel-resizing * {
   --side-panel-separator-size: 12px;
   margin: 8px 8px 0 0;
   border-radius: var(--radius-lg);
-  overflow: hidden;
 }
-/* Only for a pane with no background of its own, which would otherwise show the gradient. */
-:where(:root[data-backdrop] .workspace > :not(.sidebar, .utility-panel-dock, .side-panel-separator)) { background: var(--bg); }
+/* Only for a pane with no background of its own, which would otherwise show the gradient; and
+   clipped to its corners only where it says nothing of overflow itself: a pane that scrolls itself
+   (a task's details) would stop scrolling, and scrolling clips to the corners too. */
+:where(:root[data-backdrop] .workspace > :not(.sidebar, .utility-panel-dock, .side-panel-separator)) { background: var(--bg); overflow: hidden; }
 /* Between the pane and the utility dock, the separator is the gap: as wide as the frame's margins,
    its line shown only to drag, and a wider grip than it looks. */
 :root[data-backdrop] .workspace { --side-panel-separator-size: 8px; }
