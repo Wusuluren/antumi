@@ -7,20 +7,26 @@ import { CLAUDE_MODE_NAMES } from './claude-stream'
 // Claude splits these lists on commas, so a path with one in it is left out rather than garbled.
 const usable = (paths: readonly string[]) => paths.filter((file) => !file.includes(','))
 
-// Claude may read exactly these files without asking; nothing else in the attachment folder.
+// An absolute path as Claude's permission rules match it, or null. Claude normalises a Windows path
+// to POSIX form first (C:\Users becomes /c/Users); a network path it never pre-approves anyway.
+export function claudeRulePath(file: string): string | null {
+  if (file.startsWith('/')) return file
+  const drive = /^([A-Za-z]):[\\/]/.exec(file)
+  return drive ? `/${drive[1]?.toLowerCase()}/${file.slice(3).replaceAll('\\', '/')}` : null
+}
+
 // `//` starts an absolute path in Claude's permission rules.
+const rulePaths = (paths: readonly string[]) => usable(paths).flatMap((each) => claudeRulePath(each) ?? [])
+
+// Claude may read exactly these files without asking; nothing else in the attachment folder.
 export function claudeReadRules(files: readonly string[]): string[] {
-  return usable(files)
-    .filter((file) => file.startsWith('/'))
-    .map((file) => `Read(/${file})`)
+  return rulePaths(files).map((file) => `Read(/${file})`)
 }
 
 // Claude may edit nothing under these folders, whatever mode it is switched to. Its plan drafts go
 // to ~/.claude/plans instead, so plan mode still works; an Edit rule covers every editing tool.
 export function claudeEditDenials(dirs: readonly string[]): string[] {
-  return usable(dirs)
-    .filter((dir) => dir.startsWith('/'))
-    .map((dir) => `Edit(/${dir}/**)`)
+  return rulePaths(dirs).map((dir) => `Edit(/${dir.replace(/\/$/, '')}/**)`)
 }
 
 // Read-only git lets the agent look at a dependency's branch without a prompt.
@@ -38,7 +44,7 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
   const allowed = planOnly ? 'plan' : chosen
   const wanted = allowed === 'ask' ? 'manual' : allowed ? CLAUDE_MODE_NAMES[allowed] : undefined
   const reads = [
-    ...(handoffPath ? [`Read(/${handoffPath})`] : []),
+    ...(handoffPath ? claudeReadRules([handoffPath]) : []),
     ...claudeReadRules(readable),
     // Planning around what dependencies left on their branches means reading git history.
     ...(fenced ? GIT_READ_TOOLS : []),
