@@ -1,3 +1,4 @@
+import { stripAnsi } from './ansi-text'
 import { randomUUID } from 'node:crypto'
 import { agentDescriptor, ANTUMI_REQUEST_PREFIX, isAntumiRequest, type AgentKind, type ChatImage, type ChatItem, type ChatOption, type ChatQueued, type ChatTurnActivity, type ConversationDoing, type ConversationRequest } from '@antumi/protocol'
 import type { AttachmentStore } from './attachment-store'
@@ -630,7 +631,10 @@ export class ChatHost {
   }
 
   private failureText(live: Live, failure: string): string {
-    const tail = live.stderr.trim().split('\n').slice(-5).join('\n')
+    const stderr = stripAnsi(live.stderr)
+    const explained = live.driver.explainFailure?.(stderr)
+    if (explained) return explained
+    const tail = stderr.trim().split('\n').slice(-5).join('\n')
     return tail || failure
   }
 

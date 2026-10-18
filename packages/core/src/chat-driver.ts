@@ -106,6 +106,9 @@ export interface ChatDriver {
   failure(): string | null
   // It could not start because the provider session it was to resume is gone.
   sessionLost?(): boolean
+  // What went wrong in words the user can act on, read off the agent's error output where this
+  // agent knows the failure; null leaves the output's last lines to say it.
+  explainFailure?(stderr: string): string | null
   activity(): ChatTurnActivity
   activeTurnRef?(): string | null
   providerSessionId(): string | null

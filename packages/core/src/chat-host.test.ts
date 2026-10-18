@@ -342,6 +342,19 @@ describe('ChatHost', () => {
     queueMicrotask(() => daemon.exit(sessionId, 1))
     await expect(opening).rejects.toMatchObject({ reason: 'chat-start-failed', message: expect.stringContaining('Invalid API key') })
   })
+
+  it('fails the start in plain text, without the colours the agent printed in', async () => {
+    const host = new ChatHost(daemon, root, attachments, recordingSink().sink)
+    daemon.deliver = (event) => {
+      if (event.event === 'exit') host.handleExit(event.sessionId, event.exitCode)
+    }
+    daemon.answerInit = false
+    const { sessionId } = await daemon.request('spawnPipe', { command: 'claude', args: [], cwd: '/work/repo', env: {} })
+    daemon.sessions.get(sessionId)!.stderr = '\u001b[31mERROR\u001b[0m \u001b[2mInvalid API key\u001b[0m'
+    const opening = host.open(STAGE, sessionId, 0, true)
+    queueMicrotask(() => daemon.exit(sessionId, 1))
+    await expect(opening).rejects.toMatchObject({ reason: 'chat-start-failed', message: 'ERROR Invalid API key' })
+  })
   it('shows the agent a message\'s images and keeps only their names in the log', async () => {
     const recorded = recordingSink()
     const { host, sessionId } = await started(recorded.sink)

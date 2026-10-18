@@ -698,6 +698,18 @@ describe('CodexAppServer commands', () => {
     expect(ofKind(old.items.list(), 'notice')[0]?.level).toBe('error')
   })
 
+  it('says what to do when the Codex app has the thread open', () => {
+    const resumed = new CodexAppServer('stage-1', OPTIONS)
+    resumed.due().forEach((frame) => resumed.apply({ dir: 'out', at, frame }))
+    const stderr = '\u001b[2m2026-10-18T09:12:42Z\u001b[0m \u001b[31mERROR\u001b[0m Failed to create session: thread-store conflict: thread 01a14aad already has an active writer'
+    expect(resumed.explainFailure(stderr)).toContain('Codex 应用')
+    resumed.apply({ dir: 'exit', at, code: 1, stderr })
+    const notice = ofKind(resumed.items.list(), 'notice')[0]
+    expect(notice?.text).toContain('退出它，再回来重新发送')
+    expect(notice?.text).not.toContain('\u001b')
+    expect(resumed.explainFailure('error: something else')).toBeNull()
+  })
+
   it('reads the command inside the shell wrapper Codex adds', () => {
     expect(unwrapShell("/bin/zsh -lc 'cat codex.txt'")).toBe('cat codex.txt')
     expect(unwrapShell(`bash -lc 'echo '\\''hi'\\'''`)).toBe("echo 'hi'")

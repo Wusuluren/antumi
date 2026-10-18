@@ -1,3 +1,4 @@
+import { stripAnsi } from '../../ansi-text'
 import type { ModelTokens } from '@antumi/protocol'
 import { z } from 'zod'
 import { browserToolKind, ChatPermissionMode, CODEX_IMAGE_VIEW, CONTEXT_COMPACTED, takeImageMarkers, type ChatDecision, type ChatDiff, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatQuestion, type ChatTodo, type ChatToolStatus, type ChatTurnActivity, type ChatTurnState } from '@antumi/protocol'
@@ -422,6 +423,10 @@ function replyText(questions: readonly ChatQuestion[], answers: Readonly<Record<
   if (each.length === 1 || single.size === 1) return each[0]?.answer ?? ''
   return each.filter((one) => one.answer).map((one) => `${one.question}\n→ ${one.answer}`).join('\n\n')
 }
+
+// Codex's refusal to open a thread another process is writing.
+const WRITER_CONFLICT = /already has an active writer/i
+const WRITER_CONFLICT_TEXT = '这条会话的 Codex 线程正被别处占用：Codex 应用（ChatGPT 桌面版）或另一个 codex 进程正开着它，Codex 同一时间只允许一处写入。在 Codex 应用里切到别的对话或退出它，再回来重新发送。'
 
 export class CodexAppServer implements ChatDriver {
   readonly items: ChatItems
@@ -1528,6 +1533,12 @@ export class CodexAppServer implements ChatDriver {
     this.turn = null
   }
 
+  // Codex lets one process write a thread at a time: one the Codex app (or another codex) has open
+  // cannot be resumed here until it lets go.
+  explainFailure(stderr: string): string | null {
+    return WRITER_CONFLICT.test(stderr) || WRITER_CONFLICT.test(this.startError ?? '') ? WRITER_CONFLICT_TEXT : null
+  }
+
   private ended(stderr: string, at: number): void {
     if (this.exited) return
     if (this.turn) this.endTurn('interrupted', 'Agent 已退出', null, at)
@@ -1539,10 +1550,11 @@ export class CodexAppServer implements ChatDriver {
     }
     this.antumi.cancelAll(at)
     this.exited = true
-    const tail = stderr.trim().split('\n').slice(-20).join('\n')
+    const plain = stripAnsi(stderr)
+    const tail = plain.trim().split('\n').slice(-20).join('\n')
     if (this.threadId) return
-    const unsupported = /unrecognized subcommand/i.test(stderr)
-    const reason = unsupported ? '当前 Codex 版本不支持聊天模式，请升级 Codex 或改用终端' : (this.startError ?? tail)
+    const unsupported = /unrecognized subcommand/i.test(plain)
+    const reason = unsupported ? '当前 Codex 版本不支持聊天模式，请升级 Codex 或改用终端' : (this.explainFailure(plain) ?? this.startError ?? tail)
     if (unsupported) this.startError = reason
     this.items.notice('error', `Codex 没能以聊天模式启动${reason ? `：\n${reason}` : ''}`, at)
   }
