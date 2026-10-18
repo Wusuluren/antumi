@@ -5,6 +5,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { z } from 'zod'
 import type { ResetCredit, ResetCredits, UsageWindow } from '@antumi/protocol'
+import { planLaunch } from '@antumi/protocol/node'
 import { fetchUsageJson, parseJson, type UsageReading, type UsageReport } from '../../usage-source'
 
 // The same endpoint Claude Code's /usage reads; it only accepts the OAuth token of a Claude subscription.
@@ -249,14 +250,12 @@ async function claudeCliVersion(): Promise<string> {
     return cachedVersion.version
   }
   let version = FALLBACK_CLI_VERSION
-  // On Windows the CLI is a .cmd shim, which only a shell can run; the fallback has to do there.
-  if (process.platform !== 'win32') {
-    try {
-      const { stdout } = await execFileAsync('claude', ['--version'], { timeout: VERSION_TIMEOUT_MS })
-      version = parseCliVersion(stdout) ?? FALLBACK_CLI_VERSION
-    } catch {
-      version = FALLBACK_CLI_VERSION
-    }
+  try {
+    const launch = planLaunch('claude', ['--version'], os.homedir(), process.env)
+    const { stdout } = await execFileAsync(launch.file, launch.args, { env: launch.env, timeout: VERSION_TIMEOUT_MS, windowsHide: true })
+    version = parseCliVersion(stdout) ?? FALLBACK_CLI_VERSION
+  } catch {
+    version = FALLBACK_CLI_VERSION
   }
   cachedVersion = { version, readAt: Date.now() }
   return version

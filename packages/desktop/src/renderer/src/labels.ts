@@ -106,6 +106,7 @@ const REASON_TEXT: Record<string, string> = {
   'port-process-changed': '服务已结束或端口归属发生变化，请刷新后重试',
   'port-process-protected': '这是 Agent 的进程，不能从端口面板停止',
   'command-not-found': '找不到 Agent 命令（claude 或 codex），请先安装并确认它在 PATH 里',
+  'command-needs-shell': 'Windows 上这个命令只能经由 cmd 运行，Antumi 不经过 shell 启动 Agent；请改用 npm 或 pnpm 安装，或安装原生 .exe 版本',
   'run-in-progress': '任务正在启动，请稍候',
   'task-not-found': '任务不存在',
   'session-not-found': '会话已不存在',

@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import os from 'node:os'
 import readline from 'node:readline'
 import type { McpProbe } from '@antumi/protocol'
+import { planLaunch } from '@antumi/protocol/node'
 import { McpHttpSession } from './mcp-http'
 import type { ResolvedMcpServer } from './mcp-servers'
 
@@ -17,7 +18,12 @@ type Exchange = (message: Message) => Promise<Message | null>
 // Connects to a server as an agent would, lists its tools and leaves: what the user sees before
 // handing it to agents. Never throws: what went wrong is the result.
 export async function probeMcpServer(server: ResolvedMcpServer, now: () => number = Date.now, timeoutMs = TIMEOUT_MS): Promise<McpProbe> {
-  const connection = server.transport.type === 'stdio' ? openCommand(server.transport) : openHttp(server.transport)
+  let connection: Connection
+  try {
+    connection = server.transport.type === 'stdio' ? openCommand(server.transport) : openHttp(server.transport)
+  } catch (error) {
+    return { ok: false, tools: [], error: error instanceof Error ? error.message : String(error), stderr: null, at: now() }
+  }
   const timer = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${Math.round(timeoutMs / 1000)} 秒内没有回应`)), timeoutMs).unref())
   try {
     const tools = await Promise.race([listTools(connection.exchange, connection.notify), timer])
@@ -65,7 +71,15 @@ type Connection = { exchange: Exchange; notify: (message: Message) => Promise<vo
 
 function openCommand(transport: Extract<ResolvedMcpServer['transport'], { type: 'stdio' }>): Connection {
   // Its own process group, so what npx started goes with it.
-  const child = spawn(transport.command, transport.args, { cwd: transport.cwd ?? os.homedir(), env: { ...process.env, ...transport.env }, stdio: ['pipe', 'pipe', 'pipe'], detached: process.platform !== 'win32' })
+  // npx and the like are .cmd shims on Windows, read for what they run.
+  const cwd = transport.cwd ?? os.homedir()
+  let launch
+  try {
+    launch = planLaunch(transport.command, transport.args, cwd, { ...process.env, ...transport.env })
+  } catch (error) {
+    throw new Error(`启动不了 ${transport.command}：${error instanceof Error ? error.message : String(error)}`)
+  }
+  const child = spawn(launch.file, launch.args, { cwd, env: launch.env, stdio: ['pipe', 'pipe', 'pipe'], detached: process.platform !== 'win32', windowsHide: true })
   let stderr = ''
   child.stderr.on('data', (chunk: Buffer) => { stderr = (stderr + chunk.toString()).slice(-STDERR_LIMIT) })
   const waiting = new Map<unknown, (message: Message | null) => void>()

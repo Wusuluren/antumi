@@ -4,6 +4,7 @@ import { basename, delimiter, join } from 'node:path'
 import { promisify } from 'node:util'
 import { z } from 'zod'
 import type { AgentCliInstallation, ChatCatalog } from '@antumi/protocol'
+import { launchFile } from '@antumi/protocol/node'
 import { Rejection } from '../../rejection'
 import { CursorAcp } from './cursor-acp'
 import { probeChatCatalog } from '../../chat-catalog'
@@ -14,7 +15,8 @@ const cache = new Map<string, Promise<{ version: string; compatible: boolean }>>
 const clean = (text: string) => text.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '')
 
 async function output(command: string, args: string[]): Promise<string> {
-  const result = await execute(command, args, { timeout: 10_000, maxBuffer: 128 * 1024, windowsHide: true })
+  const launch = launchFile(command, args, process.env)
+  const result = await execute(launch.file, launch.args, { env: launch.env, timeout: 10_000, maxBuffer: 128 * 1024, windowsHide: true })
   return clean(result.stdout)
 }
 

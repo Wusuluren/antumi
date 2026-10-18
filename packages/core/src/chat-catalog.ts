@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { z } from 'zod'
 import type { ChatCatalog, ChatItem } from '@antumi/protocol'
-import { createLineDecoder } from '@antumi/protocol/node'
+import { createLineDecoder, planLaunch } from '@antumi/protocol/node'
 import type { AgentCommand } from './agent-command'
 import type { ChatDriver } from './chat-driver'
 
@@ -29,10 +29,14 @@ export function catalogOf(items: readonly ChatItem[]): ChatCatalog | null {
 // not a session: nothing is sent to the model and nothing needs to outlive core, so it runs here
 // rather than in the daemon, as `claude --version` does.
 export function probeChatCatalog(driver: ChatDriver, command: AgentCommand, cwd: string): Promise<ChatCatalog | null> {
-  // On Windows the CLIs are .cmd shims, which only a shell can run.
-  if (process.platform === 'win32') return Promise.resolve(null)
   return new Promise((resolve) => {
-    const child = spawn(command.command, command.args, { cwd, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true })
+    let launch
+    try {
+      launch = planLaunch(command.command, command.args, cwd, process.env)
+    } catch {
+      return resolve(null)
+    }
+    const child = spawn(launch.file, launch.args, { cwd, env: launch.env, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true })
     const waiting = new Set<string>()
     let settled = false
     const finish = (catalog: ChatCatalog | null) => {

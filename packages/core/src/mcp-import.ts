@@ -4,7 +4,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { z } from 'zod'
 import { McpEnvKey, McpHeaderName, McpServerName, type AgentKind, type McpImportCandidate, type McpImportItem, type McpServer, type McpServerInput, type McpTransport } from '@antumi/protocol'
-import { readJsonIfExists } from '@antumi/protocol/node'
+import { planLaunch, readJsonIfExists } from '@antumi/protocol/node'
 import type { ResolvedMcpServer } from './mcp-servers'
 import { Rejection } from './rejection'
 
@@ -67,7 +67,11 @@ function fromCodex(raw: unknown, codexHome: string): FoundMcpServer | null {
   return { source: 'codex', name, transport: { type: 'http', url: transport.url, headers: transport.http_headers ?? {} }, problem: null }
 }
 
-const runCodex = () => promisify(execFile)('codex', ['mcp', 'list', '--json'], { timeout: 15_000, maxBuffer: 4 * 1024 * 1024 }).then(({ stdout }) => stdout)
+const runCodex = async () => {
+  const launch = planLaunch('codex', ['mcp', 'list', '--json'], os.homedir(), process.env)
+  const { stdout } = await promisify(execFile)(launch.file, launch.args, { env: launch.env, timeout: 15_000, maxBuffer: 4 * 1024 * 1024, windowsHide: true })
+  return stdout
+}
 
 // Every server in the three agents' own user-wide configuration. Never throws: an agent not
 // installed, or a file it cannot read, has none to offer.

@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { agentDescriptor, quickModel, type AgentKind, type ChatCatalog, type CostBaseline } from '@antumi/protocol'
+import { planLaunch } from '@antumi/protocol/node'
 import type { QuickCommand } from './agents/agent-adapter'
 import { adapterOf } from './agents'
 import { Rejection } from './rejection'
@@ -39,7 +40,6 @@ export class QuickRequests {
   private async request(agent: AgentKind, prompt: string, picked: string | undefined, tracking?: QuickTracking): Promise<{ text: string; model: string | null }> {
     const quick = adapterOf(agent).quick
     if (!quick) throw new Rejection('quick-unsupported', `${agent} takes no one-off requests`)
-    if (process.platform === 'win32') throw new Rejection('quick-unsupported', 'not on Windows yet')
     const catalog = await this.deps.catalog(agent).catch(() => null)
     // A pick the agent no longer lists has gone: its cheapest stands in. Without a catalog to tell,
     // the pick is tried as it is.
@@ -84,7 +84,13 @@ export class QuickRequests {
 
 function runQuick(command: QuickCommand, cwd: string): Promise<QuickOutput> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command.command, command.args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+    let launch
+    try {
+      launch = planLaunch(command.command, command.args, cwd, process.env)
+    } catch (error) {
+      return reject(new Rejection('quick-failed', error instanceof Error ? error.message : String(error)))
+    }
+    const child = spawn(launch.file, launch.args, { cwd, env: launch.env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
     let out = ''
     let err = ''
     const timer = setTimeout(() => {

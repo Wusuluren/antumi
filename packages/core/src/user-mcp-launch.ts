@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import readline from 'node:readline'
-import { antumiPaths } from '@antumi/protocol/node'
+import { antumiPaths, planLaunch } from '@antumi/protocol/node'
 import { CredentialStore } from './credential-store'
 import { McpHttpSession } from './mcp-http'
 import { McpServerStore, type ResolvedMcpServer } from './mcp-servers'
@@ -24,7 +24,9 @@ export async function runUserMcp(home: string, name: string): Promise<void> {
 function runCommand(transport: Extract<ResolvedMcpServer['transport'], { type: 'stdio' }>): Promise<void> {
   // Set where this launcher runs as Antumi's bundled Node; the user's own server is not that.
   const { ELECTRON_RUN_AS_NODE: _ours, ...env } = process.env
-  const child = spawn(transport.command, transport.args, { cwd: transport.cwd ?? process.cwd(), env: { ...env, ...transport.env }, stdio: 'inherit' })
+  const cwd = transport.cwd ?? process.cwd()
+  const launch = planLaunch(transport.command, transport.args, cwd, { ...env, ...transport.env })
+  const child = spawn(launch.file, launch.args, { cwd, env: launch.env, stdio: 'inherit', windowsHide: true })
   for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP'] as const) process.on(signal, () => child.kill(signal))
   return new Promise((resolve, reject) => {
     child.on('error', (error) => reject(new Error(`启动不了 ${transport.command}：${error.message}`)))

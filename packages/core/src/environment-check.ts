@@ -5,6 +5,7 @@ import { homedir } from 'node:os'
 import { promisify } from 'node:util'
 import { agentCliInstallations } from './agent-cli-installation'
 import { adapterOf } from './agents'
+import { launchFile, nodeLaunchHost } from '@antumi/protocol/node'
 import { AGENT_KINDS, agentDescriptor, ENVIRONMENT_TOOLS, isAgentKind, type DetectedAgent, type Environment, type EnvironmentCheck, type EnvironmentTool } from '@antumi/protocol'
 
 const execFileAsync = promisify(execFile)
@@ -92,12 +93,23 @@ async function discoverOtherAgents(pathEnv: string, platform: NodeJS.Platform, a
   return discovered.filter((agent): agent is DetectedAgent => agent !== null)
 }
 
-async function probeAgentCli(file: string, platform: NodeJS.Platform): Promise<NonNullable<DetectedAgent['cliCheck']>> {
-  if (platform === 'win32' && /\.(cmd|bat|ps1)$/i.test(file)) {
-    return { status: 'unverified', version: null, reason: 'windows-shim' }
-  }
+// How to ask a found file its version without a shell, or null for a Windows shim that only a
+// shell could run.
+function versionLaunch(file: string, platform: NodeJS.Platform) {
+  if (platform === 'win32' && /\.ps1$/i.test(file)) return null
   try {
-    const { stdout, stderr } = await execFileAsync(file, ['--version'], {
+    return launchFile(file, ['--version'], process.env, { ...nodeLaunchHost, platform })
+  } catch {
+    return null
+  }
+}
+
+async function probeAgentCli(file: string, platform: NodeJS.Platform): Promise<NonNullable<DetectedAgent['cliCheck']>> {
+  const launch = versionLaunch(file, platform)
+  if (!launch) return { status: 'unverified', version: null, reason: 'windows-shim' }
+  try {
+    const { stdout, stderr } = await execFileAsync(launch.file, launch.args, {
+      env: launch.env,
       timeout: VERSION_TIMEOUT_MS,
       maxBuffer: 16 * 1024,
       windowsHide: true
@@ -184,8 +196,7 @@ export class EnvironmentService {
     if (detect) return { tool, ...await detect(pathEnv, platform) }
     const path = await findOnPath(tool, pathEnv, platform)
     if (!path) return { tool, status: 'missing', version: null, path: null, signedIn: null }
-    // A .cmd shim only a shell can run; the version goes unasked rather than through one.
-    const version = platform === 'win32' ? null : await this.version(path)
+    const version = await this.version(path)
     return {
       tool,
       status: version === null ? 'unknown' : 'ok',
@@ -196,8 +207,11 @@ export class EnvironmentService {
   }
 
   private async version(file: string): Promise<string | null> {
+    // A shim only a shell could run goes unasked rather than through one.
+    const launch = versionLaunch(file, this.options.platform)
+    if (!launch) return null
     try {
-      const { stdout } = await execFileAsync(file, ['--version'], { timeout: VERSION_TIMEOUT_MS, windowsHide: true })
+      const { stdout } = await execFileAsync(launch.file, launch.args, { env: launch.env, timeout: VERSION_TIMEOUT_MS, windowsHide: true })
       return parseVersion(stdout)
     } catch {
       return null

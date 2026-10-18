@@ -1,7 +1,6 @@
 import { spawn } from 'node:child_process'
 import os from 'node:os'
-import type { DaemonParsedParams } from '@antumi/protocol/node'
-import { resolveCommand } from './command-lookup'
+import { planLaunch, type DaemonParsedParams } from '@antumi/protocol/node'
 import type { HostedProcess, ProcessEvents } from './session-host'
 
 const ignore = () => {}
@@ -12,18 +11,11 @@ function signalExitCode(signal: NodeJS.Signals | null): number {
 }
 
 export function startPipe({ command, args, cwd, env }: DaemonParsedParams<'spawnPipe'>, events: ProcessEvents): HostedProcess {
-  const fullEnv = { ...process.env, ...env }
-  const file = resolveCommand(command, cwd, fullEnv)
-  if (!file) {
-    throw new Error('command-not-found')
-  }
-  // child_process runs a .cmd or .bat shim only through a shell, and agent argv never goes through one.
-  if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(file)) {
-    throw new Error('command-needs-shell')
-  }
+  // Agent argv never goes through a shell: a Windows .cmd shim is read for what it runs.
+  const launch = planLaunch(command, args, cwd, { ...process.env, ...env })
   // Its own process group on POSIX, so a kill also reaches what the agent started (a background shell).
   const group = process.platform !== 'win32'
-  const child = spawn(file, args, { cwd, env: fullEnv, stdio: 'pipe', detached: group, windowsHide: true })
+  const child = spawn(launch.file, launch.args, { cwd, env: launch.env, stdio: 'pipe', detached: group, windowsHide: true })
   let exited = false
   const finish = (exitCode: number) => {
     if (!exited) {
