@@ -74,6 +74,9 @@ function createWindow(): void {
     title: 'Antumi',
     titleBarStyle: insetTitleBar ? 'hidden' : 'default',
     trafficLightPosition: insetTitleBar ? { x: 20, y: 19 } : undefined,
+    // Elsewhere the frame stays the system's, without Electron's stock menu bar: Antumi has no menu
+    // of its own, and Alt still shows that one.
+    autoHideMenuBar: !insetTitleBar,
     show: false,
     webPreferences: {
       preload: PRELOAD,
