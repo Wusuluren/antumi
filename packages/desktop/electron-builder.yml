@@ -21,7 +21,7 @@ extraResources:
 npmRebuild: false
 mac:
   category: public.app-category.developer-tools
-  # From docs/branding/antumi-icon-low-poly.png, laid on macOS's icon grid: an 824px rounded square on a
+  # From docs/branding/antumi-icon-agent-blocks-3d.png, laid on macOS's icon grid: an 824px rounded square on a
   # 1024px canvas, with room for its shadow.
   icon: build/icon.png
   target:
