@@ -148,7 +148,7 @@ export function FileTree({ scope, roots, expanded, active, refresh, onToggle, on
           {row.detail && <span className="file-tree-detail muted">{row.detail}</span>}
           {failed && <span className="file-tree-detail muted">无法读取</span>}
         </button>
-        return row.kind === 'other' ? <div key={row.path}>{button}</div> : <FileMenu key={row.path} scope={scope} file={resolved(row)}>{button}</FileMenu>
+        return row.kind === 'other' ? <div key={row.path}>{button}</div> : <FileMenu key={row.path} scope={scope} file={resolved(row)} inPanel>{button}</FileMenu>
       })}
       {query !== null && matches?.length === 0 && <p className="file-tree-empty muted">没有匹配的文件</p>}
       {query === null && filter.trim() && shownRows.length === 0 && <p className="file-tree-empty muted">已展开的文件夹里没有匹配项，输入 ? 开头可搜索整个项目</p>}

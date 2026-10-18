@@ -129,7 +129,7 @@ export function FileEditor({ conversationId, roots, updatedAt, onEmpty, inspecto
       {browsable && <button type="button" className="tool-button" aria-label={state.tree ? '收起文件树' : '打开文件树'} aria-pressed={state.tree} title={state.tree ? '收起文件树' : '打开文件树'} onClick={() => updateFileTabs(conversationId, (state) => ({ ...state, tree: !state.tree }))}><SidebarIcon /></button>}
       <div className="file-editor-tabs" role="tablist" aria-label="已打开的文件">
         {state.tabs.map((tab) => <div className="file-editor-tab" key={tab.file.path} data-active={tab.file.path === state.active || undefined} data-dirty={tab.dirty || undefined}>
-          <FileMenu scope={scope} file={tab.file}>
+          <FileMenu scope={scope} file={tab.file} inPanel>
             <button type="button" role="tab" aria-selected={tab.file.path === state.active} title={tab.dirty ? `${tab.file.path}（未保存）` : tab.file.path} onClick={() => updateFileTabs(conversationId, (state) => ({ ...state, active: tab.file.path }))}>
               {name(tab)}
               {state.tabs.some((other) => other.file.path !== tab.file.path && name(other) === name(tab)) && <span className="muted"> · {tab.file.relative ?? tab.file.path}</span>}
@@ -151,7 +151,7 @@ export function FileEditor({ conversationId, roots, updatedAt, onEmpty, inspecto
         {writable && active?.dirty && <MenuItem label="保存" icon={<CheckIcon />} hint={`${PRIMARY_KEY_LABEL}S`} onSelect={() => { setMenu(null); source.current?.save() }} />}
         <MenuItem label={state.wrap ? '关闭自动换行' : '自动换行'} icon={<span aria-hidden>↩</span>} onSelect={() => { setMenu(null); updateFileTabs(conversationId, (state) => ({ ...state, wrap: !state.wrap })) }} />
         <MenuItem label="刷新" icon={<RefreshIcon />} onSelect={() => { setMenu(null); setRefreshCount((count) => count + 1) }} />
-        {active && <><div className="menu-separator" role="separator" /><FileMenuItems scope={scope} file={active.file} onClose={() => setMenu(null)} /></>}
+        {active && <><div className="menu-separator" role="separator" /><FileMenuItems scope={scope} file={active.file} inPanel onClose={() => setMenu(null)} /></>}
       </ContextMenu>}
     </div>
     <div className="file-editor-main">

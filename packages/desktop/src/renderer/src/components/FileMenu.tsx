@@ -5,12 +5,14 @@ import { copyFileText, FILE_MANAGER, openResolvedFile, revealResolvedFile, showR
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
 import { CopyIcon, ExternalIcon, FolderIcon, InspectorIcon } from './icons'
 
-export function FileMenuItems({ scope, file, line = null, onClose }: {
-  scope: ChatFileScope; file: ResolvedFile; line?: number | null; onClose(): void
+// `inPanel`: the menu is in the side panel's files already, where a click opens the file and
+// offering to open it there again does nothing.
+export function FileMenuItems({ scope, file, line = null, inPanel = false, onClose }: {
+  scope: ChatFileScope; file: ResolvedFile; line?: number | null; inPanel?: boolean; onClose(): void
 }) {
   const act = (action: () => void | Promise<void>) => { onClose(); void action() }
   return <>
-    <MenuItem label="在侧栏打开" icon={<InspectorIcon />} onSelect={() => act(() => showResolvedFile(scope, file, line))} />
+    {!inPanel && <MenuItem label="在侧栏打开" icon={<InspectorIcon />} onSelect={() => act(() => showResolvedFile(scope, file, line))} />}
     <MenuItem label="复制绝对路径" icon={<CopyIcon />} onSelect={() => act(() => copyFileText(file.path))} />
     {file.relative !== null && <MenuItem label="复制项目相对路径" icon={<CopyIcon />} onSelect={() => act(() => copyFileText(file.relative ?? file.path))} />}
     {canRevealFile() && <MenuItem label={`在${FILE_MANAGER}中显示`} icon={<FolderIcon />} onSelect={() => act(() => revealResolvedFile(file))} />}
@@ -18,7 +20,7 @@ export function FileMenuItems({ scope, file, line = null, onClose }: {
   </>
 }
 
-export function FileMenu({ scope, file, children }: { scope: ChatFileScope; file: ResolvedFile; children: ReactNode }) {
+export function FileMenu({ scope, file, inPanel = false, children }: { scope: ChatFileScope; file: ResolvedFile; inPanel?: boolean; children: ReactNode }) {
   const [at, setAt] = useState<MenuPoint | null>(null)
   const close = useCallback(() => setAt(null), [])
   return <span className="file-menu-target" onKeyDown={(event) => {
@@ -33,6 +35,6 @@ export function FileMenu({ scope, file, children }: { scope: ChatFileScope; file
     setAt(menuPoint(event))
   }}>
     {children}
-    {at && <ContextMenu at={at} label="文件操作" onClose={close}><FileMenuItems scope={scope} file={file} onClose={close} /></ContextMenu>}
+    {at && <ContextMenu at={at} label="文件操作" onClose={close}><FileMenuItems scope={scope} file={file} inPanel={inPanel} onClose={close} /></ContextMenu>}
   </span>
 }
