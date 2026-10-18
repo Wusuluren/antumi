@@ -4,10 +4,9 @@
 
 # Antumi（安图米）
 
-**把活交给 AI Agent，进度和结果你都看得到。**
+**像派活给同事一样派给 AI Agent：出计划、改代码、交你验收。**
 
-本地优先的 AI 编程工作台：一块看板管理 Claude Code、Codex 和 Cursor，<br/>
-每个任务在独立的 Git worktree 里跑，先确认计划再执行，最后由你验收。
+本地优先的 AI 编程工作台，一块看板管理 Claude Code、Codex 和 Cursor，每个任务一个 Git worktree。
 
 [![Version](https://img.shields.io/github/package-json/v/flyhero/antumi?label=version&color=blue)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
@@ -16,37 +15,32 @@
 
 [功能导览](#功能导览) · [支持的 Agent](#支持的-agent) · [快速开始](#快速开始) · [文档](#文档) · [更新日志](CHANGELOG.md) · [反馈](https://github.com/flyhero/antumi/issues)
 
-<img src="docs/assets/hero.png" alt="Antumi 的任务看板：Claude Code 正在写文档，另外两个任务等你回复，Codex 的功能等待验收，一个修复已完成" width="100%" />
+**简体中文** · [English](README.en.md)
+
+<img src="docs/assets/antumi-macbook-render.png" alt="Antumi 在 MacBook Pro 上的渲染效果：一块任务看板管理 Claude Code、Codex 和 Cursor" width="100%" />
 
 </div>
 
 ## 为什么是 Antumi（安图米）
 
-你开着三个终端：Claude Code 在修 bug，Codex 在写导出，第三个窗口你已经忘了它在干嘛。哪个在等你批准？哪两个改到了同一个文件？想换个 Agent 接手，又得把需求从头讲一遍。Agent 加得越多，你越像在值班盯监控。
+如果你同时使用这多个Agent：Claude Code 、Codex、Cursor等，我想你一定遇到过这样的情况：
+- 忘记哪个在干嘛，哪个在等你批准？
+- 想换个 Agent 接手，又得把需求从头讲一遍。
+- Agent 加得越多，你越像在值班盯监控。
 
-Antumi 把这些收进一块看板。每件事是一张卡片，交给一个 Agent，在自己的分支里做，做完由你验收。
+Antumi 把 Claude Code、Codex 和 Cursor 放进同一个本地工作台：直接开会话处理问题，让多个 Agent 在群聊里讨论方案，或安排它们定时运行。谁在工作、谁在等你、接下来要做什么，都能在总览里看到。
+
+需要按计划推进、隔离代码并验收的工作，可以放进任务看板：执行时使用独立 worktree，支持任务依赖，也能交给研发小队协作完成。会话和任务都支持中途换 Agent，聊天记录和你的补充说明会一起交给新 Agent。
 
 - 🗂️ **一块看板管多个 Agent**：卡片上写着谁在做什么、是否在等你，以及你下一步该点什么。
 - 🌿 **每个任务一个 worktree**：独立分支互不踩，跨仓库的任务也一样；Agent 的成果从不被自动删除。
-- 📝 **先计划，后动手**：Agent 先读代码、提问、出计划，你点头才开始改。
+- 🪟 **两个会话并排**：一边看着这个 Agent 干活，一边在另一列和别的 Agent 说话；哪一列等你批准，就在哪一列直接答。
 - 🔍 **验收不用开终端**：提交、diff、分支、合并，连改两行代码都在检查器里完成。
 - 🔁 **中途换 Agent 不丢上下文**：一键移交，聊天记录和你的补充说明一起交过去。
 - 🔔 **离开窗口也不会让 Agent 干等**：要你批准时，屏幕顶部弹出卡片直接回答。
-- 💰 **省钱**：轻活交给小模型，额度一眼看到，撞到上限会在恢复后自动续跑。
+- 📊 **各个 Agent 的额度一眼看到**：Claude Code、Codex、Cursor 的 5 小时、本周或本月用量一直在状态栏上，预告 Codex 全员重置额度时还会标出「即将重置」；一个用完了，提示你换成还有额度的那个，撞到上限的会话在额度恢复后自动续跑。
+- 💰 **省钱**：翻译、提交说明、小助手这些轻活交给小模型，不占主会话的上下文。
 - 🔒 **本地优先**：数据都在你的机器上，Agent 进程由后台 daemon 托管，关窗口不中断。
-
-## 它怎么工作
-
-```mermaid
-flowchart LR
-    A["记下任务<br/>手写 / Jira / GitHub"] --> B["规划<br/>Agent 读代码、提问、出计划"]
-    B -->|你确认计划| C["执行<br/>独立 worktree + 分支"]
-    C -->|提交验收| D["验收<br/>提交记录、diff、分支"]
-    D -->|接受| E["已完成<br/>依赖它的任务解锁"]
-    D -->|接着改| C
-    D -->|重做| F["带上失败原因重来"]
-    F --> B
-```
 
 ## 功能导览
 
@@ -155,9 +149,9 @@ Antumi 驱动的是你已经装好、登录好的 Agent CLI。
 
 | Agent | 接入方式 | 权限模式 | 计划审批 | 移交 | 定时 / 预约 |
 |---|---|---|:-:|:-:|:-:|
-| **Claude Code** | `claude -p`（stream-json） | 逐项确认 · 自动接受编辑 · 规划 · 自动判断 | ✓ | ✓ | ✓ |
-| **Codex** | `codex app-server` | 逐项确认 · 自动 · 规划 · 只读 | ✓ | ✓ | ✓ |
-| **Cursor** | `cursor-agent acp` | Agent · Plan · Ask | ✓ | ✓ | — |
+| [**Claude Code**](https://github.com/anthropics/claude-code) | `claude -p`（stream-json） | 逐项确认 · 自动接受编辑 · 规划 · 自动判断 | ✓ | ✓ | ✓ |
+| [**Codex**](https://github.com/openai/codex) | `codex app-server` | 逐项确认 · 自动 · 规划 · 只读 | ✓ | ✓ | ✓ |
+| [**Cursor**](https://cursor.com/cli) | `cursor-agent acp` | Agent · Plan · Ask | ✓ | ✓ | — |
 
 「全部放行」不会默认选中。设置 → 智能体 还会列出 Antumi 认识、但尚未接入的 Agent CLI。
 
@@ -181,12 +175,6 @@ pnpm dist:mac     # 产物在 packages/desktop/dist/Antumi-<版本>-arm64.dmg
 ```
 
 装了 App 的机器不需要 Node 和 pnpm。产物没有签名，拷到别的机器上首次要右键「打开」。
-
-**第一个任务**：
-
-1. **检查环境**：打开 设置 → 智能体，确认 Agent 显示「已登录」。缺什么，这里给出可以直接复制的安装或登录命令。
-2. **记下任务**：在「任务」看板上按 <kbd>N</kbd>，写标题，选项目和 Agent。详情可以不写。
-3. **开始并验收**：点「开始」，Agent 在独立 worktree 里先出计划，你确认后它开始改代码。做完点「提交验收」，在检查器里看 diff，然后接受、接着改或重做。
 
 <p align="center">
   <img src="docs/assets/agents.png" alt="设置 → 智能体：Claude Code、Codex、Cursor 都已安装并登录" width="720" />
@@ -212,7 +200,7 @@ pnpm dist:mac     # 产物在 packages/desktop/dist/Antumi-<版本>-arm64.dmg
 
 </details>
 
-## 本地优先，成果优先
+## 本地优先，安全优先
 
 - **数据在你的机器上**：任务、会话和 worktree 都在 `~/.antumi/`，核心功能不依赖任何 Antumi 托管服务。
 - **只对本机开放**：core 只监听 `127.0.0.1`，并且每个连接都要带 token。
@@ -250,7 +238,11 @@ ANTUMI_HOME=~/.antumi-demo pnpm dev
 
 ## 现状
 
-Antumi 目前是**开发者预览版**（0.18.x），主要在 macOS 上开发和测试，需要从源码运行或自行打包。接下来的重点是验收闭环：按项目配置的测试命令在 worktree 里跑，把结果作为验收证据放进检查器，再到 PR 和合并。
+Antumi 目前是**开发者预览版**（0.18.x），主要在 macOS 上开发和测试，需要从源码运行或自行打包。接下来按优先级：
+
+- **验收闭环**：按项目配置的测试命令在 worktree 里跑，结果作为验收证据放进检查器，再到 PR 和合并。
+- **Windows**：界面和字体已经适配，差 Agent CLI 的 `.cmd` 启动方式。
+- **远程执行**：让 Agent 在 SSH / WSL 里的仓库上干活，看板留在本机。
 
 用下来哪里别扭、想接哪个 Agent，欢迎提 [issue](https://github.com/flyhero/antumi/issues)。
 
