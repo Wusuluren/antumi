@@ -1,7 +1,7 @@
 import { HelperPanel } from './HelperPanel'
 import { useHelper, useHelperSupported } from '../helper-conversations'
 import { GitInspector } from './GitInspector'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { openTodoCount, type Conversation, type FolderChanges } from '@antumi/protocol'
 import { pathShortener, usePlans } from '../chat-state'
 import { clearInspectorFile, setConversationInspectorOpen, setConversationInspectorTab, showConversationPlan, showInspectorFile, useCore } from '../core-store'
@@ -63,8 +63,9 @@ function ChangeList({ changes, onOpen }: { changes: FolderChanges[] | null; onOp
 // Beside the transcript, opened by the user or by a plan the agent proposes. A conversation in
 // Antumi's own folder has no changes of the user's to show, only its plans. With wire set, the
 // raw traffic with its agent too (settings → 调试).
-export function ConversationInspector({ conversation, widthRatio, onWidthRatioChange, wire = false }: {
+export function ConversationInspector({ conversation, widthRatio, onWidthRatioChange, wire = false, owner }: {
   conversation: Conversation
+  owner?: ReactNode
   widthRatio: number
   onWidthRatioChange: (ratio: number) => void
   wire?: boolean
@@ -106,6 +107,7 @@ export function ConversationInspector({ conversation, widthRatio, onWidthRatioCh
   return (
     <InspectorPanel
       label="会话检查器"
+      owner={owner}
       maximized={(tab === 'files' && files.maximized) || (tab === 'branch' && gitMaximized)}
       ratio={widthRatio}
       onRatioChange={onWidthRatioChange}

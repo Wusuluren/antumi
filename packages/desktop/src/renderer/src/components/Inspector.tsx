@@ -57,8 +57,10 @@ export type InspectorTab = 'changes' | 'branch' | 'plan' | 'todos' | 'wire' | 'f
 const TAB_LABEL: Record<InspectorTab, string> = { changes: '变更', branch: '分支', plan: '计划', todos: '待办', wire: '原始数据', files: '文件', squad: '小队', helper: '小助手' }
 export const GIT_TABS: readonly InspectorTab[] = ['changes', 'branch']
 
-export function InspectorPanel({ label, ratio, onRatioChange, tabs = GIT_TABS, tab, onTab, fileCount, todoCount = 0, helperAwaiting = false, onRefresh, onClose, maximized = false, children }: {
+export function InspectorPanel({ label, ratio, onRatioChange, tabs = GIT_TABS, tab, onTab, fileCount, todoCount = 0, helperAwaiting = false, onRefresh, onClose, maximized = false, owner, children }: {
   maximized?: boolean
+  // Above the tabs, whose it is where that is not plain: a split's column.
+  owner?: ReactNode
   label: string
   ratio: number
   onRatioChange: (ratio: number) => void
@@ -82,6 +84,7 @@ export function InspectorPanel({ label, ratio, onRatioChange, tabs = GIT_TABS, t
         aria-label={label}
         style={{ flexBasis: maximized ? '100%' : `calc((100% - var(--side-panel-separator-size)) * ${ratio})` }}
       >
+        {owner && <div className="inspector-owner">{owner}</div>}
         <header className="inspector-header">
           <div className="inspector-tabs" role="tablist" aria-label="检查器">
             {tabs.map((each) => (

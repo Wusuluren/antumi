@@ -62,6 +62,12 @@ const Preferences = z.object({
   fileTreeWidth: z.number().int().min(MIN_FILE_TREE_WIDTH).max(MAX_FILE_TREE_WIDTH).catch(DEFAULT_FILE_TREE_WIDTH),
   // The app the file panel's open button uses, by its id; empty until one is picked.
   openWithApp: z.string().max(100).catch(''),
+  // The two conversations side by side, left then right; empty, one conversation at a time. The
+  // last pair is the one put away last, which ⌘\ brings back as it was; the ratio is the right
+  // column's share.
+  splitPanes: z.array(z.string()).max(2).catch([]),
+  splitLast: z.array(z.string()).max(2).catch([]),
+  splitRatio: z.number().min(0.25).max(0.75).catch(0.5),
   // On, the task board has a column for cancelled tasks.
   showAbandonedTasks: z.boolean().catch(false),
   // Creation order preserves the task list's original behavior.

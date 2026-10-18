@@ -673,6 +673,42 @@ body.stacked-panel-resizing * {
    header neither grows nor shifts what follows. A ring and a wash say it is being edited. */
 .conversation-header .title-editor { field-sizing: content; flex: 0 1 auto; width: auto; min-width: 4em; max-width: 100%; margin: 0 -4px; padding: 0 4px; border: 0; border-radius: var(--radius-xs); background: var(--fill); font-size: inherit; font-weight: 600; line-height: inherit; }
 .conversation-header .title-editor:focus { outline: 0; box-shadow: 0 0 0 2px var(--focus); }
+
+/* Two conversations side by side (ConversationSplit). The one in front is on the surface and the
+   other sits back on the canvas, its text at full strength: depth by surface, as elsewhere. A
+   numbered chip says which column is which, in its header, the list and the inspector alike. */
+.conversation-split { --side-panel-separator-size: 12px; flex: 1; min-width: 0; display: flex; background: var(--bg); }
+.conversation-split-panes { flex: 1; min-width: 0; display: flex; }
+.split-pane { flex: 1 1 0; min-width: 0; display: flex; }
+.split-pane[hidden] { display: none; }
+.conversation-view[data-pane-active='false'] { background: var(--bg); }
+.conversation-view[data-pane-active='false'] .conversation-title { color: var(--text-muted); }
+.conversation-view[data-pane-active='false'] .chat-view { background: transparent; }
+/* A column is narrow: its header keeps to one line, the title giving way first and what follows
+   it cut off at the edge rather than wrapped under it. */
+.conversation-view[data-split-pane] .conversation-header { flex-wrap: nowrap; }
+.conversation-view[data-split-pane] .header-meta { flex: 1 1 auto; flex-wrap: nowrap; overflow: hidden; }
+.conversation-view[data-split-pane] .header-meta > * { flex-shrink: 0; white-space: nowrap; }
+.conversation-view[data-split-pane] .header-meta > .conversation-title { flex-shrink: 1; min-width: 4em; }
+.pane-chip { flex-shrink: 0; min-width: 20px; height: 20px; padding: 0 4px; display: inline-grid; place-items: center; border: 0; border-radius: var(--radius-xs); background: var(--fill-2); color: var(--text-3); font: 600 12px/1 var(--font); font-variant-numeric: tabular-nums; }
+button.pane-chip { cursor: pointer; }
+button.pane-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.pane-chip[data-active='true'] { background: var(--accent-bg); color: var(--accent); }
+.conversation-row .pane-chip { grid-column: 3; justify-self: end; }
+/* The other column's composer, folded to a line until it comes to the front. */
+.chat-pane-reply { display: flex; align-items: center; gap: 8px; width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: transparent; color: var(--text-3); font: inherit; text-align: left; cursor: text; transition: border-color 0.12s, color 0.12s; }
+.chat-pane-reply:hover { border-color: var(--border-2); color: var(--text-muted); }
+.chat-pane-reply:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.chat-pane-reply-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-pane-reply-text[data-draft] { color: var(--text-muted); }
+.chat-pane-reply kbd { font-family: var(--mono); font-size: 12px; color: var(--text-3); }
+/* A conversation dragged from the list over a single one: where it will open. */
+.conversation-view { position: relative; }
+.split-drop { position: absolute; top: 12px; right: 12px; bottom: 12px; z-index: 5; width: calc(50% - 18px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1.5px dashed var(--text-3); border-radius: var(--radius-lg); background: var(--fill-2); color: var(--text-muted); pointer-events: none; }
+.split-drop svg { width: 32px; height: 32px; }
+.split-drop strong { color: var(--text); font-weight: 600; }
+.inspector-owner { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 12px 0; font-size: 12px; color: var(--text-muted); }
+.inspector-owner-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conversation-confirm { display: flex; gap: 8px; align-items: center; font-size: 13px; }
 
 .task-list {

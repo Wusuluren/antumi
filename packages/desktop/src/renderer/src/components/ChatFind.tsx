@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { chatFindRanges, nextFindIndex } from '../chat-find'
 import { hasPrimaryModifier } from '../shortcut-keys'
+import { paneOwnsShortcuts, useConversationPane } from './conversation-pane'
 import { ArrowDownIcon, CloseIcon, SearchIcon } from './icons'
 
 export type ChatHistoryResult = 'loaded' | 'done' | 'failed'
@@ -29,6 +30,8 @@ export function ChatFind({ state, scope, container, onOpen, loadOlder, hasOlder 
   hasOlder?: boolean
 }) {
   const { open, query, setOpen, setQuery } = state
+  // Two chats side by side are both on screen; the keys go to the one in front.
+  const owns = paneOwnsShortcuts(useConversationPane())
   const input = useRef<HTMLInputElement>(null)
   const previousFocus = useRef<HTMLElement | null>(null)
   const matches = useRef<Range[]>([])
@@ -78,7 +81,7 @@ export function ChatFind({ state, scope, container, onOpen, loadOlder, hasOlder 
 
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.isComposing || !ownsShortcut(scope.current, event.target)) return
+      if (!owns || event.defaultPrevented || event.isComposing || !ownsShortcut(scope.current, event.target)) return
       const primary = hasPrimaryModifier(event) && !event.altKey
       if (primary && !event.shiftKey && event.key.toLowerCase() === 'f') {
         event.preventDefault()
@@ -106,7 +109,7 @@ export function ChatFind({ state, scope, container, onOpen, loadOlder, hasOlder 
     }
     window.addEventListener('keydown', keys, true)
     return () => window.removeEventListener('keydown', keys, true)
-  }, [scope, container, open, setOpen, setQuery, onOpen, close, next])
+  }, [owns, scope, container, open, setOpen, setQuery, onOpen, close, next])
 
   useEffect(() => {
     const list = container.current

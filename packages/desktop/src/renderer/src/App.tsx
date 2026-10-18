@@ -1,6 +1,6 @@
 import { onBrowserShortcut } from './desktop-bridge'
 import { useEffect } from 'react'
-import { selectTask, setNewTaskOpen, setSettingsOpen, toggleBrowserPanel, toggleTerminalPanel, useCore } from './core-store'
+import { focusSplitPane, selectTask, setNewTaskOpen, setSettingsOpen, toggleBrowserPanel, toggleSplit, toggleTerminalPanel, useCore, useSplitPanes } from './core-store'
 import { NewTaskDialog } from './components/NewTaskDialog'
 import { SettingsPage } from './components/SettingsPage'
 import { SourceInboxView } from './components/SourceInboxView'
@@ -15,6 +15,7 @@ import { TaskChat } from './components/TaskChat'
 import { ConversationList } from './components/ConversationList'
 import { Sidebar } from './components/Sidebar'
 import { ConversationView } from './components/ConversationView'
+import { ConversationSplit } from './components/ConversationSplit'
 import { ConversationDraft } from './components/ConversationDraft'
 import { EnvironmentNotice } from './components/EnvironmentNotice'
 import { StatusBar } from './components/StatusBar'
@@ -50,6 +51,7 @@ export function App() {
   const selectedId = useCore((s) => s.selectedId)
   const section = useCore((s) => s.section)
   const selectedConversationId = useCore((s) => s.selectedConversationId)
+  const splitPanes = useSplitPanes()
   const conversationDraft = useCore((s) => s.conversationDraft)
   const selectedDiscussionId = useCore((s) => s.selectedDiscussionId)
   const discussionDraft = useCore((s) => s.discussionDraft)
@@ -89,6 +91,11 @@ export function App() {
       } else if (plain && event.key === ',') {
         event.preventDefault()
         setSettingsOpen(!useCore.getState().settingsOpen)
+      } else if (plain && (event.key === '1' || event.key === '2') && focusSplitPane(event.key === '1' ? 0 : 1)) {
+        event.preventDefault()
+      } else if (plain && event.key === '\\' && useCore.getState().section === 'conversations' && !useCore.getState().settingsOpen) {
+        event.preventDefault()
+        toggleSplit()
       } else if (event.key === 'Escape' && useCore.getState().settingsOpen && !useCore.getState().newTaskOpen) {
         setSettingsOpen(false)
       } else if (event.key === 'Escape' && leavesTask(event)) {
@@ -172,6 +179,7 @@ export function App() {
                 discussionDraft ? <DiscussionDraft key={discussionDraftFrom?.discussion.id ?? 'blank'} from={discussionDraftFrom?.discussion ?? null} /> :
                 <section className="detail-empty"><div className="detail-empty-body"><AntMotion action="rest" size="inline" />选择或新建一个群聊</div></section>
             ) : section === 'conversations' ? (
+              splitPanes && selectedConversationId ? <ConversationSplit panes={splitPanes} active={selectedConversationId} /> :
               selectedConversationId ? <ConversationView key={selectedConversationId} id={selectedConversationId} /> :
                 conversationDraft ? <ConversationDraft /> :
                 <section className="detail-empty"><div className="detail-empty-body"><AntMotion action="rest" size="inline" />选择或新建一条会话</div></section>

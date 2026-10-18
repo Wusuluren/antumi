@@ -3,10 +3,12 @@ import { MAX_SIDE_PANEL_RATIO, MIN_SIDE_PANEL_RATIO, clampSidePanelRatio, sidePa
 
 // The drag handle before a side panel. `ratio` is the panel's share of the width; the arrow keys
 // nudge it as well.
-export function PanelSeparator({ panelName, ratio, onRatioChange, disabled = false }: {
+export function PanelSeparator({ panelName, ratio, onRatioChange, onReset, disabled = false }: {
   panelName: string
   ratio: number
   onRatioChange: (ratio: number) => void
+  // A double click puts the width back where it starts.
+  onReset?: () => void
   disabled?: boolean
 }) {
   const separator = useRef<HTMLDivElement>(null)
@@ -59,6 +61,7 @@ export function PanelSeparator({ panelName, ratio, onRatioChange, disabled = fal
       aria-valuetext={`${panelName}占 ${Math.round(ratio * 100)}%`}
       tabIndex={disabled ? -1 : 0}
       onKeyDown={handleKeyDown}
+      onDoubleClick={onReset}
       onPointerDown={(event) => {
         if (disabled || event.button !== 0) {
           return

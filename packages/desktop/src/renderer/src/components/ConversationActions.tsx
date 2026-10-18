@@ -1,12 +1,13 @@
 import type { AgentKind, ChatItem, Conversation } from '@antumi/protocol'
-import { openConversationDraft, perform, selectConversation, selectTask, showView, useConversationArchiveSupported, useConversationPinSupported, useCore } from '../core-store'
+import { openBeside, openConversationDraft, perform, selectConversation, selectTask, showView, useConversationArchiveSupported, useConversationPinSupported, useCore } from '../core-store'
 import { proposeHandoff } from '../chat-handoff'
 import { agentLabel } from '../labels'
 import { offerDraft } from '../chat-drafts'
 import { saidText } from '../chat-state'
 import { confirmQuota } from './AgentQuota'
 import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
-import { ArchiveIcon, HandoffIcon, PencilIcon, PinIcon, StopIcon, TrashIcon } from './icons'
+import { ArchiveIcon, HandoffIcon, PencilIcon, PinIcon, SplitIcon, StopIcon, TrashIcon } from './icons'
+import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { currentInstalledAgents, otherInstalledAgent, useInstalledAgents } from '../installed-agents'
 
 // Every way into a handoff ends in the conversation's composer, with the agent picked there (by
@@ -74,12 +75,14 @@ export async function deleteConversation(conversation: Conversation): Promise<bo
 }
 
 // The row's right-click menu: the header's actions, and the one place a conversation is deleted.
-export function ConversationContextMenu({ conversation, at, onClose, onRename, onHandoff }: {
+export function ConversationContextMenu({ conversation, at, onClose, onRename, onHandoff, split = null }: {
   conversation: Conversation
   at: MenuPoint
   onClose: () => void
   onRename: () => void
   onHandoff: () => void
+  // Where it can open beside the conversation in front: on the right, or in the other column.
+  split?: 'right' | 'other' | null
 }) {
   const pick = (action: () => void) => () => {
     onClose()
@@ -94,6 +97,7 @@ export function ConversationContextMenu({ conversation, at, onClose, onRename, o
   const busy = conversation.chat?.turn === 'running' || conversation.chat?.turn === 'awaiting'
   return (
     <ContextMenu at={at} label={`会话「${conversation.title}」的操作`} onClose={onClose}>
+      {split && <MenuItem label={split === 'right' ? '在右侧分屏打开' : '在另一列打开'} icon={<SplitIcon />} hint={`${PRIMARY_KEY_LABEL} 点击`} onSelect={pick(() => openBeside(conversation.id))} />}
       {conversation.sessionId && <MenuItem label="停止会话" icon={<StopIcon />} onSelect={pick(() => void stopConversation(conversation.id))} />}
       {other && !archived && <MenuItem label="移交给其他智能体…" icon={<HandoffIcon />} onSelect={pick(onHandoff)} />}
       <div className="menu-separator" role="separator" />

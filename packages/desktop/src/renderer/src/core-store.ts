@@ -37,6 +37,7 @@ import { receiveChatDelta, receiveChatItems } from './chat-state'
 import { forgetDiscussionPosts, receiveDiscussionPosts } from './discussions'
 import { forgetFileTabs } from './file-tabs'
 import { usePreferences } from './preferences'
+import { closePane, panesAfterSelect, panesBeside, restorePanes, shownPanes, splitPanesOf, type SplitPanes } from './conversation-split'
 import { activeInboxes, inboxKey } from './source-inboxes'
 import type { BrowserStatus } from '@antumi/protocol'
 import { focusBrowserConversation, focusBrowserTab, receiveBrowserTabs } from './browser-state'
@@ -491,11 +492,81 @@ export function setBrowserMaximized(maximized: boolean): void {
 }
 
 export function selectConversation(id: string | null): void {
+  const s = useCore.getState()
+  const current = s.section === 'conversations' ? s.selectedConversationId : null
+  setSplitPanes(panesAfterSelect(savedPanes(), current, id))
   useCore.setState((s) => {
     const { [id ?? '']: _seen, ...unseen } = s.unseen
     return { selectedConversationId: id, section: 'conversations', inspectorFile: s.section === 'conversations' && s.selectedConversationId === id ? s.inspectorFile : null, settingsOpen: false, worktreesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: false, unseen }
   })
   if (id) markRoutineRunSeen(id)
+}
+
+function savedPanes(): SplitPanes | null {
+  return splitPanesOf(usePreferences.getState().splitPanes)
+}
+
+function setSplitPanes(panes: SplitPanes | null): void {
+  const saved = usePreferences.getState().splitPanes
+  if (panes ? saved[0] !== panes[0] || saved[1] !== panes[1] : saved.length > 0) usePreferences.setState({ splitPanes: panes ? [...panes] : [] })
+}
+
+// The two conversations side by side while one of them is in front; otherwise null.
+export function useSplitPanes(): SplitPanes | null {
+  const saved = usePreferences((p) => p.splitPanes)
+  const current = useCore((s) => (s.section === 'conversations' ? s.selectedConversationId : null))
+  const exists = useCore((s) => saved.every((id) => s.conversations[id]))
+  const panes = useMemo(() => splitPanesOf(saved), [saved])
+  return exists ? shownPanes(panes, current) : null
+}
+
+function visiblePanes(s: CoreState): SplitPanes | null {
+  return s.section === 'conversations' ? shownPanes(savedPanes(), s.selectedConversationId) : null
+}
+
+// Opens a conversation beside the one in front, which stays where it is; the new one comes forward.
+export function openBeside(id: string): void {
+  const s = useCore.getState()
+  const current = s.section === 'conversations' ? s.selectedConversationId : null
+  const panes = panesBeside(savedPanes(), current, id)
+  if (!panes) return
+  setSplitPanes(panes)
+  selectConversation(id)
+}
+
+// Closing one column leaves the other on its own, remembered for ⌘\ to bring the pair back.
+export function closeSplitPane(id: string): void {
+  const panes = visiblePanes(useCore.getState())
+  if (!panes) return
+  usePreferences.setState({ splitPanes: [], splitLast: [...panes] })
+  selectConversation(closePane(panes, id))
+}
+
+// ⌘\: two side by side become the one in front; one becomes a pair again with its last partner.
+export function toggleSplit(): void {
+  const s = useCore.getState()
+  const panes = visiblePanes(s)
+  const current = s.section === 'conversations' ? s.selectedConversationId : null
+  if (panes && current) {
+    closeSplitPane(panes[0] === current ? panes[1] : panes[0])
+    return
+  }
+  if (!current) return
+  const restored = restorePanes(current, usePreferences.getState().splitLast, s.conversations)
+  if (restored) setSplitPanes(restored)
+}
+
+// ⌘1 / ⌘2: the column to bring to the front, its input taking the keyboard.
+export function focusSplitPane(index: 0 | 1): boolean {
+  const panes = visiblePanes(useCore.getState())
+  if (!panes) return false
+  selectConversation(panes[index])
+  focusPaneInput(index)
+  return true
+}
+
+export function focusPaneInput(index: 0 | 1): void {
+  requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>(`[data-split-pane="${index + 1}"] .chat-dock-composer .chat-input`)?.focus())
 }
 
 // Opening a routine's conversation is looking at its run, whose id the conversation shares; core
@@ -511,7 +582,8 @@ export function markRoutineRunSeen(conversationId: string): void {
 function finishedUnseen(s: CoreState, previous: Conversation | undefined, next: Conversation): boolean {
   if (isHelper(next) || next.routineId || next.discussionId || next.squadRunId) return false
   const working = previous?.chat?.turn === 'running' || previous?.chat?.turn === 'awaiting'
-  const looking = s.section === 'conversations' && s.selectedConversationId === next.id
+  // Both columns of a split are in view: neither one finishing is news.
+  const looking = s.section === 'conversations' && (s.selectedConversationId === next.id || Boolean(visiblePanes(s)?.includes(next.id)))
   return working && next.chat?.turn !== 'running' && next.chat?.turn !== 'awaiting' && !looking
 }
 
@@ -1073,10 +1145,14 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         })
         rpc.on('conversations.deleted', ({ id }) => {
           forgetFileTabs(id)
+          // A column whose conversation went leaves the other on its own, in front where it was.
+          const panes = savedPanes()
+          const other = panes?.includes(id) ? closePane(panes, id) : null
+          if (panes?.includes(id)) usePreferences.setState({ splitPanes: [], splitLast: [] })
           if (!initialized) conversationChanges.set(id, null)
           useCore.setState((s) => {
             const { [id]: _removed, ...conversations } = s.conversations
-            return { conversations, selectedConversationId: s.selectedConversationId === id ? null : s.selectedConversationId }
+            return { conversations, selectedConversationId: s.selectedConversationId === id ? other : s.selectedConversationId }
           })
         })
         rpc.on('conversations.chatItems', ({ conversationId, items }) => receiveChatItems(conversationId, items))

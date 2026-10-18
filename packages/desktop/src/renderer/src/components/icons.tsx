@@ -143,6 +143,16 @@ export function AgentIcon({ agent }: { agent: AgentKind | null }) {
   return <Mark />
 }
 
+// Two columns side by side.
+export function SplitIcon() {
+  return (
+    <svg {...stroked}>
+      <rect x="2.5" y="3.5" width="15" height="13" rx="2.5" />
+      <path d="M10 3.5v13" />
+    </svg>
+  )
+}
+
 export function InspectorIcon() {
   return (
     <svg {...stroked}>

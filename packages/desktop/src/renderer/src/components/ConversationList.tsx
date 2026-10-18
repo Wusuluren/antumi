@@ -1,7 +1,10 @@
 import { isHelper } from '@antumi/protocol'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AGENT_KINDS, type Conversation } from '@antumi/protocol'
-import { selectConversation, useCore } from '../core-store'
+import { openBeside, selectConversation, useCore, useSplitPanes } from '../core-store'
+import { canSplit } from '../conversation-split'
+import { endConversationDrag, startConversationDrag } from '../conversation-drag'
+import { hasPrimaryModifier } from '../shortcut-keys'
 import { conversationState, timeAgo } from '../conversation-state'
 import { agentLabel } from '../labels'
 import { CONVERSATION_GROUPS, CONVERSATION_SORTS, setPreference, usePreferences, type Preferences } from '../preferences'
@@ -183,6 +186,13 @@ export function ConversationList() {
   const [collapsed, setCollapsed] = useState(false)
   const conversations = useCore((s) => s.conversations)
   const selected = useCore((s) => s.selectedConversationId)
+  const panes = useSplitPanes()
+  // Opening beside the conversation in front: there has to be one, and another to put next to it.
+  const splitWith = (conversation: Conversation): 'right' | 'other' | null => {
+    const front = section === 'conversations' && selected ? conversations[selected] : undefined
+    if (!front || front.id === conversation.id || !canSplit(front) || !canSplit(conversation) || panes?.includes(conversation.id)) return null
+    return panes ? 'other' : 'right'
+  }
   const section = useCore((s) => s.section)
   const groupBy = usePreferences((p) => p.conversationGroup)
   const sortBy = usePreferences((p) => p.conversationSort)
@@ -237,7 +247,11 @@ export function ConversationList() {
           className="task-row conversation-row"
           data-menu-open={menu?.id === conversation.id || undefined}
           aria-current={section === 'conversations' && selected === conversation.id}
-          onClick={() => selectConversation(conversation.id)}
+          draggable={canSplit(conversation)}
+          onDragStart={(event) => startConversationDrag(event.dataTransfer, conversation.id)}
+          onDragEnd={endConversationDrag}
+          // ⌘-click opens it beside the one in front, as a link opens in a new tab.
+          onClick={(event) => (hasPrimaryModifier(event) && splitWith(conversation) ? openBeside(conversation.id) : selectConversation(conversation.id))}
           onContextMenu={(event) => {
             event.preventDefault()
             setMenu({ id: conversation.id, at: menuPoint(event) })
@@ -245,7 +259,9 @@ export function ConversationList() {
         >
           <ConversationStatus conversation={conversation} />
           <span className="task-row-title" title={conversation.title}>{conversation.title}</span>
-          <span className="conversation-age">{timeAgo(conversation.updatedAt, now)}</span>
+          {panes?.includes(conversation.id)
+            ? <span className="pane-chip" data-active={selected === conversation.id} aria-label={`在第 ${panes.indexOf(conversation.id) + 1} 列`}>{panes.indexOf(conversation.id) + 1}</span>
+            : <span className="conversation-age">{timeAgo(conversation.updatedAt, now)}</span>}
           <span className="task-row-meta" title={conversation.projectPaths.join('\n')}><ConversationMeta conversation={conversation} /></span>
           {snippet && <span className="conversation-snippet"><Highlighted text={snippet} query={needle} /></span>}
         </button>}
@@ -331,6 +347,7 @@ export function ConversationList() {
           onClose={closeMenu}
           onRename={() => setRenamingId(menuConversation.id)}
           onHandoff={() => beginHandoff(menuConversation)}
+          split={splitWith(menuConversation)}
         />
       )}
     </nav>

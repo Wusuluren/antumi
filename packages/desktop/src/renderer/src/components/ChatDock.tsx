@@ -1,5 +1,7 @@
 import { useContext, useState } from 'react'
-import { setSchedulesOpen, useCore } from '../core-store'
+import { focusPaneInput, setSchedulesOpen, useCore } from '../core-store'
+import { composerDraft } from '../composer-drafts'
+import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { cancelSchedule, openRunsForConversation, runAction, scheduleState } from '../schedules'
 import { helperAllowsMode, isHelper, isPlanApproval, type ChatItem, type Conversation } from '@antumi/protocol'
 import { itemKey } from '../chat-state'
@@ -17,6 +19,7 @@ import { ChatProjects } from './ChatProjects'
 import { ChatApprovalCard, ChatQuestionCard, type RequestItem } from './ChatRequestCards'
 import { ChatPaths } from './ChatToolCard'
 import { ChatTodosChip } from './ChatTodos'
+import { useConversationPane, type ConversationPane } from './conversation-pane'
 import { ArrowUpIcon, ClockIcon, CloseIcon } from './icons'
 import { changeLineTotals, useChangedFiles } from './Inspector'
 
@@ -114,6 +117,18 @@ function ChatSchedules({ conversationId }: { conversationId: string }) {
   )
 }
 
+// The other column's composer, folded to a line: what was being written there, if anything, and the
+// keys that bring it to the front.
+function PaneReply({ conversationId, pane }: { conversationId: string; pane: ConversationPane }) {
+  const draft = composerDraft(conversationId).text.trim().split('\n')[0] ?? ''
+  return (
+    <button type="button" className="chat-pane-reply" onClick={() => { pane.focus(); focusPaneInput(pane.index) }}>
+      <span className="chat-pane-reply-text" data-draft={draft ? true : undefined}>{draft ? `草稿：${draft}` : '回复这一列…'}</span>
+      <kbd>{PRIMARY_KEY_LABEL}{pane.index + 1}</kbd>
+    </button>
+  )
+}
+
 // Everything that waits on the user sits here, above the composer, so it cannot scroll out of view.
 export function ChatDock({ conversation, state, pending, tools, finishedCalls, onPrevious, sent, onJump, compact = false, antScene = null, antSince = null }: {
   compact?: boolean
@@ -136,6 +151,9 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
   const waiting = running && pending.length > 0
   const archived = conversation.archivedAt != null
   const justArchived = useJustFinished(!archived, null)
+  // The column not in front keeps its composer, draft and all, behind a one-line way back to it.
+  const pane = useConversationPane()
+  const resting = pane !== null && !pane.active
   return (
     <div className="chat-dock">
       {!compact && <div className="chat-dock-header">
@@ -152,9 +170,10 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
       {waiting && <PendingRequests conversation={conversation} pending={pending} tools={tools} modes={(state?.permissionModes ?? []).filter((mode) => !isHelper(conversation) || helperAllowsMode(mode))} />}
       {archived && <ArchivedBar what="会话" fresh={justArchived} onRestore={() => archiveConversation(conversation.id, false)} />}
       {/* The composer stays mounted while a request or the archive takes its place, so a draft is not lost. */}
-      <div className="chat-dock-composer" hidden={waiting || archived}>
+      <div className="chat-dock-composer" hidden={waiting || archived || resting}>
         <ChatComposer compact={compact} conversation={conversation} state={state} />
       </div>
+      {resting && !waiting && !archived && <PaneReply conversationId={conversation.id} pane={pane} />}
     </div>
   )
 }
