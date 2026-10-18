@@ -4675,13 +4675,22 @@ body.side-panel-resizing * {
 :root[data-backdrop] :is(.sidebar, .statusbar, .window-brand) [data-tooltip]::after { color: var(--bg); }
 :root[data-backdrop] .sidebar { border-right-color: transparent; }
 :root[data-backdrop] .statusbar { background: transparent; border-top-color: transparent; }
-:root[data-backdrop] .workspace > :not(.sidebar, .utility-panel-dock) {
+:root[data-backdrop] .workspace > :not(.sidebar, .utility-panel-dock, .side-panel-separator) {
+  /* The narrower separator below is the workspace's own; panes inside keep theirs. */
+  --side-panel-separator-size: 12px;
   margin: 8px 8px 0 0;
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
 /* Only for a pane with no background of its own, which would otherwise show the gradient. */
-:where(:root[data-backdrop] .workspace > :not(.sidebar, .utility-panel-dock)) { background: var(--bg); }
+:where(:root[data-backdrop] .workspace > :not(.sidebar, .utility-panel-dock, .side-panel-separator)) { background: var(--bg); }
+/* Between the pane and the utility dock, the separator is the gap: as wide as the frame's margins,
+   its line shown only to drag, and a wider grip than it looks. */
+:root[data-backdrop] .workspace { --side-panel-separator-size: 8px; }
+:root[data-backdrop] .workspace > :has(+ .side-panel-separator) { margin-right: 0; }
+:root[data-backdrop] .workspace > .side-panel-separator { margin-top: 8px; }
+:root[data-backdrop] .workspace > .side-panel-separator::before { content: ''; position: absolute; inset: 0 -4px; }
+:root[data-backdrop] .workspace > .side-panel-separator:not(:hover, :focus-visible, [data-dragging='true'])::after { background: transparent; }
 :root[data-backdrop] .workspace > :first-child:not(.sidebar),
 :root[data-backdrop] .workspace > .sidebar[hidden] + * { margin-left: 8px; }
 :root[data-backdrop] .utility-panel-dock { margin-bottom: 0; }
