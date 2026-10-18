@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { tightestWindow, type AgentUsage, type ResetCreditOutcome, type UsageWindow } from '@antumi/protocol'
+import { tightestWindow, type AgentUsage, type GlobalResets, type ResetCreditOutcome, type UsageWindow } from '@antumi/protocol'
 import type { Preferences } from './preferences'
 
 // How usage numbers read wherever they show: the status bar, and next to an agent being picked.
@@ -87,4 +87,18 @@ export const SPEND_OUTCOME_TEXT: Record<ResetCreditOutcome, string> = {
   'nothing-to-reset': '现在没有用掉的额度需要清零，重置卡没有扣',
   'no-credit': '没有可用的重置卡了',
   'already-used': '这张重置卡已经用过了，额度已恢复'
+}
+
+// The resets a service announced for everyone, line by line: one still to land leads, and the odds
+// of another only show while none is announced.
+export function globalResetText(resets: GlobalResets, now: number): { upcoming: string | null; latest: string | null; chance: string | null } {
+  const { upcoming, latest, chance48h } = resets
+  const ago = (at: number) => `${formatDuration(Math.max(0, now - at))}前`
+  return {
+    upcoming: upcoming
+      ? `已预告全员重置${upcoming.scheduledFor !== null && upcoming.scheduledFor > now ? `，预计${formatClock(upcoming.scheduledFor, now)}` : ''} · ${ago(upcoming.at)}发布`
+      : null,
+    latest: latest ? `${latest.kind === 'banked' ? '最近一次给每个付费账号发重置卡' : '最近一次全员重置'}：${ago(latest.at)}` : null,
+    chance: !upcoming && chance48h !== null ? `48 小时内再次重置的可能约 ${Math.round(chance48h * 100)}%，按以往间隔估算` : null
+  }
 }

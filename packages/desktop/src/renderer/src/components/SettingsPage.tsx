@@ -275,6 +275,7 @@ function TranslationSettings() {
 function UsageSettings() {
   const showUsage = usePreferences((s) => s.showUsage)
   const display = usePreferences((s) => s.usageDisplay)
+  const announcements = useCore((s) => s.chatSettings?.resetAnnouncements)
   return (
     <>
       <SettingsRow
@@ -299,6 +300,15 @@ function UsageSettings() {
           />
         )}
       />
+      {announcements !== undefined && (
+        <SettingsRow
+          label="显示全员重置预告"
+          description="OpenAI 等在 X 上宣布给所有人重置额度时，在用量卡片里显示预告和最近一次重置。由社区网站 LimitReset 汇总，每小时问一次，请求不带你的账号信息。"
+          control={(labelId) => (
+            <Toggle labelId={labelId} checked={announcements} onChange={(next) => void setChatSettings({ resetAnnouncements: next })} />
+          )}
+        />
+      )}
     </>
   )
 }
@@ -633,7 +643,7 @@ const SECTIONS: readonly Section[] = [
     group: '界面',
     title: '用量额度',
     description: '状态栏里的 Agent 订阅额度。',
-    keywords: ['状态栏', '额度', '百分比', '已用', '剩余', ...AGENT_KINDS],
+    keywords: ['状态栏', '额度', '百分比', '已用', '剩余', '重置', '全员重置', '预告', 'limitreset', ...AGENT_KINDS],
     Icon: GaugeIcon,
     Body: UsageSettings
   },

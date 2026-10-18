@@ -3794,6 +3794,50 @@ body.side-panel-resizing * {
   color: var(--status-done);
 }
 
+/* Resets a service announced for everyone, from a community tracker: one coming leads, in green. */
+.usage-card-global {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.usage-card-global-upcoming {
+  color: var(--status-done);
+  font-weight: 600;
+}
+
+.usage-card-global-upcoming q {
+  display: block;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.usage-card-global-line {
+  color: var(--text-muted);
+}
+
+.usage-card-global-source {
+  margin-left: 6px;
+  color: var(--accent);
+  font-weight: 400;
+}
+
+.usage-card-credits-hint a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.usage-global-soon {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--status-done) 14%, transparent);
+  color: var(--status-done);
+  font-size: 11px;
+  line-height: 18px;
+}
+
 .usage-card-footer {
   display: flex;
   align-items: center;

@@ -7,6 +7,7 @@ import {
   usageLevel,
   type AgentKind,
   type AgentUsage,
+  type GlobalResets,
   type ResetCredit,
   type ResetCreditOutcome,
   type ResetCredits,
@@ -15,7 +16,7 @@ import {
 import { refreshUsage, spendResetCredit, useCore } from '../core-store'
 import { agentLabel } from '../labels'
 import { usePreferences } from '../preferences'
-import { clearsText, formatClock, formatDuration, percentText, resetText, shownPercent, SPEND_OUTCOME_TEXT, spendNote, useNow, windowLabel } from '../usage-format'
+import { clearsText, formatClock, formatDuration, globalResetText, percentText, resetText, shownPercent, SPEND_OUTCOME_TEXT, spendNote, useNow, windowLabel } from '../usage-format'
 import { agentNames } from '../environment-text'
 import { AgentIcon } from './icons'
 import { Spinner } from './Spinner'
@@ -149,6 +150,37 @@ export function ResetCreditList({ usage, credits, now, spending, onSpend, onChan
   )
 }
 
+const fullDate = (at: number) => new Date(at).toLocaleString('zh-CN', { hour12: false })
+
+// What the service announced for everyone, from a community tracker: a word that it is not official,
+// and the credit the tracker asks for.
+export function GlobalResetList({ resets, now }: { resets: GlobalResets; now: number }) {
+  const text = globalResetText(resets, now)
+  const source = (url: string | null, label: string) => url && <a className="usage-card-global-source" href={url} target="_blank" rel="noreferrer">{label}</a>
+  return (
+    <div className="usage-card-global">
+      <div className="usage-card-credits-title">全员重置</div>
+      {resets.upcoming && text.upcoming && (
+        <div className="usage-card-global-upcoming" title={fullDate(resets.upcoming.at)}>
+          {text.upcoming}
+          {resets.upcoming.text && <q>{resets.upcoming.text}</q>}
+          {source(resets.upcoming.sourceUrl, '原帖')}
+        </div>
+      )}
+      {resets.latest && text.latest && (
+        <div className="usage-card-global-line" title={fullDate(resets.latest.at)}>
+          {text.latest}
+          {source(resets.latest.sourceUrl, '原帖')}
+        </div>
+      )}
+      {text.chance && <div className="usage-card-global-line">{text.chance}</div>}
+      <div className="usage-card-credits-hint">
+        据 X 上的公告，非官方消息。数据来自 <a href="https://limitreset.net" target="_blank" rel="noreferrer">LimitReset</a> 和 <a href="https://codex-resets.com" target="_blank" rel="noreferrer">Codex Resets</a>
+      </div>
+    </div>
+  )
+}
+
 const CARD_WIDTH = 340
 // Hovering past on the way somewhere else should not flash a card.
 const CARD_DELAY_MS = 300
@@ -211,6 +243,7 @@ function UsageCard({ usage, now, anchor, id, cardRef, onEnter, onLeave, onRefres
       {usage.resetCredits && (usage.resetCredits.available > 0 || usage.resetCredits.blockedBy || spending) && (
         <ResetCreditList usage={usage} credits={usage.resetCredits} now={now} spending={spending} onSpend={onSpend} onChange={onSpendingChange} />
       )}
+      {usage.globalResets && <GlobalResetList resets={usage.globalResets} now={now} />}
       <div className="usage-card-footer">
         <span>{footer}</span>
         <button type="button" className="link-button usage-card-refresh" disabled={refreshing} onClick={onRefresh}>
@@ -340,6 +373,7 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
             重置卡 {usage.resetCredits.available}
           </span>
         )}
+        {usage.globalResets?.upcoming && <span className="usage-global-soon">即将重置</span>}
         {usage.status === 'error' && (
           <span className="usage-stale" role="img" aria-label={errorText(usage)}>
             ⚠
