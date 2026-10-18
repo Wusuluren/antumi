@@ -11,7 +11,7 @@ import { ConversationChat } from './ConversationChat'
 import { ConversationInspector } from './ConversationInspector'
 import { ConversationStatus } from './ConversationStatus'
 import { beginHandoff, renameConversation } from './ConversationActions'
-import { CloseIcon, HandoffIcon, InspectorIcon, SplitIcon } from './icons'
+import { CloseIcon, InspectorIcon, SplitIcon } from './icons'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { DEFAULT_SIDE_PANEL_RATIO } from './side-panel-size'
 import { EMPTY_FILE_TABS, useFileTabs } from '../file-tabs'
@@ -150,7 +150,6 @@ export function ConversationView({ id, pane }: { id: string; pane?: Conversation
         )}
       </div>
       <div className="toolbar">
-        {!conversation.discussionId && <button type="button" className="tool-button" aria-label="移交给其他智能体" data-tooltip="移交给其他智能体" disabled={busy || archived} onClick={openHandoff}><HandoffIcon /></button>}
         {hasPanel && (
           <button
             type="button"
