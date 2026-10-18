@@ -11,6 +11,9 @@ import { startNote } from '../../agent-prompt'
 import type { AcpDialect } from './acp-dialect'
 import { AcpConfig, valuesOf, type AcpOptionValue } from './acp-schema'
 
+// ACP lists a server's env as name and value pairs.
+const acpEnv = (env: Record<string, string> = {}) => Object.entries(env).map(([name, value]) => ({ name, value }))
+
 const Id = z.union([z.string(), z.number()])
 const Frame = z.looseObject({ jsonrpc: z.literal('2.0').optional(), id: Id.optional(), method: z.string().optional(), params: z.unknown().optional(), result: z.unknown().optional(), error: z.looseObject({ code: z.number(), message: z.string(), data: z.unknown().optional() }).optional() })
 type Frame = z.infer<typeof Frame>
@@ -167,9 +170,9 @@ export class AcpDriver implements ChatDriver {
         // Cursor is on its command line, and reads them by their paths either way.
         ...(this.roots().length && this.directories ? { additionalDirectories: this.roots() } : {}),
         mcpServers: [
-          ...(mcp ? [{ name: RESERVED_MCP_SERVER_NAME, command: mcp.command, args: mcp.args, env: [] }] : []),
+          ...(mcp ? [{ name: RESERVED_MCP_SERVER_NAME, command: mcp.command, args: mcp.args, env: acpEnv(mcp.env) }] : []),
           ...(this.options.userMcp ?? []).map((server) => server.type === 'stdio'
-            ? { name: server.name, command: server.command, args: server.args, env: [] }
+            ? { name: server.name, command: server.command, args: server.args, env: acpEnv(server.env) }
             : { type: 'http', name: server.name, url: server.url, headers: [] })
         ]
       })]

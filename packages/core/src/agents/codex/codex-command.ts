@@ -10,11 +10,13 @@ import type { AgentLaunch } from '../agent-adapter'
 // whole one is harmless where the plugin is not installed.
 const HIDDEN_CODEX_BROWSERS: readonly string[] = ['-c', 'mcp_servers.cua_repl={command="/usr/bin/true",enabled=false}']
 
+const tomlTable = (values: Record<string, string>) => `{${Object.entries(values).map(([key, value]) => `${JSON.stringify(key)}=${JSON.stringify(value)}`).join(',')}}`
+
 // A whole entry, as an inline table: it replaces one of the same name in the user's config.toml
 // rather than merging with it. JSON arrays of strings are TOML arrays too.
 function codexServer(server: AgentMcpServer): string {
   return server.type === 'stdio'
-    ? `{command=${JSON.stringify(server.command)},args=${JSON.stringify(server.args)}}`
+    ? `{command=${JSON.stringify(server.command)},args=${JSON.stringify(server.args)}${server.env ? `,env=${tomlTable(server.env)}` : ''}}`
     : `{url=${JSON.stringify(server.url)}}`
 }
 
@@ -27,7 +29,7 @@ export function codexCommand({ mcp, userMcp = [], knowledgeBase }: AgentLaunch):
   const note = startNote({ knowledgeBase, todos: Boolean(mcp) })
   return { command: 'codex', args: [
     'app-server',
-    ...(mcp ? ['-c', `mcp_servers.${RESERVED_MCP_SERVER_NAME}.command=${JSON.stringify(mcp.command)}`, '-c', `mcp_servers.${RESERVED_MCP_SERVER_NAME}.args=${JSON.stringify(mcp.args)}`, ...HIDDEN_CODEX_BROWSERS] : []),
+    ...(mcp ? ['-c', `mcp_servers.${RESERVED_MCP_SERVER_NAME}.command=${JSON.stringify(mcp.command)}`, '-c', `mcp_servers.${RESERVED_MCP_SERVER_NAME}.args=${JSON.stringify(mcp.args)}`, ...(mcp.env ? ['-c', `mcp_servers.${RESERVED_MCP_SERVER_NAME}.env=${tomlTable(mcp.env)}`] : []), ...HIDDEN_CODEX_BROWSERS] : []),
     ...userMcp.flatMap((server) => ['-c', `mcp_servers.${server.name}=${codexServer(server)}`]),
     ...(note ? ['-c', `developer_instructions=${JSON.stringify(note)}`] : [])
   ] }

@@ -1,15 +1,16 @@
 import { fileURLToPath } from 'node:url'
+import type { McpServer } from './agent-command'
 
 // How an agent starts Antumi's MCP server (mcp-main.ts). From source it goes through the
 // workspace's tsx; packaged, the launcher names the bundled mcp.mjs, run by the Electron binary as
-// plain Node. The env wrapper states the flag outright because an agent's environment lacks it
-// (POSIX only, like the dmg).
-export function mcpCommand(...args: string[]): string[] {
+// plain Node. The server's env states the flag outright because an agent's environment lacks it,
+// and an env wrapper (/usr/bin/env) is not there on Windows.
+export function mcpCommand(...args: string[]): McpServer {
   const bundled = process.env.ANTUMI_MCP_JS
   if (bundled) {
-    return ['/usr/bin/env', 'ELECTRON_RUN_AS_NODE=1', process.execPath, bundled, ...args]
+    return { command: process.execPath, args: [bundled, ...args], env: { ELECTRON_RUN_AS_NODE: '1' } }
   }
   const loader = fileURLToPath(new URL('../node_modules/tsx/dist/loader.mjs', import.meta.url))
   const entry = fileURLToPath(new URL('./mcp-main.ts', import.meta.url))
-  return [process.execPath, '--import', loader, entry, ...args]
+  return { command: process.execPath, args: ['--import', loader, entry, ...args] }
 }

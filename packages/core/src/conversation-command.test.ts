@@ -46,6 +46,18 @@ describe('chatCommand', () => {
     ])
   })
 
+  it('starts the packaged MCP launcher with the env it needs, which no wrapper could add on Windows', () => {
+    const env = { ELECTRON_RUN_AS_NODE: '1' }
+    const mcp = { command: 'Antumi.exe', args: ['mcp.mjs'], env }
+    const userMcp = [{ name: 'github', type: 'stdio' as const, command: 'Antumi.exe', args: ['mcp.mjs', '--run', 'github'], env }]
+    const claude = chatCommand('claude', 's', false, null, [], { mcp, userMcp }).args
+    expect(JSON.parse(claude[claude.indexOf('--mcp-config') + 1] ?? '{}')).toMatchObject({ mcpServers: { antumi: { env }, github: { env } } })
+    expect(chatCommand('codex', null, false, null, [], { mcp, userMcp }).args).toEqual(expect.arrayContaining([
+      '-c', 'mcp_servers.antumi.env={"ELECTRON_RUN_AS_NODE"="1"}',
+      '-c', 'mcp_servers.github={command="Antumi.exe",args=["mcp.mjs","--run","github"],env={"ELECTRON_RUN_AS_NODE"="1"}}'
+    ]))
+  })
+
   it('lets Claude show a file, read its own terminals and the user\'s history without asking', () => {
     const args = chatCommand('claude', 's', false, null, [], { mcp: { command: 'node', args: ['mcp.mjs'] } }).args
     const allowed = args[args.indexOf('--allowedTools') + 1]?.split(',') ?? []

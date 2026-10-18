@@ -56,8 +56,8 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
   const denials = fenced ? claudeEditDenials(fenced.dirs) : []
   const note = startNote({ knowledgeBase, todos: Boolean(mcp) })
   const servers = {
-    ...(mcp ? { [RESERVED_MCP_SERVER_NAME]: { type: 'stdio', command: mcp.command, args: mcp.args } } : {}),
-    ...Object.fromEntries(userMcp.map((server) => [server.name, server.type === 'stdio' ? { type: 'stdio', command: server.command, args: server.args } : { type: 'http', url: server.url }]))
+    ...(mcp ? { [RESERVED_MCP_SERVER_NAME]: { type: 'stdio', command: mcp.command, args: mcp.args, ...(mcp.env ? { env: mcp.env } : {}) } } : {}),
+    ...Object.fromEntries(userMcp.map((server) => [server.name, server.type === 'stdio' ? { type: 'stdio', command: server.command, args: server.args, ...(server.env ? { env: server.env } : {}) } : { type: 'http', url: server.url }]))
   }
   return { command: 'claude', args: [
     '-p', '--verbose', '--output-format', 'stream-json', '--input-format', 'stream-json',

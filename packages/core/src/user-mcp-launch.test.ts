@@ -38,8 +38,8 @@ async function save(input: McpServerInput): Promise<void> {
 
 // Starts the launcher as an agent would, writes these lines to it and reads as many back.
 async function exchange(name: string, lines: readonly unknown[], expected: number): Promise<unknown[]> {
-  const [command, ...args] = mcpCommand('--home', home, '--run', name)
-  const child = spawn(command ?? '', args, { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } })
+  const { command, args } = mcpCommand('--home', home, '--run', name)
+  const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } })
   const replies: unknown[] = []
   const done = new Promise<unknown[]>((resolve, reject) => {
     let stderr = ''
