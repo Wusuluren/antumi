@@ -394,6 +394,8 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 命令来自仓库，不一定是用户写的，所以第一次运行前要用户确认：core 在 `~/.antumi/project-trust.json` 里按仓库记下 setup 和 check 的哈希，哈希对不上时拒绝启动或提交（`project-config-untrusted`）。桌面端随后显示这些命令，用户允许后再试一次。只改 `copy` 不需要重新确认。文件格式有误时同样拒绝（`project-config-invalid`），不会悄悄跳过 setup。
 
+这个文件也可以在应用里填：设置 → 项目，每个最近用过的项目一行，显示配置了哪几项，「项目配置」打开表单（复制的文件每行一个，setup 和 check 各一个文本框）。保存由 core 写回项目里的 `.antumi/project.json`（`projects.writeConfig`，格式化后写，空项不写，全部清空则删除文件；原文件损坏也直接覆盖），并把写入的命令记为已允许：是用户自己填的，不必再确认。不是 Git 仓库的目录用不到 worktree，拒绝写入。表单上的「按项目填入建议」请 core 看项目根目录（`projects.suggestConfig`）：已有给 Superset（`.superset/config.json`）或 Conductor（`conductor.json`）写的 setup 就沿用；否则按清单文件认项目类型——Node 按锁文件选 pnpm、yarn、bun 或 npm，check 用 package.json 里的 typecheck 和 test 脚本；Go、Cargo、uv / Poetry / pip、Maven / Gradle、Bundler、Composer 各有一套命令，认出几种就依次串起来；根目录下的 `.env`、`.env.local` 这类本地文件列进复制。只填表单里还空着的项，不改用户已经写的；只看根目录，子目录里的项目（如 `server/go.mod`）认不出来。
+
 第一版不做服务启动编排、拆除和端口自动分配，这些和端口面板、浏览器的职责重叠。
 
 ## 7. 从源码运行

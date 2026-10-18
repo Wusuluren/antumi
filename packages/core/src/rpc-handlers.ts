@@ -1,3 +1,4 @@
+import { suggestForProject } from './project-config-suggest'
 import { EMPTY_BASELINE, type SmallModelStore } from './small-model-store'
 import { GitService } from './git-service'
 import { CORE_FEATURES, PROTOCOL_VERSION, type ChatItem } from '@antumi/protocol'
@@ -456,6 +457,8 @@ export function createRpcHandlers(
       return OK
     },
     'projects.config': ({ path }) => requireProjectConfigs().info(path),
+    'projects.writeConfig': ({ path, config }) => requireProjectConfigs().write(path, config),
+    'projects.suggestConfig': ({ path }) => suggestForProject(path),
     'projects.trustConfig': async ({ path, hash }) => {
       await requireProjectConfigs().trust(path, hash)
       return OK

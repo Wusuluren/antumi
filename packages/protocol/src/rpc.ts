@@ -13,7 +13,7 @@ import { TranslateLanguage, Translation } from './translation'
 import { FileDiff, FolderChanges, RepoChanges } from './changes'
 import { Terminal, TerminalCommand, TerminalCommandFields, TerminalOutput, TerminalRun } from './terminal'
 import { PortList, PortRef } from './ports'
-import { ProjectConfigInfo } from './project-config'
+import { ProjectConfig, ProjectConfigInfo } from './project-config'
 import { ChatCommandFields, SavedChatCommand } from './chat-commands'
 import { ProjectFileMatch } from './project-files'
 import { DirectoryListing, FileRead, FileWrite, MAX_FILE_PREVIEW_BYTES, ResolvedFile } from './files'
@@ -81,7 +81,9 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // git-commit-actions: git.execute takes tag and detach, for a commit in the history.
 // project-config: core copies files and runs setup in new worktrees and check before review, from a
 // project's .antumi/project.json, once the user trusts its commands (projects.config, projects.trustConfig).
-export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config'] as const
+// project-config-edit: core writes that file as the user filled it in (projects.writeConfig), and
+// suggests what to fill it with (projects.suggestConfig).
+export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit'] as const
 // knowledge-base: core hands agents the user's local knowledge base and lists the vaults Obsidian knows (knowledge.*).
 // knowledge-base-kind: Markdown folders and Obsidian use their own prompts and skills; missing kind means Obsidian.
 // skills-library: core installs Agent Skills repositories pinned to a commit and hands bundles of them to agents (skills.*).
@@ -532,6 +534,12 @@ export const rpcMethods = {
   'projects.config': { params: z.object({ path: z.string().min(1) }), result: ProjectConfigInfo.nullable() },
   // Trusts the commands the user was shown, by their hash; ones changed since are refused again.
   'projects.trustConfig': { params: z.object({ path: z.string().min(1), hash: z.string().min(1).max(200) }), result: Ok },
+  // Writes the project's .antumi/project.json as the user filled it in, its commands allowed as
+  // written; with nothing in it, the file goes. Answers with what it now holds. Needs project-config-edit.
+  'projects.writeConfig': { params: z.object({ path: z.string().min(1), config: ProjectConfig }), result: ProjectConfigInfo.nullable() },
+  // A config to start the form from, read off the project's files (its lockfiles, a setup written
+  // for another worktree tool), and what it was read from. Needs project-config-edit.
+  'projects.suggestConfig': { params: z.object({ path: z.string().min(1) }), result: z.object({ config: ProjectConfig, from: z.array(z.string()) }) },
   // Files in these project folders whose path ends in `path` (a bare name, or a tail of one),
   // tracked or untracked but not ignored: absolute, the shallowest first, at most 20.
   'projects.findFile': {

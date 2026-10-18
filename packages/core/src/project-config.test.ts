@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -22,6 +22,24 @@ describe('ProjectConfigStore', () => {
     mkdirSync(path.join(repo, '.antumi'), { recursive: true })
     writeFileSync(path.join(repo, '.antumi', 'project.json'), typeof content === 'string' ? content : JSON.stringify(content))
   }
+
+  it('writes what the user filled in, tidied, its commands allowed as written', async () => {
+    const info = await store.write(path.join(repo), { copy: [' .env ', '.env'], setup: 'go mod download', check: '  go test ./...  ' })
+    expect(readFileSync(path.join(repo, '.antumi', 'project.json'), 'utf8')).toBe('{\n  "copy": [\n    ".env"\n  ],\n  "setup": "go mod download",\n  "check": "go test ./..."\n}\n')
+    expect(info).toMatchObject({ trusted: true, config: { setup: 'go mod download' } })
+    expect(await store.requireTrusted([repo])).toHaveLength(1)
+  })
+
+  it('writes over a broken file, and removes the file once nothing is left in it', async () => {
+    write('{ "setup": ')
+    expect(await store.write(repo, { check: 'make test' })).toMatchObject({ config: { check: 'make test' } })
+    expect(await store.write(repo, {})).toBeNull()
+    expect(existsSync(path.join(repo, '.antumi', 'project.json'))).toBe(false)
+  })
+
+  it('writes nothing for a folder outside git', async () => {
+    await expect(store.write(dir, { check: 'make test' })).rejects.toMatchObject({ reason: 'worktree-not-git' })
+  })
 
   it('has nothing to do for a project without the file, or a folder outside git', async () => {
     expect(await readProjectConfig(repo)).toBeNull()

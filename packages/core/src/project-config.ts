@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
-import { readFile, stat } from 'node:fs/promises'
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { PROJECT_CONFIG_FILE, ProjectConfig, projectRunsCommands, type ProjectConfigInfo } from '@antumi/protocol'
+import { PROJECT_CONFIG_FILE, ProjectConfig, projectRunsCommands, tidyProjectConfig, type ProjectConfigInfo } from '@antumi/protocol'
 import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 import { Rejection } from './rejection'
 import { gitTopLevel } from './workspace'
@@ -66,8 +66,29 @@ export class ProjectConfigStore {
   async trust(repoPath: string, hash: string): Promise<void> {
     const setup = await readProjectConfig(repoPath)
     if (!setup || setup.hash !== hash) throw new Rejection('project-config-changed', '项目配置已经变了，请重新确认')
+    await this.remember(setup.topLevel, hash)
+  }
+
+  // Writes the config the user filled in, over whatever the file held, broken or not: these are
+  // the user's own commands, so they are allowed as written. Nothing left in it removes the file.
+  async write(repoPath: string, config: ProjectConfig): Promise<ProjectConfigInfo | null> {
+    const topLevel = await gitTopLevel(repoPath)
+    if (!topLevel) throw new Rejection('worktree-not-git', `${repoPath} 不是 Git 仓库，用不到项目配置`)
+    const file = path.join(topLevel, '.antumi', PROJECT_CONFIG_FILE)
+    const tidy = tidyProjectConfig(config)
+    if (Object.keys(tidy).length === 0) {
+      await rm(file, { force: true })
+      return null
+    }
+    await mkdir(path.dirname(file), { recursive: true })
+    await writeFile(file, `${JSON.stringify(tidy, null, 2)}\n`)
+    if (projectRunsCommands(tidy)) await this.remember(topLevel, projectConfigHash(tidy))
+    return this.info(repoPath)
+  }
+
+  private async remember(topLevel: string, hash: string): Promise<void> {
     const saved = Trusted.parse(await readJsonIfExists(this.file))
-    await writePrivateJson(this.file, { version: 1, repos: { ...saved.repos, [setup.topLevel]: hash } })
+    await writePrivateJson(this.file, { version: 1, repos: { ...saved.repos, [topLevel]: hash } })
   }
 
   private async trusts(setup: ProjectSetup): Promise<boolean> {

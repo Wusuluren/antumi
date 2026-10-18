@@ -24,6 +24,14 @@ export const ProjectConfigInfo = z.object({
 })
 export type ProjectConfigInfo = z.infer<typeof ProjectConfigInfo>
 
+// The config as written: blank lines and entries dropped, and a field left with nothing omitted.
+export function tidyProjectConfig(config: ProjectConfig): ProjectConfig {
+  const copy = [...new Set((config.copy ?? []).map((entry) => entry.trim()).filter(Boolean))]
+  const setup = config.setup?.trim()
+  const check = config.check?.trim()
+  return { ...(copy.length > 0 ? { copy } : {}), ...(setup ? { setup } : {}), ...(check ? { check } : {}) }
+}
+
 // Whether the config runs anything, which is what the user has to trust; copying alone does not.
 export function projectRunsCommands(config: ProjectConfig): boolean {
   return Boolean(config.setup || config.check)
