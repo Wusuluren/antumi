@@ -8,5 +8,6 @@ declare module 'react' {
     '--chat-lane'?: number
     '--sidebar-width'?: string
     '--chat-font-custom'?: string
+    '--chat-font-cjk'?: string
   }
 }

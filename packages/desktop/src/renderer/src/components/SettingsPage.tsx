@@ -47,6 +47,7 @@ import { settingsSectionOf } from './SourceInboxView'
 import { SourceSettingsSection } from './SourceSettingsSection'
 import { projectName } from './ProjectPicker'
 import { Resettable, Segmented, SettingsGroup, SettingsRow, Stepper, Toggle } from './SettingsControls'
+import { CjkFontPicker } from './CjkFontPicker'
 import { PalettePicker } from './PalettePicker'
 import { BackdropPicker } from './BackdropPicker'
 import { useOccludesBrowser } from '../browser-occlusion'
@@ -115,6 +116,11 @@ function AppearanceSettings() {
           control={(labelId) => <ChatFontPicker labelId={labelId} />}
         />
         <SettingsRow
+          label="中文字体"
+          description="聊天里的中文用它显示，英文仍用上面的字体。默认是苹方，选衬线时是宋体。"
+          control={(labelId) => <CjkFontPicker labelId={labelId} preference="chatCjkFontFamily" title="选择聊天的中文字体" />}
+        />
+        <SettingsRow
           label="页面宽度"
           description="消息和输入框的最大宽度：窄 800px，中等 1200px。"
           control={(labelId) => (
@@ -143,6 +149,11 @@ function AppearanceSettings() {
           label="代码字体"
           description="终端、代码块、改动和文件预览的字体。默认 Geist Mono，也可选本机等宽字体。"
           control={(labelId) => <CodeFontPicker labelId={labelId} />}
+        />
+        <SettingsRow
+          label="代码中文字体"
+          description="终端、代码和文件预览里的中文用它显示，代码字体里没有中文时才用到。默认是苹方。"
+          control={(labelId) => <CjkFontPicker labelId={labelId} preference="codeCjkFontFamily" title="选择代码的中文字体" />}
         />
         <SettingsRow
           label="终端字号"
@@ -630,7 +641,7 @@ const SECTIONS: readonly Section[] = [
     group: '界面',
     title: '外观',
     description: '颜色、聊天页和终端的显示。',
-    keywords: ['主题', '浅色', '深色', '跟随系统', '颜色', '配色', '终端', '代码', '字号', '字体', '行高', '提示符', 'zsh', '聊天', '宽度', '全宽', '折叠', '回合', '工作了', '恢复默认', '默认'],
+    keywords: ['主题', '浅色', '深色', '跟随系统', '颜色', '配色', '终端', '代码', '字号', '字体', '行高', '提示符', 'zsh', '聊天', '宽度', '全宽', '折叠', '回合', '工作了', '中文字体', '恢复默认', '默认'],
     Icon: ContrastIcon,
     Body: AppearanceSettings,
     grouped: true

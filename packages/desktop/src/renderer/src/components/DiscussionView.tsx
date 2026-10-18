@@ -1,3 +1,4 @@
+import { useChatTypeface } from '../chat-typeface'
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { checkDiscussionAction, checkEditDiscussionProjects, checkNewDiscussionTopic, checkRemoveDiscussionMember, currentTopic, MAX_DETAILS_LENGTH, memberLetter, type Discussion, type DiscussionAction, type DiscussionMember, type DiscussionPost } from '@antumi/protocol'
 import { loadConversation, openDiscussionDraft, perform, selectConversation, selectDiscussion, selectTask, useCore, useDiscussionMembersSupported, useDiscussionProjectsSupported, useDiscussionTopicsSupported } from '../core-store'
@@ -290,8 +291,7 @@ export function DiscussionView({ id }: { id: string }) {
   const discussion = useCore((s) => s.discussions[id])
   const posts = useDiscussionPosts((all) => all[id])
   const width = usePreferences((s) => s.chatWidth)
-  const fontSize = usePreferences((s) => s.chatFontSize)
-  const font = usePreferences((s) => s.chatFont)
+  const typeface = useChatTypeface()
   const [renaming, setRenaming] = useState(false)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -382,7 +382,7 @@ export function DiscussionView({ id }: { id: string }) {
         </div>
       </header>
       <div className="terminal-body">
-        <div ref={view} className="chat-view discussion-body" data-width={width} data-font-size={fontSize} data-font={font}>
+        <div ref={view} className="chat-view discussion-body" data-width={width} {...typeface}>
           <ChatFind key={id} state={find} scope={view} container={list} onOpen={findOpened} />
           <ul className="discussion-members" aria-label="成员">
             {discussion.members.map((member) => {

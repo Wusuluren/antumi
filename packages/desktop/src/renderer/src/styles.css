@@ -4700,6 +4700,7 @@ body.side-panel-resizing * {
 .settings-reset[hidden] { display: inline-grid; visibility: hidden; }
 .settings-reset { display: inline-grid; place-items: center; }
 .settings-reset svg { width: 16px; height: 16px; }
+.font-picker-sample { margin-left: auto; padding-left: 12px; color: var(--text-muted); white-space: nowrap; }
 
 .stepper {
   display: inline-flex;
@@ -5731,13 +5732,17 @@ body.side-panel-resizing * {
 }
 
 /* The chat's font, from the settings: the tokens are redefined here, so code and prose inside
-   follow without a rule each. */
+   follow without a rule each. A Chinese family the user picked (--chat-font-cjk) stands after the
+   Latin ones, in place of the Chinese font that goes with them. */
+.chat-view[data-font='system'] {
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', var(--chat-font-cjk, 'PingFang SC', 'Microsoft YaHei'), sans-serif;
+}
 .chat-view[data-font='serif'] {
-  --font: 'Iowan Old Style', 'Palatino Linotype', Georgia, 'Songti SC', 'Noto Serif CJK SC', 'SimSun', serif;
+  --font: 'Iowan Old Style', 'Palatino Linotype', Georgia, var(--chat-font-cjk, 'Songti SC', 'Noto Serif CJK SC', 'SimSun'), serif;
 }
 /* A family the user picked from those installed; what it lacks falls back to the system font. */
 .chat-view[data-font='custom'] {
-  --font: var(--chat-font-custom), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font: var(--chat-font-custom), -apple-system, BlinkMacSystemFont, 'Segoe UI', var(--chat-font-cjk, 'PingFang SC', 'Microsoft YaHei'), sans-serif;
 }
 
 .chat-view[data-font-size='10'] { --chat-font-size: 10px; }

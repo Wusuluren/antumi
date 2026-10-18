@@ -29,11 +29,17 @@ const Preferences = z.object({
   colorPrompt: z.boolean().catch(true),
   // The family code and the terminal are set in, as the user picked it; empty, the bundled one.
   codeFontFamily: z.string().max(200).catch(''),
+  // The family Chinese in code and the terminal is set in, where the code font has none; empty,
+  // the platform's own.
+  codeCjkFontFamily: z.string().max(200).catch(''),
   chatFontSize: z.number().int().min(10).max(20).catch(14),
   // What the chat is set in: the system's font, a serif for the prose, or a family the user
   // picked from those installed (chatFontFamily). A preset since dropped reads as the system's.
   chatFont: z.enum(['system', 'serif', 'custom']).catch('system'),
   chatFontFamily: z.string().max(200).catch(''),
+  // The family the chat's Chinese is set in, whatever the font above; empty, the one that goes
+  // with it (PingFang, or Songti beside a serif).
+  chatCjkFontFamily: z.string().max(200).catch(''),
   // How wide a chat's messages and composer may grow: 800px, 1200px, or the whole chat pane.
   chatWidth: z.enum(['narrow', 'medium', 'full']).catch('narrow'),
   // Off, a finished turn's work stays in view rather than behind how long it worked.

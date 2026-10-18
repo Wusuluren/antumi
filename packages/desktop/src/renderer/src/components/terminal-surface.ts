@@ -42,7 +42,7 @@ export function createTerminalSurface(element: HTMLElement, rpc: RpcConnection, 
   const preferences = usePreferences.getState()
   const term = new Terminal({
     fontSize: preferences.terminalFontSize,
-    fontFamily: codeFontStack(preferences.codeFontFamily),
+    fontFamily: codeFontStack(preferences.codeFontFamily, preferences.codeCjkFontFamily),
     lineHeight: preferences.terminalLineHeight,
     cursorBlink: Boolean(sessionId), theme: terminalTheme()
   })
@@ -78,11 +78,12 @@ export function createTerminalSurface(element: HTMLElement, rpc: RpcConnection, 
   const stopFontSizing = usePreferences.subscribe((next, previous) => {
     if (next.terminalFontSize !== previous.terminalFontSize) term.options.fontSize = next.terminalFontSize
     if (next.terminalLineHeight !== previous.terminalLineHeight) term.options.lineHeight = next.terminalLineHeight
-    if (next.codeFontFamily !== previous.codeFontFamily) {
-      term.options.fontFamily = codeFontStack(next.codeFontFamily)
+    const fontChanged = next.codeFontFamily !== previous.codeFontFamily || next.codeCjkFontFamily !== previous.codeCjkFontFamily
+    if (fontChanged) {
+      term.options.fontFamily = codeFontStack(next.codeFontFamily, next.codeCjkFontFamily)
       remeasure()
     }
-    if (next.terminalFontSize !== previous.terminalFontSize || next.terminalLineHeight !== previous.terminalLineHeight || next.codeFontFamily !== previous.codeFontFamily) refit()
+    if (next.terminalFontSize !== previous.terminalFontSize || next.terminalLineHeight !== previous.terminalLineHeight || fontChanged) refit()
   })
   return {
     term, sendSize,
