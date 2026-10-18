@@ -694,7 +694,8 @@ const SKILLS_SECTION: Section = {
   description: '从 Git 仓库安装 Agent Skills（SKILL.md），Agent 启动时带上。',
   keywords: ['技能', 'skill', 'skills', '插件', 'plugin', 'obsidian', 'markdown', '安装', '更新', '回退', '仓库', 'git', ...AGENT_KINDS],
   Icon: SparkIcon,
-  Body: SkillsSettingsSection
+  Body: SkillsSettingsSection,
+  grouped: true
 }
 
 // On a core that keeps them: the user's MCP servers, handed to agents at each start; it follows 技能.

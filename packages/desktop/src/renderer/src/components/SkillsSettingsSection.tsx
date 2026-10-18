@@ -3,8 +3,14 @@ import { AGENT_KINDS, agentDescriptor, type RecommendedSkillRepo, type SkillRepo
 import { useEffect } from 'react'
 import { perform, useCore } from '../core-store'
 import { agentLabel } from '../labels'
+import { SettingsGroup } from './SettingsControls'
 
 const short = (commit: string) => commit.slice(0, 7)
+
+// The recommendations not installed yet, by address with or without .git.
+export function notInstalled(recommended: readonly RecommendedSkillRepo[], repos: readonly SkillRepo[]): RecommendedSkillRepo[] {
+  return recommended.filter((repo) => !repos.some((each) => each.url === repo.url || each.url === `${repo.url}.git`))
+}
 
 // One installed repository: its skills, and the pin the user moves by hand.
 function RepoRow({ repo }: { repo: SkillRepo }) {
@@ -63,7 +69,7 @@ function RepoRow({ repo }: { repo: SkillRepo }) {
   )
 }
 
-function RecommendedRow({ repo, installed }: { repo: RecommendedSkillRepo; installed: boolean }) {
+function RecommendedRow({ repo }: { repo: RecommendedSkillRepo }) {
   const [busy, setBusy] = useState(false)
   const install = async () => {
     setBusy(true)
@@ -75,7 +81,7 @@ function RecommendedRow({ repo, installed }: { repo: RecommendedSkillRepo; insta
         <span className="settings-project-name">{repo.name}</span>
         <span className="settings-project-path mono" title={repo.url}>{repo.url}</span>
         <span className="muted">{repo.license}</span>
-        {installed ? <span className="muted">已安装</span> : <button type="button" className="button" disabled={busy} onClick={() => void install()}>{busy ? '安装中…' : '安装'}</button>}
+        <button type="button" className="button" disabled={busy} onClick={() => void install()}>{busy ? '安装中…' : '安装'}</button>
       </div>
       <p className="settings-note">{repo.description}</p>
       <div className="settings-skill-chips">
@@ -85,8 +91,8 @@ function RecommendedRow({ repo, installed }: { repo: RecommendedSkillRepo; insta
   )
 }
 
-// Agent Skills Antumi installs for its agents: what is installed and pinned where, what Antumi
-// suggests, and any other repository by its address.
+// Agent Skills Antumi installs for its agents, a card each: what is installed and pinned where,
+// what Antumi suggests that is not installed yet, and any other repository by its address.
 export function SkillsSettingsSection() {
   const connected = useCore((s) => s.connection === 'connected')
   const repos = useCore((s) => s.skillRepos)
@@ -113,32 +119,34 @@ export function SkillsSettingsSection() {
   // Which agents take a bundle is the descriptors' to say.
   const takers = AGENT_KINDS.filter((kind) => agentDescriptor(kind).capabilities.skills).map(agentLabel)
   const others = AGENT_KINDS.filter((kind) => !agentDescriptor(kind).capabilities.skills).map(agentLabel)
+  const suggested = notInstalled(recommended ?? [], repos)
   return (
     <>
       <p className="settings-note">
         固定在安装时的提交，更新前可预览变化，也能回退；不改 Agent 自己的配置。技能是第三方代码，可能带脚本，只装你信任的。
         {[takers.length > 0 && `${takers.join('、')} 支持`, others.length > 0 && `${others.join('、')} 暂不支持`].filter(Boolean).join('；')}。
       </p>
-      <h3 className="settings-stats-heading">已安装</h3>
-      {repos.length === 0 ? <p className="settings-empty">还没有安装技能。</p> : (
-        <ul className="settings-project-list">
-          {repos.map((repo) => <RepoRow key={repo.id} repo={repo} />)}
-        </ul>
-      )}
-      {recommended && recommended.length > 0 && (
-        <>
-          <h3 className="settings-stats-heading">推荐</h3>
+      <SettingsGroup title={repos.length > 0 ? `已安装 · ${repos.length}` : '已安装'}>
+        {repos.length === 0 ? <p className="settings-empty">还没有安装技能，可以从下面的推荐里装，或填一个仓库地址。</p> : (
           <ul className="settings-project-list">
-            {recommended.map((repo) => <RecommendedRow key={repo.url} repo={repo} installed={repos.some((each) => each.url === repo.url || each.url === `${repo.url}.git`)} />)}
+            {repos.map((repo) => <RepoRow key={repo.id} repo={repo} />)}
           </ul>
-        </>
+        )}
+      </SettingsGroup>
+      {suggested.length > 0 && (
+        <SettingsGroup title="推荐">
+          <ul className="settings-project-list">
+            {suggested.map((repo) => <RecommendedRow key={repo.url} repo={repo} />)}
+          </ul>
+        </SettingsGroup>
       )}
-      <h3 className="settings-stats-heading">其他仓库</h3>
-      <form className="settings-skill-install" onSubmit={(event) => void install(event)}>
-        <input className="input mono" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://github.com/<owner>/<repo>" spellCheck={false} autoComplete="off" />
-        <button type="submit" className="button" disabled={installing || !url.trim()}>{installing ? '安装中…' : '安装'}</button>
-      </form>
-      <p className="settings-note">只接受 https:// 地址，仓库里要有 skills/&lt;名字&gt;/SKILL.md。</p>
+      <SettingsGroup title="从其他仓库安装">
+        <form className="settings-skill-install" onSubmit={(event) => void install(event)}>
+          <input className="input mono" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://github.com/<owner>/<repo>" aria-label="仓库地址" spellCheck={false} autoComplete="off" />
+          <button type="submit" className="button" disabled={installing || !url.trim()}>{installing ? '安装中…' : '安装'}</button>
+        </form>
+        <p className="settings-note">只接受 https:// 地址，仓库里要有 skills/&lt;名字&gt;/SKILL.md。</p>
+      </SettingsGroup>
     </>
   )
 }
