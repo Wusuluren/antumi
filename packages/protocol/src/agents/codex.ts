@@ -25,6 +25,7 @@ export const codex: AgentDescriptor = {
     signIn: '在终端里运行 codex login'
   },
   usageWhere: '在 Codex 的用量设置里使用',
+  resetTracker: 'codex',
   quickModels: [/-luna$/, /mini/, /nano/],
   prices: CODEX_PRICES
 }

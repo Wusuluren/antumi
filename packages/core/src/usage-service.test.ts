@@ -128,6 +128,23 @@ describe('UsageService.useResetCredit', () => {
   })
 })
 
+describe('UsageService.setGlobalResets', () => {
+  const resets = { latest: { kind: 'reset' as const, at: 5, text: 'Done', sourceUrl: null, scheduledFor: null }, upcoming: null, chance48h: 0.2, checkedAt: 6 }
+
+  it("shows the tracker's word with the reading, and keeps it on the readings after", async () => {
+    const { service, events, advance } = setup(async () => ({ signedIn: true, windows: [window], plan: null }))
+    await service.refresh()
+    events.length = 0
+    service.setGlobalResets('claude', resets)
+    expect(events).toEqual([expect.objectContaining({ agent: 'claude', windows: [window], globalResets: resets })])
+    advance(60_000)
+    const [claude] = await service.refresh()
+    expect(claude?.globalResets).toEqual(resets)
+    service.setGlobalResets('claude', null)
+    expect(service.list().find((u) => u.agent === 'claude')?.globalResets).toBeNull()
+  })
+})
+
 describe('UsageService.report', () => {
   it('ignores a report older than the reading it holds, refresh and all', async () => {
     let reads = 0

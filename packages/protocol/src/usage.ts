@@ -52,6 +52,27 @@ export type ResetCredits = z.infer<typeof ResetCredits>
 export const ResetCreditOutcome = z.enum(['reset', 'nothing-to-reset', 'no-credit', 'already-used'])
 export type ResetCreditOutcome = z.infer<typeof ResetCreditOutcome>
 
+// A reset the service gave everyone, as announced in public (on X) and gathered by a community
+// tracker: reset: everyone's windows cleared · banked: a reset credit for every paid account ·
+// upcoming: announced, not landed yet; `scheduledFor` is the tracker's estimate of when.
+export const GlobalReset = z.object({
+  kind: z.enum(['reset', 'banked', 'upcoming']),
+  at: z.number(),
+  text: z.string().nullable(),
+  sourceUrl: z.string().nullable(),
+  scheduledFor: z.number().nullable()
+})
+export type GlobalReset = z.infer<typeof GlobalReset>
+
+export const GlobalResets = z.object({
+  latest: GlobalReset.nullable(),
+  upcoming: GlobalReset.nullable(),
+  // The tracker's odds of another within 48 hours, from past intervals; null without enough history.
+  chance48h: z.number().min(0).max(1).nullable(),
+  checkedAt: z.number()
+})
+export type GlobalResets = z.infer<typeof GlobalResets>
+
 export const AgentUsage = z.object({
   agent: AgentKind,
   status: UsageStatus,
@@ -61,7 +82,10 @@ export const AgentUsage = z.object({
   error: z.string().nullable(),
   updatedAt: z.number(),
   // Only Codex reports these; null when there are none to show or the agent has no such thing.
-  resetCredits: ResetCredits.nullable().default(null)
+  resetCredits: ResetCredits.nullable().default(null),
+  // For an agent the tracker follows (AgentDescriptor.resetTracker), while the user has it on
+  // (ChatSettings.resetAnnouncements). Older cores leave it out.
+  globalResets: GlobalResets.nullable().optional()
 })
 export type AgentUsage = z.infer<typeof AgentUsage>
 

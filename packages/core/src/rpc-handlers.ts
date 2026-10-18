@@ -466,7 +466,7 @@ export function createRpcHandlers(
       return OK
     },
     'usage.list': ({ windowKinds }, connection) => readableUsage(connection.usageKinds, windowKinds, usage.list()),
-    'usage.refresh': async ({ windowKinds }, connection) => readableUsage(connection.usageKinds, windowKinds, await usage.refresh()),
+    'usage.refresh': async ({ windowKinds }, connection) => readableUsage(connection.usageKinds, windowKinds, await usage.requestRefresh()),
     'usage.useResetCredit': async ({ agent, requestId, creditId }) => ({ outcome: await usage.useResetCredit(agent, requestId, creditId) }),
     'agents.stats': () => runs.stats(),
     'agents.conversationStats': () => turns.stats(),

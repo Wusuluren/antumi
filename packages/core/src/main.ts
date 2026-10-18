@@ -50,6 +50,7 @@ import { AwakeConfigStore } from './awake-config'
 import { ComputerAwakeService } from './computer-awake-service'
 import { ChatSettingsStore } from './chat-settings'
 import { ConversationAutoArchive } from './conversation-auto-archive'
+import { ResetAnnouncements } from './reset-announcements'
 import { SkillsLibrary } from './skills-library'
 import { McpServerStore } from './mcp-servers'
 import { knowledgeBaseSkills } from './skills-recommended'
@@ -299,8 +300,14 @@ const chatSettings = new ChatSettingsStore(paths.chatSettings, (settings) => {
   conversations.setCapacity(settings, () => { void schedules.tick(); squads.tick() })
   wire.setEnabled(settings.wireLog ?? false)
   void autoArchive.sweep()
+  announcements.settingsChanged()
   server?.broadcast('system.chatSettingsChanged', { settings })
 })
+const announcements = new ResetAnnouncements(
+  () => chatSettings.current().resetAnnouncements,
+  (agent, resets) => usage.setGlobalResets(agent, resets)
+)
+usage.onManualRefresh(() => void announcements.refresh())
 const autoArchive = new ConversationAutoArchive(
   () => chatSettings.current().autoArchiveDays,
   (before) => conversationsStore.idleSince(before),
@@ -388,6 +395,7 @@ daemon.start()
 await awake.start()
 refreshAwake()
 usage.start()
+announcements.start()
 routines.start()
 schedules.start()
 autoArchive.start()
@@ -410,6 +418,7 @@ async function shutdown(): Promise<void> {
   }
   shuttingDown = true
   usage.stop()
+  announcements.stop()
   schedules.stop()
   routines.stop()
   autoArchive.stop()

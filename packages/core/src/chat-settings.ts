@@ -4,7 +4,8 @@ import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 
 // Suggestions on, as in Claude Code itself; scheduled runs let edits through but still ask for
 // anything else; an agent that can drives the user's own browser; agents may read the user's
-// history in Antumi; no knowledge base until the user picks one; nothing archived on its own. Each field falls back on its own,
+// history in Antumi; no knowledge base until the user picks one; nothing archived on its own; the
+// resets services announce for everyone shown with the usage. Each field falls back on its own,
 // so one bad value resets nothing else.
 export const DEFAULT_AGENT_CONCURRENCY = 6
 const DEFAULTS = {
@@ -18,7 +19,8 @@ const DEFAULTS = {
   userBrowser: true,
   readHistory: true,
   knowledgeBase: null,
-  autoArchiveDays: null
+  autoArchiveDays: null,
+  resetAnnouncements: true
 } satisfies Required<ChatSettings>
 const Saved = z.object({
   promptSuggestions: z.boolean().catch(DEFAULTS.promptSuggestions),
@@ -31,7 +33,8 @@ const Saved = z.object({
   userBrowser: z.boolean().catch(DEFAULTS.userBrowser),
   readHistory: z.boolean().catch(DEFAULTS.readHistory),
   knowledgeBase: KnowledgeBase.nullable().catch(DEFAULTS.knowledgeBase),
-  autoArchiveDays: ChatSettings.shape.autoArchiveDays.unwrap().catch(DEFAULTS.autoArchiveDays)
+  autoArchiveDays: ChatSettings.shape.autoArchiveDays.unwrap().catch(DEFAULTS.autoArchiveDays),
+  resetAnnouncements: z.boolean().catch(DEFAULTS.resetAnnouncements)
 }).catch(DEFAULTS)
 
 // Machine-level, like keeping the computer awake: every window and every chat goes by the same.
@@ -77,7 +80,8 @@ export class ChatSettingsStore {
       userBrowser: patch.userBrowser ?? this.settings.userBrowser,
       readHistory: patch.readHistory ?? this.settings.readHistory,
       knowledgeBase,
-      autoArchiveDays: patch.autoArchiveDays === undefined ? this.settings.autoArchiveDays : patch.autoArchiveDays
+      autoArchiveDays: patch.autoArchiveDays === undefined ? this.settings.autoArchiveDays : patch.autoArchiveDays,
+      resetAnnouncements: patch.resetAnnouncements ?? this.settings.resetAnnouncements
     }
     await writePrivateJson(this.file, { version: 1, ...next })
     this.settings = next

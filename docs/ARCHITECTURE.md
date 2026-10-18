@@ -303,7 +303,7 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 一个 Agent 的全部知识分在三处注册表里。三处都写成 `satisfies Record<AgentKind, …>`，漏掉任何一处都过不了 typecheck。除注册那一行外，其余代码只问注册表，不判断 Agent 的名字：
 
-1. **protocol**：在 `packages/protocol/src/agent.ts` 的 `AGENT_KINDS` 里加 id，新建 `packages/protocol/src/agents/<id>.ts` 写一个 `AgentDescriptor`，再登记进 `agents/index.ts` 的 `AGENT_DESCRIPTORS`。descriptor 是纯数据，core 和各客户端共用，内容包括名称、它怎么称呼 Antumi 的权限模式、新会话的起始模式、群聊成员用的只读模式（`discussionMode`）、能力开关（`unattended`、`bypass`、`autoMode`、`pathMentions`、`optionsWhileBusy`）、安装和登录提示、用量重置在哪里用。界面只读这些数据，不自己编码规则。
+1. **protocol**：在 `packages/protocol/src/agent.ts` 的 `AGENT_KINDS` 里加 id，新建 `packages/protocol/src/agents/<id>.ts` 写一个 `AgentDescriptor`，再登记进 `agents/index.ts` 的 `AGENT_DESCRIPTORS`。descriptor 是纯数据，core 和各客户端共用，内容包括名称、它怎么称呼 Antumi 的权限模式、新会话的起始模式、群聊成员用的只读模式（`discussionMode`）、能力开关（`unattended`、`bypass`、`autoMode`、`pathMentions`、`optionsWhileBusy`）、安装和登录提示、用量重置在哪里用，以及它在 limitreset.net 上对应的产品（`resetTracker`，可选）。core 每小时请求一次 `https://limitreset.net/api/v1/status`（手动刷新用量时也请求，至少隔 5 分钟）；它的 Codex 数据转自 Codex Resets，所以当它连不上，或它自己同步 Codex Resets 失败、超过 6 小时没成功（`discovery`）时，Codex 改问 `https://codex-resets.com/api/v1/status`（没有概率，其余照常），两边都失败就保留上次的结果。把各产品最近一次全员重置、已预告但未生效的重置、48 小时内再次重置的估算概率，作为 `AgentUsage.globalResets` 随用量推给客户端；设置 → 用量额度里可以关掉（`ChatSettings.resetAnnouncements`，默认开），关掉后不再发请求。数据由社区汇总自 X 上的公告，未经核实，界面注明非官方并按 LimitReset 的要求注明来源。界面只读这些数据，不自己编码规则。
 2. **core**：新建 `packages/core/src/agents/<id>/`，写一个 `AgentAdapter`（`agents/agent-adapter.ts`），再登记进 `agents/index.ts` 的 `AGENT_ADAPTERS`。adapter 负责以下几项，大多可选，没给就走默认实现：
    - 必填：driver（实现 `ChatDriver`）、启动命令（argv 数组）、能用的权限模式、会话策略（是否预先指定会话 id、会话是否绑定目录、是否支持原生 fork）。
    - 可选：模型目录、环境检测、登录检查、用量读取、使用重置卡（`useResetCredit`，没有它就只能在 Agent 自己的应用里用）、CLI 安装命令、应用发现。

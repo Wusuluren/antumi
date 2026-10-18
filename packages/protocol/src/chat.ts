@@ -46,7 +46,10 @@ export const ChatSettings = z.object({
   knowledgeBase: KnowledgeBase.nullable().optional(),
   // Free conversations idle this many days are archived; null is off, the default. Nullable so a
   // client can turn it off through a partial update. Older cores omit it.
-  autoArchiveDays: z.number().int().min(1).max(365).nullable().optional()
+  autoArchiveDays: z.number().int().min(1).max(365).nullable().optional(),
+  // Whether core asks limitreset.net, hourly, about the resets agents' services announce for
+  // everyone (AgentUsage.globalResets). Older cores omit it.
+  resetAnnouncements: z.boolean().optional()
 })
 export type ChatSettings = z.infer<typeof ChatSettings>
 

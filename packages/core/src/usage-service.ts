@@ -1,4 +1,4 @@
-import { AGENT_KINDS, agentDescriptor, usageReadable, type AgentKind, type AgentUsage, type ResetCreditOutcome, type UsageWindow } from '@antumi/protocol'
+import { AGENT_KINDS, agentDescriptor, usageReadable, type AgentKind, type AgentUsage, type GlobalResets, type ResetCreditOutcome, type UsageWindow } from '@antumi/protocol'
 import { UsageFetchError, type ResetCreditUse, type UsageReport, type UsageSource } from './usage-source'
 
 const POLL_MS = 15 * 60_000
@@ -17,6 +17,9 @@ export function readableUsage(kinds: Set<string>, named: readonly string[] | und
 
 export class UsageService {
   private readonly usage = new Map<AgentKind, AgentUsage>()
+  // What the reset tracker says, kept apart: it arrives on its own schedule, and rides each reading.
+  private readonly globals = new Map<AgentKind, GlobalResets>()
+  private manualRefresh: () => void = () => {}
   private inFlight: Promise<AgentUsage[]> | null = null
   private lastRefresh = Number.NEGATIVE_INFINITY
   private timer: ReturnType<typeof setInterval> | undefined
@@ -40,6 +43,27 @@ export class UsageService {
 
   stop(): void {
     clearInterval(this.timer)
+  }
+
+  // The user asked to refresh: the usage, and whatever else rides it.
+  requestRefresh(): Promise<AgentUsage[]> {
+    this.manualRefresh()
+    return this.refresh()
+  }
+
+  onManualRefresh(listener: () => void): void {
+    this.manualRefresh = listener
+  }
+
+  // What the reset tracker says about an agent's service, or null to show nothing.
+  setGlobalResets(agent: AgentKind, resets: GlobalResets | null): void {
+    if (resets) this.globals.set(agent, resets)
+    else if (!this.globals.delete(agent)) return
+    const current = this.usage.get(agent)
+    if (!current) return
+    const next = { ...current, globalResets: resets }
+    this.usage.set(agent, next)
+    this.emit(next)
   }
 
   // A call within MIN_REFRESH_MS of the previous one answers with the numbers already held.
@@ -98,7 +122,8 @@ export class UsageService {
         plan: report.plan ?? previous?.plan ?? null,
         error: null,
         updatedAt: report.at,
-        resetCredits: previous?.resetCredits ?? null
+        resetCredits: previous?.resetCredits ?? null,
+        globalResets: this.globals.get(agent) ?? null
       }
       this.usage.set(agent, next)
       this.emit(next)
@@ -109,7 +134,7 @@ export class UsageService {
   }
 
   private async refreshAgent(agent: AgentKind): Promise<AgentUsage> {
-    const next = await this.read(agent)
+    const next = { ...(await this.read(agent)), globalResets: this.globals.get(agent) ?? null }
     this.usage.set(agent, next)
     this.emit(next)
     return next
