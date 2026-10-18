@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/icon.png" alt="Antumi 图标：背着彩色积木的低多边形小蚂蚁" width="128" height="128" />
+<img src="docs/assets/icon.png" alt="Antumi 图标：抱着三块 Agent 积木的小蚂蚁" width="128" height="128" />
 
 # Antumi（安图米）
 
@@ -28,6 +28,7 @@
 - 会话开得多，记不清哪个在做什么、哪个在等你批准。
 - 想换个 Agent 接手，又得把需求从头讲一遍。
 - 来回切窗口、查进度，花在管理 Agent 上的时间越来越多。
+- 哪个Agent额度快过期、哪个要重置，浪费了机会。
 
 Antumi 把 Claude Code、Codex 和 Cursor 放进同一个本地工作台：直接开会话处理问题，让多个 Agent 在群聊里讨论方案，或安排它们定时运行。谁在工作、谁在等你、接下来要做什么，都能在总览里看到。
 
@@ -46,9 +47,9 @@ Antumi 统一管理多个 Agent 的会话、协作、执行和结果。下面按
 
 ### 总览：等你的事排在最前面
 
-等你确认的、等你回答的、待验收的汇在一处，右边是接下来几点要跑的定时任务。点「去处理」直接跳到那一步。
+等你确认的、等你回答的、待验收的汇在一处，下面是 Agent 记下的待办，右边是接下来几点要跑的预约和定时任务、还在等依赖的任务。点「去处理」直接跳到那一步。
 
-<img src="docs/assets/overview.png" alt="总览：需要我 4 项，分别是等确认、待验收和两个等你回复的任务" width="100%" />
+<img src="docs/assets/overview.png" alt="总览：需要我 4 项（一个待验收、三个等你回复），三条上线前待办，右侧今晚 22:00 和 22:30 的两个预约，以及一个等依赖的任务" width="100%" />
 
 ### 会话：直接对话，随时移交
 
@@ -70,19 +71,25 @@ Claude Code 额度用完了，或者想让 Codex 换个思路？在输入框里�
 
 <img src="docs/assets/schedules.png" alt="定时页的八个模板：每日代码审查、测试健康检查、周报……右上角可以切到预约" width="100%" />
 
+<img src="docs/assets/reservations.png" alt="预约页：一个任务约在 22:00 执行，一条聊天消息约在 22:30 发出，可以调整顺序、改时间或立刻运行" width="100%" />
+
 ### 研发小队
 
 配好队长和成员各用哪个 Agent、模型和角色，把任务交给小队。队长先只读地看代码，和你商量出计划和分工，你确认后再派活：开发串行、只读分析并行，大家共用任务的 worktree。
 
 <img src="docs/assets/squads.png" alt="小队：队长 Claude Code，开发 Codex，评审 Claude Code" width="100%" />
 
-### 验收不用开终端
+### 验收是一道关，不是看一眼 diff
 
-检查器列出从分支起点算起的每个提交、每个文件的增删和 diff。分支、Fetch / Pull / Push / Commit、合并和冲突处理都在这里。提交信息可以留空，由小模型按项目的提交规范写好。重做时这次的改动另存到 `-tryN` 分支，任务分支从头再来。
+Agent 说「做完了」之后发生什么，Antumi 替你定好了。项目配了检查命令（比如 `npm test`）的话，「提交验收」会先在 worktree 里跑一遍，没过就不进待验收，结果直接交回 Agent 修。
 
-项目配置了检查命令时，普通任务提交验收前会先运行检查，失败则保持执行中，并把结果交回 Agent 修复；小队任务暂不运行这项检查。
+<img src="docs/assets/review-check.png" alt="提交验收前检查没通过：失败的测试输出作为一条消息交回 Agent，Agent 随即开始修 todos.mjs" width="100%" />
 
-<img src="docs/assets/inspector.png" alt="检查器的变更页：11 个文件的改动和 todos.mjs 的 diff" width="100%" />
+待验收的任务由你三选一：**接受**，进已完成，依赖它的任务这时才解锁；**接着改**，在聊天里写哪里不对，Agent 接着原来的会话改；**重做**，这次的改动另存到 `-tryN` 分支，任务分支从起点重来，Agent 会被告知重做原因。
+
+<img src="docs/assets/review-decision.png" alt="待验收任务的详情页：标题下是接受、重做、移交按钮，右侧是起点分支和待验收状态" width="100%" />
+
+验的是整条分支：检查器按分支起点列出每个提交、每个文件的增删和 diff，Agent 跑了几轮、提交了几次都汇在一处。Fetch / Pull / Push / Commit、合并和冲突处理也在这里，提交信息留空由小模型按项目规范写。小队任务暂不运行提交前检查。
 
 ### 顺手改两行，不用切到 IDE
 
@@ -110,11 +117,28 @@ Agent 打开页面、点击输入、切手机尺寸、截图、看控制台报�
 - **额度看得见**：状态栏和 Agent 选择器集中显示 Claude Code、Codex 和 Cursor 的用量与恢复时间，支持切换已用或剩余比例；Cursor 显示月度用量。可用的重置卡和全员重置预告也会显示。
 - **不浪费等待**：Claude Code、Codex 撞到用量上限时自动约好恢复时间，到点替你发一条继续。定时任务的 Agent 可以选「自动」，到点挑有额度的跑。
 
+<table>
+<tr>
+<td width="62%" valign="top">
+  <img src="docs/assets/translate.png" alt="同一条英文回复，点「翻译」后变成中文，点「原文」切回；翻译由小模型完成" width="100%" /><br/>
+  <sub>翻译：Agent 用英文回复，点一下就是中文，随时切回原文</sub>
+</td>
+<td width="38%" valign="top">
+  <img src="docs/assets/commit-message.png" alt="Commit 对话框：点「生成提交信息」后，小模型根据改动写好了提交信息，可以改完再提交" width="100%" /><br/>
+  <sub>提交信息：留空点「生成」，小模型按改动写好，你看一眼再提交</sub>
+</td>
+</tr>
+</table>
+
 <img src="docs/assets/savings.png" alt="总览的统计：小模型省下约 $0.21，翻译和提交说明各自的 token、花费与约省；状态栏里每个 Agent 的 5 小时和本周额度" width="100%" />
 
 ### 任务来源接入
 
 Jira、GitHub 的 issue 和 PR 定时同步进收件箱，可以导入成任务，也可以先开会话只读排查，确认方案后再修。原文作为不可信资料隔离，里面的指令不会被当成你的要求。来源是插件，可以从本地目录、ZIP 或 GitHub Release 安装新的。
+
+<p align="center">
+  <img src="docs/assets/plugins.png" alt="设置 → 插件：从本地目录、ZIP 或 GitHub Release 安装来源插件，安装前要勾选信任；GitHub 来源随 Antumi 自带" width="720" />
+</p>
 
 <details>
 <summary><b>还有这些</b></summary>
@@ -131,11 +155,44 @@ Jira、GitHub 的 issue 和 PR 定时同步进收件箱，可以导入成任务�
 - **并发上限**：限制同时运行的 Agent 总数和每款 Agent 的数量，超出的排队。
 - **知识库、技能库、MCP**：接入 Obsidian 库作为资料，安装和更新 Agent Skills，统一管理你的 MCP 服务器。
 
-<p align="center">
-  <img src="docs/assets/branches.png" alt="检查器的分支页：任务分支上的两个提交，从 main 长出来" width="360" />
-  &nbsp;&nbsp;
-  <img src="docs/assets/worktrees.png" alt="Worktree 管理：可以清理的和进行中的分开列" width="520" />
-</p>
+<table>
+<tr>
+<td width="50%" valign="top">
+  <img src="docs/assets/todos.png" alt="检查器的待办页：一组「上线前」待办，两条标着需要你，一条标着 Agent 可做" width="350" /><br/>
+  <sub>待办：谁来做，一眼分清</sub>
+</td>
+<td width="50%" valign="top">
+  <img src="docs/assets/terminal-ports.png" alt="终端面板里 Agent 启动的 dev server，下方端口面板列出 4173 端口属于哪个任务，可以打开页面、进终端或停止" width="420" /><br/>
+  <sub>终端与端口：谁在监听哪个端口，一键打开或停掉</sub>
+</td>
+</tr>
+<tr>
+<td valign="top">
+  <img src="docs/assets/dependency.png" alt="看板卡片带「等待依赖」标签，只能先开始规划" width="252" /><br/>
+  <sub>任务依赖：前置任务验收前只能先规划</sub>
+</td>
+<td valign="top">
+  <img src="docs/assets/branches.png" alt="检查器的分支页：任务分支上的两个提交，从 main 长出来" width="355" /><br/>
+  <sub>分支视图：任务分支从哪里长出来</sub>
+</td>
+</tr>
+<tr>
+<td valign="top">
+  <img src="docs/assets/worktrees.png" alt="Worktree 管理：可以清理的和进行中的分开列" width="100%" /><br/>
+  <sub>Worktree 清理：删前逐个复查</sub>
+</td>
+<td valign="top">
+  <img src="docs/assets/concurrency.png" alt="设置 → 智能体 → 运行：同时运行的 Agent 总数和每款 Agent 的上限" width="100%" /><br/>
+  <sub>并发上限：总数和每款 Agent 分开限</sub>
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+  <img src="docs/assets/skills.png" alt="设置 → 技能：推荐的 Obsidian 技能仓库一键安装，也可以填任意 GitHub 仓库地址" width="100%" /><br/>
+  <sub>技能库：从 Git 仓库安装 Agent Skills，固定提交、可回退</sub>
+</td>
+</tr>
+</table>
 
 </details>
 
@@ -246,7 +303,7 @@ Antumi 目前是**开发者预览版**（0.18.x），主要在 macOS 上开发�
 
 **Antumi（安图米）是一个受 ant（蚂蚁）启发的自造词。** 单只蚂蚁很小，合力却能完成大活。Antumi 把不同的 AI 编程 Agent 集中到同一个工作台，让任务分头推进，进度和成果都看得清楚。
 
-吉祥物是一只叫「蚁米」的小蚂蚁：App 图标上它背着积木，界面里它会在 Agent 干活时搬包裹、等你回答时停下来。
+吉祥物是一只叫「蚁米」的小蚂蚁：App 图标上它抱着三块代表 Agent 的积木，界面里它会在 Agent 干活时搬包裹、等你回答时停下来。
 
 ## 许可
 

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/icon.png" alt="Antumi icon: a low-poly ant carrying colourful blocks" width="128" height="128" />
+<img src="docs/assets/icon.png" alt="Antumi icon: a little ant holding three agent blocks" width="128" height="128" />
 
 # Antumi
 
@@ -48,9 +48,9 @@ Antumi manages conversations, collaboration, execution and results across agents
 
 ### Overview: what needs you comes first
 
-Everything waiting for your confirmation, your answer or your review in one place, with the next scheduled runs beside it. "Handle" jumps straight to that step.
+Everything waiting for your confirmation, your answer or your review in one place, the todos agents noted below it, and beside them what comes next: scheduled runs, routines and tasks still waiting on a dependency. "Handle" jumps straight to that step.
 
-<img src="docs/assets/overview.png" alt="Overview: four items need you, one awaiting confirmation, one awaiting review and two waiting for a reply" width="100%" />
+<img src="docs/assets/overview.png" alt="Overview: four items need you (one awaiting review, three waiting for a reply), three pre-launch todos, and on the right two runs booked for 22:00 and 22:30 plus a task waiting on a dependency" width="100%" />
 
 ### Conversations: talk directly and hand off
 
@@ -72,19 +72,25 @@ Have Claude Code or Codex start a conversation every day, on weekdays or weekly 
 
 <img src="docs/assets/schedules.png" alt="The eight routine templates: daily code review, test health check, weekly report and more; the Scheduled tab is in the top right" width="100%" />
 
+<img src="docs/assets/reservations.png" alt="The Scheduled tab: a task booked for 22:00 and a chat message for 22:30, with controls to reorder, retime or run now" width="100%" />
+
 ### Squads
 
 Set up a leader and members, each with their own agent, model and role, and give a task to the squad. The leader reads the code, works out a plan and a split with you, and only dispatches once you approve: development runs in sequence, read-only analysis in parallel, all in the task's worktree.
 
 <img src="docs/assets/squads.png" alt="A squad: Claude Code as leader, Codex as developer, Claude Code as reviewer" width="100%" />
 
-### Review without opening a terminal
+### Review is a gate, not a glance at a diff
 
-The inspector lists every commit since the branch started and every file's additions, deletions and diff. Branches, fetch / pull / push / commit, merges and conflicts live here too. Leave the commit message empty and a small model writes one in the project's style. On redo, this attempt is kept on a `-tryN` branch and the task branch starts over.
+What happens after an agent says "done" is decided for you. If the project has a check command (say `npm test`), "Submit for review" runs it in the worktree first; a failure keeps the task out of review and hands the output straight back to the agent to fix.
 
-When a project has a check command configured, submitting an ordinary task for review runs it first. If it fails, the task stays in progress and the output goes back to the agent to fix. Squad tasks do not run this check yet.
+<img src="docs/assets/review-check.png" alt="The pre-review check failed: the failing test output goes back to the agent as a message, and the agent starts fixing todos.mjs" width="100%" />
 
-<img src="docs/assets/inspector.png" alt="The inspector's changes tab: 11 changed files and the diff of todos.mjs" width="100%" />
+A task in review gets one of three answers from you: **accept**, and it moves to done, unblocking the tasks that depend on it; **keep going**, by writing in the chat what is wrong, and the agent continues in the same session; **redo**, which parks this attempt on a `-tryN` branch, restarts the task branch from its base and tells the agent why.
+
+<img src="docs/assets/review-decision.png" alt="A task awaiting review: accept, redo and hand-off buttons under the title, the base branch and the review status on the right" width="100%" />
+
+You review the whole branch: the inspector lists every commit since the branch started and every file's additions, deletions and diff, however many rounds and commits the agent took. Fetch / pull / push / commit, merges and conflicts live there too, and an empty commit message is written by a small model in the project's style. Squad tasks skip the pre-review check for now.
 
 ### Fix two lines without switching to an IDE
 
@@ -112,11 +118,28 @@ An agent opens the page, clicks and types, switches to a phone viewport, takes s
 - **Quotas in plain sight**: the status bar and agent picker show usage and reset times for Claude Code, Codex and Cursor, with a choice of used or remaining percentages; Cursor shows monthly usage. Available reset credits and global reset announcements also appear here.
 - **No wasted waiting**: Claude Code and Codex sessions that hit a usage limit book their own retry for when the limit resets. Routines can pick "auto" and run on whichever agent has quota.
 
+<table>
+<tr>
+<td width="62%" valign="top">
+  <img src="docs/assets/translate.png" alt="The same English reply: after clicking Translate it reads in Chinese, and Original switches back; a small model does the translation" width="100%" /><br/>
+  <sub>Translation: one click turns an agent's reply into your language, and back</sub>
+</td>
+<td width="38%" valign="top">
+  <img src="docs/assets/commit-message.png" alt="The Commit dialog: after clicking Generate, a small model wrote the commit message from the diff; edit it before committing" width="100%" /><br/>
+  <sub>Commit messages: leave it empty, click Generate, review, commit</sub>
+</td>
+</tr>
+</table>
+
 <img src="docs/assets/savings.png" alt="The Stats tab: about $0.21 saved by small models, with tokens, cost and savings per use; the status bar shows each agent's 5-hour and weekly quota" width="100%" />
 
 ### Task sources
 
 Jira and GitHub issues and PRs sync into an inbox on a schedule. Import one as a task, or open a read-only investigation first and fix once you have agreed on an approach. The original text is quarantined as untrusted, so instructions inside it are never taken as yours. Sources are plugins; install new ones from a folder, a ZIP or a GitHub release.
+
+<p align="center">
+  <img src="docs/assets/plugins.png" alt="Settings → Plugins: install a source plugin from a folder, a ZIP or a GitHub release after ticking that you trust it; the GitHub source ships with Antumi" width="720" />
+</p>
 
 <details>
 <summary><b>And more</b></summary>
@@ -133,11 +156,44 @@ Jira and GitHub issues and PRs sync into an inbox on a schedule. Import one as a
 - **Concurrency limits**: cap how many agents run at once, overall and per agent; the rest queue.
 - **Knowledge base, skills, MCP**: attach Obsidian vaults as reference material, install and update Agent Skills, and manage your MCP servers in one place.
 
-<p align="center">
-  <img src="docs/assets/branches.png" alt="The inspector's branch tab: two commits on the task branch, growing from main" width="360" />
-  &nbsp;&nbsp;
-  <img src="docs/assets/worktrees.png" alt="Worktree management: the ones that can be cleaned and the ones still in use, listed apart" width="520" />
-</p>
+<table>
+<tr>
+<td width="50%" valign="top">
+  <img src="docs/assets/todos.png" alt="The inspector's Todos tab: a group named before launch, two items marked needs you and one marked agent can do" width="350" /><br/>
+  <sub>Todos: who does what, at a glance</sub>
+</td>
+<td width="50%" valign="top">
+  <img src="docs/assets/terminal-ports.png" alt="A dev server the agent started in the terminal panel; below it the ports panel lists port 4173 with its task, and buttons to open the page, jump to the terminal or stop it" width="420" /><br/>
+  <sub>Terminal and ports: who listens where, open or stop in one click</sub>
+</td>
+</tr>
+<tr>
+<td valign="top">
+  <img src="docs/assets/dependency.png" alt="A board card tagged waiting for dependency; only planning can start" width="252" /><br/>
+  <sub>Dependencies: plan now, run once the prerequisite passes review</sub>
+</td>
+<td valign="top">
+  <img src="docs/assets/branches.png" alt="The inspector's branch tab: two commits on the task branch, growing from main" width="355" /><br/>
+  <sub>Branch view: where the task branch grows from</sub>
+</td>
+</tr>
+<tr>
+<td valign="top">
+  <img src="docs/assets/worktrees.png" alt="Worktree management: the ones that can be cleaned and the ones still in use, listed apart" width="100%" /><br/>
+  <sub>Worktree cleanup: every one re-checked before it goes</sub>
+</td>
+<td valign="top">
+  <img src="docs/assets/concurrency.png" alt="Settings → Agents → Running: the total number of agents allowed at once and a cap per agent" width="100%" /><br/>
+  <sub>Concurrency limits: overall and per agent</sub>
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+  <img src="docs/assets/skills.png" alt="Settings → Skills: the recommended Obsidian skills repository installs in one click, or paste any GitHub repository URL" width="100%" /><br/>
+  <sub>Skills: install Agent Skills from a Git repository, pinned to a commit and reversible</sub>
+</td>
+</tr>
+</table>
 
 </details>
 
@@ -250,7 +306,7 @@ Something feels off, or you want another agent supported? [Open an issue](https:
 
 **Antumi is a coined word inspired by "ant".** One ant is small; together they move things far bigger than themselves. Antumi brings different AI coding agents onto one workbench so work can move forward in parallel while progress and results stay visible.
 
-The mascot is a little ant: it carries blocks on the app icon, and in the app it hauls parcels while an agent works and stops when the agent is waiting for you.
+The mascot is a little ant: it holds three agent blocks on the app icon, and in the app it hauls parcels while an agent works and stops when the agent is waiting for you.
 
 ## License
 
