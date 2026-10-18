@@ -28,3 +28,16 @@ mac:
     - target: dmg
       arch:
         - arm64
+win:
+  # The same artwork as macOS; electron-builder makes the .ico from it.
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch:
+        - x64
+# Per user, under %LOCALAPPDATA%\Programs, like the agents' own CLIs: no administrator needed.
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-Setup-${version}-${arch}.${ext}

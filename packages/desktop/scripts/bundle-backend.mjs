@@ -38,20 +38,27 @@ for (const [name, entry] of [
   })
 }
 
-// The prebuilt binding next to the bundles, where `import 'node-pty'` resolves it. Only the
-// macOS prebuilds: the dmg is a macOS artifact, and the rest is 50MB of other platforms.
+// The prebuilt binding next to the bundles, where `import 'node-pty'` resolves it. Only the target
+// platform's prebuilds (--platform, this machine's by default): the rest is 50MB of others. Debug
+// symbols stay behind too.
+const platformFlag = process.argv.indexOf('--platform')
+const platform = platformFlag === -1 ? process.platform : process.argv[platformFlag + 1]
+const PREBUILDS = { darwin: ['darwin-arm64', 'darwin-x64'], win32: ['win32-x64'] }
+const prebuilds = PREBUILDS[platform]
+if (!prebuilds) throw new Error(`[bundle-backend] no package for platform ${platform}`)
 const requireDaemon = createRequire(path.join(repo, 'packages/daemon/package.json'))
 const ptyRoot = path.dirname(requireDaemon.resolve('node-pty/package.json'))
 const ptyOut = path.join(out, 'node_modules', 'node-pty')
-for (const piece of ['package.json', 'lib', 'prebuilds/darwin-arm64', 'prebuilds/darwin-x64']) {
+for (const piece of ['package.json', 'lib', ...prebuilds.map((each) => `prebuilds/${each}`)]) {
   const from = path.join(ptyRoot, piece)
-  if (existsSync(from)) cpSync(from, path.join(ptyOut, piece), { recursive: true })
+  if (!existsSync(from)) throw new Error(`[bundle-backend] node-pty has no ${piece}`)
+  cpSync(from, path.join(ptyOut, piece), { recursive: true, filter: (file) => !file.endsWith('.pdb') })
 }
 // node-pty ships its spawn-helper without the exec bit (see scripts/fix-node-pty-spawn-helper.mjs).
-for (const arch of ['darwin-arm64', 'darwin-x64']) {
+for (const arch of prebuilds) {
   const helper = path.join(ptyOut, 'prebuilds', arch, 'spawn-helper')
   if (existsSync(helper)) chmodSync(helper, 0o755)
 }
 
 const commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim()
-console.log(`[bundle-backend] daemon, core and mcp bundled at ${commit}`)
+console.log(`[bundle-backend] daemon, core and mcp bundled for ${platform} at ${commit}`)

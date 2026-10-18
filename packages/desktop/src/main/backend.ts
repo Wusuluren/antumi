@@ -153,7 +153,8 @@ export async function ensureBackend(): Promise<void> {
   mkdirSync(logs, { recursive: true, mode: 0o700 })
   const backend = join(process.resourcesPath, 'backend')
   const env = {
-    ...process.env,
+    // Without Windows' own Path, which a PATH beside it would leave the children to pick between.
+    ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH')),
     PATH: await loginShellPath(),
     // The Electron binary doubles as the Node that runs them; each strips or scopes the flag
     // before anything of the user's inherits it.

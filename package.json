@@ -16,7 +16,8 @@
     "build": "pnpm --filter @antumi/desktop run build",
     "typecheck": "pnpm -r run typecheck",
     "test": "vitest run",
-    "dist:mac": "pnpm --filter @antumi/desktop run dist:mac"
+    "dist:mac": "pnpm --filter @antumi/desktop run dist:mac",
+    "dist:win": "pnpm --filter @antumi/desktop run dist:win"
   },
   "devDependencies": {
     "@types/node": "catalog:",
