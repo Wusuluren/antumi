@@ -4,6 +4,16 @@
 
 ## 未发布
 
+### 新功能
+
+- 支持 Windows：npm、pnpm 装的 Claude Code、Codex（`.cmd` 垫片）现在能直接启动，不经过 cmd；Cursor 的 `.cmd` 改用旁边的 PowerShell 脚本启动。一次性请求（翻译、提交说明、标题）、模型列表和版本检测在 Windows 上也都恢复了。终端默认用 PowerShell（装了 PowerShell 7 就用它）。`pnpm dist:win` 可以打出 Windows 安装包（x64，未签名，在 macOS 上也能打）。
+
+### 修复
+
+- Windows 上只读阶段的 Claude 不会再丢掉「不许改」的围栏：盘符路径原来整条被跳过。
+- 打包的 App 在 Windows 上能启动 Antumi 自己的 MCP 服务了：原来写死了 `/usr/bin/env`。
+- Windows 上 git 和后台进程不再一闪一闪地弹控制台窗口；不再显示 Electron 的默认菜单栏；聊天里 `C:\…` 这样的路径能点开、能预览图片，项目路径也会缩短显示；快捷键提示写 Ctrl+Enter 而不是 ⌘Enter。
+
 ## 0.18.11 — 2026-10-18
 
 ### 新功能

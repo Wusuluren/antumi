@@ -238,7 +238,13 @@ pnpm dev          # starts the daemon, core and the desktop app together
 pnpm dist:mac     # output: packages/desktop/dist/Antumi-<version>-arm64.dmg
 ```
 
-A machine with the app installed needs neither Node nor pnpm. The build is unsigned: on another machine, right-click → Open the first time.
+**Build a Windows installer** (x64; it builds on macOS too):
+
+```bash
+pnpm dist:win     # output: packages/desktop/dist/Antumi-Setup-<version>-x64.exe
+```
+
+A machine with the app installed needs neither Node nor pnpm. The builds are unsigned: on another Mac, right-click → Open the first time; on Windows, SmartScreen stops it once, so choose More info → Run anyway.
 
 <p align="center">
   <img src="docs/assets/agents.png" alt="Settings → Agents: Claude Code, Codex and Cursor installed and signed in" width="720" />
@@ -304,10 +310,10 @@ ANTUMI_HOME=~/.antumi-demo pnpm dev
 
 ## Status
 
-Antumi is a **developer preview** (0.18.x), developed and tested mainly on macOS, and has to be run from source or packaged yourself. Next, in order:
+Antumi is a **developer preview** (0.18.x), developed and tested mainly on macOS (Windows runs and packages but has yet to be tried on real machines), and has to be run from source or packaged yourself. Next, in order:
 
 - **Closing the review loop**: build on the existing checks before review with clearer result displays and PR and merge workflows.
-- **Windows**: the UI and fonts are ready; what is missing is launching the agent CLIs through their `.cmd` shims.
+- **Windows**: it runs from source and packages as an installer (the agent CLIs' `.cmd` shims start without a shell, and terminals open in PowerShell); next is testing on real machines, CI and signing.
 - **Remote execution**: let agents work on repositories over SSH / WSL while the board stays local.
 
 Something feels off, or you want another agent supported? [Open an issue](https://github.com/flyhero/antumi/issues).

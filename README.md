@@ -237,7 +237,13 @@ pnpm dev          # 同时启动 daemon、core 和桌面端
 pnpm dist:mac     # 产物在 packages/desktop/dist/Antumi-<版本>-arm64.dmg
 ```
 
-装了 App 的机器不需要 Node 和 pnpm。产物没有签名，拷到别的机器上首次要右键「打开」。
+**打包成 Windows 安装包**（x64，在 macOS 上也能打）：
+
+```bash
+pnpm dist:win     # 产物在 packages/desktop/dist/Antumi-Setup-<版本>-x64.exe
+```
+
+装了 App 的机器不需要 Node 和 pnpm。产物没有签名：macOS 上拷到别的机器首次要右键「打开」，Windows 上 SmartScreen 会拦一下，点「更多信息 → 仍要运行」。
 
 <p align="center">
   <img src="docs/assets/agents.png" alt="设置 → 智能体：Claude Code、Codex、Cursor 都已安装并登录" width="720" />
@@ -301,10 +307,10 @@ ANTUMI_HOME=~/.antumi-demo pnpm dev
 
 ## 现状
 
-Antumi 目前是**开发者预览版**（0.18.x），主要在 macOS 上开发和测试，需要从源码运行或自行打包。接下来按优先级：
+Antumi 目前是**开发者预览版**（0.18.x），主要在 macOS 上开发和测试，Windows 可以运行和打包、但还缺实机验证，需要从源码运行或自行打包。接下来按优先级：
 
 - **验收闭环**：在现有提交前检查的基础上，完善检查结果展示以及 PR 与合并流程。
-- **Windows**：界面和字体已经适配，差 Agent CLI 的 `.cmd` 启动方式。
+- **Windows**：已经能从源码运行和打出安装包（Agent CLI 的 `.cmd` 垫片不经 shell 启动，终端用 PowerShell），接下来是实机验证、CI 和签名。
 - **远程执行**：让 Agent 在 SSH / WSL 里的仓库上干活，看板留在本机。
 
 用下来哪里别扭、想接哪个 Agent，欢迎提 [issue](https://github.com/flyhero/antumi/issues)。

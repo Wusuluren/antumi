@@ -190,9 +190,15 @@ Merge 前先提交或暂存改动。有冲突时，分支页列出文件，可�
 ### 环境检查
 
 
-core 启动后会在自己的 PATH 里找 `git`、`claude`、`codex` 和 Cursor CLI（`cursor-agent` 或确认属于 Cursor 的 `agent`），问一下版本，再检查登录状态。Claude Code 和 Codex 只读本机凭据；Cursor 使用 CLI 的 `about --format json`。找不到 Git、支持的 Agent 一个都没装或都没登录时，左侧列表上方会有一条红色提醒：Agent 的问题点开是 设置 → 智能体，Git 的问题点开是 设置 → 关于。「智能体」里所有 Agent 都在一处，分三组：「已安装」的每个显示版本（悬停看路径）、登没登录和启用开关，没登录的给出登录命令；「可安装」是 Antumi 能运行但这台电脑没装的，变灰并给出安装命令；「暂未支持」见下段。命令都可以直接复制，装好或登录后点「重新检测」。「关于」里的 Git 一行显示版本和路径，没装时给出安装命令。只装一个 Agent 不算问题：新建任务和新会话只列出装了的，默认选最近一次新建任务或会话时选的 Agent（小助手、任务聊天、群聊和小队成员、定时运行不算），它不在时只装一个就用那一个，否则留空；没装的不能移交过去；已有任务选的 Agent 不在时仍然显示，标为「未安装」。「智能体」底部可以展开 core 找命令用的目录：装在别处的，把它所在的目录加进登录 shell 的 PATH，再重启 Antumi（打包的 App 启动 core 时用的就是登录 shell 的 PATH）。Windows 上 CLI 是 `.cmd` 垫片，只能看到装没装，问不到版本。
+core 启动后会在自己的 PATH 里找 `git`、`claude`、`codex` 和 Cursor CLI（`cursor-agent` 或确认属于 Cursor 的 `agent`），问一下版本，再检查登录状态。Claude Code 和 Codex 只读本机凭据；Cursor 使用 CLI 的 `about --format json`。找不到 Git、支持的 Agent 一个都没装或都没登录时，左侧列表上方会有一条红色提醒：Agent 的问题点开是 设置 → 智能体，Git 的问题点开是 设置 → 关于。「智能体」里所有 Agent 都在一处，分三组：「已安装」的每个显示版本（悬停看路径）、登没登录和启用开关，没登录的给出登录命令；「可安装」是 Antumi 能运行但这台电脑没装的，变灰并给出安装命令；「暂未支持」见下段。命令都可以直接复制，装好或登录后点「重新检测」。「关于」里的 Git 一行显示版本和路径，没装时给出安装命令。只装一个 Agent 不算问题：新建任务和新会话只列出装了的，默认选最近一次新建任务或会话时选的 Agent（小助手、任务聊天、群聊和小队成员、定时运行不算），它不在时只装一个就用那一个，否则留空；没装的不能移交过去；已有任务选的 Agent 不在时仍然显示，标为「未安装」。「智能体」底部可以展开 core 找命令用的目录：装在别处的，把它所在的目录加进登录 shell 的 PATH，再重启 Antumi（打包的 App 启动 core 时用的就是登录 shell 的 PATH）。Windows 上 npm、pnpm 装的 CLI 是 `.cmd` 垫片，core 读出它要运行的程序再问版本（见下文「Windows」）；认不出的垫片只能看到装没装。
 
-设置 → 智能体里的「暂未支持」显示 Antumi 认识、但尚未接入聊天的 Agent：从 core 当前的 PATH 查找已知 CLI，并在 macOS 的 `/Applications` 和 `~/Applications` 查找已知应用。Cursor 已支持聊天，应用和 CLI 会合并进「已安装」或「可安装」的一项；只安装编辑器仍需另外安装 CLI。找到 CLI 后会限时执行 `--version`，分别显示命令已响应、版本检测失败或 Windows 命令垫片无法直接验证；这不检查登录，也不代表 Antumi 已支持该 CLI 的聊天协议。每 5 分钟自动复查，也能手动「重新检测」；新增 PATH 目录仍需重启 Antumi，才能让 core 和 daemon 都用到它。未接入的 Agent 标为「暂未支持」，不能选来运行任务或会话。尚未接入的产品在 `packages/core/src/environment-check.ts` 的发现清单里登记可辨认的命令或应用名；已接入的 Agent 由它的 adapter 声明（见「新增 Agent」）。
+设置 → 智能体里的「暂未支持」显示 Antumi 认识、但尚未接入聊天的 Agent：从 core 当前的 PATH 查找已知 CLI，并在 macOS 的 `/Applications` 和 `~/Applications` 查找已知应用。Cursor 已支持聊天，应用和 CLI 会合并进「已安装」或「可安装」的一项；只安装编辑器仍需另外安装 CLI。找到 CLI 后会限时执行 `--version`，分别显示命令已响应、版本检测失败或 Windows 命令垫片认不出、无法直接验证；这不检查登录，也不代表 Antumi 已支持该 CLI 的聊天协议。每 5 分钟自动复查，也能手动「重新检测」；新增 PATH 目录仍需重启 Antumi，才能让 core 和 daemon 都用到它。未接入的 Agent 标为「暂未支持」，不能选来运行任务或会话。尚未接入的产品在 `packages/core/src/environment-check.ts` 的发现清单里登记可辨认的命令或应用名；已接入的 Agent 由它的 adapter 声明（见「新增 Agent」）。
+
+### Windows 上启动 Agent
+
+Agent 的命令从不经过 shell，Windows 上也一样，而 npm、pnpm 装的 `claude`、`codex`、`npx` 在 Windows 上是 `.cmd` 垫片，`child_process` 只能经 cmd.exe 运行它，cmd 又会把参数重新切一遍。所以 daemon 和 core 启动命令前都走 `protocol/node` 的 `planLaunch`：按 PATHEXT 找到文件（不先试无扩展名的那个，那是 npm 给 sh 写的脚本）；是认得的 npm / pnpm 垫片，就读出它要运行的东西，直接起 `node.exe <脚本>` 或它包着的 `.exe`，pnpm 加的 `NODE_PATH` 照样加上；旁边有同名 `.ps1` 的（Cursor 的安装方式）用 `powershell -File` 运行；都不是就报 `command-needs-shell`，不退回 cmd。识别规则参照 Orca 的同名实现，认不全就拒绝，宁可不启动也不运行错的程序。
+
+打包的 App 启动 Antumi 自己的 MCP 服务时，`ELECTRON_RUN_AS_NODE=1` 写在服务器配置的 env 里（Claude 的 `--mcp-config`、Codex 的 `mcp_servers.*.env`、ACP 的 `mcpServers[].env`），不再借 `/usr/bin/env`。Claude 的只读围栏和读取授权在 Windows 上按 Claude 的写法转换路径：`C:\Users\me` 写成 `//c/Users/me`。
 
 ### Agent 并发
 
@@ -423,6 +429,8 @@ ANTUMI_HOME=~/.antumi-demo pnpm dev
 ANTUMI_HOME=~/.antumi-demo pnpm --filter @antumi/desktop run dev --remoteDebuggingPort 9333
 ```
 
+Windows 的 PowerShell 里这样设：`$env:ANTUMI_HOME = "$HOME\.antumi-demo"; pnpm dev`。
+
 ## 8. 打包与安装
 
 
@@ -437,11 +445,19 @@ pnpm dist:mac     # 产物在 packages/desktop/dist/Antumi-<版本>-arm64.dmg
 
 安装：打开 dmg，把 Antumi 拖进「应用程序」。启动时 App 会检查 `~/.antumi/core.json`，没有在运行的 core 就自动拉起随附的 daemon 和 core（日志在 `~/.antumi/logs/`）；Agent 的查找用的是登录 shell 的 PATH，所以 CLI 装在 Homebrew 或 `~/.local/bin` 都能找到。和从源码运行时一样，关闭或退出 App 不会停掉 core、daemon 和正在跑的 Agent。
 
+Windows（x64）打成 NSIS 安装包，在 macOS 上也能打（electron-builder 自带 NSIS 和 wine）：
+
+```bash
+pnpm dist:win     # 产物在 packages/desktop/dist/Antumi-Setup-<版本>-x64.exe
+```
+
+`bundle-backend` 按 `--platform` 只带目标平台的 node-pty 预编译，Windows 上是 win32-x64（含 ConPTY）。安装按用户进行，默认装到 `%LOCALAPPDATA%\Programs\Antumi`，不需要管理员权限；窗口用系统自己的边框，不显示 Electron 的默认菜单栏。打包的 App 在 Windows 上直接用资源管理器给它的 PATH，npm（`%APPDATA%\npm`）和 Claude Code 原生安装（`%USERPROFILE%\.local\bin`）的目录都在里面。
+
 几个注意点：
 
-- **产物没有签名**：本机构建的直接打开；拷到别的机器上首次要右键-打开，或 `xattr -dc /Applications/Antumi.app`。正式分发需要 Apple Developer ID 签名与公证。
+- **产物没有签名**：本机构建的直接打开；拷到别的机器上首次要右键-打开，或 `xattr -dc /Applications/Antumi.app`。正式分发需要 Apple Developer ID 签名与公证。Windows 上 SmartScreen 会拦一次，点「更多信息 → 仍要运行」；正式分发需要代码签名证书。
 - **和源码版共用数据**：两者都用 `~/.antumi`（任务库、worktrees、会话记录）和同一个 daemon socket，可以混用；谁先启动，core 就是谁的。
-- **卸载**：删除 App 即可；`~/.antumi` 里是任务数据和 worktrees（可能有未合并的工作成果），确认不要了再删。
+- **卸载**：删除 App 即可（Windows 在「设置 → 应用」里卸载）；`~/.antumi` 里是任务数据和 worktrees（可能有未合并的工作成果），确认不要了再删。
 
 ## 9. 开发与验证
 
@@ -451,10 +467,11 @@ pnpm typecheck    # 各包 tsc
 pnpm test         # vitest
 pnpm build        # 构建桌面端
 pnpm dist:mac     # 打包 macOS 应用，见上面的「打包与安装」
+pnpm dist:win     # 打包 Windows 安装包
 ```
 
 ## 10. 已知限制与下一步
 
 - **验收**：按项目配置的测试命令在 worktree 里跑，结果放进检查器；合并分支
 - **SSH / WSL 执行宿主**：给 git、PTY 操作加上 `hostId`
-- **Windows**：`claude` / `codex` 的 `.cmd` shim 需要单独解析（聊天界面遇到时会明确报错）
+- **Windows**：代码按 Windows 写好了，也有单元测试，但还没在 Windows 实机上验证过，也没有 Windows CI、代码签名和自动更新；named pipe 没有设 ACL；「用…打开」的应用列表只有 macOS 有
