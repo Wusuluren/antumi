@@ -3407,6 +3407,20 @@ body.side-panel-resizing * {
   text-spacing-trim: space-all;
 }
 
+/* xterm's scrollbar fills its 14px lane; drawn as thin as the app's own instead: a round 4px thumb
+   near the edge, wider under the pointer. The lane stays, so the rows keep their width. */
+.xterm .xterm-scrollable-element > .scrollbar.vertical > .slider {
+  left: 7px !important;
+  width: 4px !important;
+  border-radius: 999px;
+  transition: left 0.12s, width 0.12s;
+}
+.xterm .xterm-scrollable-element > .scrollbar.vertical:hover > .slider,
+.xterm .xterm-scrollable-element > .scrollbar.vertical > .slider.active {
+  left: 5px !important;
+  width: 6px !important;
+}
+
 .statusbar {
   flex-shrink: 0;
   display: flex;
