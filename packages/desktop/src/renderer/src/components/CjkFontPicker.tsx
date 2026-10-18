@@ -1,15 +1,15 @@
 import { useCallback, useState } from 'react'
 import { setPreference, usePreferences } from '../preferences'
-import { cssFontFamily, systemFontFamilies } from '../system-fonts'
+import { chineseFamilies, cssFontFamily, systemFontFamilies } from '../system-fonts'
 import { FontList, type Listing } from './ChatFontPicker'
 import { ChevronDownIcon } from './icons'
 import { Popover } from './Popover'
 import { Segmented } from './SettingsControls'
 
-const SAMPLE = '中文字体'
+const SAMPLE = '你好，世界'
 
 // The family Chinese is set in, apart from the Latin font: the one that goes with it by default, or
-// any installed here. Each is listed with a line of Chinese in it, so one without shows it.
+// one installed here that has Chinese, each listed with a line of it in itself.
 export function CjkFontPicker({ labelId, preference, title }: {
   labelId: string
   preference: 'chatCjkFontFamily' | 'codeCjkFontFamily'
@@ -24,7 +24,7 @@ export function CjkFontPicker({ labelId, preference, title }: {
     setOpen(true)
     if (listing.state === 'ready') return
     setListing({ state: 'loading' })
-    void systemFontFamilies().then((found) => setListing(found ? { state: 'ready', families: found } : { state: 'unavailable' }))
+    void systemFontFamilies().then((found) => setListing(found ? { state: 'ready', families: chineseFamilies(found) } : { state: 'unavailable' }))
   }
   const choose = (next: 'default' | 'custom') => {
     if (next === 'custom') return openList()
