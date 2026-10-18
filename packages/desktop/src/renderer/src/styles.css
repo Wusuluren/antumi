@@ -4758,6 +4758,8 @@ body.side-panel-resizing * {
   font-weight: 600;
 }
 
+.settings-project-config { flex-shrink: 0; font-size: 12px; white-space: nowrap; }
+
 .settings-project-path {
   flex: 1;
   min-width: 0;
@@ -9456,7 +9458,12 @@ button.squad-member-main { cursor: pointer; }
 .dashboard-swatch[data-series="quick"], .dashboard-bar-stack [data-series="quick"] { background: var(--text-3); }
 
 /* Asking before a project's own setup and check run (ProjectTrustDialog). */
-.project-trust-dialog .modal-footer { justify-content: flex-end; }
+.project-trust-dialog .modal-footer, .project-config-dialog .modal-footer { justify-content: flex-end; }
+.project-config-source { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.project-config-source .project-trust-path { min-width: 0; }
+.project-config-source .button { flex-shrink: 0; }
+.project-config-source .button svg { width: 14px; height: 14px; }
+.project-config-note { margin: -8px 0 0; font-size: 13px; color: var(--accent); }
 .project-trust-path { margin: 0; color: var(--text-muted); overflow-wrap: anywhere; }
 .project-trust-command { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .project-trust-command pre {

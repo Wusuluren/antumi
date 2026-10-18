@@ -2,7 +2,7 @@ import type { BrowserStatus, WireUsage } from '@antumi/protocol'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { AGENT_KINDS, agentDescriptor, LANGUAGE_NAMES, PROTOCOL_VERSION, quickModel, TRANSLATE_LANGUAGES, UNATTENDED_MODES, type AgentKind, type SourceDescriptor } from '@antumi/protocol'
 import packageJson from '../../../../package.json'
-import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useMcpServersSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
+import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useMcpServersSupported, useProjectConfigEditSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
 import { DEFAULT_PREFERENCES, setPreference, usePreferences } from '../preferences'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { UNATTENDED_LABEL } from '../schedules'
@@ -48,6 +48,7 @@ import { SourceSettingsSection } from './SourceSettingsSection'
 import { projectName } from './ProjectPicker'
 import { Resettable, Segmented, SettingsGroup, SettingsRow, Stepper, Toggle } from './SettingsControls'
 import { CjkFontPicker } from './CjkFontPicker'
+import { ProjectConfigDialog, projectConfigSummary } from './ProjectConfigDialog'
 import { PalettePicker } from './PalettePicker'
 import { BackdropPicker } from './BackdropPicker'
 import { useOccludesBrowser } from '../browser-occlusion'
@@ -506,19 +507,44 @@ function ProjectSettings() {
     return <p className="settings-empty">还没有用过的项目。给任务或会话添加项目后，会出现在这里。</p>
   }
   return (
-    <ul className="settings-project-list">
-      {projects.map((projectPath) => (
-        <li key={projectPath} className="settings-project">
-          <span className="settings-project-name">{projectName(projectPath)}</span>
-          <span className="settings-project-path mono" title={projectPath}>
-            {projectPath}
-          </span>
-          <button type="button" className="button" onClick={() => void forget(projectPath)}>
-            移除
-          </button>
-        </li>
-      ))}
-    </ul>
+    <>
+      <p className="settings-note">「项目配置」写在项目里的 .antumi/project.json：新建 worktree 时复制哪些文件、运行什么准备命令，任务提交验收前跑什么检查。移除只是不在最近列表里显示，不影响已有任务和会话。</p>
+      <ul className="settings-project-list">
+        {projects.map((projectPath) => <ProjectRow key={projectPath} projectPath={projectPath} onForget={() => void forget(projectPath)} />)}
+      </ul>
+    </>
+  )
+}
+
+// What a project's config holds, in a few words; asked of core when the row shows and after a save.
+function ProjectRow({ projectPath, onForget }: { projectPath: string; onForget: () => void }) {
+  const editable = useProjectConfigEditSupported()
+  const rpc = useCore((s) => s.rpc)
+  const [summary, setSummary] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [reads, setReads] = useState(0)
+  useEffect(() => {
+    if (!rpc || !editable) return
+    let current = true
+    rpc.call('projects.config', { path: projectPath }).then(
+      (info) => { if (current) setSummary(info ? projectConfigSummary(info.config) : null) },
+      () => { if (current) setSummary('格式有误') }
+    )
+    return () => { current = false }
+  }, [rpc, editable, projectPath, reads])
+  return (
+    <li className="settings-project">
+      <span className="settings-project-name">{projectName(projectPath)}</span>
+      <span className="settings-project-path mono" title={projectPath}>
+        {projectPath}
+      </span>
+      {summary && <span className="settings-project-config muted">{summary}</span>}
+      {editable && <button type="button" className="button" onClick={() => setEditing(true)}>项目配置</button>}
+      <button type="button" className="button" onClick={onForget}>
+        移除
+      </button>
+      {editing && <ProjectConfigDialog projectPath={projectPath} onClose={() => setEditing(false)} onSaved={() => setReads((count) => count + 1)} />}
+    </li>
   )
 }
 
@@ -687,9 +713,9 @@ const SECTIONS: readonly Section[] = [
   {
     id: 'projects',
     group: '项目',
-    title: '最近使用',
-    description: '添加项目时列出的最近项目。移除不影响已有任务和会话。',
-    keywords: ['项目', '仓库', '最近使用', '路径', '文件夹'],
+    title: '项目',
+    description: '最近使用的项目，以及每个项目新建 worktree 时复制的文件、准备和验收命令。',
+    keywords: ['项目', '仓库', '最近使用', '路径', '文件夹', '项目配置', 'setup', 'check', 'worktree', '复制', '.env', '安装依赖', '测试', '验收'],
     Icon: FolderIcon,
     Body: ProjectSettings
   },

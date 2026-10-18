@@ -970,6 +970,10 @@ export function useKnowledgeBaseSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('knowledge-base') ?? false)
 }
 
+export function useProjectConfigEditSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('project-config-edit') ?? false)
+}
+
 export function useSkillsSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('skills-library') ?? false)
 }
