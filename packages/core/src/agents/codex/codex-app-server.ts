@@ -325,14 +325,26 @@ function shellWords(line: string): string[] | null {
   return words
 }
 
+const POSIX_SHELL = /^(?:\S*\/)?(?:bash|zsh|sh)$/
+// Read with POSIX quoting, an unquoted C:\x\cmd.exe loses its backslashes; the name still ends it.
+const POWERSHELL = /(?:^|[^a-z])(?:pwsh|powershell)(?:\.exe)?$/i
+const CMD = /(?:^|[^a-z])cmd(?:\.exe)?$/i
+
 // `/bin/zsh -lc 'cat x'` is how Codex runs `cat x`, quoting the script whichever way suits it (not
-// at all, in single quotes, in double quotes, or both run together); the script is what the user
+// at all, in single quotes, in double quotes, or both run together); on Windows it is
+// `powershell.exe -NoProfile -Command 'cat x'` or `cmd.exe /c cat x`. The script is what the user
 // reads.
 export function unwrapShell(command: string): string {
   const words = shellWords(command)
-  if (words?.length !== 3) return command
-  const [shell, flag, script] = words
-  const wrapped = /^(?:\S*\/)?(?:bash|zsh|sh)$/.test(shell ?? '') && (flag === '-lc' || flag === '-c')
+  if (!words || words.length < 3) return command
+  const [shell = '', ...rest] = words
+  const script = rest.at(-1)
+  const flags = rest.slice(0, -1).map((flag) => flag.toLowerCase())
+  const last = flags.at(-1)
+  const wrapped = POSIX_SHELL.test(shell) ? flags.length === 1 && (last === '-lc' || last === '-c')
+    : POWERSHELL.test(shell) ? (last === '-command' || last === '-c') && flags.slice(0, -1).every((flag) => /^-(?:nologo|noprofile|noninteractive)$/.test(flag))
+      : CMD.test(shell) ? last === '/c' && flags.every((flag) => /^\/[dsc]$/.test(flag))
+        : false
   return wrapped && script ? script : command
 }
 

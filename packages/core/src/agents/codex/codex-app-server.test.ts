@@ -714,6 +714,10 @@ describe('CodexAppServer commands', () => {
     expect(unwrapShell("/bin/zsh -lc 'cat codex.txt'")).toBe('cat codex.txt')
     expect(unwrapShell(`bash -lc 'echo '\\''hi'\\'''`)).toBe("echo 'hi'")
     expect(unwrapShell('git status')).toBe('git status')
+    expect(unwrapShell(`"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -NoProfile -Command 'Get-Content a.txt'`)).toBe('Get-Content a.txt')
+    expect(unwrapShell(`C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command "dir src"`)).toBe('dir src')
+    expect(unwrapShell('cmd.exe /d /c "type a.txt"')).toBe('type a.txt')
+    expect(unwrapShell('powershell.exe -File script.ps1')).toBe('powershell.exe -File script.ps1')
   })
 
   it('puts a command in words from Codex\'s own reading of it, when every part is one Antumi knows', () => {

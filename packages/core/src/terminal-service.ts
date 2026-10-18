@@ -4,15 +4,20 @@ import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { agentDescriptor, Terminal, type AgentCliInstallation, type TerminalOutput } from '@antumi/protocol'
-import type { SessionInfo } from '@antumi/protocol/node'
+import { nodeLaunchHost, resolveCommand, type LaunchHost, type SessionInfo } from '@antumi/protocol/node'
 import type { SessionHost } from './daemon-client'
 import { Rejection } from './rejection'
 import { terminalEnv, type ShellPrompt } from './shell-prompt'
 
 // The user's own login shell, started the way their terminal app would. An interactive shell is
-// the point here; agent commands, by contrast, never go through one.
-export function userShell(env: NodeJS.ProcessEnv = process.env): { command: string; args: string[] } {
-  if (process.platform === 'win32') return { command: env.COMSPEC ?? 'cmd.exe', args: [] }
+// the point here; agent commands, by contrast, never go through one. On Windows that is
+// PowerShell, as in Windows Terminal and VS Code: PowerShell 7 where it is installed.
+export function userShell(env: NodeJS.ProcessEnv = process.env, host: LaunchHost = nodeLaunchHost): { command: string; args: string[] } {
+  if (host.platform === 'win32') {
+    // A Store install's pwsh.exe is an app alias, which ConPTY refuses to start.
+    const pwsh = resolveCommand('pwsh.exe', os.homedir(), env, host)
+    return { command: pwsh && !/[\\/]WindowsApps[\\/]/i.test(pwsh) ? pwsh : 'powershell.exe', args: ['-NoLogo'] }
+  }
   return { command: env.SHELL || '/bin/sh', args: ['-l'] }
 }
 

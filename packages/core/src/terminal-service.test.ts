@@ -185,5 +185,10 @@ describe('TerminalService', () => {
     if (process.platform === 'win32') return
     expect(userShell({ SHELL: '/bin/zsh' })).toEqual({ command: '/bin/zsh', args: ['-l'] })
     expect(userShell({})).toEqual({ command: '/bin/sh', args: ['-l'] })
+    // Windows: PowerShell 7 where it is installed, else the Windows PowerShell every Windows has.
+    const windows = (files: string[]) => ({ platform: 'win32' as const, isFile: (file: string) => files.includes(file), isExecutable: (file: string) => files.includes(file), read: () => null })
+    expect(userShell({ Path: 'C:\\Program Files\\PowerShell\\7' }, windows(['C:\\Program Files\\PowerShell\\7\\pwsh.exe'])))
+      .toEqual({ command: 'C:\\Program Files\\PowerShell\\7\\pwsh.exe', args: ['-NoLogo'] })
+    expect(userShell({ Path: 'C:\\Windows' }, windows([]))).toEqual({ command: 'powershell.exe', args: ['-NoLogo'] })
   })
 })
