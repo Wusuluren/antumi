@@ -1,11 +1,9 @@
-import { execFile } from 'node:child_process'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import type { ProjectBranches } from '@antumi/protocol'
 import { gitOrNull } from './git-changes'
 import { Rejection } from './rejection'
+import { execFileAsync } from './hidden-exec'
 
-const execFileAsync = promisify(execFile)
 
 const MAX_REFS = 300
 

@@ -1,10 +1,8 @@
-import { execFile } from 'node:child_process'
 import { realpath } from 'node:fs/promises'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import type { ChangedFile, Commit, FileDiff } from '@antumi/protocol'
+import { execFileAsync } from './hidden-exec'
 
-const execFileAsync = promisify(execFile)
 
 const MAX_COMMITS = 50
 const MAX_DIFF_CHARS = 256 * 1024

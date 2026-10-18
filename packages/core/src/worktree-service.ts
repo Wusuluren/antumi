@@ -1,13 +1,11 @@
-import { execFile } from 'node:child_process'
 import { readdir, realpath, rmdir, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import { checkCleanWorktree, shortTaskId, type Conversation, type ManagedWorktree, type Task, type WorktreeCleanResult } from '@antumi/protocol'
 import { gitOrNull } from './git-changes'
 import { Rejection } from './rejection'
 import { originDefault } from './task-start'
+import { execFileAsync } from './hidden-exec'
 
-const execFileAsync = promisify(execFile)
 
 // Sizes are counted again once this old: a worktree grows as its task builds and installs.
 const SIZE_TTL_MS = 10 * 60 * 1000

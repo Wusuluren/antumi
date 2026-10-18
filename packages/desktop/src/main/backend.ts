@@ -165,6 +165,8 @@ export async function ensureBackend(): Promise<void> {
     spawn(process.execPath, [join(backend, `${name}.mjs`)], {
       env,
       detached: true,
+      // Detached on Windows means a console of its own, which would stay open on screen.
+      windowsHide: true,
       stdio: ['ignore', log, log]
     }).unref()
   }

@@ -1,10 +1,8 @@
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import type { CommitPushResult, CommitResult, PushResult } from '@antumi/protocol'
 import { git, gitOrNull } from './git-changes'
 import { Rejection } from './rejection'
+import { execFileAsync } from './hidden-exec'
 
-const execFileAsync = promisify(execFile)
 
 function errorText(error: unknown): string {
   if (typeof error === 'object' && error !== null && 'stderr' in error && typeof error.stderr === 'string') {

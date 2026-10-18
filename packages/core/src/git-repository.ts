@@ -1,12 +1,10 @@
-import { execFile } from 'node:child_process'
 import { access, realpath } from 'node:fs/promises'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import type { GitCommit, ChangedFile, FileDiff } from '@antumi/protocol'
 import { git, gitOrNull } from './git-changes'
 import { Rejection } from './rejection'
+import { execFileAsync } from './hidden-exec'
 
-const execFileAsync = promisify(execFile)
 
 export async function repositoryKey(dir: string): Promise<string | null> {
   const common = await gitOrNull(dir, ['rev-parse', '--git-common-dir'])

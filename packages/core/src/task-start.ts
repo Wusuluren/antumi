@@ -1,10 +1,8 @@
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { START_HEAD, type RepoStartOptions, type StartNote, type TaskStart } from '@antumi/protocol'
 import { gitOrNull } from './git-changes'
 import { Rejection } from './rejection'
+import { execFileAsync } from './hidden-exec'
 
-const execFileAsync = promisify(execFile)
 
 // A fetch stuck on the network or a credential prompt must not hold a task's start for long.
 const FETCH_TIMEOUT_MS = 20_000

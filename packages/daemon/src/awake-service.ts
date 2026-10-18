@@ -11,7 +11,7 @@ export type AwakeBackendStatus = {
 type SpawnProcess = (
   file: string,
   args: string[],
-  options: { stdio: ['pipe', 'ignore', 'ignore'] }
+  options: { stdio: ['pipe', 'ignore', 'ignore']; windowsHide: boolean }
 ) => ChildProcess
 
 const WINDOWS_ASSERTION = `
@@ -96,7 +96,7 @@ export class AwakeService {
   private start(): void {
     if (!this.desired || this.process || !this.launch) return
     this.problem = null
-    const child = this.spawnProcess(this.launch.file, this.launch.args, { stdio: ['pipe', 'ignore', 'ignore'] })
+    const child = this.spawnProcess(this.launch.file, this.launch.args, { stdio: ['pipe', 'ignore', 'ignore'], windowsHide: true })
     this.process = child
     child.once('error', (error) => {
       if (this.process !== child) return

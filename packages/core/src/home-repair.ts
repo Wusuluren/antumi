@@ -1,13 +1,11 @@
-import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { cp, readdir, stat } from 'node:fs/promises'
 import { DatabaseSync } from 'node:sqlite'
 import os from 'node:os'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import { HOME_MIGRATION_FILE, HomeMigrationRecord, readJsonIfExists, writePrivateJson, type AntumiPaths } from '@antumi/protocol/node'
+import { execFileAsync } from './hidden-exec'
 
-const run = promisify(execFile)
 
 // What migrateHome leaves for core, which owns persistence and git: the database still names the
 // old home in its paths, git still finds each worktree there, and Claude keeps a conversation's
@@ -61,7 +59,7 @@ export function rewriteDatabase(database: string, from: string, to: string): voi
 // moved one, or git would prune it as missing.
 async function repairWorktrees(root: string): Promise<void> {
   for (const dir of await worktreeDirs(root)) {
-    await run('git', ['-C', dir, 'worktree', 'repair']).catch((error: unknown) => {
+    await execFileAsync('git', ['-C', dir, 'worktree', 'repair']).catch((error: unknown) => {
       console.error(`[antumi-core] git worktree repair failed in ${dir}:`, error instanceof Error ? error.message : error)
     })
   }

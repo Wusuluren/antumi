@@ -1,13 +1,11 @@
-import { execFile } from 'node:child_process'
 import { mkdir, readdir, rmdir, stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import { isFinished, shortTaskId, type RepoStartOptions, type Task, type TaskRepo, type TaskStart } from '@antumi/protocol'
 import { Rejection } from './rejection'
 import { repoStartOptions, resolveStart } from './task-start'
+import { execFileAsync } from './hidden-exec'
 
-const execFileAsync = promisify(execFile)
 
 export type WorkspaceEntry = {
   // Folder name under the task directory; unique within the task.
