@@ -27,6 +27,12 @@ describe('fileCandidates', () => {
     expect(fileCandidates('src/a.ts', ['/wt/web', '/wt/api'])).toEqual(['/wt/web/src/a.ts', '/wt/api/src/a.ts'])
     expect(fileCandidates('/abs/a.ts', ['/wt/web'])).toEqual(['/abs/a.ts'])
   })
+
+  it('joins onto a Windows folder in its own style', () => {
+    expect(fileCandidates('src/a.ts', ['C:\\wt\\web'])).toEqual(['C:\\wt\\web\\src\\a.ts'])
+    expect(fileCandidates('..\\api\\ping.js', ['C:\\wt\\web'])).toEqual(['C:\\wt\\api\\ping.js'])
+    expect(fileCandidates('D:\\abs\\a.ts', ['C:\\wt\\web'])).toEqual(['D:\\abs\\a.ts'])
+  })
 })
 
 describe('linkTarget', () => {
@@ -65,5 +71,6 @@ describe('images', () => {
 
   it('escapes each part of the path for the preview protocol', () => {
     expect(previewUrl('/Users/me/My Shots/#1.png')).toBe('antumi-preview://file/Users/me/My%20Shots/%231.png')
+    expect(previewUrl('C:\\Users\\me\\My Shots\\#1.png')).toBe('antumi-preview://file/C:/Users/me/My%20Shots/%231.png')
   })
 })

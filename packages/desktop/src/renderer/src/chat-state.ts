@@ -451,8 +451,10 @@ export function chatBlocks(entries: readonly TimelineEntry[], { foldTurns = true
 // keeps its folder's name in front.
 export function pathShortener(roots: readonly string[]): (text: string) => string {
   const sorted = [...new Set(roots.filter(Boolean))].sort((a, b) => b.length - a.length)
-  const name = (root: string) => root.split('/').filter(Boolean).at(-1) ?? root
-  return (text) => sorted.reduce((current, root) => current.split(`${root}/`).join(sorted.length > 1 ? `${name(root)}/` : ''), text)
+  const name = (root: string) => root.split(/[\\/]/).filter(Boolean).at(-1) ?? root
+  // A Windows root is followed by either separator, as agents there write both.
+  const below = (root: string) => /^[a-zA-Z]:[\\/]|^\\\\/.test(root) ? [`${root}\\`, `${root}/`] : [`${root}/`]
+  return (text) => sorted.reduce((current, root) => below(root).reduce((each, prefix) => each.split(prefix).join(sorted.length > 1 ? `${name(root)}/` : ''), current), text)
 }
 
 // An answer as the question card shows it: an option picked, or words of the user's own.

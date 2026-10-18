@@ -17,24 +17,33 @@ export function fileReference(text: string): FileReference | null {
   if (!path) return null
   const extension = path.includes('.') ? path.split('.').at(-1)?.toLowerCase() : undefined
   // An absolute path names a file whatever it ends in.
-  if (!(extension && EXTENSIONS.has(extension)) && !path.startsWith('/') && !/^[a-zA-Z]:[\\/]/.test(path) && !path.startsWith('\\\\')) return null
+  if (!(extension && EXTENSIONS.has(extension)) && !isAbsolutePath(path)) return null
   return { path, line: match[2] ? Number(match[2]) : null }
 }
 
-// Joins a relative path onto a folder, resolving . and .. as a shell would.
+// A Windows path (C:\x, \\server\share), which core on Windows hands over; either separator goes.
+const isWindowsPath = (path: string) => /^[a-zA-Z]:[\\/]/.test(path) || path.startsWith('\\\\')
+
+export function isAbsolutePath(path: string): boolean {
+  return path.startsWith('/') || isWindowsPath(path)
+}
+
+// Joins a relative path onto a folder, resolving . and .. as a shell would, in the folder's style.
 function joined(root: string, relative: string): string {
-  const parts = root.split('/')
-  for (const part of relative.split('/')) {
+  const windows = isWindowsPath(root)
+  const separator = windows ? /[\\/]/ : '/'
+  const parts = root.split(separator)
+  for (const part of relative.split(separator)) {
     if (part === '..') parts.pop()
     else if (part !== '.' && part !== '') parts.push(part)
   }
-  return parts.join('/') || '/'
+  return parts.join(windows ? '\\' : '/') || '/'
 }
 
 // Where a named file may be: as written when absolute or under home, else under each of the
 // conversation's folders, the primary one first.
 export function fileCandidates(path: string, roots: readonly string[]): string[] {
-  if (path.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(path) || path.startsWith('\\\\') || path === '~' || /^~[\\/]/.test(path)) return [path]
+  if (isAbsolutePath(path) || path === '~' || /^~[\\/]/.test(path)) return [path]
   return [...new Set(roots.map((root) => joined(root, path)))]
 }
 
@@ -76,8 +85,15 @@ export function isImagePath(path: string): boolean {
   return IMAGE_EXTENSIONS.has(path.split('.').at(-1)?.toLowerCase() ?? '')
 }
 
-// main's antumi-preview protocol reads the file at the URL's path; each part is escaped so a # or
-// a space stays part of the name.
+// An absolute path as a URL's path, each part escaped so a # or a space stays part of the name.
+// A Windows one goes as /C:/x, the drive left as it is.
+export function urlPath(path: string): string {
+  const forward = isWindowsPath(path) ? path.replaceAll('\\', '/') : path
+  const rooted = /^[a-zA-Z]:\//.test(forward) ? `/${forward}` : forward
+  return rooted.split('/').map((part, index) => (index === 1 && /^[a-zA-Z]:$/.test(part) ? part : encodeURIComponent(part))).join('/')
+}
+
+// main's antumi-preview protocol reads the file at the URL's path.
 export function previewUrl(path: string): string {
-  return `antumi-preview://file${path.split('/').map(encodeURIComponent).join('/')}`
+  return `antumi-preview://file${urlPath(path)}`
 }

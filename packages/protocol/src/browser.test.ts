@@ -42,6 +42,7 @@ describe('tool names', () => {
 
   it('shows a picture a call looked at on disk from the file, for a Read or a view_image alone', () => {
     expect(toolImagePath({ name: 'Read', title: '/tmp/shot.png' })).toBe('/tmp/shot.png')
+    expect(toolImagePath({ name: 'Read', title: 'C:\\tmp\\shot.png' })).toBe('C:\\tmp\\shot.png')
     expect(toolImagePath({ name: 'imageView', title: '/tmp/shot.JPG' })).toBe('/tmp/shot.JPG')
     expect(toolImagePath({ name: 'Read', title: '/tmp/notes.md' })).toBeNull()
     expect(toolImagePath({ name: 'Read', title: 'shot.png' })).toBeNull()

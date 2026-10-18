@@ -209,7 +209,7 @@ export function commandKeyword(command: string): string {
     }
     if (SHELL_RUNNERS.has(word)) runner = word
     if (SHELL_NOISE.has(word) || SHELL_RUNNERS.has(word)) continue
-    return word.includes('/') ? (word.split('/').pop() || word) : word
+    return /[\\/]/.test(word) ? (word.split(/[\\/]/).pop() || word) : word
   }
   return words[0] ?? command
 }

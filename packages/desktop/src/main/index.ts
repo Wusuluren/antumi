@@ -42,7 +42,9 @@ const PREVIEW_POLICY = [
 
 async function servePreview(request: Request): Promise<Response> {
   const url = new URL(request.url)
-  const path = decodeURIComponent(url.pathname)
+  const named = decodeURIComponent(url.pathname)
+  // A Windows path comes as /C:/x (see urlPath in the renderer).
+  const path = process.platform === 'win32' && /^\/[a-zA-Z]:\//.test(named) ? named.slice(1) : named
   if (url.host !== 'file' || !isAbsolute(path)) return new Response('not found', { status: 404 })
   try {
     // The path as it really is: a link may not lead the frame somewhere else under a page's name.
@@ -196,7 +198,7 @@ ipcMain.handle('antumi:reveal-file', async (_event, candidates: unknown) => {
   if (!Array.isArray(candidates)) return null
   for (const candidate of candidates.slice(0, 20)) {
     if (typeof candidate !== 'string') continue
-    const path = candidate === '~' || candidate.startsWith('~/') ? join(homedir(), candidate.slice(1)) : candidate
+    const path = candidate === '~' || /^~[\\/]/.test(candidate) ? join(homedir(), candidate.slice(1)) : candidate
     if (!isAbsolute(path)) continue
     try {
       await stat(path)

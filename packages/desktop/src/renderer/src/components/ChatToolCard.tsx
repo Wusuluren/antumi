@@ -21,7 +21,7 @@ export const ChatPaths = createContext<(text: string) => string>((text) => text)
 
 // A file's type as a small badge: its extension, coloured by the stylesheet for the common ones.
 export function FileExt({ path }: { path: string }) {
-  const name = path.split('/').pop() ?? path
+  const name = path.split(/[\\/]/).pop() ?? path
   const dot = name.lastIndexOf('.')
   const ext = dot > 0 ? name.slice(dot + 1).toLowerCase() : ''
   if (!ext || ext.length > 4) return null

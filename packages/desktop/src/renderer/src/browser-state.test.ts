@@ -37,5 +37,6 @@ describe('fileUrl', () => {
   it('names a local file the way the browser opens it, keeping a # or a space part of the name', () => {
     expect(fileUrl('/tmp/demo/index.html')).toBe('file:///tmp/demo/index.html')
     expect(fileUrl('/Users/me/My Site/#1.html')).toBe('file:///Users/me/My%20Site/%231.html')
+    expect(fileUrl('C:\\Users\\me\\My Site\\index.html')).toBe('file:///C:/Users/me/My%20Site/index.html')
   })
 })

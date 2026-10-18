@@ -121,6 +121,7 @@ describe('pathShortener', () => {
     const both = pathShortener(['/work/api', '/work/api-web'])
     expect(both('/work/api-web/index.ts, /work/api/main.ts')).toBe('api-web/index.ts, api/main.ts')
     expect(both('/elsewhere/file')).toBe('/elsewhere/file')
+    expect(pathShortener(['C:\\work\\api'])('Edit C:\\work\\api\\src\\app.ts and C:\\work\\api/b.ts')).toBe('Edit src\\app.ts and b.ts')
   })
 })
 

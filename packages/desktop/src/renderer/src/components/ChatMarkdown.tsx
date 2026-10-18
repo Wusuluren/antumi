@@ -5,7 +5,7 @@ import rehypeHighlight from 'rehype-highlight'
 import { remarkPlugins } from '../markdown-syntax'
 import { perform, showError, useFindFileSupported } from '../core-store'
 import { canRevealFile, revealFile } from '../desktop-bridge'
-import { fileCandidates, fileReference, isImagePath, linkTarget, previewUrl, type FileReference, type LinkTarget } from '../file-links'
+import { fileCandidates, fileReference, isAbsolutePath, isImagePath, linkTarget, previewUrl, type FileReference, type LinkTarget } from '../file-links'
 import { CopyButton } from './CopyButton'
 import { ChatCodeRun, ChatRunnable } from './ChatCodeRun'
 import { ChatDiagram } from './ChatDiagram'
@@ -28,7 +28,7 @@ function FileLink({ reference, code = true, children }: { reference: FileReferen
   const reveal = async () => {
     if (scope) return showChatFile(scope, reference)
     if (await revealFile(candidates)) return
-    const found = searchable && roots.length > 0 && !reference.path.startsWith('/')
+    const found = searchable && roots.length > 0 && !isAbsolutePath(reference.path)
       ? await perform((rpc) => rpc.call('projects.findFile', { roots: [...roots], path: reference.path }))
       : null
     if (found && found.length > 0 && await revealFile(found)) return
@@ -55,7 +55,7 @@ export type LocalImage = { path: string; src: string }
 function localImage(target: LinkTarget | null, roots: readonly string[]): LocalImage | null {
   if (target?.kind !== 'file' || !isImagePath(target.path) || !canRevealFile()) return null
   const [path] = fileCandidates(target.path, roots)
-  return path?.startsWith('/') ? { path, src: previewUrl(path) } : null
+  return path && isAbsolutePath(path) ? { path, src: previewUrl(path) } : null
 }
 
 function viewerImage(image: LocalImage): ViewerImage {
@@ -80,7 +80,7 @@ function LocalImageStrip({ images }: { images: readonly LocalImage[] }) {
       {images.map((image, index) =>
         missing.has(image.src) ? (
           <span key={image.src} className="muted chat-image-missing" title={image.path}>
-            图片不在了：{image.path.split('/').at(-1)}
+            图片不在了：{image.path.split(/[\\/]/).at(-1)}
           </span>
         ) : (
           <span key={image.src} className="chat-image">

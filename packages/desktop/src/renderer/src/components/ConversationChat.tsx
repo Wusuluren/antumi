@@ -484,7 +484,7 @@ function TurnChanges({ conversationId, fold, files, turn, reply, collapsible }: 
         <div className="chat-changes-files">
           {shown.map((file) => {
             const path = shorten(file.path)
-            const slash = path.lastIndexOf('/')
+            const slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
             const directory = slash === -1 ? '' : path.slice(0, slash + 1)
             const name = slash === -1 ? path : path.slice(slash + 1)
             return (

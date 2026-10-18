@@ -27,7 +27,7 @@ export type WorkspaceEntry = {
 export type Workspace = { cwd: string; extraDirs: string[]; multi: boolean; entries: WorkspaceEntry[]; repos: TaskRepo[] }
 
 export function normalizeRepoPath(input: string): string {
-  const expanded = input === '~' || input.startsWith('~/') ? path.join(os.homedir(), input.slice(1)) : input
+  const expanded = input === '~' || /^~[\\/]/.test(input) ? path.join(os.homedir(), input.slice(1)) : input
   if (!path.isAbsolute(expanded)) {
     throw new Rejection('repo-path-not-absolute', `repo path must be absolute: ${input}`)
   }

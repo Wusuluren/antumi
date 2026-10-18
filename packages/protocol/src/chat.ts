@@ -380,7 +380,8 @@ export const CODEX_IMAGE_VIEW = 'imageView'
 // copy: Claude's Read of an image file, Codex's imageView. null for any other call.
 export function toolImagePath(item: { name: string; title: string }): string | null {
   const reads = item.name === 'Read' || item.name === CODEX_IMAGE_VIEW
-  return reads && item.title.startsWith('/') && isPreviewImage(item.title) ? item.title : null
+  const absolute = item.title.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(item.title)
+  return reads && absolute && isPreviewImage(item.title) ? item.title : null
 }
 export function isPreviewTool(name: string): boolean {
   return antumiToolName(name) === SHOW_PREVIEW_TOOL

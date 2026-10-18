@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { create } from 'zustand'
 import { isBrowserTool, type BrowserTab } from '@antumi/protocol'
 import { perform, showBrowserPanel, useCore } from './core-store'
+import { urlPath } from './file-links'
 import { usePreferences } from './preferences'
 
 // Browser tabs as core reports them while a view watches: a conversation's under its id, the
@@ -89,9 +90,9 @@ export function focusBrowserTab(tabId: string): void {
   focus({ tabId })
 }
 
-// A file URL for an absolute path, each part escaped so a # or a space stays part of the name.
+// A file URL for an absolute path.
 export function fileUrl(path: string): string {
-  return `file://${path.split('/').map(encodeURIComponent).join('/')}`
+  return `file://${urlPath(path)}`
 }
 
 // Opens a file the agent wrote as a tab of its conversation, with the panel up on it: the page then
