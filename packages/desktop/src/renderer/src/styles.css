@@ -4577,6 +4577,8 @@ body.side-panel-resizing * {
   --border-2: var(--root-border-2);
   --shadow: var(--root-shadow);
 }
+/* A tooltip is inverted (text on --bg over --text): the colour above would match its background. */
+:root[data-backdrop] :is(.sidebar, .statusbar, .window-brand) [data-tooltip]::after { color: var(--bg); }
 :root[data-backdrop] .sidebar { border-right-color: transparent; }
 :root[data-backdrop] .statusbar { background: transparent; border-top-color: transparent; }
 :root[data-backdrop] .workspace > :not(.sidebar, .utility-panel-dock) {
