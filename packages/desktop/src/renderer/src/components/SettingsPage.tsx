@@ -12,6 +12,7 @@ import { ChatPicker } from './ChatPicker'
 import { PluginSettings } from './PluginSettings'
 import { InstalledAgentsSettings } from './InstalledAgentsSettings'
 import { TitleNamingSettings } from './TitleNamingSettings'
+import { AutoArchiveSettings } from './AutoArchiveSettings'
 import { ChatFontPicker } from './ChatFontPicker'
 import { CodeFontPicker } from './CodeFontPicker'
 import { agentLabel } from '../labels'
@@ -415,6 +416,7 @@ function AgentSettings() {
           />
         )}
         <TitleNamingSettings />
+        <AutoArchiveSettings />
         <SettingsRow
           label="轻量任务用的模型"
           description="翻译、提交信息、会话标题等小活用同一 Agent 的这个模型；默认用它最便宜的模型。"
@@ -650,7 +652,7 @@ const SECTIONS: readonly Section[] = [
     group: '任务',
     title: '智能体',
     description: '本机 Agent 的安装与登录状态，以及运行、会话和访问的默认设置。',
-    keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', '模型', '轻量', '提交信息', 'haiku', '标题', '命名', '重命名', '首轮', '每轮'],
+    keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', '模型', '轻量', '提交信息', 'haiku', '标题', '命名', '重命名', '首轮', '每轮', '归档', '自动归档', '不活跃', '清理'],
     Icon: SparkIcon,
     Body: AgentSettings,
     grouped: true

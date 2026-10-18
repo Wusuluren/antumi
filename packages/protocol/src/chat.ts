@@ -43,9 +43,16 @@ export const ChatSettings = z.object({
   readHistory: z.boolean().optional(),
   // The user's local knowledge base, given to agents from their next start; null is none. Nullable so a
   // client can clear it through a partial update. Older cores omit it.
-  knowledgeBase: KnowledgeBase.nullable().optional()
+  knowledgeBase: KnowledgeBase.nullable().optional(),
+  // Free conversations idle this many days are archived; null is off, the default. Nullable so a
+  // client can turn it off through a partial update. Older cores omit it.
+  autoArchiveDays: z.number().int().min(1).max(365).nullable().optional()
 })
 export type ChatSettings = z.infer<typeof ChatSettings>
+
+// The idle spans a client offers for auto-archiving, and the one it starts on.
+export const AUTO_ARCHIVE_DAYS = [7, 14, 30, 60, 90] as const
+export const DEFAULT_AUTO_ARCHIVE_DAYS = 30
 
 // interrupted: the user stopped the turn while the call ran.
 export const ChatToolStatus = z.enum(['running', 'done', 'failed', 'denied', 'interrupted'])

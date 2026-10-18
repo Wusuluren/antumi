@@ -184,10 +184,20 @@ export class ConversationStore {
     return this.get(id)!
   }
 
-  // Leaves updated_at alone too: putting a conversation away is not activity either.
+  // Leaves updated_at alone too: putting a conversation away is not activity either. Taking it out
+  // is noted apart, so auto-archiving does not put it straight back.
   setArchived(id: string, archived: boolean): Conversation {
-    this.db.prepare('UPDATE conversations SET archived_at = ? WHERE id = ?').run(archived ? this.now() : null, id)
+    if (archived) this.db.prepare('UPDATE conversations SET archived_at = ? WHERE id = ?').run(this.now(), id)
+    else this.db.prepare('UPDATE conversations SET archived_at = NULL, restored_at = ? WHERE id = ?').run(this.now(), id)
     return this.get(id)!
+  }
+
+  // Free conversations nobody has touched since `before`, neither by activity nor by taking them out
+  // of the archive: not pinned, and not a task's, a group chat's, a squad's or a helper.
+  idleSince(before: number): string[] {
+    return this.db.prepare(`SELECT id FROM conversations WHERE archived_at IS NULL AND pinned_at IS NULL
+      AND task_id IS NULL AND discussion_id IS NULL AND squad_run_id IS NULL AND helper_of IS NULL
+      AND MAX(updated_at, COALESCE(restored_at, 0)) < ? ORDER BY updated_at`).all(before).map((row) => String(row.id))
   }
 
   chatOptions(id: string): ChatOptions {

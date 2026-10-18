@@ -49,6 +49,7 @@ import { WorktreeService } from './worktree-service'
 import { AwakeConfigStore } from './awake-config'
 import { ComputerAwakeService } from './computer-awake-service'
 import { ChatSettingsStore } from './chat-settings'
+import { ConversationAutoArchive } from './conversation-auto-archive'
 import { SkillsLibrary } from './skills-library'
 import { McpServerStore } from './mcp-servers'
 import { knowledgeBaseSkills } from './skills-recommended'
@@ -297,8 +298,14 @@ const chatSettings = new ChatSettingsStore(paths.chatSettings, (settings) => {
   conversations.setKnowledgeBase(settings.knowledgeBase ?? null)
   conversations.setCapacity(settings, () => { void schedules.tick(); squads.tick() })
   wire.setEnabled(settings.wireLog ?? false)
+  void autoArchive.sweep()
   server?.broadcast('system.chatSettingsChanged', { settings })
 })
+const autoArchive = new ConversationAutoArchive(
+  () => chatSettings.current().autoArchiveDays,
+  (before) => conversationsStore.idleSince(before),
+  (id) => conversations.setArchived(id, true)
+)
 // Before the daemon connects: a chat stage it still runs is taken back with these settings.
 const skills = new SkillsLibrary(paths.skills, (repos) => server?.broadcast('skills.changed', { repos: [...repos] }))
 await skills.load()
@@ -383,6 +390,7 @@ refreshAwake()
 usage.start()
 routines.start()
 schedules.start()
+autoArchive.start()
 environment.start()
 refreshAwake()
 // Stages that ended before turns were kept, counted once in the background.
@@ -404,6 +412,7 @@ async function shutdown(): Promise<void> {
   usage.stop()
   schedules.stop()
   routines.stop()
+  autoArchive.stop()
   await squads.close()
   discussions.close()
   sources.stop()

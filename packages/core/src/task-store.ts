@@ -315,7 +315,9 @@ export const MIGRATIONS = [
      WHERE conversation_id = conversations.id AND role = 'assistant' AND complete = 1), 0);
    UPDATE conversations SET title_rounds = 1 WHERE title_sequence > 0;`,
   // A project's setup or check run in a worktree (Terminal.purpose), rather than an agent's command.
-  `ALTER TABLE terminals ADD COLUMN purpose TEXT;`
+  `ALTER TABLE terminals ADD COLUMN purpose TEXT;`,
+  // When the user last took a conversation out of the archive, which auto-archiving counts as activity.
+  `ALTER TABLE conversations ADD COLUMN restored_at INTEGER;`
 ]
 
 
