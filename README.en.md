@@ -4,9 +4,9 @@
 
 # Antumi
 
-**Hand work to AI agents the way you would to a colleague: they plan, they code, you review.**
+**One workspace to work with multiple AI agents.**
 
-A local-first workspace for AI coding agents. One board for Claude Code, Codex and Cursor; one Git worktree per task.
+A local-first workspace for Claude Code, Codex and Cursor: conversations, tasks, group discussions and scheduled runs in one place.
 
 [![Version](https://img.shields.io/github/package-json/v/flyhero/antumi?label=version&color=blue)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
@@ -21,29 +21,30 @@ A local-first workspace for AI coding agents. One board for Claude Code, Codex a
 
 </div>
 
-> The app's UI is currently in Chinese. The screenshots below are from the real app; captions explain what each one shows.
+> The app's UI is currently in Chinese. The hero image is a product rendering; the feature images below are screenshots from the app.
 
 ## Why Antumi
 
-You have three terminals open: Claude Code is fixing a bug, Codex is writing an export, and you have forgotten what the third one is doing. Which one is waiting for approval? Which two touched the same file? Want another agent to take over? Explain the task all over again. The more agents you add, the more your day turns into babysitting.
+When you use Claude Code, Codex and Cursor together, you may run into these problems:
+
+- With several conversations open, it is hard to remember who is doing what and who needs approval.
+- Switching agents means explaining the work all over again.
+- Moving between windows and checking progress takes more and more of your time.
 
 Antumi brings Claude Code, Codex and Cursor into one local workspace. Start a conversation to work through a problem, bring several agents into a group discussion, or schedule them to run later. The overview shows who is working, who needs you and what comes next.
 
 For work that needs a plan, isolated code changes and review, use the task board. Tasks run in their own worktrees, support dependencies and can be assigned to a squad. Both conversations and tasks support switching agents along the way, with the chat history and your notes passed to the next agent.
 
-- 🗂️ **One board for several agents**: each card says who is working, whether it is waiting for you, and what to click next.
-- 🌿 **One worktree per task**: separate branches never step on each other, across repositories too. An agent's work is never deleted automatically.
-- 🪟 **Two conversations side by side**: keep one agent in view while you talk to another; whichever column asks for approval, answer it right there.
-- 🔍 **Review without a terminal**: commits, diffs, branches, merges, even a two-line edit, all in the inspector.
-- 🔁 **Switch agents mid-task without losing context**: one-click handoff carries the chat and your notes over.
-- 🔔 **Never leave an agent waiting**: when it needs approval, a card pops up at the top of your screen, wherever you are.
-- 📊 **Every agent's quota at a glance**: the 5-hour, weekly or monthly usage of Claude Code, Codex and Cursor stays in the status bar, marked "resetting soon" when OpenAI announces on X that everyone's Codex quota is about to reset; when one runs out you are pointed to one that still has quota, and a session that hit its limit resumes once the limit resets.
-- 💰 **Cheaper**: translations, commit messages and the helper go to small models and stay out of the main conversation's context.
-- 🔒 **Local-first**: your data stays on your machine, and a background daemon keeps agents running when the window closes.
+- 🪟 **Conversations in one place**: see progress and pending requests, with two conversations open side by side.
+- 💬 **Agents discuss together**: compare approaches in a group chat and have the chair summarise the conclusions.
+- 🗂️ **Tasks with plans and review**: execute in separate worktrees, on your own or with a squad of agents.
+- 🔁 **Hand off along the way**: pass the visible chat history and your notes to another agent.
+- ⏰ **Scheduled runs**: have agents review code, check dependencies or write reports at a set time.
+- 🔒 **Local-first**: records stay on your machine, and a background process keeps agents running when the window closes.
 
 ## Features
 
-Reading and writing code, running commands, plan mode: Claude Code and Codex do that on their own. Here is what Antumi adds on top.
+Antumi manages conversations, collaboration, execution and results across agents. Here is how those fit into your work.
 
 ### Overview: what needs you comes first
 
@@ -51,15 +52,37 @@ Everything waiting for your confirmation, your answer or your review in one plac
 
 <img src="docs/assets/overview.png" alt="Overview: four items need you, one awaiting confirmation, one awaiting review and two waiting for a reply" width="100%" />
 
-### Ask first, plan first, then act
+### Conversations: talk directly and hand off
 
-When a task starts, the agent only reads code. If something is unclear it asks with options, then proposes a plan. The full plan sits on the right; you run it, keep planning or stop with one click. You can also schedule the approval for later, or hand the plan to a squad.
+Pick an agent and a project to start a conversation, or leave the project empty to use a separate working directory. Two ordinary conversations can sit side by side, each with its own input, progress and approval requests.
 
-<img src="docs/assets/plan.png" alt="Claude Code asked two questions, then proposed a plan that waits for your confirmation" width="100%" />
+Out of Claude Code quota, or want Codex to try a different angle? Pick another agent in the composer and the send button becomes "Hand off". The new agent gets the visible chat and your notes and uses the same working directory; task conversations continue in their existing worktree. Switch back and the original agent's native session is restored, with the intervening history added.
+
+<img src="docs/assets/handoff.png" alt="Claude Code picked in the composer; the send button now reads Hand off" width="100%" />
+
+### Group chat: let the agents argue first
+
+Two to five agents and models discuss one question in rounds, each with an optional stance, optionally anonymous. Everyone answers independently in the first round and only sees others' new posts afterwards; the chair sums up at the end. @-mention one member, add people, change the topic. The summary and any answer can become a task. Members are read-only and never touch code.
+
+<img src="docs/assets/discussion.png" alt="Three members discuss what storage the todo app should move to; the chair gives a conclusion and the questions left for you" width="100%" />
+
+### Routines and scheduling
+
+Have Claude Code or Codex start a conversation every day, on weekdays or weekly to review code, check dependencies or write reports. Eight templates are built in. Tasks, plan approvals and chat messages can also be scheduled for a given time and managed on the same page. Cursor does not support routines or scheduled runs yet.
+
+<img src="docs/assets/schedules.png" alt="The eight routine templates: daily code review, test health check, weekly report and more; the Scheduled tab is in the top right" width="100%" />
+
+### Squads
+
+Set up a leader and members, each with their own agent, model and role, and give a task to the squad. The leader reads the code, works out a plan and a split with you, and only dispatches once you approve: development runs in sequence, read-only analysis in parallel, all in the task's worktree.
+
+<img src="docs/assets/squads.png" alt="A squad: Claude Code as leader, Codex as developer, Claude Code as reviewer" width="100%" />
 
 ### Review without opening a terminal
 
 The inspector lists every commit since the branch started and every file's additions, deletions and diff. Branches, fetch / pull / push / commit, merges and conflicts live here too. Leave the commit message empty and a small model writes one in the project's style. On redo, this attempt is kept on a `-tryN` branch and the task branch starts over.
+
+When a project has a check command configured, submitting an ordinary task for review runs it first. If it fails, the task stays in progress and the output goes back to the agent to fix. Squad tasks do not run this check yet.
 
 <img src="docs/assets/inspector.png" alt="The inspector's changes tab: 11 changed files and the diff of todos.mjs" width="100%" />
 
@@ -69,15 +92,9 @@ The inspector's Files tab is an editor: a filterable project tree, <kbd>?</kbd> 
 
 <img src="docs/assets/files.png" alt="The Files tab maximised: the todo-web file tree on the left, todos.mjs being edited on the right" width="100%" />
 
-### Hand off mid-conversation
-
-Out of Claude Code quota, or want Codex to try a different angle? Pick another agent in the composer and the send button becomes "Hand off". The new agent gets the visible chat and your notes and continues in the same worktree. Switch back and the original agent's native session is restored.
-
-<img src="docs/assets/handoff.png" alt="Claude Code picked in the composer; the send button now reads Hand off" width="100%" />
-
 ### Answer without coming back to Antumi
 
-When an agent needs an approval, an answer or a plan review, a card appears at the top of the screen and you answer right there. Together with system notifications and the Dock badge, no agent waits half an hour for you again.
+When an agent needs an approval, an answer or a plan review, a card appears at the top of the screen and you answer right there. System notifications and the Dock badge also highlight pending requests.
 
 <p align="center">
   <img src="docs/assets/popup.png" alt="The card at the top of the screen: a plan awaits approval, with three options to pick from" width="420" />
@@ -89,29 +106,11 @@ An agent opens the page, clicks and types, switches to a phone viewport, takes s
 
 <img src="docs/assets/browser.png" alt="After adding due dates, Codex checks the page in the built-in browser at a 390×844 phone size" width="100%" />
 
-### Group chat: let the agents argue first
+### Usage and lightweight work
 
-Two to five agents and models discuss one question in rounds, each with an optional stance, optionally anonymous. Everyone answers independently in the first round and only sees others' new posts afterwards; the chair sums up at the end. @-mention one member, add people, change the topic. The summary and any answer can become a task. Members are read-only and never touch code.
-
-<img src="docs/assets/discussion.png" alt="Three members discuss what storage the todo app should move to; the chair gives a conclusion and the questions left for you" width="100%" />
-
-### Squads
-
-Set up a leader and members, each with their own agent, model and role, and give a task to the squad. The leader reads the code, works out a plan and a split with you, and only dispatches once you approve: development runs in sequence, read-only analysis in parallel, all in the task's worktree.
-
-<img src="docs/assets/squads.png" alt="A squad: Claude Code as leader, Codex as developer, Claude Code as reviewer" width="100%" />
-
-### Routines and scheduling
-
-Open a conversation every day, on weekdays or weekly at a set time and let an agent finish it unattended: code review, dependency checks, the weekly report. Eight templates are built in. Tasks, plan approvals and chat messages can also be scheduled for a given time and managed on the same page.
-
-<img src="docs/assets/schedules.png" alt="The eight routine templates: daily code review, test health check, weekly report and more; the Scheduled tab is in the top right" width="100%" />
-
-### Saving money
-
-- **Light work goes to small models**: translation, commit messages, conversation titles and the selection helper use each agent's cheapest model, without reading the main conversation. The Stats tab on the overview prices it at API list rates and shows what you saved versus the main model.
-- **Quotas in plain sight**: the status bar and the agent picker show each agent's remaining quota, such as "5h 20% · week 18%". When one runs out, Antumi suggests one with quota left, or a one-click handoff.
-- **No wasted waiting**: a session that hits a usage limit books its own retry for when the limit resets. Routines can pick "auto" and run on whichever agent has quota.
+- **Light work goes to small models**: translation, commit messages, conversation titles and the selection helper default to lightweight models, with an option to choose your own, without reading the main conversation. The Stats tab estimates costs and savings at API list rates; these are not actual subscription charges.
+- **Quotas in plain sight**: the status bar and agent picker show usage and reset times for Claude Code, Codex and Cursor, with a choice of used or remaining percentages; Cursor shows monthly usage. Available reset credits and global reset announcements also appear here.
+- **No wasted waiting**: Claude Code and Codex sessions that hit a usage limit book their own retry for when the limit resets. Routines can pick "auto" and run on whichever agent has quota.
 
 <img src="docs/assets/savings.png" alt="The Stats tab: about $0.21 saved by small models, with tokens, cost and savings per use; the status bar shows each agent's 5-hour and weekly quota" width="100%" />
 
@@ -241,7 +240,7 @@ ANTUMI_HOME=~/.antumi-demo pnpm dev
 
 Antumi is a **developer preview** (0.18.x), developed and tested mainly on macOS, and has to be run from source or packaged yourself. Next, in order:
 
-- **Closing the review loop**: run the project's configured test command in the worktree, attach the result to the review as evidence, then PRs and merging.
+- **Closing the review loop**: build on the existing checks before review with clearer result displays and PR and merge workflows.
 - **Windows**: the UI and fonts are ready; what is missing is launching the agent CLIs through their `.cmd` shims.
 - **Remote execution**: let agents work on repositories over SSH / WSL while the board stays local.
 
