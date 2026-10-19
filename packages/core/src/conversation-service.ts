@@ -3,7 +3,7 @@ import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { canHaveHelper, helperAllowsMode, isHelper, agentDescriptor, modelPrice, type CostBaseline, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isAntumiRequest } from '@antumi/protocol'
 import type { DaemonEvent, SessionInfo } from '@antumi/protocol/node'
-import type { TaskLaunchOptions } from '@antumi/protocol'
+import { canReuseConversation, type ConversationConfiguration, type TaskLaunchOptions } from '@antumi/protocol'
 import type { RunMeasure } from './agent-run-store'
 import type { AttachmentStore } from './attachment-store'
 import type { ChatAnswer, StageMessage } from './chat-driver'
@@ -417,6 +417,25 @@ export class ConversationService {
   }
   search(query: string): ConversationSearchHit[] {
     return this.store.searchMessages(query).map(({ conversationId, text }) => ({ conversationId, snippet: searchSnippet(text, query) }))
+  }
+
+  // Read the stage in core so a conversation need not be open in the requesting client.
+  configuration(id: string): ConversationConfiguration {
+    const conversation = this.get(id)
+    if (!canReuseConversation(conversation)) throw new Rejection('invalid-params', '只能沿用普通会话的配置')
+    const stage = this.store.stages(id).at(-1)
+    const state = stage?.agent === conversation.agent
+      ? this.stageChatItems(id, stage.id).findLast((item) => item.kind === 'state')
+      : undefined
+    const next = conversation.chatOptions
+    const live = conversation.sessionId !== null && state?.kind === 'state'
+    return {
+      agent: conversation.agent,
+      projectPaths: [...conversation.projectPaths],
+      permissionMode: live ? state.permissionMode : next?.permissionMode ?? state?.permissionMode ?? null,
+      model: live ? state.model : next?.model ?? state?.model ?? null,
+      effort: live ? state.effort : next?.effort ?? (next?.model && next.model !== state?.model ? null : state?.effort ?? null)
+    }
   }
 
   // routine: the routine whose run opens it, which also names it for good; id: the run's own,

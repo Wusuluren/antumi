@@ -7,7 +7,7 @@ import { PluginId, PluginInfo, PluginInstallSource, PluginVersion } from './plug
 import { AgentUsage, ResetCreditOutcome } from './usage'
 import { AgentStats, ConversationStats } from './agent-stats'
 import { DashboardParams, DashboardStats } from './dashboard'
-import { CommitPushResult, CommitResult, Conversation, ConversationMessage, ConversationSearchHit, ConversationStage, ProjectBranches, ProjectHead, PushResult } from './conversation'
+import { CommitPushResult, CommitResult, Conversation, ConversationConfiguration, ConversationMessage, ConversationSearchHit, ConversationStage, ProjectBranches, ProjectHead, PushResult } from './conversation'
 import { ChatCatalog, ChatDecision, ChatItemList, ChatOption, ChatPermissionMode, ChatSettings, TaskLaunchOptions } from './chat'
 import { TranslateLanguage, Translation } from './translation'
 import { FileDiff, FolderChanges, RepoChanges } from './changes'
@@ -84,7 +84,7 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // project's .antumi/project.json, once the user trusts its commands (projects.config, projects.trustConfig).
 // project-config-edit: core writes that file as the user filled it in (projects.writeConfig), and
 // suggests what to fill it with (projects.suggestConfig).
-export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'handoff-mode', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit'] as const
+export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-configuration', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'handoff-mode', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit'] as const
 // knowledge-base: core hands agents the user's local knowledge base and lists the vaults Obsidian knows (knowledge.*).
 // knowledge-base-kind: Markdown folders and Obsidian use their own prompts and skills; missing kind means Obsidian.
 // skills-library: core installs Agent Skills repositories pinned to a commit and hands bundles of them to agents (skills.*).
@@ -101,6 +101,7 @@ export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-st
 // routines: core runs routines, rules that open a conversation on a schedule, and keeps their runs (routines.*). A
 // client without it shows the conversations they opened among the others, since it does not read routineId.
 // conversation-fork: a free conversation can be forked at one of its messages into a new one (conversations.fork).
+// conversation-configuration: conversations.configuration returns settings for a fresh conversation.
 // discussions: core runs group chats, agents discussing a topic in rounds (discussions.*).
 // wire-log: core can record what passes between it and chat agents (ChatSettings.wireLog) and serves it (debug.*).
 // Whether a start may offer running with nothing asked and nothing sandboxed; the conversation
@@ -257,6 +258,7 @@ export const rpcMethods = {
   'tasks.diff': { params: TaskRef.extend({ repo: z.string().min(1), file: z.string().min(1) }), result: FileDiff },
   'conversations.list': { params: z.object({ includeTasks: z.boolean().optional(), includeSquads: z.boolean().optional() }), result: z.array(Conversation) },
   'conversations.get': { params: ConversationRef, result: Conversation },
+  'conversations.configuration': { params: ConversationRef, result: ConversationConfiguration },
   // A parent's helper, reached here because list and search exclude it. Needs conversation-helper.
   'conversations.helper': { params: ConversationRef, result: Conversation.nullable() },
   'conversations.create': {

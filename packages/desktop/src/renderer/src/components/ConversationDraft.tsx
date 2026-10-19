@@ -30,8 +30,11 @@ import { inboxKey, rememberInvestigationProjects } from '../source-inboxes'
 // reads and plans unless another is picked, and the message is what the user adds, if anything.
 export function ConversationDraft() {
   const installed = useInstalledAgents()
+  const from = useCore((s) => s.conversationDraftFrom)
+  const initial = from?.configuration
+  const composerId = from?.key ?? null
   // Unset when nothing settles it, for each start to pick.
-  const [agent, setAgent] = useState<AgentKind | null>(() => defaultAgent(useCore.getState().tasks, useCore.getState().conversations))
+  const [agent, setAgent] = useState<AgentKind | null>(() => initial?.agent ?? defaultAgent(useCore.getState().tasks, useCore.getState().conversations))
   // Asked for again while the page is open (another project's ＋), it takes the new ones.
   const requested = useCore((s) => s.conversationDraftProjects)
   const [projectPaths, setProjectPaths] = useState<string[]>(() => [...(requested?.paths ?? [])])
@@ -40,14 +43,19 @@ export function ConversationDraft() {
   const draftIssue = useCore((s) => s.conversationDraftIssue)
   const issue = investigateSupported ? draftIssue : null
   const [worktree, setWorktree] = useState(false)
-  const [draft] = useState(() => composerDraft(null))
+  const [draft] = useState(() => composerDraft(composerId))
   const { value, setText, setValue } = useMentionedText({ text: draft.text, mentions: draft.mentions })
   const { text } = value
   const [busy, setBusy] = useState(false)
   // Kept per agent, so switching back finds the mode picked for it.
-  const [modes, setModes] = useState<Partial<Record<AgentKind, ChatPermissionMode>>>({})
+  const [modes, setModes] = useState<Partial<Record<AgentKind, ChatPermissionMode>>>(() => {
+    const mode = ChatPermissionMode.safeParse(initial?.permissionMode)
+    return initial && mode.success ? { [initial.agent]: mode.data } : {}
+  })
   // A model or effort left unpicked is the agent's own default, which the start does not pass.
-  const [picks, setPicks] = useState<Partial<Record<AgentKind, { model?: string; effort?: string }>>>({})
+  const [picks, setPicks] = useState<Partial<Record<AgentKind, { model?: string; effort?: string }>>>(() => initial ? {
+    [initial.agent]: { model: initial.model ?? undefined, effort: initial.effort ?? undefined }
+  } : {})
   // Each agent's models, asked for once it is picked; absent while asking, null when core cannot say.
   const [catalogs, setCatalogs] = useState<Partial<Record<AgentKind, ChatCatalog | null>>>({})
   const rpc = useCore((s) => s.rpc)
@@ -65,10 +73,9 @@ export function ConversationDraft() {
   useEffect(() => setBranch(null), [primary])
   const startBranch = branches.options?.git ? branch : null
   const attached = useComposerImages(draft.images)
-  useEffect(() => saveComposerDraft(null, { ...value, images: attached.images }), [value, attached.images])
+  useEffect(() => saveComposerDraft(composerId, { ...value, images: attached.images }), [composerId, value, attached.images])
   const width = usePreferences((s) => s.chatWidth)
   const typeface = useChatTypeface()
-  const canSend = agent !== null && !busy && attached.uploading === 0 && (issue !== null || text.trim() !== '' || attached.images.length > 0)
   // Only the user's own commands: the agent has not started to say what it takes.
   const chatCommands = useCore((s) => s.chatCommands)
   const commandEntries = useMemo(() => antumiEntries(chatCommands, projectPaths), [chatCommands, projectPaths])
@@ -98,7 +105,9 @@ export function ConversationDraft() {
   // Looking into an issue starts where the agent only reads, as a group chat member does.
   const reading = agent && issue && offeredModes.includes(agentDescriptor(agent).discussionMode) ? agentDescriptor(agent).discussionMode : null
   const mode = agent ? (chosenMode && offeredModes.includes(chosenMode) ? chosenMode : reading ?? defaultStartMode(agent, offeredModes)) : null
-  const effort = pick.effort && efforts.includes(pick.effort) ? pick.effort : null
+  const effort = pick.effort && (!catalog || efforts.includes(pick.effort)) ? pick.effort : null
+  const settingsLoading = Boolean(initial && agent && optionsSupported && catalog === undefined)
+  const canSend = agent !== null && !busy && !settingsLoading && attached.uploading === 0 && (issue !== null || text.trim() !== '' || attached.images.length > 0)
   // The model a start would run, as quota windows name models; unknown until its catalog is in.
   const modelFor = (kind: AgentKind) => {
     const models = catalogs[kind]?.models ?? []
@@ -132,7 +141,7 @@ export function ConversationDraft() {
     }
     rememberInvestigationProjects(inboxKey(issue), projectPaths)
     // Images go nowhere here, so any already attached wait for the next new conversation.
-    saveComposerDraft(null, { ...EMPTY_DRAFT, images: attached.images })
+    saveComposerDraft(composerId, { ...EMPTY_DRAFT, images: attached.images })
     useCore.setState((state) => ({ conversations: { ...state.conversations, [opened.id]: opened }, conversationDraftIssue: null }))
     selectConversation(opened.id)
   }
@@ -150,7 +159,7 @@ export function ConversationDraft() {
     if (created) {
       if (deferStart && rpc) {
         keepInitialMessage(created.id, written.trim(), attached.images)
-        saveComposerDraft(null, EMPTY_DRAFT)
+        saveComposerDraft(composerId, EMPTY_DRAFT)
         useCore.setState((state) => ({ conversations: { ...state.conversations, [created.id]: created } }))
         selectConversation(created.id)
         void sendInitialMessage(created.id, rpc)
@@ -158,7 +167,7 @@ export function ConversationDraft() {
       }
       const images = attached.images.map((image) => image.id)
       const sent = await perform((rpc) => rpc.call('conversations.send', { id: created.id, text: written.trim(), ...(images.length ? { images } : {}) }))
-      if (sent) saveComposerDraft(null, EMPTY_DRAFT)
+      if (sent) saveComposerDraft(composerId, EMPTY_DRAFT)
       selectConversation(created.id)
       return
     }
@@ -185,7 +194,7 @@ export function ConversationDraft() {
                     onClick={() => useCore.setState({ conversationDraftIssue: null })}><CloseIcon /></button>
                 </div>
               )}
-              <h2 className="chat-draft-title">用哪个 Agent 开始</h2>
+              <h2 className="chat-draft-title">{from ? '开始新的会话' : '用哪个 Agent 开始'}</h2>
               <div className="chat-draft-agents" role="radiogroup" aria-label="agent">
                 {installed.map((kind) => (
                   <button
@@ -206,7 +215,7 @@ export function ConversationDraft() {
               <p className="chat-draft-hint muted">
                 {issue
                   ? 'Agent 先读这个 issue 的原文，只读排查，给出原因和修复方案后停下；确认后可以切换模式，就在这个会话里修。'
-                  : '发出第一条消息时创建会话并启动 Agent。'}
+                  : from ? `已沿用「${from.title}」的配置，聊天上下文从空白开始。` : '发出第一条消息时创建会话并启动 Agent。'}
               </p>
             </div>
           </div>

@@ -77,6 +77,59 @@ describe('ConversationService', () => {
     rmSync(root, { recursive: true, force: true })
   })
 
+  it('reads live settings for a fresh conversation without starting or changing the source', async () => {
+    const extra = path.join(root, 'extra')
+    mkdirSync(extra)
+    const source = await service.create('claude', [root, extra])
+    await service.send(source.id, 'old context')
+    await settle()
+    await service.setOption(source.id, 'permissionMode', 'plan')
+    await settle()
+    const state = service.stageChatItems(source.id, service.stages(source.id).at(-1)!.id).findLast((item) => item.kind === 'state')
+    if (!state) throw new Error('expected a live chat state')
+    const before = service.get(source.id)
+    const messages = service.messages(source.id)
+    const spawns = daemon.spawns.length
+    expect(service.configuration(source.id)).toEqual({
+      agent: 'claude', projectPaths: before.projectPaths,
+      permissionMode: state.permissionMode, model: state.model, effort: state.effort
+    })
+    expect(service.configuration(source.id).projectPaths).not.toBe(before.projectPaths)
+    expect(service.get(source.id)).toEqual(before)
+    expect(service.messages(source.id)).toEqual(messages)
+    expect(service.list()).toHaveLength(1)
+    expect(daemon.spawns).toHaveLength(spawns)
+  })
+
+  it('copies stopped settings after a restart without reviving the previous model effort', async () => {
+    const source = await service.create('claude', [])
+    await service.stop(source.id)
+    await service.setOption(source.id, 'model', 'sonnet')
+    await service.setOption(source.id, 'effort', 'high')
+    await service.setOption(source.id, 'permissionMode', 'plan')
+    expect(service.configuration(source.id)).toEqual({ agent: 'claude', projectPaths: [], permissionMode: 'plan', model: 'sonnet', effort: 'high' })
+    await service.setOption(source.id, 'model', 'haiku')
+    service = serve()
+    expect(service.configuration(source.id)).toEqual({ agent: 'claude', projectPaths: [], permissionMode: 'plan', model: 'haiku', effort: null })
+  })
+
+  it('copies deferred settings and keeps a new conversation free of history and ownership', async () => {
+    await service.create('claude', [])
+    const source = await service.create('claude', [root], true, { deferStart: true, model: 'sonnet', effort: 'high', permissionMode: 'plan' })
+    service.rename(source.id, 'original title')
+    const configuration = service.configuration(source.id)
+    expect(configuration).toEqual({ agent: 'claude', projectPaths: [realpathSync(root)], model: 'sonnet', effort: 'high', permissionMode: 'plan' })
+    const created = await service.create(configuration.agent, configuration.projectPaths, true, {
+      deferStart: true, model: configuration.model ?? undefined, effort: configuration.effort ?? undefined, permissionMode: configuration.permissionMode ?? undefined
+    })
+    expect(created).toMatchObject({ workspacePath: source.workspacePath, projectPaths: source.projectPaths, sessionId: null, chatOptions: source.chatOptions })
+    expect(created.id).not.toBe(source.id)
+    expect(created.title).not.toBe('original title')
+    expect(service.messages(created.id)).toEqual([])
+    expect(service.stages(created.id)).toEqual([])
+    expect(created.forkedFromId).toBeNull()
+  })
+
   it('creates a deferred helper in the parent workspace, with a locked title and asking by default', async () => {
     const parent = await service.create('claude', [], true, { deferStart: true })
     const helper = await service.create('claude', ['/ignored'], undefined, { helperOf: parent.id, deferStart: true })
@@ -440,6 +493,11 @@ describe('ConversationService', () => {
     expect(execFileSync('git', ['-C', app, 'branch', '--show-current'], { encoding: 'utf8' }).trim()).toBe('main')
     // The recent list keeps the projects as picked, not their worktrees.
     expect([...projects.recent()].sort()).toEqual([app, lib])
+    const configuration = service.configuration(created.id)
+    const fresh = await service.create(configuration.agent, configuration.projectPaths, undefined, { deferStart: true })
+    expect(fresh.projectPaths).toEqual(laidOut)
+    expect((await service.branches(fresh.id)).map((head) => head.branch)).toEqual([`antumi/${shortId}`, `antumi/${shortId}`])
+    expect(readdirSync(path.join(root, 'worktrees'))).toEqual([shortId])
   })
 
   it('starts on the branch picked: a worktree from it, or the project switched to it', async () => {

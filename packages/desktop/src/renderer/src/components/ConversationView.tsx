@@ -10,8 +10,8 @@ import { SourceLink } from './SourceLink'
 import { ConversationChat } from './ConversationChat'
 import { ConversationInspector } from './ConversationInspector'
 import { ConversationStatus } from './ConversationStatus'
-import { beginHandoff, renameConversation } from './ConversationActions'
-import { CloseIcon, InspectorIcon, SplitIcon } from './icons'
+import { beginHandoff, newConversationFrom, renameConversation, useReuseConversationSupported } from './ConversationActions'
+import { CloseIcon, CopyIcon, InspectorIcon, SplitIcon } from './icons'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { DEFAULT_SIDE_PANEL_RATIO } from './side-panel-size'
 import { EMPTY_FILE_TABS, useFileTabs } from '../file-tabs'
@@ -19,7 +19,7 @@ import { TitleEditor } from './TitleEditor'
 import { useOpenTodoCount, useTodosSupported } from '../conversation-todos'
 import { CONVERSATION_DRAG_TYPE, draggedConversation } from '../conversation-drag'
 import type { ConversationPane } from './conversation-pane'
-import type { Conversation } from '@antumi/protocol'
+import { canReuseConversation, type Conversation } from '@antumi/protocol'
 
 // Where a fork came from: a way back while the source is still here.
 function ForkOrigin({ id }: { id: string }) {
@@ -63,6 +63,7 @@ export function ConversationView({ id, pane }: { id: string; pane?: Conversation
   }, [id])
   const [renaming, setRenaming] = useState(false)
   const [busy, setBusy] = useState(false)
+  const reuseSupported = useReuseConversationSupported()
   const inspectorOpen = useCore((state) => state.conversationInspectorOpen)
   const [panelRatio, setPanelRatio] = useState(DEFAULT_SIDE_PANEL_RATIO)
   const { hasPanel, wire, todoLeft, hint } = useConversationPanel(conversation)
@@ -150,6 +151,7 @@ export function ConversationView({ id, pane }: { id: string; pane?: Conversation
         )}
       </div>
       <div className="toolbar">
+        {reuseSupported && canReuseConversation(conversation) && <button type="button" className="tool-button" aria-label="按当前配置新建会话" data-tooltip="按当前配置新建会话" disabled={busy} onClick={() => void action(() => newConversationFrom(conversation))}><CopyIcon /></button>}
         {hasPanel && (
           <button
             type="button"

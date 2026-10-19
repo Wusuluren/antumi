@@ -87,6 +87,18 @@ export const Conversation = z.object({
 })
 export type Conversation= z.infer<typeof Conversation>
 
+// A fresh conversation's settings, without any session, history or task ownership.
+export const ConversationConfiguration = Conversation.pick({ agent: true, projectPaths: true }).extend({
+  permissionMode: z.string().nullable(),
+  model: z.string().nullable(),
+  effort: z.string().nullable()
+})
+export type ConversationConfiguration = z.infer<typeof ConversationConfiguration>
+
+export function canReuseConversation(conversation: Conversation): boolean {
+  return !conversation.taskId && !conversation.discussionId && !conversation.squadRunId && !conversation.routineId && !isHelper(conversation)
+}
+
 export const ConversationStage = z.object({
   id: z.string().uuid(),
   conversationId: z.string().uuid(),

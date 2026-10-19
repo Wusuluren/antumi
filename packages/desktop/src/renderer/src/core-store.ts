@@ -24,6 +24,7 @@ import {
   type SkillRepo,
   type McpServer,
   type Conversation,
+  type ConversationConfiguration,
   type ComputerAwakeStatus,
   type ChatSettings,
   type Environment,
@@ -105,6 +106,8 @@ export type CoreState = {
   conversationDraftProjects: { paths: readonly string[] } | null
   // The inbox issue the new conversation is to look into; null for an ordinary one.
   conversationDraftIssue: DraftIssue | null
+  // A fresh settings snapshot; its key also keeps this composer's input separate from other drafts.
+  conversationDraftFrom: { key: string; title: string; configuration: ConversationConfiguration } | null
   taskMemberConversationId: string | null
   selectedId: string | null
   view: TaskView
@@ -198,6 +201,7 @@ export const useCore = create<CoreState>()(() => ({
   conversationDraft: false,
   conversationDraftProjects: null,
   conversationDraftIssue: null,
+  conversationDraftFrom: null,
   squads: {},
   squadRuns: {},
   selectedSquadId: null,
@@ -592,8 +596,8 @@ export type DraftIssue = { provider: string; instance: string; key: string; titl
 
 // `projects`: what the page starts with, as from a project's group; without, it starts with none.
 // `issue`: the inbox issue the conversation is opened to look into.
-export function openConversationDraft(projects?: readonly string[], issue: DraftIssue | null = null): void {
-  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: true, conversationDraftProjects: projects ? { paths: [...projects] } : null, conversationDraftIssue: issue })
+export function openConversationDraft(projects?: readonly string[], issue: DraftIssue | null = null, from: CoreState['conversationDraftFrom'] = null): void {
+  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: true, conversationDraftProjects: projects ? { paths: [...projects] } : null, conversationDraftIssue: issue, conversationDraftFrom: from })
 }
 
 export function useSourceInvestigateSupported(): boolean {

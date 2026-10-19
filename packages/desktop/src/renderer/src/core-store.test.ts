@@ -238,6 +238,17 @@ describe('attention snapshot retry', () => {
 })
 
 describe('new conversation page', () => {
+  it('clears copied settings when opening an ordinary draft or an investigation', () => {
+    const from = { key: 'copied', title: 'Source', configuration: { agent: 'codex' as const, projectPaths: ['/code/app'], model: 'gpt-6', effort: 'high', permissionMode: 'plan' } }
+    openConversationDraft(from.configuration.projectPaths, null, from)
+    expect(useCore.getState().conversationDraftFrom).toEqual(from)
+    openConversationDraft()
+    expect(useCore.getState().conversationDraftFrom).toBeNull()
+    openConversationDraft(from.configuration.projectPaths, null, from)
+    openConversationDraft(['/code/issue'], { provider: 'github', instance: 'default', key: '1', title: 'Bug', url: 'https://example.com/1', source: 'GitHub' })
+    expect(useCore.getState().conversationDraftFrom).toBeNull()
+  })
+
   it('starts with the projects it was opened for, anew each time, and with none otherwise', () => {
     openConversationDraft(['/code/antumi'])
     const first = useCore.getState().conversationDraftProjects

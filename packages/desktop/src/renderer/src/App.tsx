@@ -52,6 +52,7 @@ export function App() {
   const selectedConversationId = useCore((s) => s.selectedConversationId)
   const splitPanes = useSplitPanes()
   const conversationDraft = useCore((s) => s.conversationDraft)
+  const conversationDraftFrom = useCore((s) => s.conversationDraftFrom)
   const selectedDiscussionId = useCore((s) => s.selectedDiscussionId)
   const discussionDraft = useCore((s) => s.discussionDraft)
   const discussionDraftFrom = useCore((s) => s.discussionDraftFrom)
@@ -180,7 +181,7 @@ export function App() {
             ) : section === 'conversations' ? (
               splitPanes && selectedConversationId ? <ConversationSplit panes={splitPanes} active={selectedConversationId} /> :
               selectedConversationId ? <ConversationView key={selectedConversationId} id={selectedConversationId} /> :
-                conversationDraft ? <ConversationDraft /> :
+                conversationDraft ? <ConversationDraft key={conversationDraftFrom?.key ?? 'blank'} /> :
                 <section className="detail-empty"><div className="detail-empty-body">选择或新建一条会话</div></section>
             ) : selectedId && view === 'chat' ? (
               <TaskChat key={selectedId} taskId={selectedId} />
