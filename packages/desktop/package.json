@@ -1,5 +1,6 @@
 {
   "name": "@antumi/desktop",
+  "productName": "Antumi",
   "version": "0.19.1",
   "private": true,
   "description": "Antumi desktop client",

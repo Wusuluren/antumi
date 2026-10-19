@@ -327,6 +327,14 @@ pnpm typecheck && pnpm test     # 桌面端改动再加 pnpm build
 ANTUMI_HOME=~/.antumi-demo pnpm dev
 ```
 
+### 自动发布
+
+[Release 工作流](.github/workflows/release.yml) 在推送 `v*` 标签时运行：校验五个应用包的版本号与标签一致、运行类型检查和测试，分别在 macOS 和 Windows 上打包，再创建 GitHub Release 并上传 DMG 和 EXE。发布说明取自 `CHANGELOG.md` 对应版本；带 `-alpha`、`-beta` 等后缀的版本标为预发布。
+
+发布前先更新并提交版本号和更新日志，再创建、推送标签，例如 `v0.19.2`。工作流使用内置 `GITHUB_TOKEN`，仅发布阶段有 `contents: write` 权限，无需额外配置个人令牌或签名证书。macOS 继续使用 ad-hoc 签名，Windows 安装包不签名。
+
+也可以在 Actions → Release → Run workflow 中选择 `main`，输入已推送的标签手动运行。两个平台都构建成功后才发布；中途失败留下的草稿可重跑，已发布的 Release 不会被覆盖。工作流须先提交、推送到默认分支，首次 GitHub 运行才能验证云端构建环境。
+
 ## 现状
 
 Antumi 目前是**开发者预览版**（0.18.x），主要在 macOS 上开发和测试，Windows 可以运行和打包、但还缺实机验证，需要从源码运行或自行打包。接下来按优先级：
