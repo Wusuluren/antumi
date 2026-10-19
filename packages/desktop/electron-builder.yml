@@ -19,6 +19,8 @@ extraResources:
     to: backend/node_modules/node-pty
 # All native code arrives prebuilt (node-pty via bundle-backend); nothing to rebuild.
 npmRebuild: false
+# With no certificate the mac app would ship a broken signature and get no system notifications.
+afterPack: scripts/mac-adhoc-sign.mjs
 mac:
   category: public.app-category.developer-tools
   # From docs/branding/antumi-icon-agent-blocks-3d.png, laid on macOS's icon grid: an 824px rounded square on a
