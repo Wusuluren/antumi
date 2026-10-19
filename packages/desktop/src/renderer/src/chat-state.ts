@@ -324,11 +324,19 @@ function itemOf(block: ChatBlock): ChatItem | null {
   return block.kind === 'entry' && block.entry.kind === 'item' ? block.entry.item : null
 }
 
-// What a finished turn tucks away: the work on the way to its answer. What the user was asked, a
-// plan, and anything that went wrong stay in view.
+// What the turn made for the user to see, which stays with its answer as Claude keeps an artifact in
+// its reply rather than among its steps: a preview the agent showed, and the browser's page, a way
+// into the browser panel (its history is already folded).
+function deliverable(block: ChatBlock): boolean {
+  if (block.kind === 'browser') return true
+  const item = itemOf(block)
+  return item?.kind === 'tool' && isPreviewTool(item.name)
+}
+
+// What a finished turn tucks away: the work on the way to its answer. What it made for the user,
+// what the user was asked, a plan, and anything that went wrong stay in view.
 function foldable(block: ChatBlock): boolean {
-  // The browser's history is already folded; its page remains a way into the browser panel.
-  if (block.kind === 'browser') return false
+  if (deliverable(block)) return false
   const item = itemOf(block)
   if (!item) return block.kind !== 'entry'
   switch (item.kind) {

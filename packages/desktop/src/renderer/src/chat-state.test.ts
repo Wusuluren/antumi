@@ -216,6 +216,13 @@ describe('chatBlocks', () => {
       .toEqual(['u', 'tools:cmd', 'browser:open+click', 'answer', 'end'])
   })
 
+  it('keeps a preview the agent showed with the answer, out of the fold and its steps', () => {
+    const items = [user('u'), { ...tool('a'), at: 100 }, { ...tool('p', 'mcp__antumi__show_preview'), at: 200 },
+      { ...tool('b', 'Bash'), at: 300 }, { ...tool('q', 'antumi.show_preview'), at: 350 }, { ...reply('answer'), at: 400 }, { ...turn('end'), at: 500 }]
+    expect(shape(blocksOf(items))).toEqual(['u', { fold: ['tools:a', 'tools:b'] }, 'p', 'q', 'answer', 'end'])
+    expect(blocksOf(items).find((block) => block.kind === 'fold')).toMatchObject({ steps: 2 })
+  })
+
   it('groups third-party browser calls while keeping commands and returned screenshots separate', () => {
     const shot = { ...tool('shot', 'playwright.browser_take_screenshot'), images: [{ id: `${'a'.repeat(64)}.png`, width: 2, height: 1 }] }
     const display = { server: 'Cursor in Edge', name: 'Click' }
