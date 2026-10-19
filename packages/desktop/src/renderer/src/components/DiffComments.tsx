@@ -1,6 +1,8 @@
 import { createContext, Fragment, useEffect, useMemo, useState } from 'react'
 import { addQuote, removeQuote, useQuotes, type ChatQuote } from '../chat-quotes'
-import { diffQuoteText, diffRowId, diffRows } from '../unified-diff'
+import { diffQuoteText, diffRowId } from '../unified-diff'
+import { useDiffHighlight } from '../diff-highlight'
+import { DiffCode } from './DiffCode'
 import { CloseIcon } from './icons'
 
 // The chat a diff's comments go to, from the inspector that shows it; null where there is none
@@ -19,7 +21,7 @@ export function CommentableDiff({ patch, path, conversationId, diffKey }: {
   conversationId: string
   diffKey: string
 }) {
-  const rows = useMemo(() => diffRows(patch), [patch])
+  const rows = useDiffHighlight(patch, path)
   const ids = useMemo(() => rows.map(diffRowId), [rows])
   const quotes = useQuotes(conversationId)
   const comments = quotes.filter((quote) => quote.anchor?.diff === diffKey)
@@ -81,7 +83,7 @@ export function CommentableDiff({ patch, path, conversationId, diffKey }: {
                     </button>
                   )}
                 </span>
-                {row.text || ' '}
+                <DiffCode row={row} />
               </div>
               {below.get(index)?.map((quote) => (
                 <div key={quote.id} className="diff-comment">

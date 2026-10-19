@@ -81,7 +81,7 @@ export function ChatDiffs({ diffs }: { diffs: readonly ChatDiff[] }) {
             {diff.change === 'add' ? '新建 ' : diff.change === 'delete' ? '删除 ' : ''}
             {shorten(diff.path)}
           </div>
-          {diff.patch && <DiffLines patch={diff.patch} />}
+          {diff.patch && <DiffLines patch={diff.patch} path={diff.path} />}
         </div>
       ))}
     </div>
@@ -122,7 +122,7 @@ export function ChatEditsCard({ path, tools }: { path: string; tools: readonly T
               <DiffCount diffs={tool.diffs} />
               <ToolStatus status={tool.status} since={tool.at} />
             </div>
-            {tool.diffs.map((diff, at) => diff.patch && <DiffLines key={at} patch={diff.patch} />)}
+            {tool.diffs.map((diff, at) => diff.patch && <DiffLines key={at} patch={diff.patch} path={diff.path} />)}
           </div>
         ))}
       </div>}

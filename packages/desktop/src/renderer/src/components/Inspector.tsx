@@ -252,7 +252,7 @@ export function FileDiffView({ file, loadKey, commentKey, load, onBack }: {
         <>
           {conversationId && commentKey
             ? <CommentableDiff patch={shown.diff.diff} path={file} conversationId={conversationId} diffKey={commentKey} />
-            : <DiffLines patch={shown.diff.diff} />}
+            : <DiffLines patch={shown.diff.diff} path={file} />}
           {shown.diff.truncated && <p className="inspector-empty muted">diff 太长，只显示了前 256KB。</p>}
         </>
       )}
