@@ -39,16 +39,14 @@ beforeEach(() => {
 describe('background rest', () => {
   it('rests while another window has the keyboard', async () => {
     const win = stubWindow()
-    const { useBackgroundRest } = await start()
+    await start()
     expect(win.resting()).toBe(false)
     win.state.focused = false
     win.fire('blur')
     expect(win.resting()).toBe(true)
-    expect(useBackgroundRest.getState().resting).toBe(true)
     win.state.focused = true
     win.fire('focus')
     expect(win.resting()).toBe(false)
-    expect(useBackgroundRest.getState().resting).toBe(false)
   })
 
   it('keeps going while the built-in browser has the keyboard', async () => {

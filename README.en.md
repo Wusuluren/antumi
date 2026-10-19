@@ -322,7 +322,7 @@ Something feels off, or you want another agent supported? [Open an issue](https:
 
 **Antumi is a coined word inspired by "ant".** One ant is small; together they move things far bigger than themselves. Antumi brings different AI coding agents onto one workbench so work can move forward in parallel while progress and results stay visible.
 
-The mascot is a little ant: it holds three agent blocks on the app icon, and in the app it hauls parcels while an agent works and stops when the agent is waiting for you.
+The mascot is a little ant: it holds three agent blocks on the app icon.
 
 ## License
 

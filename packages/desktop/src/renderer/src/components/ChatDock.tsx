@@ -7,10 +7,7 @@ import { helperAllowsMode, isHelper, isPlanApproval, type ChatItem, type Convers
 import { itemKey } from '../chat-state'
 import { toolLabel } from '../chat-tools'
 import { useChatSurface } from './chat-surface'
-import { useJustFinished } from '../chat-motion'
 import { ArchivedBar } from './ArchivedBar'
-import type { AntLaneScene } from './AntMotion'
-import { AntLane } from './AntLane'
 import { ChatComposer } from './ChatComposer'
 import { archiveConversation } from './ConversationActions'
 import { ChatMessageList, type SentMessage } from './ChatMessageList'
@@ -130,12 +127,8 @@ function PaneReply({ conversationId, pane }: { conversationId: string; pane: Con
 }
 
 // Everything that waits on the user sits here, above the composer, so it cannot scroll out of view.
-export function ChatDock({ conversation, state, pending, tools, finishedCalls, onPrevious, sent, onJump, compact = false, antScene = null, antSince = null }: {
+export function ChatDock({ conversation, state, pending, tools, finishedCalls, onPrevious, sent, onJump, compact = false }: {
   compact?: boolean
-  // The ant pacing the header's free width for the turn.
-  antScene?: AntLaneScene | null
-  // When the turn began: how high the lane's stacks already stand.
-  antSince?: number | null
   conversation: Conversation
   // The running stage's state; null for an older core or before the stage reports one.
   state: StateItem | null
@@ -150,7 +143,6 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
   const running = conversation.sessionId !== null
   const waiting = running && pending.length > 0
   const archived = conversation.archivedAt != null
-  const justArchived = useJustFinished(!archived, null)
   // The column not in front keeps its composer, draft and all, behind a one-line way back to it.
   const pane = useConversationPane()
   const resting = pane !== null && !pane.active
@@ -160,7 +152,7 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
         <ChatProjects conversation={conversation} />
         {running && state && <ChatTodosChip todos={state.todos} />}
         {inspectable && <ChangesChip conversation={conversation} finishedCalls={finishedCalls} />}
-        <AntLane scene={antScene} since={antSince} className="chat-dock-spacer" />
+        <span className="chat-dock-spacer" />
         <ChatMessageList messages={sent} onJump={onJump} />
         <button type="button" className="tool-button" aria-label="上一条消息" data-tooltip="上一条消息" onClick={onPrevious}>
           <ArrowUpIcon />
@@ -168,7 +160,7 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
       </div>}
       <ChatSchedules conversationId={conversation.id} />
       {waiting && <PendingRequests conversation={conversation} pending={pending} tools={tools} modes={(state?.permissionModes ?? []).filter((mode) => !isHelper(conversation) || helperAllowsMode(mode))} />}
-      {archived && <ArchivedBar what="会话" fresh={justArchived} onRestore={() => archiveConversation(conversation.id, false)} />}
+      {archived && <ArchivedBar what="会话" onRestore={() => archiveConversation(conversation.id, false)} />}
       {/* The composer stays mounted while a request or the archive takes its place, so a draft is not lost. */}
       <div className="chat-dock-composer" hidden={waiting || archived || resting}>
         <ChatComposer compact={compact} conversation={conversation} state={state} />

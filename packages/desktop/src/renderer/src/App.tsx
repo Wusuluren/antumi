@@ -29,7 +29,6 @@ import { DiscussionView } from './components/DiscussionView'
 import { DiscussionDraft } from './components/DiscussionDraft'
 import { OverviewEntry } from './components/OverviewEntry'
 import { OverviewView } from './components/OverviewView'
-import { AntMotion } from './components/AntMotion'
 import { WindowBrand } from './components/WindowBrand'
 import { ErrorToast } from './components/ErrorToast'
 import { TaskLaunchDialog } from './components/TaskLaunchDialog'
@@ -177,12 +176,12 @@ export function App() {
             ) : section === 'discussions' ? (
               selectedDiscussionId ? <DiscussionView key={selectedDiscussionId} id={selectedDiscussionId} /> :
                 discussionDraft ? <DiscussionDraft key={discussionDraftFrom?.discussion.id ?? 'blank'} from={discussionDraftFrom?.discussion ?? null} /> :
-                <section className="detail-empty"><div className="detail-empty-body"><AntMotion action="rest" size="inline" />选择或新建一个群聊</div></section>
+                <section className="detail-empty"><div className="detail-empty-body">选择或新建一个群聊</div></section>
             ) : section === 'conversations' ? (
               splitPanes && selectedConversationId ? <ConversationSplit panes={splitPanes} active={selectedConversationId} /> :
               selectedConversationId ? <ConversationView key={selectedConversationId} id={selectedConversationId} /> :
                 conversationDraft ? <ConversationDraft /> :
-                <section className="detail-empty"><div className="detail-empty-body"><AntMotion action="rest" size="inline" />选择或新建一条会话</div></section>
+                <section className="detail-empty"><div className="detail-empty-body">选择或新建一条会话</div></section>
             ) : selectedId && view === 'chat' ? (
               <TaskChat key={selectedId} taskId={selectedId} />
             ) : selectedId ? (

@@ -20,7 +20,6 @@ const Preferences = z.object({
   palette: z.enum(PALETTES).catch('terracotta'),
   // Experimental: the gradient behind the sidebar and status bar; none keeps the flat canvas.
   backdrop: z.enum(['none', ...BACKDROPS]).catch('none'),
-  antAnimations: z.boolean().catch(true),
   terminalFontSize: z.number().int().min(10).max(20).catch(12),
   // How far apart the terminal's lines are, as a multiple of the font's own line: Geist Mono's is
   // already a third taller than its size, enough as it is.

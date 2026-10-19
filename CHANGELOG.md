@@ -8,6 +8,10 @@
 
 - 支持 Windows：npm、pnpm 装的 Claude Code、Codex（`.cmd` 垫片）现在能直接启动，不经过 cmd；Cursor 的 `.cmd` 改用旁边的 PowerShell 脚本启动。一次性请求（翻译、提交说明、标题）、模型列表和版本检测在 Windows 上也都恢复了。终端默认用 PowerShell（装了 PowerShell 7 就用它）。`pnpm dist:win` 可以打出 Windows 安装包（x64，未签名，在 macOS 上也能打）。
 
+### 改进
+
+- 去掉了界面里的小蚂蚁动画：输入框上方搬箱子的、子 Agent 卡片上送箱子的、归档时扔箱子的、小队页头和空白页里的都不再出现，设置 → 外观里的「小蚂蚁」开关和预览也一并去掉。App 图标不变。
+
 ### 修复
 
 - Windows 上只读阶段的 Claude 不会再丢掉「不许改」的围栏：盘符路径原来整条被跳过。

@@ -15,18 +15,13 @@ import { startNotifications } from './notifications'
 import { followPreferences } from './preferences'
 import { startUnsavedEditRetries } from './unsaved-edits'
 import { startWorktreeUpdates } from './worktree-store'
-import { AntPreview } from './components/AntPreview'
 
 // The card of waiting requests (main's request-popup.ts) is this page too, with only what it needs:
 // the main window alone tells the user things, counts on the dock and keeps worktrees current.
 const popup = location.hash === '#request-popup'
-const antPreview = location.hash === '#ant-preview'
 
 // Outside React so StrictMode's double-mount can't start two loops.
-if (antPreview) {
-  startAppearance()
-  followPreferences()
-} else if (popup) {
+if (popup) {
   document.documentElement.dataset.window = 'request-popup'
   followRequestPopupWanted()
   startCoreConnection('requests')
@@ -50,6 +45,6 @@ if (!root) {
 }
 createRoot(root).render(
   <StrictMode>
-    {antPreview ? <AntPreview /> : popup ? <RequestPopup /> : <App />}
+    {popup ? <RequestPopup /> : <App />}
   </StrictMode>
 )

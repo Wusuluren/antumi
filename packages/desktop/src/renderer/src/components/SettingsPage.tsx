@@ -52,7 +52,6 @@ import { ProjectConfigDialog, projectConfigSummary } from './ProjectConfigDialog
 import { PalettePicker } from './PalettePicker'
 import { BackdropPicker } from './BackdropPicker'
 import { useOccludesBrowser } from '../browser-occlusion'
-import { AntSettings } from './AntPreview'
 
 function AppearanceSettings() {
   const theme = usePreferences((s) => s.theme)
@@ -93,7 +92,6 @@ function AppearanceSettings() {
           control={(labelId) => <BackdropPicker labelId={labelId} />}
         />
       </SettingsGroup>
-      <AntSettings />
       <SettingsGroup title="聊天">
         <SettingsRow
           label="字号"
