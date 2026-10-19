@@ -8,15 +8,21 @@ vi.hoisted(() => {
   vi.stubGlobal('navigator', { userAgent: 'Mac', platform: 'MacIntel' })
 })
 
-const images = [{ id: `${'a'.repeat(64)}.png`, width: 1600, height: 400 }]
+const images = [
+  { id: `${'a'.repeat(64)}.png`, width: 1600, height: 400 },
+  { id: `${'b'.repeat(64)}.png`, width: 400, height: 1600 },
+  { id: `${'c'.repeat(64)}.png`, width: 800, height: 800 }
+]
 
 describe('image thumbnails', () => {
-  it('sets every image in a composer in the same square, and keeps a sent one in its own shape', () => {
+  it('sets composer and sent thumbnails in the same square regardless of the original shape', () => {
     const composer = renderToStaticMarkup(createElement(ChatImageStrip, { images, onRemove: () => {} }))
-    expect(composer).toContain('data-square=""')
+    expect(composer.match(/data-square=""/g)).toHaveLength(images.length)
     expect(composer).not.toContain('aspect-ratio')
     const sent = renderToStaticMarkup(createElement(ChatImageStrip, { images }))
-    expect(sent).not.toContain('data-square')
-    expect(sent).toContain('aspect-ratio:1600 / 400')
+    expect(sent.match(/data-square=""/g)).toHaveLength(images.length)
+    expect(sent).not.toContain('aspect-ratio')
+    expect(composer).toContain('aria-label="删除图片"')
+    expect(sent).not.toContain('aria-label="删除图片"')
   })
 })

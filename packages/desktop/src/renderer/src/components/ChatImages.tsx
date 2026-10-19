@@ -121,10 +121,8 @@ function Thumb({ image, onOpen, onRemove }: { image: ChatImage; onOpen: () => vo
   }, [copied])
   return (
     <span className="chat-image">
-      {/* In a composer, where each can be removed, every image sits in the same square, so the row
-          keeps one rhythm; a sent message keeps each picture's own shape. */}
-      <button ref={frame} type="button" className="chat-image-button" aria-label="查看图片" data-square={onRemove ? '' : undefined}
-        style={onRemove ? undefined : { aspectRatio: `${image.width} / ${image.height}` }} onClick={onOpen}>
+      {/* Keep the same square before and after sending; the viewer keeps the original shape. */}
+      <button ref={frame} type="button" className="chat-image-button" aria-label="查看图片" data-square="" onClick={onOpen}>
         {url && <img src={url} alt="" draggable={false} />}
       </button>
       <span className="chat-image-actions">
