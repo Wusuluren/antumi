@@ -280,6 +280,8 @@ describe('TaskService', () => {
     expect(planning.status).toBe('pending')
     expect(daemon.spawns.at(-1)?.args).toEqual(expect.arrayContaining(['--permission-mode', 'plan', '--model', 'sonnet', '--effort', 'low']))
     await settle()
+    // Whoever takes over a task still waiting on others only plans it too.
+    await expect(service.handoff(task.id, 'codex', '', undefined, { permissionMode: 'acceptEdits' })).rejects.toMatchObject({ reason: 'chat-option-invalid' })
     service.move(dependency.id, 'done')
     const running = await service.start(task.id)
     expect(running.status).toBe('running')

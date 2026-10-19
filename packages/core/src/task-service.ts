@@ -43,7 +43,7 @@ import {
 import { agentPrompt, chatPlanPrompt, chatStartPrompt, leaderStartPrompt, type PlanBrief, type PreviousAttempt, type PromptImages } from './agent-prompt'
 import type { AgentRunStore } from './agent-run-store'
 import type { AttachmentStore } from './attachment-store'
-import type { ConversationService, ModelChoice } from './conversation-service'
+import type { ConversationService, HandoffChoice, ModelChoice } from './conversation-service'
 import type { ProjectRegistry } from './project-registry'
 import { needsSlug } from './branch-slug'
 import { Rejection } from './rejection'
@@ -523,7 +523,7 @@ export class TaskService {
   }
 
   // Gives a chat task to another agent, which goes on at once from a handoff of what was said.
-  async handoff(id: string, agent: AgentKind, note: string, allowBypass?: boolean, choice: ModelChoice = {}): Promise<Task> {
+  async handoff(id: string, agent: AgentKind, note: string, allowBypass?: boolean, choice: HandoffChoice = {}): Promise<Task> {
     const chats = this.requireChats()
     const task = this.get(id)
     if (task.squadId) throw new Rejection('squad-managed')
@@ -532,12 +532,14 @@ export class TaskService {
     const dependencies = this.dependenciesOf(task)
     const blocker = checkTaskHandoff(task, dependencies, turn)
     if (blocker) throw new Rejection(blocker)
+    // A task still being planned only plans, whoever takes it over.
+    if (task.status === 'pending' && choice.permissionMode && choice.permissionMode !== 'plan') throw new Rejection('chat-option-invalid', 'a task being planned may only plan')
     await chats.validateStartOptions(agent, choice)
     return this.goOnChatting(task, dependencies, agent, allowBypass, note, choice)
   }
 
   // The agent is the task's from here on once it has started.
-  private async goOnChatting(task: Task, dependencies: readonly Task[], agent: AgentKind, allowBypass?: boolean, handoffNote?: string, choice: ModelChoice = {}): Promise<Task> {
+  private async goOnChatting(task: Task, dependencies: readonly Task[], agent: AgentKind, allowBypass?: boolean, handoffNote?: string, choice: HandoffChoice = {}): Promise<Task> {
     const chats = this.requireChats()
     if (!chats.capacityAvailable(agent, task.conversationId)) throw new Rejection('agent-capacity')
     return this.launchChat(task, async () => {

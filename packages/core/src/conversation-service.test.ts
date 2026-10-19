@@ -870,6 +870,18 @@ describe('ConversationService', () => {
     expect(service.get(created.id).chatOptions).toMatchObject({ model: 'haiku' })
   })
 
+  it('hands off in the permission mode picked, refusing one the agent lacks before stopping anything', async () => {
+    const created = await service.create('claude', [])
+    await expect(service.handoff(created.id, 'codex', '', true, undefined, { permissionMode: 'auto' })).rejects.toMatchObject({ reason: 'chat-option-invalid' })
+    expect(service.get(created.id)).toMatchObject({ agent: 'claude', sessionId: created.sessionId })
+    const codex = await codexOpens(service.handoff(created.id, 'codex', '', true, undefined, { permissionMode: 'readOnly' }))
+    expect(service.get(created.id).chatOptions).toMatchObject({ permissionMode: 'readOnly' })
+    expect(daemon.written(codex.sessionId!).find((frame) => JSON.stringify(frame).includes('thread/start')))
+      .toMatchObject({ params: { sandbox: 'read-only' } })
+    await service.handoff(created.id, 'claude', '', true, undefined, { permissionMode: 'plan' })
+    expect(daemon.spawns.at(-1)?.args).toEqual(expect.arrayContaining(['--permission-mode', 'plan']))
+  })
+
   it('takes options for the next start while no agent runs, from what the last stage offered', async () => {
     const created = await service.create('claude', [])
     await service.stop(created.id)

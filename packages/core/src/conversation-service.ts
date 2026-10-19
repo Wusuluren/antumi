@@ -50,6 +50,8 @@ export type ChatStageRef = { conversationId: string; taskId: string | null; stag
 // start, or planning giving way to carrying the plan out).
 // What a model choice holds: see TaskLaunchOptions.
 export type ModelChoice = Pick<TaskLaunchOptions, 'model' | 'effort'>
+// What an agent takes over with on a handoff; each left out stays as the chat last had it.
+export type HandoffChoice = Pick<TaskLaunchOptions, 'permissionMode' | 'model' | 'effort'>
 
 export type TaskChatLaunch = TaskLaunchOptions & {
   cwd: string
@@ -664,7 +666,7 @@ export class ConversationService {
     return this.start(id, current.agent, '', false, { readable })
   }
 
-  async handoff(id: string, agent: AgentKind, note: string, stopRunning: boolean, allowBypass?: boolean, choice: ModelChoice = {}): Promise<Conversation> {
+  async handoff(id: string, agent: AgentKind, note: string, stopRunning: boolean, allowBypass?: boolean, choice: HandoffChoice = {}): Promise<Conversation> {
     this.writable(id)
     const current = this.free(id)
     // A group chat's member is the agent the group chat names; another would speak in its place.
@@ -679,6 +681,8 @@ export class ConversationService {
     if (!this.capacityAvailable(agent, id)) throw new Rejection('agent-capacity')
     if (current.sessionId) await this.stop(id)
     this.pickModel(id, agent, choice)
+    // After the stop, which may leave the old agent's last mode in the options.
+    if (choice.permissionMode) this.store.setChatOptions(id, { permissionMode: choice.permissionMode })
     return this.start(id, agent, note, true)
   }
 

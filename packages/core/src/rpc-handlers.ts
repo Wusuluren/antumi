@@ -251,7 +251,7 @@ export function createRpcHandlers(
       return conversationId ? userActed(conversationId, () => service.resumeChat(id, allowBypass)) : service.resumeChat(id, allowBypass)
     },
     'tasks.submit': ({ id }) => service.submitChecked(id),
-    'tasks.handoff': ({ id, agent, note, allowBypass, model, effort }) => service.handoff(id, agent, note, allowBypass, { model, effort }),
+    'tasks.handoff': ({ id, agent, note, allowBypass, permissionMode, model, effort }) => service.handoff(id, agent, note, allowBypass, { permissionMode, model, effort }),
     'tasks.savePlan': ({ id, stageId, requestId }) => service.savePlan(id, stageId, requestId),
     'tasks.delete': async ({ id }) => {
       await service.delete(id)
@@ -284,7 +284,7 @@ export function createRpcHandlers(
     'todos.remove': ({ id, groupId, itemId }) => todosOf(id).remove(id, groupId, itemId),
     'conversations.setArchived': ({ id, archived }) => conversations.setArchived(id, archived),
     'conversations.continue': ({ id, allowBypass }) => userActed(id, () => { squads?.guardUser(id, true); return conversations.continue(id, allowBypass) }),
-    'conversations.handoff': ({ id, agent, note, stopRunning, allowBypass, model, effort }) => conversations.handoff(id, agent, note, stopRunning, allowBypass, { model, effort }),
+    'conversations.handoff': ({ id, agent, note, stopRunning, allowBypass, permissionMode, model, effort }) => conversations.handoff(id, agent, note, stopRunning, allowBypass, { permissionMode, model, effort }),
     'conversations.fork': ({ id, stageId, itemId }) => conversations.fork(id, stageId, itemId),
     'conversations.setOption': async ({ id, option, value }) => { squads?.guardUser(id, true); await conversations.setOption(id, option, value); return OK },
     'conversations.send': ({ id, text, images, queue, steer, ref }) => userActed(id, async () => { squads?.guardUser(id, true); await conversations.send(id, text, images, queue, steer, ref); return OK }),

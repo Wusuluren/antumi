@@ -75,6 +75,7 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // git-commit-branches: core lists the branches holding a commit (git.containing).
 // task-handoff: a task's chat can go to another agent (tasks.handoff), and one going on with another agent is handed the chat.
 // handoff-model: a handoff takes the model and effort the agent starts in (conversations.handoff, tasks.handoff).
+// handoff-mode: a handoff takes the permission mode the agent starts in, too.
 // conversation-todos: core keeps each conversation's to-dos, which its agent writes too (todos.*).
 // todo-overview: core gathers what is left to do across conversations, for the overview (todos.open).
 // terminal-color-prompt: terminals.open takes colorPrompt, a prompt in colour for a zsh whose prompt the user never set.
@@ -83,7 +84,7 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // project's .antumi/project.json, once the user trusts its commands (projects.config, projects.trustConfig).
 // project-config-edit: core writes that file as the user filled it in (projects.writeConfig), and
 // suggests what to fill it with (projects.suggestConfig).
-export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit'] as const
+export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'handoff-mode', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit'] as const
 // knowledge-base: core hands agents the user's local knowledge base and lists the vaults Obsidian knows (knowledge.*).
 // knowledge-base-kind: Markdown folders and Obsidian use their own prompts and skills; missing kind means Obsidian.
 // skills-library: core installs Agent Skills repositories pinned to a commit and hands bundles of them to agents (skills.*).
@@ -105,8 +106,8 @@ export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-st
 // Whether a start may offer running with nothing asked and nothing sandboxed; the conversation
 // keeps what its latest start said.
 const AllowBypass = z.boolean().optional()
-// The model and effort an agent takes over with; absent keeps what it last ran in this chat.
-const HandoffModel = TaskLaunchOptions.pick({ model: true, effort: true })
+// The mode, model and effort an agent takes over with; absent keeps what it last ran in this chat.
+const HandoffOptions = TaskLaunchOptions.pick({ permissionMode: true, model: true, effort: true })
 // One page of a conversation's chat history; `before` fetches the page older than it, null when none is left.
 const ChatPage = z.object({ items: ChatItemList, before: z.string().nullable() })
 // Browser calls from an agent name the conversation they act for, and a tab of that conversation.
@@ -241,7 +242,7 @@ export const rpcMethods = {
   'tasks.resumeChat': { params: TaskRef.extend({ allowBypass: AllowBypass }), result: Task },
   'tasks.submit': { params: TaskRef, result: Task },
   // Gives the task to another agent, which goes on with its chat at once from a handoff (see checkTaskHandoff).
-  'tasks.handoff': { params: TaskRef.extend({ agent: AgentKind, note: z.string().max(10000), allowBypass: AllowBypass }).extend(HandoffModel.shape), result: Task },
+  'tasks.handoff': { params: TaskRef.extend({ agent: AgentKind, note: z.string().max(10000), allowBypass: AllowBypass }).extend(HandoffOptions.shape), result: Task },
   'tasks.savePlan': { params: TaskRef.extend({ stageId: z.string().uuid(), requestId: z.string().min(1).max(200) }), result: Task },
   'tasks.delete': { params: TaskRef, result: Ok },
   // Appended on the server, so uploads that finish together do not overwrite each other.
@@ -320,7 +321,7 @@ export const rpcMethods = {
   'conversations.setArchived': { params: ConversationRef.extend({ archived: z.boolean() }), result: Conversation },
   'conversations.continue': { params: ConversationRef.extend({ allowBypass: AllowBypass }), result: Conversation },
   'conversations.handoff': {
-    params: ConversationRef.extend({ agent: AgentKind, note: z.string().max(10000), stopRunning: z.boolean(), allowBypass: AllowBypass }).extend(HandoffModel.shape),
+    params: ConversationRef.extend({ agent: AgentKind, note: z.string().max(10000), stopRunning: z.boolean(), allowBypass: AllowBypass }).extend(HandoffOptions.shape),
     result: Conversation
   },
   // A new conversation with the same agent and projects, holding the chat up to a message: through

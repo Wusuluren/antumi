@@ -1,13 +1,13 @@
-import { checkTaskHandoff, type AgentKind, type ChatModel, type Conversation, type TaskLaunchOptions } from '@antumi/protocol'
+import { checkTaskHandoff, ChatPermissionMode, type AgentKind, type ChatModel, type Conversation, type TaskLaunchOptions } from '@antumi/protocol'
 import { resolveModel, useAgentCatalog } from '../agent-models'
-import { cancelHandoff, chooseHandoffModel, proposeHandoff, useHandoffs } from '../chat-handoff'
+import { cancelHandoff, chooseHandoffMode, chooseHandoffModel, proposeHandoff, useHandoffs } from '../chat-handoff'
 import { perform, useCore, useTaskHandoffSupported } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel, reasonText } from '../labels'
 import { confirmQuota, modelText } from './AgentQuota'
 import { ChatModelPicker, ChatPicker } from './ChatPicker'
 import { AgentIcon } from './icons'
-import { effortLabel } from './ChatOptionsBar'
+import { defaultStartMode, effortLabel, modeOptions, modeTone, startModes } from './ChatOptionsBar'
 import { startOptions } from './ConversationActions'
 
 export type ComposerHandoff = {
@@ -15,14 +15,27 @@ export type ComposerHandoff = {
   from: AgentKind
   // Others installed here, to hand to; none, and the composer offers no switch.
   targets: readonly AgentKind[]
-  // The agent the next send hands the chat to, with the model and effort it starts in.
-  target: { agent: AgentKind; model: ChatModel | undefined; options: Pick<TaskLaunchOptions, 'model' | 'effort'> } | null
+  // The agent the next send hands the chat to, with the mode, model and effort it starts in. modes
+  // is empty where the mode is not the user's to pick: an older core, or a task still planned.
+  target: {
+    agent: AgentKind
+    model: ChatModel | undefined
+    modes: readonly ChatPermissionMode[]
+    mode: ChatPermissionMode | null
+    options: Pick<TaskLaunchOptions, 'permissionMode' | 'model' | 'effort'>
+  } | null
   // Why it cannot go now (a task's chat waits for its turn to end), or null.
   blocker: string | null
   // A free conversation's agent mid-turn is stopped for it, once the user agrees.
   stopsRunning: boolean
   // Hands the chat over, the message as the note it goes with. Resolves to whether it went.
   send: (note: string) => Promise<boolean>
+}
+
+// The mode an agent takes over in: the one picked for it, else the one the chat is in where it has
+// that, else its own default. Shown before the handoff, so a mode it lacks never drops unseen.
+export function handoffMode(agent: AgentKind, offered: readonly ChatPermissionMode[], picked: ChatPermissionMode | undefined, current: string | null | undefined): ChatPermissionMode {
+  return offered.find((mode) => mode === picked) ?? offered.find((mode) => mode === current) ?? defaultStartMode(agent, offered)
 }
 
 // The composer's switch of agent: picking another agent readies a handoff, which the next send
@@ -33,6 +46,7 @@ export function useComposerHandoff(conversation: Conversation): ComposerHandoff 
   const tasks = useCore((s) => s.tasks)
   const taskSupported = useTaskHandoffSupported()
   const modelsSupported = useCore((s) => s.rpc?.features.includes('handoff-model') ?? false)
+  const modesSupported = useCore((s) => s.rpc?.features.includes('handoff-mode') ?? false)
   const installed = useInstalledAgents()
   const pending = useHandoffs((s) => s[id])
   const from = task?.agent ?? conversation.agent
@@ -45,7 +59,16 @@ export function useComposerHandoff(conversation: Conversation): ComposerHandoff 
   const dependencies = task ? task.dependsOn.map((other) => tasks[other]).filter((dependency) => dependency !== undefined) : []
   const found = task ? checkTaskHandoff(task, dependencies, turn) : null
   const stopsRunning = !task && conversation.sessionId !== null && turn !== 'idle'
-  const target = picked && { agent: picked.agent, model, options: modelsSupported ? { model: modelId ?? null, effort: effort ?? null } : {} }
+  // A task still planned goes on planning, whoever takes it.
+  const modes = picked && modesSupported && task?.status !== 'pending' ? startModes(picked.agent, model) : []
+  const mode = picked && modes.length > 0 ? handoffMode(picked.agent, modes, picked.permissionMode, conversation.chatOptions?.permissionMode) : null
+  const target = picked && {
+    agent: picked.agent,
+    model,
+    modes,
+    mode,
+    options: { ...(mode ? { permissionMode: mode } : {}), ...(modelsSupported ? { model: modelId ?? null, effort: effort ?? null } : {}) }
+  }
   const send = async (note: string) => {
     if (!target || found) return false
     if (stopsRunning && !window.confirm(`停止当前的 ${agentLabel(from)}，然后交给 ${agentLabel(target.agent)} 接着做？`)) return false
@@ -77,6 +100,25 @@ export function HandoffAgentPicker({ conversationId, handoff, disabled }: { conv
         const agent = targets.find((each) => each === value)
         if (agent) proposeHandoff(conversationId, agent)
         else cancelHandoff(conversationId)
+      }}
+    />
+  )
+}
+
+// The permission mode the agent taking over starts in, where core takes it.
+export function HandoffModePicker({ conversationId, handoff }: { conversationId: string; handoff: ComposerHandoff }) {
+  const { target } = handoff
+  if (!target?.mode) return null
+  return (
+    <ChatPicker
+      label="权限模式"
+      value={target.mode}
+      placeholder="权限模式"
+      options={modeOptions(target.agent, target.modes)}
+      tone={modeTone(target.mode)}
+      onChange={(value) => {
+        const picked = ChatPermissionMode.safeParse(value)
+        if (picked.success) chooseHandoffMode(conversationId, picked.data)
       }}
     />
   )

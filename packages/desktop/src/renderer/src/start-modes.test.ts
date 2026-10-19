@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defaultStartMode, modeLabel, startModes } from './components/ChatOptionsBar'
+import { handoffMode } from './components/ChatHandoff'
 
 const model = (autoMode?: boolean) => ({ id: 'opus', label: 'Opus', description: null, efforts: [], isDefault: true, ...(autoMode === undefined ? {} : { autoMode }) })
 
@@ -22,5 +23,16 @@ describe('startModes', () => {
     expect(defaultStartMode('claude', startModes('claude', model(true)))).toBe('auto')
     expect(defaultStartMode('claude', startModes('claude', model()))).toBe('ask')
     expect(defaultStartMode('codex', startModes('codex', model()))).toBe('acceptEdits')
+  })
+})
+
+describe('handoffMode', () => {
+  it('takes the mode picked, else the chat\'s where the agent has it, else its default', () => {
+    const cursor = startModes('cursor', model())
+    expect(handoffMode('cursor', cursor, 'readOnly', 'plan')).toBe('readOnly')
+    expect(handoffMode('cursor', cursor, undefined, 'plan')).toBe('plan')
+    // Cursor has no accept-edits mode: the handoff shows it going to Cursor's default instead.
+    expect(handoffMode('cursor', cursor, undefined, 'acceptEdits')).toBe('ask')
+    expect(handoffMode('codex', startModes('codex', model()), 'auto', null)).toBe('acceptEdits')
   })
 })
