@@ -597,7 +597,9 @@ body.stacked-panel-resizing * {
 .conversation-group-fold:hover { background: var(--surface-muted); color: var(--text); }
 .conversation-group-fold:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .conversation-group-title svg { width: 12px; height: 12px; flex-shrink: 0; transition: transform 0.15s; }
-.conversation-group-fold[aria-expanded='false'] svg { transform: rotate(-90deg); }
+.conversation-group-fold[aria-expanded='false'] > svg { transform: rotate(-90deg); }
+/* Grouped by agent, the rows leave their mark out and the heading carries it. */
+.conversation-group-agent { display: inline-flex; }
 /* A project's group starts a conversation there; shown while the heading is pointed at, under the
    section's own ＋. */
 .conversation-group-new { margin-right: 4px; opacity: 0; }

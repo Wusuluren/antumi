@@ -1,6 +1,6 @@
 import { isHelper } from '@antumi/protocol'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AGENT_KINDS, type Conversation } from '@antumi/protocol'
+import { AGENT_KINDS, type AgentKind, type Conversation } from '@antumi/protocol'
 import { openBeside, selectConversation, useCore, useSplitPanes } from '../core-store'
 import { canSplit } from '../conversation-split'
 import { endConversationDrag, startConversationDrag } from '../conversation-drag'
@@ -45,7 +45,8 @@ export function groupOf(conversation: Conversation, by: Exclude<GroupBy, 'none'>
 }
 
 // `project`: the primary project a project's group stands for, where its ＋ starts a conversation.
-type Group = { key: string; label: string | null; rank: number; items: Conversation[]; project?: string }
+// `agent`: the agent an agent's group stands for, whose mark its heading carries for its rows.
+type Group = { key: string; label: string | null; rank: number; items: Conversation[]; project?: string; agent?: AgentKind }
 
 // Pinned conversations come first, in a group of their own, whatever the grouping.
 function arrange(conversations: Conversation[], by: GroupBy, sort: SortBy): Group[] {
@@ -58,7 +59,7 @@ function arrange(conversations: Conversation[], by: GroupBy, sort: SortBy): Grou
   for (const conversation of rest) {
     const { label, rank } = groupOf(conversation, by)
     const project = by === 'project' ? conversation.projectPaths[0] : undefined
-    const group = groups.get(label) ?? { key: `group:${label}`, label, rank, items: [], ...(project ? { project } : {}) }
+    const group = groups.get(label) ?? { key: `group:${label}`, label, rank, items: [], ...(project ? { project } : {}), ...(by === 'agent' ? { agent: conversation.agent } : {}) }
     group.items.push(conversation)
     groups.set(label, group)
   }
@@ -110,18 +111,27 @@ function Highlighted({ text, query }: { text: string; query: string }) {
   return <>{text.slice(0, at)}<mark>{text.slice(at, at + query.length)}</mark>{text.slice(at + query.length)}</>
 }
 
+// Under a project's heading, the primary project goes without saying: only the others it reaches.
+export function metaProjects(paths: readonly string[], underProject: boolean): string | null {
+  if (!underProject) return projectNames(paths)
+  const others = paths.slice(1)
+  return others.length > 0 ? `+${others.map(projectName).join('、')}` : null
+}
+
 // The agent by its mark, which reads faster than its name and leaves room for the project; the name
 // is its label and tooltip.
 // Its agent and projects, then how it stands: while its agent works, what it is on; while it waits
-// on the user, what it asked.
-function ConversationMeta({ conversation }: { conversation: Conversation }) {
+// on the user, what it asked. `heading` is what the group it is listed under is named after, which
+// the row leaves out.
+function ConversationMeta({ conversation, heading = 'none' }: { conversation: Conversation; heading?: GroupBy }) {
   const agent = agentLabel(conversation.agent)
   const activity = conversationActivity(conversation, conversation.agent)
   const state = activity?.detail ?? conversationState(conversation).label
+  const projects = metaProjects(conversation.projectPaths, heading === 'project')
   return (
     <>
-      <span className="conversation-agent" role="img" aria-label={agent} title={agent}><AgentIcon agent={conversation.agent} /></span>
-      {projectNames(conversation.projectPaths)}{' · '}
+      {heading !== 'agent' && <span className="conversation-agent" role="img" aria-label={agent} title={agent}><AgentIcon agent={conversation.agent} /></span>}
+      {projects !== null && <>{projects}{' · '}</>}
       <span className="conversation-live" data-state={activity?.state}>{state}</span>
     </>
   )
@@ -233,14 +243,15 @@ export function ConversationList() {
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const menuConversation = menu ? conversations[menu.id] : undefined
 
-  const row = (conversation: Conversation) => {
+  // heading: what the group the row is listed under is named after (its primary project, its agent).
+  const row = (conversation: Conversation, heading: GroupBy = 'none') => {
     const snippet = searching ? snippets?.get(conversation.id) : undefined
     return <li key={conversation.id}>
       {renamingId === conversation.id
         ? <div className="task-row conversation-row" data-renaming>
           <ConversationStatus conversation={conversation} />
           <TitleEditor title={conversation.title} label="会话标题" onSave={(title) => void renameConversation(conversation.id, title)} onDone={() => setRenamingId(null)} />
-          <span className="task-row-meta"><ConversationMeta conversation={conversation} /></span>
+          <span className="task-row-meta"><ConversationMeta conversation={conversation} heading={heading} /></span>
         </div>
         : <button
           type="button"
@@ -262,7 +273,7 @@ export function ConversationList() {
           {panes?.includes(conversation.id)
             ? <span className="pane-chip" data-active={selected === conversation.id} aria-label={`在第 ${panes.indexOf(conversation.id) + 1} 列`}>{panes.indexOf(conversation.id) + 1}</span>
             : <span className="conversation-age">{timeAgo(conversation.updatedAt, now)}</span>}
-          <span className="task-row-meta" title={conversation.projectPaths.join('\n')}><ConversationMeta conversation={conversation} /></span>
+          <span className="task-row-meta" title={conversation.projectPaths.join('\n')}><ConversationMeta conversation={conversation} heading={heading} /></span>
           {snippet && <span className="conversation-snippet"><Highlighted text={snippet} query={needle} /></span>}
         </button>}
     </li>
@@ -304,11 +315,12 @@ export function ConversationList() {
       {free.length === 0 ? <p className="task-list-empty">还没有会话，点右上角的 ＋ 新建。</p> :
         visible.length === 0 && archived.length === 0 ? snippets && <p className="task-list-empty">没有找到匹配「{needle}」的会话。</p> :
         groups.map((group) => group.label === null
-          ? <ul key={group.key}>{group.items.map(row)}</ul>
+          ? <ul key={group.key}>{group.items.map((conversation) => row(conversation))}</ul>
           : <section key={group.key} className="conversation-group" aria-label={group.label}>
             <h3 className="conversation-group-title">
               <button type="button" className="conversation-group-fold" aria-expanded={!isFolded(group.key)} onClick={() => toggleFold(group.key)}>
                 <ChevronDownIcon />
+                {group.agent && <span className="conversation-group-agent"><AgentIcon agent={group.agent} /></span>}
                 {group.label}
                 <span className="count">{group.items.length}</span>
               </button>
@@ -324,7 +336,7 @@ export function ConversationList() {
                 </button>
               )}
             </h3>
-            {!isFolded(group.key) && <ul>{group.items.map(row)}</ul>}
+            {!isFolded(group.key) && <ul>{group.items.map((conversation) => row(conversation, group.key === 'pinned' ? 'none' : groupBy))}</ul>}
           </section>)}
       {archived.length > 0 && (
         <section className="conversation-group conversation-archive" aria-label="已归档">
@@ -335,7 +347,7 @@ export function ConversationList() {
               <span className="count">{archived.length}</span>
             </button>
           </h3>
-          {(searching || archivedOpen) && <ul>{archived.map(row)}</ul>}
+          {(searching || archivedOpen) && <ul>{archived.map((conversation) => row(conversation))}</ul>}
         </section>
       )}
       </div>
