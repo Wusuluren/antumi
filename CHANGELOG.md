@@ -4,6 +4,8 @@
 
 ## 未发布
 
+## 0.18.12 — 2026-10-19
+
 ### 新功能
 
 - 支持 Windows：npm、pnpm 装的 Claude Code、Codex（`.cmd` 垫片）现在能直接启动，不经过 cmd；Cursor 的 `.cmd` 改用旁边的 PowerShell 脚本启动。一次性请求（翻译、提交说明、标题）、模型列表和版本检测在 Windows 上也都恢复了。终端默认用 PowerShell（装了 PowerShell 7 就用它）。`pnpm dist:win` 可以打出 Windows 安装包（x64，未签名，在 macOS 上也能打）。
