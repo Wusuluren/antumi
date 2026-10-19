@@ -20,8 +20,8 @@ export const MIGRATIONS = [
    );
    CREATE INDEX tasks_status ON tasks(status);
    CREATE INDEX tasks_session ON tasks(session_id);`,
-  // seed / ripening / ripe collapsed into one pending status.
-  `UPDATE tasks SET status = 'pending' WHERE status IN ('seed', 'ripening', 'ripe');`,
+  // Retired: it folded statuses no install still holds. Kept empty so later entries keep their versions.
+  '',
   // A task spans several repos, and may wait on other tasks.
   `CREATE TABLE task_repos (
      task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,

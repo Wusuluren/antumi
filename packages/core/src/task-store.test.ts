@@ -21,7 +21,7 @@ describe('TaskStore migrations', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('upgrades a version-1 database: old statuses fold into pending, the repo moves to its own table', () => {
+  it('upgrades a version-1 database: the repo moves to its own table', () => {
     const raw = new DatabaseSync(file)
     raw.exec(MIGRATIONS[0] ?? '')
     raw.exec('PRAGMA user_version = 1')
@@ -29,8 +29,8 @@ describe('TaskStore migrations', () => {
       `INSERT INTO tasks (id, title, details, status, repo_path, worktree_path, branch, created_at, updated_at)
        VALUES (?, ?, '', ?, ?, ?, ?, 0, 0)`
     )
-    insert.run('t1', 'seed', 'seed', null, null, null)
-    insert.run('t2', 'ripe', 'ripe', '/code/app', null, null)
+    insert.run('t1', 'pending', 'pending', null, null, null)
+    insert.run('t2', 'pending', 'pending', '/code/app', null, null)
     insert.run('t3', 'done', 'done', '/code/app', '/wt/app/t3', 'antumi/t3')
     raw.close()
 
