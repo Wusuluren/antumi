@@ -1893,6 +1893,15 @@ button.task-tag:hover {
   font-weight: 600;
 }
 
+/* Centred on its x-height rather than its line box, which left a lowercase name (most project and
+   branch names) 1.5px below the icons beside it. The padding gives the clip back the ascenders and
+   descenders the trim takes out of the box. */
+.branch-status-name > span,
+.branch-status-branch .mono {
+  text-box: trim-both ex alphabetic;
+  padding-block: 0.4em;
+}
+
 .branch-status-name > span {
   overflow: hidden;
   text-overflow: ellipsis;
