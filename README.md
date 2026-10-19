@@ -13,7 +13,7 @@
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor-8A2BE2)
 
-[功能导览](#功能导览) · [支持的 Agent](#支持的-agent) · [快速开始](#快速开始) · [文档](#文档) · [更新日志](CHANGELOG.md) · [反馈](https://github.com/flyhero/antumi/issues)
+[特色功能](#特色功能) · [支持的 Agent](#支持的-agent) · [快速开始](#快速开始) · [文档](#文档) · [更新日志](CHANGELOG.md) · [反馈](https://github.com/flyhero/antumi/issues)
 
 **简体中文** · [English](README.en.md)
 
@@ -21,188 +21,75 @@
 
 </div>
 
-## 为什么是 Antumi（安图米）
+## 特色功能
 
-同时使用多个 AI Agent 半年后，我开发了 Antumi，用来解决自己在日常工作中反复遇到的这些问题：
+[小助手](#小助手) · [翻译](#翻译) · [分屏](#分屏) · [群聊](#群聊) · [研发小队](#研发小队) · [定时与预约](#定时与预约) · [无缝移交](#无缝移交) · [待办](#待办) · [额度一眼看清](#额度一眼看清)
 
-- 会话开得多，记不清哪个在做什么、哪个在等你批准。
-- 想换个 Agent 接手，又得把需求从头讲一遍。
-- 想听听另一个 Agent 怎么看，只能把问题复制到另一个窗口再问一遍，几份回答还得自己对比。
-- 来回切窗口、查进度，花在管理 Agent 上的时间越来越多。
-- 哪个Agent额度快过期、哪个要重置，浪费了机会。
+<sub> 我在重度使用多个Agent半年的情况下，根据我的痛点做了这个Antumi来解决。</sub>
 
-Antumi 把 Claude Code、Codex 和 Cursor 放进同一个本地工作台：直接开会话处理问题，让多个 Agent 在群聊里讨论方案，或安排它们定时运行。谁在工作、谁在等你、接下来要做什么，都能在总览里看到。
+### 小助手
 
-需要按计划推进、隔离代码并验收的工作，可以放进任务看板：执行时使用独立 worktree，支持任务依赖，也能交给研发小队协作完成。会话和任务都支持中途换 Agent，聊天记录和你的补充说明会一起交给新 Agent。
+选中聊天里的一段内容，右键「交给小助手」，它会带着这段引用在右侧打开，帮你解释、追问或处理。小助手默认使用轻量模型、拥有独立上下文，主会话继续专注手头的工作。
 
-- 💬 **真正的多 Agent 群聊**：Claude Code、Codex、Cursor 坐进同一条对话，互相看得见发言、轮流讨论，由主持人汇总结论，你随时插话。不是一个 Agent 派活、收结果，而是几个 Agent 当面讨论。
-- 🪟 **会话集中管理**：统一查看进度和待处理请求，两个会话可以并排打开。
-- 🗂️ **任务有计划、有验收**：在独立 worktree 里执行，也能交给研发小队协作。
-- 🔁 **随时移交**：换 Agent 时带上可见的聊天记录和补充说明。
-- ⏰ **定时运行**：让 Agent 按时做代码审查、依赖检查或周报。
-- 🔒 **本地优先**：记录保存在本机，Agent 由后台进程托管，关窗口不中断。
+<img src="docs/assets/features/assistant.webp" alt="小助手演示：选中「幂等键」，右键交给小助手，在右侧追问并得到解释" width="100%" />
 
-## 功能导览
+### 翻译
 
-Antumi 统一管理多个 Agent 的会话、协作、执行和结果。下面按使用场景介绍。
+英文回复下方点「翻译」就能读中文，再点一下切回原文；也可以只选中一句，右键「翻译」。由轻量模型完成，不占主会话上下文。
 
-### 总览：等你的事排在最前面
+<img src="docs/assets/features/translation.webp" alt="翻译演示：点「翻译」读中文、切回原文，再选中一句右键翻译" width="100%" />
 
-等你确认的、等你回答的、待验收的汇在一处，下面是 Agent 记下的待办，右边是接下来几点要跑的预约和定时任务、还在等依赖的任务。点「去处理」直接跳到那一步。
+### 分屏
 
-<img src="docs/assets/overview.png" alt="总览：需要我 4 项（一个待验收、三个等你回复），三条上线前待办，右侧今晚 22:00 和 22:30 的两个预约，以及一个等依赖的任务" width="100%" />
+按住 ⌘ 点击另一个会话，或在会话菜单里选「在右侧分屏打开」，两个会话就并排显示：一边推进实现，一边看另一个 Agent 的建议。两侧可以分别输入、查看进度和处理批准请求，拖动分隔线就能调整宽度。
 
-### 会话：直接对话，随时移交
+<img src="docs/assets/features/split.webp" alt="分屏演示：⌘ 点击另一个会话，Claude Code 和 Codex 并排显示，在右侧输入" width="100%" />
 
-选好 Agent 和项目就能开始对话；也可以不选项目，使用独立的工作目录。两个普通会话可以并排打开，各自输入、查看进度和处理批准请求。
+### 群聊
 
-Claude Code 额度用完了，或者想让 Codex 换个思路？在输入框里选另一个 Agent，发送键就变成「移交」。新 Agent 拿到可见的聊天记录和你的补充说明，沿用当前工作目录；任务会话仍在原来的 worktree 里继续。切回原来的 Agent 时，会恢复它的原生会话，并补上离开期间的记录。
+让 2–5 个 Agent 在同一条对话里先独立作答，再互相回应，讨论方案的取舍。你可以随时插话或 @ 成员追问，用「继续」「立即总结」掌握节奏，最后由主持人汇总共识与分歧；讨论只读、不改代码。
 
-<img src="docs/assets/handoff.png" alt="在输入框里选了 Claude Code，发送键变成「移交」" width="100%" />
-
-### 群聊：让几个 Agent 先吵一架
-
-大多数多 Agent 工具的做法，是一个 Agent 把活拆开派出去，再把结果收回来：干活的 Agent 之间互相看不见，你看到的也只是最后的汇总。Antumi 的群聊不一样，几个 Agent 坐在**同一条对话**里：每个人的发言大家都看得见，后发言的会回应前面的观点，你也在这条对话里，随时插话、追问、纠偏。
-
-2–5 个 Agent 和模型（可以混用 Claude Code、Codex、Cursor，也可以同一个 Agent 配不同模型）围绕同一个问题分轮讨论：
-
-- **先独立，再交锋**：第一轮各自作答，互不影响；之后每轮只看别人的新发言，针对分歧接着讨论，不会一开始就被第一个回答带偏。
-- **立场和匿名**：每位可以设立场，比如一个主张重写、一个主张小修；也可以匿名互评，只看观点、不看是谁说的。
-- **主持人收尾**：讨论结束由主持人总结共识、分歧，以及留给你拍板的问题。
-- **随时介入**：@ 某个成员单独追问，中途加人、换议题；总结和任一条回答都能直接转成任务，交给 Agent 去做。
-
-适合技术选型、方案评审、排查思路、给一段代码找第二意见：先让几个 Agent 把利弊吵清楚，你再决定。成员只读，不改代码，讨论多少轮都不会碰到你的项目。
-
-<img src="docs/assets/discussion.png" alt="Claude Code、Codex、Cursor 三个成员讨论截止提醒怎么做：第一轮各自独立作答，第二轮点名同意或反对彼此的观点" width="100%" />
-
-### 定时与预约
-
-按每天、工作日或每周的时间安排，让 Claude Code 或 Codex 自动开启会话，执行代码审查、依赖检查、周报等工作，内置八个模板。任务、计划批准和聊天消息也能预约到指定时间，在同一页的「预约」里管理。Cursor 暂不支持定时和预约运行。
-
-<img src="docs/assets/schedules.png" alt="定时页的八个模板：每日代码审查、测试健康检查、周报……右上角可以切到预约" width="100%" />
-
-<img src="docs/assets/reservations.png" alt="预约页：一个任务约在 22:00 执行，一条聊天消息约在 22:30 发出，可以调整顺序、改时间或立刻运行" width="100%" />
+<img src="docs/assets/features/discussion.webp" alt="群聊演示：三个 Agent 独立作答，点「继续」互相回应，点「立即总结」由主持人总结" width="100%" />
 
 ### 研发小队
 
-配好队长和成员各用哪个 Agent、模型和角色，把任务交给小队。队长先只读地看代码，和你商量出计划和分工，你确认后再派活：开发串行、只读分析并行，大家共用任务的 worktree。
+为队长、开发和评审分别配置 Agent、模型与职责，展开成员即可修改，然后把一项任务交给整支小队。队长先和你确认计划，再安排成员在同一个 worktree 中协作：开发串行，只读分析可并行。
 
-<img src="docs/assets/squads.png" alt="小队：队长 Claude Code，开发 Codex，评审 Claude Code" width="100%" />
+<img src="docs/assets/features/squad.webp" alt="研发小队演示：点「编辑」，展开开发成员，查看它的 Agent、模型与职责" width="100%" />
 
-### 验收是一道关，不是看一眼 diff
+### 定时与预约
 
-Agent 说「做完了」之后发生什么，Antumi 替你定好了。项目配了检查命令（比如 `npm test`）的话，「提交验收」会先在 worktree 里跑一遍，没过就不进待验收，结果直接交回 Agent 修。
+在侧栏「定时」里让 Claude Code 或 Codex 按每天、工作日或每周执行工作；输入框旁的时钟按钮能把这条消息预约到指定时间或额度恢复后，任务和计划批准也能预约。定时任务可自动选择有额度的 Agent；电脑需保持唤醒，Cursor 暂不支持。
 
-<img src="docs/assets/review-check.png" alt="提交验收前检查没通过：失败的测试输出作为一条消息交回 Agent，Agent 随即开始修 todos.mjs" width="100%" />
+<img src="docs/assets/features/schedule.webp" alt="定时与预约演示：打开侧栏「定时」和「预约」，再用输入框旁的时钟预约发送消息" width="100%" />
 
-待验收的任务由你三选一：**接受**，进已完成，依赖它的任务这时才解锁；**接着改**，在聊天里写哪里不对，Agent 接着原来的会话改；**重做**，这次的改动另存到 `-tryN` 分支，任务分支从起点重来，Agent 会被告知重做原因。
+### 无缝移交
 
-<img src="docs/assets/review-decision.png" alt="待验收任务的详情页：标题下是接受、重做、移交按钮，右侧是起点分支和待验收状态" width="100%" />
+额度用完了，或想换个 Agent 接着做，点输入框左下角的 Agent 名称换一个，写句补充说明就能移交。新 Agent 会收到可见的聊天记录，沿用当前工作目录；切回原 Agent 时恢复它的原生会话并补齐期间记录。
 
-验的是整条分支：检查器按分支起点列出每个提交、每个文件的增删和 diff，Agent 跑了几轮、提交了几次都汇在一处。Fetch / Pull / Push / Commit、合并和冲突处理也在这里，提交信息留空由小模型按项目规范写。小队任务暂不运行提交前检查。
+<img src="docs/assets/features/handoff.webp" alt="无缝移交演示：在输入框把 Claude Code 换成 Codex，写下补充说明，Codex 接着补测试" width="100%" />
 
-### 顺手改两行，不用切到 IDE
+### 待办
 
-检查器的「文件」页是一个编辑器：项目文件树可筛选，<kbd>?</kbd> 搜索整个项目，<kbd>⌘</kbd> <kbd>S</kbd> 保存。Agent 在你编辑时改了同一个文件，会问你重新加载还是保留，不会悄悄丢掉任何一边。想换个编辑器，一键用 VS Code 等本机应用打开。
+Agent 在回复里提到要你之后处理的事（上线前要做的、要你验证或配置的），会记成这条会话的待办，头部检查器按钮上显示未完成数。点开「待办」页签逐项勾掉；「总览 · 待办」汇总所有会话，标着「Agent 可做」的项还能一键交回给 Agent。
 
-<img src="docs/assets/files.png" alt="检查器的文件页放大后：左边是 todo-web 的文件树，右边编辑 todos.mjs" width="100%" />
+<img src="docs/assets/features/todos.webp" alt="待办演示：Agent 记下待办，点头部检查器按钮打开「待办」页签勾掉一项，再在总览里查看所有会话的待办" width="100%" />
 
-### 不在 Antumi 里也能回答
+### 额度一眼看清
 
-Agent 等你批准、回答或审计划时，屏幕顶部弹出卡片，直接在上面选，不用切回窗口。系统通知和 Dock 角标也会提示待处理的请求。
+底部状态栏集中显示 Claude Code、Codex 和 Cursor 的用量，悬停就能查看各自的额度窗口和恢复时间。设置里可切换显示已用或剩余比例，Cursor 显示月度用量，服务提供的重置卡和全员重置预告也会显示。
 
-<p align="center">
-  <img src="docs/assets/popup.png" alt="屏幕顶部的卡片：计划待批准，三个选项直接选" width="420" />
-</p>
-
-### 内置浏览器：Agent 自己验证页面
-
-Agent 打开页面、点击输入、切手机尺寸、截图、看控制台报错，验证自己写的前端；你可以随时接管。每个会话有自己的标签页，窗口关了页面也还在。
-
-<img src="docs/assets/browser.png" alt="Codex 做完截止日期功能后，在内置浏览器里以 390×844 的手机尺寸检查页面" width="100%" />
-
-### 用量与轻量任务
-
-- **轻活交给小模型**：翻译、提交信息、会话标题和划词「小助手」默认使用轻量模型，也可以自行指定，不读主会话上下文。总览的「统计」按 API 标价估算花费和节省金额，不代表订阅账号的实际扣款。
-- **额度看得见**：状态栏和 Agent 选择器集中显示 Claude Code、Codex 和 Cursor 的用量与恢复时间，支持切换已用或剩余比例；Cursor 显示月度用量。可用的重置卡和全员重置预告也会显示。
-- **不浪费等待**：Claude Code、Codex 撞到用量上限时自动约好恢复时间，到点替你发一条继续。定时任务的 Agent 可以选「自动」，到点挑有额度的跑。
-
-<table>
-<tr>
-<td width="62%" valign="top">
-  <img src="docs/assets/translate.png" alt="同一条英文回复，点「翻译」后变成中文，点「原文」切回；翻译由小模型完成" width="100%" /><br/>
-  <sub>翻译：Agent 用英文回复，点一下就是中文，随时切回原文</sub>
-</td>
-<td width="38%" valign="top">
-  <img src="docs/assets/commit-message.png" alt="Commit 对话框：点「生成提交信息」后，小模型根据改动写好了提交信息，可以改完再提交" width="100%" /><br/>
-  <sub>提交信息：留空点「生成」，小模型按改动写好，你看一眼再提交</sub>
-</td>
-</tr>
-</table>
-
-<img src="docs/assets/savings.png" alt="总览的统计：小模型省下约 $0.21，翻译和提交说明各自的 token、花费与约省；状态栏里每个 Agent 的 5 小时和本周额度" width="100%" />
-
-### 任务来源接入
-
-Jira、GitHub 的 issue 和 PR 定时同步进收件箱，可以导入成任务，也可以先开会话只读排查，确认方案后再修。原文作为不可信资料隔离，里面的指令不会被当成你的要求。来源是插件，可以从本地目录、ZIP 或 GitHub Release 安装新的。
-
-<p align="center">
-  <img src="docs/assets/plugins.png" alt="设置 → 插件：从本地目录、ZIP 或 GitHub Release 安装来源插件，安装前要勾选信任；GitHub 来源随 Antumi 自带" width="720" />
-</p>
+<img src="docs/assets/features/quota.webp" alt="额度演示：放大底部状态栏，依次悬停查看三个 Agent 的用量和恢复时间，再改看剩余额度" width="100%" />
 
 <details>
-<summary><b>还有这些</b></summary>
+<summary><b>还有这些：从推进任务到验收成果</b></summary>
 
-<br/>
-
-- **待办**：Agent 回复里提到要你之后处理的事会记成待办，标明「需要你」还是「Agent 可做」。换轮、重启、移交都还在，总览里可以勾掉或一键交回给 Agent。
-- **多项目任务**：一个任务跨前后端多个仓库，每个仓库各建一个 worktree，分支同名。
-- **任务依赖**：前置任务验收通过才放行，新分支直接叠在前置任务的分支上；没放行前也能先规划。
-- **分支视图**：检查器里看任务分支从哪里长出来、有几个提交，右键复制 SHA、建分支、打标签或比较。
-- **Worktree 清理**：按「能不能清理」分组，删前逐个复查，从不 `--force`，有未提交改动或独有提交的一律保留。
-- **终端与端口面板**：shell 由 daemon 托管，关窗口不断；列出每个任务、会话在监听的端口，一键在内置浏览器里打开。
-- **Agent 能翻你的记录**：通过 Antumi 的 MCP 读最近的会话、任务和群聊，不管是哪个 Agent 做的，适合「总结我本周的工作」。
-- **并发上限**：限制同时运行的 Agent 总数和每款 Agent 的数量，超出的排队。
-- **知识库、技能库、MCP**：接入 Obsidian 库作为资料，安装和更新 Agent Skills，统一管理你的 MCP 服务器。
-
-<table>
-<tr>
-<td width="50%" valign="top">
-  <img src="docs/assets/todos.png" alt="检查器的待办页：一组「上线前」待办，两条标着需要你，一条标着 Agent 可做" width="350" /><br/>
-  <sub>待办：谁来做，一眼分清</sub>
-</td>
-<td width="50%" valign="top">
-  <img src="docs/assets/terminal-ports.png" alt="终端面板里 Agent 启动的 dev server，下方端口面板列出 4173 端口属于哪个任务，可以打开页面、进终端或停止" width="420" /><br/>
-  <sub>终端与端口：谁在监听哪个端口，一键打开或停掉</sub>
-</td>
-</tr>
-<tr>
-<td valign="top">
-  <img src="docs/assets/dependency.png" alt="看板卡片带「等待依赖」标签，只能先开始规划" width="252" /><br/>
-  <sub>任务依赖：前置任务验收前只能先规划</sub>
-</td>
-<td valign="top">
-  <img src="docs/assets/branches.png" alt="检查器的分支页：任务分支上的两个提交，从 main 长出来" width="355" /><br/>
-  <sub>分支视图：任务分支从哪里长出来</sub>
-</td>
-</tr>
-<tr>
-<td valign="top">
-  <img src="docs/assets/worktrees.png" alt="Worktree 管理：可以清理的和进行中的分开列" width="100%" /><br/>
-  <sub>Worktree 清理：删前逐个复查</sub>
-</td>
-<td valign="top">
-  <img src="docs/assets/concurrency.png" alt="设置 → 智能体 → 运行：同时运行的 Agent 总数和每款 Agent 的上限" width="100%" /><br/>
-  <sub>并发上限：总数和每款 Agent 分开限</sub>
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top">
-  <img src="docs/assets/skills.png" alt="设置 → 技能：推荐的 Obsidian 技能仓库一键安装，也可以填任意 GitHub 仓库地址" width="100%" /><br/>
-  <sub>技能库：从 Git 仓库安装 Agent Skills，固定提交、可回退</sub>
-</td>
-</tr>
-</table>
+- **总览**：把等你批准、回答和验收的工作汇在一处，在跑和接下来要做的也一眼看清。
+- **任务看板**：支持独立 worktree、多项目任务和前置依赖，验收通过后才解锁后续任务。
+- **验收与 Git**：检查整条任务分支的 diff，运行项目检查，再选择接受、接着改或重做。
+- **文件、终端与浏览器**：在工作台里编辑文件、管理开发服务，让 Agent 验证页面，你也可以接管。
+- **来源与扩展**：接入 Jira、GitHub、Obsidian、Agent Skills 和 MCP。
+- **本地优先**：记录保存在本机，Agent 由后台进程托管，关窗口不中断工作。
 
 </details>
 
