@@ -455,7 +455,23 @@ pnpm dist:win     # 产物在 packages/desktop/dist/Antumi-Setup-<版本>-x64.ex
 
 几个注意点：
 
-- **产物没有签名**：本机构建的直接打开；拷到别的机器上首次要右键-打开，或 `xattr -dc /Applications/Antumi.app`。正式分发需要 Apple Developer ID 签名与公证。Windows 上 SmartScreen 会拦一次，点「更多信息 → 仍要运行」；正式分发需要代码签名证书。
+- **macOS 签名**：没有 Apple 开发者证书，打包时由 afterPack 钩子 `packages/desktop/scripts/mac-adhoc-sign.mjs` 给 App 做 ad-hoc 签名：由内向外逐个签，`Resources/backend` 里 node-pty 的 `pty.node` 和 `spawn-helper` 也签上，最后用 `codesign --verify --deep --strict` 检查。找到证书时，electron-builder 会在这之后重签并覆盖。不能放在 afterSign：electron-builder 26.0 没签任何东西时会跳过那个钩子。这个签名不过 Gatekeeper，但少不了：签名坏掉的 App（Electron 原来的签名在打包改写 Info.plist 后就失效了），macOS 不让它发系统通知，请求在 App 里就报 `UNErrorDomain` 错误 1，根本到不了通知中心。
+- **在别的 Mac 上安装**：拖进「应用程序」，`xattr -dr com.apple.quarantine /Applications/Antumi.app`（或双击被拦后去「系统设置 → 隐私与安全性」点「仍要打开」），然后打开；第一次发通知时选「允许」。本机构建的不带隔离属性，直接打开即可。用下面的命令确认签名完好，应该看到 `valid on disk` 和 `Identifier=dev.antumi.desktop`：
+
+  ```bash
+  codesign --verify --deep --strict --verbose=1 /Applications/Antumi.app
+  codesign -dv /Applications/Antumi.app 2>&1 | grep Identifier
+  ```
+
+  0.18.11 及以前的 dmg 没有这个钩子，`Identifier` 会是 `Electron`。第一次打开前先 `codesign --force --deep --sign - /Applications/Antumi.app` 重签一次。重签要在 App 没在运行时做：关掉窗口后，daemon 和 core 仍在从这个 App 里运行。
+- **收不到 macOS 通知时**：
+  - 先用上面的命令确认签名。
+  - 确认是从「应用程序」打开的，不是在 dmg 或「下载」里直接运行的：从这些地方运行的 App 会被系统挪到临时路径去跑，通知照样发不出。
+  - 机器上只留一份 Antumi，同一个 bundle id 有多份时系统可能认到别的那份。`mdfind "kMDItemCFBundleIdentifier == 'dev.antumi.desktop'"` 能列出所有副本。
+  - 再看专注模式，以及「系统设置 → 通知 → Antumi」是否允许、提醒样式是否为「无」。
+  - Antumi 只在窗口不在前台时发通知，窗口在前台时没有通知是正常的。
+  - 想看系统怎么判，用 `/usr/bin/log stream --predicate 'process == "usernoted" AND eventMessage CONTAINS "dev.antumi.desktop"'`。要写完整路径：zsh 里的 `log` 是 shell 内置命令。
+- **正式分发**要 Apple Developer ID 签名和公证，有了它用户才不必处理隔离属性。Windows 上 SmartScreen 会拦一次，点「更多信息 → 仍要运行」；正式分发需要代码签名证书。
 - **和源码版共用数据**：两者都用 `~/.antumi`（任务库、worktrees、会话记录）和同一个 daemon socket，可以混用；谁先启动，core 就是谁的。
 - **卸载**：删除 App 即可（Windows 在「设置 → 应用」里卸载）；`~/.antumi` 里是任务数据和 worktrees（可能有未合并的工作成果），确认不要了再删。
 

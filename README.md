@@ -243,7 +243,29 @@ pnpm dist:mac     # 产物在 packages/desktop/dist/Antumi-<版本>-arm64.dmg
 pnpm dist:win     # 产物在 packages/desktop/dist/Antumi-Setup-<版本>-x64.exe
 ```
 
-装了 App 的机器不需要 Node 和 pnpm。产物没有签名：macOS 上拷到别的机器首次要右键「打开」，Windows 上 SmartScreen 会拦一下，点「更多信息 → 仍要运行」。
+装了 App 的机器不需要 Node 和 pnpm。
+
+**在 macOS 上安装 dmg**：App 只有 ad-hoc 签名，没经过 Apple 公证，所以比一般 App 多一步。
+
+1. 打开 dmg，把 Antumi 拖进「应用程序」。不要在 dmg 里直接运行，那样系统通知发不出来。
+2. 去掉下载带来的隔离属性，Gatekeeper 才会放行：
+
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/Antumi.app
+   ```
+
+   不想敲命令的话，也可以先双击被拦一次，再去「系统设置 → 隐私与安全性」点「仍要打开」。
+3. 打开 Antumi。它第一次发系统通知时（窗口不在前台，Agent 做完了或在等你），macOS 会问是否允许，选「允许」。
+
+0.18.11 及以前的 dmg 签名是坏的，macOS 不让它发通知。装好后、第一次打开前，先重签一次：
+
+```bash
+codesign --force --deep --sign - /Applications/Antumi.app
+```
+
+收不到通知时怎么排查，见[技术架构 · 打包与安装](docs/ARCHITECTURE.md#8-打包与安装)。
+
+**在 Windows 上安装**：安装包没有签名，SmartScreen 会拦一下，点「更多信息 → 仍要运行」。
 
 <p align="center">
   <img src="docs/assets/agents.png" alt="设置 → 智能体：Claude Code、Codex、Cursor 都已安装并登录" width="720" />
