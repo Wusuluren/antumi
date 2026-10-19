@@ -18,7 +18,7 @@ import { cardAction, TaskContextMenu, useChatTurn } from './TaskActions'
 import { TaskAlerts } from './TaskAlerts'
 import { openQuickAdd, TaskQuickAdd } from './TaskQuickAdd'
 import { TitleEditor } from './TitleEditor'
-import { WorkingSummary } from './WorkingSummary'
+import { TaskActivity } from './TaskActivity'
 import { useTaskActivity } from '../work-activity'
 
 // The way back from a task to the board, at the start of its header; Esc goes there too.
@@ -188,7 +188,7 @@ function TaskCard({ task, tasks, now, fresh, renaming, menuOpen, onRenamed, onMe
         </span>
       )}
       <TaskAlerts task={task} />
-      {activity && <WorkingSummary activity={activity} />}
+      {activity && <TaskActivity activity={activity} />}
       <span className="task-card-meta">
         <span className="task-card-agent" title={agent}><AgentIcon agent={task.agent} /></span>
         <span className="task-card-project">{projectNames(task.repos.map((repo) => repo.path))}</span>

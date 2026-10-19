@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { Squad, SquadRun, Task, type Conversation } from '@antumi/protocol'
 import { WorkingSummary } from './components/WorkingSummary'
+import { TaskActivity } from './components/TaskActivity'
 import { conversationActivity, taskActivity } from './work-activity'
 
 const id = (n: number) => `${String(n).padStart(8, '0')}-0000-4000-8000-000000000000`
@@ -38,5 +39,21 @@ describe('who is at work', () => {
     expect(html(['开发', '队长'])).toContain('开发、队长 工作中')
     expect(html(['开发', '队长', '审查'])).toContain('3 人工作中')
     expect(html(['开发'])).toContain('开发：命令 pnpm test')
+  })
+
+  it('shows only the current action on a card, retaining the worker in its accessible description', () => {
+    const html = renderToStaticMarkup(createElement(TaskActivity, { activity: { state: 'running', workers: [{ agent: 'claude', name: 'Claude Code' }], detail: '分析 Agent 额度用量' } }))
+    expect(html).toContain('class="task-card-activity-text">分析 Agent 额度用量</span>')
+    expect(html).toContain('aria-label="Claude Code · 执行中：分析 Agent 额度用量"')
+    expect(html).not.toContain('<svg')
+    expect(html).not.toContain('working-label')
+  })
+
+  it('keeps waiting requests explicit and provides a status when there is no current action', () => {
+    const render = (state: 'running' | 'awaiting', detail: string | null, count = 1) => renderToStaticMarkup(createElement(TaskActivity, { activity: { state, workers: Array.from({ length: count }, () => ({ agent: 'codex' as const, name: 'Codex' })), detail } }))
+    expect(render('awaiting', '允许运行 pnpm test？')).toContain('等你回答：允许运行 pnpm test？</span>')
+    expect(render('awaiting', null)).toContain('class="task-card-activity-text">等你回答</span>')
+    expect(render('running', null)).toContain('class="task-card-activity-text">执行中</span>')
+    expect(render('running', '  ', 3)).toContain('class="task-card-activity-text">3 个 Agent 执行中</span>')
   })
 })

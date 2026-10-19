@@ -925,7 +925,7 @@ span.chat-translate .spinner { width: 12px; height: 12px; }
   white-space: nowrap;
 }
 
-/* Who is at work (WorkingSummary), the same on the board and in a squad task's header: their icons
+/* Who is at work (WorkingSummary), in summaries and a squad task's header: their icons
    overlapped, then who works, shimmering while they do, or that the user is waited on, still in the
    warning colour, then what they are on. */
 .working-summary { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12px; color: var(--text-muted); }
@@ -942,10 +942,6 @@ span.chat-translate .spinner { width: 12px; height: 12px; }
 .working-summary[data-state='awaiting'] .working-label { color: var(--warning); }
 .working-detail { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .working-detail::before { content: '· '; }
-/* On a card, narrow, what they are on takes a line of its own. */
-.task-card .working-summary { flex-wrap: wrap; row-gap: 2px; }
-.task-card .working-detail { flex-basis: 100%; }
-.task-card .working-detail::before { content: none; }
 @keyframes working-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 @media (prefers-reduced-motion: reduce) { .working-summary[data-state='running'] .working-label { animation: none; color: var(--status-running); background: none; } }
 .working-chip { display: inline-flex; align-items: center; height: 26px; padding: 0 10px 0 6px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--status-running) 8%, transparent); font: inherit; cursor: pointer; }
@@ -9034,6 +9030,11 @@ body.side-panel-resizing * {
 .task-card-action { display: flex; }
 .task-card-action .button { height: 26px; padding: 0 10px; font-size: 12px; }
 .task-card-action .button[aria-disabled='true'] { opacity: 0.45; cursor: default; }
+.task-card-activity { display: flex; align-items: center; gap: 8px; min-width: 0; height: 20px; flex-shrink: 0; color: var(--text-muted); font-size: var(--chat-font-small, 12px); }
+.task-card-activity-dot { width: 4px; height: 4px; flex: 0 0 4px; margin: 0 4px; border-radius: 50%; background: var(--status-running); }
+.task-card-activity-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-card-activity[data-state='awaiting'] { color: var(--warning); }
+.task-card-activity[data-state='awaiting'] .task-card-activity-dot { background: var(--warning); }
 
 /* A task's header begins with the way back to the board. */
 .board-crumb { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
