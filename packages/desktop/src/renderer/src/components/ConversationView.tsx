@@ -151,7 +151,7 @@ export function ConversationView({ id, pane }: { id: string; pane?: Conversation
         )}
       </div>
       <div className="toolbar">
-        {reuseSupported && canReuseConversation(conversation) && <button type="button" className="tool-button" aria-label="按当前配置新建会话" data-tooltip="按当前配置新建会话" disabled={busy} onClick={() => void action(() => newConversationFrom(conversation))}><CopyIcon /></button>}
+        {reuseSupported && canReuseConversation(conversation) && <button type="button" className="tool-button" aria-label="同配置新建" data-tooltip="沿用当前配置，开启空白会话" disabled={busy} onClick={() => void action(() => newConversationFrom(conversation))}><CopyIcon /></button>}
         {hasPanel && (
           <button
             type="button"

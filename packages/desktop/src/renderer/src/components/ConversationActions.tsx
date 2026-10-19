@@ -111,15 +111,19 @@ export function ConversationContextMenu({ conversation, at, onClose, onRename, o
   const archived = conversation.archivedAt != null
   const busy = conversation.chat?.turn === 'running' || conversation.chat?.turn === 'awaiting'
   const reusable = useReuseConversationSupported() && canReuseConversation(conversation)
+  const handoff = other && !archived
   return (
     <ContextMenu at={at} label={`会话「${conversation.title}」的操作`} onClose={onClose}>
       {split && <MenuItem label={split === 'right' ? '在右侧分屏打开' : '在另一列打开'} icon={<SplitIcon />} hint={`${PRIMARY_KEY_LABEL} 点击`} onSelect={pick(() => openBeside(conversation.id))} />}
-      {reusable && <MenuItem label="按当前配置新建会话" icon={<CopyIcon />} onSelect={pick(() => void newConversationFrom(conversation))} />}
-      {conversation.sessionId && <MenuItem label="停止会话" icon={<StopIcon />} onSelect={pick(() => void stopConversation(conversation.id))} />}
-      {other && !archived && <MenuItem label="移交给其他智能体…" icon={<HandoffIcon />} onSelect={pick(onHandoff)} />}
-      <div className="menu-separator" role="separator" />
       {pinnable && !archived && <MenuItem label={pinned ? '取消置顶' : '置顶'} icon={<PinIcon />} onSelect={pick(() => void pinConversation(conversation.id, !pinned))} />}
       <MenuItem label="重命名" icon={<PencilIcon />} onSelect={pick(onRename)} />
+      {(reusable || handoff || conversation.sessionId) && <>
+        <div className="menu-separator" role="separator" />
+        {reusable && <MenuItem label="同配置新建" icon={<CopyIcon />} onSelect={pick(() => void newConversationFrom(conversation))} />}
+        {handoff && <MenuItem label="移交…" icon={<HandoffIcon />} onSelect={pick(onHandoff)} />}
+        {conversation.sessionId && <MenuItem label="停止会话" icon={<StopIcon />} onSelect={pick(() => void stopConversation(conversation.id))} />}
+      </>}
+      <div className="menu-separator" role="separator" />
       {archivable && (
         <MenuItem
           label={archived ? '取消归档' : '归档'}
@@ -129,7 +133,6 @@ export function ConversationContextMenu({ conversation, at, onClose, onRename, o
           onSelect={pick(() => void archiveConversation(conversation.id, !archived))}
         />
       )}
-      <div className="menu-separator" role="separator" />
       <MenuItem label="删除会话" icon={<TrashIcon />} danger onSelect={pick(() => void deleteConversation(conversation))} />
     </ContextMenu>
   )
