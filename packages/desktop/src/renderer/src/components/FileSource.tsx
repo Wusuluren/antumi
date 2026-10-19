@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { languages } from '@codemirror/language-data'
 import { bracketMatching, codeFolding, foldGutter, foldKeymap, HighlightStyle, indentOnInput, LanguageDescription, syntaxHighlighting } from '@codemirror/language'
@@ -9,11 +9,13 @@ import { indentationMarkers } from '@replit/codemirror-indentation-markers'
 import { tags } from '@lezer/highlight'
 import { perform } from '../core-store'
 import { dropFileDraft, fileDraft, keepFileDraft, markedDirty, saveFileScroll, updateFileTabs, useFileTabs, type FileTab } from '../file-tabs'
-import { copyFileText } from '../file-actions'
+import { copyFileText, type ChatFileScope } from '../file-actions'
 import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
 import { CheckIcon, CopyIcon, DocumentIcon } from './icons'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { createFileSearchPanel } from '../file-search-panel'
+
+const FileMarkdown = lazy(() => import('./FileMarkdown').then((module) => ({ default: module.FileMarkdown })))
 
 const highlight = HighlightStyle.define([
   { tag: tags.keyword, color: 'var(--code-keyword)' },
@@ -77,15 +79,17 @@ export type FileSourceHandle = { search(): void; save(): void }
 // `disk`: the file changed on disk under unsaved edits; `conflict`: a save found it changed.
 type Notice = 'disk' | 'conflict' | null
 
-export function FileSource({ conversationId, tab, disk, wrap, writable, ref }: {
-  conversationId: string; tab: FileTab; disk: FileDisk; wrap: boolean; writable: boolean; ref?: Ref<FileSourceHandle>
+export function FileSource({ scope, tab, disk, wrap, writable, preview, ref }: {
+  scope: ChatFileScope; tab: FileTab; disk: FileDisk; wrap: boolean; writable: boolean; preview: boolean; ref?: Ref<FileSourceHandle>
 }) {
+  const { conversationId } = scope
   const host = useRef<HTMLDivElement>(null)
   const editor = useRef<EditorView | null>(null)
   const base = useRef<{ text: string; doc: Text | null; mtimeMs: number | null }>({ text: disk.text, doc: null, mtimeMs: disk.mtimeMs })
   const [menu, setMenu] = useState<{ at: MenuPoint; selected: string; text: string } | null>(null)
   const [notice, setNotice] = useState<Notice>(null)
   const [saving, setSaving] = useState(false)
+  const [previewText, setPreviewText] = useState(disk.text)
   const close = useCallback(() => setMenu(null), [])
   const path = tab.file.path
   const writableNow = useRef(writable)
@@ -208,6 +212,10 @@ export function FileSource({ conversationId, tab, disk, wrap, writable, ref }: {
   useEffect(() => { editor.current?.dispatch({ effects: wrapping.reconfigure(wrap ? EditorView.lineWrapping : []) }) }, [wrap])
   useEffect(() => { editor.current?.dispatch({ effects: editing.reconfigure(editable(writable, path)) }) }, [writable, path])
   useEffect(() => {
+    if (preview) setPreviewText(editor.current?.state.sliceDoc() ?? disk.text)
+    else editor.current?.requestMeasure()
+  }, [preview, disk])
+  useEffect(() => {
     const view = editor.current
     if (!view || tab.line === null) return
     const line = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, tab.line))).from
@@ -227,7 +235,8 @@ export function FileSource({ conversationId, tab, disk, wrap, writable, ref }: {
         ? <button type="button" className="link-button" onClick={() => void save(true)}>覆盖</button>
         : <button type="button" className="link-button" onClick={() => setNotice(null)}>保留我的修改</button>}
     </div>}
-    <div className="file-source" ref={host} onContextMenu={(event) => {
+    {preview && <div className="file-markdown-scroll" tabIndex={0} role="region" aria-label="Markdown 预览"><Suspense fallback={<p className="inspector-empty muted" role="status">正在渲染 Markdown…</p>}><FileMarkdown text={previewText} file={tab.file} scope={scope} /></Suspense></div>}
+    <div className="file-source" hidden={preview} ref={host} onContextMenu={(event) => {
       event.preventDefault()
       const view = editor.current
       if (!view) return

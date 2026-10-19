@@ -25,7 +25,7 @@ A local-first workspace for Claude Code, Codex and Cursor: conversations, tasks,
 
 ## Why Antumi
 
-When you use Claude Code, Codex and Cursor together, you may run into these problems:
+After six months of using multiple AI agents side by side, I built Antumi to address the problems I kept running into in my daily work:
 
 - With several conversations open, it is hard to remember who is doing what and who needs approval.
 - Switching agents means explaining the work all over again.

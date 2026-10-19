@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { ResolvedFile } from '@antumi/protocol'
 
 // `dirty`: the editor holds changes not saved to disk.
-export type FileTab = { file: ResolvedFile; line: number | null; reveal: number; scrollTop: number; scrollLeft: number; dirty: boolean }
+export type FileTab = { file: ResolvedFile; line: number | null; reveal: number; scrollTop: number; scrollLeft: number; dirty: boolean; preview: boolean }
 // `expanded` lists the open folders of the file tree; null until the user folds one, when every project is open.
 export type FileTabs = { tabs: FileTab[]; active: string | null; wrap: boolean; maximized: boolean; tree: boolean; expanded: string[] | null }
 export const EMPTY_FILE_TABS: FileTabs = { tabs: [], active: null, wrap: true, maximized: false, tree: true, expanded: null }
@@ -10,7 +10,7 @@ export const useFileTabs = create<Record<string, FileTabs>>()(() => ({}))
 
 export function openedFile(state: FileTabs, file: ResolvedFile, line: number | null): FileTabs {
   const existing = state.tabs.find((tab) => tab.file.path === file.path)
-  const tab: FileTab = { file, line, reveal: (existing?.reveal ?? 0) + 1, scrollTop: existing?.scrollTop ?? 0, scrollLeft: existing?.scrollLeft ?? 0, dirty: existing?.dirty ?? false }
+  const tab: FileTab = { file, line, reveal: (existing?.reveal ?? 0) + 1, scrollTop: existing?.scrollTop ?? 0, scrollLeft: existing?.scrollLeft ?? 0, dirty: existing?.dirty ?? false, preview: line === null && (existing?.preview ?? false) }
   return { ...state, active: file.path, tabs: existing ? state.tabs.map((each) => each.file.path === file.path ? tab : each) : [...state.tabs, tab] }
 }
 

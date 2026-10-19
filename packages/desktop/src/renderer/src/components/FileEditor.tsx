@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react'
 import type { FileRead, ResolvedFile } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { canOpenWith } from '../desktop-bridge'
@@ -12,6 +12,7 @@ import { OpenWithButton } from './OpenWithButton'
 import { useFocusCount } from './Inspector'
 import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
 import { FileMenu, FileMenuItems } from './FileMenu'
+import { Segmented } from './SettingsControls'
 import { CheckIcon, CloseIcon, MaximizeIcon, MoreIcon, RefreshIcon, RestoreIcon, SearchIcon, SidebarIcon } from './icons'
 
 const REASON: Record<Extract<FileRead, { kind: 'unavailable' }>['reason'], string> = {
@@ -22,9 +23,10 @@ const REASON: Record<Extract<FileRead, { kind: 'unavailable' }>['reason'], strin
   unreadable: '无法读取文件，请检查访问权限。'
 }
 
-function FileContent({ conversationId, tab, wrap, writable, source, refresh }: {
-  conversationId: string; tab: FileTab; wrap: boolean; writable: boolean; source: RefObject<FileSourceHandle | null>; refresh: string
+function FileContent({ scope, tab, wrap, writable, source, refresh, preview }: {
+  scope: ChatFileScope; tab: FileTab; wrap: boolean; writable: boolean; source: RefObject<FileSourceHandle | null>; refresh: string; preview: boolean
 }) {
+  const { conversationId } = scope
   const rpc = useCore((state) => state.rpc)
   const [result, setResult] = useState<FileRead | null>(null)
   const [loading, setLoading] = useState(true)
@@ -41,7 +43,7 @@ function FileContent({ conversationId, tab, wrap, writable, source, refresh }: {
   const disk = useMemo<FileDisk | null>(() => result?.kind === 'text' ? { text: result.text, mtimeMs: result.mtimeMs ?? null } : null, [result])
   return <div className="file-editor-content" data-file-path={path} aria-busy={loading}>
     {disk
-      ? <FileSource ref={source} conversationId={conversationId} tab={tab} disk={disk} wrap={wrap} writable={writable} />
+      ? <FileSource ref={source} scope={scope} tab={tab} disk={disk} wrap={wrap} writable={writable} preview={preview} />
       : <p className="inspector-empty muted" role="status">{result?.kind === 'unavailable' ? REASON[result.reason] : '正在读取文件…'}</p>}
   </div>
 }
@@ -96,11 +98,14 @@ export function FileEditor({ conversationId, roots, updatedAt, onEmpty, inspecto
   const treeWidth = usePreferences((preferences) => preferences.fileTreeWidth)
   const focus = useFocusCount()
   const source = useRef<FileSourceHandle>(null)
+  const modeLabel = useId()
   const more = useRef<HTMLButtonElement>(null)
   const [menu, setMenu] = useState<MenuPoint | null>(null)
   const [refreshCount, setRefreshCount] = useState(0)
   const refresh = `${focus}:${updatedAt}:${refreshCount}`
   const active = state.tabs.find((tab) => tab.file.path === state.active)
+  const markdown = active && /\.(?:md|markdown|mdown|mkd)$/i.test(active.file.path)
+  const preview = Boolean(markdown && active.preview)
   const scope: ChatFileScope = { conversationId, inspector, roots }
   const browsable = editor && roots.length > 0
   const tree = browsable && state.tree
@@ -124,7 +129,10 @@ export function FileEditor({ conversationId, roots, updatedAt, onEmpty, inspecto
 
   const writable = editor && active?.file.root != null
   const name = (tab: FileTab) => tab.file.path.split(/[\\/]/).at(-1) ?? tab.file.path
-  return <div className="file-editor">
+  const setPreview = (preview: boolean) => updateFileTabs(conversationId, (state) => ({ ...state, tabs: state.tabs.map((tab) => tab.file.path === active?.file.path ? { ...tab, preview } : tab) }))
+  return <div className="file-editor" onKeyDown={(event) => {
+    if (preview && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') { event.preventDefault(); source.current?.save() }
+  }}>
     <div className="file-editor-bar">
       {browsable && <button type="button" className="tool-button" aria-label={state.tree ? '收起文件树' : '打开文件树'} aria-pressed={state.tree} title={state.tree ? '收起文件树' : '打开文件树'} onClick={() => updateFileTabs(conversationId, (state) => ({ ...state, tree: !state.tree }))}><SidebarIcon /></button>}
       <div className="file-editor-tabs" role="tablist" aria-label="已打开的文件">
@@ -141,7 +149,7 @@ export function FileEditor({ conversationId, roots, updatedAt, onEmpty, inspecto
         </div>)}
       </div>
       {active && canOpenWith() && <OpenWithButton file={active.file} />}
-      {active && <button type="button" className="tool-button" aria-label="搜索文件内容" title={`搜索 · ${PRIMARY_KEY_LABEL}F`} onClick={() => source.current?.search()}><SearchIcon /></button>}
+      {active && <button type="button" className="tool-button" aria-label="搜索文件内容" title={`搜索 · ${PRIMARY_KEY_LABEL}F`} onClick={() => { setPreview(false); requestAnimationFrame(() => source.current?.search()) }}><SearchIcon /></button>}
       <button type="button" className="tool-button" ref={more} aria-label="更多操作" aria-haspopup="menu" aria-expanded={menu !== null} onClick={(event) => {
         const bounds = event.currentTarget.getBoundingClientRect()
         setMenu((menu) => menu ? null : { x: bounds.right, y: bounds.bottom + 4 })
@@ -164,8 +172,14 @@ export function FileEditor({ conversationId, roots, updatedAt, onEmpty, inspecto
       </>}
       <div className="file-editor-pane">
         {active ? <>
-          <Breadcrumb file={active.file} onFolder={showFolder} />
-          <FileContent key={active.file.path} conversationId={conversationId} tab={active} wrap={state.wrap} writable={writable} source={source} refresh={refresh} />
+          <div className="file-editor-location">
+            <Breadcrumb file={active.file} onFolder={showFolder} />
+            {markdown && <div className="file-editor-mode">
+              <span id={modeLabel} className="visually-hidden">Markdown 显示方式</span>
+              <Segmented labelId={modeLabel} value={preview ? 'preview' : 'edit'} options={[{ value: 'edit', label: writable ? '编辑' : '源码' }, { value: 'preview', label: '预览' }]} onChange={(mode) => setPreview(mode === 'preview')} />
+            </div>}
+          </div>
+          <FileContent key={active.file.path} scope={scope} tab={active} wrap={state.wrap} writable={writable} source={source} refresh={refresh} preview={preview} />
         </> : <p className="inspector-empty muted">{tree ? '从左侧选择文件。' : '打开文件树选择文件。'}</p>}
       </div>
     </div>

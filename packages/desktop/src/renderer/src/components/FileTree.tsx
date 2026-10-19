@@ -1,30 +1,16 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
 import type { ProjectFileMatch, ResolvedFile } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import type { ChatFileScope } from '../file-actions'
 import { FileMenu } from './FileMenu'
-import { ChevronRightIcon, DocumentIcon, SearchIcon } from './icons'
+import { ChevronRightIcon, SearchIcon } from './icons'
+import { FileTypeIcon } from './FileTypeIcon'
+import { isDarkTheme, onThemeChange } from '../appearance'
 import { baseName, treeRows, type Listing, type Row } from '../file-tree-rows'
 
 const SEARCH_DELAY_MS = 150
-
-
 function relativeTo(root: string, path: string): string {
   return path === root ? '.' : path.slice(root.length + 1)
-}
-
-// A few common kinds get a badge in the code colours, the rest a plain page.
-const BADGES: Record<string, { label: string; color: string }> = {
-  ts: { label: 'TS', color: 'var(--code-title)' }, tsx: { label: 'TS', color: 'var(--code-title)' }, mts: { label: 'TS', color: 'var(--code-title)' },
-  js: { label: 'JS', color: 'var(--code-type)' }, jsx: { label: 'JS', color: 'var(--code-type)' }, mjs: { label: 'JS', color: 'var(--code-type)' }, cjs: { label: 'JS', color: 'var(--code-type)' },
-  json: { label: '{}', color: 'var(--code-number)' }, md: { label: 'M', color: 'var(--code-string)' }, css: { label: '#', color: 'var(--code-keyword)' }
-}
-
-function FileBadge({ name }: { name: string }) {
-  const badge = BADGES[name.split('.').at(-1)?.toLowerCase() ?? '']
-  return badge
-    ? <span className="file-tree-badge" style={{ color: badge.color }} aria-hidden>{badge.label}</span>
-    : <span className="file-tree-icon" aria-hidden><DocumentIcon /></span>
 }
 
 export function FileTree({ scope, roots, expanded, active, refresh, onToggle, onOpen }: {
@@ -38,6 +24,7 @@ export function FileTree({ scope, roots, expanded, active, refresh, onToggle, on
   onOpen(file: ResolvedFile): void
 }) {
   const rpc = useCore((state) => state.rpc)
+  const dark = useSyncExternalStore(onThemeChange, isDarkTheme, () => false)
   const conversationId = scope.conversationId
   const [listings, setListings] = useState<Record<string, Listing>>({})
   const requested = useRef<{ refresh: string; folders: Set<string> }>({ refresh, folders: new Set() })
@@ -143,7 +130,7 @@ export function FileTree({ scope, roots, expanded, active, refresh, onToggle, on
         >
           {Array.from({ length: row.depth }, (_, index) => <span key={index} className="file-tree-indent" aria-hidden />)}
           <span className="file-tree-chevron" data-open={open || undefined} aria-hidden>{row.kind === 'directory' && <ChevronRightIcon />}</span>
-          {row.kind === 'file' && <FileBadge name={row.name} />}
+          {row.kind !== 'other' && <FileTypeIcon path={row.folder ?? row.path} directory={row.kind === 'directory'} expanded={open} root={row.path === row.root} dark={dark} />}
           <span className="file-tree-name">{row.name}</span>
           {row.detail && <span className="file-tree-detail muted">{row.detail}</span>}
           {failed && <span className="file-tree-detail muted">无法读取</span>}

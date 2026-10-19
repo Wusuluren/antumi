@@ -39,6 +39,16 @@ it('marks a tab dirty and keeps it so when the file is opened again', () => {
   expect(openedFile(dirty, file, 3).tabs[0]?.dirty).toBe(true)
 })
 
+it('remembers a file preview across tab switches, and returns to source for a requested line', () => {
+  const document = { ...file, path: '/project/README.md', relative: 'README.md' }
+  const opened = openedFile(EMPTY_FILE_TABS, document, null)
+  const preview = { ...opened, tabs: opened.tabs.map((tab) => ({ ...tab, preview: true, scrollTop: 120, dirty: true })) }
+  const switched = openedFile(preview, file, null)
+  expect(switched.tabs.find((tab) => tab.file.path === document.path)).toMatchObject({ preview: true, dirty: true })
+  expect(openedFile(switched, document, null).tabs[0]).toMatchObject({ preview: true, scrollTop: 120, dirty: true })
+  expect(openedFile(switched, document, 20).tabs[0]).toMatchObject({ preview: false, line: 20, scrollTop: 120, dirty: true })
+})
+
 it('opens every project until a folder is folded, and reveals a file by opening its folders', () => {
   const roots = ['/project', '/other']
   expect(expandedFolders(EMPTY_FILE_TABS, roots)).toEqual(roots)
