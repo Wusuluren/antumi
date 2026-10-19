@@ -73,7 +73,7 @@ Claude Code 额度用完了，或者想让 Codex 换个思路？在输入框里�
 
 适合技术选型、方案评审、排查思路、给一段代码找第二意见：先让几个 Agent 把利弊吵清楚，你再决定。成员只读，不改代码，讨论多少轮都不会碰到你的项目。
 
-<img src="docs/assets/discussion.png" alt="三个成员讨论待办存储该换成什么，主持人给出结论和待你决定的问题" width="100%" />
+<img src="docs/assets/discussion.png" alt="Claude Code、Codex、Cursor 三个成员讨论截止提醒怎么做：第一轮各自独立作答，第二轮点名同意或反对彼此的观点" width="100%" />
 
 ### 定时与预约
 

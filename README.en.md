@@ -74,7 +74,7 @@ Two to five agents and models (mix Claude Code, Codex and Cursor, or give one ag
 
 Good for choosing a technology, reviewing a design, working out how to chase a bug, or a second opinion on some code: let the agents argue the trade-offs out before you decide. Members are read-only and change no code, however many rounds they go.
 
-<img src="docs/assets/discussion.png" alt="Three members discuss what storage the todo app should move to; the chair gives a conclusion and the questions left for you" width="100%" />
+<img src="docs/assets/discussion.png" alt="Claude Code, Codex and Cursor discuss how to remind users of due dates: each answers alone in round one, then in round two they agree or disagree with each other by name" width="100%" />
 
 ### Routines and scheduling
 
