@@ -66,6 +66,7 @@ describe('images', () => {
   it('knows an image by its extension', () => {
     expect(isImagePath('/tmp/shot.PNG')).toBe(true)
     expect(isImagePath('docs/diagram.svg')).toBe(true)
+    for (const extension of ['jpeg', 'gif', 'webp', 'avif', 'bmp', 'ico']) expect(isImagePath(`/tmp/photo.${extension}`)).toBe(true)
     expect(isImagePath('/tmp/notes.md')).toBe(false)
   })
 

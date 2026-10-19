@@ -10,7 +10,7 @@ export const useFileTabs = create<Record<string, FileTabs>>()(() => ({}))
 
 export function openedFile(state: FileTabs, file: ResolvedFile, line: number | null): FileTabs {
   const existing = state.tabs.find((tab) => tab.file.path === file.path)
-  const tab: FileTab = { file, line, reveal: (existing?.reveal ?? 0) + 1, scrollTop: existing?.scrollTop ?? 0, scrollLeft: existing?.scrollLeft ?? 0, dirty: existing?.dirty ?? false, preview: line === null && (existing?.preview ?? false) }
+  const tab: FileTab = { file, line, reveal: (existing?.reveal ?? 0) + 1, scrollTop: existing?.scrollTop ?? 0, scrollLeft: existing?.scrollLeft ?? 0, dirty: existing?.dirty ?? false, preview: line === null && (existing?.preview ?? /\.svg$/i.test(file.path)) }
   return { ...state, active: file.path, tabs: existing ? state.tabs.map((each) => each.file.path === file.path ? tab : each) : [...state.tabs, tab] }
 }
 

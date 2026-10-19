@@ -79,7 +79,7 @@ export function linkTarget(href: string): LinkTarget | null {
   return path ? { kind: 'file', path, line: line ? Number(line[1] ?? line[2]) : null } : null
 }
 
-const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'])
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico'])
 
 export function isImagePath(path: string): boolean {
   return IMAGE_EXTENSIONS.has(path.split('.').at(-1)?.toLowerCase() ?? '')

@@ -49,6 +49,15 @@ it('remembers a file preview across tab switches, and returns to source for a re
   expect(openedFile(switched, document, 20).tabs[0]).toMatchObject({ preview: false, line: 20, scrollTop: 120, dirty: true })
 })
 
+it('opens SVG in preview, remembers a source choice, and honors source line navigation', () => {
+  const svg = { ...file, path: '/project/icon.SVG', relative: 'icon.SVG' }
+  const opened = openedFile(EMPTY_FILE_TABS, svg, null)
+  expect(opened.tabs[0]?.preview).toBe(true)
+  const source = { ...opened, tabs: opened.tabs.map((tab) => ({ ...tab, preview: false })) }
+  expect(openedFile(source, svg, null).tabs[0]?.preview).toBe(false)
+  expect(openedFile(opened, svg, 5).tabs[0]).toMatchObject({ preview: false, line: 5 })
+})
+
 it('opens every project until a folder is folded, and reveals a file by opening its folders', () => {
   const roots = ['/project', '/other']
   expect(expandedFolders(EMPTY_FILE_TABS, roots)).toEqual(roots)

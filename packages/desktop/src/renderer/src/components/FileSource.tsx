@@ -14,6 +14,7 @@ import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
 import { CheckIcon, CopyIcon, DocumentIcon } from './icons'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { createFileSearchPanel } from '../file-search-panel'
+import { FileImage } from './FileImage'
 
 const FileMarkdown = lazy(() => import('./FileMarkdown').then((module) => ({ default: module.FileMarkdown })))
 
@@ -235,7 +236,9 @@ export function FileSource({ scope, tab, disk, wrap, writable, preview, ref }: {
         ? <button type="button" className="link-button" onClick={() => void save(true)}>覆盖</button>
         : <button type="button" className="link-button" onClick={() => setNotice(null)}>保留我的修改</button>}
     </div>}
-    {preview && <div className="file-markdown-scroll" tabIndex={0} role="region" aria-label="Markdown 预览"><Suspense fallback={<p className="inspector-empty muted" role="status">正在渲染 Markdown…</p>}><FileMarkdown text={previewText} file={tab.file} scope={scope} /></Suspense></div>}
+    {preview && (/\.svg$/i.test(path)
+      ? <FileImage path={path} text={previewText} />
+      : <div className="file-markdown-scroll" tabIndex={0} role="region" aria-label="Markdown 预览"><Suspense fallback={<p className="inspector-empty muted" role="status">正在渲染 Markdown…</p>}><FileMarkdown text={previewText} file={tab.file} scope={scope} /></Suspense></div>)}
     <div className="file-source" hidden={preview} ref={host} onContextMenu={(event) => {
       event.preventDefault()
       const view = editor.current
