@@ -164,6 +164,9 @@ export type CoreState = {
   error: string | null
   // null until core answers usage.list; an older core without it leaves it null.
   usage: Partial<Record<AgentKind, AgentUsage>> | null
+  // The agent whose usage card to open, asked from outside the status bar (a quota notification);
+  // the status bar clears it once open.
+  usageCardAgent: AgentKind | null
   // null until core answers sources.list.
   sources: SourceDescriptor[] | null
   inboxes: Record<string, SourceInbox>
@@ -249,6 +252,7 @@ export const useCore = create<CoreState>()(() => ({
   routines: [],
   error: null,
   usage: null,
+  usageCardAgent: null,
   sources: null,
   inboxes: {},
   terminals: [],
@@ -749,6 +753,10 @@ export function setSchedulesOpen(open: boolean): void {
 }
 
 // Without a tab, the page opens on the one it was left on.
+export function openUsageCard(agent: AgentKind | null): void {
+  useCore.setState({ usageCardAgent: agent })
+}
+
 export function setRoutinesOpen(open: boolean, tab?: RoutinesTab): void {
   useCore.setState({ routinesOpen: open, ...(tab ? { routinesTab: tab } : {}), worktreesOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
 }

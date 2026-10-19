@@ -50,6 +50,9 @@ const Preferences = z.object({
   // of the screen, to answer there.
   requestPopup: z.boolean().catch(true),
   usageDisplay: z.enum(['used', 'remaining']).catch('used'),
+  // On, the usage card says how to spend each agent's quota against its clock, pickers mark the
+  // agent best used now, and notifications tell of quota about to go unused or running out early.
+  quotaAdvice: z.boolean().catch(true),
   // The permission mode a plan is carried out in, as last picked; where the stage lacks it, auto,
   // then accepting edits.
   planRunMode: z.enum(['auto', 'acceptEdits', 'ask', 'bypass']).catch('auto'),

@@ -2,20 +2,25 @@ import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 
 import { createPortal } from 'react-dom'
 import {
   AGENT_KINDS,
+  agentAdvice,
   agentDescriptor,
   tightestWindow,
+  windowPace,
   usageLevel,
   type AgentKind,
   type AgentUsage,
   type GlobalResets,
+  type QuotaAdvice,
   type ResetCredit,
   type ResetCreditOutcome,
   type ResetCredits,
   type UsageWindow
 } from '@antumi/protocol'
-import { refreshUsage, spendResetCredit, useCore } from '../core-store'
+import { openUsageCard, refreshUsage, spendResetCredit, useCore } from '../core-store'
+import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
 import { usePreferences } from '../preferences'
+import { adviceText, alternativeAgent, paceText } from '../quota-advice-text'
 import { clearsText, formatClock, formatDuration, globalResetText, percentText, resetText, shownPercent, SPEND_OUTCOME_TEXT, spendNote, useNow, windowLabel } from '../usage-format'
 import { agentNames } from '../environment-text'
 import { AgentIcon } from './icons'
@@ -181,6 +186,20 @@ export function GlobalResetList({ resets, now }: { resets: GlobalResets; now: nu
   )
 }
 
+// How to spend this agent's quota against its clock, most pressing first.
+function AdviceList({ advice, now, alternative }: { advice: readonly QuotaAdvice[]; now: number; alternative: AgentKind | null }) {
+  return (
+    <div className="usage-card-advice">
+      <div className="usage-card-credits-title">建议</div>
+      {advice.map((item) => (
+        <div key={`${item.kind}-${item.window.kind}-${item.window.model}`} className="usage-card-advice-line" data-kind={item.kind}>
+          {adviceText(item, now, alternative)}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 const CARD_WIDTH = 340
 // Hovering past on the way somewhere else should not flash a card.
 const CARD_DELAY_MS = 300
@@ -188,9 +207,13 @@ const CARD_HIDE_DELAY_MS = 200
 
 // Every window in full, above the segment. Rendered into <body> at a fixed position: inside the
 // status bar it would be clipped, and a button may not contain it.
-function UsageCard({ usage, now, anchor, id, cardRef, onEnter, onLeave, onRefresh, refreshing, spending, onSpend, onSpendingChange }: {
+function UsageCard({ usage, now, advice, alternative, showPace, anchor, id, cardRef, onEnter, onLeave, onRefresh, refreshing, spending, onSpend, onSpendingChange }: {
   usage: AgentUsage
   now: number
+  // Empty, and no pace beside the windows, while the user has quota advice off.
+  advice: readonly QuotaAdvice[]
+  alternative: AgentKind | null
+  showPace: boolean
   anchor: DOMRect
   id: string
   cardRef: RefObject<HTMLDivElement | null>
@@ -227,6 +250,7 @@ function UsageCard({ usage, now, anchor, id, cardRef, onEnter, onLeave, onRefres
       </div>
       {usage.windows.map((window) => {
         const used = Math.round(window.usedPercent)
+        const pace = showPace ? paceText(windowPace(window, now), now) : null
         return (
           <div key={`${window.kind}-${window.model}`} className="usage-card-row" data-level={usageLevel(window.usedPercent)}>
             <span className="usage-card-label">{windowLabel(window)}</span>
@@ -235,11 +259,18 @@ function UsageCard({ usage, now, anchor, id, cardRef, onEnter, onLeave, onRefres
             </span>
             <span className="usage-card-value">
               已用 {used}%，剩余 {100 - used}%
+              {pace && (
+                <span className="usage-card-pace" title={pace.detail}>
+                  {' · '}
+                  {pace.label}
+                </span>
+              )}
             </span>
             {window.resetsAt !== null && <span className="usage-card-reset">{resetText(window, now)}</span>}
           </div>
         )
       })}
+      {advice.length > 0 && <AdviceList advice={advice} now={now} alternative={alternative} />}
       {usage.resetCredits && (usage.resetCredits.available > 0 || usage.resetCredits.blockedBy || spending) && (
         <ResetCreditList usage={usage} credits={usage.resetCredits} now={now} spending={spending} onSpend={onSpend} onChange={onSpendingChange} />
       )}
@@ -261,6 +292,15 @@ function inlineWindows(windows: readonly UsageWindow[]): UsageWindow[] {
 
 function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
   const display = usePreferences((s) => s.usageDisplay)
+  const adviceOn = usePreferences((s) => s.quotaAdvice)
+  const allUsage = useCore((s) => s.usage)
+  const installed = useInstalledAgents()
+  const requested = useCore((s) => s.usageCardAgent === usage.agent)
+  const advice = adviceOn ? agentAdvice(usage, now) : []
+  const usages = AGENT_KINDS.map((agent) => allUsage?.[agent]).filter((entry) => entry !== undefined)
+  const alternative = advice.length > 0 ? alternativeAgent(usage.agent, usages, installed, now) : null
+  // Worth a mark on the status bar: quota about to go unused, or running out early.
+  const nudge = advice.find((item) => item.kind === 'use-more' || item.kind === 'slow-down')
   const windows = inlineWindows(usage.windows)
   // The meter follows the numbers beside it, so a model's cap moves it once it is shown.
   const tightest = tightestWindow(windows)
@@ -332,6 +372,14 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
   useEffect(() => {
     if (pinned) card.current?.querySelector('button')?.focus()
   }, [pinned])
+  // A quota notification clicked: open this card as a click on it would.
+  useEffect(() => {
+    if (!requested || !trigger.current) return
+    clearTimeout(timer.current)
+    setAnchor(trigger.current.getBoundingClientRect())
+    setPinned(true)
+    openUsageCard(null)
+  }, [requested])
   return (
     <>
       <button
@@ -374,6 +422,7 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
           </span>
         )}
         {usage.globalResets?.upcoming && <span className="usage-global-soon">即将重置</span>}
+        {nudge && <span className="usage-advice-dot" data-kind={nudge.kind} role="img" aria-label="有额度建议" />}
         {usage.status === 'error' && (
           <span className="usage-stale" role="img" aria-label={errorText(usage)}>
             ⚠
@@ -384,6 +433,9 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
         <UsageCard
           usage={usage}
           now={now}
+          advice={advice}
+          alternative={alternative}
+          showPace={adviceOn}
           anchor={anchor}
           id={cardId}
           cardRef={card}

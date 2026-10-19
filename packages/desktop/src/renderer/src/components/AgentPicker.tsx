@@ -4,7 +4,7 @@ import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
 import { usePreferences } from '../preferences'
 import { useNow } from '../usage-format'
-import { quotaText } from './AgentQuota'
+import { quotaText, useRecommendation } from './AgentQuota'
 import { ChatPicker, type PickerSize } from './ChatPicker'
 import { AgentIcon } from './icons'
 
@@ -30,6 +30,7 @@ export function AgentPicker({
   const now = useNow(60_000)
   // The task's own agent stays in the list when it is not here, so what the task says is visible.
   const kinds = agent && !installed.includes(agent) ? [...installed, agent] : installed
+  const recommended = useRecommendation(installed)?.agent
   return (
     <ChatPicker
       label="Agent"
@@ -40,7 +41,9 @@ export function AgentPicker({
           value: kind,
           label: agentLabel(kind),
           icon: <AgentIcon agent={kind} />,
-          description: installed.includes(kind) ? quotaText(quotaVerdict(usage?.[kind], now), display, now) : '未安装'
+          description: installed.includes(kind)
+            ? [kind === recommended ? '推荐' : null, quotaText(quotaVerdict(usage?.[kind], now), display, now)].filter(Boolean).join(' · ') || null
+            : '未安装'
         })),
         ...(agent ? [{ value: '', label: '不指定', icon: <AgentIcon agent={null} /> }] : [])
       ]}

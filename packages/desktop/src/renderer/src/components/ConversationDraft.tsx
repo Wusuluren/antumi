@@ -5,7 +5,7 @@ import { defaultAgent } from '../default-agent'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
 import { antumiEntries } from '../chat-commands'
-import { AgentQuotaHint, confirmQuota, modelText } from './AgentQuota'
+import { AgentQuotaHint, confirmQuota, modelText, RecommendedMark, useRecommendation } from './AgentQuota'
 import { usePreferences } from '../preferences'
 import { useChatTypeface } from '../chat-typeface'
 import { startOptions } from './ConversationActions'
@@ -30,6 +30,7 @@ import { inboxKey, rememberInvestigationProjects } from '../source-inboxes'
 // reads and plans unless another is picked, and the message is what the user adds, if anything.
 export function ConversationDraft() {
   const installed = useInstalledAgents()
+  const recommendation = useRecommendation(installed)
   const from = useCore((s) => s.conversationDraftFrom)
   const initial = from?.configuration
   const composerId = from?.key ?? null
@@ -208,6 +209,7 @@ export function ConversationDraft() {
                   >
                     <AgentIcon agent={kind} />
                     <span>{agentLabel(kind)}</span>
+                    {recommendation?.agent === kind && <RecommendedMark recommendation={recommendation} />}
                     <AgentQuotaHint agent={kind} model={modelFor(kind)} />
                   </button>
                 ))}

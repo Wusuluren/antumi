@@ -4,7 +4,7 @@ import { dismissError, perform, selectTask, setNewTaskOpen, useCore } from '../c
 import { defaultAgent } from '../default-agent'
 import { useInstalledAgents } from '../installed-agents'
 import { PRIMARY_KEY_LABEL, hasPrimaryModifier } from '../shortcut-keys'
-import { AgentQuotaHint } from './AgentQuota'
+import { AgentQuotaHint, useRecommendation } from './AgentQuota'
 import { DependencyPicker } from './DependencyPicker'
 import { ProjectPicker } from './ProjectPicker'
 import { ImageStrip } from './ImageStrip'
@@ -40,6 +40,7 @@ export function NewTaskDialog() {
   const [repos, setRepos] = useState<string[]>(() => [...(draft?.repos ?? [])])
   const [agent, setAgent] = useState<AgentKind | null>(() => (draft ? draft.agent : defaultAgent(tasks, useCore.getState().conversations)))
   const installed = useInstalledAgents()
+  const recommended = useRecommendation(installed)?.agent ?? null
   const squads = useCore((state) => state.squads)
   const [squadId, setSquadId] = useState<string | null>(null)
   const [dependsOn, setDependsOn] = useState<string[]>([])
@@ -227,7 +228,7 @@ export function NewTaskDialog() {
               label="执行者"
               value={squadId ? `squad:${squadId}` : agent ?? ''}
               placeholder={squadId ? '研发小队' : '选择 Agent'}
-              options={executorOptions(installed, squads, squadId)}
+              options={executorOptions(installed, squads, squadId, recommended)}
               size="large"
               placement="below"
               onChange={(value) => {

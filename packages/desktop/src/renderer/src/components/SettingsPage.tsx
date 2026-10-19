@@ -291,6 +291,7 @@ function TranslationSettings() {
 function UsageSettings() {
   const showUsage = usePreferences((s) => s.showUsage)
   const display = usePreferences((s) => s.usageDisplay)
+  const advice = usePreferences((s) => s.quotaAdvice)
   const announcements = useCore((s) => s.chatSettings?.resetAnnouncements)
   return (
     <>
@@ -314,6 +315,13 @@ function UsageSettings() {
               { value: 'remaining', label: '剩余' }
             ]}
           />
+        )}
+      />
+      <SettingsRow
+        label="额度建议与提醒"
+        description="按各窗口的重置时间估算用量节奏：用量卡片里给出建议，选 Agent 时标出现在最该用的那个；额度快重置还剩很多、或照现在的速度会提前用完时，发一次系统通知。"
+        control={(labelId) => (
+          <Toggle labelId={labelId} checked={advice} onChange={(next) => setPreference('quotaAdvice', next)} />
         )}
       />
       {announcements !== undefined && (

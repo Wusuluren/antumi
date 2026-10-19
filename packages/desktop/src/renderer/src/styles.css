@@ -9540,3 +9540,53 @@ button.squad-member-main { cursor: pointer; }
 :root[data-resting] .chat-reasoning-body[data-streaming]::before,
 :root[data-resting] .chat-input-card[data-working]::before,
 :root[data-resting] .chat-turn-head-icon[data-live]::before { animation-play-state: paused; }
+
+/* How to spend the quota against its clock: what to do now, one line each. */
+.usage-card-advice {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.usage-card-advice-line {
+  color: var(--text-muted);
+}
+
+.usage-card-advice-line[data-kind='use-more'] {
+  color: var(--status-done);
+}
+
+.usage-card-advice-line[data-kind='slow-down'],
+.usage-card-advice-line[data-kind='wait-reset'] {
+  color: var(--warning);
+}
+
+.usage-card-pace {
+  cursor: help;
+}
+
+/* On the status bar: this agent has advice worth opening the card for. */
+.usage-advice-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-done);
+  flex-shrink: 0;
+}
+
+.usage-advice-dot[data-kind='slow-down'] {
+  background: var(--warning);
+}
+
+/* Beside the agent best spent now, in a picker. */
+.agent-recommended {
+  padding: 0 6px;
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--status-done) 14%, transparent);
+  color: var(--status-done);
+  font-size: 11px;
+  line-height: 18px;
+  white-space: nowrap;
+}
