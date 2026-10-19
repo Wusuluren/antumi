@@ -468,9 +468,10 @@ pnpm dist:win     # 产物在 packages/desktop/dist/Antumi-Setup-<版本>-x64.ex
   - 先用上面的命令确认签名。
   - 确认是从「应用程序」打开的，不是在 dmg 或「下载」里直接运行的：从这些地方运行的 App 会被系统挪到临时路径去跑，通知照样发不出。
   - 机器上只留一份 Antumi，同一个 bundle id 有多份时系统可能认到别的那份。`mdfind "kMDItemCFBundleIdentifier == 'dev.antumi.desktop'"` 能列出所有副本。
-  - 再看专注模式，以及「系统设置 → 通知 → Antumi」是否允许、提醒样式是否为「无」。
+  - 再看「系统设置 → 通知 → Antumi」：是否允许通知，提醒样式是不是「无」。macOS 只在第一次发通知时问一次是否允许，那个框错过或没点，之后就按「不弹出」处理，要到这里手动打开。`open "x-apple.systempreferences:com.apple.Notifications-Settings.extension"` 能直接打开这一页。
+  - 再看专注模式有没有开着。
   - Antumi 只在窗口不在前台时发通知，窗口在前台时没有通知是正常的。
-  - 想看系统怎么判，用 `/usr/bin/log stream --predicate 'process == "usernoted" AND eventMessage CONTAINS "dev.antumi.desktop"'`。要写完整路径：zsh 里的 `log` 是 shell 内置命令。
+  - 想看系统怎么判，用 `/usr/bin/log stream --predicate 'process == "usernoted" AND eventMessage BEGINSWITH "Presenting" AND eventMessage CONTAINS "dev.antumi.desktop"'`，再触发一条通知。行尾是 `as banner` 或 `as alert` 说明弹出来了；`as none` 说明通知已经进了通知中心，但授权或提醒样式没开，问题在上面那一条；一行都没有，说明请求根本没到系统，回去查签名。要写完整路径：zsh 里的 `log` 是 shell 内置命令。
 - **正式分发**要 Apple Developer ID 签名和公证，有了它用户才不必处理隔离属性。Windows 上 SmartScreen 会拦一次，点「更多信息 → 仍要运行」；正式分发需要代码签名证书。
 - **和源码版共用数据**：两者都用 `~/.antumi`（任务库、worktrees、会话记录）和同一个 daemon socket，可以混用；谁先启动，core 就是谁的。
 - **卸载**：删除 App 即可（Windows 在「设置 → 应用」里卸载）；`~/.antumi` 里是任务数据和 worktrees（可能有未合并的工作成果），确认不要了再删。
