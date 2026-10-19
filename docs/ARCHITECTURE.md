@@ -464,6 +464,14 @@ pnpm dist:win     # 产物在 packages/desktop/dist/Antumi-Setup-<版本>-x64.ex
 - **和源码版共用数据**：两者都用 `~/.antumi`（任务库、worktrees、会话记录）和同一个 daemon socket，可以混用；谁先启动，core 就是谁的。
 - **卸载**：删除 App 即可（Windows 在「设置 → 应用」里卸载）；`~/.antumi` 里是任务数据和 worktrees（可能有未合并的工作成果），确认不要了再删。
 
+### 自动发布
+
+[Release 工作流](../.github/workflows/release.yml) 在推送 `v*` 标签时运行：校验五个应用包的版本号与标签一致、运行类型检查和测试，分别在 macOS 和 Windows 上打包，再创建 GitHub Release 并上传 DMG 和 EXE。发布说明取自 `CHANGELOG.md` 对应版本；带 `-alpha`、`-beta` 等后缀的版本标为预发布。
+
+发布前先更新并提交版本号和更新日志，再创建、推送标签，例如 `v0.19.2`。工作流使用内置 `GITHUB_TOKEN`，仅发布阶段有 `contents: write` 权限，无需额外配置个人令牌或签名证书。macOS 继续使用 ad-hoc 签名，Windows 安装包不签名。
+
+也可以在 Actions → Release → Run workflow 中选择 `main`，输入已推送的标签手动运行。两个平台都构建成功后才发布；中途失败留下的草稿可重跑，已发布的 Release 不会被覆盖。工作流须先提交、推送到默认分支，首次 GitHub 运行才能验证云端构建环境。
+
 ## 9. 开发与验证
 
 

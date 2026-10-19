@@ -180,6 +180,7 @@ The documentation is in Chinese for now.
 | Let agents verify pages in the browser | [Architecture · Built-in browser](docs/ARCHITECTURE.md#5-内置浏览器) |
 | Write a task-source plugin | [Plugins](docs/PLUGINS.md) |
 | Package, install, uninstall | [Architecture · Packaging](docs/ARCHITECTURE.md#8-打包与安装) |
+| Publish a release | [Architecture · Automated releases](docs/ARCHITECTURE.md#自动发布) |
 | See what changed in each release | [CHANGELOG.md](CHANGELOG.md) |
 
 ## Contributing
@@ -195,14 +196,6 @@ To try the app by hand without touching your real data, run a separate instance 
 ```bash
 ANTUMI_HOME=~/.antumi-demo pnpm dev
 ```
-
-### Automated releases
-
-The [Release workflow](.github/workflows/release.yml) runs when a `v*` tag is pushed. It checks that all five application package versions match the tag, runs typechecking and tests, builds on macOS and Windows, then creates a GitHub Release with the DMG and EXE. Release notes come from that version's `CHANGELOG.md` entry; versions with suffixes such as `-alpha` or `-beta` are marked as prereleases.
-
-Update and commit the versions and changelog before creating and pushing a tag, such as `v0.19.2`. The workflow uses the built-in `GITHUB_TOKEN`, with `contents: write` only for publishing. No personal token or signing certificate is required: macOS uses ad-hoc signing and Windows installers remain unsigned.
-
-For an existing remote tag, open Actions → Release → Run workflow, select `main` and enter the tag. Both platform builds must succeed before publishing. A failed draft can be retried; published releases are never overwritten. Commit and push the workflow to the default branch first; its first GitHub run will validate the hosted build environment.
 
 ## Status
 
