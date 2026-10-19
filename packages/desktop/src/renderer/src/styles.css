@@ -6164,9 +6164,20 @@ body.side-panel-resizing * {
 .chat-tool-icon[data-status='running'][data-kind='search'] svg {
   animation: chat-tool-search 1.6s ease-in-out infinite;
 }
-.chat-tool-icon[data-status='running'][data-kind='browser'] svg {
-  animation: spin 3.2s linear infinite;
+.chat-globe-body { color: var(--text-muted); }
+.chat-globe-orbit { color: var(--text-muted); opacity: .24; stroke-width: 1; }
+.chat-globe-satellite {
+  fill: currentColor;
+  stroke: none;
+  offset-path: path('M19 10a9 4.5 0 1 1-18 0 9 4.5 0 1 1 18 0');
+  offset-rotate: 0deg;
+  animation: chat-globe-orbit 3.2s linear infinite, chat-globe-front 3.2s steps(1, jump-end) infinite;
 }
+.chat-globe-satellite-back { opacity: 0; animation-name: chat-globe-orbit, chat-globe-back; }
+@keyframes chat-globe-orbit { to { offset-distance: 100%; } }
+/* Both dots share a path; the rear half is clipped by the globe without painting a background. */
+@keyframes chat-globe-front { 0% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes chat-globe-back { 0% { opacity: 0; } 50% { opacity: .8; } }
 /* The gear turns a tooth at a time, easing into each: a wheel being driven, not a spinner. Its
    eight teeth are alike, so a slow even spin read as standing still. */
 .chat-tool-icon[data-status='running'][data-kind='tool'] svg {
@@ -6208,6 +6219,7 @@ body.side-panel-resizing * {
 @media (prefers-reduced-motion: reduce) {
   .chat-tool-icon[data-status='running'][data-kind] svg,
   .chat-tool-icon[data-status='running'][data-kind] svg path:last-of-type,
+  .chat-tool-icon[data-status='running'] .chat-globe-satellite,
   .chat-tool-icon[data-status='running'] .chat-browser-mark,
   .chat-tool-icon[data-status='running'] .chat-browser-mark-cursor { animation: none; }
   .chat-tool-icon[data-status='running'][data-kind='read'] .book-page { display: none; }
