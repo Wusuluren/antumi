@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { AttachmentId } from './attachments'
 import { AgentKind } from './agent'
 import { KnowledgeBase } from './knowledge'
-import { LEGACY_MCP_SERVER_NAME, RESERVED_MCP_SERVER_NAME } from './mcp'
+import { RESERVED_MCP_SERVER_NAME } from './mcp'
 import { ModelMetering, SmallModelCost } from './model-cost'
 
 // idle: the agent waits for a message · running: a turn is under way · awaiting: the turn waits
@@ -342,13 +342,11 @@ export const ChatItem = z.discriminatedUnion('kind', [
 export type ChatItem = z.infer<typeof ChatItem>
 
 // Antumi's own tools, as each agent names an MCP tool: Claude Code mcp__<server>__<tool>, Codex
-// <server>.<tool>. The server is `antumi` in every launch config; history from before the rename
-// names it `kando`.
+// <server>.<tool>. The server is `antumi` in every launch config.
 export function antumiToolName(name: string): string | null {
-  for (const server of [RESERVED_MCP_SERVER_NAME, LEGACY_MCP_SERVER_NAME]) {
-    if (name.startsWith(`mcp__${server}__`)) return name.slice(`mcp__${server}__`.length)
-    if (name.startsWith(`${server}.`)) return name.slice(`${server}.`.length)
-  }
+  const server = RESERVED_MCP_SERVER_NAME
+  if (name.startsWith(`mcp__${server}__`)) return name.slice(`mcp__${server}__`.length)
+  if (name.startsWith(`${server}.`)) return name.slice(`${server}.`.length)
   return null
 }
 
@@ -410,8 +408,7 @@ export function isBrowserTool(name: string): boolean {
 export function imageMarker(image: ChatImage): string {
   return `[antumi-image ${image.id} ${image.width}x${image.height}]`
 }
-// Logs from before the rename mark their images kando-image.
-const IMAGE_MARKER = /^\[(?:antumi|kando)-image ([0-9a-f]{64}\.(?:png|jpg|gif|webp)) (\d+)x(\d+)\][ \t]*$/gm
+const IMAGE_MARKER = /^\[antumi-image ([0-9a-f]{64}\.(?:png|jpg|gif|webp)) (\d+)x(\d+)\][ \t]*$/gm
 // The images a tool's text names, and the text without the markers.
 export function takeImageMarkers(text: string): { text: string; images: ChatImage[] } {
   const images: ChatImage[] = []
@@ -444,8 +441,7 @@ export function isHostApproval(item: ChatItem): boolean {
 // routed to Antumi rather than written to the agent.
 export const ANTUMI_REQUEST_PREFIX = 'antumi:'
 export function isAntumiRequest(requestId: string): boolean {
-  // kando: is the prefix from before the rename, still on requests a chat left open.
-  return requestId.startsWith(ANTUMI_REQUEST_PREFIX) || requestId.startsWith('kando:')
+  return requestId.startsWith(ANTUMI_REQUEST_PREFIX)
 }
 
 // Parsed one by one, so an item a newer core describes differently drops alone, not the batch.

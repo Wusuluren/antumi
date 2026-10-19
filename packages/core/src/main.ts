@@ -3,7 +3,7 @@ import { mkdir, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { AGENT_KINDS, agentDescriptor, PROTOCOL_VERSION, usageReadable, type AgentKind, type ChatItem } from '@antumi/protocol'
 import packageJson from '../package.json' with { type: 'json' }
-import { migrateHome, removeCoreEndpoint, antumiPaths, writeCoreEndpoint } from '@antumi/protocol/node'
+import { removeCoreEndpoint, antumiPaths, writeCoreEndpoint } from '@antumi/protocol/node'
 import { adapterOf } from './agents'
 import { EnvironmentService } from './environment-check'
 import { AgentRunStore } from './agent-run-store'
@@ -56,10 +56,8 @@ import { McpServerStore } from './mcp-servers'
 import { knowledgeBaseSkills } from './skills-recommended'
 import { WireLog } from './wire-log'
 import { timestampConsole } from './log-timestamps'
-import { repairMovedHome } from './home-repair'
 
 timestampConsole()
-await migrateHome()
 const paths = antumiPaths()
 await mkdir(paths.home, { recursive: true, mode: 0o700 })
 await mkdir(paths.worktrees, { recursive: true })
@@ -70,8 +68,6 @@ await mkdir(paths.skills, { recursive: true, mode: 0o700 })
 
 // TaskStore first: its migrations create every table the other stores read.
 const store = new TaskStore(paths.database)
-// After the store's migrations, before anything reads a path from it.
-await repairMovedHome(paths)
 const projects = new ProjectRegistry(paths.database)
 const daemon = new DaemonClient(paths.daemonSocket)
 const conversationsStore = new ConversationStore(paths.database)

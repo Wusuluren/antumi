@@ -6,7 +6,6 @@ import {
   daemonSchemas,
   isDaemonMethod,
   antumiPaths,
-  migrateHome,
   type DaemonMethod,
   type DaemonResult
 } from '@antumi/protocol/node'
@@ -20,7 +19,6 @@ import { AwakeService } from './awake-service'
 // an agent starts into a Node interpreter.
 delete process.env.ELECTRON_RUN_AS_NODE
 
-await migrateHome()
 const paths = antumiPaths()
 await mkdir(paths.home, { recursive: true, mode: 0o700 })
 await claimEndpoint(paths.daemonSocket)

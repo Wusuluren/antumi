@@ -334,7 +334,7 @@ describe('ClaudeStream state', () => {
   })
 
   it('reports the effort it was started with, which the settings leave out', () => {
-    const settled = records.findIndex((record) => record.dir === 'in' && JSON.stringify(record.frame).includes('"request_id":"kando-settings"'))
+    const settled = records.findIndex((record) => record.dir === 'in' && JSON.stringify(record.frame).includes('"request_id":"antumi-settings"'))
     const before = records.slice(0, settled + 1)
     expect(stateOf(replay(before))?.effort).toBeNull()
     expect(stateOf(replay(before, { ...OPTIONS, preferred: { effort: 'low' } }))?.effort).toBe('low')

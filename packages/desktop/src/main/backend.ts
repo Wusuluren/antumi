@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { app } from 'electron'
 import { z } from 'zod'
 import { AGENT_KINDS, agentDescriptor, type CoreEndpoint } from '@antumi/protocol'
-import { antumiPaths, migrateHome, readCoreEndpoint } from '@antumi/protocol/node'
+import { antumiPaths, readCoreEndpoint } from '@antumi/protocol/node'
 
 // Where CLIs land that a Finder-launched app's minimal PATH misses.
 const EXTRA_PATH_DIRS = ['/opt/homebrew/bin', '/usr/local/bin', join(homedir(), '.local/bin')]
@@ -146,8 +146,6 @@ export async function ensureBackend(): Promise<void> {
   const coreCurrent = running?.version === app.getVersion()
   if (coreCurrent && !daemonReplaced) return
   if (running && !coreCurrent) await retireCore(running)
-  // With the old daemon and core gone, the home from before the rename can move.
-  await migrateHome().catch((error: unknown) => console.error('[antumi] moving the home failed; it stays where it is', error))
   const paths = antumiPaths()
   const logs = join(paths.home, 'logs')
   mkdirSync(logs, { recursive: true, mode: 0o700 })

@@ -5,7 +5,7 @@ import { SourceError } from './source-error'
 import type { LoginSession, SourceCredential, SourceProvider } from './source-provider'
 
 const MAX_OUTPUT = 8 * 1024 * 1024
-const RESERVED_ENV = /^(?:NODE_|ELECTRON_|(?:ANTUMI|KANDO)_HOME$|LD_|DYLD_)/
+const RESERVED_ENV = /^(?:NODE_|ELECTRON_|ANTUMI_HOME$|LD_|DYLD_)/
 
 export function pluginEnvironment(names: readonly string[], env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const result: NodeJS.ProcessEnv = { PATH: env.PATH ?? '', ELECTRON_RUN_AS_NODE: '1' }

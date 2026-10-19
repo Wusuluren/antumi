@@ -59,8 +59,9 @@ A trimmed version of Angular's [commit message format](https://github.com/angula
 - One self-contained change per commit, with its tests.
 
 ```
-refactor(protocol): drop the ~/.ripen fallback
+fix(core): tell clients of a chat reopened after a restart
 
-The only install has moved to ~/.kando, so RIPEN_HOME and the ripen.db
-lookup are branches nothing reaches.
+A client that lists conversations before reconcile has opened their
+chats holds them with a session but no chat, so the composer reads as
+busy and sends nothing.
 ```

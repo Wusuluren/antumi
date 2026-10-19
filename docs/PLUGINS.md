@@ -14,7 +14,7 @@
 
 ## GitHub 示例
 
-`packages/plugin-github` 是第一个外置插件，包 ID 为 `antumi.github`（改名前装上的仍是 `kando.github`，照常可用），来源 ID 继续为 `github`。第一次启动插件系统时从随应用提供的包安装，沿用已有 GitHub 设置、凭据、环境变量和任务记录。手动停用或卸载后不会自动恢复。Jira 仍为内置来源，图片传输留到下一阶段。
+`packages/plugin-github` 是第一个外置插件，包 ID 为 `antumi.github`，来源 ID 继续为 `github`。第一次启动插件系统时从随应用提供的包安装，沿用已有 GitHub 设置、凭据、环境变量和任务记录。手动停用或卸载后不会自动恢复。Jira 仍为内置来源，图片传输留到下一阶段。
 
 运行 `node scripts/build-plugins.mjs`，得到 `packages/plugin-github/dist/`。该目录可以直接安装，或把目录内的文件打成 ZIP 发布到 GitHub Release。core 开发启动、桌面构建和后端打包都会生成该产物；分发包随应用包含它，用户无需安装 Node 或 npm 依赖。
 
@@ -35,7 +35,7 @@
 
 `id` 用点分命名空间，来源 ID 服从 `SOURCE_ID_PATTERN`。`settings` 使用现有 `SettingField` schema。入口只能是包内 JS 文件，依赖预先打包；安装时不执行脚本，不安装依赖，不接受原生二进制、符号链接或越界路径。包大小上限 32 MiB，最多 2048 个文件及目录。
 
-core 使用 `process.execPath` 和 argv 启动入口，不经过 shell。环境只包含 manifest 白名单、`PATH` 和宿主固定的 `ELECTRON_RUN_AS_NODE=1`；禁止声明 `NODE_*`、`ELECTRON_*`、动态链接器变量及 `ANTUMI_HOME` / `KANDO_HOME`。环境凭据在启用时读取并缓存；修改运行环境后重启 core 或重新启用插件。
+core 使用 `process.execPath` 和 argv 启动入口，不经过 shell。环境只包含 manifest 白名单、`PATH` 和宿主固定的 `ELECTRON_RUN_AS_NODE=1`；禁止声明 `NODE_*`、`ELECTRON_*`、动态链接器变量及 `ANTUMI_HOME`。环境凭据在启用时读取并缓存；修改运行环境后重启 core 或重新启用插件。
 
 ## 协议 v1
 

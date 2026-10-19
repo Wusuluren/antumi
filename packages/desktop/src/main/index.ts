@@ -8,10 +8,7 @@ import { ensureBackend } from './backend'
 import { popupWindowOptions, RequestPopup } from './request-popup'
 import { startBrowserHost, type BrowserHost } from './browser/browser-host'
 import { WindowSlot } from './browser/window-slot'
-import { adoptLegacyUserData } from './user-data'
 import { installedApps, openWith, type InstalledApp } from './open-with'
-
-adoptLegacyUserData()
 
 // The built-in browser: its tabs live here, in main, so a window closing or its renderer going
 // never touches a page an agent is on. The slot puts the one on show into the current window.

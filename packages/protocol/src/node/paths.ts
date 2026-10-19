@@ -1,22 +1,10 @@
 import { createHash } from 'node:crypto'
-import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { DAEMON_PROTOCOL_VERSION } from './daemon-protocol'
 
-// KANDO_HOME is the variable's name from before the rename.
 export function antumiHome(env: NodeJS.ProcessEnv = process.env, homedir: string = os.homedir()): string {
-  const chosen = env.ANTUMI_HOME || env.KANDO_HOME
-  if (chosen) return path.resolve(chosen)
-  const home = path.join(homedir, '.antumi')
-  const legacy = legacyHome(env, homedir)
-  // Until migrateHome moves it, an install from before the rename keeps working where it is.
-  return legacy && !existsSync(home) && existsSync(legacy) ? legacy : home
-}
-
-// Where the home was before the rename, when nothing chose one: the only home migrateHome moves.
-export function legacyHome(env: NodeJS.ProcessEnv = process.env, homedir: string = os.homedir()): string | null {
-  return env.ANTUMI_HOME || env.KANDO_HOME ? null : path.join(homedir, '.kando')
+  return env.ANTUMI_HOME ? path.resolve(env.ANTUMI_HOME) : path.join(homedir, '.antumi')
 }
 
 // sun_path is 104 bytes on macOS and 108 on Linux; leave headroom.
@@ -57,7 +45,7 @@ export type AntumiPaths = {
 export function antumiPaths(home: string = antumiHome()): AntumiPaths {
   return {
     home,
-    database: databasePath(home),
+    database: path.join(home, 'antumi.db'),
     coreEndpoint: path.join(home, 'core.json'),
     worktrees: path.join(home, 'worktrees'),
     daemonSocket: daemonSocketPath(home),
@@ -74,13 +62,6 @@ export function antumiPaths(home: string = antumiHome()): AntumiPaths {
     mcpServers: path.join(home, 'mcp-servers.json'),
     projectTrust: path.join(home, 'project-trust.json')
   }
-}
-
-// A home not yet moved (migrateHome waits while anything runs from it) still has its old database.
-function databasePath(home: string): string {
-  const current = path.join(home, 'antumi.db')
-  const legacy = path.join(home, 'kando.db')
-  return !existsSync(current) && existsSync(legacy) ? legacy : current
 }
 
 // Versioned name lets an old daemon keep serving its PTYs while a new one starts.

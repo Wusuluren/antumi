@@ -8,16 +8,11 @@ export const PluginSource = z.object({ id: SourceId, name: z.string().min(1).max
 export const PluginManifest = z.object({
   id: PluginId,
   version: PluginVersion,
-  // A plugin written before the rename names its range kando.
-  engines: z.union([z.object({ antumi: z.string().min(1).max(100) }), z.object({ kando: z.string().min(1).max(100) })]),
+  engines: z.object({ antumi: z.string().min(1).max(100) }),
   contributes: z.object({ sources: z.array(PluginSource).min(1).max(16) }),
   entry: z.object({ runtime: z.literal('node'), main: z.string().min(1).max(240) }),
   env: z.array(z.string().regex(/^[A-Z_][A-Z0-9_]*$/)).max(32).default([])
 })
-// The Antumi versions a plugin runs on, by either name.
-export function pluginEngineRange(manifest: PluginManifest): string {
-  return 'antumi' in manifest.engines ? manifest.engines.antumi : manifest.engines.kando
-}
 
 export type PluginManifest = z.infer<typeof PluginManifest>
 export const PluginInstallSource = z.discriminatedUnion('kind', [

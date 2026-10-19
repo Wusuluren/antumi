@@ -1,6 +1,6 @@
 Cursor CLI `2026.10.01-e373342` 的真实 ACP 记录，使用已登录账号和 Composer 2.5，于 2026-10-08 采集。
 
-- `cursor-session.jsonl`：初始化、认证、模型接口、新建会话、原生 Ask / Agent 切换、Kando MCP 终端调用与原生单次审批。
+- `cursor-session.jsonl`：初始化、认证、模型接口、新建会话、原生 Ask / Agent 切换、Antumi MCP 终端调用与原生单次审批。
 - `cursor-resume-plan.jsonl`：恢复同一会话时的历史重放、新消息、Plan 切换、原生计划审批；接受计划前先等待 Agent 模式确认，规划回合结束后发送执行提示并实际生成 `hello.txt`。
 
 路径、UUID 和时间起点已替换；移除了原始 daemon 字节偏移。本机技能列表只保留首个命令，模型查询响应只保留两个公开模型，会话响应中的模型清单保留原样。其余协议帧保留原有字段和增量顺序，不含凭据。

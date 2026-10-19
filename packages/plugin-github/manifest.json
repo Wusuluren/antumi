@@ -28,7 +28,6 @@
     "main": "main.mjs"
   },
   "env": [
-    "ANTUMI_GITHUB_TOKEN",
-    "KANDO_GITHUB_TOKEN"
+    "ANTUMI_GITHUB_TOKEN"
   ]
 }

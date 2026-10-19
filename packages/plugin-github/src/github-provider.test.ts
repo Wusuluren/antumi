@@ -60,7 +60,7 @@ describe('githubProvider', () => {
     expect(provider.normalizeSettings({ query: '  org:acme\n  label:bug  ', ignored: 'value' })).toEqual({ query: 'org:acme label:bug' })
     expect(provider.normalizeSettings({ query: ' \n ' })).toEqual({ query: DEFAULT_GITHUB_QUERY })
     expect(provider.normalizeSettings({})).toEqual({ query: DEFAULT_GITHUB_QUERY })
-    expect(provider.envCredential?.({ KANDO_GITHUB_TOKEN: 'token' })).toEqual({ kind: 'token', payload: { token: 'token' } })
+    expect(provider.envCredential?.({ ANTUMI_GITHUB_TOKEN: 'token' })).toEqual({ kind: 'token', payload: { token: 'token' } })
     expect(provider.envCredential?.({})).toBeNull()
   })
 

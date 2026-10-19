@@ -43,9 +43,8 @@ export function githubProvider(connect: (credentials: GitHubCredentials) => GitH
     ],
     normalizeSettings: (values) => ({ query: values.query?.trim().split(/\s+/).join(' ') || DEFAULT_GITHUB_QUERY }),
     normalizeKey: (key) => key.trim(),
-    // KANDO_GITHUB_TOKEN is the name from before the rename.
     envCredential: (env) => {
-      const token = env.ANTUMI_GITHUB_TOKEN ?? env.KANDO_GITHUB_TOKEN
+      const token = env.ANTUMI_GITHUB_TOKEN
       return token ? { kind: 'token', payload: { token } } : null
     },
 

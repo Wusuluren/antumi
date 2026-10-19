@@ -17,9 +17,8 @@ describe.skipIf(process.platform === 'win32')('daemon socket path', () => {
 })
 
 describe('home directory', () => {
-  it('prefers ANTUMI_HOME, then KANDO_HOME from before the rename', () => {
-    expect(antumiHome({ ANTUMI_HOME: '/a', KANDO_HOME: '/b' }, '/home/me')).toBe(path.resolve('/a'))
-    expect(antumiHome({ KANDO_HOME: '/b' }, '/home/me')).toBe(path.resolve('/b'))
+  it('takes ANTUMI_HOME where it is set', () => {
+    expect(antumiHome({ ANTUMI_HOME: '/a' }, '/home/me')).toBe(path.resolve('/a'))
   })
 
   it('defaults to ~/.antumi', () => {

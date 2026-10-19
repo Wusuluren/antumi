@@ -48,20 +48,6 @@
 
 运行时数据在 `~/.antumi/`（可用 `ANTUMI_HOME` 覆盖）：`antumi.db`、`core.json`（端口与 token，权限 0600）、`worktrees/`、`sessions/`、`browser/`（`host.json`，桌面端写的浏览器宿主地址）、`skills/`（技能库：`skills.json` 锁文件、`repos/` 里的 git 克隆、`bundles/` 里交给 Agent 的目录）、`mcp-servers.json`（用户的 MCP 服务器，不含密钥）、`credentials.json`（任务来源和 MCP 服务器的密钥，权限 0600）。
 
-**从 Kando 升级**：产品原名 Kando，数据在 `~/.kando/`。daemon、core 和桌面端启动时都会调用 `migrateHome`（`protocol/src/node/home-migration.ts`），由先到的一方加锁，把 `~/.kando` 整体改名为 `~/.antumi`、`kando.db` 改名为 `antumi.db`。只有在旧 daemon 的 socket 拒绝连接、旧 core 的进程已退出时才迁移；否则这次继续使用 `~/.kando`，下次启动再试。迁移后，core 启动时调用 `repairMovedHome`（`core/src/home-repair.ts`）补完剩下的工作：
-- 改写数据库里所有指向旧目录的路径；
-- 对每个 worktree 运行 `git worktree repair`；
-- 把 Claude Code 按目录保存的会话复制到新路径下，保证会话能继续。
-
-整个过程不删除任何东西。改名前留下的数据仍然可以读取，包括：
-- `KANDO_HOME` 等环境变量；
-- `mcp__kando__` 工具名和 `kando-image` 标记；
-- 未处理的 `kando:` 请求；
-- `engines.kando` 插件；
-- 项目里的 `.kando/ports.json`。
-
-已有的 `kando/` 分支保持原样。桌面端首次启动时，会把旧的 `Kando` 应用数据目录复制一份，界面状态和内置浏览器的登录态都会保留。
-
 ### 进程边界
 
 - **daemon** 持有每一个 Agent 进程和 PTY，跑在纯 Node 上；node-pty 这类原生模块只在这里加载，从不进 Electron。
@@ -369,9 +355,9 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 状态栏右下角的终端按钮（或 Ctrl+`）打开右侧的终端面板，里面是你自己的登录 shell，可以开多个标签。新终端的工作目录跟着当前选中的内容走：任务的 worktree、会话的项目，都没有时是 home。shell 由 daemon 托管，隐藏面板或关闭窗口都不会结束它；关闭标签或在 shell 里 `exit` 才会结束。面板可以拖动调宽，也可以最大化。用鼠标在终端里选中一段文字，松开处会出现「引用到对话」，点一下就把这段作为引用放进对话的输入框：Agent 自己开的终端引用到它的会话，否则引用到当前打开的会话或任务聊天；打字、滚动或取消选中时按钮收起。
 
-**颜色**：终端像别的终端应用一样告诉程序自己能显示颜色：`TERM=xterm-256color`、`COLORTERM=truecolor`、`TERM_PROGRAM=Kando`，你没设 `CLICOLOR` 时补上 `CLICOLOR=1`（macOS 的 `ls` 靠它上色）。Agent 跑命令和安装 CLI 的标签也一样。
+**颜色**：终端像别的终端应用一样告诉程序自己能显示颜色：`TERM=xterm-256color`、`COLORTERM=truecolor`、`TERM_PROGRAM=Antumi`，你没设 `CLICOLOR` 时补上 `CLICOLOR=1`（macOS 的 `ls` 靠它上色）。Agent 跑命令和安装 CLI 的标签也一样。
 
-**彩色提示符**（设置 → 外观，默认开）：shell 是 zsh、而你从没设置过提示符时，Kando 的终端换成带颜色的提示符：当前目录、git 分支，上一条命令失败时 `%` 变红。做法同 VS Code 的 shell 集成：新终端的 `ZDOTDIR` 指向 `~/.kando/shell/zsh/`，那里的 `.zshenv`、`.zprofile`、`.zshrc` 依次先读你自己的同名文件（你设了 `ZDOTDIR` 就从那里读），`.zshrc` 读完把 `ZDOTDIR` 还回去，所以 `.zlogin` 和在里面再开的 shell 都只读你的。只有提示符仍是 macOS 或 zsh 的默认值才替换；自己设过 `PROMPT`、用 oh-my-zsh 或 starship 的不受影响。不写你的任何文件，只影响 Kando 里新开的终端。bash、fish 和 Windows 的 shell 保持原样。想要更多信息的提示符，可以装 [starship](https://starship.rs)，或在 `~/.zshrc` 里自己写一行 `PROMPT`。
+**彩色提示符**（设置 → 外观，默认开）：shell 是 zsh、而你从没设置过提示符时，Antumi 的终端换成带颜色的提示符：当前目录、git 分支，上一条命令失败时 `%` 变红。做法同 VS Code 的 shell 集成：新终端的 `ZDOTDIR` 指向 `~/.antumi/shell/zsh/`，那里的 `.zshenv`、`.zprofile`、`.zshrc` 依次先读你自己的同名文件（你设了 `ZDOTDIR` 就从那里读），`.zshrc` 读完把 `ZDOTDIR` 还回去，所以 `.zlogin` 和在里面再开的 shell 都只读你的。只有提示符仍是 macOS 或 zsh 的默认值才替换；自己设过 `PROMPT`、用 oh-my-zsh 或 starship 的不受影响。不写你的任何文件，只影响 Antumi 里新开的终端。bash、fish 和 Windows 的 shell 保持原样。想要更多信息的提示符，可以装 [starship](https://starship.rs)，或在 `~/.zshrc` 里自己写一行 `PROMPT`。
 
 终端栏的书签按钮是**常用命令**：点一条就打进当前终端。每条命令可以选「直接执行」（自动按回车）或只填到命令行、按回车前再改；可以对所有终端显示，也可以只在某个项目的终端里显示（任务的 worktree 算作它的项目）。先在终端里选中一段文字再点「添加常用命令」，会直接带进命令框。命令存在 core 里，多个窗口同步，最多 200 条。
 
@@ -382,7 +368,7 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 端口归属优先跟随终端 / Agent 的进程树。用户自己的 shell 只有在实际工作目录能唯一对应任务 worktree 或会话时才关联，多个会话共用目录时仍按终端显示。macOS 和 Linux 能读取实际工作目录；Windows 的普通 shell 按终端显示。没有归属的系统服务、Docker 容器内服务和脱离托管进程树的服务不在列表中。端口发现依赖 macOS 的 `lsof` / `ps`、Linux 的 `ss`（或 `lsof`）/ `ps`、Windows 的 PowerShell。
 
-可以在项目或任务 worktree 的 `.antumi/ports.json`（改名前的 `.kando/ports.json` 也认）中给端口命名：`{"ports":[{"port":3000,"label":"Frontend"},{"port":8080,"label":"API"}]}`。配置只给已发现的端口加标签，修改后自动生效，格式有误时仍显示端口。端口面板不分配端口，也不提供远程转发。
+可以在项目或任务 worktree 的 `.antumi/ports.json` 中给端口命名：`{"ports":[{"port":3000,"label":"Frontend"},{"port":8080,"label":"API"}]}`。配置只给已发现的端口加标签，修改后自动生效，格式有误时仍显示端口。端口面板不分配端口，也不提供远程转发。
 
 ### 项目配置：setup 与 check
 

@@ -55,11 +55,11 @@ describe('jiraProvider', () => {
     expect(provider.normalizeSettings({ site: 'acme.atlassian.net/', jql: '  ' })).toEqual({ site: 'https://acme.atlassian.net', jql: DEFAULT_JIRA_JQL })
     expect(() => provider.normalizeSettings({ site: 'http://acme.atlassian.net' })).toThrow(SourceError)
     expect(provider.normalizeKey?.(' proj-7 ')).toBe('PROJ-7')
-    expect(provider.envCredential?.({ KANDO_JIRA_EMAIL: 'ci@acme.com', KANDO_JIRA_TOKEN: 't' })).toEqual({
+    expect(provider.envCredential?.({ ANTUMI_JIRA_EMAIL: 'ci@acme.com', ANTUMI_JIRA_TOKEN: 't' })).toEqual({
       kind: 'basic',
       payload: { email: 'ci@acme.com', token: 't' }
     })
-    expect(provider.envCredential?.({ KANDO_JIRA_TOKEN: 't' })).toBeNull()
+    expect(provider.envCredential?.({ ANTUMI_JIRA_TOKEN: 't' })).toBeNull()
   })
 })
 

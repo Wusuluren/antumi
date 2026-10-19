@@ -27,17 +27,13 @@ describe('tool names', () => {
     expect(isPreviewTool('antumi.show_preview')).toBe(true)
   })
 
-  it('still reads what chats from before the rename named kando', () => {
-    expect(antumiToolName('mcp__kando__browser_click')).toBe('browser_click')
-    expect(antumiToolName('kando.show_preview')).toBe('show_preview')
-    expect(isTerminalRunTool('kando_terminal_run')).toBe(true)
-    expect(isAntumiRequest('kando:browser-host:1')).toBe(true)
+  it('reads its own requests, image markers and server name as Antumi writes them', () => {
+    expect(isTerminalRunTool('antumi_terminal_run')).toBe(true)
     expect(isAntumiRequest('antumi:browser-host:1')).toBe(true)
     expect(isAntumiRequest('toolu_1')).toBe(false)
     const id = `${'c'.repeat(64)}.png`
-    expect(takeImageMarkers(`[kando-image ${id} 2x1]`).images).toEqual([{ id, width: 2, height: 1 }])
+    expect(takeImageMarkers(`[antumi-image ${id} 2x1]`).images).toEqual([{ id, width: 2, height: 1 }])
     expect(McpServerName.safeParse('antumi').success).toBe(false)
-    expect(McpServerName.safeParse('kando').success).toBe(false)
   })
 
   it('shows a picture a call looked at on disk from the file, for a Read or a view_image alone', () => {

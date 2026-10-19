@@ -25,8 +25,6 @@ const SETTINGS_ID = 'antumi-settings'
 const INTERRUPT_PREFIX = 'antumi-interrupt-'
 const SUGGESTIONS_PREFIX = 'antumi-suggestions-'
 const OPTION_PREFIX = 'antumi-option-'
-// Logs from before the rename carry Antumi's own requests as kando-; the CLI's ids never look so.
-const RequestId = z.string().transform((id) => (id.startsWith('kando-') ? `antumi-${id.slice('kando-'.length)}` : id))
 const MAX_PATCH = 50_000
 // The API's limit for one image; the store takes twice that.
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -188,7 +186,7 @@ const ResultFrame = z.looseObject({
 })
 const Input = z.record(z.string(), z.unknown()).catch({})
 const ControlRequest = z.looseObject({
-  request_id: RequestId,
+  request_id: z.string(),
   request: z.looseObject({
     subtype: z.string(),
     tool_name: z.string().optional(),
@@ -203,12 +201,12 @@ const ControlRequest = z.looseObject({
 const ControlResponse = z.looseObject({
   response: z.looseObject({
     subtype: z.string(),
-    request_id: RequestId,
+    request_id: z.string(),
     error: z.string().optional(),
     response: z.unknown().optional()
   })
 })
-const ControlCancel = z.looseObject({ request_id: RequestId })
+const ControlCancel = z.looseObject({ request_id: z.string() })
 const Answered = z.looseObject({
   behavior: z.string(),
   // A denial that also stops the turn.

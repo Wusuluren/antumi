@@ -21,7 +21,7 @@ export const bundlesDir = (root: string) => path.join(root, 'bundles')
 
 // Names the bundle by what goes in it: the same skills at the same pins give the same folder,
 // which keeps an agent's prompt cache warm; a pin moved gives a new one. The plugin's name is in
-// the key too: bundles built before the rename are kando-skills, and stay as they were.
+// the key too, so a bundle of another name is never mistaken for this one.
 export function bundleKey(entries: readonly Entry[]): string {
   const sorted = [...entries].sort((a, b) => a.repo.localeCompare(b.repo) || a.skill.localeCompare(b.skill))
   const pinned = JSON.stringify(sorted.map(({ repo, commit, skill }) => ({ repo, commit, skill })))

@@ -42,7 +42,7 @@ describe('the agents\' own MCP servers', () => {
   it('shows keys, never values, and a name Antumi can take', () => {
     const candidate = importCandidate({ source: 'cursor', name: 'Context7.Docs', transport: { type: 'http', url: 'https://mcp.context7.com/mcp', headers: { Authorization: 'Bearer x' } }, problem: null }, [])
     expect(candidate).toEqual({ source: 'cursor', name: 'Context7.Docs', suggestedName: 'context7-docs', transport: { type: 'http', url: 'https://mcp.context7.com/mcp', headerKeys: ['Authorization'] }, problem: null })
-    expect(suggestedMcpName('kando')).toBeNull()
+    expect(suggestedMcpName('antumi')).toBeNull()
     expect(suggestedMcpName('我的')).toBeNull()
   })
 

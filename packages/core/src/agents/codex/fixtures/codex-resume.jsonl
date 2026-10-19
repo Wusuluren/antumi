@@ -1,5 +1,5 @@
-{"dir": "out", "at": 1790000000010, "frame": {"id": 1, "method": "initialize", "params": {"clientInfo": {"name": "kando", "title": "Kando", "version": "0.1.0"}, "capabilities": {"experimentalApi": true, "requestAttestation": false}}}}
-{"dir": "in", "at": 1790000000020, "frame": {"id": 1, "result": {"userAgent": "kando/0.156.1", "platformFamily": "unix", "platformOs": "macos"}}}
+{"dir": "out", "at": 1790000000010, "frame": {"id": 1, "method": "initialize", "params": {"clientInfo": {"name": "antumi", "title": "Antumi", "version": "0.1.0"}, "capabilities": {"experimentalApi": true, "requestAttestation": false}}}}
+{"dir": "in", "at": 1790000000020, "frame": {"id": 1, "result": {"userAgent": "antumi/0.156.1", "platformFamily": "unix", "platformOs": "macos"}}}
 {"dir": "out", "at": 1790000000040, "frame": {"method": "initialized"}}
 {"dir": "out", "at": 1790000000050, "frame": {"id": 2, "method": "thread/resume", "params": {"threadId": "01a0e635-ad34-74f0-8ecb-2c49cb8429ad", "cwd": "/work/repo", "approvalPolicy": "untrusted", "sandbox": "workspace-write", "excludeTurns": true}}}
 {"dir": "in", "at": 1790000000090, "frame": {"method": "thread/status/changed", "params": {"threadId": "01a0e635-ad34-74f0-8ecb-2c49cb8429ad", "status": {"type": "idle"}}, "emittedAtMs": 1790568729485}}

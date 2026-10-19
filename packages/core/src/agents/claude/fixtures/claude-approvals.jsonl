@@ -1,5 +1,5 @@
-{"dir": "out", "at": 1790000000010, "frame": {"type": "control_request", "request_id": "kando-init", "request": {"subtype": "initialize"}}}
-{"dir": "in", "at": 1790000000040, "frame": {"type": "control_response", "response": {"subtype": "success", "request_id": "kando-init", "response": {"commands": []}}}}
+{"dir": "out", "at": 1790000000010, "frame": {"type": "control_request", "request_id": "antumi-init", "request": {"subtype": "initialize"}}}
+{"dir": "in", "at": 1790000000040, "frame": {"type": "control_response", "response": {"subtype": "success", "request_id": "antumi-init", "response": {"commands": []}}}}
 {"dir": "out", "at": 1790000000050, "frame": {"type": "user", "message": {"role": "user", "content": "Create a file named deny.txt containing the word no. Answer in one short sentence."}}, "ref": "ref-1"}
 {"dir": "in", "at": 1790000000060, "frame": {"type": "system", "subtype": "init", "session_id": "040ce870-6752-446b-8fda-8cefbc31cf82", "model": "claude-haiku-4-5-20251001", "permissionMode": "default", "claude_code_version": "2.1.282"}}
 {"dir": "in", "at": 1790000000080, "frame": {"type": "user", "message": {"role": "user", "content": "Create a file named deny.txt containing the word no. Answer in one short sentence."}, "session_id": "040ce870-6752-446b-8fda-8cefbc31cf82", "parent_tool_use_id": null, "uuid": "a3702252-80f5-43e0-ab12-e8a4a8182708", "timestamp": "2026-09-28T04:09:47.877Z", "isReplay": true}}
