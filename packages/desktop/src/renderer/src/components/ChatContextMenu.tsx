@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type RefObject } from 'react'
 import { canHaveHelper, LANGUAGE_NAMES, type Conversation, type ResolvedFile } from '@antumi/protocol'
 import { handToHelper } from '../helper-conversations'
@@ -48,8 +49,8 @@ export function useChatContextMenu(list: RefObject<HTMLDivElement | null>, scope
     setMenu(state)
     const rpc = useCore.getState().rpc
     if (reference && state.resolving && rpc) void rpc.call('files.resolve', { conversationId: scope.conversationId, path: reference.path }).then((file) => {
-      if (sequence.current === current) setMenu({ ...state, file, resolving: false, error: file ? null : '找不到文件' })
-    }, () => { if (sequence.current === current) setMenu({ ...state, resolving: false, error: '无法访问文件' }) })
+      if (sequence.current === current) setMenu({ ...state, file, resolving: false, error: file ? null : t('ChatContextMenu.fileNotFound') })
+    }, () => { if (sequence.current === current) setMenu({ ...state, resolving: false, error: t('ChatContextMenu.cannotAccessFile') }) })
   }
   const onContextMenu = (event: MouseEvent<HTMLDivElement>) => {
     if (!(event.target instanceof Element)) return
@@ -68,21 +69,21 @@ export function useChatContextMenu(list: RefObject<HTMLDivElement | null>, scope
   }
   const copy = (text: string) => { close(); void copyFileText(text) }
   const content = menu && (menu.translating !== undefined
-    ? <ContextMenu at={menu.at} scrollBoundary={list.current} label="选中内容的翻译" onClose={close}>
+    ? <ContextMenu at={menu.at} scrollBoundary={list.current} label={t('ChatContextMenu.translationOfSelection')} onClose={close}>
       <SelectionTranslation conversationId={scope.conversationId} text={menu.translating} onClose={close} />
     </ContextMenu>
-    : <ContextMenu at={menu.at} scrollBoundary={list.current} label="聊天内容" onClose={close}>
+    : <ContextMenu at={menu.at} scrollBoundary={list.current} label={t('ChatContextMenu.chatContent')} onClose={close}>
     <HandToHelperItem parent={parent} selection={menu.selection} inspector={scope.inspector} onClose={close} />
-    {menu.selection.trim() && translateSupported && <MenuItem label="翻译" icon={<TranslateIcon />} onSelect={() => setMenu({ ...menu, translating: menu.selection.trim() })} />}
-    {menu.selection && <MenuItem label="复制选中内容" icon={<CopyIcon />} onSelect={() => copy(menu.selection)} />}
-    {menu.text && <MenuItem label="复制所在内容" icon={<DocumentIcon />} onSelect={() => copy(menu.text)} />}
-    {menu.code !== null && <MenuItem label="复制代码" icon={<CodeIcon />} onSelect={() => copy(menu.code ?? '')} />}
-    {menu.href && <MenuItem label="复制链接" icon={<LinkIcon />} onSelect={() => copy(menu.href ?? '')} />}
+    {menu.selection.trim() && translateSupported && <MenuItem label={t('ChatContextMenu.translate')} icon={<TranslateIcon />} onSelect={() => setMenu({ ...menu, translating: menu.selection.trim() })} />}
+    {menu.selection && <MenuItem label={t('ChatContextMenu.copySelection')} icon={<CopyIcon />} onSelect={() => copy(menu.selection)} />}
+    {menu.text && <MenuItem label={t('ChatContextMenu.copyContent')} icon={<DocumentIcon />} onSelect={() => copy(menu.text)} />}
+    {menu.code !== null && <MenuItem label={t('ChatContextMenu.copyCode')} icon={<CodeIcon />} onSelect={() => copy(menu.code ?? '')} />}
+    {menu.href && <MenuItem label={t('ChatContextMenu.copyLink')} icon={<LinkIcon />} onSelect={() => copy(menu.href ?? '')} />}
     {menu.file && <FileMenuItems scope={scope} file={menu.file} line={menu.reference?.line} onClose={close} />}
-    {menu.reference && !filePreviewSupported() && canRevealFile() && <MenuItem label="在文件管理器中显示" icon={<FolderIcon />} onSelect={() => { close(); if (menu.reference) void showChatFile(scope, menu.reference) }} />}
-    {menu.resolving && <div className="menu-label" role="status">正在查找文件…</div>}
+    {menu.reference && !filePreviewSupported() && canRevealFile() && <MenuItem label={t('ChatContextMenu.showInFileManager')} icon={<FolderIcon />} onSelect={() => { close(); if (menu.reference) void showChatFile(scope, menu.reference) }} />}
+    {menu.resolving && <div className="menu-label" role="status">{t('ChatContextMenu.findingFile')}</div>}
     {menu.error && <div className="menu-label" role="status">{menu.error}</div>}
-    {!menu.selection && !menu.text && menu.code === null && !menu.reference && !menu.href && <MenuItem label="没有可复制的内容" disabled onSelect={close} />}
+    {!menu.selection && !menu.text && menu.code === null && !menu.reference && !menu.href && <MenuItem label={t('ChatContextMenu.nothingToCopy')} disabled onSelect={close} />}
   </ContextMenu>)
   return { onContextMenu, onKeyDown, onPointerDown, menu: content, open: menu !== null }
 }
@@ -97,12 +98,12 @@ export function SelectionTranslation({ conversationId, text, onClose }: { conver
   const result = useTranslations((state) => state.results[key])
   useEffect(() => { void translate(conversationId, key, text, to, model) }, [conversationId, key, text, to, model])
   return <>
-    <div className="menu-label">译成{LANGUAGE_NAMES[to]}{result?.state === 'done' && result.model ? ` · 由 ${result.model} 翻译` : ''}</div>
+    <div className="menu-label">{tr('ChatContextMenu.translateTo', { value1: LANGUAGE_NAMES[to], value2: result?.state === 'done' && result.model ? t('ChatContextMenu.translatedBy', { value1: result.model }) : '' })}</div>
     <div className="selection-translation" role="status" data-failed={result?.state === 'failed' || undefined}>
-      {result?.state === 'done' ? result.text : result?.state === 'failed' ? result.error : <><Spinner />翻译中…</>}
+      {result?.state === 'done' ? result.text : result?.state === 'failed' ? result.error : <>{tr('ChatContextMenu.translating', { value1: <Spinner /> })}</>}
     </div>
-    {result?.state === 'done' && <MenuItem label="复制译文" icon={<CopyIcon />} onSelect={() => { onClose(); void copyFileText(result.text) }} />}
-    {result?.state === 'failed' && <MenuItem label="重试" icon={<RefreshIcon />} onSelect={() => void translate(conversationId, key, text, to, model)} />}
+    {result?.state === 'done' && <MenuItem label={t('ChatContextMenu.copyTranslation')} icon={<CopyIcon />} onSelect={() => { onClose(); void copyFileText(result.text) }} />}
+    {result?.state === 'failed' && <MenuItem label={t('ChatContextMenu.retry')} icon={<RefreshIcon />} onSelect={() => void translate(conversationId, key, text, to, model)} />}
   </>
 }
 
@@ -114,5 +115,5 @@ export function HandToHelperItem({ parent, selection, inspector, onClose }: {
 }) {
   const supported = useCore((state) => state.rpc?.features.includes('conversation-helper') ?? false)
   if (!selection.trim() || !supported || !parent || !canHaveHelper(parent)) return null
-  return <MenuItem label="交给小助手" icon={<SparkIcon />} onSelect={() => { document.getSelection()?.removeAllRanges(); onClose(); void handToHelper(parent, selection, inspector) }} />
+  return <MenuItem label={t('ChatContextMenu.askHelper')} icon={<SparkIcon />} onSelect={() => { document.getSelection()?.removeAllRanges(); onClose(); void handToHelper(parent, selection, inspector) }} />
 }

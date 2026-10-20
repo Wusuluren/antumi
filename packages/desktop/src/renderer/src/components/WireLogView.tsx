@@ -1,3 +1,4 @@
+import { getLocale, t, tr } from '../i18n'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { WireEntry, WireStage } from '@antumi/protocol'
 import { useCore } from '../core-store'
@@ -21,9 +22,9 @@ function held(shown: Shown, entries: WireEntry[]): Shown {
 }
 
 function stageText(stage: WireStage): string {
-  const started = new Date(stage.startedAt).toLocaleString(undefined, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-  const agent = stage.agent ? agentLabel(stage.agent) : '没能启动'
-  const running = stage.agent && stage.endedAt === null ? '（运行中）' : ''
+  const started = new Date(stage.startedAt).toLocaleString(getLocale(), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const agent = stage.agent ? agentLabel(stage.agent) : t('WireLogView.failedToStart')
+  const running = stage.agent && stage.endedAt === null ? t('WireLogView.running') : ''
   return `${agent} · ${started}${running} · ${formatBytes(stage.bytes)}`
 }
 
@@ -35,7 +36,7 @@ function WireRow({ entry, open, onToggle }: { entry: WireEntry; open: boolean; o
         <span className="wire-entry-mark" aria-label={WIRE_DIR_LABEL[entry.dir]} title={WIRE_DIR_LABEL[entry.dir]}>{WIRE_MARK[entry.dir]}</span>
         <span className="wire-entry-time">{wireTime(entry.at)}</span>
         <span className="wire-entry-label">{wireLabel(entry)}</span>
-        <span className="wire-entry-size">{entry.cut !== undefined ? '已截断 · ' : ''}{wireSize(entry)}</span>
+        <span className="wire-entry-size">{entry.cut !== undefined ? t('WireLogView.truncated') : ''}{wireSize(entry)}</span>
       </button>
       {open && (
         <div className="wire-entry-detail">
@@ -62,7 +63,7 @@ function StreamRow({ entries, open, onToggle, isOpen, onToggleEntry }: {
   return (
     <li className="wire-entry wire-stream" data-dir="stdout" data-open={open || undefined}>
       <button type="button" className="wire-entry-head" aria-expanded={open} onClick={onToggle}>
-        <span className="wire-entry-mark" aria-label="流式增量" title="一段段流出来的增量，已合在一起">≋</span>
+        <span className="wire-entry-mark" aria-label={t('WireLogView.streamDeltas')} title={t('WireLogView.incrementalStreamedTextCombined')}>≋</span>
         <span className="wire-entry-time">{wireTime(first.at)}</span>
         <span className="wire-entry-label">{streamLabel(entries)}</span>
         <span className="wire-entry-size">{totalSize(entries)}</span>
@@ -71,11 +72,11 @@ function StreamRow({ entries, open, onToggle, isOpen, onToggleEntry }: {
         <div className="wire-stream-body">
           {text && (
             <div className="wire-entry-detail">
-              <CopyButton text={text} label="复制合起来的文字" />
+              <CopyButton text={text} label={t('WireLogView.copyCombinedText')} />
               <pre>{text}</pre>
             </div>
           )}
-          <p className="wire-stream-note">{entries.length} 条，{wireTime(first.at)} 到 {wireTime(last.at)}</p>
+          <p className="wire-stream-note">{tr('WireLogView.entriesTo', { value1: entries.length, value2: wireTime(first.at), value3: wireTime(last.at) })}</p>
           <ol className="wire-entries">
             {entries.map((entry) => <WireRow key={entry.pos} entry={entry} open={isOpen(entry.pos)} onToggle={() => onToggleEntry(entry.pos)} />)}
           </ol>
@@ -141,12 +142,12 @@ export function WireLogView({ conversationId }: { conversationId: string }) {
 
   const needle = query.trim().toLowerCase()
   const entries = shown?.entries ?? []
-  const streamCount = useMemo(() => entries.filter(isWireStream).length, [entries])
+  const streamCount = useMemo(() => entries.filter(isWireStream).length, [entries, getLocale()])
   const visible = useMemo(
     () => entries.filter((entry) => (showStream || !isWireStream(entry)) && wireMatches(entry, needle)),
-    [entries, showStream, needle]
+    [entries, showStream, needle, getLocale()]
   )
-  const rows = useMemo(() => groupWireEntries(visible), [visible])
+  const rows = useMemo(() => groupWireEntries(visible), [visible, getLocale()])
 
   useLayoutEffect(() => {
     const list = listRef.current
@@ -179,12 +180,10 @@ export function WireLogView({ conversationId }: { conversationId: string }) {
     })
   }
 
-  if (!shown) return <p className="inspector-empty muted">正在读取原始数据…</p>
+  if (!shown) return <p className="inspector-empty muted">{t('WireLogView.loadingRawData')}</p>
   if (shown.stages.length === 0) {
     return (
-      <p className="inspector-empty muted">
-        这个会话还没有原始数据。记录打开后，Agent 收发的每一行都会记下来：正在运行的 Agent 从下一行开始，新启动的从启动命令开始。
-      </p>
+      <p className="inspector-empty muted">{t('WireLogView.noRawDataForThisConversationYetWhen')}</p>
     )
   }
   const stage = shown.stages.find((each) => each.stageId === shown.stageId)
@@ -193,30 +192,28 @@ export function WireLogView({ conversationId }: { conversationId: string }) {
       <div className="wire-toolbar">
         {shown.stages.length > 1 ? (
           <ChatPicker
-            label="Agent 的哪一段"
+            label={t('WireLogView.agentStage')}
             value={chosen ?? ''}
-            placeholder="最新一段"
+            placeholder={t('WireLogView.latestStage')}
             size="large"
             placement="below"
-            options={[{ value: '', label: '最新一段' }, ...shown.stages.map((each) => ({ value: each.stageId, label: stageText(each) }))]}
+            options={[{ value: '', label: t('WireLogView.latestStage') }, ...shown.stages.map((each) => ({ value: each.stageId, label: stageText(each) }))]}
             onChange={(value) => setChosen(value || null)}
           />
         ) : (
           stage && <span className="wire-stage-text muted">{stageText(stage)}</span>
         )}
-        <input className="input wire-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索" aria-label="搜索原始数据" />
+        <input className="input wire-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('chatTools.search')} aria-label={t('WireLogView.searchRawData')} />
         <button
           type="button"
           className="wire-chip"
           aria-pressed={showStream}
-          title="Claude 的 stream_event、keep_alive 和 Codex 的 …/delta：一段段流出来的文字，数量很多。显示时连续的合成一行"
+          title={t('WireLogView.claudeStreamEventKeepAliveAndCodexDelta')}
           onClick={() => setShowStream(!showStream)}
-        >
-          流式增量 {streamCount}
-        </button>
-        <CopyButton text={wireJsonl(visible)} label={`复制显示的 ${visible.length} 行（jsonl）`} />
+        >{tr('WireLogView.streamDeltas_2215', { streamCount: streamCount })}</button>
+        <CopyButton text={wireJsonl(visible)} label={t('WireLogView.copyDisplayedLinesJsonl', { value1: visible.length })} />
         {stage && canRevealFile() && (
-          <button type="button" className="tool-button" aria-label="显示文件" data-tooltip="在文件管理器里显示" onClick={() => void revealFile([stage.file])}>
+          <button type="button" className="tool-button" aria-label={t('ChatPreviewCard.showFile')} data-tooltip={t('WireLogView.showInFileManager')} onClick={() => void revealFile([stage.file])}>
             <FolderIcon />
           </button>
         )}
@@ -231,11 +228,11 @@ export function WireLogView({ conversationId }: { conversationId: string }) {
       >
         {shown.before !== null && (
           <button type="button" className="link-button wire-older" disabled={loadingOlder} onClick={() => void loadOlder()}>
-            {loadingOlder ? '正在读取…' : '读取更早的'}
+            {loadingOlder ? t('DashboardPanel.loading') : t('WireLogView.loadEarlier')}
           </button>
         )}
         {visible.length === 0 ? (
-          <p className="inspector-empty muted">{needle ? `没有包含「${query.trim()}」的行` : '只有流式增量，打开上面的「流式增量」查看'}</p>
+          <p className="inspector-empty muted">{needle ? t('WireLogView.noLinesContain', { value1: query.trim() }) : t('WireLogView.onlyStreamDeltasEnableStreamDeltasAboveTo')}</p>
         ) : (
           <ol className="wire-entries">
             {rows.map((row) => {
@@ -258,9 +255,7 @@ export function WireLogView({ conversationId }: { conversationId: string }) {
           </ol>
         )}
       </div>
-      <p className="wire-footnote">
-        → 发给 Agent　← Agent 输出　! stderr　≋ 合在一起的流式增量。点一行展开。
-      </p>
+      <p className="wire-footnote">{t('WireLogView.sentToAgentAgentOutputStderrCombinedStream')}</p>
     </div>
   )
 }

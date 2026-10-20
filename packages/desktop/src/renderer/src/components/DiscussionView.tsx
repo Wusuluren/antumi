@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { useChatTypeface } from '../chat-typeface'
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { checkDiscussionAction, checkEditDiscussionProjects, checkNewDiscussionTopic, checkRemoveDiscussionMember, currentTopic, MAX_DETAILS_LENGTH, memberLetter, type Discussion, type DiscussionAction, type DiscussionMember, type DiscussionPost } from '@antumi/protocol'
@@ -18,21 +19,21 @@ import { ArchivedBar } from './ArchivedBar'
 import { CopyButton } from './CopyButton'
 import { ChatFind, useChatFindState } from './ChatFind'
 
-const ACTIONS: Array<{ action: DiscussionAction; label: string; hint: string }> = [
-  { action: 'pause', label: '暂停', hint: '这一轮说完后先停下' },
-  { action: 'resume', label: '继续', hint: '从停下的地方接着讨论' },
-  { action: 'nextRound', label: '再来一轮', hint: '大家再看一遍彼此的观点，然后重新总结' },
-  { action: 'conclude', label: '立即总结', hint: '这一轮说完就请主持人总结' },
-  { action: 'stop', label: '停止', hint: '打断正在发言的成员并暂停' }
-]
+const ACTIONS: Array<{ action: DiscussionAction; label: string; hint: string }> = localized(() => ([
+  { action: 'pause', label: t('DiscussionView.pause'), hint: t('DiscussionView.pauseAfterThisRoundFinishes') },
+  { action: 'resume', label: t('DiscussionView.continue'), hint: t('DiscussionView.resumeTheDiscussionFromWhereItStopped') },
+  { action: 'nextRound', label: t('DiscussionView.anotherRound'), hint: t('DiscussionView.reviewEachOtherSViewsAgainThenSummarize') },
+  { action: 'conclude', label: t('DiscussionView.summarizeNow'), hint: t('DiscussionView.askTheChairToSummarizeAfterThisRound') },
+  { action: 'stop', label: t('DiscussionView.stop'), hint: t('DiscussionView.interruptCurrentSpeakersAndPause') }
+]))
 
 // What the composer's next send is: more on the topic now discussed, or a new one.
-const SEND_MODES = [
-  { topic: false, label: '接着聊', hint: '在当前议题里补充或追问，发出后大家再讨论一轮' },
-  { topic: true, label: '新议题', hint: '换一个议题：大家重新各自作答、讨论、总结，成员和项目不变' }
-] as const
+const SEND_MODES = localized(() => ([
+  { topic: false, label: t('DiscussionView.continueDiscussion'), hint: t('DiscussionView.addThoughtsOrQuestionsToTheCurrentTopic') },
+  { topic: true, label: t('DiscussionView.newTopic'), hint: t('DiscussionView.startANewTopicWithIndependentAnswersDiscussion') }
+] as const))
 
-const KIND_LABEL: Partial<Record<DiscussionPost['kind'], string>> = { opening: '独立作答', rebuttal: '回应', reply: '回答你', summary: '总结' }
+const KIND_LABEL: Partial<Record<DiscussionPost['kind'], string>> = localized(() => ({ opening: t('DiscussionView.independentAnswer'), rebuttal: t('DiscussionView.response'), reply: t('DiscussionView.answerToYou'), summary: t('DiscussionView.summary') }))
 
 // A member's own conversation, where its tool calls and approvals are: it is kept out of the list,
 // so it may need fetching before it can be shown.
@@ -46,7 +47,7 @@ type Topic = { text: string; rounds: number }
 
 // The summary as a task's details, for the conclusion to be carried out.
 async function taskFromSummary(discussion: Discussion, topic: string, summary: DiscussionPost): Promise<void> {
-  const details = [`来自群聊「${discussion.title}」的结论。`, '', '## 讨论主题', topic, '', summary.text].join('\n').slice(0, MAX_DETAILS_LENGTH)
+  const details = [t('DiscussionView.conclusionsFromGroupChat', { value1: discussion.title }), '', t('DiscussionView.discussionTopic'), topic, '', summary.text].join('\n').slice(0, MAX_DETAILS_LENGTH)
   const task = await perform((rpc) => rpc.call('tasks.create', { title: discussion.title, details, repos: discussion.projectPaths }))
   if (task) selectTask(task.id)
 }
@@ -55,23 +56,23 @@ async function taskFromSummary(discussion: Discussion, topic: string, summary: D
 // after the question, as the task is what it asked for.
 async function taskFromReply(discussion: Discussion, member: DiscussionMember | undefined, question: DiscussionPost | undefined, reply: DiscussionPost): Promise<void> {
   const asked = question?.text.replace(/@\S+/g, '').trim() ?? ''
-  const name = member?.name ?? '成员'
+  const name = member?.name ?? t('DiscussionDraft.members')
   const title = (asked.split('\n').find((line) => line.trim()) ?? discussion.title).trim().slice(0, 80) || discussion.title
-  const details = [`来自群聊「${discussion.title}」里 ${name} 对你的回答。`, ...(asked ? ['', '## 你的问题', asked] : []), '', `## ${name} 的回答`, reply.text]
+  const details = [t('DiscussionView.sAnswerToYouInGroupChat', { value1: discussion.title, name: name }), ...(asked ? ['', t('DiscussionView.yourQuestion'), asked] : []), '', t('DiscussionView.sAnswer', { name: name }), reply.text]
     .join('\n').slice(0, MAX_DETAILS_LENGTH)
   const task = await perform((rpc) => rpc.call('tasks.create', { title, details, repos: discussion.projectPaths }))
   if (task) selectTask(task.id)
 }
 
-const LEAVE_BLOCKER: Record<'too-few' | 'chair' | 'busy', string> = {
-  'too-few': '至少要留 2 位成员',
-  chair: '主持人要写总结，不能离开',
-  busy: '它还在发言，等它说完'
-}
+const LEAVE_BLOCKER: Record<'too-few' | 'chair' | 'busy', string> = localized(() => ({
+  'too-few': t('DiscussionView.atLeast2MembersMustRemain'),
+  chair: t('DiscussionView.theChairMustStayToWriteTheSummary'),
+  busy: t('DiscussionView.theyAreStillSpeakingWaitUntilTheyFinish')
+}))
 
 // Takes a member out once the user agrees; what it said stays.
 async function leave(discussion: Discussion, member: DiscussionMember): Promise<void> {
-  if (window.confirm(`让「${member.name}」离开讨论？它说过的话会保留。`)) await removeDiscussionMember(discussion.id, member.id)
+  if (window.confirm(t('DiscussionView.removeFromTheDiscussionTheirPostsWillBe', { value1: member.name }))) await removeDiscussionMember(discussion.id, member.id)
 }
 
 function MemberChip({ member, chair, onMention, leaveBlocker, onLeave }: {
@@ -89,25 +90,25 @@ function MemberChip({ member, chair, onMention, leaveBlocker, onLeave }: {
       <button
         type="button"
         className="discussion-member-open"
-        data-tooltip={`${member.role ? `立场：${member.role}\n` : ''}点开看它的工具调用和确认请求`}
+        data-tooltip={t('DiscussionView.clickToViewToolCallsAndApprovalRequests', { value1: member.role ? t('DiscussionView.position', { value1: member.role }) : '' })}
         onClick={() => void openMember(member)}
       >
         <span className="discussion-member-mark"><AgentIcon agent={member.agent} /></span>
         <span className="discussion-member-name">{member.name}</span>
-        {chair && <span className="discussion-member-chair">主持</span>}
+        {chair && <span className="discussion-member-chair">{t('DiscussionView.chair')}</span>}
         <span className="discussion-member-status">
           {member.status === 'working' && <Spinner />}
           {status}
         </span>
       </button>
-      {onMention && <button type="button" className="icon-button discussion-member-mention" aria-label={`@${member.name}`} data-tooltip="只问它" onClick={onMention}>@</button>}
+      {onMention && <button type="button" className="icon-button discussion-member-mention" aria-label={`@${member.name}`} data-tooltip={t('DiscussionView.askOnlyThem')} onClick={onMention}>@</button>}
       {onLeave && (
         <button
           type="button"
           className="icon-button discussion-member-leave"
-          aria-label={`让 ${member.name} 离开`}
+          aria-label={t('DiscussionView.remove', { value1: member.name })}
           aria-disabled={leaveBlocker !== null}
-          data-tooltip={leaveBlocker ?? '让它离开讨论'}
+          data-tooltip={leaveBlocker ?? t('DiscussionView.removeFromDiscussion')}
           onClick={() => { if (!leaveBlocker) onLeave() }}
         >
           <CloseIcon />
@@ -130,9 +131,9 @@ function MemberFace({ member, letter }: { member: DiscussionMember | undefined; 
 function PostHead({ post, member, chair, left }: { post: DiscussionPost; member: DiscussionMember | undefined; chair: boolean; left: boolean }) {
   return (
     <div className="discussion-msg-head">
-      <span className="discussion-msg-name">{member ? member.name : '已移除的成员'}</span>
-      {left && <span className="discussion-tag">已离开</span>}
-      {chair && <span className="discussion-tag" data-chair="">主持</span>}
+      <span className="discussion-msg-name">{member ? member.name : t('DiscussionView.removedMember')}</span>
+      {left && <span className="discussion-tag">{t('DiscussionView.left')}</span>}
+      {chair && <span className="discussion-tag" data-chair="">{t('DiscussionView.chair')}</span>}
       {KIND_LABEL[post.kind] && post.kind !== 'summary' && <span className="discussion-tag">{KIND_LABEL[post.kind]}</span>}
       {member?.model && <span>{member.model}</span>}
       <span className="discussion-msg-time">{messageTime(post.createdAt)}</span>
@@ -153,7 +154,7 @@ function FailedPost({ error }: { error: string | null }) {
   const detail = said.join('\n').trim()
   return (
     <div className="discussion-post-failed">
-      <p>这次没有发言成功：{reasonText(reason, reason || '未知原因')}</p>
+      <p>{tr('DiscussionView.couldNotPostThisTime', { value1: reasonText(reason, reason || t('DiscussionView.unknownReason')) })}</p>
       {detail && <p className="discussion-post-failed-detail">{detail}</p>}
     </div>
   )
@@ -161,9 +162,9 @@ function FailedPost({ error }: { error: string | null }) {
 
 function PendingPost({ member }: { member: DiscussionMember | undefined }) {
   if (member?.status === 'awaiting') {
-    return <span className="discussion-typing">在等你确认，<button type="button" className="link-button" onClick={() => void openMember(member)}>去处理</button></span>
+    return <span className="discussion-typing">{tr('DiscussionView.awaitingYourApproval', { value1: <button type="button" className="link-button" onClick={() => void openMember(member)}>{t('DiscussionView.respond')}</button> })}</span>
   }
-  return <span className="discussion-typing" role="status"><i /><i /><i />正在思考</span>
+  return <span className="discussion-typing" role="status">{tr('DiscussionView.thinking', { value1: <i />, value2: <i />, value3: <i /> })}</span>
 }
 
 // One post, as a chat app lays a group out: a member's on the left, its face beside a bubble under
@@ -173,7 +174,7 @@ function Post({ post, discussion, topic, question }: { post: DiscussionPost; dis
   if (post.kind === 'user') {
     return (
       <div className="discussion-msg" data-mine="">
-        <span className="discussion-face discussion-face-me" aria-hidden="true">我</span>
+        <span className="discussion-face discussion-face-me" aria-hidden="true">{t('DiscussionView.me')}</span>
         <div className="discussion-msg-body">
           <div className="discussion-bubble"><MentionedText text={post.text} names={discussion.members.map((member) => member.name)} /></div>
           <PostActions text={post.text} />
@@ -192,11 +193,11 @@ function Post({ post, discussion, topic, question }: { post: DiscussionPost; dis
         <PostHead post={post} member={member} chair={member !== undefined && member.id === discussion.chairId} left={member !== undefined && current === undefined} />
         {summary ? (
           <div className="discussion-bubble discussion-summary">
-            <div className="discussion-summary-head">讨论总结</div>
+            <div className="discussion-summary-head">{t('DiscussionView.discussionSummary')}</div>
             <div className="discussion-summary-body"><ChatMarkdown text={post.text} /></div>
             <div className="discussion-summary-foot">
-              <span>{discussion.members.length} 位成员 · {topic.rounds} 轮</span>
-              <button type="button" className="link-button" onClick={() => void taskFromSummary(discussion, topic.text, post)}>从结论新建任务</button>
+              <span>{tr('DiscussionView.membersRounds', { value1: discussion.members.length, value2: topic.rounds })}</span>
+              <button type="button" className="link-button" onClick={() => void taskFromSummary(discussion, topic.text, post)}>{t('DiscussionView.createTaskFromConclusions')}</button>
             </div>
           </div>
         ) : (
@@ -209,7 +210,7 @@ function Post({ post, discussion, topic, question }: { post: DiscussionPost; dis
             )}
             {post.kind === 'reply' && post.state === 'done' && post.text.trim() && (
               <div className="discussion-reply-foot">
-                <button type="button" className="link-button" onClick={() => void taskFromReply(discussion, member, question, post)}>从回答新建任务</button>
+                <button type="button" className="link-button" onClick={() => void taskFromReply(discussion, member, question, post)}>{t('DiscussionView.createTaskFromAnswer')}</button>
               </div>
             )}
           </div>
@@ -223,7 +224,7 @@ function Post({ post, discussion, topic, question }: { post: DiscussionPost; dis
 // Under a post, on hover as under a chat reply: copying what was said, as Markdown for a member's.
 function PostActions({ text }: { text: string }) {
   if (!text.trim()) return null
-  return <div className="discussion-msg-actions"><CopyButton text={text} label="复制发言" /></div>
+  return <div className="discussion-msg-actions"><CopyButton text={text} label={t('DiscussionView.copyPost')} /></div>
 }
 
 // What a member's reply answers: the user's latest post before it that named the member.
@@ -249,24 +250,21 @@ function Rounds({ discussion, posts }: { discussion: Discussion; posts: readonly
         const topic = { text: currentTopic(discussion, since ? [since] : []), rounds: shown }
         const openings = list.filter((post) => post.kind === 'opening')
         const rest = list.filter((post) => post.kind !== 'opening' && !post.topic)
-        const what = openings.length > 0 ? '各自独立作答，彼此看不到' : list.some((post) => post.kind === 'rebuttal') ? '互相回应' : null
+        const what = openings.length > 0 ? t('DiscussionView.independentAnswersHiddenFromEachOther') : list.some((post) => post.kind === 'rebuttal') ? t('DiscussionView.mutualResponses') : null
         return (
-          <section key={round} className="discussion-round" aria-label={round === 0 ? '开场' : `第 ${shown} 轮`}>
+          <section key={round} className="discussion-round" aria-label={round === 0 ? t('DiscussionView.opening') : t('DiscussionView.round', { shown: shown })}>
             {moved && (
               <div className="discussion-topic" data-moved="">
-                <span className="discussion-post-kind">新议题</span>
+                <span className="discussion-post-kind">{t('DiscussionView.newTopic')}</span>
                 <ChatMarkdown text={moved.text} />
               </div>
             )}
             {round > 0 && (
-              <div className="discussion-system">
-                第 {shown} 轮{what && ` · ${what}`}
-                {openings.length > 1 && (
+              <div className="discussion-system">{tr('DiscussionView.round_897', { shown: shown, value2: what && ` · ${what}`, value3: openings.length > 1 && (
                   <button type="button" className="link-button" aria-pressed={sideBySide} onClick={() => setPreference('discussionSideBySide', !sideBySide)}>
-                    {sideBySide ? '按顺序看' : '并排对比'}
+                    {sideBySide ? t('DiscussionView.viewSequentially') : t('DiscussionView.compareSideBySide')}
                   </button>
-                )}
-              </div>
+                ) })}</div>
             )}
             {openings.length > 0 && (
               <div className="discussion-openings" data-side-by-side={(sideBySide && openings.length > 1) || undefined}>
@@ -275,7 +273,7 @@ function Rounds({ discussion, posts }: { discussion: Discussion; posts: readonly
             )}
             {rest.map((post) => (
               <Fragment key={post.id}>
-                {post.kind === 'summary' && <p className="discussion-system">讨论结束 · {chair ? `${chair.name} 总结` : '总结'}</p>}
+                {post.kind === 'summary' && <p className="discussion-system">{tr('DiscussionView.discussionEnded', { value1: chair ? t('DiscussionView.summary_901', { value1: chair.name }) : t('DiscussionView.summary') })}</p>}
                 <Post post={post} discussion={discussion} topic={topic} question={post.kind === 'reply' ? askedOf(posts, post) : undefined} />
               </Fragment>
             ))}
@@ -351,18 +349,18 @@ export function DiscussionView({ id }: { id: string }) {
   }
 
   return (
-    <section className="detail terminal-view discussion-view" aria-label={`群聊「${discussion.title}」`}>
+    <section className="detail terminal-view discussion-view" aria-label={t('DiscussionView.groupChat', { value1: discussion.title })}>
       <header className="detail-header conversation-header">
         <DiscussionDot discussion={discussion} />
         <div className="header-meta">
           {renaming
-            ? <TitleEditor title={discussion.title} label="群聊标题" onSave={(title) => void renameDiscussion(id, title)} onDone={() => setRenaming(false)} />
-            : <button type="button" className="terminal-view-title conversation-title" title={`${discussion.title}\n点击重命名`} onClick={() => setRenaming(true)}>{discussion.title}</button>}
+            ? <TitleEditor title={discussion.title} label={t('DiscussionView.groupChatTitle')} onSave={(title) => void renameDiscussion(id, title)} onDone={() => setRenaming(false)} />
+            : <button type="button" className="terminal-view-title conversation-title" title={t('ConversationView.clickToRename', { value1: discussion.title })} onClick={() => setRenaming(true)}>{discussion.title}</button>}
           <span className="muted">（{discussion.members.length}）</span>
           <span className="muted">{discussionProgress(discussion)}</span>
           {!projectsEditable && discussion.projectPaths.length > 0 && <span className="muted" title={discussion.projectPaths.join('\n')}>{projectNames(discussion.projectPaths)}</span>}
-          {discussion.anonymous && <span className="muted">匿名互评</span>}
-          {archived && <span className="archived-tag">已归档</span>}
+          {discussion.anonymous && <span className="muted">{t('DiscussionView.anonymousPeerReview')}</span>}
+          {archived && <span className="archived-tag">{t('ConversationList.archived')}</span>}
         </div>
         <div className="toolbar">
           {ACTIONS.filter(({ action }) => !archived && checkDiscussionAction(discussion, action) === null).map(({ action, label, hint }) => (
@@ -372,17 +370,15 @@ export function DiscussionView({ id }: { id: string }) {
               {label}
             </button>
           ))}
-          <button type="button" className="button discussion-action" data-tooltip="另开一个群聊，沿用这些成员、项目和设置，不带之前的讨论" onClick={() => openDiscussionDraft(discussion)}>
-            同成员新群聊
-          </button>
+          <button type="button" className="button discussion-action" data-tooltip={t('DiscussionView.startAnotherGroupChatWithTheseMembersProjects')} onClick={() => openDiscussionDraft(discussion)}>{t('DiscussionView.newGroupWithSameMembers')}</button>
           <span className="toolbar-separator" aria-hidden="true" />
-          <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={openOverview}><CloseIcon /></button>
+          <button type="button" className="tool-button" aria-label={t('BackdropPicker.close')} data-tooltip={t('BackdropPicker.close')} onClick={openOverview}><CloseIcon /></button>
         </div>
       </header>
       <div className="terminal-body">
         <div ref={view} className="chat-view discussion-body" data-width={width} {...typeface}>
           <ChatFind key={id} state={find} scope={view} container={list} onOpen={findOpened} />
-          <ul className="discussion-members" aria-label="成员">
+          <ul className="discussion-members" aria-label={t('DiscussionDraft.members')}>
             {discussion.members.map((member) => {
               const blocked = checkRemoveDiscussionMember(discussion, member.id)
               return (
@@ -398,7 +394,7 @@ export function DiscussionView({ id }: { id: string }) {
             })}
             {membersEditable && <AddMemberButton discussion={discussion} />}
             {projectsEditable && (
-              <li className="discussion-projects" data-tooltip={projectsBlocked ? '成员发言时不能改项目，等这一轮说完' : '第一个项目不能换，其他项目可以增减'} data-tooltip-align="start">
+              <li className="discussion-projects" data-tooltip={projectsBlocked ? t('DiscussionView.waitUntilThisRoundEndsToChangeProjects') : t('DiscussionView.theFirstProjectIsFixedOtherProjectsCan')} data-tooltip-align="start">
                 <ProjectPicker
                   projects={discussion.projectPaths.map((path) => ({ path, worktreePath: null }))}
                   primaryLocked
@@ -417,13 +413,13 @@ export function DiscussionView({ id }: { id: string }) {
             }}
           >
             <div className="discussion-topic">
-              <span className="discussion-post-kind">主题</span>
+              <span className="discussion-post-kind">{t('DiscussionDraft.topic')}</span>
               <ChatMarkdown text={discussion.topic} />
             </div>
-            {posts ? <Rounds discussion={discussion} posts={posts} /> : <p className="muted"><Spinner /> 正在读取发言…</p>}
+            {posts ? <Rounds discussion={discussion} posts={posts} /> : <p className="muted">{tr('DiscussionView.loadingPosts', { value1: <Spinner /> })}</p>}
           </div>
           <div className="chat-dock">
-            {archived && <ArchivedBar what="群聊" onRestore={() => archiveDiscussion(id, false)} />}
+            {archived && <ArchivedBar what={t('DiscussionView.groupChat_910')} onRestore={() => archiveDiscussion(id, false)} />}
             <div className="chat-input-card" data-working={busy || undefined} hidden={archived}>
               {mentionMenu.menu}
               <textarea
@@ -431,12 +427,12 @@ export function DiscussionView({ id }: { id: string }) {
                 className="chat-input"
                 rows={2}
                 value={text}
-                aria-label="发言"
+                aria-label={t('DiscussionView.posts')}
                 placeholder={asTopic
-                  ? `写新的议题：大家先各自独立作答，再讨论最多 ${discussion.maxRounds} 轮，最后总结；之前的讨论只作背景`
+                  ? t('DiscussionView.writeANewTopicIndependentAnswersUpTo', { value1: discussion.maxRounds })
                   : discussion.state === 'done' || discussion.state === 'paused'
-                  ? '补充看法或追问，发出后大家再讨论一轮；@成员 只问它，@所有人 让大家现在都回答'
-                  : '插一句话，下一轮大家都会看到；@成员 只问它，@所有人 让大家现在都回答'}
+                  ? t('DiscussionView.addThoughtsOrQuestionsForAnotherRoundMember')
+                  : t('DiscussionView.addANoteForEveryoneToSeeNext')}
                 {...mentionMenu.inputProps}
                 onChange={(event) => {
                   setText(event.target.value)
@@ -451,7 +447,7 @@ export function DiscussionView({ id }: { id: string }) {
               />
               <div className="chat-options">
                 {topicsSupported && (
-                  <div className="segmented discussion-send-mode" role="radiogroup" aria-label="发出的消息">
+                  <div className="segmented discussion-send-mode" role="radiogroup" aria-label={t('DiscussionView.sentMessages')}>
                     {SEND_MODES.map(({ topic, label, hint }) => {
                       const blocked = topic && topicBlocked && !asTopic
                       return (
@@ -462,7 +458,7 @@ export function DiscussionView({ id }: { id: string }) {
                           aria-checked={asTopic === topic}
                           aria-disabled={blocked || undefined}
                           disabled={busy}
-                          data-tooltip={blocked ? '成员还在发言；先暂停或等讨论结束，再换议题' : hint}
+                          data-tooltip={blocked ? t('DiscussionView.membersAreStillSpeakingPauseOrWaitUntil') : hint}
                           onClick={() => {
                             if (blocked) return
                             setAsTopic(topic)
@@ -475,10 +471,10 @@ export function DiscussionView({ id }: { id: string }) {
                     })}
                   </div>
                 )}
-                {asTopic && topicBlocked && <span className="chat-options-note muted">成员还在发言，先暂停或等讨论结束</span>}
-                {busyNamed.length > 0 && <span className="chat-options-note muted">{busyNamed.map((member) => member.name).join('、')} 还在发言，等它说完再问</span>}
+                {asTopic && topicBlocked && <span className="chat-options-note muted">{t('DiscussionView.membersAreStillSpeakingPauseOrWaitUntil_917')}</span>}
+                {busyNamed.length > 0 && <span className="chat-options-note muted">{tr('DiscussionView.isStillSpeakingWaitBeforeAskingAgain', { value1: busyNamed.map((member) => member.name).join('、') })}</span>}
                 <span className="chat-dock-spacer" />
-                <button type="button" className="chat-input-button" aria-label="发送（Enter）" data-tooltip="发送（Enter）" data-tooltip-side="top-end" disabled={!canSend} onClick={() => void send()}>
+                <button type="button" className="chat-input-button" aria-label={t('ChatComposer.sendEnter')} data-tooltip={t('ChatComposer.sendEnter')} data-tooltip-side="top-end" disabled={!canSend} onClick={() => void send()}>
                   <EnterIcon />
                 </button>
               </div>

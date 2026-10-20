@@ -1,3 +1,4 @@
+import { getLocale } from './i18n'
 import { useMemo } from 'react'
 import { AGENT_KINDS, type AgentKind, type Environment } from '@antumi/protocol'
 import { useCore } from './core-store'
@@ -34,5 +35,5 @@ export function otherInstalledAgent(agent: AgentKind, installed: readonly AgentK
 export function useInstalledAgents(): readonly AgentKind[] {
   const environment = useCore((s) => s.environment)
   const disabled = usePreferences((s) => s.disabledAgents)
-  return useMemo(() => installedAgents(environment, disabled), [environment, disabled])
+  return useMemo(() => installedAgents(environment, disabled), [environment, disabled, getLocale()])
 }

@@ -1,3 +1,4 @@
+import { getLocale, localized, t, tr } from '../i18n'
 import { isHelper } from '@antumi/protocol'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AGENT_KINDS, type AgentKind, type Conversation } from '@antumi/protocol'
@@ -21,13 +22,13 @@ import { TitleEditor } from './TitleEditor'
 type GroupBy = Preferences['conversationGroup']
 type SortBy = Preferences['conversationSort']
 
-const GROUP_LABEL: Record<GroupBy, string> = { none: '不分组', project: '项目', agent: '智能体', status: '运行状态' }
-const SORT_LABEL: Record<SortBy, string> = { recent: '最近活动', created: '创建时间', title: '标题' }
+const GROUP_LABEL: Record<GroupBy, string> = localized(() => ({ none: t('ConversationList.noGrouping'), project: t('ChatMentionMenu.project'), agent: t('ConversationList.agent'), status: t('ConversationList.runStatus') }))
+const SORT_LABEL: Record<SortBy, string> = localized(() => ({ recent: t('ConversationList.recentActivity'), created: t('ConversationList.created'), title: t('ConversationList.title') }))
 
 const COMPARE: Record<SortBy, (a: Conversation, b: Conversation) => number> = {
   recent: (a, b) => b.updatedAt - a.updatedAt,
   created: (a, b) => b.createdAt - a.createdAt,
-  title: (a, b) => a.title.localeCompare(b.title, 'zh-CN')
+  title: (a, b) => a.title.localeCompare(b.title, getLocale())
 }
 
 // Groups keep a fixed order where there is one (running first, agents as listed);
@@ -40,7 +41,7 @@ export function groupOf(conversation: Conversation, by: Exclude<GroupBy, 'none'>
     case 'agent':
       return { label: agentLabel(conversation.agent), rank: AGENT_KINDS.indexOf(conversation.agent) }
     case 'status':
-      return conversation.sessionId ? { label: '运行中', rank: 0 } : { label: '已停止', rank: 1 }
+      return conversation.sessionId ? { label: t('ConversationList.running'), rank: 0 } : { label: t('ConversationList.stopped'), rank: 1 }
   }
 }
 
@@ -53,7 +54,7 @@ function arrange(conversations: Conversation[], by: GroupBy, sort: SortBy): Grou
   const sorted = [...conversations].sort(COMPARE[sort])
   const pinned = sorted.filter((conversation) => conversation.pinnedAt != null)
   const rest = sorted.filter((conversation) => conversation.pinnedAt == null)
-  const top: Group[] = pinned.length > 0 ? [{ key: 'pinned', label: '已置顶', rank: -1, items: pinned }] : []
+  const top: Group[] = pinned.length > 0 ? [{ key: 'pinned', label: t('ConversationList.pinned'), rank: -1, items: pinned }] : []
   if (by === 'none') return rest.length > 0 ? [...top, { key: 'all', label: null, rank: 0, items: rest }] : top
   const groups = new Map<string, Group>()
   for (const conversation of rest) {
@@ -63,7 +64,7 @@ function arrange(conversations: Conversation[], by: GroupBy, sort: SortBy): Grou
     group.items.push(conversation)
     groups.set(label, group)
   }
-  return [...top, ...[...groups.values()].sort((a, b) => a.rank - b.rank || (a.label ?? '').localeCompare(b.label ?? '', 'zh-CN'))]
+  return [...top, ...[...groups.values()].sort((a, b) => a.rank - b.rank || (a.label ?? '').localeCompare(b.label ?? '', getLocale()))]
 }
 
 // By title or project name, ignoring case. Message text is searched by core.
@@ -154,8 +155,8 @@ function ViewMenu({ at, trigger, archived, onClose }: { at: MenuPoint; trigger: 
   const [open, setOpen] = useState<'group' | 'sort' | null>(null)
   const closeSubmenu = () => setOpen(null)
   return (
-    <ContextMenu at={at} align="end" trigger={trigger} label="会话的分组和排序" onClose={onClose}>
-      <MenuSubmenu label="分组方式" value={GROUP_LABEL[groupBy]} open={open === 'group'} onOpen={() => setOpen('group')} onClose={closeSubmenu}>
+    <ContextMenu at={at} align="end" trigger={trigger} label={t('ConversationList.groupAndSortConversations')} onClose={onClose}>
+      <MenuSubmenu label={t('ConversationList.groupBy')} value={GROUP_LABEL[groupBy]} open={open === 'group'} onOpen={() => setOpen('group')} onClose={closeSubmenu}>
         {CONVERSATION_GROUPS.map((value) => (
           <MenuRadioItem
             key={value}
@@ -168,7 +169,7 @@ function ViewMenu({ at, trigger, archived, onClose }: { at: MenuPoint; trigger: 
           />
         ))}
       </MenuSubmenu>
-      <MenuSubmenu label="排序方式" value={SORT_LABEL[sortBy]} open={open === 'sort'} onOpen={() => setOpen('sort')} onClose={closeSubmenu}>
+      <MenuSubmenu label={t('ConversationList.sortBy')} value={SORT_LABEL[sortBy]} open={open === 'sort'} onOpen={() => setOpen('sort')} onClose={closeSubmenu}>
         {CONVERSATION_SORTS.map((value) => (
           <MenuRadioItem
             key={value}
@@ -184,7 +185,7 @@ function ViewMenu({ at, trigger, archived, onClose }: { at: MenuPoint; trigger: 
       {archived > 0 && (
         <>
           <div className="menu-separator" role="separator" />
-          <MenuCheckboxItem label={`显示已归档（${archived}）`} checked={showArchived} onSelect={() => setPreference('showArchivedConversations', !showArchived)} />
+          <MenuCheckboxItem label={t('ConversationList.showArchived', { archived: archived })} checked={showArchived} onSelect={() => setPreference('showArchivedConversations', !showArchived)} />
         </>
       )}
     </ContextMenu>
@@ -250,7 +251,7 @@ export function ConversationList() {
       {renamingId === conversation.id
         ? <div className="task-row conversation-row" data-renaming>
           <ConversationStatus conversation={conversation} />
-          <TitleEditor title={conversation.title} label="会话标题" onSave={(title) => void renameConversation(conversation.id, title)} onDone={() => setRenamingId(null)} />
+          <TitleEditor title={conversation.title} label={t('ConversationList.conversationTitle')} onSave={(title) => void renameConversation(conversation.id, title)} onDone={() => setRenamingId(null)} />
           <span className="task-row-meta"><ConversationMeta conversation={conversation} heading={heading} /></span>
         </div>
         : <button
@@ -271,7 +272,7 @@ export function ConversationList() {
           <ConversationStatus conversation={conversation} />
           <span className="task-row-title" title={conversation.title}>{conversation.title}</span>
           {panes?.includes(conversation.id)
-            ? <span className="pane-chip" data-active={selected === conversation.id} aria-label={`在第 ${panes.indexOf(conversation.id) + 1} 列`}>{panes.indexOf(conversation.id) + 1}</span>
+            ? <span className="pane-chip" data-active={selected === conversation.id} aria-label={t('ConversationList.inPane', { value1: panes.indexOf(conversation.id) + 1 })}>{panes.indexOf(conversation.id) + 1}</span>
             : <span className="conversation-age">{timeAgo(conversation.updatedAt, now)}</span>}
           <span className="task-row-meta" title={conversation.projectPaths.join('\n')}><ConversationMeta conversation={conversation} heading={heading} /></span>
           {snippet && <span className="conversation-snippet"><Highlighted text={snippet} query={needle} /></span>}
@@ -280,11 +281,11 @@ export function ConversationList() {
   }
 
   return (
-    <nav className="conversation-list" data-collapsed={collapsed} aria-label="会话列表">
+    <nav className="conversation-list" data-collapsed={collapsed} aria-label={t('ConversationList.conversations')}>
       <header className="task-list-header">
-        <SidebarCollapseButton icon={<ChatIcon />} label="会话" count={visible.length} collapsed={collapsed} controls="sidebar-conversations" onToggle={() => setCollapsed((value) => !value)} />
+        <SidebarCollapseButton icon={<ChatIcon />} label={t('sidebar.conversations')} count={visible.length} collapsed={collapsed} controls="sidebar-conversations" onToggle={() => setCollapsed((value) => !value)} />
         <SidebarSearchToggle
-          label="搜索会话"
+          label={t('ConversationList.searchConversations')}
           query={query}
           onToggle={() => {
             setQuery((current) => (current === null ? '' : null))
@@ -295,10 +296,10 @@ export function ConversationList() {
           ref={viewButton}
           type="button"
           className="icon-button sidebar-tool"
-          aria-label="分组和排序"
+          aria-label={t('ConversationList.groupAndSort')}
           aria-haspopup="menu"
           aria-expanded={viewAt !== null}
-          data-tooltip="分组和排序"
+          data-tooltip={t('ConversationList.groupAndSort')}
           onClick={(event) => {
             const box = event.currentTarget.getBoundingClientRect()
             setViewAt((current) => (current ? null : { x: box.right, y: box.bottom + 4 }))
@@ -306,14 +307,14 @@ export function ConversationList() {
         >
           <SlidersIcon />
         </button>
-        <button type="button" className="icon-button task-list-add sidebar-add" aria-label="新建会话" onClick={() => newConversation()}><PlusIcon /></button>
+        <button type="button" className="icon-button task-list-add sidebar-add" aria-label={t('ConversationList.newConversation')} onClick={() => newConversation()}><PlusIcon /></button>
       </header>
       {query !== null && !collapsed && (
-        <SidebarSearchField label="搜索会话" placeholder="标题、项目名或聊天内容" query={query} onChange={setQuery} />
+        <SidebarSearchField label={t('ConversationList.searchConversations')} placeholder={t('ConversationList.titleProjectNameOrChatContent')} query={query} onChange={setQuery} />
       )}
       <div id="sidebar-conversations" className="sidebar-section-content" hidden={collapsed}>
-      {free.length === 0 ? <p className="task-list-empty">还没有会话，点右上角的 ＋ 新建。</p> :
-        visible.length === 0 && archived.length === 0 ? snippets && <p className="task-list-empty">没有找到匹配「{needle}」的会话。</p> :
+      {free.length === 0 ? <p className="task-list-empty">{t('ConversationList.noConversationsYetClickAtTheTopRight')}</p> :
+        visible.length === 0 && archived.length === 0 ? snippets && <p className="task-list-empty">{tr('ConversationList.noConversationsMatch', { needle: needle })}</p> :
         groups.map((group) => group.label === null
           ? <ul key={group.key}>{group.items.map((conversation) => row(conversation))}</ul>
           : <section key={group.key} className="conversation-group" aria-label={group.label}>
@@ -328,8 +329,8 @@ export function ConversationList() {
                 <button
                   type="button"
                   className="icon-button conversation-group-new sidebar-add"
-                  aria-label={`在 ${group.label} 新建会话`}
-                  title={`在 ${group.label} 新建会话`}
+                  aria-label={t('ConversationList.newConversationIn', { value1: group.label })}
+                  title={t('ConversationList.newConversationIn', { value1: group.label })}
                   onClick={() => group.project && newConversation([group.project])}
                 >
                   <PlusIcon />
@@ -339,13 +340,9 @@ export function ConversationList() {
             {!isFolded(group.key) && <ul>{group.items.map((conversation) => row(conversation, group.key === 'pinned' ? 'none' : groupBy))}</ul>}
           </section>)}
       {archived.length > 0 && (
-        <section className="conversation-group conversation-archive" aria-label="已归档">
+        <section className="conversation-group conversation-archive" aria-label={t('ConversationList.archived')}>
           <h3 className="conversation-group-title">
-            <button type="button" className="conversation-group-fold" aria-expanded={searching || archivedOpen} onClick={() => setArchivedOpen(!archivedOpen)}>
-              <ChevronDownIcon />
-              已归档
-              <span className="count">{archived.length}</span>
-            </button>
+            <button type="button" className="conversation-group-fold" aria-expanded={searching || archivedOpen} onClick={() => setArchivedOpen(!archivedOpen)}>{tr('ConversationList.archived_718', { value1: <ChevronDownIcon />, value2: <span className="count">{archived.length}</span> })}</button>
           </h3>
           {(searching || archivedOpen) && <ul>{archived.map((conversation) => row(conversation))}</ul>}
         </section>

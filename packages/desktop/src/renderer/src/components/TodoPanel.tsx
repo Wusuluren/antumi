@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { useState } from 'react'
 import { openTodoCount, todoGroupDone, type RpcMethod, type RpcParams, type TodoGroup, type TodoItem, type TodoOwner } from '@antumi/protocol'
 import { addQuote } from '../chat-quotes'
@@ -6,7 +7,7 @@ import { perform } from '../core-store'
 import { PencilIcon, PlusIcon, QuoteIcon, TrashIcon } from './icons'
 import { TitleEditor } from './TitleEditor'
 
-const OWNER_LABEL: Record<TodoOwner, string> = { user: '需要你', agent: 'Agent 可做' }
+const OWNER_LABEL: Record<TodoOwner, string> = localized(() => ({ user: t('TodoPanel.needsYou'), agent: t('TodoPanel.agentCanDo') }))
 
 type TodoMethod = Extract<RpcMethod, 'todos.add' | 'todos.check' | 'todos.edit' | 'todos.remove'>
 
@@ -28,17 +29,17 @@ export function TodoPanel({ conversationId }: { conversationId: string }) {
   return (
     <div className="todo-panel">
       <div className="todo-panel-head">
-        <span>{left > 0 ? `${left} 项未完成 · ${open.length} 组` : groups.length > 0 ? '都做完了' : '待办'}</span>
-        <button type="button" className="todo-link" onClick={() => setAdding(true)}>＋ 添加</button>
+        <span>{left > 0 ? t('TodoPanel.incompleteGroups', { left: left, value2: open.length }) : groups.length > 0 ? t('OverviewView.allDone') : t('chatTools.toDos')}</span>
+        <button type="button" className="todo-link" onClick={() => setAdding(true)}>{t('TodoPanel.add')}</button>
       </div>
       {adding && <NewGroup conversationId={conversationId} onDone={() => setAdding(false)} />}
       {groups.length === 0 && !adding && (
-        <p className="todo-empty">还没有待办。Agent 在回复里列出要你之后处理的事（上线前要做的、要和人对齐的、要你去验证的）时会记在这里，你也可以自己添加。</p>
+        <p className="todo-empty">{t('TodoPanel.noToDosYetWhenAgentListsThings')}</p>
       )}
       {open.map((group) => <Group key={group.id} conversationId={conversationId} group={group} />)}
       {finished.length > 0 && (
         <details className="todo-finished">
-          <summary>已完成 {finished.length} 组</summary>
+          <summary>{tr('TodoPanel.completedGroups', { value1: finished.length })}</summary>
           {finished.map((group) => <Group key={group.id} conversationId={conversationId} group={group} />)}
         </details>
       )}
@@ -52,29 +53,29 @@ function Group({ conversationId, group }: { conversationId: string; group: TodoG
   const done = group.items.filter((item) => item.done).length
   const all = done === group.items.length
   const remove = () => {
-    if (window.confirm(`删除「${group.title}」这一组待办？`)) void change('todos.remove', { id: conversationId, groupId: group.id })
+    if (window.confirm(t('TodoPanel.deleteToDoGroup', { value1: group.title }))) void change('todos.remove', { id: conversationId, groupId: group.id })
   }
   return (
     <section className="todo-group" aria-label={group.title} data-done={all || undefined}>
       <div className="todo-group-head">
         <input
           type="checkbox"
-          aria-label={all ? `把「${group.title}」整组改回未完成` : `把「${group.title}」整组标成完成`}
+          aria-label={all ? t('TodoPanel.markAllOfIncomplete', { value1: group.title }) : t('TodoPanel.markAllOfComplete', { value1: group.title })}
           checked={all}
           ref={(box) => { if (box) box.indeterminate = done > 0 && !all }}
           onChange={() => void change('todos.check', { id: conversationId, groupId: group.id, done: !all })}
         />
         <span className="todo-group-title">
           {renaming
-            ? <TitleEditor title={group.title} label="这一组的标题" maxLength={120} onSave={(title) => void change('todos.edit', { id: conversationId, groupId: group.id, text: title })} onDone={() => setRenaming(false)} />
-            : <button type="button" className="todo-text-button" title="点击修改标题" onClick={() => setRenaming(true)}>{group.title}</button>}
+            ? <TitleEditor title={group.title} label={t('TodoPanel.groupTitle')} maxLength={120} onSave={(title) => void change('todos.edit', { id: conversationId, groupId: group.id, text: title })} onDone={() => setRenaming(false)} />
+            : <button type="button" className="todo-text-button" title={t('TodoPanel.clickToEditTitle')} onClick={() => setRenaming(true)}>{group.title}</button>}
           {group.note && <span className="todo-group-note">{group.note}</span>}
         </span>
         <span className="todo-side">
           <span className="todo-group-count">{done}/{group.items.length}</span>
           <span className="todo-actions">
-            <button type="button" aria-label="添加一项" data-tooltip="添加一项" onClick={() => setAdding(true)}><PlusIcon /></button>
-            <button type="button" aria-label="删除这一组" data-tooltip="删除这一组" onClick={remove}><TrashIcon /></button>
+            <button type="button" aria-label={t('TodoPanel.addItem')} data-tooltip={t('TodoPanel.addItem')} onClick={() => setAdding(true)}><PlusIcon /></button>
+            <button type="button" aria-label={t('TodoPanel.deleteGroup')} data-tooltip={t('TodoPanel.deleteGroup')} onClick={remove}><TrashIcon /></button>
           </span>
         </span>
       </div>
@@ -82,7 +83,7 @@ function Group({ conversationId, group }: { conversationId: string; group: TodoG
         {group.items.map((item) => <Item key={item.id} conversationId={conversationId} groupId={group.id} item={item} />)}
         {adding && (
           <li className="todo-item">
-            <TitleEditor title="" label="新的一项" maxLength={500} onSave={(text) => void change('todos.add', { id: conversationId, groupId: group.id, title: group.title, items: [{ text, owner: 'user' }] })} onDone={() => setAdding(false)} />
+            <TitleEditor title="" label={t('TodoPanel.newItem')} maxLength={500} onSave={(text) => void change('todos.add', { id: conversationId, groupId: group.id, title: group.title, items: [{ text, owner: 'user' }] })} onDone={() => setAdding(false)} />
           </li>
         )}
       </ul>
@@ -96,12 +97,12 @@ function Item({ conversationId, groupId, item }: { conversationId: string; group
     <li className="todo-item" data-done={item.done || undefined}>
       <input
         type="checkbox"
-        aria-label={item.done ? '改回未完成' : '标成完成'}
+        aria-label={item.done ? t('TodoPanel.markIncomplete') : t('TodoPanel.markComplete')}
         checked={item.done}
         onChange={() => void change('todos.check', { id: conversationId, groupId, itemId: item.id, done: !item.done })}
       />
       {editing
-        ? <TitleEditor title={item.text} label="这一项" maxLength={500} onSave={(text) => void change('todos.edit', { id: conversationId, groupId, itemId: item.id, text })} onDone={() => setEditing(false)} />
+        ? <TitleEditor title={item.text} label={t('TodoPanel.thisItem')} maxLength={500} onSave={(text) => void change('todos.edit', { id: conversationId, groupId, itemId: item.id, text })} onDone={() => setEditing(false)} />
         : <span className="todo-item-text">{item.text}</span>}
       {/* The owner, or on hover the actions in its place: a slot as wide as both, so the text never rewraps. */}
       <span className="todo-side">
@@ -109,12 +110,12 @@ function Item({ conversationId, groupId, item }: { conversationId: string; group
         {!editing && (
           <span className="todo-actions">
             {!item.done && (
-              <button type="button" aria-label="交给 Agent" data-tooltip="交给 Agent：放进输入框，让它去做" onClick={() => addQuote(conversationId, null, item.text, '请处理这一项待办，做完后在待办里把它勾掉。')}>
+              <button type="button" aria-label={t('OverviewView.assignToAgent')} data-tooltip={t('TodoPanel.assignToAgentPutInComposerForIt')} onClick={() => addQuote(conversationId, null, item.text, t('OverviewView.pleaseHandleThisToDoAndMarkIt'))}>
                 <QuoteIcon />
               </button>
             )}
-            <button type="button" aria-label="编辑" data-tooltip="编辑" onClick={() => setEditing(true)}><PencilIcon /></button>
-            <button type="button" aria-label="删除" data-tooltip="删除" onClick={() => void change('todos.remove', { id: conversationId, groupId, itemId: item.id })}><TrashIcon /></button>
+            <button type="button" aria-label={t('chatTools.edit')} data-tooltip={t('chatTools.edit')} onClick={() => setEditing(true)}><PencilIcon /></button>
+            <button type="button" aria-label={t('ChatCommandSettings.delete')} data-tooltip={t('ChatCommandSettings.delete')} onClick={() => void change('todos.remove', { id: conversationId, groupId, itemId: item.id })}><TrashIcon /></button>
           </span>
         )}
       </span>
@@ -135,11 +136,11 @@ function NewGroup({ conversationId, onDone }: { conversationId: string; onDone: 
   }
   return (
     <form className="todo-new" onSubmit={(event) => { event.preventDefault(); void submit() }}>
-      <input className="input" aria-label="这一组的标题" placeholder="标题，如「上线前」" value={title} maxLength={120} autoFocus onChange={(event) => setTitle(event.target.value)} />
+      <input className="input" aria-label={t('TodoPanel.groupTitle')} placeholder={t('TodoPanel.titleEGBeforeRelease')} value={title} maxLength={120} autoFocus onChange={(event) => setTitle(event.target.value)} />
       <textarea
         className="input"
-        aria-label="每一项"
-        placeholder="每行一项"
+        aria-label={t('TodoPanel.items')}
+        placeholder={t('TodoPanel.oneItemPerLine')}
         rows={3}
         value={lines}
         onChange={(event) => setLines(event.target.value)}
@@ -151,8 +152,8 @@ function NewGroup({ conversationId, onDone }: { conversationId: string; onDone: 
         }}
       />
       <div className="todo-new-actions">
-        <button type="button" className="button ghost" onClick={onDone}>取消</button>
-        <button type="submit" className="button primary" disabled={!ready}>添加</button>
+        <button type="button" className="button ghost" onClick={onDone}>{t('ChatCommandSettings.cancel')}</button>
+        <button type="submit" className="button primary" disabled={!ready}>{t('ProjectPicker.add')}</button>
       </div>
     </form>
   )

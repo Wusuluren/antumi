@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useCallback, useState, type ReactNode } from 'react'
 import type { ResolvedFile } from '@antumi/protocol'
 import { canOpenFile, canRevealFile } from '../desktop-bridge'
@@ -12,11 +13,11 @@ export function FileMenuItems({ scope, file, line = null, inPanel = false, onClo
 }) {
   const act = (action: () => void | Promise<void>) => { onClose(); void action() }
   return <>
-    {!inPanel && <MenuItem label="在侧栏打开" icon={<InspectorIcon />} onSelect={() => act(() => showResolvedFile(scope, file, line))} />}
-    <MenuItem label="复制绝对路径" icon={<CopyIcon />} onSelect={() => act(() => copyFileText(file.path))} />
-    {file.relative !== null && <MenuItem label="复制项目相对路径" icon={<CopyIcon />} onSelect={() => act(() => copyFileText(file.relative ?? file.path))} />}
-    {canRevealFile() && <MenuItem label={`在${FILE_MANAGER}中显示`} icon={<FolderIcon />} onSelect={() => act(() => revealResolvedFile(file))} />}
-    {canOpenFile() && <MenuItem label="用系统默认应用打开" icon={<ExternalIcon />} onSelect={() => act(() => openResolvedFile(file))} />}
+    {!inPanel && <MenuItem label={t('FileMenu.openInSidebar')} icon={<InspectorIcon />} onSelect={() => act(() => showResolvedFile(scope, file, line))} />}
+    <MenuItem label={t('FileMenu.copyAbsolutePath')} icon={<CopyIcon />} onSelect={() => act(() => copyFileText(file.path))} />
+    {file.relative !== null && <MenuItem label={t('FileMenu.copyProjectRelativePath')} icon={<CopyIcon />} onSelect={() => act(() => copyFileText(file.relative ?? file.path))} />}
+    {canRevealFile() && <MenuItem label={t('FileMenu.showIn', { FILE_MANAGER: FILE_MANAGER() })} icon={<FolderIcon />} onSelect={() => act(() => revealResolvedFile(file))} />}
+    {canOpenFile() && <MenuItem label={t('FileMenu.openWithSystemDefaultApp')} icon={<ExternalIcon />} onSelect={() => act(() => openResolvedFile(file))} />}
   </>
 }
 
@@ -35,6 +36,6 @@ export function FileMenu({ scope, file, inPanel = false, children }: { scope: Ch
     setAt(menuPoint(event))
   }}>
     {children}
-    {at && <ContextMenu at={at} label="文件操作" onClose={close}><FileMenuItems scope={scope} file={file} inPanel={inPanel} onClose={close} /></ContextMenu>}
+    {at && <ContextMenu at={at} label={t('FileEditor.fileActions')} onClose={close}><FileMenuItems scope={scope} file={file} inPanel={inPanel} onClose={close} /></ContextMenu>}
   </span>
 }

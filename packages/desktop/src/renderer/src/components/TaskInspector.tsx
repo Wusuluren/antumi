@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { HelperPanel } from './HelperPanel'
 import { useHelper, useHelperSupported } from '../helper-conversations'
 import { SquadWorkPanel } from './SquadWorkPanel'
@@ -40,19 +41,19 @@ function useTaskChanges(taskId: string, updatedAt: number, refreshCount: number)
 }
 
 function ChangeList({ changes, onOpen }: { changes: RepoChanges[] | null; onOpen: (repo: string, file: string) => void }) {
-  if (changes === null) return <p className="inspector-empty muted">正在读取改动…</p>
+  if (changes === null) return <p className="inspector-empty muted">{t('ConversationInspector.loadingChanges')}</p>
   const compared = changes.filter((repo) => repo.base)
-  if (compared.length === 0) return <p className="inspector-empty muted">任务还没有 worktree，执行过之后这里会列出 Agent 的改动。</p>
+  if (compared.length === 0) return <p className="inspector-empty muted">{t('TaskInspector.thisTaskHasNoWorktreeYetAgentChanges')}</p>
   return (
     <div className="branch-status inspector-repos">
       <ProjectGroups items={compared}>
         {(repo, primary) => (
           <section key={repo.path} className="branch-status-project inspector-repo" data-primary={primary || undefined} aria-label={projectName(repo.path)}>
             <ProjectRow path={repo.path} branch={repo.branch}>
-              <span className="inspector-row-since">从 <span className="mono">{repo.base}</span> 起</span>
+              <span className="inspector-row-since">{tr('TaskInspector.since', { value1: <span className="mono">{repo.base}</span> })}</span>
             </ProjectRow>
-            <CommitList commits={repo.commits} label="提交" />
-            <ChangedFiles label="改动" files={repo.files} empty="和起点相比没有改动" onOpen={(file) => onOpen(repo.path, file)} />
+            <CommitList commits={repo.commits} label={t('GitInspector.commit')} />
+            <ChangedFiles label={t('TaskInspector.changes')} files={repo.files} empty={t('TaskInspector.noChangesFromStartingPoint')} onOpen={(file) => onOpen(repo.path, file)} />
           </section>
         )}
       </ProjectGroups>
@@ -115,7 +116,7 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
   }
   return (
     <InspectorPanel
-      label="任务检查器"
+      label={t('TaskInspector.taskInspector')}
       maximized={(tab === 'files' && files.maximized) || (tab === 'branch' && gitMaximized)}
       ratio={widthRatio}
       onRatioChange={onWidthRatioChange}

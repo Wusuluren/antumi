@@ -2,6 +2,17 @@ import type { AgentDescriptor } from './agent-descriptor'
 import { CLAUDE_PRICES } from './model-prices'
 
 export const claude: AgentDescriptor = {
+  translations: { en: {
+    modes: {
+      ask: { label: 'Ask each time', description: 'Ask before editing files or running commands' },
+      acceptEdits: { label: 'Accept edits', description: 'Edit files directly; ask before running commands' },
+      plan: { label: 'Plan', description: 'Read code and propose a plan; execute after your approval' },
+      auto: { label: 'Automatic', description: 'Let the model decide which actions need approval' },
+      bypass: { label: 'Allow everything', description: 'No approval prompts or restrictions' }
+    },
+    environment: { role: 'Runs with `claude -p` in chat. Other Agents can be used without it.', install: 'npm install -g @anthropic-ai/claude-code', signIn: 'Run claude in a terminal and follow the sign-in steps' },
+    usageWhere: 'Use at claude.ai or in Claude Desktop Settings → Usage'
+  } },
   label: 'Claude Code',
   cli: 'claude',
   modes: {

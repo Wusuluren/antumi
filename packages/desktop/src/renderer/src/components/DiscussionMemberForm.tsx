@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useCallback, useState } from 'react'
 import { checkAddDiscussionMember, MAX_DISCUSSION_MEMBERS, type AgentKind, type Discussion } from '@antumi/protocol'
 import { resolveModel, useAgentCatalog } from '../agent-models'
@@ -40,8 +41,8 @@ function MemberForm({ discussion, onDone }: { discussion: Discussion; onDone: ()
   }
   return (
     <form className="note-form discussion-member-form" onSubmit={(event) => { event.preventDefault(); void add() }}>
-      <p className="note-form-title">加一位成员</p>
-      <p className="menu-note">它先看到之前的全部发言，从下一轮开始参与。</p>
+      <p className="note-form-title">{t('DiscussionMemberForm.addAMember')}</p>
+      <p className="menu-note">{t('DiscussionMemberForm.theySeeAllEarlierPostsAndJoinFrom')}</p>
       <div className="discussion-member-form-pickers">
         <ChatPicker
           label="Agent"
@@ -69,17 +70,17 @@ function MemberForm({ discussion, onDone }: { discussion: Discussion; onDone: ()
         ) : null}
       </div>
       <label className="discussion-member-form-field">
-        <span>名字（@ 它时用）</span>
+        <span>{t('DiscussionDraft.nameForMentions')}</span>
         <input className="input" value={shownName} maxLength={60} disabled={busy} onChange={(event) => setName(event.target.value)} />
       </label>
       <label className="discussion-member-form-field">
-        <span>立场或角度</span>
-        <input className="input" value={role} maxLength={2000} placeholder="可不填，如：挑毛病的人" disabled={busy} onChange={(event) => setRole(event.target.value)} />
+        <span>{t('DiscussionDraft.positionOrPerspective')}</span>
+        <input className="input" value={role} maxLength={2000} placeholder={t('DiscussionMemberForm.optionalEGCritic')} disabled={busy} onChange={(event) => setRole(event.target.value)} />
       </label>
-      {taken && <p className="discussion-draft-error">已经有成员叫「{shownName.trim()}」，换个名字，好在消息里 @ 它。</p>}
+      {taken && <p className="discussion-draft-error">{tr('DiscussionMemberForm.aMemberNamedAlreadyExistsChooseAnotherName', { value1: shownName.trim() })}</p>}
       <div className="note-form-actions">
-        <button type="button" className="button ghost" disabled={busy} onClick={onDone}>取消</button>
-        <button type="submit" className="button primary" disabled={busy || taken || !shownName.trim()}>加入</button>
+        <button type="button" className="button ghost" disabled={busy} onClick={onDone}>{t('ChatCommandSettings.cancel')}</button>
+        <button type="submit" className="button primary" disabled={busy || taken || !shownName.trim()}>{t('DiscussionMemberForm.join')}</button>
       </div>
     </form>
   )
@@ -99,12 +100,10 @@ export function AddMemberButton({ discussion }: { discussion: Discussion }) {
           aria-haspopup="dialog"
           aria-expanded={open}
           disabled={full}
-          data-tooltip={full ? `最多 ${MAX_DISCUSSION_MEMBERS} 位成员` : '加一位成员，下一轮开始发言'}
+          data-tooltip={full ? t('DiscussionMemberForm.upToMembers', { MAX_DISCUSSION_MEMBERS: MAX_DISCUSSION_MEMBERS }) : t('DiscussionMemberForm.addAMemberToSpeakFromTheNext')}
           onClick={() => setOpen((current) => !current)}
-        >
-          ＋ 成员
-        </button>
-        {open && <Popover label="加一位成员" onClose={close}><MemberForm discussion={discussion} onDone={close} /></Popover>}
+        >{t('DiscussionMemberForm.member')}</button>
+        {open && <Popover label={t('DiscussionMemberForm.addAMember')} onClose={close}><MemberForm discussion={discussion} onDone={close} /></Popover>}
       </span>
     </li>
   )

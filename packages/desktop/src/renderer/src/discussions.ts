@@ -1,3 +1,4 @@
+import { localized, t } from './i18n'
 import { create } from 'zustand'
 import type { AgentKind, Discussion, DiscussionAction, DiscussionCreate, DiscussionMemberFields, DiscussionMemberStatus, DiscussionPost, DiscussionState } from '@antumi/protocol'
 import { perform } from './core-store'
@@ -83,25 +84,25 @@ export function deleteDiscussion(id: string): Promise<{ ok: true } | null> {
   return perform((rpc) => rpc.call('discussions.delete', { id }))
 }
 
-export const DISCUSSION_STATE_LABEL: Record<DiscussionState, string> = {
-  running: '讨论中',
-  pausing: '本轮结束后暂停',
-  paused: '已暂停',
-  done: '已总结'
-}
+export const DISCUSSION_STATE_LABEL: Record<DiscussionState, string> = localized(() => ({
+  running: t('discussions.discussing'),
+  pausing: t('discussions.pauseAfterThisRound'),
+  paused: t('SquadWorkPanel.paused'),
+  done: t('discussions.summarized')
+}))
 
-export const MEMBER_STATUS_LABEL: Record<DiscussionMemberStatus, string> = {
-  idle: '空闲',
-  working: '发言中',
-  awaiting: '等你确认'
-}
+export const MEMBER_STATUS_LABEL: Record<DiscussionMemberStatus, string> = localized(() => ({
+  idle: t('SquadWorkPanel.idle'),
+  working: t('discussions.speaking'),
+  awaiting: t('ChatPlan.awaitingYourApproval')
+}))
 
 // Where the discussion stands, in a few words for its header and its row.
 // Rounds count from the topic now discussed.
 export function discussionProgress(discussion: Pick<Discussion, 'state' | 'step' | 'round' | 'lastRound' | 'topicStart'>): string {
   if (discussion.state === 'done') return DISCUSSION_STATE_LABEL.done
   const { round, lastRound, topicStart } = discussion
-  const where = discussion.step === 'summary' ? '总结' : round > topicStart ? `第 ${round - topicStart} / ${Math.max(round, lastRound) - topicStart} 轮` : '准备中'
+  const where = discussion.step === 'summary' ? t('DiscussionView.summary') : round > topicStart ? t('discussions.round', { value1: round - topicStart, value2: Math.max(round, lastRound) - topicStart }) : t('SquadWorkPanel.preparing')
   return discussion.state === 'running' ? where : `${where} · ${DISCUSSION_STATE_LABEL[discussion.state]}`
 }
 
@@ -115,7 +116,7 @@ export const EVERYONE = '所有人'
 
 // The names the composer's @ picks members by, longest first so a name that starts another wins.
 export function mentionedMembers(text: string, members: readonly Pick<Discussion['members'][number], 'id' | 'name'>[]): string[] {
-  if (text.includes(`@${EVERYONE}`)) return members.map((member) => member.id)
+  if (text.includes(`@${EVERYONE}`) || /@everyone\b/i.test(text)) return members.map((member) => member.id)
   const sorted = [...members].sort((a, b) => b.name.length - a.name.length)
   const found = new Set<string>()
   let rest = text
@@ -141,6 +142,6 @@ export function mentionQuery(text: string, caret: number): { start: number; quer
 // What the @ list offers for a query: everyone first, then the members whose names hold it.
 export function mentionChoices<M extends Pick<Discussion['members'][number], 'name'>>(members: readonly M[], query: string): Array<M | typeof EVERYONE> {
   const needle = query.toLowerCase()
-  const choices: Array<M | typeof EVERYONE> = EVERYONE.includes(needle) ? [EVERYONE] : []
+  const choices: Array<M | typeof EVERYONE> = (EVERYONE.includes(needle) || 'everyone'.includes(needle)) ? [EVERYONE] : []
   return [...choices, ...members.filter((member) => member.name.toLowerCase().includes(needle))]
 }

@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useState } from 'react'
 import type { Conversation } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
@@ -40,9 +41,9 @@ function HelperDraft({ parent }: { parent: Conversation }) {
   }
   const typeface = useChatTypeface()
   return <div className="helper-draft chat-view" data-variant="compact" {...typeface}>
-    <p className="helper-empty muted">把选中的内容交给一个小模型去问或去办，不占主会话的上下文。</p>
+    <p className="helper-empty muted">{t('HelperPanel.askASmallModelAboutSelectedContentOr')}</p>
     <div className="chat-dock"><div className="chat-input-card">
-      <textarea className="chat-input" aria-label="交给小助手" placeholder="交给小助手…" autoFocus value={text} disabled={busy} onChange={(event) => {
+      <textarea className="chat-input" aria-label={t('ChatContextMenu.askHelper')} placeholder={t('ChatComposer.askHelper')} autoFocus value={text} disabled={busy} onChange={(event) => {
         setText(event.target.value)
         saveComposerDraft(`helper:${parent.id}`, { ...EMPTY_DRAFT, text: event.target.value })
       }} onKeyDown={(event) => { if (sendsMessage(event)) { event.preventDefault(); void send() } }} />
@@ -50,7 +51,7 @@ function HelperDraft({ parent }: { parent: Conversation }) {
         {catalog !== undefined && <HelperModePicker agent={parent.agent} offered={offered} mode={permissionMode} disabled={busy} onMode={setPicked} />}
         <span className="chat-dock-spacer" />
         <HelperModelPicker catalog={catalog} model={model} effort={effort} disabled={busy} onModel={(model) => setChoice({ model, effort: null })} onEffort={(effort) => setChoice({ model, effort })} />
-        <button type="button" className="chat-input-button" data-tooltip-side="top-end" aria-label="发送（Enter）" data-tooltip={busy ? '正在启动小助手…' : '发送（Enter）'} disabled={busy || !text.trim() || catalog === undefined} onClick={() => void send()}>
+        <button type="button" className="chat-input-button" data-tooltip-side="top-end" aria-label={t('ChatComposer.sendEnter')} data-tooltip={busy ? t('HelperPanel.startingHelper') : t('ChatComposer.sendEnter')} disabled={busy || !text.trim() || catalog === undefined} onClick={() => void send()}>
           <EnterIcon />
         </button>
       </div>
@@ -66,7 +67,7 @@ export function HelperPanel({ parent }: { parent: Conversation }) {
   const reset = async () => {
     if (!helper || busy) return
     const hasContent = Boolean(quotes.length || composerDraft(helper.id).text.trim() || helper.sessionId || helper.lastExit || helper.starting || page?.items.some((item) => item.kind === 'user'))
-    if (hasContent && !window.confirm('清空小助手的聊天记录，开始一段新对话？')) return
+    if (hasContent && !window.confirm(t('HelperPanel.clearHelperHistoryAndStartANewConversation'))) return
     setBusy(true)
     const deleted = await perform((rpc) => rpc.call('conversations.delete', { id: helper.id }))
     if (deleted) {
@@ -77,8 +78,8 @@ export function HelperPanel({ parent }: { parent: Conversation }) {
     setBusy(false)
   }
   const base = helper ? conversationSurface(helper) : null
-  return <section className="helper-panel" aria-label="小助手">
-    <header className="helper-header"><button type="button" className="button ghost" disabled={!helper || busy} onClick={() => void reset()}>新对话</button></header>
+  return <section className="helper-panel" aria-label={t('HelperPanel.helper')}>
+    <header className="helper-header"><button type="button" className="button ghost" disabled={!helper || busy} onClick={() => void reset()}>{t('HelperPanel.newConversation')}</button></header>
     {helper && base ? <ConversationChat key={helper.id} conversation={helper} variant="compact" surface={{ ...base, fork: null, handoff: null, changes: null, showPlan: () => {}, showBrowser: () => {}, showChanges: () => {}, showFileChange: () => {}, inProject: () => false }} /> : <HelperDraft key={parent.id} parent={parent} />}
   </section>
 }

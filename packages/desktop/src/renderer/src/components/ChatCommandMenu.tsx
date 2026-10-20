@@ -1,7 +1,8 @@
+import { getLocale, t, tr } from '../i18n'
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type TextareaHTMLAttributes } from 'react'
 import { commandQuery, expandPrompt, matchCommands, typedAntumiCommand, type CommandEntry } from '../chat-commands'
 
-const ANTUMI_LABEL = '我的命令'
+const ANTUMI_LABEL = () => t('ChatCommandMenu.myCommands')
 
 type InputProps = Pick<TextareaHTMLAttributes<HTMLTextAreaElement>, 'aria-autocomplete' | 'aria-expanded' | 'aria-controls' | 'aria-activedescendant'>
 
@@ -61,7 +62,7 @@ export function useChatCommandMenu({ text, entries, agentLabel, setText, sendCom
   const shown = useMemo(() => {
     const matches = query === null ? [] : matchCommands(entries, query)
     return [...matches.filter((entry) => entry.source === 'antumi'), ...matches.filter((entry) => entry.source === 'agent')]
-  }, [entries, query])
+  }, [entries, query, getLocale()])
   const open = query !== null && text !== closedAt && shown.length > 0
   const active = Math.min(highlight, shown.length - 1)
   useEffect(() => setHighlight(0), [query])
@@ -127,13 +128,11 @@ export function useChatCommandMenu({ text, entries, agentLabel, setText, sendCom
 
   const menu = open ? (
     <div className="menu menu-up chat-command-menu">
-      <ul id={listId} role="listbox" aria-label="斜杠命令" className="menu-list">
-        {group('antumi', ANTUMI_LABEL)}
-        {group('agent', `${agentLabel} 命令`)}
+      <ul id={listId} role="listbox" aria-label={t('ChatCommandMenu.slashCommands')} className="menu-list">
+        {group('antumi', ANTUMI_LABEL())}
+        {group('agent', t('ChatCommandMenu.commands', { agentLabel: agentLabel }))}
       </ul>
-      <div className="chat-command-keys" aria-hidden="true">
-        <kbd>↑↓</kbd> 选择 <kbd>Enter</kbd> 选用 <kbd>Tab</kbd> 补全 <kbd>Esc</kbd> 关闭
-      </div>
+      <div className="chat-command-keys" aria-hidden="true">{tr('ChatCommandMenu.navigateSelectCompleteClose', { value1: <kbd>↑↓</kbd>, value2: <kbd>Enter</kbd>, value3: <kbd>Tab</kbd>, value4: <kbd>Esc</kbd> })}</div>
     </div>
   ) : null
 

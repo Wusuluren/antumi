@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useContext, useEffect, useRef, useState, type RefObject } from 'react'
 import { browserToolKind, parseBrowserPage, toolImagePath, type ChatItem } from '@antumi/protocol'
 import { useImageUrl } from '../attachment-images'
@@ -42,9 +43,9 @@ function BrowserShot({ image, onOpen }: { image: NonNullable<ToolItem['images']>
   const url = useImageUrl(useNearView(frame) ? image.id : '')
   const cropped = useCropped(frame, image.height / image.width)
   return (
-    <button ref={frame} type="button" className="chat-browser-shot" data-cropped={cropped || undefined} style={{ aspectRatio: `${image.width} / ${image.height}` }} aria-label={cropped ? '查看完整的长截图' : '查看截图'} onClick={onOpen}>
+    <button ref={frame} type="button" className="chat-browser-shot" data-cropped={cropped || undefined} style={{ aspectRatio: `${image.width} / ${image.height}` }} aria-label={cropped ? t('ChatBrowserCard.viewFullPageScreenshot') : t('ChatBrowserCard.viewScreenshot')} onClick={onOpen}>
       {url && <img src={url} alt="" draggable={false} />}
-      {cropped && <span className="chat-browser-shot-more">长截图 · 点击看全图</span>}
+      {cropped && <span className="chat-browser-shot-more">{t('ChatBrowserCard.fullPageScreenshotClickToView')}</span>}
     </button>
   )
 }
@@ -54,11 +55,11 @@ function BrowserShot({ image, onOpen }: { image: NonNullable<ToolItem['images']>
 function FileShot({ path }: { path: string }) {
   const [viewing, setViewing] = useState(false)
   const [missing, setMissing] = useState(false)
-  if (missing) return <p className="chat-tool-io chat-file-shot-missing muted">图片不在了：{path}</p>
+  if (missing) return <p className="chat-tool-io chat-file-shot-missing muted">{tr('ChatBrowserCard.imageIsNoLongerAvailable', { path: path })}</p>
   const src = previewUrl(path)
   return (
     <>
-      <button type="button" className="chat-browser-shot chat-file-shot" aria-label={`查看图片 ${path}`} onClick={() => setViewing(true)}>
+      <button type="button" className="chat-browser-shot chat-file-shot" aria-label={t('ChatBrowserCard.viewImage', { path: path })} onClick={() => setViewing(true)}>
         <img src={src} alt="" draggable={false} onError={() => setMissing(true)} />
       </button>
       {viewing && <LocalImageViewer images={[{ path, src }]} index={0} onIndex={() => {}} onClose={() => setViewing(false)} />}
@@ -91,7 +92,7 @@ function ChatPageCard({ item, disclosureKey = itemKey(item) }: { item: ToolItem;
   const open = useCore((s) => s.browserPanelOpen)
   const shown = useBrowserTabs((s) => s[ALL_TABS]?.selectedId)
   const [viewing, setViewing] = useDisclosure(`card:${disclosureKey}`)
-  const label = typeof item.title === 'string' && item.title ? item.title : '页面'
+  const label = typeof item.title === 'string' && item.title ? item.title : t('ChatBrowserCard.page')
   const current = page !== null && open && shown === page.id
   return (
     <div className="chat-tool chat-page" data-status={item.status}>
@@ -100,14 +101,14 @@ function ChatPageCard({ item, disclosureKey = itemKey(item) }: { item: ToolItem;
         <div className="chat-page-text">
           <div className="chat-page-title">{page ? (page.title || hostLine(page.url)) : label}</div>
           <div className="chat-page-sub muted" title={page?.url}>
-            {page ? <><span className="mono">{hostLine(page.url)}</span> · {current ? '显示在浏览器面板里' : '在浏览器里打开了'}</> : item.status === 'running' ? '正在打开…' : (item.output?.split('\n')[0] ?? '')}
+            {page ? <><span className="mono">{hostLine(page.url)}</span> · {current ? t('ChatBrowserCard.showInBrowserPanel') : t('ChatBrowserCard.openedInBrowser')}</> : item.status === 'running' ? t('ChatBrowserCard.opening') : (item.output?.split('\n')[0] ?? '')}
           </div>
         </div>
-        {page && !current && <button type="button" className="button chat-page-open" onClick={() => showBrowserTab(page.id)}>打开</button>}
+        {page && !current && <button type="button" className="button chat-page-open" onClick={() => showBrowserTab(page.id)}>{t('ChatBrowserCard.open')}</button>}
         <ToolStatus status={item.status} since={item.at} />
       </div>
       {item.output && page && (
-        <button type="button" className="chat-page-more link-button" aria-expanded={viewing} onClick={() => setViewing(!viewing)}>{viewing ? '收起快照' : '页面快照'}</button>
+        <button type="button" className="chat-page-more link-button" aria-expanded={viewing} onClick={() => setViewing(!viewing)}>{viewing ? t('ChatBrowserCard.collapseSnapshot') : t('chatTools.pageSnapshot')}</button>
       )}
       {viewing && item.output && <pre className="chat-tool-io">{searching ? item.output : clipped(item.output)}</pre>}
     </div>
@@ -120,7 +121,7 @@ export function ChatBrowserRun({ tools }: { tools: readonly ToolItem[] }) {
   const active = tools.find((tool) => tool.status === 'running') ?? tools.at(-1)
   return (
     <div className="chat-browser-work">
-      <ChatToolRun tools={tools} summary={`浏览器操作 ${tools.length} 次`} />
+      <ChatToolRun tools={tools} summary={t('ChatBrowserCard.browserActions', { value1: tools.length })} />
       {active && <ChatBrowserActivity tool={active} status={toolRunStatus(tools).status} />}
       {latestBrowserPages(tools).map(({ item, page }) => (
         <ChatPageCard key={page.id} item={item} disclosureKey={`browser:${first ? itemKey(first) : ''}:${page.id}`} />

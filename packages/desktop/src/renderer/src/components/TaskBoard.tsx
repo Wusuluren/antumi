@@ -1,3 +1,4 @@
+import { getLocale, localized, t, tr } from '../i18n'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { create } from 'zustand'
 import { AGENT_KINDS, type AgentKind, type Task } from '@antumi/protocol'
@@ -25,13 +26,13 @@ import { useTaskActivity } from '../work-activity'
 export function BoardCrumb() {
   return (
     <span className="board-crumb">
-      <button type="button" className="board-crumb-link" data-tooltip="回到任务看板 Esc" onClick={() => selectTask(null)}>任务</button>
+      <button type="button" className="board-crumb-link" data-tooltip={t('TaskBoard.backToTaskBoardEsc')} onClick={() => selectTask(null)}>{t('GitInspector.task')}</button>
       <span className="board-crumb-sep" aria-hidden="true">/</span>
     </span>
   )
 }
 
-const SORT_LABEL: Record<TaskSort, string> = { recent: '按最近活动', created: '按创建时间', title: '按标题' }
+const SORT_LABEL: Record<TaskSort, string> = localized(() => ({ recent: t('TaskBoard.byRecentActivity'), created: t('TaskBoard.byCreationTime'), title: t('TaskBoard.byTitle') }))
 
 // Kept while a task is open, so going back finds the board as it was left.
 const useBoardFilter = create<BoardFilter & { allDone: boolean }>(() => ({ query: '', project: null, agent: null, allDone: false }))
@@ -43,10 +44,10 @@ export function TaskBoard() {
   const filter = useBoardFilter()
   const sort = usePreferences((p) => p.taskSort)
   const abandoned = usePreferences((p) => p.showAbandonedTasks)
-  const list = useMemo(() => Object.values(tasks), [tasks])
+  const list = useMemo(() => Object.values(tasks), [tasks, getLocale()])
   const columns = useMemo(
     () => boardColumns(list, filter, sort, { abandoned, allDone: filter.allDone }),
-    [list, filter, sort, abandoned]
+    [list, filter, sort, abandoned, getLocale()]
   )
   const [menu, setMenu] = useState<{ id: string; at: MenuPoint } | null>(null)
   const closeMenu = useCallback(() => setMenu(null), [])
@@ -71,14 +72,14 @@ export function TaskBoard() {
   }, [])
 
   return (
-    <section className="task-board" aria-label="任务">
+    <section className="task-board" aria-label={t('GitInspector.task')}>
       <header className="task-board-header">
-        <h2>任务</h2>
+        <h2>{t('GitInspector.task')}</h2>
         <input
           className="input task-board-search"
           type="search"
-          aria-label="搜索任务"
-          placeholder="标题、来源编号或任务 id"
+          aria-label={t('DependencyPicker.searchTasks')}
+          placeholder={t('TaskBoard.titleSourceKeyOrTaskId')}
           value={filter.query}
           onChange={(event) => useBoardFilter.setState({ query: event.target.value })}
         />
@@ -90,13 +91,9 @@ export function TaskBoard() {
           className="task-board-chip"
           aria-pressed={abandoned}
           onClick={() => setPreference('showAbandonedTasks', !abandoned)}
-        >
-          已取消
-        </button>
+        >{t('ChatRequestCards.cancelled')}</button>
         <SortButton value={sort} />
-        <button type="button" className="button primary task-board-new" onClick={() => setNewTaskOpen(true)}>
-          新建任务 <span className="task-board-key">{PRIMARY_KEY_LABEL}N</span>
-        </button>
+        <button type="button" className="button primary task-board-new" onClick={() => setNewTaskOpen(true)}>{tr('TaskBoard.newTask', { value1: <span className="task-board-key">{PRIMARY_KEY_LABEL}N</span> })}</button>
       </header>
       <div className="task-board-columns">
         {columns.map((column) => (
@@ -134,11 +131,9 @@ function Column({ column, narrowed, top, children }: { column: BoardColumn; narr
         <span className="count">{column.total}</span>
       </h3>
       {top}
-      {column.total === 0 ? !top && <p className="task-board-column-empty">{narrowed ? '没有匹配的任务' : '空'}</p> : children}
+      {column.total === 0 ? !top && <p className="task-board-column-empty">{narrowed ? t('DependencyPicker.noMatchingTasks') : t('TaskBoard.empty')}</p> : children}
       {hidden > 0 && (
-        <button type="button" className="task-board-more" onClick={() => useBoardFilter.setState({ allDone: true })}>
-          显示更早的 {hidden} 个
-        </button>
+        <button type="button" className="task-board-more" onClick={() => useBoardFilter.setState({ allDone: true })}>{tr('TaskBoard.showEarlier', { hidden: hidden })}</button>
       )}
     </section>
   )
@@ -176,15 +171,15 @@ function TaskCard({ task, tasks, now, fresh, renaming, menuOpen, onRenamed, onMe
       }}
     >
       {renaming ? (
-        <TitleEditor title={task.title} label="任务标题" onSave={(title) => saveTaskText(task.id, 'title', title)} onDone={onRenamed} />
+        <TitleEditor title={task.title} label={t('NewTaskDialog.taskTitle')} onSave={(title) => saveTaskText(task.id, 'title', title)} onDone={onRenamed} />
       ) : (
         <button type="button" className="task-card-title" title={task.title}>{task.title}</button>
       )}
       {(planning || task.source || waitingOn(task, tasks) > 0) && (
         <span className="task-card-tags">
           {task.source && <span className="task-tag mono">{task.source.key}</span>}
-          {planning && <span className="task-tag task-tag-refining">{task.plan && !task.plan.approved ? '计划已保存' : '规划中'}</span>}
-          {waitingOn(task, tasks) > 0 && <span className="task-tag">等待依赖</span>}
+          {planning && <span className="task-tag task-tag-refining">{task.plan && !task.plan.approved ? t('TaskBoard.planSaved') : t('TaskBoard.planning')}</span>}
+          {waitingOn(task, tasks) > 0 && <span className="task-tag">{t('TaskBoard.waitingForDependencies')}</span>}
         </span>
       )}
       <TaskAlerts task={task} />
@@ -200,7 +195,7 @@ function TaskCard({ task, tasks, now, fresh, renaming, menuOpen, onRenamed, onMe
             type="button"
             className="button"
             aria-disabled={action.reason !== null}
-            data-tooltip={action.reason ? `还不能${action.label}：${action.reason}` : undefined}
+            data-tooltip={action.reason ? t('TaskBoard.cannotYet', { value1: action.label, value2: action.reason }) : undefined}
             onClick={() => {
               if (!action.reason) action.run()
             }}
@@ -215,14 +210,14 @@ function TaskCard({ task, tasks, now, fresh, renaming, menuOpen, onRenamed, onMe
 
 // The board's filters and sort are the app's pickers, as wide as what they say and opening below.
 function ProjectFilter({ tasks, value }: { tasks: readonly Task[]; value: string | null }) {
-  const projects = useMemo(() => boardProjects(tasks), [tasks])
+  const projects = useMemo(() => boardProjects(tasks), [tasks, getLocale()])
   if (projects.length < 2 && value === null) return null
   return (
     <ChatPicker
-      label="按项目筛选"
+      label={t('TaskBoard.filterByProject')}
       value={value ?? ''}
-      placeholder="全部项目"
-      options={[{ value: '', label: '全部项目' }, ...projects.map((project) => ({ value: project, label: projectName(project), description: project }))]}
+      placeholder={t('TaskBoard.allProjects')}
+      options={[{ value: '', label: t('TaskBoard.allProjects') }, ...projects.map((project) => ({ value: project, label: projectName(project), description: project }))]}
       size="large"
       placement="below"
       onChange={(project) => useBoardFilter.setState({ project: project || null })}
@@ -235,10 +230,10 @@ function AgentFilter({ tasks, value }: { tasks: readonly Task[]; value: AgentKin
   if (used.length < 2 && value === null) return null
   return (
     <ChatPicker
-      label="按 Agent 筛选"
+      label={t('TaskBoard.filterByAgent')}
       value={value ?? ''}
-      placeholder="全部 Agent"
-      options={[{ value: '', label: '全部 Agent' }, ...used.map((agent) => ({ value: agent, label: agentLabel(agent), icon: <AgentIcon agent={agent} /> }))]}
+      placeholder={t('TaskBoard.allAgents')}
+      options={[{ value: '', label: t('TaskBoard.allAgents') }, ...used.map((agent) => ({ value: agent, label: agentLabel(agent), icon: <AgentIcon agent={agent} /> }))]}
       size="large"
       placement="below"
       onChange={(picked) => useBoardFilter.setState({ agent: AGENT_KINDS.find((agent) => agent === picked) ?? null })}
@@ -249,7 +244,7 @@ function AgentFilter({ tasks, value }: { tasks: readonly Task[]; value: AgentKin
 function SortButton({ value }: { value: TaskSort }) {
   return (
     <ChatPicker
-      label="排序方式"
+      label={t('ConversationList.sortBy')}
       value={value}
       placeholder={SORT_LABEL[value]}
       options={TASK_SORTS.map((sort) => ({ value: sort, label: SORT_LABEL[sort] }))}

@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useId, useState, type ReactNode } from 'react'
 import { setSettingsOpen, useCore } from '../core-store'
 import { fromLocalInput, nextNight, toLocalInput, UNATTENDED_LABEL } from '../schedules'
@@ -6,18 +7,18 @@ import { Segmented } from './SettingsControls'
 import { InfoIcon } from './icons'
 
 // How every scheduled run goes, whichever way it was set to start.
-const SCHEDULE_RULES = '额度不足或运行位置已满时会等待；同一个 Agent 的预约一个接一个运行；电脑睡着时不会运行。'
+const SCHEDULE_RULES = () => t('SchedulePicker.waitsIfQuotaOrRunSlotsAreUnavailable')
 
 type When = 'quota' | 'time'
 
 // Where the unattended mode is set.
 export function SettingsLink() {
-  return <button type="button" className="link-button settings-link" onClick={() => setSettingsOpen(true, 'agents')}>在设置里改</button>
+  return <button type="button" className="link-button settings-link" onClick={() => setSettingsOpen(true, 'agents')}>{t('SchedulePicker.changeInSettings')}</button>
 }
 
 // When a run may start: as soon as its agent's quota allows, or not before a time, a night hour
 // by default. It waits for the quota either way, and runs with nobody there, which the note says.
-export function SchedulePicker({ title, note, children, initial, submitLabel = '预约', align = 'start', onSchedule, onClose }: {
+export function SchedulePicker({ title, note, children, initial, submitLabel = t('OverviewView.schedules'), align = 'start', onSchedule, onClose }: {
   title: string
   // 'end' for a trigger at the end of a row: the picker's right edge on the trigger's.
   align?: 'start' | 'end'
@@ -54,32 +55,29 @@ export function SchedulePicker({ title, note, children, initial, submitLabel = '
           labelId={labelId}
           value={when}
           onChange={setWhen}
-          options={[{ value: 'quota', label: '额度恢复后' }, { value: 'time', label: '指定时间' }]}
+          options={[{ value: 'quota', label: t('SchedulePicker.whenQuotaResets') }, { value: 'time', label: t('SchedulePicker.atASpecificTime') }]}
         />
         {when === 'time' && (
           <input
             type="datetime-local"
             className="input"
-            aria-label="不早于"
+            aria-label={t('SchedulePicker.notBefore')}
             value={time}
             onChange={(event) => setTime(event.target.value)}
           />
         )}
         {/* How it runs, in a line; the rest of how scheduling works waits behind the icon. */}
-        <p className="menu-note schedule-picker-mode">
-          以「{UNATTENDED_LABEL[mode]}」无人值守运行 · <SettingsLink />
-          <span
+        <p className="menu-note schedule-picker-mode">{tr('SchedulePicker.runsUnattendedInMode', { value1: UNATTENDED_LABEL[mode], value2: <SettingsLink />, value3: <span
             className="schedule-picker-info"
             tabIndex={0}
-            aria-label={SCHEDULE_RULES}
-            data-tooltip={SCHEDULE_RULES}
+            aria-label={SCHEDULE_RULES()}
+            data-tooltip={SCHEDULE_RULES()}
             data-tooltip-side="top-end"
           >
             <InfoIcon />
-          </span>
-        </p>
+          </span> })}</p>
         <div className="note-form-actions">
-          <button type="button" className="button ghost" onClick={onClose}>取消</button>
+          <button type="button" className="button ghost" onClick={onClose}>{t('ChatCommandSettings.cancel')}</button>
           <button type="button" className="button primary" disabled={busy || invalid} onClick={() => void submit()}>{submitLabel}</button>
         </div>
       </div>

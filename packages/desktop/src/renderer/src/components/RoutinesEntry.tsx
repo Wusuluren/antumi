@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { setRoutinesOpen, useCore, useRoutinesSupported } from '../core-store'
 import { CountBadge } from './CountBadge'
 import { ClockIcon } from './icons'
@@ -15,9 +16,9 @@ export function RoutinesEntry() {
   return (
     <button type="button" className="inbox-entry sidebar-routines" aria-current={open} onClick={() => setRoutinesOpen(true)}>
       <ClockIcon />
-      <span>定时</span>
-      <CountBadge count={unread} aria-label={`${unread} 次运行未看`} />
-      {failed > 0 && <span className="inbox-entry-alert" role="img" aria-label={`${failed} 个预约没能开始`} title={`${failed} 个预约没能开始`}>!</span>}
+      <span>{t('RoutinesEntry.scheduled')}</span>
+      <CountBadge count={unread} aria-label={t('RoutinesEntry.unreadRuns', { unread: unread })} />
+      {failed > 0 && <span className="inbox-entry-alert" role="img" aria-label={t('RoutinesEntry.schedulesFailedToStart', { failed: failed })} title={t('RoutinesEntry.schedulesFailedToStart', { failed: failed })}>!</span>}
     </button>
   )
 }

@@ -1,3 +1,4 @@
+import { getLocale, t } from './i18n'
 import { MIN_DECIDED_RUNS, type DashboardDay } from '@antumi/protocol'
 
 export const DASHBOARD_RANGES = [7, 30, 90] as const
@@ -9,7 +10,7 @@ export type Change = { direction: 'up' | 'down' | 'flat'; text: string }
 export function change(current: number, previous: number): Change | null {
   if (previous === 0) return null
   const ratio = Math.round(((current - previous) / previous) * 100)
-  if (ratio === 0) return { direction: 'flat', text: '持平' }
+  if (ratio === 0) return { direction: 'flat', text: t('dashboardModel.unchanged') }
   return { direction: ratio > 0 ? 'up' : 'down', text: `${Math.abs(ratio)}%` }
 }
 
@@ -21,8 +22,8 @@ export function acceptance(accepted: number, decided: number): number | null {
 export function rateChange(current: number | null, previous: number | null): Change | null {
   if (current === null || previous === null) return null
   const points = Math.round((current - previous) * 100)
-  if (points === 0) return { direction: 'flat', text: '持平' }
-  return { direction: points > 0 ? 'up' : 'down', text: `${Math.abs(points)} 个百分点` }
+  if (points === 0) return { direction: 'flat', text: t('dashboardModel.unchanged') }
+  return { direction: points > 0 ? 'up' : 'down', text: t('dashboardModel.percentagePoints', { value1: Math.abs(points) }) }
 }
 
 export const activity = (day: DashboardDay) => day.runs + day.turns + (day.quickRequests ?? 0)
@@ -56,7 +57,7 @@ export function monthLabels(columns: ReadonlyArray<ReadonlyArray<{ day: string }
     const first = shown === null
     shown = month
     // The first, partial week has no room for a name when the next month starts right after.
-    return first && Number(day?.slice(8)) > 21 ? null : `${Number(month.slice(5))}月`
+    return first && Number(day?.slice(8)) > 21 ? null : getLocale() === 'en' ? new Date(`${month}-01T00:00:00`).toLocaleDateString('en', { month: 'short' }) : t('dashboardModel.month', { value1: Number(month.slice(5)) })
   })
 }
 
@@ -72,5 +73,5 @@ export function streaks(days: readonly DashboardDay[]): { active: number; longes
 }
 
 export function dayLabel(day: string): string {
-  return `${Number(day.slice(5, 7))}月${Number(day.slice(8))}日`
+  return t('SourceInboxView.monthAndDay', { value1: Number(day.slice(5, 7)), value2: Number(day.slice(8)) })
 }

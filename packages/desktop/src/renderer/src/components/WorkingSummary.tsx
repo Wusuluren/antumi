@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import type { WorkActivity } from '../work-activity'
 import { AgentIcon } from './icons'
 
@@ -6,7 +7,7 @@ import { AgentIcon } from './icons'
 // colour), then what they are on.
 export function WorkingSummary({ activity, detail = true }: { activity: WorkActivity; detail?: boolean }) {
   const names = activity.workers.map((worker) => worker.name)
-  const label = activity.state === 'awaiting' ? '等你回答' : names.length > 2 ? `${names.length} 人工作中` : `${names.join('、')} 工作中`
+  const label = activity.state === 'awaiting' ? t('ChatWorking.waitingForYourAnswer') : names.length > 2 ? t('WorkingSummary.membersWorking', { value1: names.length }) : t('WorkingSummary.working', { value1: names.join('、') })
   return (
     <span className="working-summary" data-state={activity.state} title={activity.detail ?? label}>
       <span className="working-stack" aria-hidden="true">

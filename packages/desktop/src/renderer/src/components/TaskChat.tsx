@@ -1,3 +1,4 @@
+import { getLocale, t, tr } from '../i18n'
 import { useHelperSupported } from '../helper-conversations'
 import { useEffect, useMemo, useState } from 'react'
 import { checkChatResume, shortTaskId, type Squad, type Task } from '@antumi/protocol'
@@ -31,7 +32,7 @@ import { useTaskActivity } from '../work-activity'
 function planNote(task: Task, item: PlanItem): string | null {
   const { plan } = task
   const kept = plan && plan.stageId === item.stageId && plan.requestId === item.requestId
-  return kept ? plan.approved && task.squadId ? '已交给研发小队执行' : !plan.approved ? '已保存，依赖完成后执行' : null : null
+  return kept ? plan.approved && task.squadId ? t('TaskChat.assignedToDevelopmentSquad') : !plan.approved ? t('TaskChat.savedExecuteAfterDependenciesFinish') : null : null
 }
 
 // A message to a task's chat goes through the task first unless its agent is at work: the task checks
@@ -57,7 +58,7 @@ function taskSurface(task: Task, dependencies: readonly Task[], planOnly: boolea
     },
     showBrowser: () => showBrowserPanel(task.conversationId),
     changes: task.repos.some((repo) => repo.worktreePath !== null) ? { kind: 'task', id: task.id } : null,
-    changesHint: '任务 worktree 里还没提交的改动；点开检查器看',
+    changesHint: t('TaskChat.uncommittedTaskWorktreeChangesClickToViewIn'),
     prepareSend: async (stopped) => {
       if (!stopped && task.status === 'running') return true
       if (stopped && task.agent && !confirmQuota(task.agent)) return false
@@ -129,12 +130,12 @@ export function TaskChat({ taskId }: { taskId: string }) {
 
   const dependencies = useMemo(
     () => (task ? task.dependsOn.map((id) => tasks[id]).filter((dependency) => dependency !== undefined) : []),
-    [task, tasks]
+    [task, tasks, getLocale()]
   )
   const squad = useCore((s) => (task?.squadId ? s.squads[task.squadId] ?? null : null))
   const surface = useMemo(
     () => (task ? taskSurface(task, dependencies, conversation?.planOnly ?? false, bypassable, handoffNow ? () => openHandoff() : null, squad) : null),
-    [task, dependencies, conversation?.planOnly, bypassable, handoffNow, openHandoff, squad]
+    [task, dependencies, conversation?.planOnly, bypassable, handoffNow, openHandoff, squad, getLocale()]
   )
   if (!task || !surface) {
     return null
@@ -143,7 +144,7 @@ export function TaskChat({ taskId }: { taskId: string }) {
   const showInspector = inspectorOpen && (helperSupported || worktree || runs.length > 0 || plans.length > 0 || wire || files.tabs.length > 0 || todosShown)
 
   return (
-    <section className="detail terminal-view" aria-label={`${task.title} 的聊天`}>
+    <section className="detail terminal-view" aria-label={t('TaskChat.chat', { value1: task.title })}>
       <header className="detail-header task-terminal-header">
         <BoardCrumb />
         <StatusIcon status={task.status} waiting={waitingOn(task, tasks)} decorative />
@@ -164,29 +165,29 @@ export function TaskChat({ taskId }: { taskId: string }) {
           <TaskAlerts task={task} />
           <span className="muted mono">{shortTaskId(task.id)}</span>
           <SourceLink source={task.source} />
-          {conversation?.planOnly && <span className="task-tag task-tag-refining">{task.squadId ? '队长规划中' : '只读规划'}</span>}
+          {conversation?.planOnly && <span className="task-tag task-tag-refining">{task.squadId ? t('TaskChat.leaderIsPlanning') : t('TaskChat.readOnlyPlanning')}</span>}
         </div>
         {task.squadId && activity && (
-          <button type="button" className="working-chip" title="在检查器里看小队" onClick={() => useCore.setState({ inspectorOpen: true, taskInspectorTab: 'squad' })}>
+          <button type="button" className="working-chip" title={t('TaskChat.viewSquadInInspector')} onClick={() => useCore.setState({ inspectorOpen: true, taskInspectorTab: 'squad' })}>
             <WorkingSummary activity={activity} detail={false} />
           </button>
         )}
         <TaskToolbar task={task} view="chat" />
       </header>
-      {memberChatId && <div className="squad-member-nav"><button type="button" className="button ghost" onClick={() => setMemberChatId(null)}>返回队长</button><span>{memberConversation?.title ?? '正在读取成员会话…'}</span></div>}
+      {memberChatId && <div className="squad-member-nav"><button type="button" className="button ghost" onClick={() => setMemberChatId(null)}>{t('TaskChat.backToLeader')}</button><span>{memberConversation?.title ?? t('TaskChat.loadingMemberConversation')}</span></div>}
       <div className="terminal-body">
         {memberChatId ? (
-          memberConversation ? <ConversationChat conversation={memberConversation} surface={{ ...surface, showBrowser: () => showBrowserPanel(memberConversation.id), prepareSend: async () => false, sendBlocker: '成员的分工由队长协调；请返回队长交流。', handoffPlan: undefined, savePlan: null, handoff: null }} /> : <p className="muted">正在读取成员会话…</p>
+          memberConversation ? <ConversationChat conversation={memberConversation} surface={{ ...surface, showBrowser: () => showBrowserPanel(memberConversation.id), prepareSend: async () => false, sendBlocker: t('TaskChat.theLeaderCoordinatesMemberAssignmentsReturnToThe'), handoffPlan: undefined, savePlan: null, handoff: null }} /> : <p className="muted">{t('TaskChat.loadingMemberConversation')}</p>
         ) : conversation ? (
           <ConversationChat conversation={conversation} surface={surface} />
         ) : starting ? (
           // Before core has the chat: it is getting the code and the agent ready, which can take a while.
           <div className="task-chat-starting" role="status">
             <Spinner />
-            <span>正在启动 {task.agent ? agentLabel(task.agent) : 'Agent'}：同步最新代码、准备工作区，稍等几秒…</span>
+            <span>{tr('TaskChat.startingSyncingCodeAndPreparingWorkspaceThisMay', { value1: task.agent ? agentLabel(task.agent) : 'Agent' })}</span>
           </div>
         ) : (
-          <p className="terminal-view-empty muted">正在读取聊天记录…</p>
+          <p className="terminal-view-empty muted">{t('TaskChat.loadingChatHistory')}</p>
         )}
         {showInspector && (
           <TaskInspector

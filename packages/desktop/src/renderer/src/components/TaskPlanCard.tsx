@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useState } from 'react'
 import type { Task } from '@antumi/protocol'
 import { useCore, useSquadsSupported } from '../core-store'
@@ -16,7 +17,7 @@ export function TaskPlanCard({ task }: { task: Task }) {
   if (!plan) {
     return null
   }
-  const title = plan.approved ? '已确认的计划' : '已保存的计划'
+  const title = plan.approved ? t('TaskPlanCard.approvedPlan') : t('TaskPlanCard.savedPlan')
   return (
     <section className="snapshot" data-open={open || undefined} aria-label={title}>
       <header className="snapshot-header">
@@ -26,10 +27,10 @@ export function TaskPlanCard({ task }: { task: Task }) {
         </button>
         <span className="muted">
           {agentLabel(plan.agent)} · {dayAndTime(plan.createdAt)}
-          {!plan.approved && ' · 开始执行时交给 Agent'}
+          {!plan.approved && t('TaskPlanCard.sharedWithAgentWhenExecutionStarts')}
         </span>
       </header>
-      {supported && task.status === 'pending' && !task.squadId && <button type="button" className="link-button" onClick={() => useCore.setState({ taskLaunchId: task.id, squadPlan: null, squadLaunch: true })}>选择研发小队</button>}
+      {supported && task.status === 'pending' && !task.squadId && <button type="button" className="link-button" onClick={() => useCore.setState({ taskLaunchId: task.id, squadPlan: null, squadLaunch: true })}>{t('TaskPlanCard.chooseDevelopmentSquad')}</button>}
       {open && (
         <MarkdownEditor key={plan.createdAt} value={plan.markdown} onSave={ignore} label={title} hint="" readOnly />
       )}

@@ -1,3 +1,4 @@
+import { getLocale } from './i18n'
 import { useMemo } from 'react'
 import type { AgentKind, Conversation, SquadRun, Task } from '@antumi/protocol'
 import { useCore } from './core-store'
@@ -47,5 +48,5 @@ export function taskActivity(task: Task, conversations: Readonly<Record<string, 
 export function useTaskActivity(task: Task | undefined): WorkActivity | null {
   const conversations = useCore((state) => state.conversations)
   const runs = useCore((state) => state.squadRuns)
-  return useMemo(() => (task ? taskActivity(task, conversations, runs) : null), [task, conversations, runs])
+  return useMemo(() => (task ? taskActivity(task, conversations, runs) : null), [task, conversations, runs, getLocale()])
 }

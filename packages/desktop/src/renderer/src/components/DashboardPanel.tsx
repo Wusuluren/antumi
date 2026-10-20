@@ -1,3 +1,4 @@
+import { getLocale, localized, t, tr } from '../i18n'
 import { useCallback, useEffect, useState } from 'react'
 import { TASK_STATUSES, type DashboardStats } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
@@ -13,8 +14,8 @@ import { ModelBreakdown } from './ModelBreakdown'
 import { Segmented } from './SettingsControls'
 import { StatusIcon } from './StatusIcon'
 
-const RANGE_OPTIONS = DASHBOARD_RANGES.map((range) => ({ value: String(range), label: `${range} 天` }))
-const TIME = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' })
+const RANGE_OPTIONS = localized(() => DASHBOARD_RANGES.map((range) => ({ value: String(range), label: t('DashboardPanel.days', { range }) })))
+const reportTime = (at: number) => new Intl.DateTimeFormat(getLocale(), { hour: '2-digit', minute: '2-digit', hour12: false }).format(at)
 
 // Asked for on opening, on a new range and on refresh: the numbers move only as runs and turns end.
 function useDashboard(range: DashboardRange) {
@@ -42,11 +43,11 @@ function TaskStatuses() {
   return (
     <section className="dashboard-panel" aria-labelledby="dashboard-statuses">
       <header className="dashboard-panel-header">
-        <h3 id="dashboard-statuses">任务状态</h3>
-        <span className="dashboard-panel-note">现在共 {all.length} 个</span>
+        <h3 id="dashboard-statuses">{t('DashboardPanel.taskStatus')}</h3>
+        <span className="dashboard-panel-note">{tr('DashboardPanel.totalNow', { value1: all.length })}</span>
       </header>
       {all.length === 0 ? (
-        <p className="dashboard-empty muted">还没有任务。</p>
+        <p className="dashboard-empty muted">{t('DashboardPanel.noTasksYet')}</p>
       ) : (
         <>
           <div className="dashboard-status-bar" aria-hidden="true">
@@ -77,26 +78,24 @@ export function DashboardPanel() {
   return (
     <div className="dashboard-stats">
       <div className="dashboard-toolbar">
-        <p className="muted">
-          任务运行、对话和轻量请求的用量，按这台电脑的日期计{report && ` · 更新于 ${TIME.format(report.at)}`}
-        </p>
+        <p className="muted">{tr('DashboardPanel.taskRunsConversationsAndQuickRequestsGroupedBy', { value1: report && t('DashboardPanel.updated', { value1: reportTime(report.at) }) })}</p>
         <Segmented
           labelId="dashboard-range"
           value={String(range)}
           options={RANGE_OPTIONS}
           onChange={(value) => setRange(DASHBOARD_RANGES.find((option) => String(option) === value) ?? 7)}
         />
-        <span id="dashboard-range" hidden>时间范围</span>
-        <button type="button" className="tool-button" aria-label="刷新" data-tooltip="刷新" disabled={loading} onClick={() => void load()}>
+        <span id="dashboard-range" hidden>{t('DashboardPanel.timeRange')}</span>
+        <button type="button" className="tool-button" aria-label={t('BrowserPanel.reload')} data-tooltip={t('BrowserPanel.reload')} disabled={loading} onClick={() => void load()}>
           <span className="dashboard-refresh" data-loading={loading || undefined}><RefreshIcon /></span>
         </button>
       </div>
       {report === null ? (
-        <p className="dashboard-empty muted">正在读取…</p>
+        <p className="dashboard-empty muted">{t('DashboardPanel.loading')}</p>
       ) : (
         <div className="dashboard-grid">
           {empty && (
-            <p className="dashboard-empty dashboard-empty-all muted">还没有运行记录。任务、对话回合或轻量请求结束后会计入这里。</p>
+            <p className="dashboard-empty dashboard-empty-all muted">{t('DashboardPanel.noRunHistoryYetCompletedTaskRunsConversation')}</p>
           )}
           <DashboardKpis stats={report.stats} days={days} range={range} />
           {report.stats.smallModels && <SmallModelStats stats={report.stats.smallModels} />}

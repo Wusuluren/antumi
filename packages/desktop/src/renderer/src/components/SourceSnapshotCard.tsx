@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useState } from 'react'
 import type { Task } from '@antumi/protocol'
 import { perform } from '../core-store'
@@ -26,18 +27,15 @@ export function SourceSnapshotCard({ task }: { task: Task }) {
     setBusy(false)
   }
   return (
-    <section className="snapshot" data-open={open || undefined} aria-label={`${source.name} 原文`}>
+    <section className="snapshot" data-open={open || undefined} aria-label={t('SourceSnapshotCard.original', { value1: source.name })}>
       <header className="snapshot-header">
-        <button type="button" className="snapshot-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
-          <ChevronDownIcon />
-          {source.name} 原文
-        </button>
-        <span className="muted">拉取于 {dayAndTime(snapshot.fetchedAt)}</span>
+        <button type="button" className="snapshot-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>{tr('SourceSnapshotCard.original_1826', { value1: <ChevronDownIcon />, value2: source.name })}</button>
+        <span className="muted">{tr('SourceSnapshotCard.fetched', { value1: dayAndTime(snapshot.fetchedAt) })}</span>
         <button
           type="button"
           className="tool-button snapshot-resync"
-          aria-label="重新拉取"
-          data-tooltip="重新拉取"
+          aria-label={t('SourceSnapshotCard.fetchAgain')}
+          data-tooltip={t('SourceSnapshotCard.fetchAgain')}
           aria-busy={busy || undefined}
           disabled={busy}
           onClick={() => void resync()}
@@ -48,16 +46,16 @@ export function SourceSnapshotCard({ task }: { task: Task }) {
       {open && (
         <MarkdownEditor
           key={snapshot.fetchedAt}
-          value={snapshot.markdown || '（原文是空的）'}
+          value={snapshot.markdown || t('SourceSnapshotCard.originalContentIsEmpty')}
           onSave={ignore}
-          label={`${source.name} ${source.key} 原文`}
+          label={t('SourceSnapshotCard.original_1830', { value1: source.name, value2: source.key })}
           hint=""
           readOnly
         />
       )}
       {open && snapshot.images.length > 0 && (
         <div className="snapshot-images">
-          <span className="muted">来自 {source.name} 的 {snapshot.images.length} 张图片，和原文一样只作参考</span>
+          <span className="muted">{tr('SourceSnapshotCard.imagesFromProvidedAsReferenceLikeTheOriginal', { value1: source.name, value2: snapshot.images.length })}</span>
           <ImageStrip images={snapshot.images} onOpen={setViewing} />
         </div>
       )}
@@ -65,7 +63,7 @@ export function SourceSnapshotCard({ task }: { task: Task }) {
         <ImageViewer
           images={snapshot.images}
           index={Math.min(viewing, snapshot.images.length - 1)}
-          note={`来自 ${source.name}`}
+          note={t('SourceSnapshotCard.from', { value1: source.name })}
           onIndex={setViewing}
           onClose={() => setViewing(null)}
         />

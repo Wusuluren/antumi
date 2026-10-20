@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { createContext, useCallback, useContext, useRef, useState } from 'react'
 import { runsAtOnce } from '../code-commands'
 import { runInTerminal, type RunScope } from '../code-run'
@@ -24,18 +25,18 @@ export function ChatCodeRun({ command }: { command: string }) {
       <button
         type="button"
         className="chat-code-run-button"
-        data-tooltip={single ? '在这条会话的终端里运行' : '粘贴到这条会话的终端，确认后按回车运行'}
+        data-tooltip={single ? t('ChatCodeRun.runInThisConversationSTerminal') : t('ChatCodeRun.pasteIntoThisConversationSTerminalThenPress')}
         data-tooltip-side="top-end"
         onClick={() => void runInTerminal(scope, command)}
       >
-        <PlayIcon />{single ? '运行' : '粘贴到终端'}
+        <PlayIcon />{single ? t('ChatCodeRun.run') : t('ChatCodeRun.pasteIntoTerminal')}
       </button>
       {single && (
         <button
           ref={more}
           type="button"
           className="chat-code-run-more"
-          aria-label="更多运行方式"
+          aria-label={t('ChatCodeRun.moreRunOptions')}
           aria-haspopup="menu"
           aria-expanded={at !== null}
           onClick={() => {
@@ -47,8 +48,8 @@ export function ChatCodeRun({ command }: { command: string }) {
         </button>
       )}
       {at && (
-        <ContextMenu at={at} align="end" trigger={more.current} label="运行方式" onClose={close}>
-          <MenuItem label="粘贴到终端" hint="不执行，看过再按回车" onSelect={() => { close(); void runInTerminal(scope, command, false) }} />
+        <ContextMenu at={at} align="end" trigger={more.current} label={t('ChatCodeRun.runOptions')} onClose={close}>
+          <MenuItem label={t('ChatCodeRun.pasteIntoTerminal')} hint={t('ChatCodeRun.pasteOnlyPressEnterAfterReviewing')} onSelect={() => { close(); void runInTerminal(scope, command, false) }} />
         </ContextMenu>
       )}
     </span>

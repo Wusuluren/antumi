@@ -24,9 +24,9 @@ export const SquadFields = z.object({
   leaderId: z.string().uuid()
 }).superRefine((squad, ctx) => {
   const leader = squad.members.find((member) => member.id === squad.leaderId)
-  if (!leader || leader.capability !== 'readOnly') ctx.addIssue({ code: 'custom', message: '队长必须是只读成员', path: ['leaderId'] })
-  if (!squad.members.some((member) => member.capability === 'develop')) ctx.addIssue({ code: 'custom', message: '至少需要一名开发成员', path: ['members'] })
-  if (new Set(squad.members.map((member) => member.id)).size !== squad.members.length || new Set(squad.members.map((member) => member.name.toLowerCase())).size !== squad.members.length) ctx.addIssue({ code: 'custom', message: '成员标识和名称不能重复', path: ['members'] })
+  if (!leader || leader.capability !== 'readOnly') ctx.addIssue({ code: 'custom', message: '队长必须是只读成员', params: { reason: 'squad-leader-read-only' }, path: ['leaderId'] })
+  if (!squad.members.some((member) => member.capability === 'develop')) ctx.addIssue({ code: 'custom', message: '至少需要一名开发成员', params: { reason: 'squad-developer-required' }, path: ['members'] })
+  if (new Set(squad.members.map((member) => member.id)).size !== squad.members.length || new Set(squad.members.map((member) => member.name.toLowerCase())).size !== squad.members.length) ctx.addIssue({ code: 'custom', message: '成员标识和名称不能重复', params: { reason: 'squad-member-duplicate' }, path: ['members'] })
 })
 export type SquadFields = z.input<typeof SquadFields>
 

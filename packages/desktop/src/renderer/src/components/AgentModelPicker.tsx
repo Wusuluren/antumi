@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import type { ChatCatalog } from '@antumi/protocol'
 import { resolveModel, type ModelChoice } from '../agent-models'
 import { ChatModelPicker, ChatPicker, type PickerSize } from './ChatPicker'
@@ -17,7 +18,7 @@ export function AgentModelPicker({ catalog, choice, onChange, size, placement = 
 }) {
   const { defaultModel, modelId, effort } = resolveModel(catalog, choice)
   if (!catalog?.models.length) {
-    return <ChatPicker label="模型" value="" placeholder={catalog === undefined ? '正在读取模型…' : 'Agent 默认模型'} options={[]} disabled size={size} onChange={() => {}} />
+    return <ChatPicker label={t('AgentModelPicker.model')} value="" placeholder={catalog === undefined ? t('AgentModelPicker.loadingModels') : t('AgentModelPicker.agentDefaultModel')} options={[]} disabled size={size} onChange={() => {}} />
   }
   const current = modelId ?? defaultModel?.id
   return (

@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { BACKDROPS, BACKDROP_LABEL } from '../backdrops'
 import { setPreference, usePreferences, type Preferences } from '../preferences'
 
@@ -17,7 +18,7 @@ export function BackdropPicker({ labelId }: { labelId: string }) {
   return (
     <div className="palette-picker backdrop-picker" role="radiogroup" aria-labelledby={labelId}>
       {options.map((each) => {
-        const name = each === 'none' ? '关闭' : BACKDROP_LABEL[each]
+        const name = each === 'none' ? t('common.off') : BACKDROP_LABEL[each]
         return (
           <button
             key={each}
@@ -25,8 +26,8 @@ export function BackdropPicker({ labelId }: { labelId: string }) {
             role="radio"
             aria-checked={each === backdrop}
             className="palette-option"
-            aria-label={each === 'none' ? '关闭渐变背景' : `${name}：取自 Slack 的同名主题`}
-            title={each === 'none' ? undefined : `取自 Slack 的 ${name} 主题`}
+            aria-label={each === 'none' ? t('BackdropPicker.disableGradientBackground') : t('BackdropPicker.fromTheSlackThemeOfTheSameName', { name: name })}
+            title={each === 'none' ? undefined : t('BackdropPicker.fromSlackSTheme', { name: name })}
             onClick={() => setPreference('backdrop', each)}
           >
             <Swatch backdrop={each} />

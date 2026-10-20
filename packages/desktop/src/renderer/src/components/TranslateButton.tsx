@@ -1,3 +1,4 @@
+import { getLocale, t, tr } from '../i18n'
 import { useEffect, useMemo, type RefObject } from 'react'
 import { useCore, useTranslateSupported } from '../core-store'
 import { usePreferences } from '../preferences'
@@ -26,7 +27,7 @@ export function useTranslated(conversationId: string | null, key: string, text: 
   const auto = usePreferences((p) => p.autoTranslate)
   const agent = useCore((s) => (conversationId ? s.conversations[conversationId]?.agent : undefined))
   const model = usePreferences((p) => (agent ? p.quickModels[agent] : undefined)) ?? ''
-  const foreign = useMemo(() => conversationId !== null && supported && ready && text !== '' && needsTranslation(text, to), [conversationId, supported, ready, text, to])
+  const foreign = useMemo(() => conversationId !== null && supported && ready && text !== '' && needsTranslation(text, to), [conversationId, supported, ready, text, to, getLocale()])
   const id = conversationId ? translationKey(conversationId, key, to, model) : ''
   const result = useTranslations((s) => s.results[id])
   const original = useTranslations((s) => s.original[id] ?? false)
@@ -59,18 +60,18 @@ export function useTranslated(conversationId: string | null, key: string, text: 
 // for the tooltip ("这条回复").
 export function TranslateButton({ translated, what }: { translated: Translated; what: string }) {
   const { result: state, original } = translated
-  if (state?.state === 'pending') return <span className="chat-translate" role="status"><Spinner />翻译中…</span>
+  if (state?.state === 'pending') return <span className="chat-translate" role="status">{tr('ChatContextMenu.translating', { value1: <Spinner /> })}</span>
   if (state?.state === 'done') {
-    const by = state.model ? `由 ${state.model} 翻译` : '由这个 Agent 的默认模型翻译'
+    const by = state.model ? t('TranslateButton.translatedBy', { value1: state.model }) : t('TranslateButton.translatedByThisAgentSDefaultModel')
     return (
-      <button type="button" className="copy-button chat-translate" data-tooltip={original ? `看译文（${by}）` : `看原文（这是${by}的译文）`} onClick={translated.toggle}>
-        <TranslateIcon />{original ? '译文' : '原文'}
+      <button type="button" className="copy-button chat-translate" data-tooltip={original ? t('TranslateButton.viewTranslation', { by: by }) : t('TranslateButton.viewOriginalTranslationBy', { by: by })} onClick={translated.toggle}>
+        <TranslateIcon />{original ? t('SettingsPage.translation') : t('SettingsPage.original')}
       </button>
     )
   }
   return (
-    <button type="button" className="copy-button chat-translate" data-failed={state?.state === 'failed' || undefined} data-tooltip={state?.state === 'failed' ? `${state.error}，点击重试` : `用这个 Agent 的小模型翻译${what}`} onClick={translated.translate}>
-      <TranslateIcon />{state?.state === 'failed' ? '重试翻译' : '翻译'}
+    <button type="button" className="copy-button chat-translate" data-failed={state?.state === 'failed' || undefined} data-tooltip={state?.state === 'failed' ? t('TranslateButton.clickToRetry', { value1: state.error }) : t('TranslateButton.translateUsingThisAgentSSmallModel', { what: what })} onClick={translated.translate}>
+      <TranslateIcon />{state?.state === 'failed' ? t('TranslateButton.retryTranslation') : t('ChatContextMenu.translate')}
     </button>
   )
 }

@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { CHAT_COMMAND_ARGUMENTS, type ChatCommand, type SavedChatCommand } from '@antumi/protocol'
 import { isInside } from './terminal-commands'
 
@@ -14,7 +15,7 @@ export function antumiEntries(commands: readonly SavedChatCommand[], projectPath
       source: 'antumi',
       name: command.name,
       description: command.description || command.prompt.split('\n')[0] || '',
-      argumentHint: takesArguments(command) ? '参数' : null,
+      argumentHint: takesArguments(command) ? t('chatCommands.arguments') : null,
       command
     }))
 }

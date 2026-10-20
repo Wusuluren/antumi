@@ -1,3 +1,4 @@
+import type { UiLocale } from './localization'
 import { z } from 'zod'
 
 // Images live in core's attachment store, named by the sha256 of their bytes; tasks and
@@ -42,6 +43,7 @@ export type TaskImage = z.infer<typeof TaskImage>
 
 export const ImageRef = z.object({ id: AttachmentId, name: z.string().trim().max(MAX_IMAGE_NAME_LENGTH) })
 
-export function imageLabel(image: Pick<TaskImage, 'name'>, index: number): string {
-  return image.name ? `图 ${index + 1} ${image.name}` : `图 ${index + 1}`
+export function imageLabel(image: Pick<TaskImage, 'name'>, index: number, locale: UiLocale = 'zh-CN'): string {
+  const label = locale === 'en' ? `Image ${index + 1}` : `图 ${index + 1}`
+  return image.name ? `${label} ${image.name}` : label
 }

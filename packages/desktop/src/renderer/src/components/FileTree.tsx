@@ -1,3 +1,4 @@
+import { getLocale, t } from '../i18n'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
 import type { ProjectFileMatch, ResolvedFile } from '@antumi/protocol'
 import { useCore } from '../core-store'
@@ -35,7 +36,7 @@ export function FileTree({ scope, roots, expanded, active, refresh, onToggle, on
 
   useEffect(() => { setListings({}); requested.current = { refresh, folders: new Set() } }, [conversationId])
 
-  const { rows, needed: shown } = useMemo(() => treeRows(roots, expanded, listings), [roots, expanded, listings])
+  const { rows, needed: shown } = useMemo(() => treeRows(roots, expanded, listings), [roots, expanded, listings, getLocale()])
 
   // The open folders the tree shows; again, all of them, when the disk may have changed.
   useEffect(() => {
@@ -101,8 +102,8 @@ export function FileTree({ scope, roots, expanded, active, refresh, onToggle, on
       <SearchIcon />
       <input
         value={filter}
-        placeholder="筛选，或输入 ? 搜索整个项目"
-        aria-label="筛选文件"
+        placeholder={t('FileTree.filterOrTypeToSearchTheEntireProject')}
+        aria-label={t('FileTree.filterFiles')}
         spellCheck={false}
         onChange={(event) => setFilter(event.target.value)}
         onKeyDown={(event) => {
@@ -111,7 +112,7 @@ export function FileTree({ scope, roots, expanded, active, refresh, onToggle, on
         }}
       />
     </label>
-    <div className="file-tree-list" ref={list} role="tree" aria-label="项目文件" onKeyDown={onKeyDown}>
+    <div className="file-tree-list" ref={list} role="tree" aria-label={t('FileTree.projectFiles')} onKeyDown={onKeyDown}>
       {shownRows.map((row) => {
         const open = row.kind === 'directory' && !row.detail && expanded.includes(row.path)
         const failed = open && listings[row.folder ?? row.path] === 'error'
@@ -133,12 +134,12 @@ export function FileTree({ scope, roots, expanded, active, refresh, onToggle, on
           {row.kind !== 'other' && <FileTypeIcon path={row.folder ?? row.path} directory={row.kind === 'directory'} expanded={open} root={row.path === row.root} dark={dark} />}
           <span className="file-tree-name">{row.name}</span>
           {row.detail && <span className="file-tree-detail muted">{row.detail}</span>}
-          {failed && <span className="file-tree-detail muted">无法读取</span>}
+          {failed && <span className="file-tree-detail muted">{t('FileTree.cannotRead')}</span>}
         </button>
         return row.kind === 'other' ? <div key={row.path}>{button}</div> : <FileMenu key={row.path} scope={scope} file={resolved(row)} inPanel>{button}</FileMenu>
       })}
-      {query !== null && matches?.length === 0 && <p className="file-tree-empty muted">没有匹配的文件</p>}
-      {query === null && filter.trim() && shownRows.length === 0 && <p className="file-tree-empty muted">已展开的文件夹里没有匹配项，输入 ? 开头可搜索整个项目</p>}
+      {query !== null && matches?.length === 0 && <p className="file-tree-empty muted">{t('FileTree.noMatchingFiles')}</p>}
+      {query === null && filter.trim() && shownRows.length === 0 && <p className="file-tree-empty muted">{t('FileTree.noMatchesInExpandedFoldersStartWithTo')}</p>}
     </div>
   </div>
 }

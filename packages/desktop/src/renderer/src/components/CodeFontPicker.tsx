@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useCallback, useState } from 'react'
 import { setPreference, usePreferences } from '../preferences'
 import { cssFontFamily, isMonospace, systemFontFamilies } from '../system-fonts'
@@ -33,7 +34,7 @@ export function CodeFontPicker({ labelId }: { labelId: string }) {
         onChange={choose}
         options={[
           { value: 'bundled', label: 'Geist Mono' },
-          { value: 'custom', label: '其他' }
+          { value: 'custom', label: t('ChatFontPicker.other') }
         ]}
       />
       {(family || open) && (
@@ -45,11 +46,11 @@ export function CodeFontPicker({ labelId }: { labelId: string }) {
             aria-expanded={open}
             onClick={() => (open ? close() : openList())}
           >
-            <span style={family ? { fontFamily: cssFontFamily(family) } : undefined}>{family || '选择字体'}</span>
+            <span style={family ? { fontFamily: cssFontFamily(family) } : undefined}>{family || t('ChatFontPicker.chooseFont')}</span>
             <ChevronDownIcon />
           </button>
           {open && (
-            <Popover label="选择代码字体" onClose={close}>
+            <Popover label={t('CodeFontPicker.chooseCodeFont')} onClose={close}>
               <FontList
                 current={family}
                 listing={listing}

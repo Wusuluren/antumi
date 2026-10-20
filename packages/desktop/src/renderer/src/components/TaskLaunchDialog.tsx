@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import { ChatPermissionMode, checkStart, checkStartMode, type AgentKind, type Task } from '@antumi/protocol'
 import { resolveModel, useAgentCatalog, type ModelChoice } from '../agent-models'
@@ -71,7 +72,7 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
   const mode = supported && offered.includes(requestedMode) && !checkStartMode(dependencies, requestedMode) ? requestedMode : 'plan'
   const options = agent ? modeOptions(agent, ['plan', ...offered.filter((each) => each !== 'plan')]) : []
   const blocker = checkStart({ ...task, agent }, dependencies)
-  const label = mode === 'plan' ? '开始规划' : mode === 'readOnly' ? '开始分析' : '开始执行'
+  const label = mode === 'plan' ? t('SquadLaunchDialog.startPlanning') : mode === 'readOnly' ? t('TaskActions.startAnalysis') : t('TaskActions.startExecution')
   const choose = (next: ModelChoice) => {
     if (agent) setChoices((known) => ({ ...known, [agent]: next }))
   }
@@ -100,20 +101,20 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
       onClick={(event) => { if (event.target === event.currentTarget && !busy) closeTaskLaunch() }}>
       <form className="modal-body" onSubmit={(event) => { event.preventDefault(); void submit() }}>
         <header className="modal-header">
-          <h2 id="task-launch-title">开始任务</h2>
-          <button type="button" className="icon-button modal-close" aria-label="关闭" disabled={busy} onClick={closeTaskLaunch}><CloseIcon /></button>
+          <h2 id="task-launch-title">{t('TaskLaunchDialog.startTask')}</h2>
+          <button type="button" className="icon-button modal-close" aria-label={t('BackdropPicker.close')} disabled={busy} onClick={closeTaskLaunch}><CloseIcon /></button>
         </header>
         <p className="task-launch-name">{task.title}</p>
-        {squadsSupported && <button type="button" className="link-button" disabled={busy} onClick={onSquad}>交给研发小队</button>}
+        {squadsSupported && <button type="button" className="link-button" disabled={busy} onClick={onSquad}>{t('SquadLaunchDialog.assignToDevelopmentSquad')}</button>}
         <fieldset className="task-launch-fields" disabled={busy}>
           <div className="task-launch-field"><span>Agent</span>
             <ChatPicker
               label="Agent"
               value={agent ?? ''}
-              placeholder="选择 Agent"
+              placeholder={t('AgentPicker.chooseAgent')}
               size="field"
               placement="below"
-              options={agents.map((kind) => ({ value: kind, label: agentLabel(kind), icon: <AgentIcon agent={kind} />, description: installed.includes(kind) ? (kind === recommended ? '推荐' : null) : '未安装' }))}
+              options={agents.map((kind) => ({ value: kind, label: agentLabel(kind), icon: <AgentIcon agent={kind} />, description: installed.includes(kind) ? (kind === recommended ? t('AgentPicker.recommended') : null) : t('AgentPicker.notInstalled') }))}
               onChange={(value) => {
                 const next = agents.find((each) => each === value)
                 if (next) setAgent(next)
@@ -121,14 +122,14 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
             />
           </div>
           {supported && <>
-            <div className="task-launch-field"><span>模型</span>
+            <div className="task-launch-field"><span>{t('AgentModelPicker.model')}</span>
               <AgentModelPicker catalog={catalog} choice={choice} size="field" onChange={choose} />
             </div>
-            <div className="task-launch-field"><span>模式</span>
+            <div className="task-launch-field"><span>{t('TaskLaunchDialog.mode')}</span>
               <ChatPicker
-                label="模式"
+                label={t('TaskLaunchDialog.mode')}
                 value={mode}
-                placeholder="规划"
+                placeholder={t('SettingsPage.planning')}
                 size="field"
                 placement="below"
                 options={options.map((each) => ({ ...each, disabled: each.disabled || checkStartMode(dependencies, each.value) !== null }))}
@@ -141,15 +142,15 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
           </>}
         </fieldset>
         <p className="task-launch-description muted">
-          {checkStartMode(dependencies, 'ask') ? '依赖任务尚未完成，现在只能规划。' : options.find((each) => each.value === mode)?.description ?? '先制定计划，确认后执行。'}
+          {checkStartMode(dependencies, 'ask') ? t('TaskLaunchDialog.dependenciesAreUnfinishedOnlyPlanningIsAvailableNow') : options.find((each) => each.value === mode)?.description ?? t('TaskLaunchDialog.planFirstThenExecuteAfterApproval')}
         </p>
-        {inPlace && mode !== 'plan' && mode !== 'readOnly' && <p className="task-launch-description muted">此项目不是 Git 仓库，修改会直接写入原目录。</p>}
+        {inPlace && mode !== 'plan' && mode !== 'readOnly' && <p className="task-launch-description muted">{t('SquadLaunchDialog.thisProjectIsNotAGitRepositoryChanges')}</p>}
         {agent && <AgentQuotaHint agent={agent} model={modelText(model)} />}
         {blocker && <p className="modal-error">{reasonText(blocker, blocker)}</p>}
         {error && <p className="modal-error" role="alert">{error}</p>}
         <footer className="modal-footer">
-          <button type="button" className="button ghost" disabled={busy} onClick={closeTaskLaunch}>取消</button>
-          <button type="submit" className="button primary" disabled={busy || !agent || blocker !== null}>{busy ? '正在启动…' : label}</button>
+          <button type="button" className="button ghost" disabled={busy} onClick={closeTaskLaunch}>{t('ChatCommandSettings.cancel')}</button>
+          <button type="submit" className="button primary" disabled={busy || !agent || blocker !== null}>{busy ? t('DiscussionDraft.starting') : label}</button>
         </footer>
       </form>
     </dialog>

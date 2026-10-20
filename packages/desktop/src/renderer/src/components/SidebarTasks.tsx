@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { tasksWaitingOnUser } from '../attention'
 import { selectTask, setNewTaskOpen, useActionableItems, useTaskBoardOpen } from '../core-store'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
@@ -10,18 +11,18 @@ export function SidebarTasks() {
   const open = useTaskBoardOpen()
   const waiting = tasksWaitingOnUser(useActionableItems())
   return (
-    <nav className="sidebar-tasks" aria-label="任务">
+    <nav className="sidebar-tasks" aria-label={t('sidebar.tasks')}>
       <div className="sidebar-tasks-entry">
-        <button type="button" className="inbox-entry" aria-current={open} aria-label={`任务${waiting ? `，${waiting} 个等你处理` : ''}`} onClick={() => selectTask(null)}>
+        <button type="button" className="inbox-entry" aria-current={open} aria-label={t('SidebarTasks.tasks', { value1: waiting ? t('SidebarTasks.needYourResponse', { waiting: waiting }) : '' })} onClick={() => selectTask(null)}>
           <BoardIcon />
-          <span>任务</span>
-          <CountBadge count={waiting} title={`${waiting} 个任务等你处理`} />
+          <span>{t('sidebar.tasks')}</span>
+          <CountBadge count={waiting} title={t('SidebarTasks.tasksNeedYourResponse', { waiting: waiting })} />
         </button>
         <button
           type="button"
           className="icon-button sidebar-tasks-add sidebar-add"
-          aria-label="新建任务"
-          data-tooltip={`新建任务 ${PRIMARY_KEY_LABEL}N`}
+          aria-label={t('SettingsPage.newTask')}
+          data-tooltip={t('SidebarTasks.newTaskN', { PRIMARY_KEY_LABEL: PRIMARY_KEY_LABEL })}
           onClick={() => setNewTaskOpen(true)}
         >
           <PlusIcon />

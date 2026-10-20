@@ -1,3 +1,4 @@
+import { getLocale } from './i18n'
 import { shortTaskId, type AgentKind, type Task, type TaskStatus } from '@antumi/protocol'
 import type { Preferences } from './preferences'
 
@@ -17,7 +18,7 @@ export const DONE_SHOWN = 10
 const COMPARE: Record<TaskSort, (a: Task, b: Task) => number> = {
   recent: (a, b) => b.updatedAt - a.updatedAt,
   created: (a, b) => b.createdAt - a.createdAt,
-  title: (a, b) => a.title.localeCompare(b.title, 'zh-CN')
+  title: (a, b) => a.title.localeCompare(b.title, getLocale())
 }
 
 // By title, issue key or the start of the task id, ignoring case.

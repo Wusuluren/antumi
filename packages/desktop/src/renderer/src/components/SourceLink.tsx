@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import type { TaskSource } from '@antumi/protocol'
 import { ExternalIcon } from './icons'
 
@@ -7,7 +8,7 @@ export function SourceLink({ source }: { source: TaskSource | null | undefined }
     return null
   }
   return (
-    <a className="source-link" href={source.url} target="_blank" rel="noreferrer" data-tooltip={`在 ${source.name} 中打开`} data-tooltip-align="start">
+    <a className="source-link" href={source.url} target="_blank" rel="noreferrer" data-tooltip={t('ConversationDraft.openIn', { value1: source.name })} data-tooltip-align="start">
       {source.key}
       <ExternalIcon />
     </a>

@@ -1,3 +1,4 @@
+import { getLocale, t, tr } from '../i18n'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject, type TextareaHTMLAttributes } from 'react'
 import type { AgentKind, ProjectFileMatch } from '@antumi/protocol'
 import { useCore, useFileMentionsSupported } from '../core-store'
@@ -131,7 +132,7 @@ export function useChatMentionMenu({ value, setText, setValue, roots, cwd, agent
       opens: null
     }))
     return [...fileRows, ...projectRows]
-  }, [query, files, projects, cwd, rootsKey, roots.length])
+  }, [query, files, projects, cwd, rootsKey, roots.length, getLocale()])
   const open = range !== null && text !== closedAt && shown.length > 0
   const active = Math.min(highlight, shown.length - 1)
   useEffect(() => setHighlight(0), [query])
@@ -191,13 +192,11 @@ export function useChatMentionMenu({ value, setText, setValue, roots, cwd, agent
 
   const menu = open ? (
     <div className="menu menu-up chat-command-menu">
-      <ul id={listId} role="listbox" aria-label="引用文件或项目" className="menu-list">
-        {group('files', '文件')}
-        {group('projects', '项目')}
+      <ul id={listId} role="listbox" aria-label={t('ChatMentionMenu.referenceAFileOrProject')} className="menu-list">
+        {group('files', t('ChatMentionMenu.file'))}
+        {group('projects', t('ChatMentionMenu.project'))}
       </ul>
-      <div className="chat-command-keys" aria-hidden="true">
-        <kbd>↑↓</kbd> 选择 <kbd>Enter</kbd> 引用 <kbd>Tab</kbd> 打开文件夹 <kbd>Esc</kbd> 关闭
-      </div>
+      <div className="chat-command-keys" aria-hidden="true">{tr('ChatMentionMenu.navigateReferenceOpenFolderClose', { value1: <kbd>↑↓</kbd>, value2: <kbd>Enter</kbd>, value3: <kbd>Tab</kbd>, value4: <kbd>Esc</kbd> })}</div>
     </div>
   ) : null
 

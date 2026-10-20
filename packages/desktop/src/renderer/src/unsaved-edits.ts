@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { z } from 'zod'
 import { create } from 'zustand'
 import { RpcError } from '@antumi/protocol'
@@ -84,7 +85,7 @@ async function send(key: string): Promise<void> {
       drop(key)
       setSaveState(key, null)
       if (error.reason !== 'task-not-found') {
-        useCore.setState({ error: `没能保存：${reasonText(error.reason ?? '', error.message)}` })
+        useCore.setState({ error: t('unsavedEdits.couldNotSave', { value1: reasonText(error.reason ?? '', error.message) }) })
       }
     } else {
       setSaveState(key, 'failed')

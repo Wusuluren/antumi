@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { createContext, useContext } from 'react'
 import type { ChatItem, Conversation } from '@antumi/protocol'
 import type { PlanItem } from '../chat-state'
@@ -63,7 +64,7 @@ export function conversationSurface(conversation: Conversation, handoff: (() => 
     inProject: (path) => insideProjects(path, conversation.workspacePath, conversation.projectPaths),
     showBrowser: () => showBrowserPanel(conversation.id),
     changes: conversation.projectPaths.length > 0 ? { kind: 'conversation', id: conversation.id } : null,
-    changesHint: '项目里还没提交的改动，也可能有你自己的；点开检查器看',
+    changesHint: t('chatSurface.uncommittedProjectChangesMayIncludeYourOwnClick'),
     prepareSend: async (stopped) => !stopped || Boolean(await continueConversation(conversation.id)),
     sendBlocker: null,
     savePlan: null,

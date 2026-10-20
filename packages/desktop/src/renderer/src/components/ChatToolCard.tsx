@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { createContext, useContext, useEffect, useState } from 'react'
 import { terminalToolKind, type ChatDiff, type ChatItem, type ChatToolStatus } from '@antumi/protocol'
 import { ChatFindExpansion, useDisclosure } from '../chat-disclosure'
@@ -30,13 +31,13 @@ export function FileExt({ path }: { path: string }) {
 
 
 // Only what did not simply work is said; a finished call needs no word.
-const STATUS_TEXT: Partial<Record<ChatToolStatus, string>> = { failed: '失败', denied: '已拒绝', interrupted: '已中断' }
+const STATUS_TEXT: Partial<Record<ChatToolStatus, string>> = localized(() => ({ failed: t('ChatToolCard.failed'), denied: t('approvalChoiceText.denied'), interrupted: t('ChatToolCard.interrupted') }))
 
 // A long output is cut here: the call's own card is not where to read a whole log.
 const OUTPUT_LIMIT = 4000
 
 export function clipped(text: string): string {
-  return text.length > OUTPUT_LIMIT ? `${text.slice(0, OUTPUT_LIMIT)}\n…（还有 ${text.length - OUTPUT_LIMIT} 字）` : text
+  return text.length > OUTPUT_LIMIT ? t('ChatToolCard.moreCharacters', { value1: text.slice(0, OUTPUT_LIMIT), value2: text.length - OUTPUT_LIMIT }) : text
 }
 
 // How long a call has run so far, ticking beside its spinner; gone once it finishes.
@@ -56,7 +57,7 @@ function ToolTimer({ since }: { since: number }) {
 }
 
 export function ToolStatus({ status, since }: { status: ChatToolStatus; since?: number }) {
-  if (status === 'running') return <><Spinner label="进行中" />{since !== undefined && <ToolTimer since={since} />}</>
+  if (status === 'running') return <><Spinner label={t('ChatTodos.inProgress')} />{since !== undefined && <ToolTimer since={since} />}</>
   const text = STATUS_TEXT[status]
   return text ? <span className="chat-tool-status" data-status={status}>{text}</span> : null
 }
@@ -66,7 +67,7 @@ function CommandExit({ tool }: { tool: ToolItem }) {
   if (code === null || code === 0) return null
   return (
     <div className="chat-tool-actions">
-      <span className="chat-tool-status" data-status="failed" aria-label={`退出码 ${code}`}>exit {code}</span>
+      <span className="chat-tool-status" data-status="failed" aria-label={t('ChatToolCard.exitCode', { code: code })}>exit {code}</span>
     </div>
   )
 }
@@ -91,7 +92,7 @@ export function ChatDiffs({ diffs }: { diffs: readonly ChatDiff[] }) {
       {diffs.map((diff, index) => (
         <div key={`${diff.path}:${index}`} className="chat-diff" data-diff-path={diff.path}>
           <div className="chat-diff-path mono" data-file-path={diff.path} title={diff.path}>
-            {diff.change === 'add' ? '新建 ' : diff.change === 'delete' ? '删除 ' : ''}
+            {diff.change === 'add' ? t('ChatToolCard.create') : diff.change === 'delete' ? t('ChatToolCard.delete') : ''}
             {shorten(diff.path)}
           </div>
           {diff.patch && <DiffLines patch={diff.patch} path={diff.path} />}
@@ -121,20 +122,16 @@ export function ChatEditsCard({ path, tools }: { path: string; tools: readonly T
     <div className="chat-tool" data-diff-path={path} {...editTarget(`edits:${first ? itemKey(first) : path}`, [path])} data-finished={finished || undefined}>
       <button type="button" className="chat-tool-header" aria-expanded={open} onClick={() => setOpen(!open)}>
         <ChatToolIcon name="Edit" status={tools.find((tool) => tool.status === 'running')?.status ?? tools.find((tool) => tool.status !== 'done')?.status ?? 'done'} />
-        <span className="chat-tool-name">编辑:</span>
+        <span className="chat-tool-name">{t('ChatToolCard.edit')}</span>
         <FileExt path={path} />
-        <span className="chat-tool-title" data-file-path={path} title={path}>{shorten(path)}<span className="chat-tool-count"> · {tools.length} 次</span></span>
+        <span className="chat-tool-title" data-file-path={path} title={path}>{shorten(path)}<span className="chat-tool-count">{tr('ChatToolCard.times', { value1: tools.length })}</span></span>
         <DiffCount diffs={tools.flatMap((tool) => tool.diffs)} />
         <span className="chat-tool-chevron" aria-hidden="true"><ChevronRightIcon /></span>
       </button>
       {open && <div className="chat-diffs">
         {tools.map((tool, index) => (
           <div key={tool.id} className="chat-diff">
-            <div className="chat-diff-path chat-edit-step">
-              第 {index + 1} 次
-              <DiffCount diffs={tool.diffs} />
-              <ToolStatus status={tool.status} since={tool.at} />
-            </div>
+            <div className="chat-diff-path chat-edit-step">{tr('ChatToolCard.attempt', { value1: index + 1, value2: <DiffCount diffs={tool.diffs} />, value3: <ToolStatus status={tool.status} since={tool.at} /> })}</div>
             {tool.diffs.map((diff, at) => diff.patch && <DiffLines key={at} patch={diff.patch} path={diff.path} />)}
           </div>
         ))}
@@ -203,9 +200,9 @@ export function ChatToolRun({ tools, summary }: { tools: readonly ToolItem[]; su
         <span className="chat-tool-chevron" aria-hidden="true"><ChevronRightIcon /></span>
         {running && !headline.described && <span className="chat-tool-title mono" title={running.title}>{shorten(running.title)}</span>}
         {running && <ToolStatus status="running" since={running.at} />}
-        {outcome.failed > 0 && <span className="chat-tool-status" data-status="failed">{outcome.failed} 项异常</span>}
-        {outcome.denied > 0 && <span className="chat-tool-status" data-status="denied">{outcome.denied} 项已拒绝</span>}
-        {outcome.interrupted > 0 && <span className="chat-tool-status" data-status="interrupted">{outcome.interrupted} 项已中断</span>}
+        {outcome.failed > 0 && <span className="chat-tool-status" data-status="failed">{tr('ChatToolCard.errors', { value1: outcome.failed })}</span>}
+        {outcome.denied > 0 && <span className="chat-tool-status" data-status="denied">{tr('ChatToolCard.denied', { value1: outcome.denied })}</span>}
+        {outcome.interrupted > 0 && <span className="chat-tool-status" data-status="interrupted">{tr('ChatToolCard.interrupted_530', { value1: outcome.interrupted })}</span>}
       </button>
       {open && (
         <div className="chat-tool-run-lines" style={{ '--chat-rail': `${(settled / tools.length) * 100}%` }}>
@@ -249,7 +246,7 @@ export function ChatToolCard({ item }: { item: ToolItem }) {
       </button>
       {terminal && (
         <div className="chat-tool-actions">
-          <button type="button" className="link-button" onClick={() => showTerminal(terminal)}>在终端面板里看</button>
+          <button type="button" className="link-button" onClick={() => showTerminal(terminal)}>{t('ChatToolCard.viewInTerminalPanel')}</button>
         </div>
       )}
       {open && <CommandExit tool={item} />}

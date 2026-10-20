@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useCallback, useState, type KeyboardEvent } from 'react'
 import { createsCycle, shortTaskId, type Task } from '@antumi/protocol'
 import { selectTask, useCore } from '../core-store'
@@ -8,20 +9,20 @@ import { StatusIcon } from './StatusIcon'
 
 function TaskChip({ task, onRemove }: { task: Task; onRemove?: () => void }) {
   const waiting = useCore((s) => waitingOn(task, s.tasks))
-  const status = waiting > 0 ? `${STATUS_LABEL[task.status]}，等待 ${waiting} 个任务` : STATUS_LABEL[task.status]
+  const status = waiting > 0 ? t('DependencyPicker.waitingForTasks', { value1: STATUS_LABEL[task.status], waiting: waiting }) : STATUS_LABEL[task.status]
   return (
     <span className="chip">
       <button
         type="button"
         className="chip-main"
-        title={`${status} · 点击打开`}
+        title={t('DependencyPicker.clickToOpen', { status: status })}
         onClick={() => selectTask(task.id)}
       >
         <StatusIcon status={task.status} waiting={waiting} decorative />
         <span className="chip-title">{task.title}</span>
       </button>
       {onRemove && (
-        <button type="button" className="chip-remove" aria-label={`移除依赖 ${task.title}`} onClick={onRemove}>
+        <button type="button" className="chip-remove" aria-label={t('DependencyPicker.removeDependency', { value1: task.title })} onClick={onRemove}>
           ×
         </button>
       )}
@@ -58,15 +59,15 @@ function DependencyMenu({
   }
 
   return (
-    <Popover label="添加依赖" onClose={onClose}>
+    <Popover label={t('DependencyPicker.addDependency')} onClose={onClose}>
       {candidates.length > 0 && (
         <input
           className="input menu-search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onSearchKey}
-          placeholder="搜索标题或 id，回车添加第一个"
-          aria-label="搜索任务"
+          placeholder={t('DependencyPicker.searchTitleOrIdEnterToAddThe')}
+          aria-label={t('DependencyPicker.searchTasks')}
         />
       )}
       {shown.length > 0 && (
@@ -83,9 +84,9 @@ function DependencyMenu({
         </ul>
       )}
       {shown.length === 0 && (
-        <p className="menu-note">{candidates.length > 0 ? '没有匹配的任务' : '没有其他可以依赖的任务'}</p>
+        <p className="menu-note">{candidates.length > 0 ? t('DependencyPicker.noMatchingTasks') : t('DependencyPicker.noOtherTasksAvailableAsDependencies')}</p>
       )}
-      {looped > 0 && <p className="menu-note">已排除 {looped} 个会形成循环依赖的任务</p>}
+      {looped > 0 && <p className="menu-note">{tr('DependencyPicker.excludedTasksThatWouldCreateADependencyCycle', { looped: looped })}</p>}
     </Popover>
   )
 }
@@ -129,9 +130,7 @@ export function DependencyPicker({
           aria-haspopup="dialog"
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
-        >
-          ＋ 添加依赖
-        </button>
+        >{t('DependencyPicker.addDependency_789')}</button>
         {/* Stays open after a pick so several dependencies can be added in a row. */}
         {open && (
           <DependencyMenu

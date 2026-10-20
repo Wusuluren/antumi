@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useHelper, useHelperSupported } from '../helper-conversations'
 import { useCallback, useEffect, useState, type DragEvent } from 'react'
 import { usePlans } from '../chat-state'
@@ -27,8 +28,8 @@ function ForkOrigin({ id }: { id: string }) {
   return (
     <span className="muted conversation-origin">
       {source
-        ? <>从「<button type="button" className="link-button" onClick={() => selectConversation(id)}>{source.title}</button>」fork</>
-        : 'fork 自一条已删除的会话'}
+        ? <>{tr('ConversationView.forkedFrom', { value1: <button type="button" className="link-button" onClick={() => selectConversation(id)}>{source.title}</button> })}</>
+        : t('ConversationView.forkedFromADeletedConversation')}
     </span>
   )
 }
@@ -46,7 +47,7 @@ export function useConversationPanel(conversation: Conversation | undefined) {
   // inspector still shows the agent's plans.
   const inspectable = (conversation?.projectPaths.length ?? 0) > 0
   const hasPanel = helperSupported || inspectable || plans.length > 0 || wire || files.tabs.length > 0 || todosShown
-  const hint = todoLeft > 0 ? `检查器 · ${todoLeft} 项待办` : inspectable ? '查看改动' : plans.length > 0 ? '查看计划' : wire ? '查看原始数据' : '查看待办'
+  const hint = todoLeft > 0 ? t('ConversationView.inspectorToDos', { todoLeft: todoLeft }) : inspectable ? t('ConversationView.viewChanges') : plans.length > 0 ? t('ConversationView.viewPlan') : wire ? t('ConversationView.viewRawData') : t('chatTools.listToDos')
   return { hasPanel, wire, todoLeft, hint }
 }
 
@@ -115,7 +116,7 @@ export function ConversationView({ id, pane }: { id: string; pane?: Conversation
   }
   return <section
     className="detail terminal-view conversation-view"
-    aria-label={pane ? `第 ${pane.index + 1} 列：${conversation.title}` : `${conversation.title} 的会话`}
+    aria-label={pane ? t('ConversationView.pane', { value1: pane.index + 1, value2: conversation.title }) : t('ConversationView.conversation', { value1: conversation.title })}
     data-split-pane={pane ? pane.index + 1 : undefined}
     data-pane-active={pane ? pane.active : undefined}
     // Working anywhere in a column brings it to the front, the click or key going on as it was.
@@ -124,58 +125,52 @@ export function ConversationView({ id, pane }: { id: string; pane?: Conversation
     {...dropProps}
   >
     <header className="detail-header conversation-header">
-      {pane && <button type="button" className="pane-chip" data-active={pane.active} aria-label={`第 ${pane.index + 1} 列${pane.active ? '，当前' : ''}（${PRIMARY_KEY_LABEL}${pane.index + 1}）`} data-tooltip={`${PRIMARY_KEY_LABEL}${pane.index + 1}`} onClick={pane.focus}>{pane.index + 1}</button>}
+      {pane && <button type="button" className="pane-chip" data-active={pane.active} aria-label={t('ConversationView.pane_729', { value1: pane.index + 1, value2: pane.active ? t('ConversationView.active') : '', PRIMARY_KEY_LABEL: PRIMARY_KEY_LABEL, value4: pane.index + 1 })} data-tooltip={`${PRIMARY_KEY_LABEL}${pane.index + 1}`} onClick={pane.focus}>{pane.index + 1}</button>}
       <ConversationStatus conversation={conversation} />
       <div className="header-meta">
         {renaming
-          ? <TitleEditor title={conversation.title} label="会话标题" onSave={rename} onDone={() => setRenaming(false)} />
-          : <button type="button" className="terminal-view-title conversation-title" title={`${conversation.title}\n点击重命名`} disabled={busy} onClick={() => setRenaming(true)}>{conversation.title}</button>}
+          ? <TitleEditor title={conversation.title} label={t('ConversationList.conversationTitle')} onSave={rename} onDone={() => setRenaming(false)} />
+          : <button type="button" className="terminal-view-title conversation-title" title={t('ConversationView.clickToRename', { value1: conversation.title })} disabled={busy} onClick={() => setRenaming(true)}>{conversation.title}</button>}
         <span className="muted">{agentLabel(conversation.agent)}</span>
         <span className="muted" title={conversation.projectPaths.join('\n') || conversation.workspacePath}>{primaryProjectName(conversation.projectPaths)}</span>
         <BranchStatus target={{ kind: 'conversation', id }} updatedAt={conversation.updatedAt} />
         <span className={state.failed ? 'conversation-exit-failed' : 'muted'} title={state.detail ?? undefined}>{state.label}</span>
-        {archived && <span className="archived-tag">已归档</span>}
+        {archived && <span className="archived-tag">{t('ConversationList.archived')}</span>}
         {conversation.forkedFromId && <ForkOrigin id={conversation.forkedFromId} />}
-        {conversation.source && <span className="muted conversation-origin">排查 {conversation.source.name}<SourceLink source={conversation.source} /></span>}
+        {conversation.source && <span className="muted conversation-origin">{tr('ConversationView.investigate', { value1: conversation.source.name, value2: <SourceLink source={conversation.source} /> })}</span>}
         {conversation.routineId && (
-          <span className="muted conversation-origin">
-            来自定时任务{routine ? `「${routine.title}」` : ''} ·
-            <button type="button" className="link-button" onClick={() => setRoutinesOpen(true, 'routines')}>回到定时任务</button>
-          </span>
+          <span className="muted conversation-origin">{tr('ConversationView.fromRoutine', { value1: routine ? `「${routine.title}」` : '', value2: <button type="button" className="link-button" onClick={() => setRoutinesOpen(true, 'routines')}>{t('ConversationView.backToRoutine')}</button> })}</span>
         )}
         {conversation.discussionId && (
-          <span className="muted conversation-origin" title="在这里发的消息只有这个成员看到，不进群聊">
-            群聊{discussion ? `「${discussion.title}」` : ''}的成员 ·
-            <button type="button" className="link-button" onClick={() => conversation.discussionId && selectDiscussion(conversation.discussionId)}>回到群聊</button>
-          </span>
+          <span className="muted conversation-origin" title={t('ConversationView.messagesSentHereGoOnlyToThisMember')}>{tr('ConversationView.memberOfGroupChat', { value1: discussion ? `「${discussion.title}」` : '', value2: <button type="button" className="link-button" onClick={() => conversation.discussionId && selectDiscussion(conversation.discussionId)}>{t('ConversationView.backToGroupChat')}</button> })}</span>
         )}
       </div>
       <div className="toolbar">
-        {reuseSupported && canReuseConversation(conversation) && <button type="button" className="tool-button" aria-label="同配置新建" data-tooltip="沿用当前配置，开启空白会话" disabled={busy} onClick={() => void action(() => newConversationFrom(conversation))}><CopyIcon /></button>}
+        {reuseSupported && canReuseConversation(conversation) && <button type="button" className="tool-button" aria-label={t('ConversationActions.newWithSameConfiguration')} data-tooltip={t('ConversationView.startABlankConversationWithTheCurrentConfiguration')} disabled={busy} onClick={() => void action(() => newConversationFrom(conversation))}><CopyIcon /></button>}
         {hasPanel && (
           <button
             type="button"
             className="tool-button"
-            aria-label={todoLeft > 0 ? `检查器，${todoLeft} 项待办` : '检查器'}
+            aria-label={todoLeft > 0 ? t('ConversationView.inspectorToDos_739', { todoLeft: todoLeft }) : t('ConversationView.inspector')}
             aria-pressed={inspecting}
-            data-tooltip={inspecting ? '收起检查器' : hint}
+            data-tooltip={inspecting ? t('ConversationView.collapseInspector') : hint}
             onClick={() => setConversationInspectorOpen(!inspecting)}
           >
             <InspectorIcon />
-            {helper?.chat?.turn === 'awaiting' && <span className="helper-attention-dot tool-button-dot" role="img" aria-label="小助手等你处理" />}
+            {helper?.chat?.turn === 'awaiting' && <span className="helper-attention-dot tool-button-dot" role="img" aria-label={t('ConversationView.helperNeedsYourResponse')} />}
             {!inspecting && todoLeft > 0 && <span className="tool-button-badge" aria-hidden="true">{todoLeft}</span>}
           </button>
         )}
         <span className="toolbar-separator" aria-hidden="true" />
         {pane
-          ? <button type="button" className="tool-button" aria-label="关闭这一列" data-tooltip="关闭这一列" onClick={pane.onClose}><CloseIcon /></button>
-          : <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={openOverview}><CloseIcon /></button>}
+          ? <button type="button" className="tool-button" aria-label={t('ConversationView.closeThisPane')} data-tooltip={t('ConversationView.closeThisPane')} onClick={pane.onClose}><CloseIcon /></button>
+          : <button type="button" className="tool-button" aria-label={t('BackdropPicker.close')} data-tooltip={t('BackdropPicker.close')} onClick={openOverview}><CloseIcon /></button>}
       </div>
     </header>
     <div className="terminal-body">
       <ConversationChat conversation={conversation} onHandoff={conversation.discussionId ? undefined : openHandoff} />
       {!pane && hasPanel && inspectorOpen && <ConversationInspector conversation={conversation} widthRatio={panelRatio} onWidthRatioChange={setPanelRatio} wire={wire} />}
     </div>
-    {dropping && <div className="split-drop" aria-hidden="true"><SplitIcon /><strong>松开，在右侧分屏打开</strong></div>}
+    {dropping && <div className="split-drop" aria-hidden="true"><SplitIcon /><strong>{t('ConversationView.releaseToOpenInARightSplitPane')}</strong></div>}
   </section>
 }

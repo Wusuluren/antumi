@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useHelper, useHelperSupported } from '../helper-conversations'
 import { useCallback, useState, type ReactElement } from 'react'
 import {
@@ -41,7 +42,7 @@ import { useOpenTodoCount, useTodosShown } from '../conversation-todos'
 
 function blockerText(blocker: string, waitingOn: readonly Task[]): string {
   if (blocker === 'blocked' && waitingOn.length > 0) {
-    return `等待${waitingOn.map((dependency) => `「${dependency.title}」${dependency.status === 'review' ? '验收通过' : '完成'}`).join('、')}`
+    return t('TaskActions.waitingFor', { value1: waitingOn.map((dependency) => `「${dependency.title}」${dependency.status === 'review' ? t('TaskActions.acceptReview') : t('ChatSubagents.done')}`).join('、') })
   }
   return reasonText(blocker, blocker)
 }
@@ -52,7 +53,7 @@ type MoveAction = { label: string; Icon: () => ReactElement; primary: boolean }
 // Closing a task under review is accepting its result, the step that frees its dependents.
 function moveAction(from: TaskStatus, to: TaskStatus): MoveAction | null {
   if (to !== 'done') return null
-  return from === 'review' ? { label: '接受', Icon: CheckIcon, primary: true } : { label: '标记完成', Icon: CheckIcon, primary: false }
+  return from === 'review' ? { label: t('TaskActions.accept'), Icon: CheckIcon, primary: true } : { label: t('TaskActions.markDone'), Icon: CheckIcon, primary: false }
 }
 
 async function moveTask(taskId: string, status: TaskStatus): Promise<void> {
@@ -100,7 +101,7 @@ function LaunchButton({
         aria-busy={starting}
         aria-haspopup={blocked ? 'dialog' : undefined}
         aria-expanded={blocked ? explaining : undefined}
-        data-tooltip={reason ? `还不能${label}：${reason}` : labelled ? tooltip : label}
+        data-tooltip={reason ? t('TaskActions.cannotYet', { label: label, reason: reason }) : labelled ? tooltip : label}
         data-tooltip-align={labelled ? 'start' : undefined}
         onClick={async () => {
           if (blocked) {
@@ -116,10 +117,8 @@ function LaunchButton({
         {labelled && label}
       </button>
       {explaining && reason && (
-        <Popover label={`还不能${label}`} onClose={close}>
-          <p className="menu-note">
-            还不能{label}：{reason}
-          </p>
+        <Popover label={t('TaskActions.cannotYet_1957', { label: label })} onClose={close}>
+          <p className="menu-note">{tr('TaskActions.cannotYet', { label: label, reason: reason })}</p>
         </Popover>
       )}
     </span>
@@ -170,20 +169,20 @@ export function cardAction(task: Task, dependencies: readonly Task[], turn: Chat
   switch (task.status) {
     case 'pending': {
       const blocker = checkStart(task, dependencies)
-      if (blocker === 'planning') return { label: '查看规划', reason: null, run: () => selectTask(task.id) }
+      if (blocker === 'planning') return { label: t('TaskActions.viewPlanning'), reason: null, run: () => selectTask(task.id) }
       return {
-        label: startKind(dependencies) === 'plan' ? '开始规划' : '开始执行',
+        label: startKind(dependencies) === 'plan' ? t('SquadLaunchDialog.startPlanning') : t('TaskActions.startExecution'),
         reason: blocker && blockerText(blocker, unfinished(dependencies)),
         run: () => void startTask(task.id)
       }
     }
     case 'running': {
-      if (turn === 'awaiting') return { label: '回答', reason: null, run: () => selectTask(task.id) }
+      if (turn === 'awaiting') return { label: t('TaskActions.answer'), reason: null, run: () => selectTask(task.id) }
       const blocker = checkSubmit(task, turn)
-      return { label: '提交验收', reason: blocker && reasonText(blocker, blocker), run: () => void submitTask(task.id) }
+      return { label: t('TaskActions.submitForReview'), reason: blocker && reasonText(blocker, blocker), run: () => void submitTask(task.id) }
     }
     case 'review':
-      return { label: '接受', reason: moveBlocker(task, 'done'), run: () => void moveTask(task.id, 'done') }
+      return { label: t('TaskActions.accept'), reason: moveBlocker(task, 'done'), run: () => void moveTask(task.id, 'done') }
     default:
       return null
   }
@@ -191,15 +190,15 @@ export function cardAction(task: Task, dependencies: readonly Task[], turn: Chat
 
 // Deleting stops a live agent, so it asks first. Worktrees stay on disk either way.
 async function deleteTask(task: Task): Promise<void> {
-  if (window.confirm(`删除任务「${task.title}」？${task.status === 'running' ? '正在运行的 agent 会被停止，' : ''}已有的 worktree 会保留。`)) {
+  if (window.confirm(t('TaskActions.deleteTaskExistingWorktreesAreKept', { value1: task.title, value2: task.status === 'running' ? t('TaskActions.theRunningAgentWillBeStopped') : '' }))) {
     await perform((rpc) => rpc.call('tasks.delete', { id: task.id }))
   }
 }
 
 // Cancelling stops the agent and keeps the rest, so it asks first, saying what stays.
 async function cancelTask(task: Task): Promise<void> {
-  const stops = task.status === 'running' ? 'Agent 会停下，' : ''
-  if (window.confirm(`取消任务「${task.title}」？${stops}聊天记录和 worktree 都保留，之后可以重新打开。`)) {
+  const stops = task.status === 'running' ? t('TaskActions.agentWillStop') : ''
+  if (window.confirm(t('TaskActions.cancelTaskChatHistoryAndWorktreesAreKept', { value1: task.title, stops: stops }))) {
     await perform((rpc) => rpc.call('tasks.cancel', { id: task.id }))
   }
 }
@@ -216,9 +215,9 @@ function useCancelling(task: Task): { label: string; Icon: () => ReactElement; r
   if (task.status === 'abandoned') {
     // One abandoned for a redo, before redoing kept the task, has its successor carrying on.
     if (Object.values(tasks).some((other) => other.derivedFrom === task.id)) return null
-    return { label: '重新打开', Icon: ReopenIcon, run: () => void reopenTask(task) }
+    return { label: t('TaskActions.reopen'), Icon: ReopenIcon, run: () => void reopenTask(task) }
   }
-  return checkCancel(task) === null ? { label: '取消任务', Icon: CloseIcon, run: () => void cancelTask(task) } : null
+  return checkCancel(task) === null ? { label: t('TaskActions.cancelTask'), Icon: CloseIcon, run: () => void cancelTask(task) } : null
 }
 
 function copyTaskId(taskId: string): void {
@@ -253,43 +252,37 @@ function RedoButton({ task, labelled }: { task: Task; labelled: boolean }) {
       <button
         type="button"
         className={labelled ? 'button' : 'tool-button'}
-        aria-label="重做"
+        aria-label={t('TaskActions.redo')}
         aria-haspopup="dialog"
         aria-expanded={open}
-        data-tooltip={inPlace ? '重做：从头再来，这次的改动另存到一个分支' : '重做：放弃这次结果，新建一个继承它的任务'}
+        data-tooltip={inPlace ? t('TaskActions.redoFromScratchSaveThisAttemptSChanges') : t('TaskActions.discardThisResultAndCreateASuccessorTask')}
         data-tooltip-align={labelled ? 'start' : undefined}
         onClick={() => setOpen((current) => !current)}
       >
         <ReopenIcon />
-        {labelled && '重做'}
+        {labelled && t('TaskActions.redo')}
       </button>
       {open && (
-        <Popover label="重做任务" onClose={close}>
+        <Popover label={t('TaskActions.redoTask')} onClose={close}>
           <div className="note-form">
-            <p className="note-form-title">从头重做</p>
+            <p className="note-form-title">{t('TaskActions.redoFromScratch')}</p>
             {inPlace ? (
-              <p className="menu-note">
-                Agent 会停下，这次的改动（包括没提交的）另存到分支 {kept.length > 0 ? kept.join('、') : '…-try'}，任务分支从头开始，任务回到「未执行」。聊天记录保留，下次开始时 Agent 重新起步，并会知道原因和上次的分支。
-              </p>
+              <p className="menu-note">{tr('TaskActions.agentStopsThisAttemptSChangesIncludingUncommitted', { value1: kept.length > 0 ? kept.join('、') : '…-try' })}</p>
             ) : (
-              <p className="menu-note">
-                会新建一个继承标题、详情、项目和依赖的任务，从干净的分支开始。这次的 worktree 会保留，依赖本任务的任务改为依赖新任务。
-              </p>
+              <p className="menu-note">{t('TaskActions.createATaskInheritingTheTitleDetailsProjects')}</p>
             )}
             <textarea
               className="input note-form-input"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="为什么重做？（可选，会告诉下次的 Agent）"
+              placeholder={t('TaskActions.whyRedoOptionalSharedWithTheNextAgent')}
               maxLength={500}
               rows={3}
             />
             <div className="note-form-actions">
-              <button type="button" className="button ghost" onClick={close}>
-                返回
-              </button>
+              <button type="button" className="button ghost" onClick={close}>{t('TaskActions.back')}</button>
               <button type="button" className="button primary" disabled={busy} onClick={() => void redo()}>
-                {busy ? '正在重做…' : '重做'}
+                {busy ? t('TaskActions.redoing') : t('TaskActions.redo')}
               </button>
             </div>
           </div>
@@ -305,12 +298,9 @@ function StartButton({ task, dependencies, labelled }: { task: Task; dependencie
   const blocker = checkStart(task, dependencies)
   if (blocker === 'planning') {
     return labelled ? (
-      <button type="button" className="button primary" onClick={() => showView('chat')}>
-        <ChatIcon />
-        规划中，查看对话
-      </button>
+      <button type="button" className="button primary" onClick={() => showView('chat')}>{tr('TaskActions.planningViewConversation', { value1: <ChatIcon /> })}</button>
     ) : (
-      <button type="button" className="tool-button run-button" aria-pressed="true" aria-label="规划中，查看对话" data-tooltip="规划中，查看对话" onClick={() => showView('chat')}>
+      <button type="button" className="tool-button run-button" aria-pressed="true" aria-label={t('TaskActions.planningViewConversation_1979')} data-tooltip={t('TaskActions.planningViewConversation_1979')} onClick={() => showView('chat')}>
         <ChatIcon />
       </button>
     )
@@ -318,10 +308,10 @@ function StartButton({ task, dependencies, labelled }: { task: Task; dependencie
   const plan = startKind(dependencies) === 'plan'
   return (
     <LaunchButton
-      label={plan ? '开始规划' : '开始执行'}
+      label={plan ? t('SquadLaunchDialog.startPlanning') : t('TaskActions.startExecution')}
       className={labelled ? 'primary' : 'run-button'}
       Icon={plan ? ChatIcon : PlayIcon}
-      reason={starting ? '正在启动' : blocker && blockerText(blocker, unfinished(dependencies))}
+      reason={starting ? t('SettingsPage.starting') : blocker && blockerText(blocker, unfinished(dependencies))}
       launch={() => startTask(task.id)}
       labelled={labelled}
     />
@@ -339,17 +329,14 @@ function ScheduleButton({ task, dependencies, labelled }: { task: Task; dependen
   const launchSupported = useTaskLaunchSupported()
   const catalog = useAgentCatalog(task.agent, open && launchSupported)
   const { model, effort } = resolveModel(catalog, { model: task.launch.model ?? undefined, effort: task.launch.effort ?? undefined })
-  const runsIn = model ? `用 ${model.label}${effort ? ` · ${effortLabel(effort)}` : ''}。` : ''
+  const runsIn = model ? t('TaskActions.use', { value1: model.label, value2: effort ? ` · ${effortLabel(effort)}` : '' }) : ''
   if (!supported) return null
   if (scheduled) {
     const state = scheduleState(scheduled, Date.now())
     return labelled ? (
-      <button type="button" className="button task-scheduled" data-tooltip="查看预约的执行" data-tooltip-align="start" onClick={() => setSchedulesOpen(true)}>
-        <ClockIcon />
-        已预约：{state}
-      </button>
+      <button type="button" className="button task-scheduled" data-tooltip={t('TaskActions.viewScheduledExecution')} data-tooltip-align="start" onClick={() => setSchedulesOpen(true)}>{tr('TaskActions.scheduled', { value1: <ClockIcon />, state: state })}</button>
     ) : (
-      <button type="button" className="tool-button task-scheduled" aria-pressed="true" aria-label={`已预约：${state}`} data-tooltip={`已预约：${state}`} onClick={() => setSchedulesOpen(true)}>
+      <button type="button" className="tool-button task-scheduled" aria-pressed="true" aria-label={t('TaskActions.scheduled_1983', { state: state })} data-tooltip={t('TaskActions.scheduled_1983', { state: state })} onClick={() => setSchedulesOpen(true)}>
         <ClockIcon />
       </button>
     )
@@ -361,25 +348,25 @@ function ScheduleButton({ task, dependencies, labelled }: { task: Task; dependen
       <button
         type="button"
         className={labelled ? 'button launch-button' : 'tool-button'}
-        aria-label="预约执行"
+        aria-label={t('TaskActions.scheduleExecution')}
         aria-disabled={reason !== null}
         aria-haspopup="dialog"
         aria-expanded={open}
-        data-tooltip={reason ? `还不能预约：${reason}` : '预约执行：额度恢复后或到点自动开始'}
+        data-tooltip={reason ? t('TaskActions.cannotScheduleYet', { reason: reason }) : t('TaskActions.scheduleExecutionWhenQuotaResetsOrAtA')}
         data-tooltip-align={labelled ? 'start' : undefined}
         onClick={() => setOpen((current) => !current)}
       >
         <ClockIcon />
-        {labelled && '预约'}
+        {labelled && t('OverviewView.schedules')}
       </button>
       {open && (reason ? (
-        <Popover label="还不能预约" onClose={close}>
-          <p className="menu-note">还不能预约：{reason}</p>
+        <Popover label={t('TaskActions.cannotScheduleYet_1987')} onClose={close}>
+          <p className="menu-note">{tr('TaskActions.cannotScheduleYet', { reason: reason })}</p>
         </Popover>
       ) : (
         <SchedulePicker
-          title="预约执行"
-          note={`${task.plan ? '到点后按保存的计划直接实现，不再先规划。' : '到点后按任务详情直接实现，不再先规划。'}${runsIn}`}
+          title={t('TaskActions.scheduleExecution')}
+          note={`${task.plan ? t('TaskActions.implementTheSavedPlanWhenDueWithoutPlanning') : t('TaskActions.implementTaskDetailsWhenDueWithoutPlanningAgain')}${runsIn}`}
           onSchedule={async (notBefore) => (await createSchedule({ kind: 'task', taskId: task.id }, notBefore)) !== null}
           onClose={close}
         />
@@ -396,7 +383,7 @@ async function startNow(task: Task, launch: TaskLaunch): Promise<void> {
 }
 
 function startLabel(mode: ChatPermissionMode): string {
-  return mode === 'plan' ? '开始规划' : mode === 'readOnly' ? '开始分析' : '直接执行'
+  return mode === 'plan' ? t('SquadLaunchDialog.startPlanning') : mode === 'readOnly' ? t('TaskActions.startAnalysis') : t('TaskActions.executeDirectly')
 }
 
 // Starts at once in the mode the task keeps; the menu beside it picks that mode, planning first or
@@ -435,7 +422,7 @@ function StartSplitButton({ task, dependencies, launch }: { task: Task; dependen
           label={startLabel(launch.mode)}
           className="primary"
           Icon={launch.mode === 'plan' ? ChatIcon : PlayIcon}
-          reason={starting ? '正在启动' : blocker && blockerText(blocker, unfinished(dependencies))}
+          reason={starting ? t('SettingsPage.starting') : blocker && blockerText(blocker, unfinished(dependencies))}
           launch={() => startNow(task, launch)}
           labelled
           tooltip={described?.description ? `${modeLabel(agent, launch.mode)}：${described.description}` : undefined}
@@ -444,7 +431,7 @@ function StartSplitButton({ task, dependencies, launch }: { task: Task; dependen
           <button
             type="button"
             className={`button split-button-toggle ${blocker ? '' : 'primary'}`}
-            aria-label="选择怎么开始"
+            aria-label={t('TaskActions.chooseHowToStart')}
             aria-haspopup="dialog"
             aria-expanded={open}
             onClick={() => setOpen((current) => !current)}
@@ -452,11 +439,11 @@ function StartSplitButton({ task, dependencies, launch }: { task: Task; dependen
             <ChevronDownIcon />
           </button>
           {open && (
-            <Popover label="怎么开始" onClose={close}>
-              {launch.planOnly && <p className="menu-note">依赖的任务还没完成，现在只能先规划。</p>}
-              <div className="chat-picker-heading">先规划</div>
+            <Popover label={t('TaskActions.howToStart')} onClose={close}>
+              {launch.planOnly && <p className="menu-note">{t('TaskActions.dependenciesAreUnfinishedOnlyPlanningIsAvailableNow')}</p>}
+              <div className="chat-picker-heading">{t('TaskActions.planFirst')}</div>
               {item('plan')}
-              {direct.length > 0 && <div className="chat-picker-heading">直接执行</div>}
+              {direct.length > 0 && <div className="chat-picker-heading">{t('TaskActions.executeDirectly')}</div>}
               {direct.map(item)}
               {launch.offered.includes('readOnly') && (
                 <>
@@ -468,7 +455,7 @@ function StartSplitButton({ task, dependencies, launch }: { task: Task; dependen
           )}
         </span>
       </span>
-      {writes && inPlace && <p className="task-launch-note">此项目不是 Git 仓库，修改会直接写入原目录。</p>}
+      {writes && inPlace && <p className="task-launch-note">{t('SquadLaunchDialog.thisProjectIsNotAGitRepositoryChanges')}</p>}
     </>
   )
 }
@@ -479,7 +466,7 @@ function SubmitButton({ task, labelled }: { task: Task; labelled: boolean }) {
   const blocker = checking ? 'check-running' : checkSubmit(task, turn)
   return (
     <LaunchButton
-      label="提交验收"
+      label={t('TaskActions.submitForReview')}
       className={labelled ? 'primary' : 'run-button'}
       Icon={SubmitIcon}
       reason={blocker && reasonText(blocker, blocker)}
@@ -510,7 +497,7 @@ function useWorktreeCleaning(task: Task): (() => void) | null {
   const supported = useWorktreesSupported()
   const paths = task.repos.flatMap((repo) => (repo.worktreePath ? [repo.worktreePath] : []))
   if (!supported || paths.length === 0 || (task.status !== 'done' && task.status !== 'abandoned')) return null
-  return () => void cleanWithConfirm(paths, paths.length > 1 ? `这个任务的 ${paths.length} 个 worktree` : '这个任务的 worktree')
+  return () => void cleanWithConfirm(paths, paths.length > 1 ? t('TaskActions.thisTaskSWorktrees', { value1: paths.length }) : t('TaskActions.thisTaskSWorktree'))
 }
 
 function MoreMenu({ task }: { task: Task }) {
@@ -523,8 +510,8 @@ function MoreMenu({ task }: { task: Task }) {
       <button
         type="button"
         className="tool-button"
-        aria-label="更多操作"
-        data-tooltip="更多操作"
+        aria-label={t('FileEditor.moreActions')}
+        data-tooltip={t('FileEditor.moreActions')}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
@@ -532,7 +519,7 @@ function MoreMenu({ task }: { task: Task }) {
         <MoreIcon />
       </button>
       {open && (
-        <Popover label="更多操作" onClose={close}>
+        <Popover label={t('FileEditor.moreActions')} onClose={close}>
           <button
             type="button"
             className="menu-item"
@@ -540,11 +527,7 @@ function MoreMenu({ task }: { task: Task }) {
               close()
               copyTaskId(task.id)
             }}
-          >
-            <span className="menu-item-icon"><CopyIcon /></span>
-            复制任务 id
-            <span className="menu-item-path mono">{shortTaskId(task.id)}…</span>
-          </button>
+          >{tr('TaskActions.copyTaskId', { value1: <span className="menu-item-icon"><CopyIcon /></span>, value2: <span className="menu-item-path mono">{shortTaskId(task.id)}…</span> })}</button>
           {clean && (
             <button
               type="button"
@@ -553,11 +536,7 @@ function MoreMenu({ task }: { task: Task }) {
                 close()
                 clean()
               }}
-            >
-              <span className="menu-item-icon"><FolderRemoveIcon /></span>
-              清理 worktree
-              <span className="menu-item-path">分支保留</span>
-            </button>
+            >{tr('TaskActions.cleanWorktree', { value1: <span className="menu-item-icon"><FolderRemoveIcon /></span>, value2: <span className="menu-item-path">{t('TaskActions.branchKept')}</span> })}</button>
           )}
           {cancelling && (
             <button
@@ -580,10 +559,7 @@ function MoreMenu({ task }: { task: Task }) {
               close()
               void deleteTask(task)
             }}
-          >
-            <span className="menu-item-icon"><TrashIcon /></span>
-            删除任务
-          </button>
+          >{tr('TaskActions.deleteTask', { value1: <span className="menu-item-icon"><TrashIcon /></span> })}</button>
         </Popover>
       )}
     </span>
@@ -593,7 +569,7 @@ function MoreMenu({ task }: { task: Task }) {
 // Between the details and where the agent works.
 function ViewToggle({ view }: { view: TaskView }) {
   const next = view === 'chat' ? 'detail' : 'chat'
-  const label = next === 'detail' ? '查看详情' : '查看聊天'
+  const label = next === 'detail' ? t('TaskActions.viewDetails') : t('TaskActions.viewChat')
   return (
     <button type="button" className="tool-button" aria-label={label} data-tooltip={label} onClick={() => showView(next)}>
       {next === 'detail' ? <DocumentIcon /> : <ChatIcon />}
@@ -613,16 +589,16 @@ function InspectorToggle({ view, conversationId }: { view: TaskView; conversatio
     <button
       type="button"
       className="tool-button"
-      aria-label={todoLeft > 0 ? `检查器，${todoLeft} 项待办` : '检查器'}
+      aria-label={todoLeft > 0 ? t('ConversationView.inspectorToDos_739', { todoLeft: todoLeft }) : t('ConversationView.inspector')}
       aria-pressed={pressed}
-      data-tooltip={pressed ? '收起检查器' : todoLeft > 0 ? `检查器 · ${todoLeft} 项待办` : '查看改动'}
+      data-tooltip={pressed ? t('ConversationView.collapseInspector') : todoLeft > 0 ? t('ConversationView.inspectorToDos', { todoLeft: todoLeft }) : t('ConversationView.viewChanges')}
       onClick={() => {
         setInspectorOpen(!pressed)
         if (view !== 'chat') showView('chat')
       }}
     >
       <InspectorIcon />
-      {helper?.chat?.turn === 'awaiting' && <span className="helper-attention-dot tool-button-dot" role="img" aria-label="小助手等你处理" />}
+      {helper?.chat?.turn === 'awaiting' && <span className="helper-attention-dot tool-button-dot" role="img" aria-label={t('ConversationView.helperNeedsYourResponse')} />}
       {!pressed && todoLeft > 0 && <span className="tool-button-badge" aria-hidden="true">{todoLeft}</span>}
     </button>
   )
@@ -636,16 +612,16 @@ function HandoffButton({ handoff, labelled }: { handoff: TaskHandoff; labelled: 
     <button
       type="button"
       className={`${labelled ? 'button' : 'tool-button'} launch-button`}
-      aria-label="移交给其他智能体"
+      aria-label={t('TaskActions.handOffToAnotherAgent')}
       aria-disabled={blocker !== null}
-      data-tooltip={blocker ? `还不能移交：${blocker}` : '移交给其他智能体'}
+      data-tooltip={blocker ? t('TaskActions.cannotHandOffYet', { blocker: blocker }) : t('TaskActions.handOffToAnotherAgent')}
       data-tooltip-align={labelled ? 'start' : undefined}
       onClick={() => {
         if (!blocker) handoff.open()
       }}
     >
       <HandoffIcon />
-      {labelled && '移交'}
+      {labelled && t('ChatComposer.handOff')}
     </button>
   )
 }
@@ -725,7 +701,7 @@ export function TaskToolbar({ task, view }: { task: Task; view: TaskView }) {
       {task.conversationId && <ViewToggle view={view} />}
       <MoreMenu task={task} />
       <span className="toolbar-separator" aria-hidden="true" />
-      <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => selectTask(null)}>
+      <button type="button" className="tool-button" aria-label={t('BackdropPicker.close')} data-tooltip={t('BackdropPicker.close')} onClick={() => selectTask(null)}>
         <CloseIcon />
       </button>
     </div>
@@ -750,8 +726,8 @@ export function TaskStatusMenu({ task }: { task: Task }) {
         {STATUS_LABEL[task.status]}
       </button>
       {open && (
-        <Popover label="状态" onClose={close}>
-          <p className="menu-note">{waiting > 0 ? `等待 ${waiting} 个任务完成` : STATUS_HINT[task.status]}</p>
+        <Popover label={t('TaskActions.status')} onClose={close}>
+          <p className="menu-note">{waiting > 0 ? t('StatusIcon.waitingForTasksToFinish', { waiting: waiting }) : STATUS_HINT[task.status]}</p>
           {moves.length > 0 && <div className="menu-separator" />}
           {moves.map(({ to, action }) => (
             <button
@@ -797,13 +773,13 @@ export function TaskContextMenu({ task, at, onClose, onRename }: {
   if (task.status === 'pending' && startBlocker !== 'planning') {
     const plan = startKind(dependencies) === 'plan'
     actions.push(
-      <MenuItem key="start" label={plan ? '开始规划' : '开始执行'} icon={plan ? <ChatIcon /> : <PlayIcon />} hint={hint(startBlocker)} disabled={startBlocker !== null} onSelect={pick(() => void startTask(task.id))} />
+      <MenuItem key="start" label={plan ? t('SquadLaunchDialog.startPlanning') : t('TaskActions.startExecution')} icon={plan ? <ChatIcon /> : <PlayIcon />} hint={hint(startBlocker)} disabled={startBlocker !== null} onSelect={pick(() => void startTask(task.id))} />
     )
   }
   if (task.status === 'running') {
     const blocker = checkSubmit(task, turn)
     actions.push(
-      <MenuItem key="submit" label="提交验收" icon={<SubmitIcon />} hint={blocker && reasonText(blocker, blocker)} disabled={blocker !== null} onSelect={pick(() => void submitTask(task.id))} />
+      <MenuItem key="submit" label={t('TaskActions.submitForReview')} icon={<SubmitIcon />} hint={blocker && reasonText(blocker, blocker)} disabled={blocker !== null} onSelect={pick(() => void submitTask(task.id))} />
     )
   }
   for (const status of manualMoves(task.status)) {
@@ -819,7 +795,7 @@ export function TaskContextMenu({ task, at, onClose, onRename }: {
     actions.push(
       <MenuItem
         key="work"
-        label="查看聊天"
+        label={t('TaskActions.viewChat')}
         icon={<ChatIcon />}
         onSelect={pick(() => {
           selectTask(task.id)
@@ -829,15 +805,15 @@ export function TaskContextMenu({ task, at, onClose, onRename }: {
     )
   }
   return (
-    <ContextMenu at={at} label={`任务「${task.title}」的操作`} onClose={onClose}>
+    <ContextMenu at={at} label={t('TaskActions.actionsForTask', { value1: task.title })} onClose={onClose}>
       {actions}
       {actions.length > 0 && <div className="menu-separator" role="separator" />}
-      <MenuItem label="重命名" icon={<PencilIcon />} onSelect={pick(onRename)} />
-      <MenuItem label="复制任务 id" icon={<CopyIcon />} hint={`${shortTaskId(task.id)}…`} onSelect={pick(() => copyTaskId(task.id))} />
-      {clean && <MenuItem label="清理 worktree" icon={<FolderRemoveIcon />} hint="分支保留" onSelect={pick(clean)} />}
+      <MenuItem label={t('ConversationActions.rename')} icon={<PencilIcon />} onSelect={pick(onRename)} />
+      <MenuItem label={t('TaskActions.copyTaskId_2008')} icon={<CopyIcon />} hint={`${shortTaskId(task.id)}…`} onSelect={pick(() => copyTaskId(task.id))} />
+      {clean && <MenuItem label={t('TaskActions.cleanWorktree_2009')} icon={<FolderRemoveIcon />} hint={t('TaskActions.branchKept')} onSelect={pick(clean)} />}
       {cancelling && <MenuItem label={cancelling.label} icon={<cancelling.Icon />} onSelect={pick(cancelling.run)} />}
       <div className="menu-separator" role="separator" />
-      <MenuItem label="删除任务" icon={<TrashIcon />} danger onSelect={pick(() => void deleteTask(task))} />
+      <MenuItem label={t('TaskActions.deleteTask_2010')} icon={<TrashIcon />} danger onSelect={pick(() => void deleteTask(task))} />
     </ContextMenu>
   )
 }

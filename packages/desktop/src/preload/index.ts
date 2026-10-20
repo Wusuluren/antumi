@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('antumi', {
   getCoreEndpoint: (): Promise<unknown> => ipcRenderer.invoke('antumi:core-endpoint'),
   pickPlugin: (kind: 'directory' | 'zip'): Promise<unknown> => ipcRenderer.invoke('antumi:pick-plugin', kind),
   pickFolder: (defaultPath?: string, title?: string): Promise<unknown> => ipcRenderer.invoke('antumi:pick-folder', defaultPath, title),
+  setLanguage: (locale: string): Promise<unknown> => ipcRenderer.invoke('antumi:set-language', locale),
   setTheme: (theme: string): Promise<unknown> => ipcRenderer.invoke('antumi:set-theme', theme),
   revealFile: (candidates: string[]): Promise<unknown> => ipcRenderer.invoke('antumi:reveal-file', candidates),
   openFile: (path: string): Promise<unknown> => ipcRenderer.invoke('antumi:open-file', path),

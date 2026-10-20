@@ -1,3 +1,4 @@
+import { t, useLocale } from './i18n'
 import { onBrowserShortcut } from './desktop-bridge'
 import { useEffect } from 'react'
 import { focusSplitPane, selectTask, setNewTaskOpen, setSettingsOpen, toggleBrowserPanel, toggleSplit, toggleTerminalPanel, useCore, useSplitPanes } from './core-store'
@@ -46,6 +47,7 @@ function leavesTask(event: KeyboardEvent): boolean {
 }
 
 export function App() {
+  useLocale((state) => state.locale)
   usePortPolling()
   const selectedId = useCore((s) => s.selectedId)
   const section = useCore((s) => s.section)
@@ -177,12 +179,12 @@ export function App() {
             ) : section === 'discussions' ? (
               selectedDiscussionId ? <DiscussionView key={selectedDiscussionId} id={selectedDiscussionId} /> :
                 discussionDraft ? <DiscussionDraft key={discussionDraftFrom?.discussion.id ?? 'blank'} from={discussionDraftFrom?.discussion ?? null} /> :
-                <section className="detail-empty"><div className="detail-empty-body">选择或新建一个群聊</div></section>
+                <section className="detail-empty"><div className="detail-empty-body">{t('App.chooseOrCreateAGroupChat')}</div></section>
             ) : section === 'conversations' ? (
               splitPanes && selectedConversationId ? <ConversationSplit panes={splitPanes} active={selectedConversationId} /> :
               selectedConversationId ? <ConversationView key={selectedConversationId} id={selectedConversationId} /> :
                 conversationDraft ? <ConversationDraft key={conversationDraftFrom?.key ?? 'blank'} /> :
-                <section className="detail-empty"><div className="detail-empty-body">选择或新建一条会话</div></section>
+                <section className="detail-empty"><div className="detail-empty-body">{t('App.chooseOrCreateAConversation')}</div></section>
             ) : selectedId && view === 'chat' ? (
               <TaskChat key={selectedId} taskId={selectedId} />
             ) : selectedId ? (

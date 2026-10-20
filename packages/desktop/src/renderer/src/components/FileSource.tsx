@@ -1,3 +1,4 @@
+import { getLocale, t } from '../i18n'
 import { lazy, Suspense, useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { languages } from '@codemirror/language-data'
@@ -61,6 +62,8 @@ const fold = foldGutter({
 // Shared by every editor, so a draft's state could move between them; a compartment is only a key.
 const wrapping = new Compartment()
 const editing = new Compartment()
+const wording = new Compartment()
+const editorPhrases = () => EditorState.phrases.of({ 'Fold line': t('FileSource.fold'), 'Unfold line': t('FileSource.expand'), 'folded code': t('FileSource.foldedCode') })
 
 function editable(on: boolean, label: string) {
   return [
@@ -163,7 +166,7 @@ export function FileSource({ scope, tab, disk, wrap, writable, preview, ref }: {
           lineNumbers(), fold, codeFolding(), highlightActiveLine(), highlightActiveLineGutter(), drawSelection(),
           history(), indentOnInput(), bracketMatching(), markers,
           keymap.of([...searchKeymap, ...historyKeymap, ...foldKeymap, ...defaultKeymap, indentWithTab]), search({ top: true, createPanel: createFileSearchPanel }),
-          EditorState.phrases.of({ 'Fold line': '折叠', 'Unfold line': '展开', 'folded code': '已折叠的代码' }),
+          wording.of(editorPhrases()),
           EditorView.updateListener.of((update) => { if (update.docChanged) syncDirty(update.view) }),
           wrapping.of(wrap ? EditorView.lineWrapping : []), language.of([]), syntaxHighlighting(highlight), theme
         ]
@@ -210,6 +213,7 @@ export function FileSource({ scope, tab, disk, wrap, writable, preview, ref }: {
       setNotice((notice) => notice ?? 'disk')
     }
   }, [disk])
+  useEffect(() => { editor.current?.dispatch({ effects: wording.reconfigure(editorPhrases()) }) }, [getLocale()])
   useEffect(() => { editor.current?.dispatch({ effects: wrapping.reconfigure(wrap ? EditorView.lineWrapping : []) }) }, [wrap])
   useEffect(() => { editor.current?.dispatch({ effects: editing.reconfigure(editable(writable, path)) }) }, [writable, path])
   useEffect(() => {
@@ -230,15 +234,15 @@ export function FileSource({ scope, tab, disk, wrap, writable, preview, ref }: {
 
   return <>
     {notice && <div className="file-notice" role="alert">
-      <span>{notice === 'conflict' ? '保存失败：文件已在磁盘上被修改。' : '文件已在磁盘上被修改，你有未保存的修改。'}</span>
-      <button type="button" className="link-button" onClick={() => { if (window.confirm('丢弃未保存的修改，重新载入磁盘上的文件？')) void reload() }}>重新载入</button>
+      <span>{notice === 'conflict' ? t('FileSource.saveFailedFileChangedOnDisk') : t('FileSource.fileChangedOnDiskAndYouHaveUnsaved')}</span>
+      <button type="button" className="link-button" onClick={() => { if (window.confirm(t('FileSource.discardUnsavedChangesAndReloadTheFileFrom'))) void reload() }}>{t('FileSource.reload')}</button>
       {notice === 'conflict'
-        ? <button type="button" className="link-button" onClick={() => void save(true)}>覆盖</button>
-        : <button type="button" className="link-button" onClick={() => setNotice(null)}>保留我的修改</button>}
+        ? <button type="button" className="link-button" onClick={() => void save(true)}>{t('FileSource.overwrite')}</button>
+        : <button type="button" className="link-button" onClick={() => setNotice(null)}>{t('FileSource.keepMyChanges')}</button>}
     </div>}
     {preview && (/\.svg$/i.test(path)
       ? <FileImage path={path} text={previewText} />
-      : <div className="file-markdown-scroll" tabIndex={0} role="region" aria-label="Markdown 预览"><Suspense fallback={<p className="inspector-empty muted" role="status">正在渲染 Markdown…</p>}><FileMarkdown text={previewText} file={tab.file} scope={scope} /></Suspense></div>)}
+      : <div className="file-markdown-scroll" tabIndex={0} role="region" aria-label={t('FileSource.markdownPreview')}><Suspense fallback={<p className="inspector-empty muted" role="status">{t('FileSource.renderingMarkdown')}</p>}><FileMarkdown text={previewText} file={tab.file} scope={scope} /></Suspense></div>)}
     <div className="file-source" hidden={preview} ref={host} onContextMenu={(event) => {
       event.preventDefault()
       const view = editor.current
@@ -246,10 +250,10 @@ export function FileSource({ scope, tab, disk, wrap, writable, preview, ref }: {
       const selection = view.state.selection.main
       setMenu({ at: menuPoint(event), selected: view.state.sliceDoc(selection.from, selection.to), text: view.state.sliceDoc() })
     }}>
-      {menu && <ContextMenu at={menu.at} label="文件内容" onClose={close}>
-        {writable && tab.dirty && <MenuItem label="保存" icon={<CheckIcon />} hint={`${PRIMARY_KEY_LABEL}S`} onSelect={() => { close(); void save() }} />}
-        {menu.selected && <MenuItem label="复制选中内容" icon={<CopyIcon />} onSelect={() => { close(); void copyFileText(menu.selected) }} />}
-        <MenuItem label="复制全部内容" icon={<DocumentIcon />} onSelect={() => { close(); void copyFileText(menu.text) }} />
+      {menu && <ContextMenu at={menu.at} label={t('FileSource.fileContent')} onClose={close}>
+        {writable && tab.dirty && <MenuItem label={t('FileEditor.save')} icon={<CheckIcon />} hint={`${PRIMARY_KEY_LABEL}S`} onSelect={() => { close(); void save() }} />}
+        {menu.selected && <MenuItem label={t('ChatContextMenu.copySelection')} icon={<CopyIcon />} onSelect={() => { close(); void copyFileText(menu.selected) }} />}
+        <MenuItem label={t('FileSource.copyAllContent')} icon={<DocumentIcon />} onSelect={() => { close(); void copyFileText(menu.text) }} />
       </ContextMenu>}
     </div>
   </>

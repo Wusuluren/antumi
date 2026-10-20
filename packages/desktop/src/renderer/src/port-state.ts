@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { useEffect } from 'react'
 import { create } from 'zustand'
 import type { Conversation, ListeningPort, PortList, RpcConnection, Task, Terminal } from '@antumi/protocol'
@@ -49,7 +50,7 @@ export function portGroups(ports: readonly ListeningPort[], tasks: Record<string
     const conversation = port.conversationId ? conversations[port.conversationId] : undefined
     const terminal = terminals.find((each) => each.id === port.terminalId)
     const id = port.taskId ?? port.conversationId ?? port.terminalId ?? port.sessionId
-    const group = groups.get(id) ?? { id, title: task?.title ?? conversation?.title ?? terminal?.title ?? '终端', conversation, ports: [] }
+    const group = groups.get(id) ?? { id, title: task?.title ?? conversation?.title ?? terminal?.title ?? t('SettingsPage.terminal'), conversation, ports: [] }
     group.ports.push(port)
     groups.set(id, group)
   }

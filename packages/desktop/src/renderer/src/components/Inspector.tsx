@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { useContext, useEffect, useState, type ReactNode } from 'react'
 import { RpcError, type ChangedFile, type Commit, type FileDiff } from '@antumi/protocol'
 import { revealChatEdit, useCore } from '../core-store'
@@ -10,13 +11,13 @@ import { PanelSeparator } from './PanelSeparator'
 
 // The pieces both inspectors are built from: a task's, beside its terminal, and a conversation's.
 
-const KIND: Record<ChangedFile['kind'], { mark: string; text: string }> = {
-  added: { mark: 'A', text: '新增' },
-  modified: { mark: 'M', text: '修改' },
-  deleted: { mark: 'D', text: '删除' },
-  renamed: { mark: 'R', text: '重命名' },
-  untracked: { mark: 'U', text: '新文件，还没加入 git' }
-}
+const KIND: Record<ChangedFile['kind'], { mark: string; text: string }> = localized(() => ({
+  added: { mark: 'A', text: t('Inspector.added') },
+  modified: { mark: 'M', text: t('Inspector.modified') },
+  deleted: { mark: 'D', text: t('ChatCommandSettings.delete') },
+  renamed: { mark: 'R', text: t('ConversationActions.rename') },
+  untracked: { mark: 'U', text: t('Inspector.newFileNotYetTrackedByGit') }
+}))
 
 // Bumps whenever the window regains focus: the user may have changed files meanwhile.
 export function useFocusCount(): number {
@@ -55,7 +56,7 @@ export function useChangedFiles(target: BranchTarget | null, updatedAt: number, 
 
 export type InspectorTab = 'changes' | 'branch' | 'plan' | 'todos' | 'wire' | 'files' | 'squad' | 'helper'
 
-const TAB_LABEL: Record<InspectorTab, string> = { changes: '变更', branch: '分支', plan: '计划', todos: '待办', wire: '原始数据', files: '文件', squad: '小队', helper: '小助手' }
+const TAB_LABEL: Record<InspectorTab, string> = localized(() => ({ changes: t('Inspector.changes'), branch: t('GitInspector.branches_1030'), plan: t('chatTools.plan'), todos: t('chatTools.toDos'), wire: t('Inspector.rawData'), files: t('ChatMentionMenu.file'), squad: t('ChatPlan.squad'), helper: t('HelperPanel.helper') }))
 export const GIT_TABS: readonly InspectorTab[] = ['changes', 'branch']
 
 export function InspectorPanel({ label, ratio, onRatioChange, tabs = GIT_TABS, tab, onTab, fileCount, todoCount = 0, helperAwaiting = false, onRefresh, onClose, maximized = false, owner, children }: {
@@ -78,7 +79,7 @@ export function InspectorPanel({ label, ratio, onRatioChange, tabs = GIT_TABS, t
 }) {
   return (
     <>
-      {!maximized && <PanelSeparator panelName="检查器" ratio={ratio} onRatioChange={onRatioChange} />}
+      {!maximized && <PanelSeparator panelName={t('ConversationView.inspector')} ratio={ratio} onRatioChange={onRatioChange} />}
       <aside
         className="side-panel inspector-panel"
         data-maximized={maximized || undefined}
@@ -87,20 +88,20 @@ export function InspectorPanel({ label, ratio, onRatioChange, tabs = GIT_TABS, t
       >
         {owner && <div className="inspector-owner">{owner}</div>}
         <header className="inspector-header">
-          <div className="inspector-tabs" role="tablist" aria-label="检查器">
+          <div className="inspector-tabs" role="tablist" aria-label={t('ConversationView.inspector')}>
             {tabs.map((each) => (
               <button key={each} type="button" role="tab" aria-selected={tab === each} onClick={() => onTab(each)}>
-                {TAB_LABEL[each]}{each === 'helper' && helperAwaiting && <span className="helper-attention-dot" role="img" aria-label="小助手等你处理" />}{each === 'changes' && fileCount > 0 && <span className="count">{fileCount}</span>}
+                {TAB_LABEL[each]}{each === 'helper' && helperAwaiting && <span className="helper-attention-dot" role="img" aria-label={t('ConversationView.helperNeedsYourResponse')} />}{each === 'changes' && fileCount > 0 && <span className="count">{fileCount}</span>}
                 {each === 'todos' && todoCount > 0 && <span className="count">{todoCount}</span>}
               </button>
             ))}
           </div>
           {tab !== 'helper' && tab !== 'plan' && tab !== 'wire' && tab !== 'files' && tab !== 'todos' && (
-            <button type="button" className="tool-button inspector-refresh" aria-label="刷新" data-tooltip="刷新" onClick={onRefresh}>
+            <button type="button" className="tool-button inspector-refresh" aria-label={t('BrowserPanel.reload')} data-tooltip={t('BrowserPanel.reload')} onClick={onRefresh}>
               <RefreshIcon />
             </button>
           )}
-          <button type="button" className="tool-button" aria-label="收起检查器" data-tooltip="收起" onClick={onClose}>
+          <button type="button" className="tool-button" aria-label={t('ConversationView.collapseInspector')} data-tooltip={t('ChatPlan.collapse')} onClick={onClose}>
             <CloseIcon />
           </button>
         </header>
@@ -161,7 +162,7 @@ export function ChangedFiles({ label, files, empty, onOpen }: { label: string; f
       <summary className="inspector-row">
         <span className="chat-tool-chevron" aria-hidden="true"><ChevronRightIcon /></span>
         <span className="inspector-row-label">{label}</span>
-        <span className="inspector-pill">{files.length} 个文件</span>
+        <span className="inspector-pill">{tr('Inspector.files', { value1: files.length })}</span>
         <LineCounts className="inspector-row-counts" {...changeLineTotals(files)} />
       </summary>
       <FileList files={files} onOpen={onOpen} />
@@ -204,7 +205,7 @@ export function FileList({ files, onOpen }: { files: readonly ChangedFile[]; onO
                 {slash > 0 && <span className="muted"> {file.path.slice(0, slash)}</span>}
               </span>
               {file.additions === null || file.deletions === null
-                ? <span className="changed-file-counts mono">{file.kind === 'untracked' ? '新文件' : '二进制'}</span>
+                ? <span className="changed-file-counts mono">{file.kind === 'untracked' ? t('Inspector.newFile') : t('Inspector.binary')}</span>
                 : <LineCounts className="changed-file-counts" added={file.additions} removed={file.deletions} />}
             </button>
           </li>
@@ -242,24 +243,24 @@ export function FileDiffView({ file, loadKey, commentKey, load, onBack, edit }: 
   return (
     <div className="file-diff">
       <div className="file-diff-header">
-        <button type="button" className="tool-button" aria-label="返回文件列表" data-tooltip="返回文件列表" onClick={onBack}>
+        <button type="button" className="tool-button" aria-label={t('Inspector.backToFileList')} data-tooltip={t('Inspector.backToFileList')} onClick={onBack}>
           <ArrowLeftIcon />
         </button>
         <span className="mono file-diff-path" title={file}>{file}</span>
       </div>
       {!shown ? (
-        <p className="inspector-empty muted">正在读取 diff…</p>
+        <p className="inspector-empty muted">{t('Inspector.loadingDiff')}</p>
       ) : !shown.diff ? (
         <div className="inspector-empty muted">
-          <p>{shown.gone ? '这个文件已经不在改动里了，可能已经被还原或提交。' : '读取 diff 失败。'}</p>
-          {shown.gone && edit && <button type="button" className="button" onClick={() => revealChatEdit(edit)}>查看本轮的编辑</button>}
+          <p>{shown.gone ? t('Inspector.thisFileIsNoLongerChangedItMay') : t('Inspector.failedToReadDiff')}</p>
+          {shown.gone && edit && <button type="button" className="button" onClick={() => revealChatEdit(edit)}>{t('Inspector.viewThisTurnSEdits')}</button>}
         </div>
       ) : (
         <>
           {conversationId && commentKey
             ? <CommentableDiff patch={shown.diff.diff} path={file} conversationId={conversationId} diffKey={commentKey} />
             : <DiffLines patch={shown.diff.diff} path={file} />}
-          {shown.diff.truncated && <p className="inspector-empty muted">diff 太长，只显示了前 256KB。</p>}
+          {shown.diff.truncated && <p className="inspector-empty muted">{t('Inspector.diffTruncatedToTheFirst256kb')}</p>}
         </>
       )}
     </div>

@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { RpcError, type TranslateLanguage, type Translation } from '@antumi/protocol'
 import { create } from 'zustand'
 import { useCore } from './core-store'
@@ -59,7 +60,7 @@ export async function translate(conversationId: string, key: string, text: strin
   // A failure stays on the reply it was for, rather than in the window's error bar: with
   // translation on, a few may fail at once.
   const { rpc } = useCore.getState()
-  if (!rpc) return set({ state: 'failed', error: '尚未连接到 Antumi core' })
+  if (!rpc) return set({ state: 'failed', error: t('coreStore.notConnectedToAntumiCore') })
   set({ state: 'pending' })
   try {
     set({ state: 'done', ...(await rpc.call('conversations.translate', { id: conversationId, text, to, ...(model ? { model } : {}) })) })

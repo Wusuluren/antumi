@@ -3,6 +3,16 @@ import { CURSOR_PRICES } from './model-prices'
 
 // Antumi's modes carry Cursor's own names: ask is its Agent mode, readOnly its Ask mode.
 export const cursor: AgentDescriptor = {
+  translations: { en: {
+    modes: {
+      ask: { label: 'Agent', description: 'Native Cursor Agent mode, using approval choices from its CLI' },
+      plan: { label: 'Plan', description: 'Explore code and plan first; execute after approval' },
+      readOnly: { label: 'Ask', description: 'Native Cursor Ask mode for questions and code understanding' }
+    },
+    nativePlanRun: { hint: 'Execute in native Cursor Agent mode' },
+    environment: { role: 'Runs Cursor CLI in ACP mode. The Cursor editor alone cannot execute tasks.', install: 'Install the latest Cursor CLI from cursor.com/docs/cli/installation', signIn: 'Run agent login in a terminal', outdated: { status: 'Upgrade required for ACP', hint: ', using a version that supports ACP' } },
+    usageWhere: 'View in Cursor usage settings'
+  } },
   label: 'Cursor',
   cli: 'agent',
   modes: {

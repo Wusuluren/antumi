@@ -1,3 +1,4 @@
+import { getLocale, t } from './i18n'
 import { CONTEXT_COMPACTED, cursorProviderError } from '@antumi/protocol'
 
 export function isCompaction(text: string): boolean {
@@ -7,13 +8,13 @@ export function isCompaction(text: string): boolean {
 // Claude Code once said when a usage limit lifts only as epoch seconds after a bar; say the local
 // time instead.
 export function readableNotice(text: string): string {
-  const provider = cursorProviderError(text.trim())
+  const provider = cursorProviderError(text.trim(), getLocale())
   if (provider && !provider.rest) return provider.summary
   return text.replace(/Claude AI usage limit reached\|(\d{10})/g, (_match, seconds: string) => {
     const at = new Date(Number(seconds) * 1000)
     const time = `${at.getHours()}:${String(at.getMinutes()).padStart(2, '0')}`
     const sameDay = at.toDateString() === new Date().toDateString()
-    return `Claude 的用量到了上限，${sameDay ? '' : `${at.getMonth() + 1}月${at.getDate()}日 `}${time} 恢复`
+    return t('chatNotices.claudeSUsageLimitWasReachedResets', { value1: sameDay ? '' : t('chatNotices.resetDate', { value1: at.getMonth() + 1, value2: at.getDate() }), time: time })
   })
 }
 

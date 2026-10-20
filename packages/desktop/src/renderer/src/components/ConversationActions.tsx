@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { canReuseConversation, type AgentKind, type ChatItem, type Conversation } from '@antumi/protocol'
 import { openBeside, openConversationDraft, perform, selectConversation, selectTask, showView, useConversationArchiveSupported, useConversationPinSupported, useCore } from '../core-store'
 import { proposeHandoff } from '../chat-handoff'
@@ -18,7 +19,7 @@ export function beginHandoff(conversation: Conversation, agent?: AgentKind): voi
   const from = (conversation.taskId ? state.tasks[conversation.taskId]?.agent : null) ?? conversation.agent
   const target = agent ?? otherInstalledAgent(from, currentInstalledAgents())
   if (!target) {
-    useCore.setState({ error: `这台电脑上只找到了 ${agentLabel(from)}。装好另一个 Agent 后，在 设置 → 本机 Agent 里重新检测，就可以移交了。` })
+    useCore.setState({ error: t('ConversationActions.onlyWasFoundOnThisComputerInstallAnother', { value1: agentLabel(from) }) })
     return
   }
   proposeHandoff(conversation.id, target)
@@ -85,7 +86,7 @@ export function archiveConversation(id: string, archived: boolean) {
 }
 
 export async function deleteConversation(conversation: Conversation): Promise<boolean> {
-  if (!window.confirm('删除这条会话及其聊天记录？项目目录或 Antumi 托管目录都会保留，不会改动其中的文件。')) return false
+  if (!window.confirm(t('ConversationActions.deleteThisConversationAndItsChatHistoryProject'))) return false
   return (await perform((rpc) => rpc.call('conversations.delete', { id: conversation.id }))) !== null
 }
 
@@ -113,27 +114,27 @@ export function ConversationContextMenu({ conversation, at, onClose, onRename, o
   const reusable = useReuseConversationSupported() && canReuseConversation(conversation)
   const handoff = other && !archived
   return (
-    <ContextMenu at={at} label={`会话「${conversation.title}」的操作`} onClose={onClose}>
-      {split && <MenuItem label={split === 'right' ? '在右侧分屏打开' : '在另一列打开'} icon={<SplitIcon />} hint={`${PRIMARY_KEY_LABEL} 点击`} onSelect={pick(() => openBeside(conversation.id))} />}
-      {pinnable && !archived && <MenuItem label={pinned ? '取消置顶' : '置顶'} icon={<PinIcon />} onSelect={pick(() => void pinConversation(conversation.id, !pinned))} />}
-      <MenuItem label="重命名" icon={<PencilIcon />} onSelect={pick(onRename)} />
+    <ContextMenu at={at} label={t('ConversationActions.actionsForConversation', { value1: conversation.title })} onClose={onClose}>
+      {split && <MenuItem label={split === 'right' ? t('ConversationActions.openInRightSplitPane') : t('ConversationActions.openInOtherPane')} icon={<SplitIcon />} hint={t('ConversationActions.click', { PRIMARY_KEY_LABEL: PRIMARY_KEY_LABEL })} onSelect={pick(() => openBeside(conversation.id))} />}
+      {pinnable && !archived && <MenuItem label={pinned ? t('ConversationActions.unpin') : t('ConversationActions.pin')} icon={<PinIcon />} onSelect={pick(() => void pinConversation(conversation.id, !pinned))} />}
+      <MenuItem label={t('ConversationActions.rename')} icon={<PencilIcon />} onSelect={pick(onRename)} />
       {(reusable || handoff || conversation.sessionId) && <>
         <div className="menu-separator" role="separator" />
-        {reusable && <MenuItem label="同配置新建" icon={<CopyIcon />} onSelect={pick(() => void newConversationFrom(conversation))} />}
-        {handoff && <MenuItem label="移交…" icon={<HandoffIcon />} onSelect={pick(onHandoff)} />}
-        {conversation.sessionId && <MenuItem label="停止会话" icon={<StopIcon />} onSelect={pick(() => void stopConversation(conversation.id))} />}
+        {reusable && <MenuItem label={t('ConversationActions.newWithSameConfiguration')} icon={<CopyIcon />} onSelect={pick(() => void newConversationFrom(conversation))} />}
+        {handoff && <MenuItem label={t('ConversationActions.handOff')} icon={<HandoffIcon />} onSelect={pick(onHandoff)} />}
+        {conversation.sessionId && <MenuItem label={t('ConversationActions.stopConversation')} icon={<StopIcon />} onSelect={pick(() => void stopConversation(conversation.id))} />}
       </>}
       <div className="menu-separator" role="separator" />
       {archivable && (
         <MenuItem
-          label={archived ? '取消归档' : '归档'}
+          label={archived ? t('ArchivedBar.unarchive') : t('ConversationActions.archive')}
           icon={<ArchiveIcon />}
-          hint={!archived && busy ? '等 Agent 这一轮结束' : null}
+          hint={!archived && busy ? t('ConversationActions.waitUntilTheAgentFinishesThisTurn') : null}
           disabled={!archived && busy}
           onSelect={pick(() => void archiveConversation(conversation.id, !archived))}
         />
       )}
-      <MenuItem label="删除会话" icon={<TrashIcon />} danger onSelect={pick(() => void deleteConversation(conversation))} />
+      <MenuItem label={t('ConversationActions.deleteConversation')} icon={<TrashIcon />} danger onSelect={pick(() => void deleteConversation(conversation))} />
     </ContextMenu>
   )
 }

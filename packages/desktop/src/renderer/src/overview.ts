@@ -1,3 +1,4 @@
+import { localized, t } from './i18n'
 import { isHelper } from '@antumi/protocol'
 import type { AgentKind, Conversation, Routine, ScheduledRun, SquadRun, Task } from '@antumi/protocol'
 import { actionableItems, type ActionableItem, type ActionableReason, type Snapshot } from './attention'
@@ -37,9 +38,9 @@ export type Overview = {
   counts: { mine: number; running: number; next: number; unread: number }
 }
 
-const REASON_LABEL: Record<ActionableReason, string> = {
-  awaiting: '等待确认／回答', crashed: '异常退出', review: '待验收', reply: '等你回复'
-}
+const REASON_LABEL: Record<ActionableReason, string> = localized(() => ({
+  awaiting: t('overview.awaitingApprovalAnswer'), crashed: t('SettingsPage.unexpectedExit'), review: t('SquadWorkPanel.awaitingReview'), reply: t('TaskAlerts.waitingForYourReply')
+}))
 
 function taskRow(task: Task): OverviewRow {
   return {
@@ -74,7 +75,7 @@ function runningMembers(run: SquadRun | undefined): number {
 
 function requestDetail(item: ActionableItem): string {
   const more = (item.request?.open ?? 1) - 1
-  return [item.request?.title, more > 0 ? `还有 ${more} 项` : ''].filter(Boolean).join(' · ')
+  return [item.request?.title, more > 0 ? t('OverviewView.more_1303', { more: more }) : ''].filter(Boolean).join(' · ')
 }
 
 const chronological = (a: OverviewRow, b: OverviewRow) => a.at - b.at || a.key.localeCompare(b.key)
@@ -158,9 +159,9 @@ export function overview(input: OverviewInput): Overview {
       const approvals = row.members.reduce((sum, member) => sum + (member.request?.kind === 'approval' ? member.request.open : 0), 0)
       const questions = row.members.filter((member) => member.request?.kind === 'question').length
       const replies = row.members.filter((member) => !member.request).length
-      row.detail = [running > 0 ? `${running} 名运行` : '', approvals > 0 ? `${approvals} 项待审批` : '',
-        questions > 0 ? `${questions} 名等回答` : '', replies > 0 ? `${replies} 名等回复` : '',
-        group.some((item) => item.reasons.includes('review')) ? '待验收' : ''].filter(Boolean).join(' · ')
+      row.detail = [running > 0 ? t('overview.running', { running: running }) : '', approvals > 0 ? t('overview.approvalsPending', { approvals: approvals }) : '',
+        questions > 0 ? t('overview.awaitingAnswers', { questions: questions }) : '', replies > 0 ? t('overview.awaitingReplies', { replies: replies }) : '',
+        group.some((item) => item.reasons.includes('review')) ? t('SquadWorkPanel.awaitingReview') : ''].filter(Boolean).join(' · ')
     }
     mine.set(row.key, row)
   }
@@ -184,16 +185,16 @@ export function overview(input: OverviewInput): Overview {
     const failed = routine.unread > 0 && (routine.lastRun?.status === 'failed' || routine.lastRun?.outcome === 'failed')
     if (failed) {
       row.failed = true
-      row.reason = '运行失败'
+      row.reason = t('overview.runFailed')
       row.waits = Math.max(1, row.waits)
       row.detail = routine.lastRun ? runOutcomeText(routine.lastRun, now) : ''
       mine.set(row.key, row)
     } else if (active) {
-      row.reason = mine.has(row.key) ? row.reason : '进行中'
+      row.reason = mine.has(row.key) ? row.reason : t('ChatTodos.inProgress')
       if (!mine.has(row.key)) running.set(row.key, row)
     } else if (!mine.has(row.key) && routine.unread > 0) {
-      row.reason = '未读'
-      row.detail = `${routine.unread} 次运行未读`
+      row.reason = t('OverviewView.unread')
+      row.detail = t('overview.unreadRuns', { value1: routine.unread })
       unread.set(row.key, row)
     }
     if (active) {
@@ -202,10 +203,10 @@ export function overview(input: OverviewInput): Overview {
       row.conversationId = active.conversationId ?? row.conversationId
     }
     if (routine.enabled && routine.nextRunAt !== null) {
-      const nextDetail = `下次 ${scheduleTime(routine.nextRunAt, now)}`
+      const nextDetail = t('overview.next', { value1: scheduleTime(routine.nextRunAt, now) })
       row.detail = [row.detail, nextDetail].filter(Boolean).join(' · ')
       if (!mine.has(row.key) && !running.has(row.key) && !unread.has(row.key)) {
-        row.reason = '按时间'
+        row.reason = t('overview.byTime')
         row.at = routine.nextRunAt
         timed(row)
       }
@@ -251,14 +252,14 @@ export function overview(input: OverviewInput): Overview {
     const row = taskRow(task)
     if (mine.has(row.key)) continue
     if (task.status === 'running') {
-      row.reason = '进行中'
+      row.reason = t('ChatTodos.inProgress')
       const members = task.squadId ? runningMembers(latestSquadRuns.get(task.id)) : 0
-      if (members > 0) row.detail = `${members} 名运行`
+      if (members > 0) row.detail = t('overview.running_2528', { members: members })
       running.set(row.key, row)
     } else {
       const dependencies = waitingOn(task, tasks)
       if (dependencies > 0) {
-        row.reason = `等 ${dependencies} 个依赖`
+        row.reason = t('overview.waitingForDependencies', { dependencies: dependencies })
         row.detail = ''
         byCondition.push(row)
       }
@@ -268,7 +269,7 @@ export function overview(input: OverviewInput): Overview {
     if (isHelper(conversation) || conversation.chat?.turn !== 'running' || taskOwners.has(conversation.id) || conversation.taskId || conversation.squadRunId || conversation.discussionId || routineOwners.has(conversation.id)) continue
     const row = conversationRow(conversation)
     if (mine.has(row.key)) continue
-    row.reason = '进行中'
+    row.reason = t('ChatTodos.inProgress')
     running.set(row.key, row)
   }
   const upcoming = new Set([...byTime, ...byCondition, ...later].map((row) => row.key))
@@ -277,7 +278,7 @@ export function overview(input: OverviewInput): Overview {
     if (!conversation || isHelper(conversation) || conversation.archivedAt != null || routineOwners.has(id)) continue
     const row = rowForConversation(conversation)
     if (mine.has(row.key) || running.has(row.key) || upcoming.has(row.key)) continue
-    row.reason = '未读'
+    row.reason = t('OverviewView.unread')
     row.conversationId = id
     row.at = conversation.updatedAt
     const previous = unread.get(row.key)
@@ -304,13 +305,13 @@ export function overview(input: OverviewInput): Overview {
 
 // What waits on the user, by kind, for the overview's head: "3 等回复 · 1 待验收".
 export function waitBreakdown(rows: readonly OverviewRow[]): string {
-  const counts = { 等确认: 0, 等回答: 0, 等回复: 0, 待验收: 0, 异常: 0 }
+  const counts: Record<string, number> = { [t('overview.awaitingApproval')]: 0, [t('overview.awaitingAnswer')]: 0, [t('overview.awaitingReply')]: 0, [t('SquadWorkPanel.awaitingReview')]: 0, [t('overview.error')]: 0 }
   for (const row of rows) {
     const reason = row.attention?.primaryReason
-    const label = row.failed || reason === 'crashed' ? '异常'
-      : reason === 'awaiting' ? (row.attention?.request?.kind === 'question' ? '等回答' : '等确认')
-      : reason === 'reply' ? '等回复' : reason === 'review' ? '待验收' : null
-    if (label) counts[label] += row.waits
+    const label = row.failed || reason === 'crashed' ? t('overview.error')
+      : reason === 'awaiting' ? (row.attention?.request?.kind === 'question' ? t('overview.awaitingAnswer') : t('overview.awaitingApproval'))
+      : reason === 'reply' ? t('overview.awaitingReply') : reason === 'review' ? t('SquadWorkPanel.awaitingReview') : null
+    if (label) counts[label] = (counts[label] ?? 0) + row.waits
   }
   return Object.entries(counts).filter(([, count]) => count > 0).map(([label, count]) => `${count} ${label}`).join(' · ')
 }
@@ -321,7 +322,7 @@ export function laterByDay(rows: readonly OverviewRow[], now: number): { day: st
   const today = new Date(now).setHours(0, 0, 0, 0)
   for (const row of rows) {
     const date = new Date(row.at)
-    const day = Math.round((new Date(row.at).setHours(0, 0, 0, 0) - today) / 86_400_000) === 1 ? '明天' : `${date.getMonth() + 1}月${date.getDate()}日`
+    const day = Math.round((new Date(row.at).setHours(0, 0, 0, 0) - today) / 86_400_000) === 1 ? t('overview.tomorrow') : t('SourceInboxView.monthAndDay', { value1: date.getMonth() + 1, value2: date.getDate() })
     const last = days.at(-1)
     if (last?.day === day) last.rows.push(row)
     else days.push({ day, rows: [row] })

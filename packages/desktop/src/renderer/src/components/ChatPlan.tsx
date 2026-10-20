@@ -1,3 +1,4 @@
+import { getLocale, localized, t, tr } from '../i18n'
 import { useCallback, useEffect, useState, useRef, type KeyboardEvent } from 'react'
 import { itemKey, type PlanItem } from '../chat-state'
 import { composeFeedback, setQuotes, useQuotes } from '../chat-quotes'
@@ -24,12 +25,12 @@ function SchedulePlanButton({ conversationId }: { conversationId: string }) {
   const close = useCallback(() => setOpen(false), [])
   return (
     <span className="menu-anchor chat-plan-schedule">
-      <button type="button" className="link-button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>预约批准</button>
+      <button type="button" className="link-button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>{t('ChatPlan.scheduleApproval')}</button>
       {open && (
         <SchedulePicker
           align="end"
-          title="预约批准这个计划"
-          note="到点后批准并开始执行，不会停下来等你确认。"
+          title={t('ChatPlan.scheduleApprovalOfThisPlan')}
+          note={t('ChatPlan.approveAndStartWhenDueWithoutWaitingFor')}
           onSchedule={async (notBefore) => (await createSchedule({ kind: 'conversation', conversationId, text: '' }, notBefore)) !== null}
           onClose={close}
         />
@@ -41,32 +42,32 @@ function SchedulePlanButton({ conversationId }: { conversationId: string }) {
 // A plan Claude proposes from plan mode reads beside the conversation, in the inspector; the
 // list and the dock only point to it, and the dock takes the answer.
 
-const RESOLUTION: Record<NonNullable<PlanItem['resolution']>, string> = {
-  allowed: '按计划执行，逐项确认',
-  allowedForSession: '按计划执行，自动接受编辑',
-  denied: '继续规划',
+const RESOLUTION: Record<NonNullable<PlanItem['resolution']>, string> = localized(() => ({
+  allowed: t('ChatPlan.implementPlanAskBeforeEachAction'),
+  allowedForSession: t('ChatPlan.implementPlanAcceptEditsAutomatically'),
+  denied: t('ChatPlan.continuePlanning'),
   // Stopped before it was answered, or the agent ended first: either way nothing was carried out.
-  cancelled: '没有执行'
-}
+  cancelled: t('ChatPlan.notExecuted')
+}))
 
 // The permission modes a plan can be carried out in, in the order the menu offers them.
 type RunMode = Preferences['planRunMode']
 const RUN_MODES: readonly RunMode[] = ['auto', 'acceptEdits', 'ask', 'bypass']
-const RUN_MODE: Record<RunMode, { label: string; hint: string }> = {
-  auto: { label: '自动模式', hint: '安全的操作直接执行，有风险的才问你' },
-  acceptEdits: { label: '自动接受编辑', hint: '改文件不问，跑命令前问' },
-  ask: { label: '逐项确认', hint: '改文件、跑命令前都问' },
-  bypass: { label: '全部放行', hint: '什么都不问，只在你信任这次任务时用' }
-}
+const RUN_MODE: Record<RunMode, { label: string; hint: string }> = localized(() => ({
+  auto: { label: t('ChatPlan.automaticMode'), hint: t('ChatPlan.runSafeActionsDirectlyAskBeforeRiskyOnes') },
+  acceptEdits: { label: t('ChatPlan.acceptEditsAutomatically'), hint: t('ChatPlan.editFilesDirectlyAskBeforeRunningCommands') },
+  ask: { label: t('ChatPlan.askEachTime'), hint: t('ChatPlan.askBeforeEditingFilesOrRunningCommands') },
+  bypass: { label: t('ChatPlan.allowEverything'), hint: t('ChatPlan.askNothingUseOnlyWhenYouTrustThis') }
+}))
 
 function isRunMode(mode: string): mode is RunMode {
   return RUN_MODES.some((each) => each === mode)
 }
 
 function status(plan: PlanItem): string {
-  if (plan.resolution === null) return '等你确认'
+  if (plan.resolution === null) return t('ChatPlan.awaitingYourApproval')
   if ((plan.resolution === 'allowed' || plan.resolution === 'allowedForSession') && plan.mode && isRunMode(plan.mode)) {
-    return `按计划执行，${plan.tool === 'cursor/create_plan' ? 'Agent' : RUN_MODE[plan.mode].label}`
+    return t('ChatPlan.implementPlan', { value1: plan.tool === 'cursor/create_plan' ? 'Agent' : RUN_MODE[plan.mode].label })
   }
   return RESOLUTION[plan.resolution]
 }
@@ -79,14 +80,12 @@ function RunModeButton({ modes, mode, disabled, onRun, agent }: { modes: readonl
   const close = useCallback(() => setAt(null), [])
   return (
     <span className="plan-run">
-      <button type="button" className="button primary plan-run-main" disabled={disabled} onClick={onRun}>
-        执行 · {agentDescriptor(agent).nativePlanRun ? modeLabel(agent, mode) : RUN_MODE[mode].label}<kbd>↵</kbd>
-      </button>
+      <button type="button" className="button primary plan-run-main" disabled={disabled} onClick={onRun}>{tr('ChatPlan.run', { value1: agentDescriptor(agent, getLocale()).nativePlanRun ? modeLabel(agent, mode) : RUN_MODE[mode].label, value2: <kbd>↵</kbd> })}</button>
       <button
         ref={arrow}
         type="button"
         className="button primary plan-run-arrow"
-        aria-label="选择执行时的权限"
+        aria-label={t('ChatPlan.choosePermissionsForExecution')}
         aria-haspopup="menu"
         aria-expanded={at !== null}
         disabled={disabled}
@@ -99,7 +98,7 @@ function RunModeButton({ modes, mode, disabled, onRun, agent }: { modes: readonl
         <ChevronDownIcon />
       </button>
       {at && (
-        <ContextMenu at={at} align="end" above trigger={arrow.current} label="执行时的权限" onClose={close}>
+        <ContextMenu at={at} align="end" above trigger={arrow.current} label={t('ChatPlan.executionPermissions')} onClose={close}>
           {modes.map((each) => (
             <button
               key={each}
@@ -113,8 +112,8 @@ function RunModeButton({ modes, mode, disabled, onRun, agent }: { modes: readonl
               }}
             >
               <span className="plan-run-mode-text">
-                <span className="menu-item-title">{agentDescriptor(agent).nativePlanRun ? modeLabel(agent, each) : RUN_MODE[each].label}</span>
-                <span className="menu-item-path">{agentDescriptor(agent).nativePlanRun?.hint ?? RUN_MODE[each].hint}</span>
+                <span className="menu-item-title">{agentDescriptor(agent, getLocale()).nativePlanRun ? modeLabel(agent, each) : RUN_MODE[each].label}</span>
+                <span className="menu-item-path">{agentDescriptor(agent, getLocale()).nativePlanRun?.hint ?? RUN_MODE[each].hint}</span>
               </span>
               {each === mode && <span className="menu-check"><CheckIcon /></span>}
             </button>
@@ -131,7 +130,7 @@ export function ChatPlanLine({ item }: { item: PlanItem }) {
   const note = surface.planNote(item)
   return (
     <button type="button" className="chat-request-line chat-plan-line" data-waiting={waiting || undefined} onClick={() => surface.showPlan(itemKey(item))}>
-      {waiting ? '计划等你确认 · 在右侧查看，在下方回答' : `计划 · ${note ?? status(item)} · 查看`}
+      {waiting ? t('ChatPlan.planAwaitingApprovalViewOnTheRightRespond') : t('ChatPlan.planView', { value1: note ?? status(item) })}
     </button>
   )
 }
@@ -142,14 +141,14 @@ export function ChatPlanLine({ item }: { item: PlanItem }) {
 // instead. An older core carries a plan out only asking about edits or accepting them. Or stop:
 // the turn ends with nothing carried out and nothing replanned, and the next word is the user's.
 type PlanChoice = 'run' | 'allow' | 'allowForSession' | 'squad' | 'save' | 'revise' | 'stop'
-const CHOICE_LABEL: Record<Exclude<PlanChoice, 'revise' | 'squad'>, string> = {
-  run: '按计划执行',
-  allow: '按计划执行，改文件、跑命令前逐项确认',
-  allowForSession: '按计划执行，文件改动自动接受',
-  save: '先保存计划，等依赖的任务完成后再执行',
-  stop: '不执行，先停下'
-}
-const SUBMIT_LABEL: Record<PlanChoice, string> = { run: '执行', allow: '执行', allowForSession: '执行', squad: '开始小队开发', save: '保存计划', revise: '继续规划', stop: '停下' }
+const CHOICE_LABEL: Record<Exclude<PlanChoice, 'revise' | 'squad'>, string> = localized(() => ({
+  run: t('ChatPlan.implementPlan_396'),
+  allow: t('ChatPlan.implementPlanAskBeforeEditingFilesOrRunning'),
+  allowForSession: t('ChatPlan.implementPlanAcceptFileEditsAutomatically'),
+  save: t('ChatPlan.savePlanFirstExecuteAfterDependenciesFinish'),
+  stop: t('ChatPlan.stopWithoutExecuting')
+}))
+const SUBMIT_LABEL: Record<PlanChoice, string> = localized(() => ({ run: t('ChatPlan.execute'), allow: t('ChatPlan.execute'), allowForSession: t('ChatPlan.execute'), squad: t('ChatPlan.startSquadDevelopment'), save: t('ChatPlan.savePlan'), revise: t('ChatPlan.continuePlanning'), stop: t('ChatPlan.stop') }))
 const PREVIEW_LINES = 12
 
 export function ChatPlanCard({ conversationId, item, modes }: { conversationId: string; item: PlanItem; modes: readonly string[] }) {
@@ -243,30 +242,24 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
   }
   return (
     <div className="chat-request chat-plan" data-waiting onKeyDown={onKeyDown}>
-      <div className="chat-request-title">
-        计划等你确认
-        {inView
-          ? <span className="chat-plan-aside">完整计划在右侧</span>
-          : <button type="button" className="link-button" onClick={() => surface.showPlan(key)}>在检查器里看完整计划</button>}
-        {surface.handoffPlan && <button type="button" className="link-button" disabled={busy || saving} onClick={() => surface.handoffPlan?.(item)}>交给小队执行</button>}
-        {schedulable && <SchedulePlanButton conversationId={conversationId} />}
-        {!inView && translated.foreign && <TranslateButton translated={translated} what="这份计划" />}
-      </div>
+      <div className="chat-request-title">{tr('ChatPlan.planAwaitingYourApproval', { value1: inView
+          ? <span className="chat-plan-aside">{t('ChatPlan.fullPlanOnTheRight')}</span>
+          : <button type="button" className="link-button" onClick={() => surface.showPlan(key)}>{t('ChatPlan.viewFullPlanInInspector')}</button>, value2: surface.handoffPlan && <button type="button" className="link-button" disabled={busy || saving} onClick={() => surface.handoffPlan?.(item)}>{t('ChatPlan.assignToSquad')}</button>, value3: schedulable && <SchedulePlanButton conversationId={conversationId} />, value4: !inView && translated.foreign && <TranslateButton translated={translated} what={t('ChatPlan.thisPlan')} /> })}</div>
       {squadStart
-        ? <p className="chat-request-detail muted">批准后，队长按这份计划给「{squadStart.name}」的成员派活。</p>
-        : savePlan && <p className="chat-request-detail muted">依赖的任务还没完成：现在只能保存计划，等它们完成后开始执行时再按计划做。</p>}
+        ? <p className="chat-request-detail muted">{tr('ChatPlan.afterApprovalTheLeaderAssignsWorkToMembers', { value1: squadStart.name })}</p>
+        : savePlan && <p className="chat-request-detail muted">{t('ChatPlan.dependenciesAreUnfinishedSaveThePlanNowThen')}</p>}
       {item.detail && !inView && (
         <div className="chat-plan-preview" ref={preview} data-clipped={(long && !open) || undefined}>
           <ChatMarkdown text={translated.shown} />
           {long && (
             <button type="button" className="link-button chat-plan-preview-more" aria-expanded={open} onClick={() => setOpen(!open)}>
-              {open ? '收起' : '展开全部'}
+              {open ? t('ChatPlan.collapse') : t('ChatPlan.expandAll')}
             </button>
           )}
         </div>
       )}
       {commented && <QuoteCards conversationId={conversationId} quotes={quotes} onDone={() => noteInput.current?.focus()} />}
-      <div className="chat-approve-options" role="radiogroup" aria-label="怎么回答">
+      <div className="chat-approve-options" role="radiogroup" aria-label={t('ChatPlan.howToRespond')}>
         {choices.map((each, index) => (
           <div
             key={each}
@@ -281,8 +274,8 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
               <input
                 ref={noteInput}
                 className="chat-approve-reason"
-                aria-label="继续规划，告诉 Agent 要改哪里"
-                placeholder={commented ? `继续规划：带上 ${quotes.length} 条评论，还可以再补充（可不填）` : '继续规划，告诉 Agent 要改哪里（可不填）'}
+                aria-label={t('ChatPlan.continuePlanningTellAgentWhatToChange')}
+                placeholder={commented ? t('ChatPlan.continuePlanningWithCommentsAddMoreIfNeeded', { value1: quotes.length }) : t('ChatPlan.continuePlanningTellAgentWhatToChangeOptional')}
                 value={note}
                 disabled={busy || saving}
                 onFocus={() => setChoice('revise')}
@@ -290,13 +283,13 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
                 onChange={(event) => setNote(event.target.value)}
               />
             ) : (
-              <span>{each === 'squad' ? `交给「${squadStart?.name ?? '小队'}」按计划开发` : each === 'save' && squadStart ? '先保存计划，稍后再交给小队' : CHOICE_LABEL[each]}</span>
+              <span>{each === 'squad' ? t('ChatPlan.assignPlanTo', { value1: squadStart?.name ?? t('ChatPlan.squad') }) : each === 'save' && squadStart ? t('ChatPlan.savePlanFirstAssignToSquadLater') : CHOICE_LABEL[each]}</span>
             )}
           </div>
         ))}
       </div>
       <div className="chat-approve-footer">
-        <span className="chat-approve-hint">数字键选择 · Enter 提交 · Esc 停下</span>
+        <span className="chat-approve-hint">{t('ChatPlan.numberKeysToSelectEnterToSubmitEsc')}</span>
         {choice === 'run'
           ? <RunModeButton modes={runModes} mode={runMode} disabled={busy || saving} onRun={() => void submit()} agent={agent} />
           : (
@@ -336,13 +329,13 @@ function PlanMarkdownActions({ markdown, filename }: { markdown: string; filenam
         type="button"
         className="tool-button"
         data-copied={copied || undefined}
-        aria-label={copied ? '已复制' : '复制 Markdown'}
-        data-tooltip={copied ? '已复制' : '复制 Markdown'}
+        aria-label={copied ? t('BranchStatus.copied') : t('ChatPlan.copyMarkdown')}
+        data-tooltip={copied ? t('BranchStatus.copied') : t('ChatPlan.copyMarkdown')}
         onClick={() => void navigator.clipboard.writeText(markdown).then(() => setCopied(true), () => {})}
       >
         {copied ? <CheckIcon /> : <CopyIcon />}
       </button>
-      <button type="button" className="tool-button" aria-label="下载 Markdown" data-tooltip="下载 Markdown" onClick={() => downloadMarkdown(filename, markdown)}>
+      <button type="button" className="tool-button" aria-label={t('ChatPlan.downloadMarkdown')} data-tooltip={t('ChatPlan.downloadMarkdown')} onClick={() => downloadMarkdown(filename, markdown)}>
         <DownloadIcon />
       </button>
     </span>
@@ -364,7 +357,7 @@ export function ChatPlanView({ conversationId, plans, selected, onSelect, note =
   const plan = plans.find((each) => itemKey(each) === selected) ?? plans.at(-1)
   const translated = useTranslated(conversationId, plan ? planTranslationKey(itemKey(plan)) : '', plan?.detail ?? '', plan !== undefined, body)
   const said = (each: PlanItem) => note(each) ?? status(each)
-  if (!plan) return <p className="inspector-empty muted">Agent 还没有提出计划。</p>
+  if (!plan) return <p className="inspector-empty muted">{t('ChatPlan.agentHasNotProposedAPlanYet')}</p>
   const planKey = itemKey(plan)
   const comments = quotes.filter((quote) => quote.source === planKey).length
   const version = plans.indexOf(plan) + 1
@@ -374,27 +367,25 @@ export function ChatPlanView({ conversationId, plans, selected, onSelect, note =
         <div className="chat-plan-view-status-text">
           {plans.length > 1 ? (
             <ChatPicker
-              label="计划的版本"
+              label={t('ChatPlan.planVersions')}
               value={itemKey(plan)}
-              placeholder={`第 ${version} 版`}
+              placeholder={t('ChatPlan.version', { version: version })}
               placement="below"
-              options={plans.map((each, index) => ({ value: itemKey(each), label: `第 ${index + 1} 版 · ${said(each)}` }))}
+              options={plans.map((each, index) => ({ value: itemKey(each), label: t('ChatPlan.version_427', { value1: index + 1, value2: said(each) }) }))}
               onChange={onSelect}
             />
           ) : said(plan)}
-          {plan.resolution === null && <span className="muted"> · 在对话下方确认</span>}
+          {plan.resolution === null && <span className="muted">{t('ChatPlan.confirmBelowTheChat')}</span>}
         </div>
-        {translated.foreign && <TranslateButton translated={translated} what="这份计划" />}
+        {translated.foreign && <TranslateButton translated={translated} what={t('ChatPlan.thisPlan')} />}
         {plan.detail && <PlanMarkdownActions markdown={plan.detail} filename={planMarkdownFilename(plan.detail, version, plans.length)} />}
       </div>
       {conversationId && plan.detail && comments > 0 && (
-        <p className="chat-plan-view-hint">
-          {comments} 条评论{plan.resolution === null ? '，在下方选「继续规划」交给 agent' : '，在输入框里，发送后 agent 据此修改'}
-        </p>
+        <p className="chat-plan-view-hint">{tr('ChatPlan.comments', { comments: comments, value2: plan.resolution === null ? t('ChatPlan.chooseContinuePlanningBelowToSendThemTo') : t('ChatPlan.inTheComposerSendThemSoAgentCan') })}</p>
       )}
       {plan.detail
         ? <div className="chat-plan-body" ref={body}><ChatMarkdown text={translated.shown} /></div>
-        : <p className="muted">这份计划是空的。</p>}
+        : <p className="muted">{t('ChatPlan.thisPlanIsEmpty')}</p>}
       {conversationId && plan.detail && <PlanComments conversationId={conversationId} planKey={planKey} body={body} />}
     </div>
   )

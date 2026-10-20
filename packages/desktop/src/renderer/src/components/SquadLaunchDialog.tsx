@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import { ChatPermissionMode, checkSquadStart, squadModes, type Task } from '@antumi/protocol'
 import { dismissError, openChatWhileStarting, perform, selectSquad, useCore } from '../core-store'
@@ -42,32 +43,32 @@ export function SquadLaunchDialog({ task, onSingle }: { task: Task; onSingle(): 
   }
   return <dialog ref={dialog} className="modal task-launch-dialog" aria-labelledby="squad-launch-title" onCancel={(event) => { event.preventDefault(); if (!busy) close() }}>
     <form className="modal-body" onSubmit={(event) => { event.preventDefault(); void start() }}>
-      <header className="modal-header"><h2 id="squad-launch-title">{plan ? '交给小队执行规划' : '交给研发小队'}</h2><button type="button" className="icon-button modal-close" aria-label="关闭" disabled={busy} onClick={close}><CloseIcon /></button></header>
+      <header className="modal-header"><h2 id="squad-launch-title">{plan ? t('SquadLaunchDialog.assignPlanningToSquad') : t('SquadLaunchDialog.assignToDevelopmentSquad')}</h2><button type="button" className="icon-button modal-close" aria-label={t('BackdropPicker.close')} disabled={busy} onClick={close}><CloseIcon /></button></header>
       <p className="task-launch-name">{task.title}</p>
-      {!plan && <button type="button" className="link-button" disabled={busy} onClick={onSingle}>改用单 Agent</button>}
+      {!plan && <button type="button" className="link-button" disabled={busy} onClick={onSingle}>{t('SquadLaunchDialog.useASingleAgent')}</button>}
       <fieldset className="task-launch-fields" disabled={busy}>
-        <div className="task-launch-field"><span>研发小队</span>
-          <ChatPicker label="研发小队" value={squadId} placeholder="选择小队" size="field" placement="below" onChange={setSquadId}
-            options={available.map((each) => ({ value: each.id, label: each.name, description: each.description || `${each.members.length - 1} 名成员`, icon: <SquadIcon /> }))} />
+        <div className="task-launch-field"><span>{t('NewTaskDialog.developmentSquad')}</span>
+          <ChatPicker label={t('NewTaskDialog.developmentSquad')} value={squadId} placeholder={t('SquadLaunchDialog.chooseSquad')} size="field" placement="below" onChange={setSquadId}
+            options={available.map((each) => ({ value: each.id, label: each.name, description: each.description || t('SquadLaunchDialog.members', { value1: each.members.length - 1 }), icon: <SquadIcon /> }))} />
         </div>
-        <div className="task-launch-field"><span>开发权限</span>
-          <ChatPicker label="开发权限" value={mode} placeholder="逐项确认" size="field" placement="below"
-            options={modes.map((each) => ({ value: each, label: each === 'ask' ? '逐项确认' : each === 'acceptEdits' ? '自动接受编辑' : each === 'bypass' ? '全部放行' : '自动判断' }))}
+        <div className="task-launch-field"><span>{t('SquadLaunchDialog.developmentPermissions')}</span>
+          <ChatPicker label={t('SquadLaunchDialog.developmentPermissions')} value={mode} placeholder={t('ChatPlan.askEachTime')} size="field" placement="below"
+            options={modes.map((each) => ({ value: each, label: each === 'ask' ? t('ChatPlan.askEachTime') : each === 'acceptEdits' ? t('ChatPlan.acceptEditsAutomatically') : each === 'bypass' ? t('ChatPlan.allowEverything') : t('SquadLaunchDialog.automatic') }))}
             onChange={(value) => { const parsed = ChatPermissionMode.safeParse(value); if (parsed.success) setRequested(parsed.data) }} />
         </div>
       </fieldset>
       {leaderPlans && (
         <fieldset className="squad-launch-ways" disabled={busy}>
-          <label><input type="radio" name="squad-launch-way" checked={planFirst} onChange={() => setPlanFirst(true)} /><span><b>先和队长规划</b>（推荐）<span className="muted">队长读代码，和你商量出计划和分工；你批准后，它接着带成员开发。</span></span></label>
-          <label><input type="radio" name="squad-launch-way" checked={!planFirst} onChange={() => setPlanFirst(false)} /><span><b>直接开始</b><span className="muted">队长按任务详情自己拆分，边做边派活。</span></span></label>
+          <label><input type="radio" name="squad-launch-way" checked={planFirst} onChange={() => setPlanFirst(true)} /><span>{tr('SquadLaunchDialog.recommended', { value1: <b>{t('SquadLaunchDialog.planWithTheLeaderFirst')}</b>, value2: <span className="muted">{t('SquadLaunchDialog.theLeaderReadsCodeAndDiscussesThePlan')}</span> })}</span></label>
+          <label><input type="radio" name="squad-launch-way" checked={!planFirst} onChange={() => setPlanFirst(false)} /><span><b>{t('SquadLaunchDialog.startDirectly')}</b><span className="muted">{t('SquadLaunchDialog.theLeaderBreaksDownTaskDetailsAndAssigns')}</span></span></label>
         </fieldset>
       )}
-      {squad && <p className="muted">{squad.members.find((member) => member.id === squad.leaderId)?.name} 协调 {squad.members.length - 1} 名成员；模型与角色沿用小队配置。{planning ? '开发权限在批准计划后生效。' : ''}</p>}
-      {inPlace && <p className="muted">此项目不是 Git 仓库，修改会直接写入原目录。</p>}
-      {!available.length && <button type="button" className="button" onClick={() => { close(); selectSquad(null, true) }}>先创建研发小队</button>}
+      {squad && <p className="muted">{tr('SquadLaunchDialog.coordinatesMembersUsingTheSquadSModelsAnd', { value1: squad.members.find((member) => member.id === squad.leaderId)?.name, value2: squad.members.length - 1, value3: planning ? t('SquadLaunchDialog.developmentPermissionsApplyAfterPlanApproval') : '' })}</p>}
+      {inPlace && <p className="muted">{t('SquadLaunchDialog.thisProjectIsNotAGitRepositoryChanges')}</p>}
+      {!available.length && <button type="button" className="button" onClick={() => { close(); selectSquad(null, true) }}>{t('SquadLaunchDialog.createADevelopmentSquadFirst')}</button>}
       {blocker && <p className="modal-error">{reasonText(blocker, blocker)}</p>}
       {error && <p className="modal-error" role="alert">{error}</p>}
-      <footer className="modal-footer"><button type="button" className="button ghost" disabled={busy} onClick={close}>取消</button><button type="submit" className="button primary" disabled={busy || Boolean(blocker) || !squad || squad.archivedAt !== null || !modes.length}>{busy ? '正在启动…' : planning ? '开始规划' : '开始小队开发'}</button></footer>
+      <footer className="modal-footer"><button type="button" className="button ghost" disabled={busy} onClick={close}>{t('ChatCommandSettings.cancel')}</button><button type="submit" className="button primary" disabled={busy || Boolean(blocker) || !squad || squad.archivedAt !== null || !modes.length}>{busy ? t('DiscussionDraft.starting') : planning ? t('SquadLaunchDialog.startPlanning') : t('ChatPlan.startSquadDevelopment')}</button></footer>
     </form>
   </dialog>
 }

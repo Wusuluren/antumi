@@ -13,11 +13,15 @@ import { applyTitleBar } from './desktop-bridge'
 import { startNotifications } from './notifications'
 import { followPreferences } from './preferences'
 import { startUnsavedEditRetries } from './unsaved-edits'
+import { startUiLanguage } from './language'
 import { startWorktreeUpdates } from './worktree-store'
 
 // The card of waiting requests (main's request-popup.ts) is this page too, with only what it needs:
 // the main window alone tells the user things, counts on the dock and keeps worktrees current.
 const popup = location.hash === '#request-popup'
+
+startUiLanguage()
+followPreferences()
 
 // Outside React so StrictMode's double-mount can't start two loops.
 if (popup) {
@@ -26,7 +30,6 @@ if (popup) {
   startCoreConnection('requests')
   startAppearance()
   startCodeFont()
-  followPreferences()
 } else {
   startCoreConnection()
   startAppearance()

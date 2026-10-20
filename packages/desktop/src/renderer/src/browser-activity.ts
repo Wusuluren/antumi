@@ -1,3 +1,4 @@
+import { localized, t } from './i18n'
 import { browserToolKind, type ChatItem } from '@antumi/protocol'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
@@ -5,11 +6,11 @@ type ToolDisplay = ToolItem['display']
 export type BrowserAction = 'navigate' | 'read' | 'click' | 'type' | 'scroll' | 'screenshot' | 'tabs' | 'wait' | 'working'
 
 const BROWSER_PROVIDER = /(?:^|_)(?:chrome|chromium|edge|firefox|safari|brave|browser|playwright|puppeteer|browserbase)(?:_|$)/
-const ACTION_LABEL: Record<BrowserAction, string> = {
-  navigate: '正在打开页面…', read: '正在读取页面…', click: '正在操作页面…',
-  type: '正在输入内容…', scroll: '正在滚动页面…', screenshot: '正在截取页面…',
-  tabs: '正在管理标签页…', wait: '正在等待页面…', working: '正在操作浏览器…'
-}
+const ACTION_LABEL: Record<BrowserAction, string> = localized(() => ({
+  navigate: t('browserActivity.openingPage'), read: t('browserActivity.readingPage'), click: t('browserActivity.interactingWithPage'),
+  type: t('browserActivity.typing'), scroll: t('browserActivity.scrolling'), screenshot: t('browserActivity.takingScreenshot'),
+  tabs: t('browserActivity.managingTabs'), wait: t('browserActivity.waitingForPage'), working: t('browserActivity.usingBrowser')
+}))
 
 function normalized(value: string): string {
   return value.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase().replace(/[^a-z0-9]+/g, '_')

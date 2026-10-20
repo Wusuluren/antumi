@@ -1,9 +1,10 @@
+import { localized, t } from '../i18n'
 import type { Conversation } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { conversationGlyph, conversationState } from '../conversation-state'
 import { Spinner } from './Spinner'
 
-const SPOKEN: Record<string, string> = { unseen: '有新动态' }
+const SPOKEN: Record<string, string> = localized(() => ({ unseen: t('ConversationStatus.newActivity') }))
 
 // The mark before a conversation's name: a spinner while its agent works, a coloured dot for what
 // needs the user's eye, a ring when nothing does.

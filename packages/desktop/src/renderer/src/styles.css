@@ -4560,7 +4560,12 @@ div.inspector-empty > p { margin: 0 0 8px; }
 
 .settings-row-control {
   flex-shrink: 0;
+  max-width: 100%;
 }
+
+/* Longer translations and swatches wrap before squeezing the description. */
+.settings-row:has(.palette-picker, .segmented) { flex-wrap: wrap; }
+.settings-row:has(.palette-picker, .segmented) .settings-row-text { flex: 1 1 32ch; }
 
 .settings-row:has(.title-naming-options) { flex-wrap: wrap; }
 .settings-row:has(.title-naming-options) .settings-row-text { flex: 1 1 32ch; }

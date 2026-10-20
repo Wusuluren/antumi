@@ -1,11 +1,12 @@
+import { localized, t } from '../i18n'
 import type { ChatItem, ChatToolStatus } from '@antumi/protocol'
 import { browserActivity } from '../browser-activity'
 import { toolLabel } from '../chat-tools'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
-const SETTLED: Record<Exclude<ChatToolStatus, 'running'>, string> = {
-  done: '浏览器操作已完成', failed: '浏览器操作失败', denied: '浏览器操作已拒绝', interrupted: '浏览器操作已中断'
-}
+const SETTLED: Record<Exclude<ChatToolStatus, 'running'>, string> = localized(() => ({
+  done: t('ChatBrowserActivity.browserActionCompleted'), failed: t('ChatBrowserActivity.browserActionFailed'), denied: t('ChatBrowserActivity.browserActionDenied'), interrupted: t('ChatBrowserActivity.browserActionInterrupted')
+}))
 
 // A schematic, never a screenshot: motion follows the actual tool action, not a simulated workflow.
 export function ChatBrowserActivity({ tool, status = tool.status }: { tool: ToolItem; status?: ChatToolStatus }) {
@@ -17,8 +18,8 @@ export function ChatBrowserActivity({ tool, status = tool.status }: { tool: Tool
         <div className="chat-browser-window">
           <div className="chat-browser-chrome">
             <span className="chat-browser-window-dots"><i /><i /><i /></span>
-            <span className="chat-browser-address" title={activity.address ?? undefined}>{activity.address ?? '浏览器'}</span>
-            <span className="chat-browser-schematic">示意</span>
+            <span className="chat-browser-address" title={activity.address ?? undefined}>{activity.address ?? t('BrowserSidePanel.browser')}</span>
+            <span className="chat-browser-schematic">{t('ChatBrowserActivity.illustration')}</span>
           </div>
           <div className="chat-browser-loading" />
           <div className="chat-browser-page">

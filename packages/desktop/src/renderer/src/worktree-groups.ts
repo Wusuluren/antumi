@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { checkCleanWorktree, type Conversation, type ManagedWorktree, type Task, type WorktreeCleanBlocker } from '@antumi/protocol'
 
 export type WorktreeRow = { worktree: ManagedWorktree; task: Task | null; conversation: Conversation | null; blocker: WorktreeCleanBlocker | null }
@@ -54,13 +55,13 @@ export function formatBytes(bytes: number): string {
 
 // What stands out about a worktree, in a few words: why it is kept, or how its commits stand.
 export function worktreeState({ worktree }: Pick<WorktreeRow, 'worktree'>): { text: string; warn: boolean } {
-  if (worktree.changes === null) return { text: worktree.repo === null ? '找不到它所属的仓库' : '读不了它的 git 状态', warn: true }
-  if (worktree.inUse) return { text: 'Agent 还开着', warn: true }
-  if (worktree.changes > 0) return { text: `${worktree.changes} 个文件没提交`, warn: true }
-  if (worktree.alone) return { text: '有只在这里的提交', warn: true }
-  if (worktree.locked) return { text: '已用 git worktree lock 锁定', warn: true }
-  if (worktree.planning) return { text: '规划用的只读副本', warn: false }
-  if (!worktree.unmerged) return { text: '没有未提交的改动', warn: false }
+  if (worktree.changes === null) return { text: worktree.repo === null ? t('worktreeGroups.itsRepositoryCannotBeFound') : t('labels.cannotReadItsGitStatus'), warn: true }
+  if (worktree.inUse) return { text: t('worktreeGroups.agentIsStillOpen'), warn: true }
+  if (worktree.changes > 0) return { text: t('worktreeGroups.uncommittedFiles', { value1: worktree.changes }), warn: true }
+  if (worktree.alone) return { text: t('worktreeGroups.hasCommitsThatExistOnlyHere'), warn: true }
+  if (worktree.locked) return { text: t('labels.lockedWithGitWorktreeLock'), warn: true }
+  if (worktree.planning) return { text: t('worktreeGroups.readOnlyPlanningCheckout'), warn: false }
+  if (!worktree.unmerged) return { text: t('ConversationInspector.noUncommittedChanges'), warn: false }
   const { count, into } = worktree.unmerged
-  return { text: count > 0 ? `${count} 个提交还没合进 ${into}` : `已合进 ${into}`, warn: false }
+  return { text: count > 0 ? t('worktreeGroups.commitsNotMergedInto', { count: count, into: into }) : t('worktreeGroups.mergedInto', { into: into }), warn: false }
 }

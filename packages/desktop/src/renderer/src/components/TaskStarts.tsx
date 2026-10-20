@@ -1,3 +1,4 @@
+import { getLocale, t, tr } from '../i18n'
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 import { checkEditStart, START_HEAD, type RepoStartOptions, type Task, type TaskRepo } from '@antumi/protocol'
 import { perform, updateTask, useCore, useTaskStartSupported } from '../core-store'
@@ -10,7 +11,7 @@ import { projectName } from './ProjectPicker'
 // Tasks by the branch they made, so a dependency's branch can go by its task's title.
 function useBranchTasks(): ReadonlyMap<string, Task> {
   const tasks = useCore((s) => s.tasks)
-  return useMemo(() => new Map(Object.values(tasks).flatMap((task) => task.repos.flatMap((repo) => (repo.branch ? [[repo.branch, task] as const] : [])))), [tasks])
+  return useMemo(() => new Map(Object.values(tasks).flatMap((task) => task.repos.flatMap((repo) => (repo.branch ? [[repo.branch, task] as const] : [])))), [tasks, getLocale()])
 }
 
 const titleIn = (branchTasks: ReadonlyMap<string, Task>) => (branch: string) => branchTasks.get(branch)?.title
@@ -48,11 +49,11 @@ function StartMenu({ repo, option, branchTasks, onPick, onClose }: {
     }
   }
   return (
-    <Popover label="选择起点" onClose={onClose}>
+    <Popover label={t('TaskStarts.chooseStartingPoint')} onClose={onClose}>
       <ul className="menu-list">
-        <Choice label={`默认：${fallback.ref}`} description={fallback.says} checked={repo.startRef === null} onPick={() => onPick(null)} />
+        <Choice label={t('TaskStarts.default', { value1: fallback.ref })} description={fallback.says} checked={repo.startRef === null} onPick={() => onPick(null)} />
         {option.current && (
-          <Choice label={`项目当前的分支：${option.current}`} description="你在这个项目里检出的是哪个就用哪个" checked={repo.startRef === START_HEAD} onPick={() => onPick(START_HEAD)} />
+          <Choice label={t('TaskStarts.projectSCurrentBranch', { value1: option.current })} description={t('TaskStarts.useWhicheverBranchIsCheckedOutInThis')} checked={repo.startRef === START_HEAD} onPick={() => onPick(START_HEAD)} />
         )}
       </ul>
       <div className="menu-separator" role="separator" />
@@ -61,8 +62,8 @@ function StartMenu({ repo, option, branchTasks, onPick, onClose }: {
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={onSearchKey}
-        placeholder="搜索分支，回车选第一个"
-        aria-label="搜索分支"
+        placeholder={t('DraftBranchPicker.searchBranchesEnterToSelectTheFirst')}
+        aria-label={t('ConversationBranches.searchBranches')}
       />
       {refs.length > 0 && (
         <ul className="menu-list task-start-refs">
@@ -72,7 +73,7 @@ function StartMenu({ repo, option, branchTasks, onPick, onClose }: {
               <li key={ref} className="menu-row">
                 <button type="button" className="menu-item" aria-pressed={repo.startRef === ref} onClick={() => onPick(ref)}>
                   <span className="menu-item-title mono">{shortRef(ref)}</span>
-                  {owner && <span className="menu-item-path">任务「{owner.title}」</span>}
+                  {owner && <span className="menu-item-path">{tr('TaskStarts.task', { value1: owner.title })}</span>}
                   {repo.startRef === ref && <span className="menu-check"><CheckIcon /></span>}
                 </button>
               </li>
@@ -80,7 +81,7 @@ function StartMenu({ repo, option, branchTasks, onPick, onClose }: {
           })}
         </ul>
       )}
-      <p className="menu-note">{refs.length === 0 ? '没有匹配的分支' : '本地和远端的分支；选远端分支时，开始前先拉取最新的'}</p>
+      <p className="menu-note">{refs.length === 0 ? t('ConversationBranches.noMatchingBranches') : t('TaskStarts.localAndRemoteBranchesRemoteBranchesAreFetched')}</p>
     </Popover>
   )
 }
@@ -98,7 +99,7 @@ function StartPicker({ task, repo, option, named }: { task: Task; repo: TaskRepo
   return (
     <div className="task-start">
       {named && <span className="task-start-project">{projectName(repo.path)}</span>}
-      <span>从</span>
+      <span>{t('DraftBranchPicker.from')}</span>
       <span className="menu-anchor">
         <button
           type="button"
@@ -106,8 +107,8 @@ function StartPicker({ task, repo, option, named }: { task: Task; repo: TaskRepo
           aria-haspopup="dialog"
           aria-expanded={open}
           disabled={blocker !== null}
-          aria-label={`${projectName(repo.path)} 的起点：${picked.ref}`}
-          title={blocker ? reasonText(blocker, blocker) : `${projectName(repo.path)} 的任务分支从哪里拉出`}
+          aria-label={t('TaskStarts.startingPointFor', { value1: projectName(repo.path), value2: picked.ref })}
+          title={blocker ? reasonText(blocker, blocker) : t('TaskStarts.whereToBranchTheTaskFor', { value1: projectName(repo.path) })}
           onClick={() => setOpen((current) => !current)}
         >
           <span className="mono">{picked.ref}</span>
@@ -115,9 +116,9 @@ function StartPicker({ task, repo, option, named }: { task: Task; repo: TaskRepo
         </button>
         {open && <StartMenu repo={repo} option={option} branchTasks={branchTasks} onPick={pick} onClose={close} />}
       </span>
-      <span>拉出</span>
+      <span>{t('TaskStarts.branch')}</span>
       {picked.says && <span className="muted">· {picked.says}</span>}
-      {repo.startRef !== null && option.stacked && <p className="task-start-note">不会带上依赖任务的改动</p>}
+      {repo.startRef !== null && option.stacked && <p className="task-start-note">{t('TaskStarts.dependencyTaskChangesAreNotIncluded')}</p>}
     </div>
   )
 }
@@ -127,7 +128,7 @@ function StartRecord({ repo, named }: { repo: TaskRepo & { start: NonNullable<Ta
   return (
     <div className="task-start">
       {named && <span className="task-start-project">{projectName(repo.path)}</span>}
-      <span>从 <span className="mono">{start.ref}</span> <span className="mono muted">{start.commit.slice(0, 7)}</span> 拉出</span>
+      <span>{tr('TaskStarts.branchedFrom', { value1: <span className="mono">{start.ref}</span>, value2: <span className="mono muted">{start.commit.slice(0, 7)}</span> })}</span>
       <span className="muted">· {dayAndTime(start.at)}</span>
       {start.note && <p className="task-start-note" data-note={start.note}>{START_NOTE_TEXT[start.note]}</p>}
     </div>
@@ -163,7 +164,7 @@ export function TaskStarts({ task }: { task: Task }) {
   if (rows.length === 0) return null
   return (
     <>
-      <dt>起点</dt>
+      <dt>{t('TaskStarts.startingPoint')}</dt>
       <dd>{rows}</dd>
     </>
   )

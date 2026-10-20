@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { isHelper } from '@antumi/protocol'
 import { isScheduleOpen, limitOf, PLAN_TOOLS, type AgentKind, type Conversation, type ConversationRequest, type Routine, type ScheduledRun, type SquadRun, type Task } from '@antumi/protocol'
 
@@ -177,11 +178,11 @@ export function noticesBetween(prev: Snapshot, next: Snapshot, tellWaiting = tru
     if (conversation.taskId && next.tasks[conversation.taskId]?.squadId && !waitingOrAsking(conversation)) continue
     const { title, target } = named(conversation, next.tasks, next.squadRuns)
     if (crashed(conversation) && !crashed(before)) {
-      notices.push({ title, body: `Agent 异常退出（code ${conversation.lastExit?.code}），发消息会重新启动它`, target })
+      notices.push({ title, body: t('attention.agentExitedUnexpectedlyCodeSendAMessageTo', { value1: conversation.lastExit?.code }), target })
     } else if (waiting(conversation) && !waiting(before)) {
-      if (tellWaiting) notices.push({ title, body: 'Agent 在等你允许或回答', target })
+      if (tellWaiting) notices.push({ title, body: t('attention.agentNeedsYourApprovalOrAnswer'), target })
     } else if (working(before) && !working(conversation)) {
-      notices.push({ title, body: asking(conversation) ? 'Agent 这一轮做完了，有个问题等你回答' : 'Agent 这一轮做完了', target })
+      notices.push({ title, body: asking(conversation) ? t('attention.agentFinishedThisTurnAndHasAQuestion') : t('attention.agentFinishedThisTurn'), target })
     }
   }
   return notices

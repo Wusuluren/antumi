@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { squadWorkActive, squadWorkOpen, type Conversation, type ConversationDoing, type SquadMember, type SquadRun, type SquadWork } from '@antumi/protocol'
 import { toolLabel } from './chat-tools'
 
@@ -46,7 +47,7 @@ export function memberProgress(run: SquadRun, conversations: Readonly<Record<str
       const conversationId = run.leaderConversationId
       const seen = live ? fromConversation(conversationId ? conversations[conversationId] : undefined) : null
       const waitingOnMembers = run.works.some(squadWorkOpen)
-      return { member, leader, state: seen?.state ?? 'idle', detail: seen?.detail ?? (live && waitingOnMembers ? '等成员交付' : null), conversationId, since: null }
+      return { member, leader, state: seen?.state ?? 'idle', detail: seen?.detail ?? (live && waitingOnMembers ? t('squadProgress.waitingForMemberDelivery') : null), conversationId, since: null }
     }
     const works = run.works.filter((work) => work.memberId === member.id)
     const active = works.findLast(squadWorkActive)
@@ -59,7 +60,7 @@ export function memberProgress(run: SquadRun, conversations: Readonly<Record<str
       return { member, leader, state, detail: seen?.detail ?? workHeadline(active.instruction), conversationId, since: active.updatedAt }
     }
     const [next] = queued
-    if (live && next) return { member, leader, state: 'queued', detail: queued.length > 1 ? `${queued.length} 项工作排队` : workHeadline(next.instruction), conversationId, since: null }
+    if (live && next) return { member, leader, state: 'queued', detail: queued.length > 1 ? t('squadProgress.assignmentsQueued', { value1: queued.length }) : workHeadline(next.instruction), conversationId, since: null }
     return { member, leader, state: 'idle', detail: null, conversationId, since: null }
   })
 }

@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { useState } from 'react'
 import { checkChangePrimary, checkEditProjects, shortTaskId, type Task } from '@antumi/protocol'
 import { selectTask, updateTask, useCore, useTaskCancelSupported } from '../core-store'
@@ -29,11 +30,11 @@ function useDraft(value: string, save: (next: string) => void) {
   }
 }
 
-const SAVE_TEXT: Record<SaveState, string> = {
-  saving: '保存中…',
-  saved: '已保存',
-  failed: '保存失败，连上 core 后会自动重试'
-}
+const SAVE_TEXT: Record<SaveState, string> = localized(() => ({
+  saving: t('McpSettingsSection.saving'),
+  saved: t('TaskDetail.saved'),
+  failed: t('TaskDetail.saveFailedRetriesAutomaticallyAfterCoreReconnects')
+}))
 
 function SaveIndicator({ taskId }: { taskId: string }) {
   const state = useTaskSaveState(taskId)
@@ -52,22 +53,16 @@ function Lineage({ task, tasks }: { task: Task; tasks: Record<string, Task> }) {
   if (task.status === 'abandoned') {
     const successor = Object.values(tasks).find((other) => other.derivedFrom === task.id)
     return (
-      <p className="lineage" data-abandoned="true">
-        已取消{task.abandonReason ? `：${task.abandonReason}` : ''}。
-        {successor
-          ? <>由{link(successor)}接着做，这次的 worktree 仍保留在磁盘上。</>
-          : reopenable && <button type="button" className="link-button" onClick={() => void reopenTask(task)}>重新打开</button>}
-      </p>
+      <p className="lineage" data-abandoned="true">{tr('TaskDetail.cancelled', { value1: task.abandonReason ? `：${task.abandonReason}` : '', value2: successor
+          ? <>{tr('TaskDetail.continuedByThisWorktreeRemainsOnDisk', { value1: link(successor) })}</>
+          : reopenable && <button type="button" className="link-button" onClick={() => void reopenTask(task)}>{t('TaskActions.reopen')}</button> })}</p>
     )
   }
   const last = task.attempts.at(-1)
   if (last) {
     const branches = task.attempts.flatMap((attempt) => attempt.branches.map((kept) => kept.branch))
     return (
-      <p className="lineage">
-        已重做 {task.attempts.length} 次{last.reason ? `，上次的原因：${last.reason}` : ''}。
-        {branches.length > 0 && <>之前的改动在分支 <span className="mono">{branches.join('、')}</span>。</>}
-      </p>
+      <p className="lineage">{tr('TaskDetail.redoneTimes', { value1: task.attempts.length, value2: last.reason ? t('TaskDetail.lastReason', { value1: last.reason }) : '', value3: branches.length > 0 && <>{tr('TaskDetail.previousChangesAreOnBranch', { value1: <span className="mono">{branches.join('、')}</span> })}</> })}</p>
     )
   }
   const predecessor = task.derivedFrom ? tasks[task.derivedFrom] : undefined
@@ -75,10 +70,7 @@ function Lineage({ task, tasks }: { task: Task; tasks: Record<string, Task> }) {
     return null
   }
   return (
-    <p className="lineage">
-      重做自{link(predecessor)}
-      （已放弃{predecessor.abandonReason ? `：${predecessor.abandonReason}` : ''}）
-    </p>
+    <p className="lineage">{tr('TaskDetail.redoneFromAbandoned', { value1: link(predecessor), value2: predecessor.abandonReason ? `：${predecessor.abandonReason}` : '' })}</p>
   )
 }
 
@@ -102,7 +94,7 @@ function TaskDetailBody({ task }: { task: Task }) {
   const images = useImageAdder(task.id)
 
   return (
-    <section className="detail task-detail" aria-label="任务详情" {...images.handlers}>
+    <section className="detail task-detail" aria-label={t('NewTaskDialog.taskDetails')} {...images.handlers}>
       <header className="detail-header">
         <BoardCrumb />
         <span className="muted mono">{shortTaskId(task.id)}</span>
@@ -114,19 +106,19 @@ function TaskDetailBody({ task }: { task: Task }) {
 
       <div className="task-detail-layout">
         <div className="task-detail-heading">
-          <input className="input title-input" {...title} maxLength={200} aria-label="标题" />
+          <input className="input title-input" {...title} maxLength={200} aria-label={t('ConversationList.title')} />
           <Lineage task={task} tasks={tasks} />
           <div className="task-detail-actions">
             <TaskSteps task={task} labelled />
           </div>
         </div>
 
-        <aside className="task-detail-side" aria-label="任务属性">
+        <aside className="task-detail-side" aria-label={t('TaskDetail.taskProperties')}>
           <div className="task-props">
             <TaskStatusMenu task={task} />
           </div>
           <dl className="props">
-            <dt>项目</dt>
+            <dt>{t('ChatMentionMenu.project')}</dt>
             <dd>
               <ProjectPicker
                 projects={task.repos}
@@ -136,7 +128,7 @@ function TaskDetailBody({ task }: { task: Task }) {
               />
             </dd>
             <TaskStarts task={task} />
-            <dt>依赖</dt>
+            <dt>{t('TaskDetail.dependencies')}</dt>
             <dd>
               <DependencyPicker
                 taskId={task.id}
@@ -144,20 +136,20 @@ function TaskDetailBody({ task }: { task: Task }) {
                 onChange={(dependsOn) => void updateTask(task.id, { dependsOn })}
               />
             </dd>
-            <dt>图片</dt>
+            <dt>{t('FileMarkdown.image')}</dt>
             <dd>
               <TaskImages task={task} uploading={images.uploading} onAddFiles={(files) => void images.add(files)} />
             </dd>
             {dependents.length > 0 && (
               <>
-                <dt>被依赖</dt>
+                <dt>{t('TaskDetail.dependents')}</dt>
                 <dd>
                   <TaskDependents dependents={dependents} />
                 </dd>
               </>
             )}
           </dl>
-          <p className="task-detail-created">创建于 {dayAndTime(task.createdAt)}</p>
+          <p className="task-detail-created">{tr('TaskDetail.created', { value1: dayAndTime(task.createdAt) })}</p>
         </aside>
 
         <div className="task-detail-main">
@@ -168,8 +160,8 @@ function TaskDetailBody({ task }: { task: Task }) {
             className="task-detail-details"
             value={unsavedTaskText(task.id, 'details') ?? task.details}
             onSave={(next) => saveTaskText(task.id, 'details', next)}
-            label="任务详情"
-            hint="目标、背景、验收标准、需要注意的文件…支持 Markdown，写下后会作为 prompt 交给 Agent"
+            label={t('NewTaskDialog.taskDetails')}
+            hint={t('TaskDetail.goalContextAcceptanceCriteriaImportantFilesMarkdownSupported')}
           />
         </div>
       </div>

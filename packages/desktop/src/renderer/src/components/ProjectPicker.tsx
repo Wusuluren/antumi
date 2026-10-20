@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useCallback, useState, type FormEvent } from 'react'
 import { MAX_TASK_REPOS, type TaskRepo } from '@antumi/protocol'
 import { perform } from '../core-store'
@@ -11,13 +12,13 @@ export function projectName(projectPath: string): string {
 }
 
 export function projectNames(paths: readonly string[]): string {
-  return paths.length ? paths.map(projectName).join('、') : '无项目'
+  return paths.length ? paths.map(projectName).join('、') : t('ProjectPicker.noProject')
 }
 
 // A header names the folder the agent works in; the rest are in its tooltip.
 export function primaryProjectName(paths: readonly string[]): string {
   const [primary] = paths
-  return primary ? projectName(primary) : '无项目'
+  return primary ? projectName(primary) : t('ProjectPicker.noProject')
 }
 
 export function parentDir(projectPath: string): string | undefined {
@@ -40,13 +41,11 @@ function PathForm({ onSubmit }: { onSubmit: (projectPath: string) => void }) {
         className="input mono"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        placeholder="项目的绝对路径，如 ~/IdeaProjects/app"
-        aria-label="项目路径"
+        placeholder={t('ProjectPicker.absoluteProjectPathEGIdeaprojectsApp')}
+        aria-label={t('ProjectPicker.projectPath')}
         autoFocus
       />
-      <button type="submit" className="button" disabled={!draft.trim()}>
-        添加
-      </button>
+      <button type="submit" className="button" disabled={!draft.trim()}>{t('ProjectPicker.add')}</button>
     </form>
   )
 }
@@ -65,10 +64,10 @@ function ProjectMenu({
   onClose: () => void
 }) {
   return (
-    <Popover label="添加项目" onClose={onClose}>
+    <Popover label={t('ProjectPicker.addProject')} onClose={onClose}>
       {recent.length > 0 && (
         <>
-          <div className="menu-label">最近使用</div>
+          <div className="menu-label">{t('ProjectPicker.recent')}</div>
           <ul className="menu-list">
             {recent.map((projectPath) => (
               <li key={projectPath} className="menu-row">
@@ -79,8 +78,8 @@ function ProjectMenu({
                 <button
                   type="button"
                   className="icon-button"
-                  title="从最近使用中移除（不影响已有任务或会话）"
-                  aria-label={`从最近使用中移除 ${projectName(projectPath)}`}
+                  title={t('ProjectPicker.removeFromRecentProjectsExistingTasksAndConversations')}
+                  aria-label={t('ProjectPicker.removeFromRecentProjects', { value1: projectName(projectPath) })}
                   onClick={() => onForget(projectPath)}
                 >
                   ×
@@ -92,9 +91,7 @@ function ProjectMenu({
         </>
       )}
       {canPickFolder() ? (
-        <button type="button" className="menu-item" onClick={onBrowse}>
-          选择其他文件夹…
-        </button>
+        <button type="button" className="menu-item" onClick={onBrowse}>{t('KnowledgeBaseSettings.chooseAnotherFolder')}</button>
       ) : (
         <PathForm onSubmit={onAdd} />
       )}
@@ -174,10 +171,10 @@ export function ProjectPicker({
           className="chip project-chip"
           data-primary={index === 0 || undefined}
           title={[
-            index === 0 ? `主项目：${project.path}` : project.path,
+            index === 0 ? t('ProjectPicker.primaryProject', { value1: project.path }) : project.path,
             project.worktreePath && `worktree：${project.worktreePath}`,
-            promotable && index > 0 && '右键可设为主项目',
-            !locked && primaryLocked && index === 0 && '对话开始后不能更换主项目'
+            promotable && index > 0 && t('ProjectPicker.rightClickToMakePrimary'),
+            !locked && primaryLocked && index === 0 && t('ProjectPicker.primaryProjectIsFixedAfterTheConversationStarts')
           ].filter(Boolean).join('\n')}
           onContextMenu={promotable && index > 0 ? (event) => {
             event.preventDefault()
@@ -186,14 +183,14 @@ export function ProjectPicker({
         >
           <span className="chip-main chip-static">
             <span className="project-name">{projectName(project.path)}</span>
-            {index === 0 && <span className="visually-hidden">（主项目）</span>}
+            {index === 0 && <span className="visually-hidden">{t('ProjectPicker.primaryProject_1427')}</span>}
           </span>
           {!locked && !(primaryLocked && index === 0) && (
             <button
               type="button"
               className="chip-remove"
-              title="移除项目（不会删除目录或已有 worktree）"
-              aria-label={`移除 ${projectName(project.path)}`}
+              title={t('ProjectPicker.removeProjectKeepsDirectoryAndExistingWorktrees')}
+              aria-label={t('ProjectPicker.remove', { value1: projectName(project.path) })}
               onClick={() => onChange(paths.filter((projectPath) => projectPath !== project.path))}
             >
               ×
@@ -202,8 +199,8 @@ export function ProjectPicker({
         </span>
       ))}
       {projectMenu && (
-        <ContextMenu at={projectMenu.at} label={`${projectName(projectMenu.path)} 的操作`} onClose={closeProjectMenu}>
-          <MenuItem label="设为主项目" onSelect={() => promote(projectMenu.path)} />
+        <ContextMenu at={projectMenu.at} label={t('GitInspector.actionsFor', { value1: projectName(projectMenu.path) })} onClose={closeProjectMenu}>
+          <MenuItem label={t('ProjectPicker.makePrimaryProject')} onSelect={() => promote(projectMenu.path)} />
         </ContextMenu>
       )}
       {!locked && paths.length < maxProjects && (
@@ -216,11 +213,8 @@ export function ProjectPicker({
             onClick={() => (menu ? setMenu(null) : void open())}
           >
             {compact && paths.length === 0 ? (
-              <>
-                <FolderIcon />
-                无项目
-              </>
-            ) : '＋ 添加项目'}
+              <>{tr('ProjectPicker.noProject_1431', { value1: <FolderIcon /> })}</>
+            ) : t('ProjectPicker.addProject_1432')}
           </button>
           {menu && (
             <ProjectMenu
@@ -233,7 +227,7 @@ export function ProjectPicker({
           )}
         </span>
       )}
-      {locked && projects.length === 0 && <span className="muted">未设置</span>}
+      {locked && projects.length === 0 && <span className="muted">{t('ProjectPicker.notSet')}</span>}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TextTranslations } from './localization'
 import { TaskImage } from './attachments'
 
 // Where tasks can come from besides being written by hand: an issue tracker, reached through a
@@ -35,13 +36,14 @@ export const SourceSnapshot = z.object({
 })
 export type SourceSnapshot = z.infer<typeof SourceSnapshot>
 
-const Choice = z.object({ value: z.string(), label: z.string() })
+const Choice = z.object({ value: z.string(), label: z.string(), translations: TextTranslations.optional() })
 
 // A provider's non-secret settings (a site, a query), rendered by every client the same way.
 export const SettingField = z.object({
   key: z.string().regex(/^[a-z][a-zA-Z0-9]{0,31}$/),
   type: z.enum(['text', 'url', 'textarea', 'select']),
   label: z.string(),
+  translations: TextTranslations.optional(),
   placeholder: z.string().optional(),
   hint: z.string().optional(),
   required: z.boolean(),
@@ -58,11 +60,12 @@ export type SettingField = z.infer<typeof SettingField>
 export const LoginPrompt = z.object({
   kind: z.enum(['text', 'secret', 'select']),
   label: z.string(),
+  translations: TextTranslations.optional(),
   hint: z.string().optional(),
   placeholder: z.string().optional(),
   defaultValue: z.string().optional(),
   options: z.array(Choice).optional(),
-  link: z.object({ url: z.string(), label: z.string() }).optional(),
+  link: z.object({ url: z.string(), label: z.string(), translations: TextTranslations.optional() }).optional(),
   // Why the previous answer was not accepted.
   error: z.string().optional()
 })
@@ -70,6 +73,7 @@ export type LoginPrompt = z.infer<typeof LoginPrompt>
 
 export const LoginNotice = z.object({
   message: z.string(),
+  translations: TextTranslations.optional(),
   url: z.string().optional(),
   code: z.string().optional()
 })

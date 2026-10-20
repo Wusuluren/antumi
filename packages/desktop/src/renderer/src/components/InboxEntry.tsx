@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { setInboxOpen, useCore } from '../core-store'
 import { CountBadge } from './CountBadge'
 import { InboxIcon } from './icons'
@@ -14,9 +15,9 @@ export function InboxEntry() {
   const failed = active.some((inbox) => inbox.problem)
   return (
     <button type="button" className="inbox-entry" aria-current={open}
-      aria-label={`收件箱${failed ? '，同步失败' : waiting ? `，${waiting} 个待处理` : ''}`} onClick={() => setInboxOpen(true)}>
+      aria-label={t('InboxEntry.inbox', { value1: failed ? t('InboxEntry.syncFailed') : waiting ? t('InboxEntry.pending', { waiting: waiting }) : '' })} onClick={() => setInboxOpen(true)}>
       <InboxIcon />
-      <span>收件箱</span>
+      <span>{t('InboxEntry.inbox_1125')}</span>
       {failed
         ? <span className="inbox-entry-alert" aria-hidden="true">!</span>
         : <CountBadge count={waiting} />}

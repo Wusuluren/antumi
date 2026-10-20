@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useCallback, useState, type KeyboardEvent } from 'react'
 import { setPreference, usePreferences, type Preferences } from '../preferences'
 import { cssFontFamily, systemFontFamilies } from '../system-fonts'
@@ -32,15 +33,15 @@ export function FontList({ current, onPick, listing, sample }: { current: string
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={onKey}
-        placeholder={listing.state === 'unavailable' ? '读不到系统字体，输入字体名，回车使用' : '搜索字体，回车选第一个'}
-        aria-label="搜索字体"
+        placeholder={listing.state === 'unavailable' ? t('ChatFontPicker.cannotReadSystemFontsEnterAFontName') : t('ChatFontPicker.searchFontsEnterToSelectTheFirst')}
+        aria-label={t('ChatFontPicker.searchFonts')}
       />
-      {listing.state === 'loading' && <p className="font-picker-note">正在读取系统字体…</p>}
+      {listing.state === 'loading' && <p className="font-picker-note">{t('ChatFontPicker.loadingSystemFonts')}</p>}
       <ul className="menu-list font-picker-list">
         {offerTyped && (
           <li>
             <button type="button" className="menu-item" onClick={() => onPick(typed)}>
-              <span className="menu-item-title">使用「{typed}」</span>
+              <span className="menu-item-title">{tr('ChatFontPicker.use', { typed: typed })}</span>
             </button>
           </li>
         )}
@@ -54,7 +55,7 @@ export function FontList({ current, onPick, listing, sample }: { current: string
           </li>
         ))}
       </ul>
-      {listing.state === 'ready' && shown.length === 0 && !offerTyped && <p className="font-picker-note">没有匹配的字体</p>}
+      {listing.state === 'ready' && shown.length === 0 && !offerTyped && <p className="font-picker-note">{t('ChatFontPicker.noMatchingFonts')}</p>}
     </div>
   )
 }
@@ -84,9 +85,9 @@ export function ChatFontPicker({ labelId }: { labelId: string }) {
         value={font}
         onChange={choose}
         options={[
-          { value: 'system', label: '系统' },
-          { value: 'serif', label: '衬线' },
-          { value: 'custom', label: '其他' }
+          { value: 'system', label: t('ChatFontPicker.system') },
+          { value: 'serif', label: t('ChatFontPicker.serif') },
+          { value: 'custom', label: t('ChatFontPicker.other') }
         ]}
       />
       {(font === 'custom' || open) && (
@@ -98,11 +99,11 @@ export function ChatFontPicker({ labelId }: { labelId: string }) {
             aria-expanded={open}
             onClick={() => (open ? close() : openList())}
           >
-            <span style={family ? { fontFamily: cssFontFamily(family) } : undefined}>{family || '选择字体'}</span>
+            <span style={family ? { fontFamily: cssFontFamily(family) } : undefined}>{family || t('ChatFontPicker.chooseFont')}</span>
             <ChevronDownIcon />
           </button>
           {open && (
-            <Popover label="选择聊天字体" onClose={close}>
+            <Popover label={t('ChatFontPicker.chooseChatFont')} onClose={close}>
               <FontList
                 current={family}
                 listing={listing}

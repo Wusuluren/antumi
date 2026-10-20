@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { coverage, dollars } from '../model-cost-format'
 import type { DashboardDay, DashboardStats } from '@antumi/protocol'
 import { acceptance, change, dayTokens, rateChange, type Change } from '../dashboard-model'
@@ -28,10 +29,10 @@ function KpiCell({ kpi, range }: { kpi: Kpi; range: number }) {
         {kpi.change ? (
           <span className="dashboard-kpi-change" data-direction={kpi.change.direction}>
             {ARROW[kpi.change.direction]}{kpi.change.text}
-            <span className="dashboard-kpi-since"> 较前 {range} 天</span>
+            <span className="dashboard-kpi-since">{tr('DashboardKpis.comparedWithPreviousDays', { range: range })}</span>
           </span>
         ) : (
-          <span className="dashboard-kpi-since">{kpi.note ?? `前 ${range} 天无数据`}</span>
+          <span className="dashboard-kpi-since">{kpi.note ?? t('DashboardKpis.noDataForThePreviousDays', { range: range })}</span>
         )}
         {kpi.trend && <Sparkline values={kpi.trend} />}
       </span>
@@ -44,34 +45,34 @@ export function DashboardKpis({ stats, days, range }: { stats: DashboardStats; d
   const { current, previous } = stats
   const rate = acceptance(current.accepted, current.decided)
   const kpis: Kpi[] = [
-    { label: '任务运行', title: '这段时间结束的 Agent 运行', value: String(current.runs), change: change(current.runs, previous.runs), trend: days.map((day) => day.runs) },
+    { label: t('DashboardKpis.taskRuns'), title: t('DashboardKpis.agentRunsThatEndedInThisPeriod'), value: String(current.runs), change: change(current.runs, previous.runs), trend: days.map((day) => day.runs) },
     {
-      label: '接受率',
-      title: '你判定过的运行里，直接接受的比例',
+      label: t('DashboardKpis.acceptanceRate'),
+      title: t('DashboardKpis.shareOfReviewedRunsAcceptedDirectly'),
       value: rate === null ? '—' : percent(current.accepted, current.decided),
-      note: rate === null ? `判定 ${current.decided} 次，样本太少` : undefined,
+      note: rate === null ? t('DashboardKpis.onlyReviewsTooFewSamples', { value1: current.decided }) : undefined,
       change: rateChange(rate, acceptance(previous.accepted, previous.decided))
     },
     {
-      label: '耗时中位',
-      title: '一次运行从开始到交付，含你中间的时间',
+      label: t('DashboardKpis.medianDuration'),
+      title: t('DashboardKpis.fromRunStartToDeliveryIncludingYourResponse'),
       value: durationText(current.medianRunMs),
       change: current.medianRunMs === null || previous.medianRunMs === null ? null : change(current.medianRunMs, previous.medianRunMs)
     },
-    { label: 'token 合计', title: '任务运行、对话回合、翻译和提交说明读写的 token', value: compact(current.tokens), change: change(current.tokens, previous.tokens), trend: days.map(dayTokens) },
-    { label: '对话回合', title: '对话里结束的回合，不含任务里的', value: String(current.turns), change: change(current.turns, previous.turns), trend: days.map((day) => day.turns) },
+    { label: t('DashboardKpis.totalTokens'), title: t('DashboardKpis.tokensReadAndWrittenByTaskRunsConversation'), value: compact(current.tokens), change: change(current.tokens, previous.tokens), trend: days.map(dayTokens) },
+    { label: t('DashboardKpis.conversationTurns'), title: t('DashboardKpis.completedConversationTurnsExcludingTaskChats'), value: String(current.turns), change: change(current.turns, previous.turns), trend: days.map((day) => day.turns) },
     {
-      label: '失败 / 中断',
-      title: '出错结束的回合（撞额度的也算）/ 被停下的回合',
+      label: t('DashboardKpis.failedInterrupted'),
+      title: t('DashboardKpis.turnsEndingWithErrorsIncludingQuotaLimitsStopped'),
       value: `${current.failedTurns} / ${current.interruptedTurns}`,
-      note: current.turns > 0 ? `占回合的 ${percent(current.failedTurns + current.interruptedTurns, current.turns)}` : '没有回合',
+      note: current.turns > 0 ? t('DashboardKpis.ofTurns', { value1: percent(current.failedTurns + current.interruptedTurns, current.turns) }) : t('DashboardKpis.noTurns'),
       change: null
     }
   ]
   if (stats.smallModels) kpis.push({
-    label: '小模型省下', title: `按 API 标价折算；模型差价加避免读取主上下文的成本，逐次最低为零。${coverage(stats.smallModels.current)}`,
-    value: stats.smallModels.current.savedUsd === null ? '—' : `约 ${dollars(stats.smallModels.current.savedUsd)}`,
-    note: `可估算 ${stats.smallModels.current.estimated} / ${stats.smallModels.current.count} 次`, change: null
+    label: t('DashboardKpis.smallModelSavings'), title: t('DashboardKpis.estimatedAtApiListPricesModelPriceDifference', { value1: coverage(stats.smallModels.current) }),
+    value: stats.smallModels.current.savedUsd === null ? '—' : t('DashboardKpis.about', { value1: dollars(stats.smallModels.current.savedUsd) }),
+    note: t('DashboardKpis.estimableRequests', { value1: stats.smallModels.current.estimated, value2: stats.smallModels.current.count }), change: null
   })
   return (
     <div className="dashboard-kpis">

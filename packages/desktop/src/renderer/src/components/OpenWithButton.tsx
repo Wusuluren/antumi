@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import type { ResolvedFile } from '@antumi/protocol'
 import { showError } from '../core-store'
@@ -31,25 +32,25 @@ export function OpenWithButton({ file }: { file: ResolvedFile }) {
     if (error) showError(error)
   }
   const close = () => setMenu(null)
-  const label = chosen ? `用 ${chosen.name} 打开` : '用默认应用打开'
+  const label = chosen ? t('OpenWithButton.openWith', { value1: chosen.id === 'terminal' ? t('SettingsPage.terminal') : chosen.name }) : t('OpenWithButton.openWithDefaultApp')
   return <span className="open-with">
     <button type="button" className="tool-button open-with-main" aria-label={label} title={label} disabled={!chosen && !canOpenFile()}
       onClick={() => void (chosen ? open(chosen) : openResolvedFile(file))}>
       {chosen ? <AppIcon app={chosen} /> : <ExternalIcon />}
-      <span className="open-with-name">{chosen?.name ?? '打开'}</span>
+      <span className="open-with-name">{chosen ? chosen.id === 'terminal' ? t('SettingsPage.terminal') : chosen.name : t('ChatBrowserCard.open')}</span>
     </button>
-    <button type="button" className="tool-button open-with-more" ref={more} aria-label="用其他方式打开" title="用其他方式打开" aria-haspopup="menu" aria-expanded={menu !== null}
+    <button type="button" className="tool-button open-with-more" ref={more} aria-label={t('OpenWithButton.openWithAnotherApp')} title={t('OpenWithButton.openWithAnotherApp')} aria-haspopup="menu" aria-expanded={menu !== null}
       onClick={(event) => {
         const bounds = event.currentTarget.getBoundingClientRect()
         setMenu((menu) => menu ? null : { x: bounds.right, y: bounds.bottom + 4 })
       }}>
       <ChevronDownIcon />
     </button>
-    {menu && <ContextMenu at={menu} align="end" trigger={more.current} label="用其他方式打开" onClose={close}>
-      {apps.map((app) => <MenuItem key={app.id} label={app.name} icon={<AppIcon app={app} />} onSelect={() => { close(); void open(app) }} />)}
+    {menu && <ContextMenu at={menu} align="end" trigger={more.current} label={t('OpenWithButton.openWithAnotherApp')} onClose={close}>
+      {apps.map((app) => <MenuItem key={app.id} label={app.id === 'terminal' ? t('SettingsPage.terminal') : app.name} icon={<AppIcon app={app} />} onSelect={() => { close(); void open(app) }} />)}
       {apps.length > 0 && <div className="menu-separator" role="separator" />}
-      {canOpenFile() && <MenuItem label="用默认应用打开" icon={<ExternalIcon />} onSelect={() => { close(); void openResolvedFile(file) }} />}
-      {canRevealFile() && <MenuItem label={`在${FILE_MANAGER}中显示`} icon={<FolderIcon />} onSelect={() => { close(); void revealResolvedFile(file) }} />}
+      {canOpenFile() && <MenuItem label={t('OpenWithButton.openWithDefaultApp')} icon={<ExternalIcon />} onSelect={() => { close(); void openResolvedFile(file) }} />}
+      {canRevealFile() && <MenuItem label={t('FileMenu.showIn', { FILE_MANAGER: FILE_MANAGER() })} icon={<FolderIcon />} onSelect={() => { close(); void revealResolvedFile(file) }} />}
     </ContextMenu>}
   </span>
 }

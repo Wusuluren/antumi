@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import type { BrowserTab, BrowserViewport } from '@antumi/protocol'
 import { ALL_TABS, focusBrowserTab, selectBrowserTab, useBrowserTabs, useWatchAllBrowser } from '../browser-state'
@@ -10,7 +11,7 @@ import { Spinner } from './Spinner'
 // The hostname a tab shows in its strip, or what it has while it has no page.
 function tabName(tab: BrowserTab): string {
   if (tab.title) return tab.title
-  if (!tab.url || tab.url === 'about:blank') return '新标签页'
+  if (!tab.url || tab.url === 'about:blank') return t('BrowserPanel.newTab')
   try {
     return new URL(tab.url).hostname || tab.url
   } catch {
@@ -37,7 +38,7 @@ export function BrowserTabStrip() {
   }, [selectedId, tabs.length])
   return (
     <div className="browser-tab-strip">
-    <div className="browser-tabs" role="tablist" aria-label="标签页" ref={strip}>
+    <div className="browser-tabs" role="tablist" aria-label={t('chatTools.tabs')} ref={strip}>
       {tabs.map((each) => (
         <div key={each.id} className="browser-tab" data-tab-id={each.id} data-active={each.id === selectedId || undefined} data-loading={each.loading || undefined}>
           <button type="button" role="tab" aria-selected={each.id === selectedId} title={each.url} onClick={() => selectBrowserTab(ALL_TABS, each.id)}>
@@ -45,49 +46,49 @@ export function BrowserTabStrip() {
             {ownerName(each) && <span className="browser-tab-owner">{ownerName(each)}</span>}
             <span className="browser-tab-name">{tabName(each)}</span>
           </button>
-          <button type="button" className="browser-tab-close" aria-label={`关闭标签页 ${tabName(each)}`} onClick={() => void perform((rpc) => rpc.call('browser.closeTab', { tabId: each.id }))}>
+          <button type="button" className="browser-tab-close" aria-label={t('BrowserPanel.closeTab', { value1: tabName(each) })} onClick={() => void perform((rpc) => rpc.call('browser.closeTab', { tabId: each.id }))}>
             <CloseIcon />
           </button>
         </div>
       ))}
     </div>
-    <button type="button" className="tool-button browser-tab-add" aria-label="新标签页" data-tooltip="新标签页" onClick={() => void newTab()}><PlusIcon /></button>
+    <button type="button" className="tool-button browser-tab-add" aria-label={t('BrowserPanel.newTab')} data-tooltip={t('BrowserPanel.newTab')} onClick={() => void newTab()}><PlusIcon /></button>
     </div>
   )
 }
 
 // What is happening on the tab, in a word, for the line under the page.
 function tabState(tab: BrowserTab, focused: boolean): string {
-  if (tab.userDriving) return '你在操作'
-  if (tab.agentActing) return 'Agent 正在操作'
-  if (tab.loading) return '页面加载中'
-  return focused ? '键盘输入发给页面' : '观看中'
+  if (tab.userDriving) return t('BrowserPanel.youAreInControl')
+  if (tab.agentActing) return t('BrowserPanel.agentIsInControl')
+  if (tab.loading) return t('BrowserPanel.loadingPage')
+  return focused ? t('BrowserPanel.keyboardInputGoesToThePage') : t('BrowserPanel.watching')
 }
 
 // The sizes a page can be held at from the panel, besides following it. A size the agent chose
 // that is none of these is offered as it is.
-const PRESETS: ReadonlyArray<{ label: string; viewport: BrowserViewport }> = [
-  { label: '手机 390×844', viewport: { width: 390, height: 844 } },
-  { label: '平板 768×1024', viewport: { width: 768, height: 1024 } },
-  { label: '桌面 1280×800', viewport: { width: 1280, height: 800 } },
-  { label: '宽屏 1920×1080', viewport: { width: 1920, height: 1080 } }
-]
+const PRESETS: ReadonlyArray<{ label: string; viewport: BrowserViewport }> = localized(() => ([
+  { label: t('BrowserPanel.phone390844'), viewport: { width: 390, height: 844 } },
+  { label: t('BrowserPanel.tablet7681024'), viewport: { width: 768, height: 1024 } },
+  { label: t('BrowserPanel.desktop1280800'), viewport: { width: 1280, height: 800 } },
+  { label: t('BrowserPanel.wide19201080'), viewport: { width: 1920, height: 1080 } }
+]))
 const FOLLOW = 'panel'
 const keyOf = (viewport: BrowserViewport | null) => (viewport ? `${viewport.width}x${viewport.height}` : FOLLOW)
 
 function ViewportPicker({ tab }: { tab: BrowserTab }) {
   const current = keyOf(tab.viewport)
   const options = [
-    { value: FOLLOW, label: '跟随面板', description: '页面和面板一样大' },
+    { value: FOLLOW, label: t('BrowserPanel.matchPanel'), description: t('BrowserPanel.pageMatchesPanelSize') },
     ...PRESETS.map((preset) => ({ value: keyOf(preset.viewport), label: preset.label })),
-    ...(tab.viewport && !PRESETS.some((preset) => keyOf(preset.viewport) === current) ? [{ value: current, label: `${tab.viewport.width}×${tab.viewport.height}`, description: 'Agent 定的' }] : [])
+    ...(tab.viewport && !PRESETS.some((preset) => keyOf(preset.viewport) === current) ? [{ value: current, label: `${tab.viewport.width}×${tab.viewport.height}`, description: t('BrowserPanel.setByAgent') }] : [])
   ]
   const choose = (value: string) => {
     const match = /^(\d+)x(\d+)$/.exec(value)
     const viewport = match ? { width: Number(match[1]), height: Number(match[2]) } : null
     void perform((rpc) => rpc.call('browser.userViewport', { tabId: tab.id, viewport }))
   }
-  return <ChatPicker label="页面尺寸" value={current} placeholder="跟随面板" options={options} onChange={choose} align="end" placement="below" />
+  return <ChatPicker label={t('BrowserPanel.pageSize')} value={current} placeholder={t('BrowserPanel.matchPanel')} options={options} onChange={choose} align="end" placement="below" />
 }
 
 // How long the per-frame watch keeps measuring after the rectangle last moved, so a drag or a
@@ -153,7 +154,7 @@ function NativeStage({ tab }: { tab: BrowserTab }) {
   }, [tab.id, held])
   return (
     <div ref={stage} className="browser-stage" data-held={held ? '' : undefined}>
-      {!canShowNativeBrowser() && <span className="browser-stage-note">页面在 Antumi 应用里显示</span>}
+      {!canShowNativeBrowser() && <span className="browser-stage-note">{t('BrowserPanel.pagesAreDisplayedInTheAntumiApp')}</span>}
       {held && frame && <div className="browser-stage-frame" style={{ width: frame.width, height: frame.height }} />}
     </div>
   )
@@ -169,7 +170,7 @@ function useOwnerNames(): (tab: BrowserTab) => string | null {
     const conversation = conversations[tab.conversationId]
     if (conversation) return conversation.title
     const task = Object.values(tasks).find((each) => each.conversationId === tab.conversationId)
-    return task?.title ?? '会话'
+    return task?.title ?? t('BrowserPanel.conversation')
   }
 }
 
@@ -201,9 +202,9 @@ export function BrowserPanel() {
   if (status && status.state !== 'ready' && tabs.length === 0) {
     return (
       <div className="browser-empty">
-        {status.state === 'app-closed' && <p>{status.message ?? '浏览器在 Antumi 应用里运行，core 还没有连上它。'}</p>}
-        {status.state === 'starting' && <p><Spinner label="正在连接" /> 正在连接浏览器…</p>}
-        {status.state === 'error' && <p className="browser-error">浏览器出了问题：{status.message ?? '未知错误'}</p>}
+        {status.state === 'app-closed' && <p>{status.message ?? t('BrowserPanel.theBrowserRunsInTheAntumiAppCore')}</p>}
+        {status.state === 'starting' && <p>{tr('BrowserPanel.isConnectingToTheBrowser', { value1: <Spinner label={t('BrowserPanel.connecting')} /> })}</p>}
+        {status.state === 'error' && <p className="browser-error">{tr('BrowserPanel.browserError', { value1: status.message ?? t('BrowserPanel.unknownError') })}</p>}
       </div>
     )
   }
@@ -213,13 +214,13 @@ export function BrowserPanel() {
       {tab ? (
         <>
           <form className="browser-address" onSubmit={go}>
-            <button type="button" className="tool-button" aria-label="后退" data-tooltip="后退" onClick={() => history('back')}><ArrowLeftIcon /></button>
-            <button type="button" className="tool-button" aria-label="前进" data-tooltip="前进" onClick={() => history('forward')}><ArrowRightIcon /></button>
-            <button type="button" className="tool-button" aria-label="刷新" data-tooltip="刷新" onClick={() => history('reload')}><RefreshIcon /></button>
+            <button type="button" className="tool-button" aria-label={t('BrowserPanel.back')} data-tooltip={t('BrowserPanel.back')} onClick={() => history('back')}><ArrowLeftIcon /></button>
+            <button type="button" className="tool-button" aria-label={t('BrowserPanel.forward')} data-tooltip={t('BrowserPanel.forward')} onClick={() => history('forward')}><ArrowRightIcon /></button>
+            <button type="button" className="tool-button" aria-label={t('BrowserPanel.reload')} data-tooltip={t('BrowserPanel.reload')} onClick={() => history('reload')}><RefreshIcon /></button>
             <input
               className="input browser-url mono"
               value={address}
-              aria-label="地址"
+              aria-label={t('BrowserPanel.address')}
               spellCheck={false}
               // Selected whole on focus, as a browser's own address bar is: typing replaces it.
               onFocus={(event) => {
@@ -233,8 +234,8 @@ export function BrowserPanel() {
             <button
               type="button"
               className="tool-button"
-              aria-label="截图到对话"
-              data-tooltip="截图，存为图片"
+              aria-label={t('BrowserPanel.attachScreenshotToChat')}
+              data-tooltip={t('BrowserPanel.saveScreenshotAsImage')}
               onClick={() => void perform((rpc) => rpc.call('browser.userScreenshot', { tabId: tab.id }))}
             >
               <CameraIcon />
@@ -244,16 +245,16 @@ export function BrowserPanel() {
           <div className="browser-status">
             <span>{tabState(tab, focused)}</span>
             {tab.userDriving && (
-              <button type="button" className="link-button" onClick={() => void perform((rpc) => rpc.call('browser.handBack', { tabId: tab.id }))}>交还给 Agent</button>
+              <button type="button" className="link-button" onClick={() => void perform((rpc) => rpc.call('browser.handBack', { tabId: tab.id }))}>{t('BrowserPanel.returnControlToAgent')}</button>
             )}
             <span className="chat-dock-spacer" />
-            {focused && <span className="muted">Esc 回到应用 · Shift+Esc 发给页面</span>}
+            {focused && <span className="muted">{t('BrowserPanel.escToReturnToAppShiftEscTo')}</span>}
           </div>
         </>
       ) : (
         <div className="browser-empty">
-          <p>还没有打开标签页。</p>
-          <button type="button" className="button" onClick={newTab}>新标签页</button>
+          <p>{t('BrowserPanel.noTabsOpenYet')}</p>
+          <button type="button" className="button" onClick={newTab}>{t('BrowserPanel.newTab')}</button>
         </div>
       )}
     </div>

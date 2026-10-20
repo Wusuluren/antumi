@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
-import { EditorState, Prec } from '@codemirror/state'
+import { Compartment, EditorState, Prec } from '@codemirror/state'
 import { EditorView, keymap, placeholder } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import { imageFilesOf } from '../attachment-images'
@@ -47,6 +47,8 @@ type Props = {
 // Uncontrolled: `value` only seeds the editor, so a remote update never clobbers typing.
 export function MarkdownEditor({ value, onSave, onChange, onSubmit, label, hint, readOnly = false, className }: Props) {
   const host = useRef<HTMLDivElement>(null)
+  const editor = useRef<EditorView | null>(null)
+  const wording = useRef(new Compartment())
   const handlers = useRef({ onSave, onChange, onSubmit })
 
   useEffect(() => {
@@ -90,8 +92,7 @@ export function MarkdownEditor({ value, onSave, onChange, onSubmit, label, hint,
           syntaxHighlighting(highlight),
           livePreview,
           EditorView.lineWrapping,
-          EditorView.contentAttributes.of({ 'aria-label': label }),
-          placeholder(hint),
+          wording.current.of([EditorView.contentAttributes.of({ 'aria-label': label }), placeholder(hint)]),
           theme,
           // Image files belong to the page around the editor (they become task images), so the
           // editor must neither paste nor drop them as text; returning true lets them pass through.
@@ -113,11 +114,18 @@ export function MarkdownEditor({ value, onSave, onChange, onSubmit, label, hint,
         ]
       })
     })
+    editor.current = view
     return () => {
+      editor.current = null
       flush()
       view.destroy()
     }
   }, [])
+
+  // Reconfigure presentation without recreating the editor, its draft, selection, or undo history.
+  useEffect(() => {
+    editor.current?.dispatch({ effects: wording.current.reconfigure([EditorView.contentAttributes.of({ 'aria-label': label }), placeholder(hint)]) })
+  }, [label, hint])
 
   return <div className={['md-editor', readOnly && 'md-editor-readonly', className].filter(Boolean).join(' ')} ref={host} />
 }

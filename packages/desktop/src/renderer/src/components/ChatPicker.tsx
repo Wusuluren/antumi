@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useCallback, useRef, useState, type ReactNode } from 'react'
 import { ContextMenu, type MenuPoint } from './ContextMenu'
 import { CheckIcon, ChevronDownIcon } from './icons'
@@ -148,13 +149,13 @@ export function ChatModelPicker({ models, model, effort, onModel, onEffort, disa
   const switching = picked !== null && picked !== model ? picked : null
   const shown = models.find((each) => each.value === (switching ?? model))
   const efforts = shown?.efforts ?? []
-  const modelLabel = models.find((each) => each.value === model)?.label ?? '默认模型'
+  const modelLabel = models.find((each) => each.value === model)?.label ?? t('ChatPicker.defaultModel')
   const effortLabel = models.find((each) => each.value === model)?.efforts.find((each) => each.value === effort)?.label ?? null
   const forget = useCallback(() => setPicked(null), [])
   return (
     <PickerShell
-      label="模型和推理强度"
-      spoken={`模型：${modelLabel}${effortLabel ? `，推理强度：${effortLabel}` : ''}`}
+      label={t('ChatPicker.modelAndReasoningEffort')}
+      spoken={t('ChatPicker.model', { modelLabel: modelLabel, value2: effortLabel ? t('ChatPicker.reasoningEffort', { effortLabel: effortLabel }) : '' })}
       disabled={disabled}
       title={title}
       align={align}
@@ -165,7 +166,7 @@ export function ChatModelPicker({ models, model, effort, onModel, onEffort, disa
     >
       {(close) => (
         <>
-          <div className="chat-picker-heading">模型</div>
+          <div className="chat-picker-heading">{t('AgentModelPicker.model')}</div>
           {models.map((option) => (
             <PickerItem
               key={option.value}
@@ -180,7 +181,7 @@ export function ChatModelPicker({ models, model, effort, onModel, onEffort, disa
           ))}
           {efforts.length > 0 && (
             <div className="chat-picker-efforts">
-              <div className="chat-picker-heading">推理强度</div>
+              <div className="chat-picker-heading">{t('ChatPicker.reasoningEffort_373')}</div>
               <div className="chat-picker-chips">
                 {efforts.map((each) => (
                   <button

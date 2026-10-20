@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { useContext, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { isHostApproval, isTerminalRunTool, terminalToolKind, type ChatDecision, type ChatItem, type ChatPermissionMode, type ChatQuestion } from '@antumi/protocol'
 import { choiceAction, choiceText, chosenText, isPlainDeny } from '../approval-choice-text'
@@ -13,11 +14,11 @@ type QuestionItem = Extract<ChatItem, { kind: 'question' }>
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 export type RequestItem = ApprovalItem | QuestionItem
 
-const DECISION_LABEL: Record<ChatDecision, string> = { allow: '允许', allowForSession: '本会话都允许', deny: '拒绝' }
+const DECISION_LABEL: Record<ChatDecision, string> = localized(() => ({ allow: t('approvalChoiceText.allow'), allowForSession: t('ChatRequestCards.allowForThisConversation'), deny: t('approvalChoiceText.deny') }))
 // A site is allowed for one visit or for the whole conversation; the words say so.
-const HOST_DECISION_LABEL: Record<ChatDecision, string> = { allow: '允许一次', allowForSession: '本会话允许', deny: '拒绝' }
+const HOST_DECISION_LABEL: Record<ChatDecision, string> = localized(() => ({ allow: t('ChatRequestCards.allowOnce'), allowForSession: t('ChatRequestCards.allowInThisConversation'), deny: t('approvalChoiceText.deny') }))
 // Antumi's own question before an agent's command runs in a terminal of its own.
-const TERMINAL_DECISION_LABEL: Record<ChatDecision, string> = { allow: '运行这一次', allowForSession: '本会话都允许在终端运行', deny: '拒绝' }
+const TERMINAL_DECISION_LABEL: Record<ChatDecision, string> = localized(() => ({ allow: t('ChatRequestCards.runOnce'), allowForSession: t('ChatRequestCards.allowTerminalCommandsForThisConversation'), deny: t('approvalChoiceText.deny') }))
 
 // A request to run a command in a terminal of the agent's own: Antumi's (the command is its title)
 // or the agent's own permission prompt for the tool (the command is in the call's input).
@@ -35,12 +36,12 @@ function terminalCommand(item: Extract<ChatItem, { kind: 'approval' }>, input: s
 function decisionLabel(item: ApprovalItem, decision: ChatDecision): string {
   return (isHostApproval(item) ? HOST_DECISION_LABEL : isTerminalRunTool(item.tool) ? TERMINAL_DECISION_LABEL : DECISION_LABEL)[decision]
 }
-const RESOLUTION_TEXT: Record<NonNullable<ApprovalItem['resolution']>, string> = {
-  allowed: '已允许',
-  allowedForSession: '已允许，本会话不再询问',
-  denied: '已拒绝',
-  cancelled: '已取消'
-}
+const RESOLUTION_TEXT: Record<NonNullable<ApprovalItem['resolution']>, string> = localized(() => ({
+  allowed: t('approvalChoiceText.allowed'),
+  allowedForSession: t('ChatRequestCards.allowedDoNotAskAgainInThisConversation'),
+  denied: t('approvalChoiceText.denied'),
+  cancelled: t('ChatRequestCards.cancelled')
+}))
 
 export function useResponder(conversationId: string, requestId: string) {
   const [busy, setBusy] = useState(false)
@@ -61,13 +62,13 @@ export function ChatRequestLine({ item }: { item: RequestItem }) {
   const shorten = useContext(ChatPaths)
   if (item.kind === 'question') {
     if (item.resolution !== null) return <ChatQuestionReceipt item={item} />
-    return <div className="chat-request-line" data-waiting>Agent 在问你：{item.questions[0]?.question ?? ''} · 在下方回答</div>
+    return <div className="chat-request-line" data-waiting>{tr('ChatRequestCards.agentAsksAnswerBelow', { value1: item.questions[0]?.question ?? '' })}</div>
   }
   // A command is named by the program it runs; the card below has it in full. Antumi's own
   // question about a site names the site.
   const what = <>{toolLabel(item.tool)} <span className="mono">{isCommandTool(item.tool) ? commandKeyword(item.title) : isHostApproval(item) ? item.title : shorten(item.title)}</span></>
   return item.resolution === null
-    ? <div className="chat-request-line" data-waiting>需要你确认：{what} · 在下方回答</div>
+    ? <div className="chat-request-line" data-waiting>{tr('ChatRequestCards.approvalNeededRespondBelow', { what: what })}</div>
     : <div className="chat-request-line">{what} · {chosenText(item) ?? RESOLUTION_TEXT[item.resolution]}</div>
 }
 
@@ -84,7 +85,7 @@ function CommandBlock({ command }: { command: string }) {
       <pre>{command}</pre>
       {long && (
         <button type="button" className="link-button chat-approve-command-more" aria-expanded={open} onClick={() => setOpen(!open)}>
-          {open ? '收起' : '展开全部'}
+          {open ? t('ChatPlan.collapse') : t('ChatPlan.expandAll')}
         </button>
       )}
     </div>
@@ -132,9 +133,9 @@ export function ChatApprovalCard({ conversationId, item, tool, singleApproval = 
   // says the site in the headline and the whole address below.
   const detail = host ? null : item.detail && !title.includes(shorten(item.detail)) ? shorten(item.detail) : null
   const what = host
-    ? <>Agent 想打开 <span className="mono">{title}</span></>
+    ? <>{tr('ChatRequestCards.agentWantsToOpen', { value1: <span className="mono">{title}</span> })}</>
     : terminal !== null
-      ? <>Agent 想在终端里运行 <span className="mono">{commandKeyword(terminal)}</span></>
+      ? <>{tr('ChatRequestCards.agentWantsToRunInTheTerminal', { value1: <span className="mono">{commandKeyword(terminal)}</span> })}</>
       : <>{toolLabel(item.tool)} <span className="mono">{title}</span></>
   const submit = () => {
     if (!current) return
@@ -168,14 +169,14 @@ export function ChatApprovalCard({ conversationId, item, tool, singleApproval = 
   }
   return (
     <div className="chat-request" data-waiting onKeyDown={onKeyDown}>
-      <div className="chat-request-title">需要你确认：{terminal !== null ? what : detail ?? what}</div>
+      <div className="chat-request-title">{tr('ChatRequestCards.approvalNeeded', { value1: terminal !== null ? what : detail ?? what })}</div>
       {detail && terminal === null && <p className="chat-request-detail muted">{what}</p>}
       {host && item.detail && <p className="chat-request-detail mono muted">{item.detail}</p>}
-      {item.reason && <p className="chat-request-detail muted">Agent 停下来问的原因：{item.reason}</p>}
+      {item.reason && <p className="chat-request-detail muted">{tr('ChatRequestCards.whyAgentIsAsking', { value1: item.reason })}</p>}
       {terminal !== null ? (
         <>
           <CommandBlock command={terminal} />
-          <p className="chat-request-detail muted">在 Antumi 的终端面板里开一个标签运行，你能看到输出，随时可以停掉。{isTerminalRunTool(item.tool) && item.detail ? `目录：${item.detail}` : ''}</p>
+          <p className="chat-request-detail muted">{tr('ChatRequestCards.runInATabInAntumiSTerminal', { value1: isTerminalRunTool(item.tool) && item.detail ? t('ChatRequestCards.directory', { value1: item.detail }) : '' })}</p>
         </>
       ) : command && !tool
         // A subagent's command has no call in this chat: its title is the command.
@@ -183,7 +184,7 @@ export function ChatApprovalCard({ conversationId, item, tool, singleApproval = 
         : command && tool?.input
         ? <CommandBlock command={tool.input} />
         : tool?.input && <ChatToolInput name={tool.name} input={tool.input} />}
-      <div className="chat-approve-options" role="radiogroup" aria-label="怎么回答">
+      <div className="chat-approve-options" role="radiogroup" aria-label={t('ChatPlan.howToRespond')}>
         {options.map((option, index) => (
           <div
             key={option.key}
@@ -198,8 +199,8 @@ export function ChatApprovalCard({ conversationId, item, tool, singleApproval = 
               <input
                 ref={reasonInput}
                 className="chat-approve-reason"
-                aria-label="拒绝，并说明理由"
-                placeholder="拒绝，并告诉 Agent 为什么（可不填）"
+                aria-label={t('ChatRequestCards.denyWithAReason')}
+                placeholder={t('ChatRequestCards.denyAndTellAgentWhyOptional')}
                 value={reason}
                 disabled={busy}
                 onFocus={() => setPicked(option.key)}
@@ -215,11 +216,11 @@ export function ChatApprovalCard({ conversationId, item, tool, singleApproval = 
           </div>
         ))}
       </div>
-      {!singleApproval && remembersNothing && <p className="chat-request-detail muted">这次没有能记住的规则，同类调用之后还会问；想少问几次，可以在输入框下方换个权限模式。</p>}
+      {!singleApproval && remembersNothing && <p className="chat-request-detail muted">{t('ChatRequestCards.noRuleCanBeSavedForThisRequest')}</p>}
       <div className="chat-approve-footer">
-        <span className="chat-approve-hint">数字键选择 · Enter 提交</span>
+        <span className="chat-approve-hint">{t('ChatRequestCards.numberKeysToSelectEnterToSubmit')}</span>
         <button type="button" className="button primary" disabled={busy || !current} onClick={submit}>
-          {current?.action ?? '拒绝'}<kbd>↵</kbd>
+          {current?.action ?? t('approvalChoiceText.deny')}<kbd>↵</kbd>
         </button>
       </div>
     </div>
@@ -241,7 +242,7 @@ function OptionLabel({ label }: { label: string }) {
   return (
     <span className="chat-ask-label">
       {recommended ? label.replace(RECOMMENDED, '') : label}
-      {recommended && <span className="chat-ask-recommended">推荐</span>}
+      {recommended && <span className="chat-ask-recommended">{t('AgentPicker.recommended')}</span>}
     </span>
   )
 }
@@ -352,7 +353,7 @@ export function ChatQuestionCard({ conversationId, item }: { conversationId: str
   return (
     <div className="chat-request chat-ask" data-waiting ref={card} onKeyDown={onKeyDown}>
       <div className="chat-ask-head">
-        <div className="chat-ask-tabs" role="tablist" aria-label="问题">
+        <div className="chat-ask-tabs" role="tablist" aria-label={t('ChatRequestCards.question')}>
           {questions.map((each, at) => (
             <button
               key={each.id}
@@ -363,18 +364,14 @@ export function ChatQuestionCard({ conversationId, item }: { conversationId: str
               onClick={() => { setMode('question'); setIndex(at) }}
             >
               {answered(each) && !replying && <CheckIcon />}
-              {questions.length > 1 ? (each.header || `Q${at + 1}`) : (each.header || '问题')}
+              {questions.length > 1 ? (each.header || `Q${at + 1}`) : (each.header || t('ChatRequestCards.question'))}
             </button>
           ))}
-          <button type="button" role="tab" aria-selected={mode === 'note'} className="chat-ask-tab chat-ask-tab-alt" onClick={() => setMode('note')}>
-            ✎ 补充说明{note.trim() && <CheckIcon />}
-          </button>
-          <button type="button" role="tab" aria-selected={mode === 'reply'} className="chat-ask-tab" onClick={() => setMode('reply')}>
-            ⇄ 直接回复{replying && <CheckIcon />}
-          </button>
+          <button type="button" role="tab" aria-selected={mode === 'note'} className="chat-ask-tab chat-ask-tab-alt" onClick={() => setMode('note')}>{tr('ChatRequestCards.additionalNotes', { value1: note.trim() && <CheckIcon /> })}</button>
+          <button type="button" role="tab" aria-selected={mode === 'reply'} className="chat-ask-tab" onClick={() => setMode('reply')}>{tr('ChatRequestCards.replyDirectly', { value1: replying && <CheckIcon /> })}</button>
         </div>
         <span className="chat-dock-spacer" />
-        {item.async && <span className="chat-ask-async muted">Agent 没停下来等 · 回答会作为消息发给它</span>}
+        {item.async && <span className="chat-ask-async muted">{t('ChatRequestCards.agentHasNotPausedYourAnswerWillBe')}</span>}
         {questions.length > 1 && !free && <span className="chat-ask-count muted">{index + 1}/{questions.length}</span>}
       </div>
       {mode === 'note' && (
@@ -383,8 +380,8 @@ export function ChatQuestionCard({ conversationId, item }: { conversationId: str
           rows={3}
           autoFocus
           value={note}
-          placeholder="给 Agent 的补充说明，会附在每个问题的回答后面；Enter 提交，Shift+Enter 换行"
-          aria-label="补充说明"
+          placeholder={t('ChatRequestCards.additionalNotesForAgentAppendedToEachAnswer')}
+          aria-label={t('ChatRequestCards.additionalNotes_480')}
           disabled={busy}
           onChange={(event) => setNote(event.target.value)}
         />
@@ -395,15 +392,15 @@ export function ChatQuestionCard({ conversationId, item }: { conversationId: str
           rows={3}
           autoFocus
           value={reply}
-          placeholder="不选选项，直接用一段话回答全部问题；Enter 提交，Shift+Enter 换行"
-          aria-label="直接回复"
+          placeholder={t('ChatRequestCards.answerAllQuestionsInYourOwnWordsEnter')}
+          aria-label={t('ChatRequestCards.replyDirectly_482')}
           disabled={busy}
           onChange={(event) => setReply(event.target.value)}
         />
       )}
       {!free && <div className="chat-ask-question" id={`${item.requestId}-question`}>
         {question.question}
-        {question.multiSelect && <span className="chat-ask-hint muted">可多选</span>}
+        {question.multiSelect && <span className="chat-ask-hint muted">{t('ChatRequestCards.selectMultiple')}</span>}
       </div>}
       {!free && <div
         className="chat-ask-options"
@@ -442,15 +439,15 @@ export function ChatQuestionCard({ conversationId, item }: { conversationId: str
             onClick={toggleTyping}
           >
             <span className="chat-ask-key" data-multi={question.multiSelect || undefined}>{question.options.length < 9 ? question.options.length + 1 : '…'}</span>
-            <span className="chat-ask-text"><span className="chat-ask-label">其他，自己填写</span></span>
+            <span className="chat-ask-text"><span className="chat-ask-label">{t('ChatRequestCards.otherWriteYourOwn')}</span></span>
           </button>
           {typing[question.id] && (
             <input
               className="input chat-ask-input"
               autoFocus
               value={typed[question.id] ?? ''}
-              placeholder="写下你的回答，Enter 继续"
-              aria-label={`${question.question} 的其他回答`}
+              placeholder={t('ChatRequestCards.writeYourAnswerEnterToContinue')}
+              aria-label={t('ChatRequestCards.otherAnswerFor', { value1: question.question })}
               disabled={busy}
               onChange={(event) => setTyped({ ...typed, [question.id]: event.target.value })}
             />
@@ -458,21 +455,19 @@ export function ChatQuestionCard({ conversationId, item }: { conversationId: str
         </div>
       </div>}
       <div className="chat-request-actions">
-        <button type="button" className="button ghost" disabled={busy} onClick={() => void respond('deny')}>不回答<kbd>Esc</kbd></button>
+        <button type="button" className="button ghost" disabled={busy} onClick={() => void respond('deny')}>{tr('ChatRequestCards.skip', { value1: <kbd>Esc</kbd> })}</button>
         <span className="chat-dock-spacer" />
-        {!free && index > 0 && <button type="button" className="button ghost" disabled={busy} onClick={() => setIndex(index - 1)}>上一个</button>}
+        {!free && index > 0 && <button type="button" className="button ghost" disabled={busy} onClick={() => setIndex(index - 1)}>{t('ChatRequestCards.previous')}</button>}
         {free || last ? (
           <button
             type="button"
             className="button primary"
             disabled={busy || unanswered > 0}
-            title={unanswered > 0 ? `还有 ${unanswered} 个问题没回答` : undefined}
+            title={unanswered > 0 ? t('ChatRequestCards.questionsUnanswered', { unanswered: unanswered }) : undefined}
             onClick={submit}
-          >
-            提交<kbd>↵</kbd>
-          </button>
+          >{tr('ChatRequestCards.submit', { value1: <kbd>↵</kbd> })}</button>
         ) : (
-          <button type="button" className="button primary" disabled={busy || !answered(question)} onClick={goOn}>下一个</button>
+          <button type="button" className="button primary" disabled={busy || !answered(question)} onClick={goOn}>{t('ChatRequestCards.next')}</button>
         )}
       </div>
     </div>
@@ -486,7 +481,7 @@ function ChatQuestionReceipt({ item }: { item: QuestionItem }) {
   return (
     <div className="chat-ask-receipt">
       <div className="chat-ask-receipt-title muted">
-        {settled ? (count > 1 ? `回答了 ${count} 个问题` : '回答了问题') : item.async ? '没有用选项回答' : (count > 1 ? `没有回答这 ${count} 个问题` : '没有回答这个问题')}
+        {settled ? (count > 1 ? t('ChatRequestCards.answeredQuestions', { count: count }) : t('ChatRequestCards.answeredQuestion')) : item.async ? t('ChatRequestCards.answeredWithoutSelectingOptions') : (count > 1 ? t('ChatRequestCards.skippedQuestions', { count: count }) : t('ChatRequestCards.skippedQuestion'))}
       </div>
       {item.questions.map((question) => {
         const answers = settled ? questionAnswers(question, item.answers?.[question.id] ?? []) : []
@@ -501,7 +496,7 @@ function ChatQuestionReceipt({ item }: { item: QuestionItem }) {
                 {answers.map((answer) => (
                   <span key={answer.text} className="chat-ask-answer" data-typed={answer.typed || undefined}>
                     {answer.typed ? answer.text : answer.text.replace(RECOMMENDED, '')}
-                    {answer.typed && <span className="chat-ask-typed">自填</span>}
+                    {answer.typed && <span className="chat-ask-typed">{t('ChatRequestCards.customAnswer')}</span>}
                   </span>
                 ))}
               </div>

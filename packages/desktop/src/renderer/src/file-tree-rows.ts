@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import type { DirectoryEntry } from '@antumi/protocol'
 
 export type Listing = { entries: DirectoryEntry[]; truncated: boolean } | 'error'
@@ -46,7 +47,7 @@ export function treeRows(roots: readonly string[], expanded: readonly string[], 
         walk(last, root, depth + 1)
       }
     }
-    if (listing.truncated) rows.push({ path: `${folder}\0more`, name: '只显示了前面的条目', kind: 'other', depth, root })
+    if (listing.truncated) rows.push({ path: `${folder}\0more`, name: t('fileTreeRows.onlyTheFirstEntriesAreShown'), kind: 'other', depth, root })
   }
   for (const root of roots) {
     rows.push({ path: root, name: baseName(root), kind: 'directory', depth: 0, root, folder: root })

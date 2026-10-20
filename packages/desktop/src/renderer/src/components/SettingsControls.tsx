@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useId, type ReactNode } from 'react'
 import { RotateLeftIcon } from './icons'
 
@@ -109,13 +110,13 @@ export function Stepper({
 }) {
   return (
     <div className="stepper" role="group" aria-labelledby={labelId}>
-      <button type="button" aria-label="减小" disabled={value <= min} onClick={() => onChange(value - 1)}>
+      <button type="button" aria-label={t('SettingsControls.decrease')} disabled={value <= min} onClick={() => onChange(value - 1)}>
         −
       </button>
       <output aria-live="polite">
         {value} {unit}
       </output>
-      <button type="button" aria-label="增大" disabled={value >= max} onClick={() => onChange(value + 1)}>
+      <button type="button" aria-label={t('SettingsControls.increase')} disabled={value >= max} onClick={() => onChange(value + 1)}>
         +
       </button>
     </div>
@@ -130,8 +131,8 @@ export function Resettable({ changed, label, onReset, children }: { changed: boo
       <button
         type="button"
         className="icon-button settings-reset"
-        aria-label={`${label}恢复默认`}
-        data-tooltip="恢复默认"
+        aria-label={t('SettingsControls.resetToDefault', { label: label })}
+        data-tooltip={t('SettingsControls.resetToDefault_1523')}
         hidden={!changed}
         onClick={onReset}
       >

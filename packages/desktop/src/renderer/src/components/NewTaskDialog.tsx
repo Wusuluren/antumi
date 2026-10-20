@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { AgentKind, IMAGE_MIME_TYPES, type TaskImage } from '@antumi/protocol'
 import { dismissError, perform, selectTask, setNewTaskOpen, useCore } from '../core-store'
@@ -166,13 +167,13 @@ export function NewTaskDialog() {
           <div className="new-task-breadcrumb">
             <span>Antumi</span>
             <span className="new-task-breadcrumb-separator" aria-hidden="true">›</span>
-            <h2 id={`${ids}-heading`}>手动创建</h2>
+            <h2 id={`${ids}-heading`}>{t('NewTaskDialog.createdManually')}</h2>
           </div>
           <div className="new-task-window-actions">
-            <button type="button" className="icon-button" aria-label={expanded ? '还原窗口' : '展开窗口'} onClick={() => setExpanded((value) => !value)}>
+            <button type="button" className="icon-button" aria-label={expanded ? t('NewTaskDialog.restoreWindow') : t('NewTaskDialog.expandWindow')} onClick={() => setExpanded((value) => !value)}>
               {expanded ? <RestoreIcon /> : <MaximizeIcon />}
             </button>
-            <button type="button" className="icon-button" aria-label="关闭" onClick={close}>
+            <button type="button" className="icon-button" aria-label={t('BackdropPicker.close')} onClick={close}>
               <CloseIcon />
             </button>
           </div>
@@ -182,7 +183,7 @@ export function NewTaskDialog() {
           <input
             ref={titleInput}
             className="new-task-title"
-            aria-label="任务标题"
+            aria-label={t('NewTaskDialog.taskTitle')}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {
@@ -192,7 +193,7 @@ export function NewTaskDialog() {
                 void submit()
               }
             }}
-            placeholder="任务标题"
+            placeholder={t('NewTaskDialog.taskTitle')}
             maxLength={200}
           />
           <MarkdownEditor
@@ -201,8 +202,8 @@ export function NewTaskDialog() {
             value=""
             onChange={setDetails}
             onSubmit={() => void submit()}
-            label="任务详情"
-            hint="添加详情...（支持 Markdown）"
+            label={t('NewTaskDialog.taskDetails')}
+            hint={t('NewTaskDialog.addDetailsMarkdownSupported')}
           />
         </div>
 
@@ -225,9 +226,9 @@ export function NewTaskDialog() {
           />
           <span className="new-task-agent-chip">
             <ChatPicker
-              label="执行者"
+              label={t('NewTaskDialog.assignee')}
               value={squadId ? `squad:${squadId}` : agent ?? ''}
-              placeholder={squadId ? '研发小队' : '选择 Agent'}
+              placeholder={squadId ? t('NewTaskDialog.developmentSquad') : t('AgentPicker.chooseAgent')}
               options={executorOptions(installed, squads, squadId, recommended)}
               size="large"
               placement="below"
@@ -240,20 +241,20 @@ export function NewTaskDialog() {
             />
           </span>
           <span className="menu-anchor">
-            <button type="button" className="new-task-property-chip" aria-label="更多选项" aria-haspopup="dialog" aria-expanded={moreOpen} onClick={() => setMoreOpen((open) => !open)}>
+            <button type="button" className="new-task-property-chip" aria-label={t('NewTaskDialog.moreOptions')} aria-haspopup="dialog" aria-expanded={moreOpen} onClick={() => setMoreOpen((open) => !open)}>
               <MoreIcon />
             </button>
             {moreOpen && (
-              <Popover label="更多任务选项" onClose={() => setMoreOpen(false)}>
+              <Popover label={t('NewTaskDialog.moreTaskOptions')} onClose={() => setMoreOpen(false)}>
                 <div className="new-task-more-content">
-                  <span className="modal-label">依赖任务</span>
+                  <span className="modal-label">{t('NewTaskDialog.dependencies')}</span>
                   <DependencyPicker taskId={null} dependsOn={dependsOn} onChange={setDependsOn} />
                   {agent && <AgentQuotaHint agent={agent} />}
                 </div>
               </Popover>
             )}
           </span>
-          {dependsOn.length > 0 && <span className="new-task-dependency-count">依赖 {dependsOn.length} 项</span>}
+          {dependsOn.length > 0 && <span className="new-task-dependency-count">{tr('NewTaskDialog.dependencies_1266', { value1: dependsOn.length })}</span>}
         </div>
         {viewing !== null && images.length > 0 && (
           <ImageViewer
@@ -273,7 +274,7 @@ export function NewTaskDialog() {
         )}
 
         <footer className="modal-footer new-task-footer">
-          <button type="button" className="new-task-attach" aria-label="添加图片" title="添加图片，也可以直接粘贴或拖入" onClick={() => imageInput.current?.click()}>
+          <button type="button" className="new-task-attach" aria-label={t('ChatImages.addImages')} title={t('NewTaskDialog.addImagesOrPasteOrDragThemHere')} onClick={() => imageInput.current?.click()}>
             <PaperclipIcon />
           </button>
           <input
@@ -289,16 +290,9 @@ export function NewTaskDialog() {
             }}
           />
           <span className="new-task-footer-spacer" />
-          <label className="switch">
-            <input type="checkbox" role="switch" checked={createMore} onChange={(e) => setCreateMore(e.target.checked)} />
-            <span className="switch-track" aria-hidden="true" />
-            创建更多
-          </label>
-          {createMore && lastCreated && <span className="muted modal-created">已创建「{lastCreated}」</span>}
-          <button type="button" className="button primary modal-submit" disabled={!canSubmit} onClick={() => void submit()}>
-            创建任务
-            <kbd>{PRIMARY_KEY_LABEL}↵</kbd>
-          </button>
+          <label className="switch">{tr('NewTaskDialog.createMore', { value1: <input type="checkbox" role="switch" checked={createMore} onChange={(e) => setCreateMore(e.target.checked)} />, value2: <span className="switch-track" aria-hidden="true" /> })}</label>
+          {createMore && lastCreated && <span className="muted modal-created">{tr('NewTaskDialog.created', { lastCreated: lastCreated })}</span>}
+          <button type="button" className="button primary modal-submit" disabled={!canSubmit} onClick={() => void submit()}>{tr('NewTaskDialog.createTask', { value1: <kbd>{PRIMARY_KEY_LABEL}↵</kbd> })}</button>
         </footer>
       </div>
     </dialog>

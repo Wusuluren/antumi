@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { create } from 'zustand'
 import type { AgentKind } from '@antumi/protocol'
@@ -60,10 +61,7 @@ export function TaskQuickAdd({ onCreated }: { onCreated: (id: string) => void })
 
   if (!open) {
     return (
-      <button type="button" className="task-quick-add-row" onClick={openQuickAdd}>
-        ＋ 写下一个任务
-        <kbd>N</kbd>
-      </button>
+      <button type="button" className="task-quick-add-row" onClick={openQuickAdd}>{tr('TaskQuickAdd.writeATask', { value1: <kbd>N</kbd> })}</button>
     )
   }
 
@@ -85,8 +83,8 @@ export function TaskQuickAdd({ onCreated }: { onCreated: (id: string) => void })
         ref={input}
         className="task-quick-add-title"
         rows={1}
-        aria-label="新任务的标题"
-        placeholder="要做什么？一句话就够"
+        aria-label={t('TaskQuickAdd.newTaskTitle')}
+        placeholder={t('TaskQuickAdd.whatNeedsDoingOneSentenceIsEnough')}
         value={title}
         maxLength={200}
         onChange={(event) => useQuickAdd.setState({ title: event.target.value.replace(/\n/g, ' ') })}
@@ -110,9 +108,9 @@ export function TaskQuickAdd({ onCreated }: { onCreated: (id: string) => void })
         <AgentPick agent={draft.agent} />
       </div>
       <div className="task-quick-add-hint">
-        <span><kbd>↵</kbd> 创建</span>
-        <span><kbd>⇧↵</kbd> 更多选项</span>
-        <span><kbd>Esc</kbd> 收起</span>
+        <span>{tr('TaskQuickAdd.create', { value1: <kbd>↵</kbd> })}</span>
+        <span>{tr('TaskQuickAdd.moreOptions', { value1: <kbd>⇧↵</kbd> })}</span>
+        <span>{tr('TaskQuickAdd.collapse', { value1: <kbd>Esc</kbd> })}</span>
       </div>
     </div>
   )
@@ -134,18 +132,18 @@ function ProjectPick({ repos }: { repos: readonly string[] }) {
   const singles = [...new Set([...repos, ...recent])]
   return (
     <ChatPicker
-      label="新任务的项目"
+      label={t('TaskQuickAdd.projectsForNewTask')}
       value={current}
-      placeholder="选择项目"
+      placeholder={t('TaskQuickAdd.chooseProject')}
       placement="below"
       options={[
         ...(repos.length > 1 ? [{ value: current, label: projectNames(repos), description: repos.join('、'), icon: folder }] : []),
         ...singles.map((each) => ({ value: each, label: projectName(each), description: each, icon: folder })),
-        { value: '', label: '无项目，之后再选', icon: folder }
+        { value: '', label: t('TaskQuickAdd.noProjectChooseLater'), icon: folder }
       ]}
       onChange={(value) => useQuickAdd.setState({ repos: value ? value.split('\n') : [] })}
       footer={canPickFolder() ? (close) => (
-        <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); void browse() }}>选择文件夹…</button>
+        <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); void browse() }}>{t('ChatProjects.chooseFolder')}</button>
       ) : undefined}
     />
   )
@@ -156,13 +154,13 @@ function AgentPick({ agent }: { agent: AgentKind | null }) {
   const choices = agent && !installed.includes(agent) ? [...installed, agent] : installed
   return (
     <ChatPicker
-      label="新任务的 Agent"
+      label={t('TaskQuickAdd.agentForNewTask')}
       value={agent ?? ''}
-      placeholder="选择 Agent"
+      placeholder={t('AgentPicker.chooseAgent')}
       placement="below"
       options={[
-        ...choices.map((each) => ({ value: each, label: agentLabel(each), icon: <AgentIcon agent={each} />, description: installed.includes(each) ? null : '未安装' })),
-        { value: '', label: '之后再选', icon: <AgentIcon agent={null} /> }
+        ...choices.map((each) => ({ value: each, label: agentLabel(each), icon: <AgentIcon agent={each} />, description: installed.includes(each) ? null : t('AgentPicker.notInstalled') })),
+        { value: '', label: t('TaskQuickAdd.chooseLater'), icon: <AgentIcon agent={null} /> }
       ]}
       onChange={(value) => useQuickAdd.setState({ agent: choices.find((each) => each === value) ?? null })}
     />

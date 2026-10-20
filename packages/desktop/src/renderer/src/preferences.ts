@@ -1,4 +1,4 @@
-import { AgentKind, TranslateLanguage } from '@antumi/protocol'
+import { AgentKind, LanguagePreference, TranslateLanguage } from '@antumi/protocol'
 import { z } from 'zod'
 import { create } from 'zustand'
 import { BACKDROPS } from './backdrops'
@@ -15,6 +15,7 @@ export const TASK_SORTS = ['recent', 'created', 'title'] as const
 // This window's UI preferences. They shape how the desktop looks and behaves,
 // not what a task is, so they stay on this client instead of going to core.
 const Preferences = z.object({
+  language: LanguagePreference.catch('system'),
   theme: z.enum(['system', 'light', 'dark']).catch('system'),
   // The set of colours the interface is drawn in; each has a light and a dark side.
   palette: z.enum(PALETTES).catch('terracotta'),
