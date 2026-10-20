@@ -8608,7 +8608,7 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .overview-panel { min-width: 0; padding: 16px 16px 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
 .overview-panel > header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
 .overview-panel h3 { margin: 0; font-size: 14px; font-weight: 600; }
-.overview-count { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.overview-count { flex-shrink: 0; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .overview-rows { margin: 0 -16px; padding: 0; list-style: none; }
 .overview-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; align-items: start; column-gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border); }
 .overview-row[role='button'] { cursor: pointer; }
@@ -8653,6 +8653,8 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .overview-todo-line input { flex-shrink: 0; margin: 0; }
 .overview-todo-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .overview-todo-line[data-owner='agent'] .overview-todo-text { color: var(--text-muted); }
+/* Checked off on this visit: kept in place, struck through, until the overview is left. */
+.overview-todo-line[data-done] .overview-todo-text, .overview-todo-line[data-done] .overview-todo-group { color: var(--text-3); text-decoration: line-through; }
 .overview-todo-group { flex-shrink: 0; margin-left: auto; font-size: 12px; color: var(--text-3); white-space: nowrap; }
 /* Over the group's name while the pointer is on the line, so every line keeps the same columns. */
 .overview-todo-line .overview-actions { position: absolute; right: 0; padding-left: 8px; background: var(--surface); }

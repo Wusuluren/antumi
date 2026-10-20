@@ -48,4 +48,22 @@ describe('overview to-dos', () => {
     expect(hidden).toMatchObject({ mine: 1, agents: 0, archived: 2 })
     expect(overviewTodos(todos, conversations, {}, now, true).entries.map((entry) => entry.conversationId)).toEqual([id(1), id(2)])
   })
+
+  it('orders by the newest to-do added, so checking one off moves nothing, and keeps lines checked here in place', () => {
+    const conversations = { [id(1)]: chat(1), [id(2)]: chat(2) }
+    const before = {
+      [id(1)]: [group('早', [['a', 'user'], ['b', 'user']], now - 5000)],
+      [id(2)]: [group('晚', [['c', 'user']], now - 1000)]
+    }
+    expect(overviewTodos(before, conversations, {}, now).entries.map((entry) => entry.conversationId)).toEqual([id(2), id(1)])
+    // Checking 'a' and then 'b' off bumps the list's updatedAt, as core does.
+    const checked = (done: string[]) => ({ ...before, [id(1)]: [{ ...group('早', [['a', 'user', done.includes('a')], ['b', 'user', done.includes('b')]], now - 5000), updatedAt: now }] })
+    const one = overviewTodos(checked(['a']), conversations, {}, now, false, new Set(['a']))
+    expect(one.entries.map((entry) => entry.conversationId)).toEqual([id(2), id(1)])
+    expect(one.entries[1]?.lines.map((line) => [line.item.text, line.item.done])).toEqual([['a', true], ['b', false]])
+    expect(one).toMatchObject({ mine: 2 })
+    const all = overviewTodos(checked(['a', 'b']), conversations, {}, now, false, new Set(['a', 'b']))
+    expect(all.entries.map((entry) => [entry.conversationId, entry.mine])).toEqual([[id(2), 1], [id(1), 0]])
+    expect(overviewTodos(checked(['a', 'b']), conversations, {}, now).entries.map((entry) => entry.conversationId)).toEqual([id(2)])
+  })
 })

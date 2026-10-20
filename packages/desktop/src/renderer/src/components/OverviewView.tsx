@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { ChatDecision } from '@antumi/protocol'
 import { quickApproval, type ActionableItem } from '../attention'
 import {
@@ -260,21 +260,28 @@ function openTodos(entry: TodoEntry): void {
   }
 }
 
-// One item: checked off here as in its conversation; one its agent can take on is handed to it as
-// the to-dos panel does, a quote waiting in that chat's input for the user to send.
+// Items checked off on this visit to the overview, kept on show (done) until the user leaves it.
+const KeepChecked = createContext<(itemId: string) => void>(() => {})
+
+// One item: checked off here as in its conversation, and unchecked again while it is still on show;
+// one its agent can take on is handed to it as the to-dos panel does, a quote waiting in that chat's
+// input for the user to send.
 function TodoLineView({ entry, line }: { entry: TodoEntry; line: TodoLine }) {
   const [busy, setBusy] = useState(false)
+  const keep = useContext(KeepChecked)
+  const { done } = line.item
   const check = async () => {
     setBusy(true)
-    await perform((rpc) => rpc.call('todos.check', { id: entry.conversationId, groupId: line.groupId, itemId: line.item.id, done: true }))
+    keep(line.item.id)
+    await perform((rpc) => rpc.call('todos.check', { id: entry.conversationId, groupId: line.groupId, itemId: line.item.id, done: !done }))
     setBusy(false)
   }
   return (
-    <li className="overview-todo-line" data-owner={line.item.owner}>
-      <input type="checkbox" checked={false} disabled={busy} aria-label={`完成：${line.item.text}`} onChange={() => void check()} />
+    <li className="overview-todo-line" data-owner={line.item.owner} data-done={done || undefined}>
+      <input type="checkbox" checked={done} disabled={busy} aria-label={`${done ? '取消完成' : '完成'}：${line.item.text}`} onChange={() => void check()} />
       <span className="overview-todo-text">{line.item.text}</span>
       <span className="overview-todo-group">{line.group}{line.note ? ` · ${line.note}` : ''}</span>
-      {line.item.owner === 'agent' && <span className="overview-actions overview-secondary">
+      {line.item.owner === 'agent' && !done && <span className="overview-actions overview-secondary">
         <button type="button" className="button ghost" aria-label={`交给 Agent：${line.item.text}`} data-tooltip="打开会话，放进输入框，让 Agent 去做"
           onClick={() => {
             addQuote(entry.conversationId, null, line.item.text, '请处理这一项待办，做完后在待办里把它勾掉。')
@@ -294,7 +301,7 @@ function TodoEntryView({ entry, now }: { entry: TodoEntry; now: number }) {
       <button type="button" className="overview-todo-head" onClick={() => openTodos(entry)}>
         <span className="overview-avatar" aria-hidden="true"><AgentIcon agent={entry.agent} /></span>
         <span className="overview-todo-title">{entry.title}</span>
-        <span className="overview-count">{entry.lines.length} 项</span>
+        <span className="overview-count">{entry.mine + entry.agents > 0 ? `${entry.mine + entry.agents} 项` : '都做完了'}</span>
         {entry.stale && <span className="overview-badge" title={chatDayAndTime(entry.updatedAt)}>{Math.floor((now - entry.updatedAt) / 86_400_000)} 天没动</span>}
       </button>
       <ul className="overview-todo-lines">
@@ -326,6 +333,8 @@ export function OverviewView() {
   const todosSupported = useTodoOverviewSupported()
   const allTodos = useAllTodos()
   const [withArchived, setWithArchived] = useState(false)
+  const [kept, setKept] = useState<ReadonlySet<string>>(new Set())
+  const keep = useCallback((itemId: string) => setKept((current) => current.has(itemId) ? current : new Set(current).add(itemId)), [])
   const page = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
     if (page.current) page.current.scrollTop = useCore.getState().overviewScroll
@@ -340,7 +349,7 @@ export function OverviewView() {
     return activity?.workers ?? []
   }), [data.running, tasks, conversations, runs])
   // What is left to do across conversations: not waiting on anyone, so apart from 等我.
-  const todos = overviewTodos(allTodos, conversations, tasks, now, withArchived)
+  const todos = overviewTodos(allTodos, conversations, tasks, now, withArchived, kept)
   const counts = { ...data.counts, todos: todos.mine + todos.agents }
   const ranges = [
     { value: 'mine', label: '等我' },
@@ -362,8 +371,10 @@ export function OverviewView() {
     unread: latestUnread ? `最近 ${agoText(latestUnread.at, now)}` : '都看过了'
   }
   const mine = shows('mine') && <Panel title="需要我" count={data.counts.mine}><Rows rows={data.mine} section="mine" /></Panel>
-  const todoPanel = todosSupported && (!filter || filter === 'todos') && (counts.todos > 0 || todos.archived > 0) && <Panel title="待办" count={counts.todos}>
-    {todos.entries.length > 0 && <ul className="overview-todos">{todos.entries.map((entry) => <TodoEntryView key={entry.conversationId} entry={entry} now={now} />)}</ul>}
+  const todoPanel = todosSupported && (!filter || filter === 'todos') && (todos.entries.length > 0 || todos.archived > 0) && <Panel title="待办" count={counts.todos}>
+    {todos.entries.length > 0 && <KeepChecked.Provider value={keep}>
+      <ul className="overview-todos">{todos.entries.map((entry) => <TodoEntryView key={entry.conversationId} entry={entry} now={now} />)}</ul>
+    </KeepChecked.Provider>}
     {todos.archived > 0 && <button type="button" className="overview-day overview-disclosure" aria-expanded={withArchived}
       onClick={() => setWithArchived(!withArchived)}>{withArchived ? '不看' : '也看'}已归档会话的 {todos.archived} 项</button>}
   </Panel>
