@@ -7,6 +7,7 @@ export type AgentModeText = { label: string; description: string }
 // the agent's rules here rather than re-encoding them, and a new agent is one more descriptor.
 export type AgentDescriptor = {
   label: string
+  translations?: { en: Partial<Pick<AgentDescriptor, 'modes' | 'environment' | 'usageWhere' | 'nativePlanRun'>> }
   // The command the user runs themselves, to sign in or refresh its credentials.
   cli: string
   // Antumi's permission modes as this agent's users know them; a mode left out is one it lacks.

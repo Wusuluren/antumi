@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useEffect, useState, type FormEvent } from 'react'
 import { CHAT_COMMAND_ARGUMENTS, ChatCommandFields, type SavedChatCommand } from '@antumi/protocol'
 import { deleteChatCommand, perform, saveChatCommand, useCore } from '../core-store'
@@ -32,7 +33,7 @@ function CommandForm({ draft, projects, onDone }: { draft: Draft; projects: read
   return (
     <form className="chat-command-form" onSubmit={(event) => void save(event)}>
       <label className="chat-command-field">
-        <span>名称</span>
+        <span>{t('ChatCommandSettings.name')}</span>
         <span className="chat-command-name-input">
           <span className="mono muted">/</span>
           <input
@@ -46,14 +47,14 @@ function CommandForm({ draft, projects, onDone }: { draft: Draft; projects: read
             aria-invalid={badName}
           />
         </span>
-        {badName && <span className="chat-command-hint">只能用字母、数字和 - _ :，并以字母或数字开头</span>}
+        {badName && <span className="chat-command-hint">{t('ChatCommandSettings.useLettersNumbersStartingWithALetterOr')}</span>}
       </label>
       <label className="chat-command-field">
-        <span>说明</span>
-        <input className="input" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="可选，显示在命令列表里" maxLength={200} />
+        <span>{t('ChatCommandSettings.description')}</span>
+        <input className="input" value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t('ChatCommandSettings.optionalShownInTheCommandList')} maxLength={200} />
       </label>
       <label className="chat-command-field">
-        <span>提示词</span>
+        <span>{t('ChatCommandSettings.prompt')}</span>
         <textarea
           className="input chat-command-prompt"
           value={prompt}
@@ -61,32 +62,23 @@ function CommandForm({ draft, projects, onDone }: { draft: Draft; projects: read
           onKeyDown={(event) => {
             if (event.key === 'Enter' && hasPrimaryModifier(event) && !event.nativeEvent.isComposing) void save()
           }}
-          placeholder={`如：找出 ${CHAT_COMMAND_ARGUMENTS} 失败的原因并修好，改完跑一遍测试`}
+          placeholder={t('ChatCommandSettings.forExampleFindWhyFailedFixItAnd', { CHAT_COMMAND_ARGUMENTS: CHAT_COMMAND_ARGUMENTS })}
           rows={6}
         />
-        <span className="chat-command-hint">
-          选中后展开到输入框，改完再发送。{CHAT_COMMAND_ARGUMENTS} 换成命令名后面输入的内容；没写它时，那些内容接在末尾。
-        </span>
+        <span className="chat-command-hint">{tr('ChatCommandSettings.expandsIntoTheComposerForEditingBeforeSending', { CHAT_COMMAND_ARGUMENTS: CHAT_COMMAND_ARGUMENTS })}</span>
       </label>
       <label className="chat-command-field">
-        <span>在哪些会话里显示</span>
+        <span>{t('ChatCommandSettings.showInConversations')}</span>
         <select className="input" value={projectPath ?? ''} onChange={(event) => setProjectPath(event.target.value || null)}>
-          <option value="">所有会话</option>
+          <option value="">{t('ChatCommandSettings.allConversations')}</option>
           {choices.map((project) => (
-            <option key={project} value={project}>
-              仅 {projectName(project)}（{project}）
-            </option>
+            <option key={project} value={project}>{tr('ChatCommandSettings.only', { value1: projectName(project), project: project })}</option>
           ))}
         </select>
       </label>
       <div className="chat-command-actions">
-        <button type="button" className="button ghost" onClick={onDone}>
-          取消
-        </button>
-        <button type="submit" className="button primary" disabled={!valid || saving}>
-          保存
-          <kbd>{PRIMARY_KEY_LABEL}↵</kbd>
-        </button>
+        <button type="button" className="button ghost" onClick={onDone}>{t('ChatCommandSettings.cancel')}</button>
+        <button type="submit" className="button primary" disabled={!valid || saving}>{tr('ChatCommandSettings.save', { value1: <kbd>{PRIMARY_KEY_LABEL}↵</kbd> })}</button>
       </div>
     </form>
   )
@@ -100,14 +92,10 @@ function CommandRow({ command, onEdit }: { command: SavedChatCommand; onEdit: ()
         {command.description || command.prompt}
       </span>
       <span className="chat-command-scope" title={command.projectPath ?? undefined}>
-        {command.projectPath ? projectName(command.projectPath) : '所有会话'}
+        {command.projectPath ? projectName(command.projectPath) : t('ChatCommandSettings.allConversations')}
       </span>
-      <button type="button" className="button" onClick={onEdit}>
-        编辑
-      </button>
-      <button type="button" className="button" onClick={() => deleteChatCommand(command.id)}>
-        删除
-      </button>
+      <button type="button" className="button" onClick={onEdit}>{t('chatTools.edit')}</button>
+      <button type="button" className="button" onClick={() => deleteChatCommand(command.id)}>{t('ChatCommandSettings.delete')}</button>
     </li>
   )
 }
@@ -122,12 +110,12 @@ export function ChatCommandSettings() {
     if (connected) void perform((rpc) => rpc.call('projects.recent', {})).then((recent) => setProjects(recent ?? []))
   }, [connected])
 
-  if (!connected) return <p className="settings-empty">连接到 Antumi core 后才能查看。</p>
+  if (!connected) return <p className="settings-empty">{t('ChatCommandSettings.connectToAntumiCoreToView')}</p>
   if (draft) return <CommandForm key={draft.id ?? 'new'} draft={draft} projects={projects} onDone={() => setDraft(null)} />
   return (
     <>
       {commands.length === 0 ? (
-        <p className="settings-empty">还没有命令。在聊天输入框里输入 / 就能选用这里的命令。</p>
+        <p className="settings-empty">{t('ChatCommandSettings.noCommandsYetTypeInTheComposerTo')}</p>
       ) : (
         <ul className="settings-project-list">
           {commands.map((command) => (
@@ -136,9 +124,7 @@ export function ChatCommandSettings() {
         </ul>
       )}
       <div className="chat-command-actions">
-        <button type="button" className="button" onClick={() => setDraft(NEW_DRAFT)}>
-          新建命令
-        </button>
+        <button type="button" className="button" onClick={() => setDraft(NEW_DRAFT)}>{t('ChatCommandSettings.newCommand')}</button>
       </div>
     </>
   )

@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { isHelper } from '@antumi/protocol'
 import { PLAN_TOOLS, type Conversation, type ConversationRequest } from '@antumi/protocol'
 import { actionableItems, waiting, type ActionableTarget, type Snapshot } from './attention'
@@ -25,8 +26,8 @@ export function popupQueue(s: Pick<Snapshot, 'tasks' | 'conversations'>, closed:
 }
 
 export function popupLabel(request: ConversationRequest): string {
-  if (request.kind === 'question') return '有个问题'
-  return request.tool !== null && PLAN_TOOLS.has(request.tool) ? '计划待批准' : '等你允许'
+  if (request.kind === 'question') return t('requestPopup.hasAQuestion')
+  return request.tool !== null && PLAN_TOOLS.has(request.tool) ? t('requestPopup.planAwaitingApproval') : t('requestPopup.awaitingYourPermission')
 }
 
 // Whether the card is worth bringing up: a chat now held up on the user, or held up on something

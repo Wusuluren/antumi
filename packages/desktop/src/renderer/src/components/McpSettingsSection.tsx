@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { AGENT_KINDS, agentDescriptor, McpServerName, type AgentKind, type McpImportCandidate, type McpProbe, type McpServer, type McpServerInput } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
@@ -52,11 +53,11 @@ function inputOf(draft: Draft): McpServerInput {
 // One server from JSON as the agents write theirs: { "mcpServers": { name: {...} } }, or the entry alone.
 function draftFromJson(text: string, current: Draft): Draft | string {
   let parsed: unknown
-  try { parsed = JSON.parse(text) } catch { return '不是有效的 JSON' }
-  if (!parsed || typeof parsed !== 'object') return '不是有效的 JSON'
+  try { parsed = JSON.parse(text) } catch { return t('McpSettingsSection.invalidJson') }
+  if (!parsed || typeof parsed !== 'object') return t('McpSettingsSection.invalidJson')
   const servers = 'mcpServers' in parsed && parsed.mcpServers && typeof parsed.mcpServers === 'object' ? Object.entries(parsed.mcpServers) : [[current.name, parsed] as const]
   const [name, entry] = servers[0] ?? []
-  if (!entry || typeof entry !== 'object') return '没有找到服务器'
+  if (!entry || typeof entry !== 'object') return t('McpSettingsSection.noServersFound')
   const field = (key: string): unknown => (key in entry ? Reflect.get(entry, key) : undefined)
   const strings = (value: unknown): Record<string, string> => (value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).filter((pair): pair is [string, string] => typeof pair[1] === 'string')) : {})
   const command = field('command')
@@ -64,7 +65,7 @@ function draftFromJson(text: string, current: Draft): Draft | string {
   const args = field('args')
   const cwd = field('cwd')
   const values = strings(typeof command === 'string' ? field('env') : field('headers'))
-  if (typeof command !== 'string' && typeof url !== 'string') return '既没有 command 也没有 url'
+  if (typeof command !== 'string' && typeof url !== 'string') return t('McpSettingsSection.neitherCommandNorUrlSpecified')
   return {
     ...current,
     name: typeof name === 'string' && name ? name.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').slice(0, 32) : current.name,
@@ -117,12 +118,12 @@ function ServerForm({ initial, onDone }: { initial: Draft; onDone: (saved: strin
     setJson(null)
     setJsonError(null)
   }
-  const what = draft.type === 'stdio' ? '环境变量' : '请求头'
+  const what = draft.type === 'stdio' ? t('McpSettingsSection.environmentVariables') : t('McpSettingsSection.requestHeaders')
 
   return (
     <form className="chat-command-form" onSubmit={(event) => void save(event)}>
       {json === null ? (
-        <button type="button" className="button ghost mcp-json-toggle" onClick={() => setJson('')}>粘贴 JSON 填写</button>
+        <button type="button" className="button ghost mcp-json-toggle" onClick={() => setJson('')}>{t('McpSettingsSection.pasteJsonToFillFields')}</button>
       ) : (
         <label className="chat-command-field">
           <span>JSON</span>
@@ -130,62 +131,62 @@ function ServerForm({ initial, onDone }: { initial: Draft; onDone: (saved: strin
             placeholder={'{ "mcpServers": { "github": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"], "env": { "GITHUB_TOKEN": "…" } } } }'} />
           {jsonError && <span className="chat-command-hint warning">{jsonError}</span>}
           <span className="chat-command-actions">
-            <button type="button" className="button ghost" onClick={() => { setJson(null); setJsonError(null) }}>取消</button>
-            <button type="button" className="button" onClick={fill}>填入</button>
+            <button type="button" className="button ghost" onClick={() => { setJson(null); setJsonError(null) }}>{t('ChatCommandSettings.cancel')}</button>
+            <button type="button" className="button" onClick={fill}>{t('McpSettingsSection.fill')}</button>
           </span>
         </label>
       )}
       <label className="chat-command-field">
-        <span>名称</span>
+        <span>{t('ChatCommandSettings.name')}</span>
         <input className="input mono" value={draft.name} onChange={(event) => set({ name: event.target.value })} placeholder="github" maxLength={32} spellCheck={false} autoFocus={json === null} aria-invalid={badName} />
-        <span className="chat-command-hint">{badName ? '只能用小写字母、数字和 - _，以字母或数字开头；antumi 留给 Antumi 自己' : 'Agent 里看到的工具名会带上它，如 github · create_issue'}</span>
+        <span className="chat-command-hint">{badName ? t('McpSettingsSection.useLowercaseLettersNumbersStartingWithALetter') : t('McpSettingsSection.agentToolNamesIncludeThisNameEG')}</span>
       </label>
       <div className="chat-command-field">
-        <span id={typeId}>类型</span>
-        <Segmented labelId={typeId} value={draft.type} options={[{ value: 'stdio', label: '本地命令' }, { value: 'http', label: '远程地址' }]} onChange={(type) => set({ type, secrets: [] })} />
+        <span id={typeId}>{t('McpSettingsSection.type')}</span>
+        <Segmented labelId={typeId} value={draft.type} options={[{ value: 'stdio', label: t('McpSettingsSection.localCommand') }, { value: 'http', label: t('McpSettingsSection.remoteUrl') }]} onChange={(type) => set({ type, secrets: [] })} />
       </div>
       {draft.type === 'stdio' ? (
         <>
           <label className="chat-command-field">
-            <span>命令</span>
+            <span>{t('chatTools.command')}</span>
             <input className="input mono" value={draft.command} onChange={(event) => set({ command: event.target.value })} placeholder="npx" spellCheck={false} />
           </label>
           <label className="chat-command-field">
-            <span>参数</span>
+            <span>{t('chatCommands.arguments')}</span>
             <textarea className="input mono mcp-args" rows={3} value={draft.args} onChange={(event) => set({ args: event.target.value })} placeholder={'-y\n@modelcontextprotocol/server-github'} spellCheck={false} />
-            <span className="chat-command-hint">一行一个，原样传给命令，不经过 shell。</span>
+            <span className="chat-command-hint">{t('McpSettingsSection.onePerLinePassedDirectlyWithoutAShell')}</span>
           </label>
           <label className="chat-command-field">
-            <span>工作目录</span>
-            <input className="input mono" value={draft.cwd} onChange={(event) => set({ cwd: event.target.value })} placeholder="可选，绝对路径；不填就在会话的项目里启动" spellCheck={false} />
+            <span>{t('McpSettingsSection.workingDirectory')}</span>
+            <input className="input mono" value={draft.cwd} onChange={(event) => set({ cwd: event.target.value })} placeholder={t('McpSettingsSection.optionalAbsolutePathDefaultsToTheConversationS')} spellCheck={false} />
           </label>
         </>
       ) : (
         <label className="chat-command-field">
-          <span>地址</span>
+          <span>{t('BrowserPanel.address')}</span>
           <input className="input mono" value={draft.url} onChange={(event) => set({ url: event.target.value })} placeholder="https://mcp.example.com/mcp" spellCheck={false} />
-          <span className="chat-command-hint">Streamable HTTP。http:// 只能连本机。</span>
+          <span className="chat-command-hint">{t('McpSettingsSection.streamableHttpHttpIsAllowedOnlyForLocalhost')}</span>
         </label>
       )}
       <div className="chat-command-field">
         <span>{what}</span>
         {draft.secrets.map((secret, index) => (
           <span key={index} className="mcp-secret">
-            <input className="input mono" value={secret.key} disabled={secret.stored} onChange={(event) => setSecret(index, { key: event.target.value })} placeholder={draft.type === 'stdio' ? 'GITHUB_TOKEN' : 'Authorization'} spellCheck={false} aria-label={`${what}名`} />
-            <input className="input mono" type="password" autoComplete="new-password" value={secret.value} onChange={(event) => setSecret(index, { value: event.target.value })} placeholder={secret.stored ? '已设置，留空不改' : '值'} aria-label={`${secret.key || what}的值`} />
-            <button type="button" className="button ghost" onClick={() => set({ secrets: draft.secrets.filter((_, at) => at !== index) })}>移除</button>
+            <input className="input mono" value={secret.key} disabled={secret.stored} onChange={(event) => setSecret(index, { key: event.target.value })} placeholder={draft.type === 'stdio' ? 'GITHUB_TOKEN' : 'Authorization'} spellCheck={false} aria-label={t('McpSettingsSection.name', { what: what })} />
+            <input className="input mono" type="password" autoComplete="new-password" value={secret.value} onChange={(event) => setSecret(index, { value: event.target.value })} placeholder={secret.stored ? t('McpSettingsSection.alreadySetLeaveEmptyToKeep') : t('McpSettingsSection.value')} aria-label={t('McpSettingsSection.valueFor', { value1: secret.key || what })} />
+            <button type="button" className="button ghost" onClick={() => set({ secrets: draft.secrets.filter((_, at) => at !== index) })}>{t('ChatQuoteCards.remove')}</button>
           </span>
         ))}
-        <span><button type="button" className="button ghost" onClick={() => set({ secrets: [...draft.secrets, { key: '', value: '', stored: false }] })}>添加{what}</button></span>
-        <span className="chat-command-hint">值只存在本机 Antumi 的凭据文件里，之后这里只显示键名；Agent 的配置、命令行和 Antumi 的日志里都不会出现。</span>
+        <span><button type="button" className="button ghost" onClick={() => set({ secrets: [...draft.secrets, { key: '', value: '', stored: false }] })}>{tr('McpSettingsSection.add', { what: what })}</button></span>
+        <span className="chat-command-hint">{t('McpSettingsSection.valuesAreStoredOnlyInAntumiSLocal')}</span>
       </div>
       <div className="chat-command-field">
-        <span>交给哪些 Agent</span>
+        <span>{t('McpSettingsSection.shareWithAgents')}</span>
         <AgentChoices value={draft.agents} onChange={(agents) => set({ agents })} />
       </div>
       <div className="chat-command-actions">
-        <button type="button" className="button ghost" onClick={() => onDone(null)}>取消</button>
-        <button type="submit" className="button primary" disabled={!ready || saving}>{saving ? '保存中…' : '保存并测试'}</button>
+        <button type="button" className="button ghost" onClick={() => onDone(null)}>{t('ChatCommandSettings.cancel')}</button>
+        <button type="submit" className="button primary" disabled={!ready || saving}>{saving ? t('McpSettingsSection.saving') : t('McpSettingsSection.saveAndTest')}</button>
       </div>
     </form>
   )
@@ -193,21 +194,18 @@ function ServerForm({ initial, onDone }: { initial: Draft; onDone: (saved: strin
 
 function ProbeResult({ probe }: { probe: McpProbe | 'running' }) {
   const [open, setOpen] = useState(false)
-  if (probe === 'running') return <p className="settings-status" role="status">正在连接…（第一次用 npx / uvx 时要先下载，可能要等一会儿）</p>
+  if (probe === 'running') return <p className="settings-status" role="status">{t('McpSettingsSection.connectingFirstUseOfNpxUvxMayRequire')}</p>
   if (!probe.ok) {
     return (
       <div className="mcp-probe" data-ok="false">
-        <p className="settings-status" role="status">没连上：{probe.error}</p>
+        <p className="settings-status" role="status">{tr('McpSettingsSection.connectionFailed', { value1: probe.error })}</p>
         {probe.stderr && <pre className="mcp-probe-output">{probe.stderr}</pre>}
       </div>
     )
   }
   return (
     <div className="mcp-probe" data-ok="true">
-      <p className="settings-note">
-        连上了，{probe.tools.length} 个工具。
-        {probe.tools.length > 0 && <button type="button" className="button ghost" onClick={() => setOpen(!open)}>{open ? '收起' : '查看'}</button>}
-      </p>
+      <p className="settings-note">{tr('McpSettingsSection.connectedTools', { value1: probe.tools.length, value2: probe.tools.length > 0 && <button type="button" className="button ghost" onClick={() => setOpen(!open)}>{open ? t('ChatPlan.collapse') : t('EnvironmentNotice.view')}</button> })}</p>
       {open && (
         <ul className="mcp-tools">
           {probe.tools.map((tool) => <li key={tool.name}><span className="mono">{tool.name}</span>{tool.description && <span className="muted"> {tool.description}</span>}</li>)}
@@ -238,29 +236,29 @@ function ServerRow({ server, probe, onProbe, onEdit }: { server: McpServer; prob
           <span id={labelId} className="settings-row-label mono">{server.name}</span>
           <p className="settings-row-description mono mcp-summary" title={summary(server)}>{summary(server)}</p>
           <p className="settings-row-description">
-            {server.agents.length ? `交给 ${server.agents.map(agentLabel).join('、')}` : '没有交给任何 Agent'}
-            {keys.length > 0 && ` · ${server.transport.type === 'stdio' ? '环境变量' : '请求头'} ${keys.join('、')}`}
+            {server.agents.length ? t('McpSettingsSection.sharedWith', { value1: server.agents.map(agentLabel).join('、') }) : t('McpSettingsSection.notSharedWithAnyAgent')}
+            {keys.length > 0 && ` · ${server.transport.type === 'stdio' ? t('McpSettingsSection.environmentVariables') : t('McpSettingsSection.requestHeaders')} ${keys.join('、')}`}
           </p>
         </div>
         <Toggle labelId={labelId} checked={server.enabled} disabled={busy} onChange={(enabled) => void run(() => perform((rpc) => rpc.call('mcpServers.setEnabled', { name: server.name, enabled })))} />
       </div>
       {probe && <ProbeResult probe={probe} />}
       <div className="plugin-actions">
-        <button type="button" className="button" disabled={busy || probe === 'running'} onClick={onProbe}>测试连接</button>
-        <button type="button" className="button" disabled={busy} onClick={onEdit}>编辑</button>
+        <button type="button" className="button" disabled={busy || probe === 'running'} onClick={onProbe}>{t('McpSettingsSection.testConnection')}</button>
+        <button type="button" className="button" disabled={busy} onClick={onEdit}>{t('chatTools.edit')}</button>
         {removing ? (
           <>
-            <span className="settings-note">删除后，用到它的 Agent 下次启动起就没有它的工具。</span>
-            <button type="button" className="button" disabled={busy} onClick={() => void run(() => perform((rpc) => rpc.call('mcpServers.remove', { name: server.name })))}>确认删除</button>
-            <button type="button" className="button ghost" onClick={() => setRemoving(false)}>取消</button>
+            <span className="settings-note">{t('McpSettingsSection.afterDeletionAgentsLoseTheseToolsAtTheir')}</span>
+            <button type="button" className="button" disabled={busy} onClick={() => void run(() => perform((rpc) => rpc.call('mcpServers.remove', { name: server.name })))}>{t('McpSettingsSection.confirmDeletion')}</button>
+            <button type="button" className="button ghost" onClick={() => setRemoving(false)}>{t('ChatCommandSettings.cancel')}</button>
           </>
-        ) : <button type="button" className="button ghost" disabled={busy} onClick={() => setRemoving(true)}>删除</button>}
+        ) : <button type="button" className="button ghost" disabled={busy} onClick={() => setRemoving(true)}>{t('ChatCommandSettings.delete')}</button>}
       </div>
     </div>
   )
 }
 
-const SOURCE_TEXT: Record<AgentKind, string> = { claude: '~/.claude.json', codex: 'Codex 的 config.toml', cursor: '~/.cursor/mcp.json' }
+const SOURCE_TEXT: Record<AgentKind, string> = localized(() => ({ claude: '~/.claude.json', codex: t('McpSettingsSection.codexConfigToml'), cursor: '~/.cursor/mcp.json' }))
 
 // Servers the agents have in their own configuration, taken in under names the user can change.
 // Each goes to the chosen agents but the one it came from, which loads it already.
@@ -292,18 +290,18 @@ function ImportPanel({ onDone }: { onDone: (imported: string[]) => void }) {
     }
   }
 
-  if (candidates === null) return <p className="settings-empty">正在读取各 Agent 的配置…</p>
+  if (candidates === null) return <p className="settings-empty">{t('McpSettingsSection.readingAgentConfigurations')}</p>
   return (
     <div className="chat-command-form">
-      {candidates.length === 0 ? <p className="settings-empty">各 Agent 的用户配置里都没有 MCP 服务器。</p> : (
+      {candidates.length === 0 ? <p className="settings-empty">{t('McpSettingsSection.noMcpServersInAnyAgentSUser')}</p> : (
         <ul className="settings-project-list">
           {candidates.map((candidate) => {
             const key = keyOf(candidate)
             const on = key in chosen
-            const blocked = candidate.problem ?? (candidate.suggestedName ? null : '同名的服务器已经在 Antumi 里了，勾选后改个名字')
+            const blocked = candidate.problem ?? (candidate.suggestedName ? null : t('McpSettingsSection.aServerWithThisNameAlreadyExistsIn'))
             return (
               <li key={key} className="settings-project mcp-candidate">
-                <input type="checkbox" checked={on} disabled={Boolean(candidate.problem) || busy} aria-label={`导入 ${candidate.name}`}
+                <input type="checkbox" checked={on} disabled={Boolean(candidate.problem) || busy} aria-label={t('McpSettingsSection.import', { value1: candidate.name })}
                   onChange={(event) => setChosen((current) => {
                     const { [key]: _dropped, ...rest } = current
                     return event.target.checked ? { ...rest, [key]: candidate.suggestedName ?? '' } : rest
@@ -313,7 +311,7 @@ function ImportPanel({ onDone }: { onDone: (imported: string[]) => void }) {
                 <span className="settings-project-path mono" title={candidate.transport.type === 'stdio' ? candidate.transport.command : candidate.transport.url}>
                   {candidate.transport.type === 'stdio' ? [candidate.transport.command, ...candidate.transport.args].join(' ') : candidate.transport.url}
                 </span>
-                {on && <input className="input mono mcp-candidate-name" value={chosen[key] ?? ''} aria-label={`${candidate.name} 在 Antumi 里的名字`} onChange={(event) => setChosen((current) => ({ ...current, [key]: event.target.value }))} spellCheck={false} />}
+                {on && <input className="input mono mcp-candidate-name" value={chosen[key] ?? ''} aria-label={t('McpSettingsSection.nameForInAntumi', { value1: candidate.name })} onChange={(event) => setChosen((current) => ({ ...current, [key]: event.target.value }))} spellCheck={false} />}
                 {blocked && !on && <span className="settings-note warning">{blocked}</span>}
               </li>
             )
@@ -322,14 +320,14 @@ function ImportPanel({ onDone }: { onDone: (imported: string[]) => void }) {
       )}
       {candidates.length > 0 && (
         <div className="chat-command-field">
-          <span>交给哪些 Agent</span>
+          <span>{t('McpSettingsSection.shareWithAgents')}</span>
           <AgentChoices value={agents} onChange={setAgents} />
-          <span className="chat-command-hint">不会再交给它原来所在的 Agent：那里已经有了，交两次会启动两份。</span>
+          <span className="chat-command-hint">{t('McpSettingsSection.notSharedBackToItsOriginalAgentIt')}</span>
         </div>
       )}
       <div className="chat-command-actions">
-        <button type="button" className="button ghost" onClick={() => onDone([])}>取消</button>
-        {candidates.length > 0 && <button type="button" className="button primary" disabled={!valid || busy} onClick={() => void submit()}>{busy ? '导入中…' : `导入 ${picked.length} 个`}</button>}
+        <button type="button" className="button ghost" onClick={() => onDone([])}>{t('ChatCommandSettings.cancel')}</button>
+        {candidates.length > 0 && <button type="button" className="button primary" disabled={!valid || busy} onClick={() => void submit()}>{busy ? t('McpSettingsSection.importing') : t('McpSettingsSection.import_1237', { value1: picked.length })}</button>}
       </div>
     </div>
   )
@@ -350,20 +348,18 @@ export function McpSettingsSection() {
     setProbes(({ [name]: _running, ...rest }) => (result ? { ...rest, [name]: result } : rest))
   }
 
-  if (!connected) return <p className="settings-empty">连接到 Antumi core 后才能查看。</p>
+  if (!connected) return <p className="settings-empty">{t('ChatCommandSettings.connectToAntumiCoreToView')}</p>
   if (draft) return <ServerForm key={draft.previousName ?? 'new'} initial={draft} onDone={(saved) => { setDraft(null); if (saved) void probe(saved) }} />
   if (importing) return <ImportPanel onDone={(imported) => { setImporting(false); imported.forEach((name) => void probe(name)) }} />
   return (
     <>
-      <p className="settings-note">
-        不改 Agent 自己的配置，它自己配的服务器照常加载；改动下次启动起生效。MCP 服务器能读写数据、能联网，只添加你信任的；需要确认的调用会在聊天里问你。
-      </p>
-      {servers.length === 0 ? <p className="settings-empty">还没有 MCP 服务器。</p> : servers.map((server) => (
+      <p className="settings-note">{t('McpSettingsSection.agentConfigurationsStayUntouchedAndTheirExistingServers')}</p>
+      {servers.length === 0 ? <p className="settings-empty">{t('McpSettingsSection.noMcpServersYet')}</p> : servers.map((server) => (
         <ServerRow key={server.name} server={server} probe={probes[server.name]} onProbe={() => void probe(server.name)} onEdit={() => setDraft(draftOf(server))} />
       ))}
       <div className="chat-command-actions">
-        <button type="button" className="button" onClick={() => setImporting(true)}>从 Claude / Codex / Cursor 导入</button>
-        <button type="button" className="button primary" onClick={() => setDraft(NEW_DRAFT)}>添加服务器</button>
+        <button type="button" className="button" onClick={() => setImporting(true)}>{t('McpSettingsSection.importFromClaudeCodexCursor')}</button>
+        <button type="button" className="button primary" onClick={() => setDraft(NEW_DRAFT)}>{t('McpSettingsSection.addServer')}</button>
       </div>
     </>
   )

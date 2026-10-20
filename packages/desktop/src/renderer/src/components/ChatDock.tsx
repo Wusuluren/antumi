@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useContext, useState } from 'react'
 import { focusPaneInput, setSchedulesOpen, useCore } from '../core-store'
 import { composerDraft } from '../composer-drafts'
@@ -39,7 +40,7 @@ function ChangesChip({ conversation, finishedCalls }: { conversation: Conversati
       data-tooltip={surface.changesHint}
       onClick={surface.showChanges}
     >
-      <span>{files.length} 个文件改动</span>
+      <span>{tr('ChatDock.filesChanged', { value1: files.length })}</span>
       {counted.length > 0 && (
         <span className="chat-diff-count mono">
           <span className="chat-diff-added">+{totals.added}</span>
@@ -53,8 +54,8 @@ function ChangesChip({ conversation, finishedCalls }: { conversation: Conversati
 // What a waiting request is called on its tab: the call it asks about, or what it asks.
 function RequestTabLabel({ item }: { item: RequestItem }) {
   const shorten = useContext(ChatPaths)
-  if (item.kind === 'question') return <>提问{item.questions[0]?.header ? ` · ${item.questions[0].header}` : ''}</>
-  if (isPlanApproval(item)) return <>计划</>
+  if (item.kind === 'question') return <>{tr('ChatDock.question', { value1: item.questions[0]?.header ? ` · ${item.questions[0].header}` : '' })}</>
+  if (isPlanApproval(item)) return <>{t('chatTools.plan')}</>
   return <>{toolLabel(item.tool)} <span className="mono">{shorten(item.title)}</span></>
 }
 
@@ -68,7 +69,7 @@ export function PendingRequests({ conversation, pending, tools, modes }: { conve
   return (
     <div className="chat-intervention" data-pending-hotkey-scope>
       {pending.length > 1 && (
-        <div className="chat-intervention-tabs" role="tablist" aria-label="等你处理的请求">
+        <div className="chat-intervention-tabs" role="tablist" aria-label={t('ChatDock.requestsAwaitingYourResponse')}>
           {pending.map((item) => (
             <button
               key={itemKey(item)}
@@ -102,11 +103,11 @@ function ChatSchedules({ conversationId }: { conversationId: string }) {
     <>
       {runs.map((run) => (
         <div key={run.id} className="chat-queue chat-queue-one chat-queued chat-scheduled">
-          <span className="chat-queue-label">预约 · {scheduleState(run, now)}：</span>
+          <span className="chat-queue-label">{tr('ChatDock.scheduled', { value1: scheduleState(run, now) })}</span>
           <span className="chat-queued-text" title={runAction(run)}>{runAction(run)}</span>
           <span className="chat-queued-actions">
-            <button type="button" className="chat-queued-action" aria-label="管理预约" data-tooltip="管理预约" data-tooltip-side="top-end" onClick={() => setSchedulesOpen(true)}><ClockIcon /></button>
-            <button type="button" className="chat-queued-action" aria-label="取消预约" data-tooltip="取消预约" data-tooltip-side="top-end" onClick={() => void cancelSchedule(run.id)}><CloseIcon /></button>
+            <button type="button" className="chat-queued-action" aria-label={t('ChatDock.manageSchedule')} data-tooltip={t('ChatDock.manageSchedule')} data-tooltip-side="top-end" onClick={() => setSchedulesOpen(true)}><ClockIcon /></button>
+            <button type="button" className="chat-queued-action" aria-label={t('ChatDock.cancelSchedule')} data-tooltip={t('ChatDock.cancelSchedule')} data-tooltip-side="top-end" onClick={() => void cancelSchedule(run.id)}><CloseIcon /></button>
           </span>
         </div>
       ))}
@@ -120,7 +121,7 @@ function PaneReply({ conversationId, pane }: { conversationId: string; pane: Con
   const draft = composerDraft(conversationId).text.trim().split('\n')[0] ?? ''
   return (
     <button type="button" className="chat-pane-reply" onClick={() => { pane.focus(); focusPaneInput(pane.index) }}>
-      <span className="chat-pane-reply-text" data-draft={draft ? true : undefined}>{draft ? `草稿：${draft}` : '回复这一列…'}</span>
+      <span className="chat-pane-reply-text" data-draft={draft ? true : undefined}>{draft ? t('ChatDock.draft', { draft: draft }) : t('ChatDock.replyInThisPane')}</span>
       <kbd>{PRIMARY_KEY_LABEL}{pane.index + 1}</kbd>
     </button>
   )
@@ -154,13 +155,13 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
         {inspectable && <ChangesChip conversation={conversation} finishedCalls={finishedCalls} />}
         <span className="chat-dock-spacer" />
         <ChatMessageList messages={sent} onJump={onJump} />
-        <button type="button" className="tool-button" aria-label="上一条消息" data-tooltip="上一条消息" onClick={onPrevious}>
+        <button type="button" className="tool-button" aria-label={t('ChatDock.previousMessage')} data-tooltip={t('ChatDock.previousMessage')} onClick={onPrevious}>
           <ArrowUpIcon />
         </button>
       </div>}
       <ChatSchedules conversationId={conversation.id} />
       {waiting && <PendingRequests conversation={conversation} pending={pending} tools={tools} modes={(state?.permissionModes ?? []).filter((mode) => !isHelper(conversation) || helperAllowsMode(mode))} />}
-      {archived && <ArchivedBar what="会话" onRestore={() => archiveConversation(conversation.id, false)} />}
+      {archived && <ArchivedBar what={t('BrowserPanel.conversation')} onRestore={() => archiveConversation(conversation.id, false)} />}
       {/* The composer stays mounted while a request or the archive takes its place, so a draft is not lost. */}
       <div className="chat-dock-composer" hidden={waiting || archived || resting}>
         <ChatComposer compact={compact} conversation={conversation} state={state} />

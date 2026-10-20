@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useCallback, useRef, useState } from 'react'
 import { checkArchiveDiscussion, type Discussion } from '@antumi/protocol'
 import { openDiscussionDraft, selectDiscussion, useCore, useDiscussionArchiveSupported, useDiscussionsSupported } from '../core-store'
@@ -10,7 +11,7 @@ import { SidebarCollapseButton } from './SidebarCollapseButton'
 import { TitleEditor } from './TitleEditor'
 
 export async function removeDiscussion(discussion: Discussion): Promise<void> {
-  if (!window.confirm(`删除群聊「${discussion.title}」？各成员的会话和发言记录一起删除，项目目录不会改动。`)) return
+  if (!window.confirm(t('SidebarDiscussions.deleteGroupChatMemberConversationsAndPostsAre', { value1: discussion.title }))) return
   await deleteDiscussion(discussion.id)
 }
 
@@ -25,7 +26,7 @@ export function DiscussionDot({ discussion }: { discussion: Discussion }) {
   const awaiting = discussion.members.some((member) => member.status === 'awaiting')
   const working = discussion.members.some((member) => member.status === 'working')
   const tone = awaiting ? 'awaiting' : working ? 'working' : discussion.state === 'done' ? 'done' : 'idle'
-  const label = awaiting ? '有成员在等你确认' : working ? '有成员在发言' : discussionProgress(discussion)
+  const label = awaiting ? t('SidebarDiscussions.aMemberNeedsYourApproval') : working ? t('SidebarDiscussions.aMemberIsSpeaking') : discussionProgress(discussion)
   return <span className="discussion-dot" data-tone={tone} role="img" aria-label={label} title={label} />
 }
 
@@ -75,7 +76,7 @@ export function SidebarDiscussions() {
       {renamingId === discussion.id ? (
         <div className="task-row conversation-row" data-renaming>
           <DiscussionDot discussion={discussion} />
-          <TitleEditor title={discussion.title} label="群聊标题" onSave={(title) => void renameDiscussion(discussion.id, title)} onDone={() => setRenamingId(null)} />
+          <TitleEditor title={discussion.title} label={t('DiscussionView.groupChatTitle')} onSave={(title) => void renameDiscussion(discussion.id, title)} onDone={() => setRenamingId(null)} />
         </div>
       ) : (
         <button
@@ -98,18 +99,18 @@ export function SidebarDiscussions() {
   )
 
   return (
-    <nav className="sidebar-discussions" data-collapsed={collapsed} aria-label="群聊">
+    <nav className="sidebar-discussions" data-collapsed={collapsed} aria-label={t('DiscussionView.groupChat_910')}>
       <header className="task-list-header">
-        <SidebarCollapseButton icon={<GroupChatIcon />} label="群聊" count={list.length} collapsed={collapsed} controls="sidebar-discussions" onToggle={() => setCollapsed((value) => !value)} />
+        <SidebarCollapseButton icon={<GroupChatIcon />} label={t('DiscussionView.groupChat_910')} count={list.length} collapsed={collapsed} controls="sidebar-discussions" onToggle={() => setCollapsed((value) => !value)} />
         {archivedAll.length > 0 && (
           <button
             ref={viewButton}
             type="button"
             className="icon-button sidebar-tool"
-            aria-label="列表选项"
+            aria-label={t('SidebarDiscussions.listOptions')}
             aria-haspopup="menu"
             aria-expanded={viewAt !== null}
-            data-tooltip="列表选项"
+            data-tooltip={t('SidebarDiscussions.listOptions')}
             onClick={(event) => {
               const box = event.currentTarget.getBoundingClientRect()
               setViewAt((current) => (current ? null : { x: box.right, y: box.bottom + 4 }))
@@ -118,11 +119,11 @@ export function SidebarDiscussions() {
             <SlidersIcon />
           </button>
         )}
-        <button type="button" className="icon-button task-list-add sidebar-add" aria-label="新建群聊" data-tooltip="新建群聊" onClick={() => openDiscussionDraft()}><PlusIcon /></button>
+        <button type="button" className="icon-button task-list-add sidebar-add" aria-label={t('SidebarDiscussions.newGroupChat')} data-tooltip={t('SidebarDiscussions.newGroupChat')} onClick={() => openDiscussionDraft()}><PlusIcon /></button>
       </header>
       {viewAt && (
-        <ContextMenu at={viewAt} align="end" trigger={viewButton.current} label="群聊的列表选项" onClose={closeView}>
-          <MenuCheckboxItem label={`显示已归档（${archivedAll.length}）`} checked={showArchived} onSelect={() => setPreference('showArchivedDiscussions', !showArchived)} />
+        <ContextMenu at={viewAt} align="end" trigger={viewButton.current} label={t('SidebarDiscussions.groupChatListOptions')} onClose={closeView}>
+          <MenuCheckboxItem label={t('SidebarDiscussions.showArchived', { value1: archivedAll.length })} checked={showArchived} onSelect={() => setPreference('showArchivedDiscussions', !showArchived)} />
         </ContextMenu>
       )}
       <div id="sidebar-discussions" className="sidebar-section-content" hidden={collapsed}>
@@ -130,13 +131,9 @@ export function SidebarDiscussions() {
           <>
             <ul>{list.map(row)}</ul>
             {archived.length > 0 && (
-              <section className="conversation-group conversation-archive" aria-label="已归档的群聊">
+              <section className="conversation-group conversation-archive" aria-label={t('SidebarDiscussions.archivedGroupChats')}>
                 <h3 className="conversation-group-title">
-                  <button type="button" className="conversation-group-fold" aria-expanded={archivedOpen} onClick={() => setArchivedOpen(!archivedOpen)}>
-                    <ChevronDownIcon />
-                    已归档
-                    <span className="count">{archived.length}</span>
-                  </button>
+                  <button type="button" className="conversation-group-fold" aria-expanded={archivedOpen} onClick={() => setArchivedOpen(!archivedOpen)}>{tr('ConversationList.archived_718', { value1: <ChevronDownIcon />, value2: <span className="count">{archived.length}</span> })}</button>
                 </h3>
                 {archivedOpen && <ul>{archived.map(row)}</ul>}
               </section>
@@ -145,21 +142,21 @@ export function SidebarDiscussions() {
         )}
       </div>
       {menu && menuDiscussion && (
-        <ContextMenu at={menu.at} label={`群聊「${menuDiscussion.title}」的操作`} onClose={closeMenu}>
-          <MenuItem label={menuDiscussion.pinnedAt !== null ? '取消置顶' : '置顶'} icon={<PinIcon />} onSelect={pick(() => void setDiscussionPinned(menuDiscussion.id, menuDiscussion.pinnedAt === null))} />
-          <MenuItem label="重命名" icon={<PencilIcon />} onSelect={pick(() => setRenamingId(menuDiscussion.id))} />
-          <MenuItem label="用相同成员新建群聊" icon={<GroupChatIcon />} onSelect={pick(() => openDiscussionDraft(menuDiscussion))} />
+        <ContextMenu at={menu.at} label={t('SidebarDiscussions.actionsForGroupChat', { value1: menuDiscussion.title })} onClose={closeMenu}>
+          <MenuItem label={menuDiscussion.pinnedAt !== null ? t('ConversationActions.unpin') : t('ConversationActions.pin')} icon={<PinIcon />} onSelect={pick(() => void setDiscussionPinned(menuDiscussion.id, menuDiscussion.pinnedAt === null))} />
+          <MenuItem label={t('ConversationActions.rename')} icon={<PencilIcon />} onSelect={pick(() => setRenamingId(menuDiscussion.id))} />
+          <MenuItem label={t('SidebarDiscussions.newGroupChatWithTheSameMembers')} icon={<GroupChatIcon />} onSelect={pick(() => openDiscussionDraft(menuDiscussion))} />
           {archivable && (menuDiscussion.archivedAt !== null
-            ? <MenuItem label="取消归档" icon={<ArchiveIcon />} onSelect={pick(() => void archiveDiscussion(menuDiscussion.id, false))} />
+            ? <MenuItem label={t('ArchivedBar.unarchive')} icon={<ArchiveIcon />} onSelect={pick(() => void archiveDiscussion(menuDiscussion.id, false))} />
             : <MenuItem
-              label="归档"
+              label={t('ConversationActions.archive')}
               icon={<ArchiveIcon />}
-              hint={checkArchiveDiscussion(menuDiscussion) ? '等成员说完，或先暂停' : null}
+              hint={checkArchiveDiscussion(menuDiscussion) ? t('SidebarDiscussions.waitUntilMembersFinishOrPauseFirst') : null}
               disabled={checkArchiveDiscussion(menuDiscussion) !== null}
               onSelect={pick(() => void archiveDiscussion(menuDiscussion.id, true))}
             />)}
           <div className="menu-separator" role="separator" />
-          <MenuItem label="删除群聊" icon={<TrashIcon />} danger onSelect={pick(() => void removeDiscussion(menuDiscussion))} />
+          <MenuItem label={t('SidebarDiscussions.deleteGroupChat')} icon={<TrashIcon />} danger onSelect={pick(() => void removeDiscussion(menuDiscussion))} />
         </ContextMenu>
       )}
     </nav>

@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import type { Conversation } from '@antumi/protocol'
 
 export type ConversationState = { label: string; running: boolean; failed: boolean; detail: string | null }
@@ -17,14 +18,14 @@ export function conversationGlyph(conversation: Conversation, unseen: boolean): 
 // How long ago, as the list says it: short, and a date past a week.
 export function timeAgo(at: number, now: number): string {
   const minutes = Math.floor((now - at) / 60_000)
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes} 分钟前`
+  if (minutes < 1) return t('conversationState.justNow')
+  if (minutes < 60) return t('conversationState.minutesAgo', { minutes: minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} 小时前`
+  if (hours < 24) return t('conversationState.hoursAgo', { hours: hours })
   const days = Math.floor(hours / 24)
-  if (days < 7) return `${days} 天前`
+  if (days < 7) return t('conversationState.daysAgo', { days: days })
   const date = new Date(at)
-  return `${date.getMonth() + 1}月${date.getDate()}日`
+  return t('SourceInboxView.monthAndDay', { value1: date.getMonth() + 1, value2: date.getDate() })
 }
 
 // One wording for the list, the header and grouping. A conversation has no stopped state: its
@@ -32,11 +33,11 @@ export function timeAgo(at: number, now: number): string {
 // last failed, is all there is to say.
 export function conversationState(conversation: Conversation): ConversationState {
   const { sessionId, lastExit, chat } = conversation
-  if (conversation.starting) return { label: '启动中', running: true, failed: false, detail: '正在准备 Agent，完成后发送消息' }
-  if (sessionId && chat?.turn === 'awaiting') return { label: '等待确认', running: true, failed: false, detail: 'Agent 在等你允许或回答' }
-  if (sessionId && chat?.turn === 'running') return { label: '运行中', running: true, failed: false, detail: null }
+  if (conversation.starting) return { label: t('conversationState.starting'), running: true, failed: false, detail: t('conversationState.preparingAgentYourMessageWillBeSentAfterward') }
+  if (sessionId && chat?.turn === 'awaiting') return { label: t('conversationState.awaitingApproval'), running: true, failed: false, detail: t('attention.agentNeedsYourApprovalOrAnswer') }
+  if (sessionId && chat?.turn === 'running') return { label: t('ConversationList.running'), running: true, failed: false, detail: null }
   // A question the agent asked in passing, still open after its turn.
-  if (sessionId && chat?.turn === 'idle' && chat.request?.async) return { label: '等你回答', running: false, failed: false, detail: 'Agent 问了你一个问题，在对话里回答' }
-  if (!sessionId && lastExit?.code) return { label: '异常退出', running: false, failed: true, detail: `Agent 异常退出（code ${lastExit.code}），发消息会重新启动它` }
-  return { label: '空闲', running: false, failed: false, detail: '发消息就会接着聊' }
+  if (sessionId && chat?.turn === 'idle' && chat.request?.async) return { label: t('ChatWorking.waitingForYourAnswer'), running: false, failed: false, detail: t('conversationState.agentHasAQuestionForYouAnswerIn') }
+  if (!sessionId && lastExit?.code) return { label: t('SettingsPage.unexpectedExit'), running: false, failed: true, detail: t('attention.agentExitedUnexpectedlyCodeSendAMessageTo', { value1: lastExit.code }) }
+  return { label: t('SquadWorkPanel.idle'), running: false, failed: false, detail: t('conversationState.sendAMessageToContinue') }
 }

@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useCallback, useState } from 'react'
 import { setPreference, usePreferences } from '../preferences'
 import { chineseFamilies, cssFontFamily, systemFontFamilies } from '../system-fonts'
@@ -38,8 +39,8 @@ export function CjkFontPicker({ labelId, preference, title }: {
         value={family ? 'custom' : 'default'}
         onChange={choose}
         options={[
-          { value: 'default', label: '默认' },
-          { value: 'custom', label: '其他' }
+          { value: 'default', label: t('CjkFontPicker.default') },
+          { value: 'custom', label: t('ChatFontPicker.other') }
         ]}
       />
       {(family || open) && (
@@ -51,7 +52,7 @@ export function CjkFontPicker({ labelId, preference, title }: {
             aria-expanded={open}
             onClick={() => (open ? close() : openList())}
           >
-            <span style={family ? { fontFamily: cssFontFamily(family) } : undefined}>{family || '选择字体'}</span>
+            <span style={family ? { fontFamily: cssFontFamily(family) } : undefined}>{family || t('ChatFontPicker.chooseFont')}</span>
             <ChevronDownIcon />
           </button>
           {open && (

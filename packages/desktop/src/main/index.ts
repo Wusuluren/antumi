@@ -1,8 +1,10 @@
 import { readFile, realpath, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { extname, isAbsolute, join } from 'node:path'
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, nativeTheme, Notification, protocol, shell, type OpenDialogOptions } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, Notification, protocol, shell, type OpenDialogOptions } from 'electron'
 import { z } from 'zod'
+import { resolveUiLocale, UiLocale } from '@antumi/protocol'
+import { applicationMenu } from './application-menu'
 import { antumiPaths, readCoreEndpoint } from '@antumi/protocol/node'
 import { ensureBackend } from './backend'
 import { popupWindowOptions, RequestPopup } from './request-popup'
@@ -15,6 +17,8 @@ import { installedApps, openWith, type InstalledApp } from './open-with'
 const slot = new WindowSlot()
 let browserHost: BrowserHost | null = null
 let mainWindow: BrowserWindow | null = null
+let uiLocale: UiLocale = 'en'
+const uiText = (en: string, zh: string): string => uiLocale === 'en' ? en : zh
 const PRELOAD = join(__dirname, '../preload/index.js')
 
 // Files an agent wrote, served to the preview frames in the chat: antumi-preview://file/<path>.
@@ -171,11 +175,19 @@ ipcMain.handle('antumi:set-theme', (_event, theme: unknown) => {
   }
 })
 
+ipcMain.handle('antumi:set-language', (event, locale: unknown) => {
+  if (event.sender !== mainWindow?.webContents && !requestPopup.owns(event.sender)) return
+  const parsed = UiLocale.safeParse(locale)
+  if (!parsed.success || parsed.data === uiLocale) return
+  uiLocale = parsed.data
+  Menu.setApplicationMenu(Menu.buildFromTemplate(applicationMenu(uiLocale, process.platform)))
+})
+
 ipcMain.handle('antumi:pick-plugin', async (event, kind: unknown) => {
   if (kind !== 'directory' && kind !== 'zip') return null
   const options: OpenDialogOptions = kind === 'directory'
-    ? { title: '选择插件目录', properties: ['openDirectory'] }
-    : { title: '选择插件 ZIP', properties: ['openFile'], filters: [{ name: '插件 ZIP', extensions: ['zip'] }] }
+    ? { title: uiText('Choose plugin directory', '选择插件目录'), properties: ['openDirectory'] }
+    : { title: uiText('Choose plugin ZIP', '选择插件 ZIP'), properties: ['openFile'], filters: [{ name: uiText('Plugin ZIP', '插件 ZIP'), extensions: ['zip'] }] }
   const window = BrowserWindow.fromWebContents(event.sender)
   const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
   return result.canceled ? null : (result.filePaths[0] ?? null)
@@ -183,7 +195,7 @@ ipcMain.handle('antumi:pick-plugin', async (event, kind: unknown) => {
 
 ipcMain.handle('antumi:pick-folder', async (event, defaultPath: unknown, title: unknown) => {
   const options: OpenDialogOptions = {
-    title: typeof title === 'string' && title ? title : '选择代码仓库',
+    title: typeof title === 'string' && title ? title : uiText('Choose code repository', '选择代码仓库'),
     properties: ['openDirectory'],
     defaultPath: typeof defaultPath === 'string' ? defaultPath : undefined
   }
@@ -213,13 +225,13 @@ ipcMain.handle('antumi:reveal-file', async (_event, candidates: unknown) => {
 })
 
 ipcMain.handle('antumi:open-file', async (_event, file: unknown) => {
-  if (typeof file !== 'string' || !isAbsolute(file) || file.includes('\0')) return '文件路径无效'
+  if (typeof file !== 'string' || !isAbsolute(file) || file.includes('\0')) return uiText('Invalid file path', '文件路径无效')
   try {
     const info = await stat(file)
-    if (!info.isFile() && !info.isDirectory()) return '不支持打开此文件'
+    if (!info.isFile() && !info.isDirectory()) return uiText('This file cannot be opened', '不支持打开此文件')
     return await shell.openPath(file)
   } catch {
-    return `无法打开文件：${file}`
+    return uiText(`Cannot open file: ${file}`, `无法打开文件：${file}`)
   }
 })
 
@@ -238,14 +250,14 @@ ipcMain.handle('antumi:open-with-apps', async () => Promise.all((await foundApps
 
 // A file opened in one of those apps, named by its id: the renderer never names what runs.
 ipcMain.handle('antumi:open-with', async (_event, file: unknown, id: unknown) => {
-  if (typeof file !== 'string' || !isAbsolute(file) || file.includes('\0')) return '文件路径无效'
+  if (typeof file !== 'string' || !isAbsolute(file) || file.includes('\0')) return uiText('Invalid file path', '文件路径无效')
   const chosen = (await foundApps()).find((entry) => entry.id === id)
-  if (!chosen) return '找不到这个应用'
+  if (!chosen) return uiText('App not found', '找不到这个应用')
   try {
     await openWith(chosen, file)
     return ''
   } catch {
-    return `无法用 ${chosen.name} 打开：${file}`
+    return uiText(`Cannot open with ${chosen.name}: ${file}`, `无法用 ${chosen.name} 打开：${file}`)
   }
 })
 
@@ -308,6 +320,8 @@ void app.whenReady().then(() => {
   protocol.handle(PREVIEW_SCHEME, servePreview)
   // Windows names a notification's sender by this id, the installer's shortcut carries the same.
   if (process.platform === 'win32') app.setAppUserModelId('dev.antumi.desktop')
+  uiLocale = resolveUiLocale('system', app.getPreferredSystemLanguages())
+  Menu.setApplicationMenu(Menu.buildFromTemplate(applicationMenu(uiLocale, process.platform)))
   createWindow()
   // After the backend: ensureBackend may move the home, and the host file belongs in the one core reads.
   void ensureBackend().finally(() => startBrowserHost(slot, antumiPaths().browserHostFile).then(

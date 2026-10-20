@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { agentDescriptor, HOURLY_EVERY, nextOccurrence, RoutineAgent, type AgentKind, type ChatCatalog, type Routine, type RoutineFields, type RoutineSchedule } from '@antumi/protocol'
 import type { RoutineTemplate } from '../routine-templates'
@@ -17,13 +18,13 @@ import { Segmented } from './SettingsControls'
 import { useOccludesBrowser } from '../browser-occlusion'
 
 type Kind = RoutineSchedule['kind']
-const KIND_OPTIONS: readonly { value: Kind; label: string }[] = [
-  { value: 'daily', label: '每天' },
-  { value: 'weekdays', label: '工作日' },
-  { value: 'weekly', label: '每周' },
-  { value: 'hourly', label: '每小时' },
-  { value: 'manual', label: '手动' }
-]
+const KIND_OPTIONS: readonly { value: Kind; label: string }[] = localized(() => ([
+  { value: 'daily', label: t('RoutineEditor.daily') },
+  { value: 'weekdays', label: t('RoutineEditor.weekdays') },
+  { value: 'weekly', label: t('RoutineEditor.weekly') },
+  { value: 'hourly', label: t('RoutineEditor.hourly') },
+  { value: 'manual', label: t('RoutineEditor.manual') }
+]))
 // Monday first, as the week is read here.
 const WEEK = [1, 2, 3, 4, 5, 6, 0] as const
 
@@ -108,7 +109,7 @@ export function RoutineEditor({ routine, template = null, onClose }: { routine: 
     setBusy(true)
     dismissError()
     const fields: RoutineFields = {
-      title: title.trim() || text.trim().split('\n')[0]?.slice(0, 40) || '定时任务',
+      title: title.trim() || text.trim().split('\n')[0]?.slice(0, 40) || t('OverviewView.routines'),
       schedule,
       target: {
         kind: 'new',
@@ -151,17 +152,17 @@ export function RoutineEditor({ routine, template = null, onClose }: { routine: 
     >
       <div className="modal-body">
         <header className="modal-header">
-          <h2 id={`${ids}-heading`}>{routine ? '编辑定时任务' : '新建定时任务'}</h2>
-          <button type="button" className="icon-button modal-close" aria-label="关闭" onClick={onClose}>×</button>
+          <h2 id={`${ids}-heading`}>{routine ? t('RoutineEditor.editRoutine') : t('RoutineEditor.newRoutine')}</h2>
+          <button type="button" className="icon-button modal-close" aria-label={t('BackdropPicker.close')} onClick={onClose}>×</button>
         </header>
 
         <label className="modal-field">
-          <span className="modal-label">名称 <span className="modal-optional">[留空则取指令的第一行]</span></span>
-          <input ref={titleInput} className="input modal-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="比如：每日代码审查" maxLength={200} />
+          <span className="modal-label">{tr('RoutineEditor.name', { value1: <span className="modal-optional">{t('RoutineEditor.useTheFirstInstructionLineIfEmpty')}</span> })}</span>
+          <input ref={titleInput} className="input modal-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('RoutineEditor.forExampleDailyCodeReview')} maxLength={200} />
         </label>
 
         <div className="modal-field">
-          <span className="modal-label" id={`${ids}-prompt`}>每次运行时让 Agent 做什么</span>
+          <span className="modal-label" id={`${ids}-prompt`}>{t('RoutineEditor.whatAgentShouldDoEachRun')}</span>
           <div className="chat-input-card routine-editor-card" onDragOver={attached.handlers.onDragOver} onDrop={attached.handlers.onDrop}>
             <ChatImageStrip images={attached.images} uploading={attached.uploading} onRemove={attached.remove} />
             <textarea
@@ -170,7 +171,7 @@ export function RoutineEditor({ routine, template = null, onClose }: { routine: 
               value={text}
               onChange={(e) => setText(e.target.value)}
               onPaste={attached.handlers.onPaste}
-              placeholder="像在聊天里一样写指令。到点会新开一个会话，把这段话发给 Agent，无人值守地做完。"
+              placeholder={t('RoutineEditor.writeInstructionsAsInChatEachScheduledRun')}
               rows={4}
             />
             <div className="chat-options routine-editor-options">
@@ -181,7 +182,7 @@ export function RoutineEditor({ routine, template = null, onClose }: { routine: 
                 placeholder="agent"
                 options={[
                   ...installed.map((kind) => ({ value: kind, label: agentLabel(kind) })),
-                  { value: 'auto', label: AUTO_AGENT_LABEL, description: '到点时用有额度的那个' }
+                  { value: 'auto', label: AUTO_AGENT_LABEL(), description: t('RoutineEditor.useAnAgentWithAvailableQuotaWhenDue') }
                 ]}
                 disabled={busy}
                 onChange={(value) => {
@@ -208,18 +209,18 @@ export function RoutineEditor({ routine, template = null, onClose }: { routine: 
               <ProjectPicker projects={projectPaths.map((path) => ({ path, worktreePath: null }))} onChange={setProjectPaths} locked={busy} />
             </div>
           </div>
-          {agent === 'auto' && <span className="muted routine-editor-note">到点时用有额度的那个 Agent。</span>}
+          {agent === 'auto' && <span className="muted routine-editor-note">{t('RoutineEditor.useWhicheverAgentHasAvailableQuotaWhenDue')}</span>}
         </div>
 
         <div className="modal-field">
-          <span className="modal-label" id={`${ids}-when`}>什么时候</span>
+          <span className="modal-label" id={`${ids}-when`}>{t('RoutineEditor.when')}</span>
           <Segmented labelId={`${ids}-when`} value={kind} options={KIND_OPTIONS} onChange={setKind} />
           <div className="routine-editor-when">
             {(kind === 'daily' || kind === 'weekdays' || kind === 'weekly') && (
-              <input type="time" className="input routine-editor-time" aria-label="时间" value={time} onChange={(e) => setTime(e.target.value)} />
+              <input type="time" className="input routine-editor-time" aria-label={t('RoutineEditor.time')} value={time} onChange={(e) => setTime(e.target.value)} />
             )}
             {kind === 'weekly' && (
-              <div className="routine-editor-days" role="group" aria-label="星期">
+              <div className="routine-editor-days" role="group" aria-label={t('RoutineEditor.weekday')}>
                 {WEEK.map((day) => (
                   <button key={day} type="button" role="checkbox" aria-checked={days.includes(day)} className="weekday-toggle" onClick={() => toggleDay(day)}>
                     {WEEKDAY_LABEL[day]}
@@ -228,30 +229,24 @@ export function RoutineEditor({ routine, template = null, onClose }: { routine: 
               </div>
             )}
             {kind === 'hourly' && (
-              <label className="routine-editor-every">
-                每
-                <select className="input" value={every} onChange={(e) => setEvery(Number(e.target.value))}>
+              <label className="routine-editor-every">{tr('RoutineEditor.everyHoursStartingAtMidnight', { value1: <select className="input" value={every} onChange={(e) => setEvery(Number(e.target.value))}>
                   {HOURLY_EVERY.map((count) => <option key={count} value={count}>{count}</option>)}
-                </select>
-                小时，从 0 点起算
-              </label>
+                </select> })}</label>
             )}
             <span className="muted routine-editor-note">
-              {kind === 'manual' ? '只在你点「立即运行」时运行。' : next === null ? '选一个星期几。' : `下次：${scheduleTime(next, Date.now())}`}
+              {kind === 'manual' ? t('RoutineEditor.runsOnlyWhenYouClickRunNow') : next === null ? t('RoutineEditor.chooseAWeekday') : t('RoutineEditor.next', { value1: scheduleTime(next, Date.now()) })}
             </span>
           </div>
         </div>
 
-        <p className="muted routine-editor-mode">
-          以「{UNATTENDED_LABEL[mode]}」无人值守运行，<SettingsLink />。电脑睡着时到点不会运行，醒来后只补最近错过的一次。
-        </p>
+        <p className="muted routine-editor-mode">{tr('RoutineEditor.runsUnattendedInModeNothingRunsWhileThe', { value1: UNATTENDED_LABEL[mode], value2: <SettingsLink /> })}</p>
 
         {error && <p className="modal-error" role="alert">{error}</p>}
 
         <footer className="modal-footer">
-          <button type="button" className="button" onClick={onClose}>取消</button>
+          <button type="button" className="button" onClick={onClose}>{t('ChatCommandSettings.cancel')}</button>
           <button type="button" className="button primary modal-submit" disabled={!canSubmit} onClick={() => void submit()}>
-            {routine ? '保存' : '创建'}
+            {routine ? t('FileEditor.save') : t('RoutineEditor.create')}
             <kbd>{PRIMARY_KEY_LABEL}↵</kbd>
           </button>
         </footer>

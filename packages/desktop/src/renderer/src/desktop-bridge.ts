@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { z } from 'zod'
 import { AgentKind } from '@antumi/protocol'
 import type { ActionableTarget, Notice } from './attention'
@@ -14,6 +15,7 @@ declare global {
       // renderer ignores it.
       pickFolder(defaultPath?: string, title?: string): Promise<unknown>
       setTheme(theme: string): Promise<unknown>
+      setLanguage?(locale: string): Promise<unknown>
       // Absent from a main older than the renderer.
       revealFile?(candidates: string[]): Promise<unknown>
       openFile?(path: string): Promise<unknown>
@@ -71,7 +73,7 @@ export function canOpenFile(): boolean {
 
 export async function openFile(path: string): Promise<string | null> {
   const error = await window.antumi?.openFile?.(path)
-  return typeof error === 'string' ? error || null : '当前客户端不支持系统打开'
+  return typeof error === 'string' ? error || null : t('desktopBridge.thisClientCannotOpenFilesWithTheSystem')
 }
 
 const OpenWithApp = z.object({ id: z.string(), name: z.string(), kind: z.enum(['editor', 'terminal']), icon: z.string().nullable() })
@@ -90,7 +92,7 @@ export function installedOpenWithApps(): Promise<OpenWithApp[]> {
 
 export async function openWith(path: string, app: string): Promise<string | null> {
   const error = await window.antumi?.openWith?.(path, app)
-  return typeof error === 'string' ? error || null : '当前客户端不支持用其他应用打开'
+  return typeof error === 'string' ? error || null : t('desktopBridge.thisClientCannotOpenFilesWithOtherApps')
 }
 
 // Shows the first of the paths that exists in the system's file manager; which one, or null.

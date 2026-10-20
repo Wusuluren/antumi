@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { previewUrl } from '../file-links'
@@ -8,15 +9,15 @@ function ImagePreview({ path, src }: { path: string; src: string | undefined }) 
   const [failed, setFailed] = useState(false)
   const [viewing, setViewing] = useState(false)
   const name = path.split(/[\\/]/).at(-1) ?? path
-  return <div className="file-image" role="region" aria-label="图片预览" aria-busy={!size && !failed}>
-    {failed ? <p className="inspector-empty muted" role="status">图片无法预览：文件可能已被移动、损坏，或超过 32 MiB。</p> : <>
-      <button type="button" className="file-image-stage" aria-label={`查看大图 ${name}`} title="点击查看大图" disabled={!size} onClick={() => setViewing(true)}>
+  return <div className="file-image" role="region" aria-label={t('FileImage.imagePreview')} aria-busy={!size && !failed}>
+    {failed ? <p className="inspector-empty muted" role="status">{t('FileImage.cannotPreviewImageItMayHaveBeenMoved')}</p> : <>
+      <button type="button" className="file-image-stage" aria-label={t('FileImage.viewFullImage', { name: name })} title={t('FileImage.clickToViewFullImage')} disabled={!size} onClick={() => setViewing(true)}>
         {src && <img src={src} alt={name} draggable={false} decoding="async"
           onLoad={(event) => setSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
           onError={() => setFailed(true)} />}
-        {!size && <span className="muted" role="status">正在加载图片…</span>}
+        {!size && <span className="muted" role="status">{t('FileImage.loadingImage')}</span>}
       </button>
-      {size && <div className="file-image-info muted"><span>{size.width} × {size.height}</span><span>点击查看大图</span></div>}
+      {size && <div className="file-image-info muted"><span>{size.width} × {size.height}</span><span>{t('FileImage.clickToViewFullImage')}</span></div>}
     </>}
     {viewing && src && size && createPortal(<ImageViewer images={[{ id: src, name, src, ...size }]} index={0} onIndex={() => {}} onClose={() => setViewing(false)} />, document.body)}
   </div>

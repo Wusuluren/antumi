@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useEffect, useState, type ReactNode } from 'react'
 import { isDarkTheme, onThemeChange } from '../appearance'
 import { tokenColor } from '../css-color'
@@ -65,16 +66,16 @@ export function ChatDiagram({ source, code }: { source: string; code: ReactNode 
         <span className="chat-code-language">mermaid</span>
         <span className="chat-code-actions">
           {result && !failed && (
-            <button type="button" className="chat-diagram-toggle" onClick={() => setShowSource(!showSource)}>{showSource ? '看图' : '看源码'}</button>
+            <button type="button" className="chat-diagram-toggle" onClick={() => setShowSource(!showSource)}>{showSource ? t('ChatDiagram.viewImage') : t('ChatDiagram.viewSource')}</button>
           )}
-          <CopyButton text={source.replace(/\n$/, '')} label="复制代码" />
+          <CopyButton text={source.replace(/\n$/, '')} label={t('ChatContextMenu.copyCode')} />
         </span>
       </div>
       {result && 'svg' in result && !showSource
         // Mermaid's own sanitizer (securityLevel strict) has cleaned it.
-        ? <div className="chat-diagram-figure" role="img" aria-label="Mermaid 图表" dangerouslySetInnerHTML={{ __html: result.svg }} />
+        ? <div className="chat-diagram-figure" role="img" aria-label={t('ChatDiagram.mermaidDiagram')} dangerouslySetInnerHTML={{ __html: result.svg }} />
         : <>
-            {failed && <p className="chat-diagram-error">图表没能画出来，下面是源码：{result.error.split('\n')[0]}</p>}
+            {failed && <p className="chat-diagram-error">{tr('ChatDiagram.couldNotRenderDiagramSource', { value1: result.error.split('\n')[0] })}</p>}
             {code}
           </>}
     </div>

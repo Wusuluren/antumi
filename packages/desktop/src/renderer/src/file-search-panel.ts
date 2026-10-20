@@ -1,3 +1,4 @@
+import { t, useLocale } from './i18n'
 import { closeSearchPanel, findNext, findPrevious, getSearchQuery, replaceAll, replaceNext, SearchQuery, setSearchQuery } from '@codemirror/search'
 import type { EditorState } from '@codemirror/state'
 import { runScopeHandlers, type EditorView, type Panel, type ViewUpdate } from '@codemirror/view'
@@ -68,28 +69,31 @@ export function createFileSearchPanel(view: EditorView): Panel {
     return node
   }
 
-  const search = element('input', 'file-search-input', { type: 'text', placeholder: '搜索', 'aria-label': '搜索', 'main-field': 'true' })
-  const replace = element('input', 'file-search-input', { type: 'text', placeholder: '替换', 'aria-label': '替换' })
+  const search = element('input', 'file-search-input', { type: 'text', placeholder: t('chatTools.search'), 'aria-label': t('chatTools.search'), 'main-field': 'true' })
+  const replace = element('input', 'file-search-input', { type: 'text', placeholder: t('fileSearchPanel.replace'), 'aria-label': t('fileSearchPanel.replace') })
   search.oninput = commit
   replace.oninput = commit
-  const caseToggle = toggle('Aa', '区分大小写')
-  const wordToggle = toggle('ab', '全词匹配')
-  const regexpToggle = toggle('.*', '正则表达式')
+  const caseToggle = toggle('Aa', t('fileSearchPanel.matchCase'))
+  const wordToggle = toggle('ab', t('fileSearchPanel.wholeWord'))
+  const regexpToggle = toggle('.*', t('fileSearchPanel.regularExpression'))
   wordToggle.classList.add('file-search-word')
   const count = element('span', 'file-search-count', { role: 'status', 'aria-live': 'polite' })
   const searchField = element('div', 'file-search-field', {}, [search, caseToggle, wordToggle, regexpToggle])
 
+  const replaceButton = button('file-search-action', t('fileSearchPanel.replace'), () => replaceNext(view))
+  const replaceAllButton = button('file-search-action', t('fileSearchPanel.replaceAll'), () => replaceAll(view))
+  const previousButton = iconButton('up', t('fileSearchPanel.previousShiftEnter'), () => findPrevious(view))
+  const nextButton = iconButton('down', t('fileSearchPanel.nextEnter'), () => findNext(view))
+  const closeButton = iconButton('close', t('fileSearchPanel.closeEsc'), () => closeSearchPanel(view))
+
   const replaceRow = element('div', 'file-search-row', {}, [
     element('div', 'file-search-field', {}, [replace]),
-    button('file-search-action', '替换', () => replaceNext(view)),
-    button('file-search-action', '全部替换', () => replaceAll(view))
+    replaceButton, replaceAllButton
   ])
-  const dom = element('div', 'file-search', { role: 'search', 'aria-label': '搜索文件内容' }, [
+  const dom = element('div', 'file-search', { role: 'search', 'aria-label': t('FileEditor.searchFileContents') }, [
     element('div', 'file-search-row', {}, [
       searchField, count,
-      iconButton('up', '上一个（Shift+Enter）', () => findPrevious(view)),
-      iconButton('down', '下一个（Enter）', () => findNext(view)),
-      iconButton('close', '关闭（Esc）', () => closeSearchPanel(view))
+      previousButton, nextButton, closeButton
     ]),
     replaceRow
   ])
@@ -111,15 +115,35 @@ export function createFileSearchPanel(view: EditorView): Panel {
   const recount = (state: EditorState) => {
     const result = query.search ? matchCount(state, query) : { current: 0, total: 0 }
     searchField.dataset.invalid = String(result === null)
-    count.textContent = result === null ? '无效正则' : !query.search ? '' : result.total > COUNT_LIMIT ? `${COUNT_LIMIT}+` : `${result.current} / ${result.total}`
+    count.textContent = result === null ? t('fileSearchPanel.invalidExpression') : !query.search ? '' : result.total > COUNT_LIMIT ? `${COUNT_LIMIT}+` : `${result.current} / ${result.total}`
   }
+  const localize = () => {
+    search.placeholder = t('chatTools.search')
+    search.setAttribute('aria-label', t('chatTools.search'))
+    replace.placeholder = t('fileSearchPanel.replace')
+    replace.setAttribute('aria-label', t('fileSearchPanel.replace'))
+    dom.setAttribute('aria-label', t('FileEditor.searchFileContents'))
+    replaceButton.textContent = t('fileSearchPanel.replace')
+    replaceAllButton.textContent = t('fileSearchPanel.replaceAll')
+    for (const [node, label] of [
+      [caseToggle, t('fileSearchPanel.matchCase')], [wordToggle, t('fileSearchPanel.wholeWord')],
+      [regexpToggle, t('fileSearchPanel.regularExpression')], [previousButton, t('fileSearchPanel.previousShiftEnter')],
+      [nextButton, t('fileSearchPanel.nextEnter')], [closeButton, t('fileSearchPanel.closeEsc')]
+    ] as const) {
+      node.setAttribute('aria-label', label)
+      node.setAttribute('data-tooltip', label)
+    }
+    recount(view.state)
+  }
+  let unsubscribe = () => {}
   show(view.state)
   recount(view.state)
 
   return {
     dom,
     top: true,
-    mount: () => search.select(),
+    mount: () => { search.select(); unsubscribe = useLocale.subscribe(localize) },
+    destroy: () => unsubscribe(),
     update: (update: ViewUpdate) => {
       const next = getSearchQuery(update.state)
       // A query typed here is already in `query`; only one set from outside needs showing.

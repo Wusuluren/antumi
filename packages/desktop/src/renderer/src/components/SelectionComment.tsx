@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { addQuote, useQuotes } from '../chat-quotes'
@@ -176,8 +177,8 @@ export function SelectionComment({ conversationId, container, region, sourceOf, 
             className="selection-comment-input"
             autoFocus={focus}
             value={comment}
-            placeholder="评论这段…"
-            aria-label="评论这段，回车加入引用"
+            placeholder={t('SelectionComment.commentOnThisPassage')}
+            aria-label={t('SelectionComment.commentOnThisPassageEnterToAddQuote')}
             onChange={(event) => setComment(event.target.value)}
             onKeyDown={(event) => {
               if (event.nativeEvent.isComposing) return
@@ -190,16 +191,16 @@ export function SelectionComment({ conversationId, container, region, sourceOf, 
               }
             }}
           />
-          <button type="button" className="selection-comment-save" aria-label="加入引用" data-tooltip="加入引用（Enter）" data-tooltip-side="top-end" onMouseDown={(event) => event.preventDefault()} onClick={add}>
+          <button type="button" className="selection-comment-save" aria-label={t('SelectionComment.addQuote')} data-tooltip={t('SelectionComment.addQuoteEnter')} data-tooltip-side="top-end" onMouseDown={(event) => event.preventDefault()} onClick={add}>
             ↵
           </button>
         </div>,
         document.body
       )}
       {menu && (
-        <ContextMenu at={menu.at} label="所选文字" onClose={closeMenu}>
+        <ContextMenu at={menu.at} label={t('SelectionComment.selectedText')} onClose={closeMenu}>
           <MenuItem
-            label="复制"
+            label={t('CopyButton.copy')}
             onSelect={() => {
               closeMenu()
               void navigator.clipboard.writeText(menu.text).catch(() => {})

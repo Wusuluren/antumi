@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useRef, useState } from 'react'
 import { checkEditAdditionalProjects, MAX_TASK_REPOS, type Conversation } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
@@ -9,9 +10,9 @@ import { parentDir, projectName } from './ProjectPicker'
 
 // Why the additional projects cannot change right now, as the menu says it.
 function blockerNote(conversation: Conversation, supported: boolean): string | null {
-  if (!supported) return '这个 core 还不能改会话的项目'
+  if (!supported) return t('ChatProjects.thisCoreCannotChangeConversationProjectsYet')
   const blocker = checkEditAdditionalProjects(conversation)
-  if (blocker === 'task-conversation') return '任务的项目在任务详情里改'
+  if (blocker === 'task-conversation') return t('ChatProjects.changeTaskProjectsInTaskDetails')
   return blocker ? reasonText(blocker, blocker) : null
 }
 
@@ -73,7 +74,7 @@ export function ChatProjects({ conversation }: { conversation: Conversation }) {
     await apply(picked && !base.includes(picked) ? [...base, picked] : base)
   }
   // The agent is given its directories at launch.
-  const footer = note ?? (conversation.sessionId !== null ? '菜单关上后生效，Agent 会在同一个会话里重启，拿到新的目录' : null)
+  const footer = note ?? (conversation.sessionId !== null ? t('ChatProjects.appliesWhenTheMenuClosesAgentRestartsIn') : null)
   return (
     <>
       <button
@@ -82,8 +83,8 @@ export function ChatProjects({ conversation }: { conversation: Conversation }) {
         className="chat-projects"
         aria-haspopup="menu"
         aria-expanded={at !== null}
-        aria-label={`会话的项目：${conversation.projectPaths.map(projectName).join('、')}`}
-        title={[`主项目：${primary}`, ...extras].join('\n')}
+        aria-label={t('ChatProjects.conversationProjects', { value1: conversation.projectPaths.map(projectName).join('、') })}
+        title={[t('ChatProjects.primaryProject', { primary: primary }), ...extras].join('\n')}
         disabled={busy}
         onClick={() => (at ? close() : void open())}
       >
@@ -94,15 +95,15 @@ export function ChatProjects({ conversation }: { conversation: Conversation }) {
       </button>
       <span className="chat-dock-sep" aria-hidden="true" />
       {at && (
-        <ContextMenu at={at} above trigger={button.current} label="会话的项目" onClose={close}>
-          <div className="chat-picker-heading">主项目 · 会话开始后固定</div>
+        <ContextMenu at={at} above trigger={button.current} label={t('ChatProjects.conversationProjects_445')} onClose={close}>
+          <div className="chat-picker-heading">{t('ChatProjects.primaryProjectFixedAfterConversationStarts')}</div>
           <div className="menu-item chat-projects-item chat-projects-primary" title={primary}>
             <FolderIcon />
             <span className="menu-item-name">{projectName(primary)}</span>
             <span className="menu-item-path mono">{primary}</span>
           </div>
           <div className="menu-separator" role="separator" />
-          <div className="chat-picker-heading">额外项目</div>
+          <div className="chat-picker-heading">{t('ChatProjects.additionalProjects')}</div>
           {choices.map((each) => {
             const on = ticked.includes(each)
             return (
@@ -112,7 +113,7 @@ export function ChatProjects({ conversation }: { conversation: Conversation }) {
                 role="menuitemcheckbox"
                 aria-checked={on}
                 className="menu-item chat-projects-item"
-                title={note ?? (on ? `${each}\n点一下移除` : each)}
+                title={note ?? (on ? t('ChatProjects.clickToRemove', { each: each }) : each)}
                 disabled={note !== null || busy || (!on && full)}
                 onClick={() => tick(on ? ticked.filter((other) => other !== each) : [...ticked, each])}
               >
@@ -126,12 +127,10 @@ export function ChatProjects({ conversation }: { conversation: Conversation }) {
           {note === null && canPickFolder() && (
             <>
               <div className="menu-separator" role="separator" />
-              <button type="button" role="menuitem" className="menu-item" disabled={full || busy} onClick={() => void browse()}>
-                选择文件夹…
-              </button>
+              <button type="button" role="menuitem" className="menu-item" disabled={full || busy} onClick={() => void browse()}>{t('ChatProjects.chooseFolder')}</button>
             </>
           )}
-          {note === null && choices.length === 0 && !canPickFolder() && <p className="menu-note">没有最近用过的项目</p>}
+          {note === null && choices.length === 0 && !canPickFolder() && <p className="menu-note">{t('ChatProjects.noRecentProjects')}</p>}
           {footer && <p className="menu-note">{footer}</p>}
         </ContextMenu>
       )}

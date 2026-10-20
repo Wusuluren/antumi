@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useState } from 'react'
 import { quotaVerdict, type ChatItem, type Conversation } from '@antumi/protocol'
 import { otherInstalledAgent, useInstalledAgents } from '../installed-agents'
@@ -19,14 +20,14 @@ export function usageLimitOpen(item: UsageLimitItem, now: number): boolean {
 export function usageLimitText(item: UsageLimitItem, now: number): string {
   switch (item.status) {
     case 'retrying':
-      return '额度已用完 · 正在继续…'
+      return t('ChatUsageLimit.quotaExhaustedResuming')
     case 'continued':
-      return item.continuedAt === null ? '额度已用完 · 已继续' : `额度已用完 · 已于${formatClock(item.continuedAt, now)} 继续`
+      return item.continuedAt === null ? t('ChatUsageLimit.quotaExhaustedResumed') : t('ChatUsageLimit.quotaExhaustedResumedAt', { value1: formatClock(item.continuedAt, now) })
     case 'waiting':
-      if (item.autoContinue && item.continueAt !== null) return `额度已用完 · 将在${formatClock(item.continueAt, now)} 自动继续`
+      if (item.autoContinue && item.continueAt !== null) return t('ChatUsageLimit.quotaExhaustedAutoResumeAt', { value1: formatClock(item.continueAt, now) })
   }
-  if (item.resetsAt !== null && item.resetsAt <= now) return '额度已恢复'
-  return item.resetsAt === null ? '额度已用完' : `额度已用完 · ${formatClock(item.resetsAt, now)} 恢复`
+  if (item.resetsAt !== null && item.resetsAt <= now) return t('ChatUsageLimit.quotaRestored')
+  return item.resetsAt === null ? t('ChatUsageLimit.quotaExhausted') : t('ChatUsageLimit.quotaExhaustedResets', { value1: formatClock(item.resetsAt, now) })
 }
 
 export function ChatUsageLimitLine({ item }: { item: UsageLimitItem }) {
@@ -74,39 +75,34 @@ export function ChatUsageLimitCard({ conversation, item }: { conversation: Conve
     setBusy(false)
   }
   const detail = retrying
-    ? '正在重试…'
+    ? t('ChatUsageLimit.retrying')
     : takenOver
-      ? `将按预约${takenOver.notBefore !== null ? `在${scheduleTime(takenOver.notBefore, now)} ` : '在额度恢复后'}继续，以「${UNATTENDED_LABEL[mode]}」无人值守运行`
+      ? t('ChatUsageLimit.willResumeAsScheduledUnattendedInMode', { value1: takenOver.notBefore !== null ? t('ChatUsageLimit.at', { value1: scheduleTime(takenOver.notBefore, now) }) : t('ChatUsageLimit.whenQuotaResets'), value2: UNATTENDED_LABEL[mode] })
     : item.autoContinue && item.continueAt !== null
-      ? `将在${formatClock(item.continueAt, now)} 自动继续`
+      ? t('ChatUsageLimit.willAutoResumeAt', { value1: formatClock(item.continueAt, now) })
       : item.resetsAt !== null
-        ? `额度将在${formatClock(item.resetsAt, now)} 恢复`
-        : '还不知道额度什么时候恢复'
+        ? t('ChatUsageLimit.quotaResets', { value1: formatClock(item.resetsAt, now) })
+        : t('ChatUsageLimit.quotaResetTimeIsUnknown')
   return (
     <div className="chat-request chat-usage-limit" role="status">
-      <div className="chat-request-title">会话额度已用完</div>
+      <div className="chat-request-title">{t('ChatUsageLimit.conversationQuotaExhausted')}</div>
       <p className="chat-request-detail muted">{detail}</p>
-      {item.error && !retrying && <p className="chat-request-detail chat-usage-limit-error">上次没能继续：{item.error}</p>}
+      {item.error && !retrying && <p className="chat-request-detail chat-usage-limit-error">{tr('ChatUsageLimit.lastResumeFailed', { value1: item.error })}</p>}
       <div className="chat-request-actions">
         {takenOver ? (
-          <button type="button" className="link-button settings-link" onClick={() => setSchedulesOpen(true)}>管理预约</button>
+          <button type="button" className="link-button settings-link" onClick={() => setSchedulesOpen(true)}>{t('ChatDock.manageSchedule')}</button>
         ) : (
-          <label className="conversation-confirm">
-            <input type="checkbox" checked={wanted ?? item.autoContinue} disabled={retrying} onChange={(event) => void toggle(event.target.checked)} />
-            额度恢复后自动继续
-          </label>
+          <label className="conversation-confirm">{tr('ChatUsageLimit.autoResumeWhenQuotaResets', { value1: <input type="checkbox" checked={wanted ?? item.autoContinue} disabled={retrying} onChange={(event) => void toggle(event.target.checked)} /> })}</label>
         )}
         {!takenOver && item.runId && item.autoContinue && item.status === 'waiting' && (
-          <button type="button" className="link-button" onClick={() => setSchedulesOpen(true)}>在预约页查看</button>
+          <button type="button" className="link-button" onClick={() => setSchedulesOpen(true)}>{t('ChatUsageLimit.viewInSchedules')}</button>
         )}
         <span className="chat-dock-spacer" />
         {handoff && other && (
-          <button type="button" className="button" disabled={retrying} data-tooltip={`移交给 ${agentLabel(other)}`} onClick={handoff}>
-            移交给 {agentLabel(other)}
-          </button>
+          <button type="button" className="button" disabled={retrying} data-tooltip={t('ChatComposer.handOffTo', { value1: agentLabel(other) })} onClick={handoff}>{tr('ChatComposer.handOffTo', { value1: agentLabel(other) })}</button>
         )}
         <button type="button" className="button primary" disabled={retrying} onClick={() => void retry()}>
-          {retrying ? '正在重试…' : '立即重试'}
+          {retrying ? t('ChatUsageLimit.retrying') : t('ChatUsageLimit.retryNow')}
         </button>
       </div>
     </div>

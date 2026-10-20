@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { checkTaskHandoff, ChatPermissionMode, type AgentKind, type ChatModel, type Conversation, type TaskLaunchOptions } from '@antumi/protocol'
 import { resolveModel, useAgentCatalog } from '../agent-models'
 import { cancelHandoff, chooseHandoffMode, chooseHandoffModel, proposeHandoff, useHandoffs } from '../chat-handoff'
@@ -71,7 +72,7 @@ export function useComposerHandoff(conversation: Conversation): ComposerHandoff 
   }
   const send = async (note: string) => {
     if (!target || found) return false
-    if (stopsRunning && !window.confirm(`停止当前的 ${agentLabel(from)}，然后交给 ${agentLabel(target.agent)} 接着做？`)) return false
+    if (stopsRunning && !window.confirm(t('ChatHandoff.stopTheCurrentAndHandOffTo', { value1: agentLabel(from), value2: agentLabel(target.agent) }))) return false
     if (!confirmQuota(target.agent, modelText(target.model))) return false
     const result = task
       ? await perform((rpc) => rpc.call('tasks.handoff', { id: task.id, agent: target.agent, note, ...startOptions(), ...target.options }))
@@ -111,9 +112,9 @@ export function HandoffModePicker({ conversationId, handoff }: { conversationId:
   if (!target?.mode) return null
   return (
     <ChatPicker
-      label="权限模式"
+      label={t('ChatHandoff.permissionMode')}
       value={target.mode}
-      placeholder="权限模式"
+      placeholder={t('ChatHandoff.permissionMode')}
       options={modeOptions(target.agent, target.modes)}
       tone={modeTone(target.mode)}
       onChange={(value) => {

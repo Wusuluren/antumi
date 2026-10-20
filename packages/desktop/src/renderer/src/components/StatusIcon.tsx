@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useId, useState } from 'react'
 import type { TaskStatus } from '@antumi/protocol'
 import { STATUS_HINT, STATUS_LABEL } from '../labels'
@@ -97,8 +98,8 @@ export function StatusIcon({ status, waiting = 0, decorative = false }: { status
       </svg>
     )
   }
-  const label = blocked ? `${STATUS_LABEL[status]}，等待 ${waiting} 个任务` : STATUS_LABEL[status]
-  const hint = blocked ? `等待 ${waiting} 个任务完成` : STATUS_HINT[status]
+  const label = blocked ? t('DependencyPicker.waitingForTasks', { value1: STATUS_LABEL[status], waiting: waiting }) : STATUS_LABEL[status]
+  const hint = blocked ? t('StatusIcon.waitingForTasksToFinish', { waiting: waiting }) : STATUS_HINT[status]
   return (
     <svg className="status-icon" data-status={status} data-blocked={blocked || undefined} viewBox="0 0 16 16" role="img" aria-label={label}>
       <title>{`${STATUS_LABEL[status]} · ${hint}`}</title>

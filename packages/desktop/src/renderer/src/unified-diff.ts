@@ -1,3 +1,4 @@
+import { t } from './i18n'
 // How a line of a diff reads, for its colour, told by its text alone.
 export function lineClass(line: string): string {
   if (line.startsWith('+++') || line.startsWith('---')) return 'diff-meta'
@@ -81,8 +82,8 @@ function span(lines: readonly number[]): string {
 export function diffQuoteText(path: string, rows: readonly DiffRow[]): string {
   const kept = rows.flatMap((row) => (row.newLine === null ? [] : [row.newLine]))
   const removed = rows.flatMap((row) => (row.oldLine === null ? [] : [row.oldLine]))
-  const location = kept.length > 0 ? `${path}:${span(kept)}` : `${path}（删除前第 ${span(removed)} 行）`
+  const location = kept.length > 0 ? `${path}:${span(kept)}` : t('unifiedDiff.lineBeforeDeletion', { path: path, value2: span(removed) })
   const code = rows.slice(0, MAX_QUOTED_LINES).map((row) => row.text)
-  const more = rows.length > MAX_QUOTED_LINES ? [`…（共 ${rows.length} 行）`] : []
+  const more = rows.length > MAX_QUOTED_LINES ? [t('unifiedDiff.linesTotal', { value1: rows.length })] : []
   return [location, ...code, ...more].join('\n')
 }

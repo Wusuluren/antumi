@@ -1,8 +1,9 @@
+import { localized, t } from './i18n'
 export type UtilityPanelKind = 'browser' | 'terminal' | 'ports'
 export type UtilityPanelsOpen = Record<UtilityPanelKind, boolean>
 
 export const UTILITY_PANELS: readonly UtilityPanelKind[] = ['browser', 'terminal', 'ports']
-export const UTILITY_PANEL_NAME: Record<UtilityPanelKind, string> = { browser: '浏览器', terminal: '终端', ports: '端口' }
+export const UTILITY_PANEL_NAME: Record<UtilityPanelKind, string> = localized(() => ({ browser: t('BrowserSidePanel.browser'), terminal: t('SettingsPage.terminal'), ports: t('PortsPanel.ports') }))
 // The dock holds two, one over the other; a third opening puts the top one away.
 export const MAX_UTILITY_PANELS = 2
 

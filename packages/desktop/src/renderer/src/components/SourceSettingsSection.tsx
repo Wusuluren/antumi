@@ -1,5 +1,6 @@
+import { getLocale, t, tr } from '../i18n'
 import { useEffect, useId, useState, type FormEvent } from 'react'
-import { DEFAULT_INSTANCE, type SettingField, type SourceDescriptor } from '@antumi/protocol'
+import { DEFAULT_INSTANCE, translatedText, type SettingField, type SourceDescriptor } from '@antumi/protocol'
 import { perform, startLogin, useCore } from '../core-store'
 import { inboxKey } from '../source-inboxes'
 import { sourceProblemText } from '../labels'
@@ -16,6 +17,7 @@ function FieldInput({
   value: string
   onChange: (value: string) => void
 }) {
+  field = translatedText(field, getLocale())
   const className = field.mono ? 'input mono' : 'input'
   if (field.type === 'textarea') {
     return (
@@ -36,7 +38,7 @@ function FieldInput({
       <select id={id} className={className} value={value} onChange={(e) => onChange(e.target.value)}>
         {(field.options ?? []).map((option) => (
           <option key={option.value} value={option.value}>
-            {option.label}
+            {translatedText(option, getLocale()).label}
           </option>
         ))}
       </select>
@@ -110,14 +112,16 @@ export function SourceSettingsSection({ source }: { source: SourceDescriptor }) 
     )
 
   const status = !credential.configured
-    ? '未登录'
+    ? t('InstalledAgentsSettings.notSignedIn')
     : credential.source === 'env'
-      ? '已登录（来自环境变量）'
-      : `已登录：${credential.account ?? '未知账号'}`
+      ? t('SourceSettingsSection.signedInFromEnvironmentVariables')
+      : t('SourceLoginDialog.signedIn', { value1: credential.account ?? t('SourceSettingsSection.unknownAccount') })
 
   return (
     <form className="settings-form" onSubmit={onSubmit}>
-      {source.settings.map((field) => (
+      {source.settings.map((original) => {
+        const field = translatedText(original, getLocale())
+        return (
         <div key={field.key} className="settings-field">
           <label className="settings-field-label" htmlFor={`${ids}-${field.key}`}>
             {field.label}
@@ -130,31 +134,27 @@ export function SourceSettingsSection({ source }: { source: SourceDescriptor }) 
           />
           {field.hint && <p className="settings-field-hint">{field.hint}</p>}
           {field.bindsCredential && credential.source === 'store' && (
-            <p className="settings-field-hint">修改后需要重新登录，保存的凭据不会发往新的地址。</p>
+            <p className="settings-field-hint">{t('SourceSettingsSection.changingThisRequiresSigningInAgainSavedCredentials')}</p>
           )}
         </div>
-      ))}
+      )})}
 
       <div className="source-account">
         <div className="source-account-text">
-          <span className="settings-field-label">账号</span>
+          <span className="settings-field-label">{t('SourceSettingsSection.account')}</span>
           <span className="source-account-status" data-connected={credential.configured || undefined}>
             {status}
           </span>
           {credential.configured && inbox?.problem && (
-            <span className="settings-status" role="status">
-              同步失败：{sourceProblemText(inbox.problem)}
-            </span>
+            <span className="settings-status" role="status">{tr('SourceSettingsSection.syncFailed', { value1: sourceProblemText(inbox.problem) })}</span>
           )}
         </div>
         {credential.source === 'store' && (
-          <button type="button" className="button ghost" onClick={disconnect}>
-            退出登录
-          </button>
+          <button type="button" className="button ghost" onClick={disconnect}>{t('SourceSettingsSection.signOut')}</button>
         )}
         {credential.source !== 'env' && (
           <button type="button" className="button" disabled={busy} onClick={() => void connect()}>
-            {credential.configured ? '重新登录' : '登录'}
+            {credential.configured ? t('SourceSettingsSection.signInAgain') : t('SettingsPage.signIn')}
           </button>
         )}
       </div>
@@ -163,11 +163,11 @@ export function SourceSettingsSection({ source }: { source: SourceDescriptor }) 
         {hasSaved && (
           <div className="source-enabled">
             <Toggle labelId={`${ids}-enabled`} checked={instance.enabled} onChange={setEnabled} />
-            <span id={`${ids}-enabled`}>同步到收件箱</span>
+            <span id={`${ids}-enabled`}>{t('SourceSettingsSection.syncToInbox')}</span>
           </div>
         )}
         <button type="submit" className="button primary" disabled={busy || !dirty}>
-          {busy ? '正在保存…' : '保存设置'}
+          {busy ? t('SourceSettingsSection.saving') : t('SourceSettingsSection.saveSettings')}
         </button>
       </div>
     </form>

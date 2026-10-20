@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useCallback, useRef, useState } from 'react'
 import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
 import { ListIcon } from './icons'
@@ -17,8 +18,8 @@ export function ChatMessageList({ messages, onJump }: { messages: readonly SentM
         ref={button}
         type="button"
         className="tool-button"
-        aria-label="你发过的消息"
-        data-tooltip="你发过的消息"
+        aria-label={t('ChatMessageList.yourSentMessages')}
+        data-tooltip={t('ChatMessageList.yourSentMessages')}
         aria-haspopup="menu"
         aria-expanded={at !== null}
         onClick={() => {
@@ -30,12 +31,12 @@ export function ChatMessageList({ messages, onJump }: { messages: readonly SentM
         <ListIcon />
       </button>
       {at && (
-        <ContextMenu at={at} align="end" above trigger={button.current} label="你发过的消息" onClose={close}>
-          <div className="chat-picker-heading">你发过的消息</div>
+        <ContextMenu at={at} align="end" above trigger={button.current} label={t('ChatMessageList.yourSentMessages')} onClose={close}>
+          <div className="chat-picker-heading">{t('ChatMessageList.yourSentMessages')}</div>
           {[...messages].reverse().map((message, index) => (
             <MenuItem
               key={message.key}
-              label={`${messages.length - index}. ${message.text.replace(/\s+/g, ' ').trim() || '（只有图片）'}`}
+              label={`${messages.length - index}. ${message.text.replace(/\s+/g, ' ').trim() || t('ChatComposer.imagesOnly')}`}
               onSelect={() => {
                 close()
                 onJump(message.key)

@@ -1,29 +1,30 @@
+import { localized, t } from './i18n'
 import type { ApprovalChoice, ApprovalGrant, ApprovalScope, ChatItem } from '@antumi/protocol'
 import { modeLabel } from './components/ChatOptionsBar'
 
 type ApprovalItem = Extract<ChatItem, { kind: 'approval' }>
 
 // How long, and where, what an answer remembers holds: said before what it is.
-const SCOPE_LEAD: Record<ApprovalScope, string> = {
-  run: '这次运行内',
-  local: '本项目以后',
-  project: '本项目以后',
-  user: '所有项目以后',
-  agent: '以后'
-}
+const SCOPE_LEAD: Record<ApprovalScope, string> = localized(() => ({
+  run: t('approvalChoiceText.thisRun'),
+  local: t('approvalChoiceText.futureRunsInThisProject'),
+  project: t('approvalChoiceText.futureRunsInThisProject'),
+  user: t('approvalChoiceText.futureRunsInAllProjects'),
+  agent: t('approvalChoiceText.futureRuns')
+}))
 // Where it is kept, so the user knows what else it reaches and where to take it back.
-const SCOPE_NOTE: Record<ApprovalScope, string> = {
-  run: 'Agent 停下或重启后就失效',
-  local: '写进本项目的 .claude/settings.local.json（Git 忽略），之后的会话也生效',
-  project: '写进本项目的 .claude/settings.json，会随仓库提交',
-  user: '写进 ~/.claude/settings.json，所有项目都生效',
-  agent: '记进 Agent 自己的规则，之后的会话也生效'
-}
+const SCOPE_NOTE: Record<ApprovalScope, string> = localized(() => ({
+  run: t('approvalChoiceText.expiresWhenTheAgentStopsOrRestarts'),
+  local: t('approvalChoiceText.savedToThisProjectSClaudeSettingsLocal'),
+  project: t('approvalChoiceText.savedToThisProjectSClaudeSettingsJson'),
+  user: t('approvalChoiceText.savedToClaudeSettingsJsonForAllProjects'),
+  agent: t('approvalChoiceText.savedInTheAgentSRulesIncludingFuture')
+}))
 const SHOWN = 3
 
 function listed(values: readonly string[]): string {
   const shown = values.slice(0, SHOWN).join('、')
-  return values.length > SHOWN ? `${shown} 等 ${values.length} 项` : shown
+  return values.length > SHOWN ? t('approvalChoiceText.andItemsInTotal', { shown: shown, value2: values.length }) : shown
 }
 
 function grantAction(grant: ApprovalGrant): string {
@@ -32,24 +33,24 @@ function grantAction(grant: ApprovalGrant): string {
     case 'rules': {
       // Command prefixes, as Antumi writes them for Bash, read as Codex's do: what they start with.
       const prefixes = grant.values.map((value) => /^Bash\((.+?)(?::\*| \*)\)$/.exec(value)?.[1])
-      if (grant.behavior === 'allow' && prefixes.every((prefix) => prefix !== undefined)) return `以 ${listed(prefixes.map(String))} 开头的命令不再问`
-      return grant.behavior === 'deny' ? `都不许用 ${what}` : grant.behavior === 'ask' ? `${what} 每次都先问` : `${what} 不再问`
+      if (grant.behavior === 'allow' && prefixes.every((prefix) => prefix !== undefined)) return t('approvalChoiceText.donTAskForCommandsStartingWith', { value1: listed(prefixes.map(String)) })
+      return grant.behavior === 'deny' ? t('approvalChoiceText.neverAllow', { what: what }) : grant.behavior === 'ask' ? t('approvalChoiceText.alwaysAskBefore', { what: what }) : t('approvalChoiceText.donTAskBefore', { what: what })
     }
     // Only Claude suggests switching mode.
     case 'mode':
-      return `改用「${modeLabel('claude', grant.values[0] ?? '')}」模式`
+      return t('approvalChoiceText.switchToMode', { value1: modeLabel('claude', grant.values[0] ?? '') })
     case 'directories':
-      return `访问 ${what} 不再问`
+      return t('approvalChoiceText.donTAskToAccess', { what: what })
     case 'command':
-      return '这条命令不再问'
+      return t('approvalChoiceText.donTAskForThisCommand')
     case 'files':
-      return what ? `改 ${what} 不再问` : '改这些文件不再问'
+      return what ? t('approvalChoiceText.donTAskToEdit', { what: what }) : t('approvalChoiceText.donTAskToEditTheseFiles')
     case 'prefix':
-      return `以 ${grant.values.join(' ')} 开头的命令不再问`
+      return t('approvalChoiceText.donTAskForCommandsStartingWith', { value1: grant.values.join(' ') })
     case 'host':
-      return grant.behavior === 'deny' ? `都不许访问 ${what}` : `访问 ${what} 不再问`
+      return grant.behavior === 'deny' ? t('approvalChoiceText.neverAllowAccessTo', { what: what }) : t('approvalChoiceText.donTAskToAccess', { what: what })
     case 'other':
-      return '还有 Agent 建议的其他规则'
+      return t('approvalChoiceText.additionalRulesSuggestedByTheAgent')
   }
 }
 
@@ -66,15 +67,15 @@ function grantsText(grants: readonly ApprovalGrant[]): string {
 // A choice's row: what it does, and where what it remembers is kept. A plain deny has its own row.
 export function choiceText(choice: ApprovalChoice): { label: string; note: string | null } {
   if (choice.label) return { label: choice.label, note: choice.grants.length ? [...new Set(choice.grants.map((grant) => SCOPE_NOTE[grant.scope]))].join('；') : null }
-  if (choice.grants.length === 0) return { label: choice.decision === 'deny' ? '拒绝' : '允许这一次', note: null }
+  if (choice.grants.length === 0) return { label: choice.decision === 'deny' ? t('approvalChoiceText.deny') : t('approvalChoiceText.allowOnce'), note: null }
   const notes = [...new Set(choice.grants.map((grant) => SCOPE_NOTE[grant.scope]))]
-  return { label: `${choice.decision === 'deny' ? '拒绝' : '允许'}，${grantsText(choice.grants)}`, note: notes.join('；') }
+  return { label: `${choice.decision === 'deny' ? t('approvalChoiceText.deny') : t('approvalChoiceText.allow')}，${grantsText(choice.grants)}`, note: notes.join('；') }
 }
 
 // The submit button's words for a choice: short, the row above says the rest.
 export function choiceAction(choice: ApprovalChoice): string {
-  if (choice.grants.length === 0) return choice.decision === 'deny' ? '拒绝' : '允许'
-  return choice.decision === 'deny' ? '拒绝并记住' : '允许并记住'
+  if (choice.grants.length === 0) return choice.decision === 'deny' ? t('approvalChoiceText.deny') : t('approvalChoiceText.allow')
+  return choice.decision === 'deny' ? t('approvalChoiceText.denyAndRemember') : t('approvalChoiceText.allowAndRemember')
 }
 
 // Whether a choice is the plain no, whose row takes the reason for it.
@@ -86,7 +87,7 @@ export function isPlainDeny(choice: ApprovalChoice): boolean {
 export function chosenText(item: ApprovalItem): string | null {
   const choice = item.chosen ? item.choices?.find((each) => each.id === item.chosen) : undefined
   if (!choice) return null
-  if (choice.label) return `${choice.decision === 'deny' ? '已拒绝' : '已允许'} · ${choice.label}`
+  if (choice.label) return `${choice.decision === 'deny' ? t('approvalChoiceText.denied') : t('approvalChoiceText.allowed')} · ${choice.label}`
   if (choice.grants.length === 0) return null
-  return `${choice.decision === 'deny' ? '已拒绝' : '已允许'}，${grantsText(choice.grants)}`
+  return `${choice.decision === 'deny' ? t('approvalChoiceText.denied') : t('approvalChoiceText.allowed')}，${grantsText(choice.grants)}`
 }

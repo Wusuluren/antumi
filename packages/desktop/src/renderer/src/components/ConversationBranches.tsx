@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { checkSwitchBranch, type CommitPushResult, type CommitResult, type Conversation, type GitTarget, type ProjectBranches, type ProjectHead, type PushResult } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
@@ -39,7 +40,7 @@ function folderName(folder: string): string {
 
 // The agent hears of the switch with the next message.
 function switchedNote(branch: string): string {
-  return `已切到 ${branch}，下一条消息会告诉 Agent。`
+  return t('ConversationBranches.switchedToAgentWillBeNotifiedWithYour', { branch: branch })
 }
 
 function SwitchList({ option, onPick }: { option: ProjectBranches; onPick: (ref: string) => void }) {
@@ -55,30 +56,28 @@ function SwitchList({ option, onPick }: { option: ProjectBranches; onPick: (ref:
       onPick(first)
     }
   }
-  if (option.changes > 0) return <p className="branch-action-note" data-warn>有 {option.changes} 个未提交的改动，先提交或暂存再切换。</p>
+  if (option.changes > 0) return <p className="branch-action-note" data-warn>{tr('ConversationBranches.thereAreUncommittedChangesCommitOrStashThem', { value1: option.changes })}</p>
   return (
     <div className="branch-action">
       {option.sharedWith.length > 0 && (
-        <p className="branch-action-note" data-warn>
-          {option.sharedWith.map((title) => `会话「${title}」`).join('、')}也在用这个目录，切换后它们看到的文件也会变。
-        </p>
+        <p className="branch-action-note" data-warn>{tr('ConversationBranches.alsoUseThisDirectoryAndWillSeeDifferent', { value1: option.sharedWith.map((title) => t('ConversationBranches.conversation', { title: title })).join('、') })}</p>
       )}
-      <input className="input menu-search" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={onKey} placeholder="搜索分支，回车切到第一个" aria-label="搜索分支" />
+      <input className="input menu-search" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={onKey} placeholder={t('ConversationBranches.searchBranchesEnterToSwitchToTheFirst')} aria-label={t('ConversationBranches.searchBranches')} />
       <ul className="menu-list branch-action-list">
         {refs.map((ref) => {
           const holder = option.elsewhere[ref]
           return (
             <li key={ref} className="menu-row">
-              <button type="button" className="menu-item" disabled={!pickable(ref)} title={holder ? `已在 ${holder} 里检出` : undefined} onClick={() => onPick(ref)}>
+              <button type="button" className="menu-item" disabled={!pickable(ref)} title={holder ? t('ConversationBranches.checkedOutIn', { holder: holder }) : undefined} onClick={() => onPick(ref)}>
                 <span className="menu-item-title mono">{shortRef(ref)}</span>
-                {holder && <span className="menu-item-path">在 {folderName(holder)} 里</span>}
+                {holder && <span className="menu-item-path">{tr('ConversationBranches.in', { value1: folderName(holder) })}</span>}
                 {ref === current && <span className="menu-check"><CheckIcon /></span>}
               </button>
             </li>
           )
         })}
       </ul>
-      {refs.length === 0 && <p className="branch-action-note">没有匹配的分支</p>}
+      {refs.length === 0 && <p className="branch-action-note">{t('ConversationBranches.noMatchingBranches')}</p>}
     </div>
   )
 }
@@ -98,11 +97,11 @@ function CreateForm({ onCreate }: { onCreate: (name: string) => void }) {
         onKeyDown={(event) => {
           if (event.key === 'Enter') submit()
         }}
-        placeholder="新分支名，如 fix/login"
-        aria-label="新分支名"
+        placeholder={t('ConversationBranches.newBranchNameEGFixLogin')}
+        aria-label={t('ConversationBranches.newBranchName')}
       />
-      <button type="button" className="button" disabled={!name.trim()} onClick={submit}>创建并切换</button>
-      <p className="branch-action-note">从当前提交拉出，未提交的改动会一起带过去。</p>
+      <button type="button" className="button" disabled={!name.trim()} onClick={submit}>{t('ConversationBranches.createAndSwitch')}</button>
+      <p className="branch-action-note">{t('ConversationBranches.branchFromTheCurrentCommitCarryingUncommittedChanges')}</p>
     </div>
   )
 }
@@ -131,10 +130,10 @@ function CommitForm({ target, steps, busy, onCommit }: { target: GitTarget; step
             submit(true)
           }
         }}
-        placeholder={writable ? '提交信息：第一行是标题，空一行再写说明。留空则由 Agent 用小模型写好后直接提交' : '提交信息：第一行是标题，空一行再写详细说明'}
-        aria-label="提交信息"
+        placeholder={writable ? t('ConversationBranches.commitMessageTitleOnTheFirstLineBlank') : t('ConversationBranches.commitMessageTitleOnTheFirstLineBlank_595')}
+        aria-label={t('ConversationBranches.commitMessage')}
       />
-      <p className="branch-action-note">提交这个仓库里的全部改动{steps ? '；Commit & Push 再接着推送当前分支' : '，并推送当前分支'}，没有 upstream 时推到 origin 并跟踪它。</p>
+      <p className="branch-action-note">{tr('ConversationBranches.commitAllChangesInThisRepositoryWithoutAn', { value1: steps ? t('ConversationBranches.commitPushAlsoPushesTheCurrentBranch') : t('ConversationBranches.thenPushTheCurrentBranch') })}</p>
       <div className="branch-commit-buttons">
         <CommitMessageButton target={target} disabled={busy} onMessage={setMessage} />
         {steps && <button type="button" className="button" disabled={!ready} onClick={() => submit(false)}>Commit</button>}
@@ -146,12 +145,12 @@ function CommitForm({ target, steps, busy, onCommit }: { target: GitTarget; step
 
 function PushForm({ head, busy, onPush }: { head: ProjectHead; busy: boolean; onPush: () => void }) {
   const what = head.upstream
-    ? `把 ${head.branch} 上的 ${head.ahead ?? 0} 个提交推送到 ${head.upstream}。`
-    : `${head.branch} 还没有 upstream，会推送到 origin 并跟踪它。`
+    ? t('ConversationBranches.pushCommitsOnTo', { value1: head.branch, value2: head.ahead ?? 0, value3: head.upstream })
+    : t('ConversationBranches.hasNoUpstreamItWillPushToOrigin', { value1: head.branch })
   return (
     <div className="branch-action branch-commit">
       <p className="branch-push-what">{what}</p>
-      {(head.changes ?? 0) > 0 && <p className="branch-action-note" data-warn>还有 {head.changes} 个未提交的改动，不会被推送。</p>}
+      {(head.changes ?? 0) > 0 && <p className="branch-action-note" data-warn>{tr('ConversationBranches.uncommittedChangesWillNotBePushed', { value1: head.changes })}</p>}
       <div className="branch-commit-buttons">
         <button type="button" className="button primary" autoFocus disabled={busy} onClick={onPush}>Push</button>
       </div>
@@ -161,7 +160,7 @@ function PushForm({ head, busy, onPush }: { head: ProjectHead; busy: boolean; on
 
 type BranchAction = 'switch' | 'create' | 'commit' | 'push'
 
-const ACTION_TITLE: Record<BranchAction, string> = { switch: '切换分支', create: '新建分支', commit: 'Commit', push: 'Push' }
+const ACTION_TITLE: Record<BranchAction, string> = localized(() => ({ switch: t('ConversationBranches.switchBranch'), create: t('ConversationBranches.newBranch'), commit: 'Commit', push: 'Push' }))
 
 // One branch action in a dialog of its own, over the popover. It stays inside the popover's DOM, so
 // pressing in it is not a click outside, and keeps Escape to itself, so the popover stays open
@@ -197,9 +196,9 @@ function BranchActionDialog({ action, head, onClose, children }: { action: Branc
         <header className="modal-header">
           <div>
             <h2>{ACTION_TITLE[action]}</h2>
-            <p className="branch-dialog-where muted">{folderName(head.path)}{head.branch ? ` · 当前在 ${head.branch}` : ''}</p>
+            <p className="branch-dialog-where muted">{folderName(head.path)}{head.branch ? t('ConversationBranches.currentlyOn', { value1: head.branch }) : ''}</p>
           </div>
-          <button type="button" className="icon-button modal-close" aria-label="关闭" onClick={onClose}>×</button>
+          <button type="button" className="icon-button modal-close" aria-label={t('BackdropPicker.close')} onClick={onClose}>×</button>
         </header>
         {children}
       </div>
@@ -240,28 +239,28 @@ function ProjectActions({ conversation, head, option, onChanged }: {
       setOpen(null)
       if (push || !steps) {
         const done = await commitWithWrittenMessage(target, (written) => perform((rpc) => rpc.call('conversations.commitPush', { ...project, message: written })))
-        if (done) onChanged(`已提交 ${done.result.commit}「${commitSubject(done.message)}」并推送到 ${done.result.upstream}。`)
+        if (done) onChanged(t('ConversationBranches.committedAndPushedTo', { value1: done.result.commit, value2: commitSubject(done.message), value3: done.result.upstream }))
       } else {
         const done = await commitWithWrittenMessage(target, (written) => perform((rpc) => rpc.call('conversations.commit', { ...project, message: written })))
-        if (done) onChanged(`已提交 ${done.result.commit}「${commitSubject(done.message)}」，还没推送。`)
+        if (done) onChanged(t('ConversationBranches.committedNotPushedYet', { value1: done.result.commit, value2: commitSubject(done.message) }))
       }
       return
     }
     setBusy(true)
     if (push || !steps) {
-      done<CommitPushResult>((result) => `已提交 ${result.commit} 并推送到 ${result.upstream}。`)(await perform((rpc) => rpc.call('conversations.commitPush', { ...project, message })))
+      done<CommitPushResult>((result) => t('ConversationBranches.committedAndPushedTo_608', { value1: result.commit, value2: result.upstream }))(await perform((rpc) => rpc.call('conversations.commitPush', { ...project, message })))
     } else {
-      done<CommitResult>((result) => `已提交 ${result.commit}，还没推送。`)(await perform((rpc) => rpc.call('conversations.commit', { ...project, message })))
+      done<CommitResult>((result) => t('ConversationBranches.committedNotPushedYet_609', { value1: result.commit }))(await perform((rpc) => rpc.call('conversations.commit', { ...project, message })))
     }
   }
   const push = async () => {
     setBusy(true)
-    done<PushResult>((result) => `已把 ${result.branch} 推送到 ${result.upstream}。`)(await perform((rpc) => rpc.call('conversations.push', project)))
+    done<PushResult>((result) => t('ConversationBranches.pushedTo', { value1: result.branch, value2: result.upstream }))(await perform((rpc) => rpc.call('conversations.push', project)))
   }
   const hint = blocker ? reasonText(blocker, blocker) : undefined
-  const commitHint = hint ?? (!head.branch ? '当前没有分支' : head.changes === 0 ? '没有可以提交的改动' : undefined)
+  const commitHint = hint ?? (!head.branch ? t('ConversationBranches.noCurrentBranch') : head.changes === 0 ? t('ConversationBranches.noChangesToCommit') : undefined)
   // Nothing to push: a tracked branch with no commit past its upstream.
-  const pushHint = hint ?? (!head.branch ? '当前没有分支' : head.upstream && (head.ahead ?? 0) === 0 ? '没有要推送的提交' : undefined)
+  const pushHint = hint ?? (!head.branch ? t('ConversationBranches.noCurrentBranch') : head.upstream && (head.ahead ?? 0) === 0 ? t('ConversationBranches.noCommitsToPush') : undefined)
   const canCommit = !blocker && Boolean(head.branch) && (head.changes ?? 0) > 0
   const canPush = !blocker && Boolean(head.branch) && !(head.upstream && (head.ahead ?? 0) === 0)
   const button = (action: BranchAction, enabled: boolean, title: string | undefined, content: ReactNode, primary = false) => (
@@ -281,11 +280,11 @@ function ProjectActions({ conversation, head, option, onChanged }: {
   return (
     <>
       <div className="branch-actions">
-        {button('switch', blocker === null, hint, <><BranchIcon />切换</>)}
-        {button('create', blocker === null, hint, <><PlusIcon />新建</>)}
+        {button('switch', blocker === null, hint, <>{tr('ConversationBranches.switch', { value1: <BranchIcon /> })}</>)}
+        {button('create', blocker === null, hint, <>{tr('ConversationBranches.new', { value1: <PlusIcon /> })}</>)}
         {commitPush && button('commit', canCommit, commitHint, <><CommitIcon />{steps ? 'Commit' : 'Commit & Push'}</>, canCommit)}
         {commitPush && steps && button('push', canPush, pushHint, <><ArrowUpIcon />Push</>, !canCommit && canPush && (head.ahead ?? 0) > 0)}
-        {blocker ? <span className="branch-actions-blocked">{hint}</span> : writing && <span className="branch-actions-blocked">正在写提交信息，写好就提交…</span>}
+        {blocker ? <span className="branch-actions-blocked">{hint}</span> : writing && <span className="branch-actions-blocked">{t('ConversationBranches.writingCommitMessageThenCommitting')}</span>}
       </div>
       {open && (
         <BranchActionDialog action={open} head={head} onClose={() => setOpen(null)}>

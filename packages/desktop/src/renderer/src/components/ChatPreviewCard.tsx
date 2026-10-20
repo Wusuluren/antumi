@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useContext, useState } from 'react'
 import { isPreviewImage, type ChatItem } from '@antumi/protocol'
 import { openFileInBrowser } from '../browser-state'
@@ -30,10 +31,10 @@ function previewArgs(item: ToolItem): { path: string; title: string | null } {
 function PreviewImage({ path, src, label }: { path: string; src: string; label: string }) {
   const [viewing, setViewing] = useState(false)
   const [missing, setMissing] = useState(false)
-  if (missing) return <p className="chat-preview-note muted">图片不在了：{path}</p>
+  if (missing) return <p className="chat-preview-note muted">{tr('ChatBrowserCard.imageIsNoLongerAvailable', { path: path })}</p>
   return (
     <>
-      <button type="button" className="chat-preview-image" aria-label={`查看图片 ${label}`} onClick={() => setViewing(true)}>
+      <button type="button" className="chat-preview-image" aria-label={t('ChatPreviewCard.viewImage', { label: label })} onClick={() => setViewing(true)}>
         <img src={src} alt="" draggable={false} onError={() => setMissing(true)} />
       </button>
       {viewing && <LocalImageViewer images={[{ path, src }]} index={0} onIndex={() => {}} onClose={() => setViewing(false)} />}
@@ -65,19 +66,19 @@ export function ChatPreviewCard({ conversationId, item }: { conversationId: stri
         <span className="chat-preview-title">{title ?? shorten(path)}</span>
         {title && <span className="chat-preview-path" title={path}>{shorten(path)}</span>}
         <span className="chat-preview-actions">
-          <button type="button" className="tool-button" aria-label="重新加载" data-tooltip="重新加载" data-tooltip-side="top-end" onClick={() => setGeneration((n) => n + 1)}><RefreshIcon /></button>
+          <button type="button" className="tool-button" aria-label={t('ChatPreviewCard.reload')} data-tooltip={t('ChatPreviewCard.reload')} data-tooltip-side="top-end" onClick={() => setGeneration((n) => n + 1)}><RefreshIcon /></button>
           {browsable && !refused && (
-            <button type="button" className="link-button" data-tooltip="在内置浏览器里打开，全尺寸，Agent 也能看到这个标签页" data-tooltip-side="top-end" onClick={() => void openFileInBrowser(path, conversationId)}>在浏览器中打开</button>
+            <button type="button" className="link-button" data-tooltip={t('ChatPreviewCard.openAtFullSizeInTheBuiltIn')} data-tooltip-side="top-end" onClick={() => void openFileInBrowser(path, conversationId)}>{t('ChatPreviewCard.openInBrowser')}</button>
           )}
           {canRevealFile() && (
-            <button type="button" className="link-button" onClick={() => void revealFile([path])}>显示文件</button>
+            <button type="button" className="link-button" onClick={() => void revealFile([path])}>{t('ChatPreviewCard.showFile')}</button>
           )}
         </span>
       </div>
       {refused
-        ? <p className="chat-preview-note muted">{item.output ?? '没能展示这个文件。'}</p>
+        ? <p className="chat-preview-note muted">{item.output ?? t('ChatPreviewCard.couldNotDisplayThisFile')}</p>
         : pending
-          ? <p className="chat-preview-note muted">正在准备预览…</p>
+          ? <p className="chat-preview-note muted">{t('ChatPreviewCard.preparingPreview')}</p>
           : isPreviewImage(path)
             ? <PreviewImage key={generation} path={path} src={`${previewUrl(path)}?v=${generation}`} label={title ?? path} />
             : <iframe key={generation} className="chat-preview-frame" title={title ?? path} src={src} sandbox="allow-scripts" referrerPolicy="no-referrer" inert={!awake} />}

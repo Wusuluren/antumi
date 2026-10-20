@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { useState } from 'react'
 import { setAwakeMode, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, toggleBrowserPanel, togglePortsPanel, toggleTerminalPanel, useAwakeSupported, useBrowserSupported, useCore, useSchedulesOpen, useSchedulesSupported, useWorktreesSupported, type ConnectionState } from '../core-store'
 import { ALL_TABS, useBrowserTabs } from '../browser-state'
@@ -12,15 +13,15 @@ import { Popover } from './Popover'
 
 type ConnectionIssue = Exclude<ConnectionState, 'connected'>
 
-const CONNECTION_LABEL: Record<ConnectionIssue, string> = {
-  connecting: '连接中…',
-  'waiting-for-core': '等待 core 启动'
-}
+const CONNECTION_LABEL: Record<ConnectionIssue, string> = localized(() => ({
+  connecting: t('SettingsPage.connecting'),
+  'waiting-for-core': t('SettingsPage.waitingForCoreToStart')
+}))
 
-const CONNECTION_HINT: Record<ConnectionIssue, string> = {
-  connecting: '正在连接 Antumi core，断开后会自动重连',
-  'waiting-for-core': '没有找到正在运行的 Antumi core，先启动 pnpm dev:core'
-}
+const CONNECTION_HINT: Record<ConnectionIssue, string> = localized(() => ({
+  connecting: t('StatusBar.connectingToAntumiCoreReconnectsAutomaticallyAfterDisconnection'),
+  'waiting-for-core': t('StatusBar.noRunningAntumiCoreFoundStartPnpmDev')
+}))
 
 // Only interruptions need a status-bar indicator; healthy is the default.
 function ConnectionStatus() {
@@ -46,9 +47,9 @@ function SettingsButton() {
     <button
       type="button"
       className="tool-button statusbar-settings"
-      aria-label="设置"
+      aria-label={t('StatusBar.settings')}
       aria-pressed={open}
-      data-tooltip={`设置 ${PRIMARY_KEY_LABEL},`}
+      data-tooltip={t('StatusBar.settings_1935', { PRIMARY_KEY_LABEL: PRIMARY_KEY_LABEL })}
       data-tooltip-side="top"
       onClick={() => setSettingsOpen(!open)}
     >
@@ -68,9 +69,9 @@ function BrowserButton() {
     <button
       type="button"
       className="tool-button statusbar-browser"
-      aria-label="浏览器"
+      aria-label={t('BrowserSidePanel.browser')}
       aria-pressed={open}
-      data-tooltip={open ? '隐藏浏览器 Ctrl+Shift+`' : '浏览器 Ctrl+Shift+`'}
+      data-tooltip={open ? t('StatusBar.hideBrowserCtrlShift') : t('StatusBar.browserCtrlShift')}
       data-tooltip-side="top-end"
       onClick={toggleBrowserPanel}
     >
@@ -87,9 +88,9 @@ function TerminalButton() {
     <button
       type="button"
       className="tool-button statusbar-terminal"
-      aria-label="终端"
+      aria-label={t('SettingsPage.terminal')}
       aria-pressed={open}
-      data-tooltip={open ? '隐藏终端 Ctrl+`' : '终端 Ctrl+`'}
+      data-tooltip={open ? t('StatusBar.hideTerminalCtrl') : t('StatusBar.terminalCtrl')}
       data-tooltip-side="top-end"
       onClick={() => void toggleTerminalPanel()}
     >
@@ -104,10 +105,10 @@ function PortsButton() {
   const open = useCore((s) => s.portsPanelOpen)
   const count = usePorts((s) => s.list.ports.length)
   if (!supported) return null
-  return <button type="button" className="tool-button statusbar-ports" aria-label="端口" aria-pressed={open} data-tooltip={open ? '隐藏端口' : '管理开发服务端口'} data-tooltip-side="top-end" onClick={togglePortsPanel}><PortsIcon />{count > 0 && <span className="count">{count}</span>}</button>
+  return <button type="button" className="tool-button statusbar-ports" aria-label={t('PortsPanel.ports')} aria-pressed={open} data-tooltip={open ? t('PortsPanel.hidePorts') : t('StatusBar.manageDevelopmentServicePorts')} data-tooltip-side="top-end" onClick={togglePortsPanel}><PortsIcon />{count > 0 && <span className="count">{count}</span>}</button>
 }
 
-const AWAKE_LABEL = { on: '始终', auto: 'Agent 工作或有预约时', off: '关闭' } as const
+const AWAKE_LABEL = localized(() => ({ on: t('SettingsPage.always'), auto: t('SettingsPage.whileAgentsWorkOrSchedulesArePending'), off: t('BackdropPicker.close') } as const))
 
 function AwakeButton() {
   const supported = useAwakeSupported()
@@ -115,10 +116,10 @@ function AwakeButton() {
   const [open, setOpen] = useState(false)
   if (!supported || !status) return null
   const reasons = [
-    status.workingAgents > 0 && `${status.workingAgents} 个 Agent 工作中`,
-    (status.scheduledRuns ?? 0) > 0 && `${status.scheduledRuns} 个预约等着运行`
+    status.workingAgents > 0 && t('StatusBar.agentsWorking', { value1: status.workingAgents }),
+    (status.scheduledRuns ?? 0) > 0 && t('StatusBar.schedulesPending', { value1: status.scheduledRuns })
   ].filter(Boolean).join('，')
-  const detail = status.problem ?? (status.active ? `正在保持唤醒${reasons ? ` · ${reasons}` : ''}` : `保持唤醒：${AWAKE_LABEL[status.mode]}`)
+  const detail = status.problem ?? (status.active ? t('StatusBar.keepingAwake', { value1: reasons ? ` · ${reasons}` : '' }) : t('StatusBar.keepAwake', { value1: AWAKE_LABEL[status.mode] }))
   return (
     <span className="menu-anchor statusbar-awake-anchor">
       <button
@@ -136,8 +137,8 @@ function AwakeButton() {
         {status.active && <span className="awake-dot" aria-hidden="true" />}
       </button>
       {open && (
-        <Popover label="保持电脑唤醒" onClose={() => setOpen(false)}>
-          <div className="menu-label">保持电脑唤醒</div>
+        <Popover label={t('SettingsPage.keepComputerAwake')} onClose={() => setOpen(false)}>
+          <div className="menu-label">{t('SettingsPage.keepComputerAwake')}</div>
           {(['on', 'auto', 'off'] as const).map((mode) => (
             <button key={mode} type="button" className="menu-item" onClick={() => { void setAwakeMode(mode); setOpen(false) }}>
               <span>{AWAKE_LABEL[mode]}</span>
@@ -165,13 +166,13 @@ function WorktreeButton() {
       type="button"
       className="tool-button statusbar-worktrees"
       aria-pressed={open}
-      data-tooltip="管理 Antumi 建的 worktree"
+      data-tooltip={t('StatusBar.manageAntumiWorktrees')}
       data-tooltip-side="top-end"
       onClick={() => setWorktreesOpen(!open)}
     >
       <BranchIcon />
-      <span>{count} 个 worktree{bytes > 0 ? ` · ${formatBytes(bytes)}` : ''}</span>
-      {cleanable > 0 && <span className="statusbar-worktrees-cleanable">· {cleanable} 个可清理</span>}
+      <span>{tr('StatusBar.worktrees', { count: count, value2: bytes > 0 ? ` · ${formatBytes(bytes)}` : '' })}</span>
+      {cleanable > 0 && <span className="statusbar-worktrees-cleanable">{tr('StatusBar.cleanable', { cleanable: cleanable })}</span>}
     </button>
   )
 }
@@ -191,13 +192,13 @@ function ScheduleButton() {
       type="button"
       className="tool-button statusbar-schedules"
       aria-pressed={open}
-      data-tooltip="管理预约的任务和会话"
+      data-tooltip={t('StatusBar.manageScheduledTasksAndConversations')}
       data-tooltip-side="top-end"
       onClick={() => setSchedulesOpen(!open)}
     >
       <ClockIcon />
-      <span>{waiting > 0 ? `${waiting} 个预约` : '预约'}</span>
-      {failed > 0 && <span className="statusbar-schedules-failed">· {failed} 个没能开始</span>}
+      <span>{waiting > 0 ? t('StatusBar.schedules', { waiting: waiting }) : t('OverviewView.schedules')}</span>
+      {failed > 0 && <span className="statusbar-schedules-failed">{tr('StatusBar.failedToStart', { failed: failed })}</span>}
     </button>
   )
 }

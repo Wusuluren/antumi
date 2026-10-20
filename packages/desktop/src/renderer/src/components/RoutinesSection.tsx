@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { useEffect, useId, useState } from 'react'
 import { isScheduleOpen, type Routine, type ScheduledRun } from '@antumi/protocol'
 import { selectConversation, useCore } from '../core-store'
@@ -40,8 +41,8 @@ function History({ routine, now }: { routine: Routine; now: number }) {
   }
   const markSeen = (run: ScheduledRun) => void rpc?.call('routines.markSeen', { runId: run.id }).catch(() => {})
 
-  if (runs === null) return <p className="routine-history-empty muted">正在读取…</p>
-  if (runs.length === 0) return <p className="routine-history-empty muted">还没有运行过。</p>
+  if (runs === null) return <p className="routine-history-empty muted">{t('DashboardPanel.loading')}</p>
+  if (runs.length === 0) return <p className="routine-history-empty muted">{t('RoutinesSection.noRunsYet')}</p>
   return (
     <>
       <ul className="routine-history">
@@ -50,19 +51,19 @@ function History({ routine, now }: { routine: Routine; now: number }) {
           const skipped = run.status === 'cancelled'
           return (
             <li key={run.id} className="routine-run" data-skipped={skipped || undefined} data-unread={unread || undefined}>
-              <span className="routine-run-dot" aria-label={unread ? '未读' : undefined} />
+              <span className="routine-run-dot" aria-label={unread ? t('OverviewView.unread') : undefined} />
               <span className="routine-run-when">{scheduleTime(run.dueAt ?? run.createdAt, now)}</span>
               {run.conversationId ? (
                 <button type="button" className="schedule-title routine-run-open" onClick={() => selectConversation(run.conversationId)}>{runOutcomeText(run, now)}</button>
               ) : (
                 <span className="routine-run-text">{runOutcomeText(run, now)}</span>
               )}
-              {unread && !run.conversationId && <button type="button" className="link-button" onClick={() => markSeen(run)}>已读</button>}
+              {unread && !run.conversationId && <button type="button" className="link-button" onClick={() => markSeen(run)}>{t('RoutinesSection.read')}</button>}
             </li>
           )
         })}
       </ul>
-      {more && <button type="button" className="link-button routine-history-more" onClick={() => void older()}>更早的</button>}
+      {more && <button type="button" className="link-button routine-history-more" onClick={() => void older()}>{t('RoutinesSection.earlier')}</button>}
     </>
   )
 }
@@ -74,34 +75,34 @@ function Row({ routine, now, onEdit }: { routine: Routine; now: number; onEdit: 
   return (
     <li className="routine-row" data-paused={!routine.enabled || undefined} data-open={open || undefined}>
       <div className="routine-line">
-        <button type="button" className="routine-toggle" aria-expanded={open} aria-label={open ? '收起历史' : '展开历史'} onClick={() => setOpen(!open)}>
+        <button type="button" className="routine-toggle" aria-expanded={open} aria-label={open ? t('RoutinesSection.collapseHistory') : t('RoutinesSection.expandHistory')} onClick={() => setOpen(!open)}>
           <ChevronRightIcon />
         </button>
         <span className="routine-main">
           <span className="routine-title-line">
             <button type="button" className="schedule-title routine-title" onClick={() => setOpen(!open)}>{routine.title}</button>
-            {routine.unread > 0 && <span className="inbox-entry-count routine-unread" aria-label={`${routine.unread} 次运行未看`}>{routine.unread}</span>}
+            {routine.unread > 0 && <span className="inbox-entry-count routine-unread" aria-label={t('RoutinesSection.unreadRuns', { value1: routine.unread })}>{routine.unread}</span>}
           </span>
           <span className="schedule-meta">
             {scheduleText(routine.schedule)} · {routineAgentLabel(routine.target.agent)} · {nextRunText(routine, now)}
             {routine.lastRun && isScheduleOpen(routine.lastRun) && <span> · {runOutcomeText(routine.lastRun, now)}</span>}
-            {failure && <span className="routine-failure"> · 上次：{reasonText(failure, failure)}</span>}
+            {failure && <span className="routine-failure">{tr('RoutinesSection.last', { value1: reasonText(failure, failure) })}</span>}
           </span>
         </span>
         <span className="schedule-actions">
           {deleting ? (
             <>
-              <span className="muted routine-confirm">删除后它开过的会话回到会话列表</span>
-              <button type="button" className="link-button" onClick={() => void deleteRoutine(routine.id)}>确认删除</button>
-              <button type="button" className="link-button" onClick={() => setDeleting(false)}>取消</button>
+              <span className="muted routine-confirm">{t('RoutinesSection.conversationsCreatedByThisRoutineReturnToThe')}</span>
+              <button type="button" className="link-button" onClick={() => void deleteRoutine(routine.id)}>{t('McpSettingsSection.confirmDeletion')}</button>
+              <button type="button" className="link-button" onClick={() => setDeleting(false)}>{t('ChatCommandSettings.cancel')}</button>
             </>
           ) : (
             <>
-              {routine.unread > 0 && <button type="button" className="link-button" onClick={() => markRoutineAllSeen(routine.id)}>全部已读</button>}
-              <button type="button" className="link-button" onClick={() => void updateRoutine(routine.id, { enabled: !routine.enabled })}>{routine.enabled ? '暂停' : '启用'}</button>
-              <button type="button" className="tool-button" aria-label="立即运行" data-tooltip="立即运行，不等时间和额度" onClick={() => void runRoutineNow(routine.id)}><PlayIcon /></button>
-              <button type="button" className="tool-button" aria-label="编辑" data-tooltip="编辑" onClick={onEdit}><PencilIcon /></button>
-              <button type="button" className="tool-button" aria-label="删除" data-tooltip="删除" onClick={() => setDeleting(true)}><CloseIcon /></button>
+              {routine.unread > 0 && <button type="button" className="link-button" onClick={() => markRoutineAllSeen(routine.id)}>{t('RoutinesSection.markAllAsRead')}</button>}
+              <button type="button" className="link-button" onClick={() => void updateRoutine(routine.id, { enabled: !routine.enabled })}>{routine.enabled ? t('DiscussionView.pause') : t('RoutinesSection.enable')}</button>
+              <button type="button" className="tool-button" aria-label={t('OverviewView.runNow')} data-tooltip={t('RoutinesSection.runImmediatelyIgnoringTimeAndQuota')} onClick={() => void runRoutineNow(routine.id)}><PlayIcon /></button>
+              <button type="button" className="tool-button" aria-label={t('chatTools.edit')} data-tooltip={t('chatTools.edit')} onClick={onEdit}><PencilIcon /></button>
+              <button type="button" className="tool-button" aria-label={t('ChatCommandSettings.delete')} data-tooltip={t('ChatCommandSettings.delete')} onClick={() => setDeleting(true)}><CloseIcon /></button>
             </>
           )}
         </span>
@@ -119,7 +120,7 @@ const TEMPLATE_ICON: Record<RoutineTemplate['icon'], ReactNode> = {
 // Common chores written out, to start a routine from: a row opens the editor filled in.
 function Templates({ onPick }: { onPick: (template: RoutineTemplate) => void }) {
   return (
-    <ul className="worktree-list routine-list" aria-label="模板">
+    <ul className="worktree-list routine-list" aria-label={t('RoutinesSection.templates')}>
       {ROUTINE_TEMPLATES.map((template) => (
         <li key={template.id} className="routine-template">
           <span className="routine-template-icon" aria-hidden="true">{TEMPLATE_ICON[template.icon]}</span>
@@ -129,7 +130,7 @@ function Templates({ onPick }: { onPick: (template: RoutineTemplate) => void }) 
           </span>
           <span className="schedule-state routine-template-when"><ClockIcon />{scheduleText(template.schedule)}</span>
           <span className="schedule-actions">
-            <button type="button" className="link-button" onClick={() => onPick(template)}>用这个</button>
+            <button type="button" className="link-button" onClick={() => onPick(template)}>{t('RoutinesSection.useThis')}</button>
           </span>
         </li>
       ))}
@@ -139,7 +140,7 @@ function Templates({ onPick }: { onPick: (template: RoutineTemplate) => void }) 
 
 type Editing = { routine: Routine | null; template: RoutineTemplate | null }
 type Tab = 'rules' | 'templates'
-const TABS: readonly { value: Tab; label: string }[] = [{ value: 'rules', label: '我的' }, { value: 'templates', label: '模板' }]
+const TABS: readonly { value: Tab; label: string }[] = localized(() => ([{ value: 'rules', label: t('RoutinesSection.mine') }, { value: 'templates', label: t('RoutinesSection.templates') }]))
 
 // The routines, each with when it next runs and what its runs did: the runs' conversations are
 // opened from here and nowhere else. Beside them, on their own tab, templates to start one from,
@@ -151,15 +152,15 @@ export function RoutinesSection() {
   const [tab, setTab] = useState<Tab>(() => (routines.length === 0 ? 'templates' : 'rules'))
   const [editing, setEditing] = useState<Editing | null>(null)
   return (
-    <section className="worktree-group routines-section" aria-label="定时任务列表">
+    <section className="worktree-group routines-section" aria-label={t('RoutinesSection.routineList')}>
       <div className="routines-tabs">
-        <Segmented labelId={tabsId} value={tab} options={TABS.map((each) => (each.value === 'rules' ? { ...each, label: `我的 · ${routines.length}` } : each))} onChange={setTab} />
-        <span id={tabsId} className="visually-hidden">显示</span>
-        <button type="button" className="link-button routines-new" onClick={() => setEditing({ routine: null, template: null })}>新建</button>
+        <Segmented labelId={tabsId} value={tab} options={TABS.map((each) => (each.value === 'rules' ? { ...each, label: t('RoutinesSection.mine_1485', { value1: routines.length }) } : each))} onChange={setTab} />
+        <span id={tabsId} className="visually-hidden">{t('RoutinesSection.show')}</span>
+        <button type="button" className="link-button routines-new" onClick={() => setEditing({ routine: null, template: null })}>{t('ConversationChat.new')}</button>
       </div>
       {tab === 'rules'
         ? routines.length === 0
-          ? <p className="worktrees-empty muted">还没有定时任务。点「新建」写下要重复做的事和什么时候做，或者从「模板」里挑一个。</p>
+          ? <p className="worktrees-empty muted">{t('RoutinesSection.noRoutinesYetClickNewToSetRecurring')}</p>
           : <ul className="worktree-list routine-list">{routines.map((routine) => <Row key={routine.id} routine={routine} now={now} onEdit={() => setEditing({ routine, template: null })} />)}</ul>
         : <Templates onPick={(template) => setEditing({ routine: null, template })} />}
       {editing && <RoutineEditor routine={editing.routine} template={editing.template} onClose={() => setEditing(null)} />}

@@ -1,3 +1,4 @@
+import { getLocale, t, tr } from '../i18n'
 import { useId, useState, type ReactNode } from 'react'
 import { AGENT_KINDS, agentDescriptor, type AgentCliInstallation, type AgentKind, type DetectedAgent, type EnvironmentCheck } from '@antumi/protocol'
 import { installAgentCli, refreshEnvironment, showTerminal, useCore } from '../core-store'
@@ -21,14 +22,14 @@ function Fix({ label, command }: { label: string; command: string }) {
     <p className="environment-fix">
       <span>{label}</span>
       <code>{command}</code>
-      <CopyButton text={command} label="复制命令" />
+      <CopyButton text={command} label={t('InstalledAgentsSettings.copyCommand')} />
     </p>
   )
 }
 
 function AgentRow({ kind, check, enabled, last }: { kind: AgentKind; check: EnvironmentCheck; enabled: boolean; last: boolean }) {
   const labelId = useId()
-  const version = check.version ?? (check.status === 'unknown' ? '版本未知' : null)
+  const version = check.version ?? (check.status === 'unknown' ? t('InstalledAgentsSettings.versionUnknown') : null)
   return (
     <div className="settings-row agent-row" data-off={!enabled || undefined}>
       <span className="agent-row-icon" aria-hidden="true"><AgentIcon agent={kind} /></span>
@@ -36,20 +37,20 @@ function AgentRow({ kind, check, enabled, last }: { kind: AgentKind; check: Envi
         <div className="agent-row-head">
           <span id={labelId} className="settings-row-label">{agentLabel(kind)}</span>
           {version && <span className="agent-row-version mono" title={check.path ?? undefined}>{version}</span>}
-          {!enabled && <span className="agent-row-pill">已禁用</span>}
+          {!enabled && <span className="agent-row-pill">{t('InstalledAgentsSettings.disabled')}</span>}
           {check.signedIn !== null && (
-            <span className="environment-pill" data-level={check.signedIn ? 'ok' : 'warning'}>{check.signedIn ? '已登录' : '未登录'}</span>
+            <span className="environment-pill" data-level={check.signedIn ? 'ok' : 'warning'}>{check.signedIn ? t('InstalledAgentsSettings.signedIn') : t('InstalledAgentsSettings.notSignedIn')}</span>
           )}
         </div>
-        {check.status === 'unknown' && <p className="settings-row-description">{checkStatusText(check)}。请检查 CLI 是否能正常启动{agentDescriptor(kind).environment.outdated?.hint ?? ''}。</p>}
-        {check.signedIn === false && <Fix label="登录：" command={agentDescriptor(kind).environment.signIn} />}
+        {check.status === 'unknown' && <p className="settings-row-description">{tr('InstalledAgentsSettings.checkWhetherTheCliCanStart', { value1: checkStatusText(check), value2: agentDescriptor(kind, getLocale()).environment.outdated?.hint ?? '' })}</p>}
+        {check.signedIn === false && <Fix label={t('InstalledAgentsSettings.signIn')} command={agentDescriptor(kind, getLocale()).environment.signIn} />}
       </div>
       <div className="settings-row-control">
         <Toggle
           labelId={labelId}
           checked={enabled}
           disabled={enabled && last}
-          title={enabled && last ? '至少保留一个启用的智能体' : undefined}
+          title={enabled && last ? t('InstalledAgentsSettings.keepAtLeastOneAgentEnabled') : undefined}
           onChange={(next) => setEnabled(kind, next)}
         />
       </div>
@@ -75,17 +76,17 @@ function MissingAgentRow({ kind, installation }: { kind: AgentKind; installation
       <div className="settings-row-text">
         <div className="agent-row-head">
           <span className="settings-row-label">{agentLabel(kind)}</span>
-          <span className="agent-row-pill">{installation ? '未找到 CLI' : '未安装'}</span>
+          <span className="agent-row-pill">{installation ? t('InstalledAgentsSettings.cliNotFound') : t('AgentPicker.notInstalled')}</span>
         </div>
-        <p className="settings-row-description">{installation ? `已检测到 ${agentLabel(kind)} App，安装 CLI 后即可在 Antumi 中使用。` : agentDescriptor(kind).environment.role}</p>
-        <Fix label="安装：" command={installation?.command ?? agentDescriptor(kind).environment.install} />
+        <p className="settings-row-description">{installation ? t('InstalledAgentsSettings.appDetectedInstallItsCliToUseIt', { value1: agentLabel(kind) }) : agentDescriptor(kind, getLocale()).environment.role}</p>
+        <Fix label={t('InstalledAgentsSettings.install')} command={installation?.command ?? agentDescriptor(kind, getLocale()).environment.install} />
         {installation && (
           <div className="agent-install-actions">
             <button type="button" className="button" disabled={opening} onClick={() => void install()}>
-              {opening ? '正在打开终端…' : running ? '查看安装进度' : failed ? '重试安装' : '在终端安装'}
+              {opening ? t('InstalledAgentsSettings.openingTerminal') : running ? t('InstalledAgentsSettings.viewInstallationProgress') : failed ? t('InstalledAgentsSettings.retryInstallation') : t('InstalledAgentsSettings.installInTerminal')}
             </button>
-            {terminal?.exited && <button type="button" className="button ghost" onClick={() => showTerminal(terminal.id)}>查看安装输出</button>}
-            {terminal?.exited && <span className="settings-row-description">{failed ? `安装失败（退出码 ${terminal.exitCode ?? '未知'}），可查看输出后重试。` : '安装命令已完成；若仍未检测到 CLI，请检查 PATH 后重新检测。'}</span>}
+            {terminal?.exited && <button type="button" className="button ghost" onClick={() => showTerminal(terminal.id)}>{t('InstalledAgentsSettings.viewInstallationOutput')}</button>}
+            {terminal?.exited && <span className="settings-row-description">{failed ? t('InstalledAgentsSettings.installationFailedExitCodeReviewOutputAndRetry', { value1: terminal.exitCode ?? t('InstalledAgentsSettings.unknown') }) : t('InstalledAgentsSettings.installationCommandFinishedIfCliIsStillMissing')}</span>}
           </div>
         )}
       </div>
@@ -95,23 +96,23 @@ function MissingAgentRow({ kind, installation }: { kind: AgentKind; installation
 
 function DetectedAgentRow({ agent }: { agent: DetectedAgent }) {
   const cli = agent.cliCheck
-  let cliLabel = '仅发现应用 · 未找到 Agent 命令'
-  if (cli?.status === 'responded') cliLabel = `命令已响应${cli.version ? ` · ${cli.version}` : ' · 版本未识别'}`
-  else if (cli?.reason === 'windows-shim') cliLabel = '找到命令 · Windows 命令垫片无法直接验证版本'
-  else if (cli?.reason === 'probe-failed') cliLabel = '找到命令 · 版本检测失败，可能无法启动'
-  else if (agent.locations.some((location) => location.source === 'cli')) cliLabel = '找到命令 · 尚未验证版本'
+  let cliLabel = t('InstalledAgentsSettings.appFoundAgentCommandNotFound')
+  if (cli?.status === 'responded') cliLabel = t('InstalledAgentsSettings.commandResponded', { value1: cli.version ? ` · ${cli.version}` : t('InstalledAgentsSettings.versionNotRecognized') })
+  else if (cli?.reason === 'windows-shim') cliLabel = t('InstalledAgentsSettings.commandFoundCannotVerifyVersionThroughWindowsCommand')
+  else if (cli?.reason === 'probe-failed') cliLabel = t('InstalledAgentsSettings.commandFoundVersionCheckFailedMayNotStart')
+  else if (agent.locations.some((location) => location.source === 'cli')) cliLabel = t('InstalledAgentsSettings.commandFoundVersionNotVerified')
   return (
     <div className="settings-row agent-row">
       <span className="agent-row-icon" aria-hidden="true"><AgentIcon agent={null} /></span>
       <div className="settings-row-text">
         <div className="agent-row-head">
           <span className="settings-row-label">{agent.name}</span>
-          <span className="agent-row-pill">暂未支持</span>
+          <span className="agent-row-pill">{t('InstalledAgentsSettings.notSupportedYet')}</span>
         </div>
         <p className="settings-row-description">{cliLabel}</p>
         {agent.locations.map(({ source, path }) => (
           <p key={`${source}:${path}`} className="settings-row-description mono agent-row-where" title={path}>
-            {source === 'cli' ? '命令' : '应用'} · {path}
+            {source === 'cli' ? t('chatTools.command') : t('InstalledAgentsSettings.app')} · {path}
           </p>
         ))}
       </div>
@@ -160,31 +161,29 @@ export function InstalledAgentsSettings() {
   return (
     <div className="agent-list">
       <div className="agent-list-head">
-        <span className="agent-list-title">这台电脑上的智能体</span>
-        <button type="button" className="button ghost agent-list-refresh" onClick={() => void recheck()} disabled={checking} title="装好或登录后，重新查一遍">
+        <span className="agent-list-title">{t('InstalledAgentsSettings.agentsOnThisComputer')}</span>
+        <button type="button" className="button ghost agent-list-refresh" onClick={() => void recheck()} disabled={checking} title={t('InstalledAgentsSettings.scanAgainAfterInstallingOrSigningIn')}>
           <RefreshIcon />
-          {checking ? '检测中…' : '重新检测'}
+          {checking ? t('InstalledAgentsSettings.scanning') : t('InstalledAgentsSettings.scanAgain')}
         </button>
       </div>
-      {!environment && <p className="settings-row-description agent-list-note">还没有检测。</p>}
-      <Group title="已安装" count={found.length}>
+      {!environment && <p className="settings-row-description agent-list-note">{t('InstalledAgentsSettings.notScannedYet')}</p>}
+      <Group title={t('InstalledAgentsSettings.installed')} count={found.length}>
         {found.map(({ kind, check }) => (
           <AgentRow key={kind} kind={kind} check={check} enabled={!disabled.includes(kind)} last={enabledCount <= 1} />
         ))}
       </Group>
-      <Group title="可安装" count={missing.length}>
+      <Group title={t('InstalledAgentsSettings.availableToInstall')} count={missing.length}>
         {missing.map((kind) => <MissingAgentRow key={kind} kind={kind} installation={installationSupported ? environment?.cliInstallations?.find((each) => each.agent === kind) : undefined} />)}
       </Group>
-      <Group title="暂未支持" count={other.length}>
-        <p className="settings-row-description agent-list-note">在这台电脑上找到了，但还不能在 Antumi 里运行；命令能响应版本，不代表已登录或支持聊天。</p>
+      <Group title={t('InstalledAgentsSettings.notSupportedYet')} count={other.length}>
+        <p className="settings-row-description agent-list-note">{t('InstalledAgentsSettings.foundOnThisComputerButCannotRunIn')}</p>
         {other.map((agent) => <DetectedAgentRow key={agent.id} agent={agent} />)}
       </Group>
       {environment && (
         <details className="environment-search-path">
-          <summary>Antumi 在这些目录里找命令（{environment.searchPath.length} 个）</summary>
-          <p className="settings-row-description">
-            core 和 Agent 启动时用的 PATH，另外也会查常见目录里的 App。CLI 装在别处时，把它的目录加进 PATH 后重启 Antumi。
-          </p>
+          <summary>{tr('InstalledAgentsSettings.antumiSearchesTheseDirectoriesForCommands', { value1: environment.searchPath.length })}</summary>
+          <p className="settings-row-description">{t('InstalledAgentsSettings.pathUsedByCoreAndAgentsPlusCommon')}</p>
           <ul className="mono">
             {environment.searchPath.map((dir) => (
               <li key={dir}>{dir}</li>

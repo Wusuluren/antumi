@@ -1,3 +1,4 @@
+import { getLocale, t } from '../i18n'
 import { useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { imageLabel, MAX_IMAGE_NAME_LENGTH, type TaskImage } from '@antumi/protocol'
 import { useImageUrl } from '../attachment-images'
@@ -159,16 +160,16 @@ export function ImageViewer({
     >
       <header className="image-viewer-header">
         <span id={`${ids}-title`} className="image-viewer-title">
-          {imageLabel({ name: '' }, index)}
+          {imageLabel({ name: '' }, index, getLocale())}
           <span className="muted"> / {images.length}</span>
         </span>
         {onRename ? (
           <input
             className="input image-viewer-name"
             value={name}
-            placeholder="给图片起个名字（可选）"
+            placeholder={t('ImageViewer.nameThisImageOptional')}
             maxLength={MAX_IMAGE_NAME_LENGTH}
-            aria-label="图片名字"
+            aria-label={t('ImageViewer.imageName')}
             onChange={(event) => setName(event.target.value)}
             onBlur={commitName}
             onKeyDown={(event) => {
@@ -181,7 +182,7 @@ export function ImageViewer({
           <span className="image-viewer-name-static">{image.name}</span>
         )}
         {note && <span className="muted image-viewer-note">{note}</span>}
-        <button type="button" className="icon-button" aria-label="关闭" onClick={onClose}>
+        <button type="button" className="icon-button" aria-label={t('BackdropPicker.close')} onClick={onClose}>
           ×
         </button>
       </header>
@@ -196,16 +197,16 @@ export function ImageViewer({
         onPointerCancel={() => setDrag(null)}
       >
         {images.length > 1 && (
-          <button type="button" className="image-viewer-step" aria-label="上一张" onClick={() => go(-1)}>
+          <button type="button" className="image-viewer-step" aria-label={t('ImageViewer.previousImage')} onClick={() => go(-1)}>
             ‹
           </button>
         )}
         {failed ? (
-          <span className="muted">图片打不开：文件不存在，或不是能显示的图片</span>
+          <span className="muted">{t('ImageViewer.cannotOpenImageFileDoesNotExistOr')}</span>
         ) : url ? (
           <img
             src={url}
-            alt={image.name || imageLabel(image, index)}
+            alt={image.name || imageLabel(image, index, getLocale())}
             draggable={false}
             style={natural ? {
               width: natural.width,
@@ -217,30 +218,30 @@ export function ImageViewer({
             onDoubleClick={toggleActualSize}
           />
         ) : (
-          <span className="muted">正在加载…</span>
+          <span className="muted">{t('ImageViewer.loading')}</span>
         )}
         {images.length > 1 && (
-          <button type="button" className="image-viewer-step" aria-label="下一张" onClick={() => go(1)}>
+          <button type="button" className="image-viewer-step" aria-label={t('ImageViewer.nextImage')} onClick={() => go(1)}>
             ›
           </button>
         )}
       </div>
       <footer className="image-viewer-footer">
-        <div className="image-viewer-tools" role="toolbar" aria-label="缩放和旋转">
-          <button type="button" className="icon-button" aria-label="缩小" data-tooltip="缩小（-）" disabled={!natural || scale <= MIN_SCALE} onClick={() => zoom(1 / ZOOM_STEP)}>
+        <div className="image-viewer-tools" role="toolbar" aria-label={t('ImageViewer.zoomAndRotate')}>
+          <button type="button" className="icon-button" aria-label={t('ImageViewer.zoomOut')} data-tooltip={t('ImageViewer.zoomOut_1114')} disabled={!natural || scale <= MIN_SCALE} onClick={() => zoom(1 / ZOOM_STEP)}>
             <ZoomOutIcon />
           </button>
-          <button type="button" className="image-viewer-scale" aria-label="适应窗口" data-tooltip="适应窗口（0）" disabled={!natural} onClick={fit}>
+          <button type="button" className="image-viewer-scale" aria-label={t('ImageViewer.fitToWindow')} data-tooltip={t('ImageViewer.fitToWindow0')} disabled={!natural} onClick={fit}>
             {Math.round(scale * 100)}%
           </button>
-          <button type="button" className="icon-button" aria-label="放大" data-tooltip="放大（+）" disabled={!natural || scale >= MAX_SCALE} onClick={() => zoom(ZOOM_STEP)}>
+          <button type="button" className="icon-button" aria-label={t('ChatImages.zoomIn')} data-tooltip={t('ImageViewer.zoomIn')} disabled={!natural || scale >= MAX_SCALE} onClick={() => zoom(ZOOM_STEP)}>
             <ZoomInIcon />
           </button>
           <span className="image-viewer-tools-gap" />
-          <button type="button" className="icon-button" aria-label="向左旋转" data-tooltip="向左旋转（Shift+R）" disabled={!natural} onClick={() => rotate(-1)}>
+          <button type="button" className="icon-button" aria-label={t('ImageViewer.rotateLeft')} data-tooltip={t('ImageViewer.rotateLeftShiftR')} disabled={!natural} onClick={() => rotate(-1)}>
             <RotateLeftIcon />
           </button>
-          <button type="button" className="icon-button" aria-label="向右旋转" data-tooltip="向右旋转（R）" disabled={!natural} onClick={() => rotate(1)}>
+          <button type="button" className="icon-button" aria-label={t('ImageViewer.rotateRight')} data-tooltip={t('ImageViewer.rotateRightR')} disabled={!natural} onClick={() => rotate(1)}>
             <RotateRightIcon />
           </button>
         </div>

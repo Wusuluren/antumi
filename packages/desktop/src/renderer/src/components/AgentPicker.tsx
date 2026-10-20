@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { quotaVerdict, type AgentKind } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
@@ -35,23 +36,23 @@ export function AgentPicker({
     <ChatPicker
       label="Agent"
       value={agent ?? ''}
-      placeholder="选择 Agent"
+      placeholder={t('AgentPicker.chooseAgent')}
       options={[
         ...kinds.map((kind) => ({
           value: kind,
           label: agentLabel(kind),
           icon: <AgentIcon agent={kind} />,
           description: installed.includes(kind)
-            ? [kind === recommended ? '推荐' : null, quotaText(quotaVerdict(usage?.[kind], now), display, now)].filter(Boolean).join(' · ') || null
-            : '未安装'
+            ? [kind === recommended ? t('AgentPicker.recommended') : null, quotaText(quotaVerdict(usage?.[kind], now), display, now)].filter(Boolean).join(' · ') || null
+            : t('AgentPicker.notInstalled')
         })),
-        ...(agent ? [{ value: '', label: '不指定', icon: <AgentIcon agent={null} /> }] : [])
+        ...(agent ? [{ value: '', label: t('AgentPicker.unspecified'), icon: <AgentIcon agent={null} /> }] : [])
       ]}
       size={size}
       placement="below"
       align="end"
       disabled={locked}
-      title={locked ? `Agent：${agent ? agentLabel(agent) : '未选择'}（这时不能换）` : undefined}
+      title={locked ? t('AgentPicker.agentCannotChangeNow', { value1: agent ? agentLabel(agent) : t('AgentPicker.notSelected') }) : undefined}
       onChange={(value) => onChange(kinds.find((kind) => kind === value) ?? null)}
     />
   )

@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useCallback, useState } from 'react'
 import type { ScheduledRun } from '@antumi/protocol'
 import { selectConversation, selectTask, setAwakeMode, showView, useCore } from '../core-store'
@@ -31,14 +32,14 @@ function Reschedule({ run }: { run: ScheduledRun }) {
   const close = useCallback(() => setOpen(false), [])
   return (
     <span className="menu-anchor">
-      <button type="button" className="tool-button" aria-label="改时间" data-tooltip="改时间" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button type="button" className="tool-button" aria-label={t('SchedulesPanel.changeTime')} data-tooltip={t('SchedulesPanel.changeTime')} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>
         <ClockIcon />
       </button>
       {open && (
         <SchedulePicker
-          title="改预约时间"
+          title={t('OverviewView.changeScheduledTime')}
           initial={run.notBefore}
-          submitLabel="保存"
+          submitLabel={t('FileEditor.save')}
           onSchedule={async (notBefore) => (await rescheduleRun(run.id, notBefore)) !== null}
           onClose={close}
         />
@@ -63,22 +64,22 @@ function OpenRow({ run, index, count, now, onMove }: { run: ScheduledRun; index:
       </span>
       <span className="schedule-state">{scheduleState(run, now)}</span>
       <span className="schedule-actions">
-        <button type="button" className="tool-button" aria-label="提前" data-tooltip="提前" disabled={index === 0} onClick={() => onMove(index, index - 1)}><ArrowUpIcon /></button>
-        <button type="button" className="tool-button" aria-label="推后" data-tooltip="推后" disabled={index === count - 1} onClick={() => onMove(index, index + 1)}><ArrowDownIcon /></button>
+        <button type="button" className="tool-button" aria-label={t('SchedulesPanel.moveEarlier')} data-tooltip={t('SchedulesPanel.moveEarlier')} disabled={index === 0} onClick={() => onMove(index, index - 1)}><ArrowUpIcon /></button>
+        <button type="button" className="tool-button" aria-label={t('SchedulesPanel.moveLater')} data-tooltip={t('SchedulesPanel.moveLater')} disabled={index === count - 1} onClick={() => onMove(index, index + 1)}><ArrowDownIcon /></button>
         {waiting && run.target.kind !== 'resume' && <Reschedule run={run} />}
         {waiting && (
           <button
             type="button"
             className="tool-button"
-            aria-label="现在开始"
-            data-tooltip="现在开始，不等时间和额度"
+            aria-label={t('SchedulesPanel.startNow')}
+            data-tooltip={t('SchedulesPanel.startNowIgnoringTimeAndQuota')}
             onClick={() => void runScheduleNow(run.id)}
           >
             <PlayIcon />
           </button>
         )}
         {waiting && (
-          <button type="button" className="tool-button" aria-label="取消预约" data-tooltip="取消预约" onClick={() => void cancelSchedule(run.id)}>
+          <button type="button" className="tool-button" aria-label={t('ChatDock.cancelSchedule')} data-tooltip={t('ChatDock.cancelSchedule')} onClick={() => void cancelSchedule(run.id)}>
             <CloseIcon />
           </button>
         )}
@@ -121,29 +122,20 @@ export function SchedulesPanel() {
   return (
     <>
       <div className="routines-intro">
-        <p className="muted">
-          指定的任务或会话跑一次：到点、而且 agent 的额度够用时自动开始；同一个 agent 的预约按下面的顺序一个接一个运行。
-          你预约的以「{UNATTENDED_LABEL[mode]}」无人值守运行，<SettingsLink />；撞到额度后的续跑沿用会话原来的模式。
-        </p>
+        <p className="muted">{tr('SchedulesPanel.runASpecifiedTaskOrConversationOnceStarts', { value1: UNATTENDED_LABEL[mode], value2: <SettingsLink /> })}</p>
         {awake?.mode === 'off' && open.length > 0 && (
-          <p className="schedule-warning">
-            「保持电脑唤醒」已关闭，电脑睡着时预约不会运行。
-            <button type="button" className="link-button" onClick={() => void setAwakeMode('auto')}>改为有预约时保持唤醒</button>
-          </p>
+          <p className="schedule-warning">{tr('SchedulesPanel.keepComputerAwakeIsOffSchedulesWillNot', { value1: <button type="button" className="link-button" onClick={() => void setAwakeMode('auto')}>{t('SchedulesPanel.keepAwakeWhenSchedulesArePending')}</button> })}</p>
         )}
       </div>
-      <section className="worktree-group" aria-label="等待中">
-        <h3 className="worktree-group-title">等待中 · {open.length}</h3>
+      <section className="worktree-group" aria-label={t('SchedulesPanel.waiting')}>
+        <h3 className="worktree-group-title">{tr('SchedulesPanel.waiting_1507', { value1: open.length })}</h3>
         {open.length === 0
-          ? <p className="worktrees-empty muted">没有等待中的预约。在任务的工具栏或聊天输入框旁点时钟图标预约。</p>
+          ? <p className="worktrees-empty muted">{t('SchedulesPanel.noWaitingSchedulesUseTheClockIconIn')}</p>
           : <ul className="worktree-list">{open.map((run, index) => <OpenRow key={run.id} run={run} index={index} count={open.length} now={now} onMove={move} />)}</ul>}
       </section>
       {settled.length > 0 && (
-        <section className="worktree-group" aria-label="最近">
-          <h3 className="worktree-group-title">
-            最近 · {settled.length}
-            <button type="button" className="link-button" onClick={clearSchedules}>清除记录</button>
-          </h3>
+        <section className="worktree-group" aria-label={t('SchedulesPanel.recent')}>
+          <h3 className="worktree-group-title">{tr('SchedulesPanel.recent_1510', { value1: settled.length, value2: <button type="button" className="link-button" onClick={clearSchedules}>{t('SchedulesPanel.clearHistory')}</button> })}</h3>
           <ul className="worktree-list">{settled.map((run) => <SettledRow key={run.id} run={run} now={now} />)}</ul>
         </section>
       )}

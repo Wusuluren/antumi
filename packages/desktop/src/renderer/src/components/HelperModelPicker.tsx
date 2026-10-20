@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useEffect, useState } from 'react'
 import { helperAllowsMode, type AgentKind, type ChatCatalog, type ChatPermissionMode, type Conversation } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
@@ -26,7 +27,7 @@ export function HelperModelPicker({ catalog, model, effort, disabled = false, on
   onModel: (model: string) => void
   onEffort: (effort: string) => void
 }) {
-  if (!catalog) return <span className="muted">{catalog === undefined ? '正在读取模型…' : model ?? '默认模型'}</span>
+  if (!catalog) return <span className="muted">{catalog === undefined ? t('AgentModelPicker.loadingModels') : model ?? t('ChatPicker.defaultModel')}</span>
   return <ChatModelPicker
     models={catalog.models.map((each) => ({ value: each.id, label: each.label, description: each.description, efforts: each.efforts.map((one) => ({ value: one, label: effortLabel(one) })) }))}
     model={model}
@@ -54,7 +55,7 @@ export function HelperModePicker({ agent, offered, mode, disabled = false, onMod
   disabled?: boolean
   onMode: (mode: string) => void
 }) {
-  return <ChatPicker label="权限模式" value={mode} placeholder="权限模式" options={modeOptions(agent, offered)} tone={modeTone(mode)} disabled={disabled} onChange={onMode} />
+  return <ChatPicker label={t('ChatHandoff.permissionMode')} value={mode} placeholder={t('ChatHandoff.permissionMode')} options={modeOptions(agent, offered)} tone={modeTone(mode)} disabled={disabled} onChange={onMode} />
 }
 
 export function HelperStartOptions({ conversation }: { conversation: Conversation }) {

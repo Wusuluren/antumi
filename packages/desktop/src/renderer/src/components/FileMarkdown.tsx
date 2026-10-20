@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import Markdown from 'react-markdown'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
@@ -31,7 +32,7 @@ export function FileMarkdown({ text, file, scope }: { text: string; file: Resolv
         const reference = typeof src === 'string' ? markdownFileReference(src, file.path) : null
         return reference && isImagePath(reference.path)
           ? <img src={previewUrl(reference.path)} alt={alt ?? ''} width={width} height={height} loading="lazy" />
-          : <a href={typeof src === 'string' ? src : undefined} target="_blank" rel="noreferrer">{alt || '图片'}</a>
+          : <a href={typeof src === 'string' ? src : undefined} target="_blank" rel="noreferrer">{alt || t('FileMarkdown.image')}</a>
       }
     }}>{text}</Markdown>
   </div>

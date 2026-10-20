@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { ProjectHead } from '@antumi/protocol'
 import { useCore } from '../core-store'
@@ -39,8 +40,8 @@ export function useProjectHeads(target: BranchTarget, updatedAt: number, opened:
 }
 
 function headLabel(head: ProjectHead): string {
-  if (!head.branch) return '无 Git 分支'
-  return head.detached ? `${head.branch}（分离 HEAD）` : head.branch
+  if (!head.branch) return t('BranchStatus.noGitBranch')
+  return head.detached ? t('BranchStatus.detachedHead', { value1: head.branch }) : head.branch
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -54,8 +55,8 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       className="icon-button branch-status-copy"
-      aria-label={copied ? '已复制' : '复制分支名'}
-      title={copied ? '已复制' : '复制分支名'}
+      aria-label={copied ? t('BranchStatus.copied') : t('BranchStatus.copyBranchName')}
+      title={copied ? t('BranchStatus.copied') : t('BranchStatus.copyBranchName')}
       data-copied={copied || undefined}
       onClick={() => void navigator.clipboard.writeText(text).then(() => setCopied(true), () => {})}
     >
@@ -66,12 +67,12 @@ function CopyButton({ text }: { text: string }) {
 
 // The checked-out branch as a chip like the header's; a folder outside git gets plain words.
 export function BranchChip({ branch, detached = false }: { branch: string | null; detached?: boolean }) {
-  if (!branch) return <span className="branch-status-nogit">无 Git</span>
+  if (!branch) return <span className="branch-status-nogit">{t('BranchStatus.noGit')}</span>
   return (
-    <span className="branch-status-branch" title={detached ? `${branch}（分离 HEAD）` : branch}>
+    <span className="branch-status-branch" title={detached ? t('BranchStatus.detachedHead_145', { branch: branch }) : branch}>
       <BranchIcon />
       <span className="mono">{branch}</span>
-      {detached && <span className="branch-status-detached">分离</span>}
+      {detached && <span className="branch-status-detached">{t('BranchStatus.detached')}</span>}
     </span>
   )
 }
@@ -96,12 +97,10 @@ export function ProjectGroups<T extends { path: string }>({ items, children }: {
   if (!primary) return null
   return (
     <>
-      <div className="branch-status-heading">主项目</div>
+      <div className="branch-status-heading">{t('BranchStatus.primaryProject')}</div>
       {children(primary, true)}
       {extras.length > 0 && (
-        <div className="branch-status-heading">
-          附加项目<span className="branch-status-heading-count">{extras.length}</span>
-        </div>
+        <div className="branch-status-heading">{tr('BranchStatus.additionalProject', { value1: <span className="branch-status-heading-count">{extras.length}</span> })}</div>
       )}
       {extras.map((each) => children(each, false))}
     </>
@@ -116,17 +115,17 @@ function StatusLine({ head }: { head: ProjectHead }) {
     parts.push(
       <span key="changes" className="branch-status-stat" data-dirty={head.changes > 0 || undefined}>
         <i className="branch-status-dot" aria-hidden="true" />
-        {head.changes === 0 ? '干净' : `${head.changes} 个改动`}
+        {head.changes === 0 ? t('BranchStatus.clean') : t('BranchStatus.changes', { value1: head.changes })}
       </span>
     )
   }
-  if (head.upstream === null && !head.detached) parts.push(<span key="track" className="branch-status-stat">没有跟踪远程分支</span>)
+  if (head.upstream === null && !head.detached) parts.push(<span key="track" className="branch-status-stat">{t('BranchStatus.noUpstreamBranch')}</span>)
   if (head.upstream) {
     const ahead = head.ahead ?? 0
     const behind = head.behind ?? 0
-    if (ahead > 0) parts.push(<span key="ahead" className="branch-status-stat" aria-label={`领先 ${ahead} 个提交`}><ArrowUpIcon />{ahead}</span>)
-    if (behind > 0) parts.push(<span key="behind" className="branch-status-stat" aria-label={`落后 ${behind} 个提交`}><ArrowDownIcon />{behind}</span>)
-    if (ahead === 0 && behind === 0) parts.push(<span key="synced" className="branch-status-stat">已同步</span>)
+    if (ahead > 0) parts.push(<span key="ahead" className="branch-status-stat" aria-label={t('BranchStatus.commitsAhead', { ahead: ahead })}><ArrowUpIcon />{ahead}</span>)
+    if (behind > 0) parts.push(<span key="behind" className="branch-status-stat" aria-label={t('BranchStatus.commitsBehind', { behind: behind })}><ArrowDownIcon />{behind}</span>)
+    if (ahead === 0 && behind === 0) parts.push(<span key="synced" className="branch-status-stat">{t('BranchStatus.upToDate')}</span>)
     parts.push(<span key="upstream" className="branch-status-upstream mono">{head.upstream}</span>)
   }
   if (parts.length === 0) return null
@@ -154,7 +153,7 @@ export function BranchStatusDetails({ heads, actions }: { heads: readonly Projec
       <ProjectGroups items={heads}>
         {(head, primary) => <Project key={head.path} head={head} primary={primary} actions={actions} />}
       </ProjectGroups>
-      {heads.some((each) => each.upstream) && <p className="branch-status-note">领先 / 落后按上次 fetch 到的远程计算</p>}
+      {heads.some((each) => each.upstream) && <p className="branch-status-note">{t('BranchStatus.aheadBehindIsBasedOnTheLastFetched')}</p>}
     </div>
   )
 }
@@ -175,7 +174,7 @@ export function BranchStatus({ target, updatedAt }: { target: BranchTarget; upda
         className="project-branch branch-chip"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`主项目 ${projectName(head.path)}：${headLabel(head)}${dirty ? '，有未提交的改动' : ''}，查看 git 状态`}
+        aria-label={t('BranchStatus.primaryProjectViewGitStatus', { value1: projectName(head.path), value2: headLabel(head), value3: dirty ? t('BranchStatus.withUncommittedChanges') : '' })}
         data-dirty={dirty || undefined}
         onClick={() => {
           if (!open) setOpened((count) => count + 1)
@@ -185,7 +184,7 @@ export function BranchStatus({ target, updatedAt }: { target: BranchTarget; upda
         {headLabel(head)}
       </button>
       {open && (
-        <Popover label="git 状态" onClose={close}>
+        <Popover label={t('BranchStatus.gitStatus')} onClose={close}>
           {target.kind === 'conversation'
             ? <ConversationBranches id={target.id} heads={heads} onChanged={() => setOpened((count) => count + 1)} />
             : <BranchStatusDetails heads={heads} />}

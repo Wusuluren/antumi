@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { create } from 'zustand'
 import { z } from 'zod'
 import { ChatImage, RpcError, type ChatItem, type RpcConnection } from '@antumi/protocol'
@@ -21,7 +22,7 @@ export function restoredInitialMessages(raw: string | null): Record<string, Init
     const parsed = Messages.safeParse(JSON.parse(raw ?? '{}'))
     if (!parsed.success) return {}
     return Object.fromEntries(Object.entries(parsed.data).map(([id, message]) => [id, {
-      ...message, phase: 'failed' as const, error: message.error ?? '发送尚未完成，请重试'
+      ...message, phase: 'failed' as const, error: message.error ?? t('initialMessages.sendIsUnfinishedTryAgain')
     }]))
   } catch { return {} }
 }

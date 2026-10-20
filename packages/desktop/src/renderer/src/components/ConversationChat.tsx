@@ -1,3 +1,4 @@
+import { getLocale, t, tr } from '../i18n'
 import { HelperTurnCost } from './HelperTurnCost'
 import { addQuote } from '../chat-quotes'
 import { focusChatInput } from '../helper-conversations'
@@ -56,7 +57,7 @@ const IN_VIEW_SLACK = 8
 function tokensText(item: Extract<ChatItem, { kind: 'turn' }>): string {
   if (!item.usage) return ''
   return 'total' in item.usage
-    ? ` · 总 ${formatTokens(item.usage.total)} tokens`
+    ? t('ConversationChat.totalTokens', { value1: formatTokens(item.usage.total) })
     : ` · ↑ ${formatTokens(item.usage.input)} ↓ ${formatTokens(item.usage.output)}`
 }
 
@@ -64,10 +65,10 @@ function tokensText(item: Extract<ChatItem, { kind: 'turn' }>): string {
 function turnText(item: Extract<ChatItem, { kind: 'turn' }>): string {
   const took = (item.durationMs !== null ? ` · ${workedFor(item.durationMs)}` : '') + tokensText(item)
   // What opened a turn of the agent's own; an older core, or an agent that does not say, leaves it unnamed.
-  const why = !item.resumed ? '' : item.resumedBy === 'command' ? '后台命令结束后继续，' : item.resumedBy === 'subagent' ? '子 Agent 回来后继续，' : '自动继续，'
-  if (item.state === 'completed') return `${why}完成${took}`
-  if (item.state === 'interrupted') return `${why}已中断${took}${item.error ? `：${readableNotice(item.error)}` : ''}`
-  return `${why}失败${took}${item.error ? `：${readableNotice(item.error)}` : ''}`
+  const why = !item.resumed ? '' : item.resumedBy === 'command' ? t('ConversationChat.resumedAfterBackgroundCommand') : item.resumedBy === 'subagent' ? t('ConversationChat.resumedAfterSubAgentReturned') : t('ConversationChat.autoResumed')
+  if (item.state === 'completed') return t('ConversationChat.completed', { why: why, took: took })
+  if (item.state === 'interrupted') return t('ConversationChat.interrupted', { why: why, took: took, value3: item.error ? `：${readableNotice(item.error)}` : '' })
+  return t('ConversationChat.failed', { why: why, took: took, value3: item.error ? `：${readableNotice(item.error)}` : '' })
 }
 
 function MessageTime({ at }: { at: number }) {
@@ -81,8 +82,8 @@ function StageDivider({ conversationId, stage, task }: { conversationId: string;
     const taskId = s.conversations[conversationId]?.taskId
     return taskId ? s.tasks[taskId]?.attempts : undefined
   })
-  const where = stage.planOnly ? ' · 只读规划' : task ? ' · 在 worktree 里执行' : ''
-  const attempt = attempts && attempts.length > 0 ? ` · 第 ${1 + attempts.filter((each) => each.at <= stage.startedAt).length} 次尝试` : ''
+  const where = stage.planOnly ? t('ConversationChat.readOnlyPlanning') : task ? t('ConversationChat.runningInWorktree') : ''
+  const attempt = attempts && attempts.length > 0 ? t('ConversationChat.attempt', { value1: 1 + attempts.filter((each) => each.at <= stage.startedAt).length }) : ''
   return <div className="chat-stage">{agentLabel(stage.agent)} · {chatDayAndTime(stage.startedAt)}{where}{attempt}</div>
 }
 
@@ -115,7 +116,7 @@ function Reasoning({ item }: { item: ReasoningItem }) {
     return () => clearTimeout(timer)
   }, [item.streaming])
   const open = kept || streaming
-  const label = item.streaming ? '思考中' : took !== undefined ? `思考了 ${thoughtFor(took)}` : '思考过程'
+  const label = item.streaming ? t('ConversationChat.thinking') : took !== undefined ? t('ConversationChat.thoughtFor', { value1: thoughtFor(took) }) : t('ConversationChat.reasoning')
   // While it streams, the thought keeps its newest line in view, as the agent writes it.
   const text = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -150,7 +151,7 @@ function Reasoning({ item }: { item: ReasoningItem }) {
 function ChatSkeleton() {
   const rows = ['user', 'line', 'line', 'short', 'user', 'line', 'short']
   return (
-    <div className="chat-skeleton" role="status" aria-label="正在读取聊天记录">
+    <div className="chat-skeleton" role="status" aria-label={t('ConversationChat.loadingChatHistory')}>
       {rows.map((row, index) => <span key={index} className="chat-skeleton-row" data-row={row} style={{ animationDelay: `${index * 120}ms` }} />)}
     </div>
   )
@@ -167,7 +168,7 @@ const JumpToEntry = createContext<(key: string) => void>(() => {})
 function ForkButton({ item }: { item: ChatItem }) {
   const surface = useChatSurface()
   if (!surface.fork) return null
-  const label = item.kind === 'user' ? '从这条消息 fork：新会话到它之前为止，这条消息留在输入框里' : '从这里 fork：新会话到这一轮为止'
+  const label = item.kind === 'user' ? t('ConversationChat.forkBeforeThisMessageCreateAConversationUp') : t('ConversationChat.forkHereCreateAConversationThroughThisTurn')
   return (
     <button type="button" className="copy-button fork-button" aria-label="fork" data-tooltip={label} onClick={() => surface.fork?.(item)}>
       <ForkIcon />
@@ -179,7 +180,7 @@ function UserMessageFooter({ item }: { item: UserItem }) {
   return (
     <div className="chat-user-footer">
       <MessageTime at={item.at} />
-      {saidText(item.text) && <CopyButton text={withoutQuoteMarkers(saidText(item.text))} label="复制消息" />}
+      {saidText(item.text) && <CopyButton text={withoutQuoteMarkers(saidText(item.text))} label={t('ConversationChat.copyMessage')} />}
       <ForkButton item={item} />
     </div>
   )
@@ -193,7 +194,7 @@ function UserQuotes({ quotes }: { quotes: ReturnType<typeof parseQuotes>['quotes
     <div className="chat-user-quotes">
       {quotes.map((quote, index) => (
         <div key={index} className="chat-user-quote">
-          <button type="button" className="chat-user-quote-text" disabled={!quote.source} title={quote.source ? '跳到引用的原文' : undefined} onClick={() => quote.source && jump(quote.source)}>
+          <button type="button" className="chat-user-quote-text" disabled={!quote.source} title={quote.source ? t('ConversationChat.jumpToOriginalQuote') : undefined} onClick={() => quote.source && jump(quote.source)}>
             {quote.text}
           </button>
           {quote.note && <div className="chat-user-quote-note">{quote.note}</div>}
@@ -213,7 +214,7 @@ function UserMessage({ item, pending = false }: { item: UserItem; pending?: bool
   if (handoff && !body && quotes.length === 0 && item.images.length === 0) {
     return (
       <>
-        <div className="chat-user-handoff">移交给 {agentLabel((byStage.get(item.stageId) ?? current).agent)}，没有补充说明</div>
+        <div className="chat-user-handoff">{tr('ConversationChat.handedOffToWithNoAdditionalInstructions', { value1: agentLabel((byStage.get(item.stageId) ?? current).agent) })}</div>
         {!pending && <UserMessageFooter item={item} />}
       </>
     )
@@ -222,7 +223,7 @@ function UserMessage({ item, pending = false }: { item: UserItem; pending?: bool
   return (
     <>
       <div className="chat-user" data-clipped={(long && !open) || undefined} data-steer={item.steer || undefined}>
-        {item.steer && <span className="chat-user-steer" title="回合进行中插入的消息">追加指令</span>}
+        {item.steer && <span className="chat-user-steer" title={t('ConversationChat.messageInsertedDuringTheTurn')}>{t('ConversationChat.additionalInstructions')}</span>}
         <ChatImageStrip images={item.images} />
         {quotes.length > 0 && <UserQuotes quotes={quotes} />}
         {body}
@@ -230,7 +231,7 @@ function UserMessage({ item, pending = false }: { item: UserItem; pending?: bool
       {long && (
         <div className="chat-user-more">
           <button type="button" className="link-button" aria-expanded={open} onClick={() => setOpen(!open)}>
-            {open ? '收起' : '展开全文'}
+            {open ? t('ChatPlan.collapse') : t('ConversationChat.expandFullText')}
           </button>
         </div>
       )}
@@ -248,13 +249,13 @@ function InitialMessageEntry({ id, agent, message }: { id: string; agent: AgentK
       </div>
       {message.phase === 'failed' ? (
         <div className="chat-initial-error chat-notice" data-level="error" role="alert">
-          <span>首条消息未发送：{message.error}</span>
-          <button type="button" className="button ghost" disabled={!rpc} onClick={() => { if (rpc) void sendInitialMessage(id, rpc) }}>重试</button>
+          <span>{tr('ConversationChat.firstMessageNotSent', { value1: message.error })}</span>
+          <button type="button" className="button ghost" disabled={!rpc} onClick={() => { if (rpc) void sendInitialMessage(id, rpc) }}>{t('ChatContextMenu.retry')}</button>
         </div>
       ) : (
         <div className="chat-working" role="status">
           <Spinner />
-          <span>{message.phase === 'starting' ? `正在启动 ${agentLabel(agent)}…` : '正在发送首条消息…'}</span>
+          <span>{message.phase === 'starting' ? t('ChatComposer.starting', { value1: agentLabel(agent) }) : t('ChatComposer.sendingFirstMessage')}</span>
         </div>
       )}
     </>
@@ -267,7 +268,7 @@ type NoticeItem = Extract<ChatItem, { kind: 'notice' }>
 function ChatNotice({ conversationId, item }: { conversationId: string; item: NoticeItem }) {
   const [open, setOpen] = useDisclosure(`notice:${itemKey(item)}`)
   const [retrying, setRetrying] = useState(false)
-  if (isCompaction(item.text)) return <div className="chat-divider" role="separator">上下文已压缩</div>
+  if (isCompaction(item.text)) return <div className="chat-divider" role="separator">{t('ConversationChat.contextCompacted')}</div>
   const text = readableNotice(item.text)
   const { first, more } = noticeSummary(text)
   const retry = item.action?.kind === 'retryCursorTurn' ? async () => {
@@ -284,14 +285,14 @@ function ChatNotice({ conversationId, item }: { conversationId: string; item: No
   } : null
   const action = retry && (
     <button type="button" className="button chat-notice-action" disabled={retrying} onClick={() => void retry()}>
-      {item.action?.stop ? (retrying ? '正在停止…' : '停止并重试') : retrying ? '正在重连…' : '重新连接并重试'}
+      {item.action?.stop ? (retrying ? t('ConversationChat.stopping') : t('ConversationChat.stopAndRetry')) : retrying ? t('ConversationChat.reconnecting') : t('ConversationChat.reconnectAndRetry')}
     </button>
   )
   if (!more) return <div className="chat-notice chat-notice-actionable" data-level={item.level}><span>{text}</span>{action}</div>
   // The words stay out of the button, so an error's output can be selected and copied.
   return (
     <div className="chat-notice chat-notice-long chat-notice-actionable" data-level={item.level}>
-      <button type="button" className="chat-notice-toggle" aria-expanded={open} aria-label={open ? '收起' : '展开全文'} onClick={() => setOpen(!open)}>
+      <button type="button" className="chat-notice-toggle" aria-expanded={open} aria-label={open ? t('ChatPlan.collapse') : t('ConversationChat.expandFullText')} onClick={() => setOpen(!open)}>
         <span className="chat-tool-chevron" aria-hidden="true"><ChevronRightIcon /></span>
       </button>
       <div className="chat-notice-text" data-open={open || undefined} onClick={open ? undefined : () => setOpen(true)}>{open ? text : first}</div>
@@ -304,7 +305,7 @@ const ChatVariant = createContext<'full' | 'compact'>('full')
 const FoldedTurns = createContext<ReadonlySet<string>>(new Set())
 
 function helperDuration(turn: TurnItem, workMs: number | null = null): string {
-  return `处理了 ${Math.max(1, Math.round((turn.durationMs ?? workMs ?? 0) / 1000))} 秒`
+  return t('ConversationChat.workedForS', { value1: Math.max(1, Math.round((turn.durationMs ?? workMs ?? 0) / 1000)) })
 }
 
 function AssistantReply({ conversationId, item, completedAt, ending, blockKey }: {
@@ -317,7 +318,7 @@ function AssistantReply({ conversationId, item, completedAt, ending, blockKey }:
   const compact = useContext(ChatVariant) === 'compact'
   const foldedTurns = useContext(FoldedTurns)
   // A stored reply can still end in Cursor's raw transport error. Say what happened instead.
-  const failure = item.streaming ? null : cursorProviderError(item.text)
+  const failure = item.streaming ? null : cursorProviderError(item.text, getLocale())
   const text = failure ? failure.rest : item.text
   const parentId = useCore((s) => s.conversations[conversationId]?.helperOf)
   const box = useRef<HTMLDivElement>(null)
@@ -331,12 +332,12 @@ function AssistantReply({ conversationId, item, completedAt, ending, blockKey }:
       {failure && <div className="chat-notice" data-level="warning">{failure.detail}</div>}
       {(completedAt !== undefined || (parentId && !item.streaming)) && text && (
         <div className="chat-message-actions">
-          <CopyButton text={shown} label={shown !== text ? '复制译文' : '复制回复'} />
+          <CopyButton text={shown} label={shown !== text ? t('ChatContextMenu.copyTranslation') : t('ConversationChat.copyReply')} />
           {completedAt !== undefined && <MessageTime at={completedAt} />}
           {ending && (!compact || ending.state !== 'completed' || !foldedTurns.has(itemKey(ending))) && <><span className="chat-turn chat-turn-inline" data-state={ending.state}>{compact && ending.state === 'completed' ? helperDuration(ending) : turnText(ending)}</span>{compact && <HelperTurnCost turn={ending} />}</>}
-          {translated.foreign && <TranslateButton translated={translated} what="这条回复" />}
+          {translated.foreign && <TranslateButton translated={translated} what={t('ConversationChat.thisReply')} />}
           <ForkButton item={item} />
-          {parentId && <button type="button" className="link-button helper-quote-button" onClick={() => { addQuote(parentId, null, shown); focusChatInput(parentId) }}>引用到主会话</button>}
+          {parentId && <button type="button" className="link-button helper-quote-button" onClick={() => { addQuote(parentId, null, shown); focusChatInput(parentId) }}>{t('ConversationChat.quoteInMainConversation')}</button>}
         </div>
       )}
     </div>
@@ -390,8 +391,8 @@ function TurnHead({ at, stageId, messageKey, live }: { at: number; stageId: stri
     <div className="chat-turn-head" data-relay-for={messageKey}>
       <span className="chat-turn-head-icon" data-live={live ?? undefined} aria-hidden="true"><AgentIcon agent={agent} /></span>
       <span className="chat-turn-head-name">{agentLabel(agent)}</span>
-      {model && <span className="chat-turn-head-model" title={`模型：${model}`}>{model}</span>}
-      {model && effort && <span className="chat-turn-head-effort" title={`推理程度：${effortLabel(effort)}`}>{effortLabel(effort)}</span>}
+      {model && <span className="chat-turn-head-model" title={t('ConversationChat.model', { model: model })}>{model}</span>}
+      {model && effort && <span className="chat-turn-head-effort" title={t('ConversationChat.reasoningEffort', { value1: effortLabel(effort) })}>{effortLabel(effort)}</span>}
       <MessageTime at={at} />
     </div>
   )
@@ -419,7 +420,7 @@ type TurnItem = Extract<ChatItem, { kind: 'turn' }>
 // The turn's work in one line: how many calls, and how long they ran before the answer. The kinds
 // of call are the expanded list's business, and the turn's outcome and cost read under the answer.
 function foldText(steps: number, workMs: number | null): string {
-  return [steps > 0 ? `${steps} 步` : '工作过程', workMs !== null ? workedFor(workMs) : null].filter(Boolean).join(' · ')
+  return [steps > 0 ? t('ConversationChat.steps', { steps: steps }) : t('ConversationChat.workDetails'), workMs !== null ? workedFor(workMs) : null].filter(Boolean).join(' · ')
 }
 
 // Opens a turn's work at one of the files it changed: for the list of them under its answer.
@@ -472,16 +473,14 @@ function TurnChanges({ conversationId, fold, files, turn, reply, collapsible }: 
         <div className="chat-changes-header">
           <span className="chat-changes-icon" aria-hidden="true"><FileChangesIcon /></span>
           <div className="chat-changes-summary">
-            <strong>修改了 {files.length} 个文件</strong>
+            <strong>{tr('ConversationChat.modifiedFiles', { value1: files.length })}</strong>
             <span className="chat-diff-count mono">
               <span className="chat-diff-added">+{added}</span>
               <span className="chat-diff-removed">−{removed}</span>
             </span>
           </div>
           {reviewable && (
-            <button type="button" className="button chat-changes-review" onClick={surface.showChanges} title="在检查器里查看项目的全部改动">
-              审查
-            </button>
+            <button type="button" className="button chat-changes-review" onClick={surface.showChanges} title={t('ConversationChat.viewAllProjectChangesInInspector')}>{t('ConversationChat.review')}</button>
           )}
         </div>
         <div className="chat-changes-files">
@@ -493,11 +492,11 @@ function TurnChanges({ conversationId, fold, files, turn, reply, collapsible }: 
             const edit = { conversationId, fold: collapsible ? fold : null, path: file.path }
             const outside = surface.changes !== null && !inProject(file.path)
             return (
-              <button key={file.path} type="button" className="chat-changes-file" data-change={file.change} data-file-path={file.path} title={outside ? `${file.path}\n项目外的文件，点开看这一轮的编辑` : file.path}
+              <button key={file.path} type="button" className="chat-changes-file" data-change={file.change} data-file-path={file.path} title={outside ? t('ConversationChat.outsideProjectClickToViewThisTurnS', { value1: file.path }) : file.path}
                 onClick={() => inProject(file.path) ? surface.showFileChange(file.path, edit) : folds.reveal(edit.fold, file.path)}>
-                {outside && <span className="chat-changes-kind" data-kind="outside">项目外</span>}
+                {outside && <span className="chat-changes-kind" data-kind="outside">{t('ConversationChat.outsideProject')}</span>}
                 {file.change !== 'update' && (
-                  <span className="chat-changes-kind" data-kind={file.change}>{file.change === 'add' ? '新建' : '删除'}</span>
+                  <span className="chat-changes-kind" data-kind={file.change}>{file.change === 'add' ? t('ConversationChat.new') : t('ChatCommandSettings.delete')}</span>
                 )}
                 <span className="chat-changes-path mono">
                   {directory && <span className="chat-changes-directory">{directory}</span>}
@@ -512,17 +511,17 @@ function TurnChanges({ conversationId, fold, files, turn, reply, collapsible }: 
           })}
           {hidden > 0 && (
             <button type="button" className="chat-changes-more" aria-expanded={showAll} onClick={() => setShowAll(!showAll)}>
-              {showAll ? '收起文件列表' : `显示另外 ${hidden} 个文件`}
+              {showAll ? t('ConversationChat.collapseFileList') : t('ConversationChat.showMoreFiles', { hidden: hidden })}
               <span aria-hidden="true"><ChevronDownIcon /></span>
             </button>
           )}
         </div>
       </div>
       <div className="chat-message-actions chat-turn-actions">
-        {reply && <CopyButton text={translated.shown} label={translated.shown !== reply.text ? '复制译文' : '复制回复'} />}
+        {reply && <CopyButton text={translated.shown} label={translated.shown !== reply.text ? t('ChatContextMenu.copyTranslation') : t('ConversationChat.copyReply')} />}
         {reply && <MessageTime at={turn.at} />}
         <span className="chat-turn-summary-static" data-state={turn.state}>{turnText(turn)}</span>
-        {translated.foreign && <TranslateButton translated={translated} what="这条回复" />}
+        {translated.foreign && <TranslateButton translated={translated} what={t('ConversationChat.thisReply')} />}
         <ForkButton item={turn} />
       </div>
     </div>
@@ -565,7 +564,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
   const view = useRef<HTMLDivElement>(null)
   const forkSupported = useCore((s) => s.rpc?.features.includes('conversation-fork') ?? false)
   const fork = useCallback((item: ChatItem) => void forkConversation(conversation.id, item), [conversation.id])
-  const own = useMemo(() => conversationSurface(conversation, onHandoff ?? null, forkSupported ? fork : null), [conversation, onHandoff, forkSupported, fork])
+  const own = useMemo(() => conversationSurface(conversation, onHandoff ?? null, forkSupported ? fork : null), [conversation, onHandoff, forkSupported, fork, getLocale()])
   const shown = surface ?? own
   const rpc = useCore((s) => s.rpc)
   const page = useChat((s) => s[id])
@@ -621,7 +620,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
   useEffect(() => acknowledgeInitialMessage(id, items), [id, items])
   // A task's redos, each starting its chat over.
   const attempts = useCore((s) => (conversation.taskId ? s.tasks[conversation.taskId]?.attempts : undefined))
-  const redoneAt = useMemo(() => (attempts ?? []).map((attempt) => attempt.at), [attempts])
+  const redoneAt = useMemo(() => (attempts ?? []).map((attempt) => attempt.at), [attempts, getLocale()])
   const entries = useMemo(() => {
     // A plan shows with its approval; the call's own card would only repeat it.
     const plans = new Set(items.flatMap((item) =>
@@ -638,16 +637,16 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
       if (item.kind === 'assistant' && limitWords.has(`${item.stageId}\n${item.text.trim()}`)) return []
       return item.kind === 'turn' && limited.has(itemKey(item)) ? [{ kind: 'item', item: { ...item, error: null } }] : [entry]
     })
-  }, [stages, items, redoneAt])
+  }, [stages, items, redoneAt, getLocale()])
   const foldTurns = usePreferences((s) => s.foldTurns)
-  const blocks = useMemo(() => chatBlocks(entries, { foldTurns: variant === 'compact' || foldTurns }), [entries, foldTurns, variant])
+  const blocks = useMemo(() => chatBlocks(entries, { foldTurns: variant === 'compact' || foldTurns }), [entries, foldTurns, variant, getLocale()])
   for (const key of freshKeys(seen.current, blocks.map((block) => block.key), olderLoaded.current)) entered.current.add(key)
   useEffect(() => {
     if (!page) return
     seen.current = new Set([...(seen.current ?? []), ...blocks.map((block) => block.key)])
     olderLoaded.current = false
   }, [page, blocks])
-  const foldedTurns = useMemo(() => new Set(blocks.flatMap((block) => block.kind === 'fold' ? [itemKey(block.turn)] : [])), [blocks])
+  const foldedTurns = useMemo(() => new Set(blocks.flatMap((block) => block.kind === 'fold' ? [itemKey(block.turn)] : [])), [blocks, getLocale()])
   const { replies, carried } = useMemo(() => {
     const found = finalReplies(entries)
     const carried = new Set<string>()
@@ -659,7 +658,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
       }
     }
     return { replies: found, carried }
-  }, [entries, blocks, variant])
+  }, [entries, blocks, variant, getLocale()])
   // A turn's own line, when it follows the reply it closes and that reply keeps its actions, joins
   // that line instead of standing under it.
   const { endings, mergedTurns } = useMemo(() => {
@@ -674,7 +673,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
       }
     })
     return { endings, mergedTurns }
-  }, [blocks, replies])
+  }, [blocks, replies, getLocale()])
   const folds = useMemo<FoldState>(() => ({
     // Opens the turn's work and the cards that edited the file, then brings its diff into view.
     reveal: (key, path) => {
@@ -690,33 +689,33 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
         }))
       }))
     }
-  }), [id])
+  }), [id, getLocale()])
   // The inspector sends the user back here when git has nothing left of a file this chat edited.
   const reveal = useCore((s) => s.chatReveal?.conversationId === id ? s.chatReveal : null)
   useEffect(() => {
     if (reveal) folds.reveal(reveal.fold, reveal.path)
   }, [reveal?.seq])
-  const thoughts = useMemo(() => thoughtDurations(items), [items])
-  const todoHistory = useMemo(() => previousTodos(items), [items])
+  const thoughts = useMemo(() => thoughtDurations(items), [items, getLocale()])
+  const todoHistory = useMemo(() => previousTodos(items), [items, getLocale()])
   // What the user sent, in order, for the dock's list of them.
   const sent = useMemo(() => blocks.flatMap((block) => {
     if (block.kind !== 'entry' || !isUserEntry(block.entry)) return []
     const { entry } = block
     if (entry.kind !== 'item' || entry.item.kind !== 'user') return [{ key: block.key, text: '' }]
     const { quotes, body } = parseQuotes(saidText(entry.item.text))
-    return [{ key: block.key, text: `${quotes.length ? `（引用 ${quotes.length} 段）` : ''}${body || '（移交）'}` }]
-  }), [blocks])
+    return [{ key: block.key, text: `${quotes.length ? t('ChatComposer.quotes', { value1: quotes.length }) : ''}${body || t('ConversationChat.handoff')}` }]
+  }), [blocks, getLocale()])
   const tools = useMemo(
     () => new Map(items.flatMap((item) => (item.kind === 'tool' ? [[item.id, item] as const] : []))),
-    [items]
+    [items, getLocale()]
   )
   const pending = useMemo(
     () => items.filter((item): item is RequestItem => (item.kind === 'approval' || item.kind === 'question') && item.resolution === null),
-    [items]
+    [items, getLocale()]
   )
-  const finishedCalls = useMemo(() => items.filter((item) => item.kind === 'tool' && item.status !== 'running').length, [items])
+  const finishedCalls = useMemo(() => items.filter((item) => item.kind === 'tool' && item.status !== 'running').length, [items, getLocale()])
   // Each stage has one; the running stage's is the newest.
-  const state = useMemo(() => items.findLast((item): item is Extract<ChatItem, { kind: 'state' }> => item.kind === 'state') ?? null, [items])
+  const state = useMemo(() => items.findLast((item): item is Extract<ChatItem, { kind: 'state' }> => item.kind === 'state') ?? null, [items, getLocale()])
 
   // A plan the agent proposes opens beside the conversation, once; the user may close it again.
   const waitingPlan = pending.find(isPlanApproval)
@@ -731,7 +730,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
 
   // The browser's live view opens beside the conversation when the agent first uses it, once per
   // conversation; a call still running keeps old history from opening it on a revisit.
-  const browserCall = useMemo(() => firstBrowserCall(items), [items])
+  const browserCall = useMemo(() => firstBrowserCall(items), [items, getLocale()])
   const shownBrowser = useRef<string | null>(null)
   const showBrowser = shown.showBrowser
   useEffect(() => {
@@ -803,11 +802,11 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
 
   const roots = useMemo(
     () => (conversation.projectPaths.length ? conversation.projectPaths : [conversation.workspacePath]),
-    [conversation.projectPaths, conversation.workspacePath]
+    [conversation.projectPaths, conversation.workspacePath, getLocale()]
   )
-  const shorten = useMemo(() => pathShortener(roots), [roots])
+  const shorten = useMemo(() => pathShortener(roots), [roots, getLocale()])
   // A reply's shell blocks run in this conversation's own terminal tab, in its folder.
-  const runScope = useMemo(() => ({ key: conversation.id, cwd: conversation.workspacePath }), [conversation.id, conversation.workspacePath])
+  const runScope = useMemo(() => ({ key: conversation.id, cwd: conversation.workspacePath }), [conversation.id, conversation.workspacePath, getLocale()])
   const turn = conversation.sessionId ? (conversation.chat?.turn ?? null) : null
   // What kind of step the turn is at, and what it has out in the background (subagents, and
   // commands run there), for the working line; the step itself shows in the conversation, just above it.
@@ -822,7 +821,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
         : last?.kind === 'assistant' && last.streaming ? 'replying'
           : tools.length > 0 ? 'waiting' : 'working'
     return { phase, background: { subagents, commands } }
-  }, [items, turn])
+  }, [items, turn, getLocale()])
   // The model as the stage runs it, or as the next stage would start; by its label where the agent gives one.
   const modelId = state?.model ?? conversation.chatOptions?.model ?? null
   // The effort the same way; left out where the agent runs its default without saying which.
@@ -831,12 +830,12 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
     current: { agent: conversation.agent, model: modelId ? (state?.models.find((each) => each.id === modelId)?.label ?? modelId) : null, effort },
     byStage: stageAgents(stages, items),
     latest: stages.at(-1)?.id ?? null
-  }), [conversation.agent, modelId, state?.models, effort, stages, items])
+  }), [conversation.agent, modelId, state?.models, effort, stages, items, getLocale()])
   // A turn runs from the message that set it going.
-  const since = useMemo(() => items.findLast((item) => item.kind === 'user')?.at ?? null, [items])
+  const since = useMemo(() => items.findLast((item) => item.kind === 'user')?.at ?? null, [items, getLocale()])
   const beginRelay = useMessageRelay(view, list, items, id)
   const lastUserKey = sent.at(-1)?.key
-  const fileScope = useMemo(() => ({ conversationId: id, inspector: shown.inspector, roots }), [id, shown.inspector, roots])
+  const fileScope = useMemo(() => ({ conversationId: id, inspector: shown.inspector, roots }), [id, shown.inspector, roots, getLocale()])
   const contextMenu = useChatContextMenu(list, fileScope)
   return (
     <ChatVariant.Provider value={variant}>
@@ -872,7 +871,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
           setAway(below > AWAY_SLACK)
         }}
       >
-        {page?.before && <button type="button" className="link-button chat-older" onClick={() => void loadOlder()}>加载更早的聊天记录</button>}
+        {page?.before && <button type="button" className="link-button chat-older" onClick={() => void loadOlder()}>{t('ConversationChat.loadEarlierMessages')}</button>}
         {!page && !initialMessage && <ChatSkeleton />}
         {blocks.map((block, index) => {
           const next = blocks[index + 1]
@@ -910,10 +909,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
               pinned.current = true
               list.current?.scrollTo({ top: list.current.scrollHeight, behavior: 'smooth' })
             }}
-          >
-            <ArrowDownIcon />
-            回到最新
-          </button>
+          >{tr('ConversationChat.jumpToLatest', { value1: <ArrowDownIcon /> })}</button>
         )}
       </div>
       <ProjectRunNotice conversationId={conversation.id} />
@@ -924,7 +920,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
         region=".chat-assistant"
         sourceOf={(reply) => reply.closest<HTMLElement>('[data-entry-key]')?.dataset.entryKey ?? null}
         name="reply"
-        label="评论这段回复"
+        label={t('ConversationChat.commentOnThisReply')}
         hidden={contextMenu.open}
         onAdded={() => list.current?.closest('.chat-view')?.querySelector<HTMLTextAreaElement>('.chat-input')?.focus()}
       />}

@@ -1,3 +1,4 @@
+import { getLocale } from './i18n'
 import { useEffect, useMemo, useState } from 'react'
 import { LanguageDescription } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
@@ -78,7 +79,7 @@ export async function highlightDiff(rows: readonly DiffRow[], path: string): Pro
 }
 
 export function useDiffHighlight(patch: string, path: string): readonly HighlightedDiffRow[] {
-  const rows = useMemo(() => diffRows(patch), [patch])
+  const rows = useMemo(() => diffRows(patch), [patch, getLocale()])
   const [highlighted, setHighlighted] = useState<{ rows: readonly HighlightedDiffRow[]; source: readonly DiffRow[]; path: string } | null>(null)
   useEffect(() => {
     let current = true

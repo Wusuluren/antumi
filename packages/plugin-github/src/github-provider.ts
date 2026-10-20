@@ -32,6 +32,7 @@ export function githubProvider(connect: (credentials: GitHubCredentials) => GitH
     name: 'GitHub',
     settings: [
       {
+        translations: { en: { label: 'Filter', hint: 'The inbox syncs every 15 minutes using GitHub search syntax. Defaults to open issues and PRs assigned to you; without is:issue or is:pr both are included. Add org:organization, label:bug, or review-requested:@me is:pr is:open. Results are always sorted by update time; no sort: is needed.' } },
         key: 'query',
         type: 'text',
         label: '筛选条件',
@@ -53,10 +54,14 @@ export function githubProvider(connect: (credentials: GitHubCredentials) => GitH
       for (let attempt = 1; ; attempt += 1) {
         const token = (
           await session.prompt({
+            translations: { en: {
+              hint: 'Needs access to your account and issues in accessible repositories. Your token stays on this computer and is never shared with Agents.',
+              ...(error ? { error: 'Personal access token is invalid. Try again' } : {})
+            } },
             kind: 'secret',
             label: 'Personal access token',
             hint: '需要读取账号和可访问仓库的 issue。token 只保存在本机，不会交给 Agent。',
-            link: { url: TOKEN_PAGE, label: '在 GitHub 设置里创建' },
+            link: { url: TOKEN_PAGE, label: '在 GitHub 设置里创建', translations: { en: { label: 'Create in GitHub settings' } } },
             error
           })
         ).trim()

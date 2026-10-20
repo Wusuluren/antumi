@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { chatFindRanges, nextFindIndex } from '../chat-find'
 import { hasPrimaryModifier } from '../shortcut-keys'
@@ -165,22 +166,22 @@ export function ChatFind({ state, scope, container, onOpen, loadOlder, hasOlder 
 
   if (!open) return null
   return (
-    <div className="chat-find" role="search" aria-label="当前聊天搜索">
+    <div className="chat-find" role="search" aria-label={t('ChatFind.searchThisChat')}>
       <div className="chat-find-bar">
         <SearchIcon />
-        <input ref={input} className="chat-find-input" type="search" aria-label="搜索当前聊天" placeholder="搜索当前聊天" value={query}
-          title="搜索时临时展开折叠内容，并加载更早的聊天记录"
+        <input ref={input} className="chat-find-input" type="search" aria-label={t('ChatFind.searchCurrentChat')} placeholder={t('ChatFind.searchCurrentChat')} value={query}
+          title={t('ChatFind.searchTemporarilyExpandsFoldedContentAndLoadsEarlier')}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
             if (event.nativeEvent.isComposing) return
             if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); next(event.shiftKey ? -1 : 1) }
           }} />
-        <span className="chat-find-count" role="status" aria-live="polite">{loading ? '加载中…' : `${result.count ? result.index + 1 : 0} / ${result.count}`}</span>
-        <button type="button" className="tool-button chat-find-previous" aria-label="上一个结果" data-tooltip="上一个结果（Shift+Enter）" disabled={!result.count} onClick={() => next(-1)}><ArrowDownIcon /></button>
-        <button type="button" className="tool-button" aria-label="下一个结果" data-tooltip="下一个结果（Enter）" disabled={!result.count} onClick={() => next(1)}><ArrowDownIcon /></button>
-        <button type="button" className="tool-button" aria-label="关闭搜索" data-tooltip="关闭搜索（Esc）" onClick={close}><CloseIcon /></button>
+        <span className="chat-find-count" role="status" aria-live="polite">{loading ? t('ChatFind.loading') : `${result.count ? result.index + 1 : 0} / ${result.count}`}</span>
+        <button type="button" className="tool-button chat-find-previous" aria-label={t('ChatFind.previousResult')} data-tooltip={t('ChatFind.previousResultShiftEnter')} disabled={!result.count} onClick={() => next(-1)}><ArrowDownIcon /></button>
+        <button type="button" className="tool-button" aria-label={t('ChatFind.nextResult')} data-tooltip={t('ChatFind.nextResultEnter')} disabled={!result.count} onClick={() => next(1)}><ArrowDownIcon /></button>
+        <button type="button" className="tool-button" aria-label={t('ChatFind.closeSearch')} data-tooltip={t('ChatFind.closeSearchEsc')} onClick={close}><CloseIcon /></button>
       </div>
-      {failed && <div className="chat-find-error" role="status">更早的聊天记录读取失败。<button type="button" className="link-button" onClick={() => setRetry((value) => value + 1)}>重试</button></div>}
+      {failed && <div className="chat-find-error" role="status">{tr('ChatFind.failedToLoadEarlierMessages', { value1: <button type="button" className="link-button" onClick={() => setRetry((value) => value + 1)}>{t('ChatContextMenu.retry')}</button> })}</div>}
     </div>
   )
 }

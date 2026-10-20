@@ -1,3 +1,4 @@
+import { getLocale, t } from './i18n'
 import { isHelper } from '@antumi/protocol'
 import { useEffect, useMemo, useState } from 'react'
 import { create } from 'zustand'
@@ -531,7 +532,7 @@ export function useSplitPanes(): SplitPanes | null {
   const saved = usePreferences((p) => p.splitPanes)
   const current = useCore((s) => (s.section === 'conversations' ? s.selectedConversationId : null))
   const exists = useCore((s) => saved.every((id) => s.conversations[id]))
-  const panes = useMemo(() => splitPanesOf(saved), [saved])
+  const panes = useMemo(() => splitPanesOf(saved), [saved, getLocale()])
   return exists ? shownPanes(panes, current) : null
 }
 
@@ -784,7 +785,7 @@ export function useActionableItems(): ActionableItem[] {
   const mode = useCore((s) => s.attentionSummaryMode)
   const schedules = useCore((s) => s.schedules)
   const squadRuns = useCore((state) => state.squadRuns)
-  return useMemo(() => actionableItems({ tasks, conversations, schedules, squadRuns }, mode === 'complete'), [tasks, conversations, schedules, squadRuns, mode])
+  return useMemo(() => actionableItems({ tasks, conversations, schedules, squadRuns }, mode === 'complete'), [tasks, conversations, schedules, squadRuns, mode, getLocale()])
 }
 
 export function setOverviewView(view: OverviewPane): void {
@@ -813,7 +814,7 @@ export function useOverview(): Overview {
     return () => clearInterval(timer)
   }, [])
   return useMemo(() => overview({ tasks, conversations, unseen, routines, schedules, squadRuns, now,
-    includeTaskSummaries: mode === 'complete' }), [tasks, conversations, unseen, routines, schedules, squadRuns, now, mode])
+    includeTaskSummaries: mode === 'complete' }), [tasks, conversations, unseen, routines, schedules, squadRuns, now, mode, getLocale()])
 }
 
 export function openAttentionItem(item: ActionableItem): void {
@@ -864,7 +865,7 @@ export async function refreshUsage(): Promise<void> {
 export async function spendResetCredit(agent: AgentKind, requestId: string, creditId?: string): Promise<ResetCreditOutcome> {
   const { rpc } = useCore.getState()
   if (!rpc) {
-    throw new Error('尚未连接到 Antumi core')
+    throw new Error(t('coreStore.notConnectedToAntumiCore'))
   }
   return (await rpc.call('usage.useResetCredit', { agent, requestId, creditId })).outcome
 }
@@ -1067,7 +1068,7 @@ export function dismissError(): void {
 export async function perform<T>(action: (rpc: RpcConnection) => Promise<T>): Promise<T | null> {
   const { rpc } = useCore.getState()
   if (!rpc) {
-    useCore.setState({ error: '尚未连接到 Antumi core' })
+    useCore.setState({ error: t('coreStore.notConnectedToAntumiCore') })
     return null
   }
   try {

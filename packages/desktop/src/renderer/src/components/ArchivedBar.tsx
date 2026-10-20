@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useState } from 'react'
 
 // Where an archived chat's input was: it is read-only, and this is the way back.
@@ -10,8 +11,8 @@ export function ArchivedBar({ what, onRestore }: { what: string; onRestore: () =
   }
   return (
     <div className="chat-archived" role="status">
-      <span className="chat-archived-note">这个{what}已归档，只能查看。</span>
-      <button type="button" className="button" disabled={busy} onClick={() => void restore()}>取消归档</button>
+      <span className="chat-archived-note">{tr('ArchivedBar.thisIsArchivedAndCanOnlyBeViewed', { what: what })}</span>
+      <button type="button" className="button" disabled={busy} onClick={() => void restore()}>{t('ArchivedBar.unarchive')}</button>
     </div>
   )
 }

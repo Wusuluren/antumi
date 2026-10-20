@@ -1,10 +1,12 @@
+import { getLocale, t, tr } from '../i18n'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
-import type { LoginPrompt } from '@antumi/protocol'
+import { translatedText, type LoginPrompt } from '@antumi/protocol'
 import { answerLogin, closeLogin, useCore } from '../core-store'
 import { sourceProblemText } from '../labels'
 
 // One question of a sign-in flow. Keyed by prompt id, so each question starts empty.
 function PromptForm({ prompt }: { prompt: LoginPrompt }) {
+  prompt = translatedText(prompt, getLocale())
   const ids = useId()
   const input = useRef<HTMLInputElement & HTMLSelectElement>(null)
   const [value, setValue] = useState(prompt.defaultValue ?? prompt.options?.[0]?.value ?? '')
@@ -31,7 +33,7 @@ function PromptForm({ prompt }: { prompt: LoginPrompt }) {
           <select id={`${ids}-answer`} ref={input} className="input modal-input" value={value} onChange={(e) => setValue(e.target.value)}>
             {(prompt.options ?? []).map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {translatedText(option, getLocale()).label}
               </option>
             ))}
           </select>
@@ -56,19 +58,15 @@ function PromptForm({ prompt }: { prompt: LoginPrompt }) {
             <>
               {' '}
               <a href={prompt.link.url} target="_blank" rel="noreferrer">
-                {prompt.link.label}
+                {translatedText(prompt.link, getLocale()).label}
               </a>
             </>
           )}
         </p>
       )}
       <footer className="modal-footer">
-        <button type="button" className="button ghost" onClick={closeLogin}>
-          取消
-        </button>
-        <button type="submit" className="button primary" disabled={value.trim() === ''}>
-          继续
-        </button>
+        <button type="button" className="button ghost" onClick={closeLogin}>{t('ChatCommandSettings.cancel')}</button>
+        <button type="submit" className="button primary" disabled={value.trim() === ''}>{t('DiscussionView.continue')}</button>
       </footer>
     </form>
   )
@@ -105,21 +103,19 @@ export function SourceLoginDialog() {
     >
       <div className="modal-body">
         <header className="modal-header">
-          <h2 id={`${ids}-heading`}>登录 {login.name}</h2>
-          <button type="button" className="icon-button modal-close" aria-label="关闭" onClick={closeLogin}>
+          <h2 id={`${ids}-heading`}>{tr('SourceLoginDialog.signInTo', { value1: login.name })}</h2>
+          <button type="button" className="icon-button modal-close" aria-label={t('BackdropPicker.close')} onClick={closeLogin}>
             ×
           </button>
         </header>
 
         {notices.map((notice, index) => (
           <div key={index} className="login-notice">
-            <p>{notice.message}</p>
+            <p>{translatedText(notice, getLocale()).message}</p>
             {notice.code && (
               <div className="login-code">
                 <code>{notice.code}</code>
-                <button type="button" className="button" onClick={() => void navigator.clipboard.writeText(notice.code ?? '').catch(() => {})}>
-                  复制
-                </button>
+                <button type="button" className="button" onClick={() => void navigator.clipboard.writeText(notice.code ?? '').catch(() => {})}>{t('CopyButton.copy')}</button>
               </div>
             )}
             {notice.url && (
@@ -133,25 +129,19 @@ export function SourceLoginDialog() {
         {result ? (
           <>
             <p className={result.problem ? 'modal-error' : 'login-success'} role="status">
-              {result.problem ? `登录失败：${sourceProblemText(result.problem)}` : `已登录：${result.account ?? ''}`}
+              {result.problem ? t('SourceLoginDialog.signInFailed', { value1: sourceProblemText(result.problem) }) : t('SourceLoginDialog.signedIn', { value1: result.account ?? '' })}
             </p>
             <footer className="modal-footer">
-              <button type="button" className="button primary" onClick={closeLogin}>
-                完成
-              </button>
+              <button type="button" className="button primary" onClick={closeLogin}>{t('ChatSubagents.done')}</button>
             </footer>
           </>
         ) : prompt ? (
           <PromptForm key={prompt.promptId} prompt={prompt.prompt} />
         ) : (
           <>
-            <p className="muted" role="status">
-              正在连接…
-            </p>
+            <p className="muted" role="status">{t('SourceLoginDialog.connecting')}</p>
             <footer className="modal-footer">
-              <button type="button" className="button ghost" onClick={closeLogin}>
-                取消
-              </button>
+              <button type="button" className="button ghost" onClick={closeLogin}>{t('ChatCommandSettings.cancel')}</button>
             </footer>
           </>
         )}

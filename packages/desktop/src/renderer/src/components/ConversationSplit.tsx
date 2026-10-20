@@ -1,3 +1,4 @@
+import { getLocale, t } from '../i18n'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { closeSplitPane, selectConversation, useCore } from '../core-store'
 import type { SplitPanes } from '../conversation-split'
@@ -36,7 +37,7 @@ export function ConversationSplit({ panes, active }: { panes: SplitPanes; active
     active: id === active,
     focus: () => selectConversation(id),
     onClose: () => closeSplitPane(id)
-  })), [left, right, active])
+  })), [left, right, active, getLocale()])
   const frontIndex = panes.indexOf(active)
   return (
     <div className="conversation-split" data-narrow={narrow || undefined}>
@@ -44,7 +45,7 @@ export function ConversationSplit({ panes, active }: { panes: SplitPanes; active
         {columns.map((column) => (
           <ConversationPaneContext.Provider key={column.id} value={column}>
             {column.index === 1 && !narrow && (
-              <PanelSeparator panelName="右列" ratio={ratio} onRatioChange={(value) => setPreference('splitRatio', value)} onReset={() => setPreference('splitRatio', 0.5)} />
+              <PanelSeparator panelName={t('ConversationSplit.rightPane')} ratio={ratio} onRatioChange={(value) => setPreference('splitRatio', value)} onReset={() => setPreference('splitRatio', 0.5)} />
             )}
             <div
               className="split-pane"

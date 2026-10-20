@@ -1,3 +1,4 @@
+import { getLocale, t, tr } from '../i18n'
 import { useEffect, useMemo, useState } from 'react'
 import { agentDescriptor, ChatPermissionMode, type AgentKind, type ChatCatalog } from '@antumi/protocol'
 import { closeConversationDraft, perform, selectConversation, useChatImagesSupported, useChatOptionsSupported, useConversationWorktreesSupported, useCore, useSourceInvestigateSupported, useStartBranchSupported } from '../core-store'
@@ -79,7 +80,7 @@ export function ConversationDraft() {
   const typeface = useChatTypeface()
   // Only the user's own commands: the agent has not started to say what it takes.
   const chatCommands = useCore((s) => s.chatCommands)
-  const commandEntries = useMemo(() => antumiEntries(chatCommands, projectPaths), [chatCommands, projectPaths])
+  const commandEntries = useMemo(() => antumiEntries(chatCommands, projectPaths), [chatCommands, projectPaths, getLocale()])
   const commandMenu = useChatCommandMenu({ text, entries: commandEntries, agentLabel: agent ? agentLabel(agent) : '', setText, sendCommand: () => {} })
   // The agent will work in the first project picked.
   const mentionMenu = useChatMentionMenu({ value, setText, setValue, roots: projectPaths, cwd: projectPaths[0] ?? null, agent })
@@ -175,11 +176,11 @@ export function ConversationDraft() {
     setBusy(false)
   }
   return (
-    <section className="detail terminal-view conversation-view" aria-label="新会话">
+    <section className="detail terminal-view conversation-view" aria-label={t('ConversationDraft.newConversation')}>
       <header className="detail-header conversation-header">
-        <span className="terminal-view-title">{issue ? '排查 issue' : '新会话'}</span>
+        <span className="terminal-view-title">{issue ? t('ConversationDraft.investigateIssue') : t('ConversationDraft.newConversation')}</span>
         <div className="toolbar">
-          <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={closeConversationDraft}><CloseIcon /></button>
+          <button type="button" className="tool-button" aria-label={t('BackdropPicker.close')} data-tooltip={t('BackdropPicker.close')} onClick={closeConversationDraft}><CloseIcon /></button>
         </div>
       </header>
       <div className="terminal-body">
@@ -188,14 +189,14 @@ export function ConversationDraft() {
             <div className="chat-draft-start">
               {issue && (
                 <div className="chat-draft-issue">
-                  <span className="muted">排查 {issue.source}</span>
-                  <a className="chat-draft-issue-key" href={issue.url} target="_blank" rel="noreferrer" data-tooltip={`在 ${issue.source} 中打开`}>{issue.key}</a>
+                  <span className="muted">{tr('ConversationDraft.investigate', { value1: issue.source })}</span>
+                  <a className="chat-draft-issue-key" href={issue.url} target="_blank" rel="noreferrer" data-tooltip={t('ConversationDraft.openIn', { value1: issue.source })}>{issue.key}</a>
                   <span className="chat-draft-issue-title" title={issue.title}>{issue.title}</span>
-                  <button type="button" className="tool-button" aria-label="不排查这个 issue" data-tooltip="改成普通会话" disabled={busy}
+                  <button type="button" className="tool-button" aria-label={t('ConversationDraft.stopInvestigatingThisIssue')} data-tooltip={t('ConversationDraft.switchToRegularConversation')} disabled={busy}
                     onClick={() => useCore.setState({ conversationDraftIssue: null })}><CloseIcon /></button>
                 </div>
               )}
-              <h2 className="chat-draft-title">{from ? '开始新的会话' : '用哪个 Agent 开始'}</h2>
+              <h2 className="chat-draft-title">{from ? t('ConversationDraft.startANewConversation') : t('ConversationDraft.chooseAnAgentToStart')}</h2>
               <div className="chat-draft-agents" role="radiogroup" aria-label="agent">
                 {installed.map((kind) => (
                   <button
@@ -216,8 +217,8 @@ export function ConversationDraft() {
               </div>
               <p className="chat-draft-hint muted">
                 {issue
-                  ? 'Agent 先读这个 issue 的原文，只读排查，给出原因和修复方案后停下；确认后可以切换模式，就在这个会话里修。'
-                  : from ? `已沿用「${from.title}」的配置，聊天上下文从空白开始。` : '发出第一条消息时创建会话并启动 Agent。'}
+                  ? t('ConversationDraft.agentReadsTheOriginalIssueAndInvestigatesIn')
+                  : from ? t('ConversationDraft.usingTheConfigurationOfWithAFreshConversation', { value1: from.title }) : t('ConversationDraft.sendingTheFirstMessageCreatesTheConversationAnd')}
               </p>
             </div>
           </div>
@@ -239,12 +240,9 @@ export function ConversationDraft() {
                   className="chat-draft-worktree"
                   data-tooltip-side="top"
                   data-tooltip={startBranchSupported
-                    ? '主项目从左边选的分支、其他项目从当前提交，各拉一个新分支和 worktree，互不干扰；未提交的改动不会带过去。不勾选就直接在项目目录里改'
-                    : '每个项目从当前提交拉一个新分支和 worktree，互不干扰；未提交的改动不会带过去。不勾选就直接在项目目录里改'}
-                >
-                  <input type="checkbox" checked={worktree} disabled={busy} onChange={(event) => setWorktree(event.target.checked)} />
-                  新 worktree
-                </label>
+                    ? t('ConversationDraft.createABranchAndWorktreeForEachProject')
+                    : t('ConversationDraft.createABranchAndWorktreeFromEachProject')}
+                >{tr('ConversationDraft.newWorktree', { value1: <input type="checkbox" checked={worktree} disabled={busy} onChange={(event) => setWorktree(event.target.checked)} /> })}</label>
               )}
             </div>
             <div
@@ -265,8 +263,8 @@ export function ConversationDraft() {
                   {...mentionMenu.inputProps}
                   autoFocus
                   readOnly={busy}
-                  aria-label="第一条消息"
-                  placeholder={!agent ? '先在上面选一个 Agent' : issue ? '补充说明（可选），Enter 开始排查' : `给 ${agentLabel(agent)} 发第一条消息，Enter 发送，Shift+Enter 换行`}
+                  aria-label={t('ConversationDraft.firstMessage')}
+                  placeholder={!agent ? t('ConversationDraft.chooseAnAgentAboveFirst') : issue ? t('ConversationDraft.additionalInstructionsOptionalEnterToInvestigate') : t('ConversationDraft.sendTheFirstMessageToEnterToSend', { value1: agentLabel(agent) })}
                   onChange={(event) => setText(event.target.value, event.target.selectionEnd)}
                   onPaste={imagesSupported ? attached.handlers.onPaste : undefined}
                   onKeyDown={(event) => {
@@ -281,9 +279,9 @@ export function ConversationDraft() {
                 {agent && optionsSupported && (
                   <>
                     <ChatPicker
-                      label="权限模式"
+                      label={t('ChatHandoff.permissionMode')}
                       value={mode}
-                      placeholder="权限模式"
+                      placeholder={t('ChatHandoff.permissionMode')}
                       options={modeOptions(agent, offeredModes)}
                       tone={modeTone(mode)}
                       disabled={busy}
@@ -293,7 +291,7 @@ export function ConversationDraft() {
                       }}
                     />
                     <span className="chat-dock-spacer" />
-                    {catalog === undefined && <span className="chat-options-note muted">正在读取模型…</span>}
+                    {catalog === undefined && <span className="chat-options-note muted">{t('AgentModelPicker.loadingModels')}</span>}
                     {catalog && (
                       <ChatModelPicker
                         models={catalog.models.map((each) => ({ value: each.id, label: each.label, description: each.description, efforts: each.efforts.map((one) => ({ value: one, label: effortLabel(one) })) }))}
@@ -313,8 +311,8 @@ export function ConversationDraft() {
                 <button
                   type="button"
                   className="chat-input-button" data-tooltip-side="top-end"
-                  aria-label="发送（Enter）"
-                  data-tooltip={busy && agent ? (issue ? `正在读取 issue 并启动 ${agentLabel(agent)}…` : inWorktree ? `正在建 worktree 并启动 ${agentLabel(agent)}…` : `正在启动 ${agentLabel(agent)}…`) : issue ? '开始排查（Enter）' : '发送（Enter）'}
+                  aria-label={t('ChatComposer.sendEnter')}
+                  data-tooltip={busy && agent ? (issue ? t('ConversationDraft.readingIssueAndStarting', { value1: agentLabel(agent) }) : inWorktree ? t('ConversationDraft.creatingWorktreeAndStarting', { value1: agentLabel(agent) }) : t('ChatComposer.starting', { value1: agentLabel(agent) })) : issue ? t('ConversationDraft.investigateEnter') : t('ChatComposer.sendEnter')}
                   disabled={!canSend}
                   onClick={() => void send()}
                 >

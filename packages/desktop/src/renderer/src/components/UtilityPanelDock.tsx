@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { UTILITY_PANEL_NAME, visibleUtilityPanelOrder, type UtilityPanelKind, type UtilityPanelsOpen } from '../utility-panel-order'
 import { BrowserSidePanel } from './BrowserSidePanel'
@@ -54,12 +55,12 @@ function StackedPanelSeparator({ ratio, upperPanel, lowerPanel, onRatioChange }:
       className="stacked-panel-separator"
       data-dragging={dragging || undefined}
       role="separator"
-      aria-label={`调整${UTILITY_PANEL_NAME[upperPanel]}和${UTILITY_PANEL_NAME[lowerPanel]}高度`}
+      aria-label={t('UtilityPanelDock.resizeAnd', { value1: UTILITY_PANEL_NAME[upperPanel], value2: UTILITY_PANEL_NAME[lowerPanel] })}
       aria-orientation="horizontal"
       aria-valuemin={MIN_STACKED_PANEL_RATIO * 100}
       aria-valuemax={MAX_STACKED_PANEL_RATIO * 100}
       aria-valuenow={Math.round(ratio * 100)}
-      aria-valuetext={`${UTILITY_PANEL_NAME[upperPanel]}占 ${Math.round(ratio * 100)}%`}
+      aria-valuetext={t('UtilityPanelDock.uses', { value1: UTILITY_PANEL_NAME[upperPanel], value2: Math.round(ratio * 100) })}
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onPointerDown={(event) => {
@@ -97,14 +98,14 @@ export function UtilityPanelDock({ open, maximized, order }: {
     <>
       {!maximized && (
         <PanelSeparator
-          panelName={stacked ? `${UTILITY_PANEL_NAME[upperPanel]}与${UTILITY_PANEL_NAME[lowerPanel]}工具栏` : `${UTILITY_PANEL_NAME[upperPanel]}栏`}
+          panelName={stacked ? t('UtilityPanelDock.andToolbar', { value1: UTILITY_PANEL_NAME[upperPanel], value2: UTILITY_PANEL_NAME[lowerPanel] }) : t('UtilityPanelDock.panel', { value1: UTILITY_PANEL_NAME[upperPanel] })}
           ratio={widthRatio}
           onRatioChange={setWidthRatio}
         />
       )}
       <section
         className="utility-panel-dock"
-        aria-label="工具栏"
+        aria-label={t('UtilityPanelDock.toolbar')}
         data-maximized={maximized || undefined}
         data-stacked={stacked || undefined}
         style={{

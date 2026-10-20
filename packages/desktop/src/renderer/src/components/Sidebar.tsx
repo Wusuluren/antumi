@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { setPreference, usePreferences } from '../preferences'
 import { clampSidebarWidth, DEFAULT_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH, SIDEBAR_WIDTH_STEP, sidebarMaxWidth } from '../sidebar-width'
@@ -58,13 +59,13 @@ export function Sidebar({ hidden, children }: { hidden: boolean; children: React
         className="sidebar-resizer"
         data-dragging={dragging}
         role="separator"
-        aria-label="调整侧边栏宽度"
+        aria-label={t('Sidebar.resizeSidebar')}
         aria-orientation="vertical"
         aria-valuemin={MIN_SIDEBAR_WIDTH}
         aria-valuemax={sidebarMaxWidth(window.innerWidth)}
         aria-valuenow={shown}
-        aria-valuetext={`侧边栏宽 ${shown} 像素`}
-        title="拖动调整宽度，双击恢复默认"
+        aria-valuetext={t('Sidebar.sidebarWidthPixels', { shown: shown })}
+        title={t('Sidebar.dragToResizeDoubleClickToReset')}
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onDoubleClick={() => setPreference('sidebarWidth', DEFAULT_SIDEBAR_WIDTH)}

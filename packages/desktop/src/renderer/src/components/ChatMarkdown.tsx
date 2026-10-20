@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import Markdown, { defaultUrlTransform, type Components, type ExtraProps } from 'react-markdown'
@@ -32,13 +33,13 @@ function FileLink({ reference, code = true, children }: { reference: FileReferen
       ? await perform((rpc) => rpc.call('projects.findFile', { roots: [...roots], path: reference.path }))
       : null
     if (found && found.length > 0 && await revealFile(found)) return
-    showError(`找不到文件：${reference.path}`)
+    showError(t('ChatMarkdown.fileNotFound', { value1: reference.path }))
   }
   return (
     <button
       type="button"
       className={code ? 'chat-file-link' : 'chat-link'}
-      title={scope && supported ? `预览 ${reference.path}${reference.line ? `:${reference.line}` : ''}` : `在${FILE_MANAGER}中显示 ${reference.path}`}
+      title={scope && supported ? t('ChatMarkdown.preview', { value1: reference.path, value2: reference.line ? `:${reference.line}` : '' }) : t('ChatMarkdown.showIn', { FILE_MANAGER: FILE_MANAGER(), value2: reference.path })}
       data-file-path={reference.path}
       data-file-line={reference.line ?? undefined}
       onClick={() => void reveal()}
@@ -79,12 +80,10 @@ function LocalImageStrip({ images }: { images: readonly LocalImage[] }) {
     <span className="chat-images chat-reply-images">
       {images.map((image, index) =>
         missing.has(image.src) ? (
-          <span key={image.src} className="muted chat-image-missing" title={image.path}>
-            图片不在了：{image.path.split(/[\\/]/).at(-1)}
-          </span>
+          <span key={image.src} className="muted chat-image-missing" title={image.path}>{tr('ChatMarkdown.imageIsNoLongerAvailable', { value1: image.path.split(/[\\/]/).at(-1) })}</span>
         ) : (
           <span key={image.src} className="chat-image">
-            <button type="button" className="chat-image-button" data-file-path={image.path} title={image.path} aria-label={`查看图片 ${image.path}`} onClick={() => setViewing(index)}>
+            <button type="button" className="chat-image-button" data-file-path={image.path} title={image.path} aria-label={t('ChatMarkdown.viewImage', { value1: image.path })} onClick={() => setViewing(index)}>
               <img src={image.src} alt="" draggable={false} onError={() => setMissing((current) => new Set(current).add(image.src))} />
             </button>
           </span>
@@ -99,7 +98,7 @@ function ImageLink({ image, children }: { image: LocalImage; children: ReactNode
   const [open, setOpen] = useState(false)
   return (
     <>
-      <button type="button" className="chat-link" data-file-path={image.path} title={`查看图片 ${image.path}`} onClick={() => setOpen(true)}>
+      <button type="button" className="chat-link" data-file-path={image.path} title={t('ChatMarkdown.viewImage', { value1: image.path })} onClick={() => setOpen(true)}>
         {children}
       </button>
       {open && <LocalImageViewer images={[image]} index={0} onIndex={() => {}} onClose={() => setOpen(false)} />}
@@ -124,7 +123,7 @@ function ReplyImage({ src, alt }: { src?: string; alt?: string }) {
   const target = src ? linkTarget(src) : null
   const image = localImage(target, roots)
   if (image) return <LocalImageStrip images={[image]} />
-  if (target?.kind === 'web') return <a href={target.href} title={target.href} target="_blank" rel="noreferrer">图片：{alt || target.href}</a>
+  if (target?.kind === 'web') return <a href={target.href} title={target.href} target="_blank" rel="noreferrer">{tr('ChatMarkdown.image', { value1: alt || target.href })}</a>
   return <>{alt}</>
 }
 
@@ -210,7 +209,7 @@ const components: Components = {
           <span className="chat-code-language">{language ?? ''}</span>
           <span className="chat-code-actions">
             {command && <ChatCodeRun command={command} />}
-            <CopyButton text={text.replace(/\n$/, '')} label="复制代码" />
+            <CopyButton text={text.replace(/\n$/, '')} label={t('ChatContextMenu.copyCode')} />
           </span>
         </div>
         <pre {...props} />

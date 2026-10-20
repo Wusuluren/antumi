@@ -1,37 +1,38 @@
+import { getLocale, localized, t } from './i18n'
 import { agentDescriptor, type AgentKind, type SourceFailure, type SourceProblem, type TaskStatus } from '@antumi/protocol'
 
-export const STATUS_LABEL: Record<TaskStatus, string> = {
-  pending: '未执行',
-  running: '执行中',
-  review: '待验收',
-  done: '已完成',
-  abandoned: '已取消'
-}
+export const STATUS_LABEL: Record<TaskStatus, string> = localized(() => ({
+  pending: t('labels.pending'),
+  running: t('TaskActivity.running'),
+  review: t('SquadWorkPanel.awaitingReview'),
+  done: t('ChatTodos.completed'),
+  abandoned: t('ChatRequestCards.cancelled')
+}))
 
-export const STATUS_HINT: Record<TaskStatus, string> = {
-  pending: '还没交给 Agent',
-  running: 'Agent 正在执行',
-  review: 'Agent 已结束，等你看过结果后接受、继续修改或重做',
-  done: '结果已接受，依赖它的任务可以执行了',
-  abandoned: '已取消，不再做了；可以重新打开'
-}
+export const STATUS_HINT: Record<TaskStatus, string> = localized(() => ({
+  pending: t('labels.notAssignedToAgentYet'),
+  running: t('labels.agentIsExecuting'),
+  review: t('labels.agentFinishedReviewTheResultThenAcceptRequest'),
+  done: t('labels.resultAcceptedDependentTasksCanNowRun'),
+  abandoned: t('labels.cancelledCanBeReopened')
+}))
 
 export function agentLabel(kind: AgentKind): string {
   return agentDescriptor(kind).label
 }
 
-const SOURCE_FAILURE_TEXT: Record<SourceFailure, string> = {
-  'not-configured': '还没有设置好或没有登录',
-  'invalid-settings': '设置不对',
-  'auth-failed': '认证失败：账号或 token 不对，或者已经过期',
-  forbidden: '没有权限访问这些 issue',
-  'bad-query': '筛选条件写得不对',
-  'not-found': '找不到这个 issue，可能已被删除，或者你没有权限查看',
-  'request-failed': '连不上',
-  'response-too-large': '返回的内容太大，已拒绝接收',
-  'login-cancelled': '登录已取消',
-  'login-timeout': '太久没有回应，登录已结束'
-}
+const SOURCE_FAILURE_TEXT: Record<SourceFailure, string> = localized(() => ({
+  'not-configured': t('labels.notConfiguredOrNotSignedIn'),
+  'invalid-settings': t('labels.invalidSettings'),
+  'auth-failed': t('labels.authenticationFailedAccountOrTokenIsInvalidOr'),
+  forbidden: t('labels.noPermissionToAccessTheseIssues'),
+  'bad-query': t('labels.invalidFilterQuery'),
+  'not-found': t('labels.issueNotFoundItMayBeDeletedOr'),
+  'request-failed': t('labels.cannotConnect'),
+  'response-too-large': t('labels.responseIsTooLargeAndWasRejected'),
+  'login-cancelled': t('labels.signInCancelled'),
+  'login-timeout': t('labels.signInEndedAfterWaitingTooLong')
+}))
 
 // The tracker's own words say which part is wrong, or what the network did.
 export function sourceProblemText(problem: SourceProblem): string {
@@ -40,191 +41,194 @@ export function sourceProblemText(problem: SourceProblem): string {
   return specific ? `${text}（${problem.message}）` : text
 }
 
-const REASON_TEXT: Record<string, string> = {
-  'squad-busy': '小队正在开发，请先停止或等待工作完成',
-  'squad-archived': '小队已归档，请恢复或选择其他小队',
-  'squad-managed': '成员执行由小队协调，请从任务的小队面板操作',
-  'squad-not-leader': '只有正在执行任务的队长可以派活和提交',
-  'squad-run-not-found': '还没有可继续的小队运行，请开始小队开发',
-  'squad-work-unfinished': '还有未完成或失败的工作，请先处理',
-  'squad-member-invalid': '该成员不能承担这次工作',
-  'squad-schedule-unsupported': '小队任务暂不支持预约执行',
-  'read-only-workspace': '此成员只能读取工作区，请交给开发成员执行',
+const REASON_TEXT: Record<string, string> = localized(() => ({
+  'squad-leader-read-only': t('squad.leaderReadOnly'),
+  'squad-developer-required': t('squad.developerRequired'),
+  'squad-member-duplicate': t('squad.memberDuplicate'),
+  'squad-busy': t('labels.squadIsDevelopingStopItOrWaitUntil'),
+  'squad-archived': t('labels.squadIsArchivedRestoreItOrChooseAnother'),
+  'squad-managed': t('labels.memberExecutionIsCoordinatedByTheSquadUse'),
+  'squad-not-leader': t('labels.onlyTheLeaderExecutingThisTaskCanAssign'),
+  'squad-run-not-found': t('labels.noSquadRunToResumeStartSquadDevelopment'),
+  'squad-work-unfinished': t('labels.handleUnfinishedOrFailedWorkFirst'),
+  'squad-member-invalid': t('labels.thisMemberCannotTakeThisAssignment'),
+  'squad-schedule-unsupported': t('labels.schedulingSquadTasksIsNotSupportedYet'),
+  'read-only-workspace': t('labels.thisMemberCanOnlyReadTheWorkspaceAssign'),
 
   ...Object.fromEntries(Object.entries(SOURCE_FAILURE_TEXT).map(([code, text]) => [`source-${code}`, text])),
-  'source-already-imported': '这个 issue 已经导入成任务了',
-  'attachment-not-image': '只支持 PNG、JPEG、GIF 和 WebP 图片',
-  'attachment-too-many-pixels': '图片尺寸太大（超过 4000 万像素或单边超过 16384）',
-  'attachment-too-large': '图片超过 10MB',
-  'attachment-not-found': '图片文件已经不存在了',
-  'attachment-busy': '同时上传的图片太多，请稍后再试',
-  'too-many-images': '一个任务最多 20 张图片',
-  'source-invalid-key': '这不是一个有效的 issue key',
-  'source-unknown': '没有这个任务来源',
-  'source-none': '这个任务不是从任务来源导入的',
-  'source-login-in-progress': '这个来源已经有一个登录在进行',
-  'source-login-not-found': '登录已经结束',
-  'source-login-stale': '这个问题已经过期，请重新登录',
-  'invalid-transition': '当前状态不能这样移动',
-  'not-pending': '只有未执行的任务可以执行；执行过的任务可以继续或重做',
-  'not-done': '只有待验收或已完成的任务可以继续或重做',
-  'missing-repo': '请先添加项目',
-  'missing-agent': '请先选择执行的 Agent',
-  'repo-not-found': '项目路径不存在',
-  'repo-path-not-absolute': '项目路径需要是绝对路径（可以用 ~/ 开头）',
-  'repo-not-git': '涉及多个项目时，每个目录都必须是 Git 仓库',
-  'repo-duplicate': '有两个项目路径指向同一个 Git 仓库',
-  'task-running': '执行中不能修改项目',
-  'task-abandoned': '已取消的任务不能修改项目，先重新打开',
-  'primary-fixed': '任务的对话开始后不能更换主项目，附加项目仍可增删',
-  'branch-exists': '任务分支已经建好，起点不能再改',
-  'task-active': '任务还没完成或取消',
-  'conversation-open': '会话还在，删除会话后才能清理它的 worktree',
-  'worktree-not-git': '新建 worktree 时，每个项目都必须是 Git 仓库',
-  'worktree-locked': '已用 git worktree lock 锁定',
-  'worktree-unreadable': '读不了它的 git 状态',
-  'worktree-dirty': '有没提交的改动',
-  'worktree-alone': '有只在它里面的提交',
-  'worktree-not-found': '找不到这个 worktree，可能已经删了',
-  'worktree-in-use': 'Agent 正在里面工作',
-  'uncommitted-changes': '有未提交的改动，请先提交或暂存',
-  'branch-elsewhere': '这个分支已在另一个 worktree 里检出',
-  'branch-not-found': '找不到这个分支',
-  'branch-switch-failed': '切换分支失败',
-  'invalid-branch-name': '分支名不合法',
-  'invalid-tag-name': '标签名不合法',
-  'branch-name-taken': '已经有同名的分支',
-  'git-no-changes': '没有可以提交的改动',
-  'git-no-branch': '当前没有检出的本地分支，请先切换或新建分支',
-  'git-no-remote': '当前分支没有 upstream，项目也没有 origin',
-  'invalid-start': '起点必须是一个分支',
-  'start-not-found': '找不到选的起点分支，请在任务详情里重新选择',
-  blocked: '依赖的任务还没完成（执行完并验收通过）',
-  'dependency-cycle': '不能形成循环依赖',
-  'worktree-failed': '创建 git worktree 失败',
-  'daemon-unavailable': '终端守护进程没有运行（pnpm dev:daemon）',
-  'port-process-changed': '服务已结束或端口归属发生变化，请刷新后重试',
-  'port-process-protected': '这是 Agent 的进程，不能从端口面板停止',
-  'command-not-found': '找不到 Agent 命令（claude 或 codex），请先安装并确认它在 PATH 里',
-  'command-needs-shell': 'Windows 上这个命令只能经由 cmd 运行，Antumi 不经过 shell 启动 Agent；请改用 npm 或 pnpm 安装，或安装原生 .exe 版本',
-  'run-in-progress': '任务正在启动，请稍候',
-  'task-not-found': '任务不存在',
-  'session-not-found': '会话已不存在',
-  'conversation-not-found': '会话不存在',
-  'conversation-running': '这条会话的 Agent 正在启动，稍后再试',
-  'agent-capacity': 'Agent 运行数量已达到上限；请等其他会话结束，或预约稍后执行',
-  'conversation-same-agent': '请选择另一个 Agent 进行移交',
-  'invalid-workspace': '项目必须是已存在的绝对目录',
-  'too-many-projects': '一条会话最多选择 10 个项目',
-  'duplicate-project': '不能重复选择同一个项目目录',
-  'skills-unavailable': '这个 core 没有技能库',
-  'skills-invalid-url': '只接受 https:// 的 Git 仓库地址',
-  'skills-already-installed': '这个仓库已经安装',
-  'skills-none-found': '仓库里没有可用的技能（skills/<名字>/SKILL.md）',
-  'skills-unknown': '没有这个技能仓库',
-  'skills-nothing-to-rollback': '没有可回退的版本',
-  'skills-bad-commit': '仓库里没有这个提交，请重新检查更新',
-  'skills-name-conflict': '两个仓库有同名技能',
-  'skills-too-large': '技能文件过大',
-  'mcp-unavailable': '这个 core 不能管理 MCP 服务器',
-  'mcp-unknown': '没有这个 MCP 服务器',
-  'mcp-name-taken': '已经有同名的 MCP 服务器',
-  'mcp-duplicate-key': '同一个键填了两次',
-  'mcp-relative-cwd': '工作目录要写绝对路径',
-  'mcp-insecure-url': '远程服务器只接受 https://，http:// 只能连本机',
-  'mcp-import-gone': '这个服务器已经不在原来的配置里了',
-  'mcp-import-unsupported': '这个服务器不能导入',
-  'chat-starting': 'Agent 还在启动，稍等再发',
-  'chat-busy': 'Agent 还在处理上一条消息',
-  'chat-image-too-large': 'Claude Code 只接受 5MB 以内的图片',
-  'chat-idle': '现在没有进行中的回合',
-  'chat-request-gone': '这个请求已经不再等待回答',
-  'browser-unavailable': '浏览器没有运行',
-  'browser-app-closed': '浏览器在 Antumi 应用里运行，先打开 Antumi 应用',
-  'browser-app-outdated': 'Antumi 应用和 core 版本不一致，请一起升级',
-  'browser-tab-not-found': '标签页已经关闭',
-  'browser-not-watching': '先打开这个会话的浏览器面板',
-  'browser-user-driving': '你正在操作这个标签页',
-  'browser-ref-not-found': '页面上找不到这个元素了',
-  'chat-not-running': '这条会话的 Agent 没有以聊天界面运行',
-  'chat-session': '这不是终端面板里的 shell，不能连接',
-  'chat-start-timeout': 'Agent 太久没有完成启动',
-  'daemon-outdated': '正在运行的终端守护进程版本太旧，不支持聊天界面，请重启它（pnpm dev:daemon）',
-  'stage-not-found': '找不到更早的聊天记录',
-  'chat-option-invalid': '这里用不了这个选项',
-  'chat-nothing-queued': '没有排队的消息',
-  'chat-no-steer': '这个 Agent 不接受回合中的追加指令，先排队吧',
-  planning: '依赖的任务还没完成，现在只能规划；在聊天里继续，或保存计划等它们完成',
-  'plan-only': '依赖的任务还没完成，现在只能规划，不能动手改',
-  'not-planning': '只有只读规划时的计划需要保存，执行中的计划确认后就会开始做',
-  'not-running': '只有执行中的任务可以提交验收',
-  'not-chat': '这个任务没有聊天，不能提交验收',
-  'agent-working': 'Agent 还在处理，等这一轮结束再提交',
-  'check-running': '项目检查正在运行，等它结束',
-  'check-failed': '项目检查没通过，输出已交给 Agent 修复，修好后再提交',
-  'project-config-untrusted': '项目配置里的命令还没有允许运行',
-  'project-config-changed': '项目配置已经变了，请重新确认',
-  'project-config-unavailable': '这个 core 不支持项目配置',
-  'no-chat': '这个任务还没有开始聊天',
-  abandoned: '已取消的任务不能继续，先重新打开',
-  'task-done': '已完成的任务不能取消',
-  'quick-unsupported': '这个 Agent 还做不了这件事',
-  'quick-failed': 'Agent 没给出结果',
-  'quick-timeout': 'Agent 太久没回应',
-  'task-cancelled': '任务已经取消了',
-  'not-cancelled': '只有已取消的任务可以重新打开',
-  'task-redone': '它已经由重做出来的新任务接着做，不能重新打开',
-  'task-conversation': '这条会话属于一个任务，请从任务那里继续',
-  'managed-workspace': '没选项目的会话在 Antumi 的临时目录里运行，不能再添加项目',
-  'chat-unavailable': '这个 core 不支持聊天界面',
-  'dependencies-unfinished': '依赖的任务还没完成，现在只能规划，不能直接执行',
-  'already-scheduled': '这个任务已经预约了',
-  'schedule-settled': '这条预约已经不在等待了',
-  'schedule-busy': '这条预约正在开始',
-  'schedule-not-found': '找不到这条预约',
-  'schedule-no-text': '只有会话的预约带消息',
-  'routine-not-found': '找不到这个定时任务',
-  'discussion-not-found': '找不到这个群聊',
-  'discussion-member': '群聊成员不能移交给其他 Agent',
-  'discussion-member-not-found': '群聊里没有这个成员',
-  'discussion-member-busy': '点名的成员还在回答上一条，等它说完再问',
-  'discussion-not-running': '群聊现在没有在进行',
-  'discussion-not-paused': '群聊还在进行，先暂停或等它结束',
-  'discussion-summing-up': '主持人正在写总结',
-  'discussion-done': '群聊已经总结过了',
-  'discussion-busy': '成员还在发言，先暂停或等讨论结束，再换议题',
-  'no-reply': 'Agent 没有给出文字回答',
-  'fork-turn-running': '这一轮还没结束，等它结束再 fork',
-  'chat-item-not-found': '找不到这条消息',
-  'routine-paused': '定时任务已暂停',
-  'previous-running': '上一次运行还没结束，这次跳过',
-  'routine-invalid-schedule': '重复规则没有指定时间',
-  'routine-no-prompt': '定时任务需要一条指令或图片',
-  'agent-lost': 'Agent 没有留下结果就退出了',
-  'task-started': '任务已经开始了',
-  'task-finished': '任务已经不在执行了',
-  'user-continued': '你自己继续了这条会话',
-  'agent-changed': '会话已移交给另一个 Agent',
-  superseded: '又一次撞到了额度，以新的为准',
-  'auto-continue-off': '关掉了额度恢复后自动继续',
-  'usage-limit-settled': '这次额度用完的处理已经结束',
-  'usage-limit-busy': '正在重试，稍等',
-  'usage-limit-not-found': '找不到这次额度用完的记录',
-  'usage-limit-retry-failed': '重试没能继续'
-}
+  'source-already-imported': t('labels.thisIssueHasAlreadyBeenImportedAsA'),
+  'attachment-not-image': t('labels.onlyPngJpegGifAndWebpImagesAre'),
+  'attachment-too-many-pixels': t('labels.imageDimensionsExceed40MillionPixelsOr16384'),
+  'attachment-too-large': t('labels.imageExceeds10mb'),
+  'attachment-not-found': t('labels.imageFileNoLongerExists'),
+  'attachment-busy': t('labels.tooManySimultaneousImageUploadsTryAgainShortly'),
+  'too-many-images': t('labels.upTo20ImagesPerTask'),
+  'source-invalid-key': t('labels.invalidIssueKey'),
+  'source-unknown': t('labels.taskSourceNotFound'),
+  'source-none': t('labels.thisTaskWasNotImportedFromASource'),
+  'source-login-in-progress': t('labels.aSignInIsAlreadyInProgressFor'),
+  'source-login-not-found': t('labels.signInHasEnded'),
+  'source-login-stale': t('labels.thisQuestionHasExpiredSignInAgain'),
+  'invalid-transition': t('labels.thisMoveIsUnavailableInTheCurrentState'),
+  'not-pending': t('labels.onlyPendingTasksCanStartPreviouslyExecutedTasks'),
+  'not-done': t('labels.onlyTasksAwaitingReviewOrCompletedTasksCan'),
+  'missing-repo': t('labels.addAProjectFirst'),
+  'missing-agent': t('labels.chooseAnAgentFirst'),
+  'repo-not-found': t('labels.projectPathDoesNotExist'),
+  'repo-path-not-absolute': t('labels.projectPathMustBeAbsoluteIsSupported'),
+  'repo-not-git': t('labels.everyDirectoryMustBeAGitRepositoryWhen'),
+  'repo-duplicate': t('labels.twoProjectPathsPointToTheSameGit'),
+  'task-running': t('labels.cannotChangeProjectsWhileExecuting'),
+  'task-abandoned': t('labels.reopenTheCancelledTaskBeforeChangingProjects'),
+  'primary-fixed': t('labels.thePrimaryProjectIsFixedAfterChatStarts'),
+  'branch-exists': t('labels.theTaskBranchAlreadyExistsItsStartingPoint'),
+  'task-active': t('labels.taskIsNotCompletedOrCancelled'),
+  'conversation-open': t('labels.conversationStillExistsDeleteItBeforeCleaningIts'),
+  'worktree-not-git': t('labels.eachProjectMustBeAGitRepositoryTo'),
+  'worktree-locked': t('labels.lockedWithGitWorktreeLock'),
+  'worktree-unreadable': t('labels.cannotReadItsGitStatus'),
+  'worktree-dirty': t('labels.hasUncommittedChanges'),
+  'worktree-alone': t('labels.hasCommitsNotReachableFromAnotherReference'),
+  'worktree-not-found': t('labels.worktreeNotFoundItMayHaveBeenDeleted'),
+  'worktree-in-use': t('labels.agentIsWorkingInThisDirectory'),
+  'uncommitted-changes': t('labels.commitOrStashUncommittedChangesFirst'),
+  'branch-elsewhere': t('labels.thisBranchIsCheckedOutInAnotherWorktree'),
+  'branch-not-found': t('labels.branchNotFound'),
+  'branch-switch-failed': t('labels.failedToSwitchBranch'),
+  'invalid-branch-name': t('labels.invalidBranchName'),
+  'invalid-tag-name': t('labels.invalidTagName'),
+  'branch-name-taken': t('labels.aBranchWithThisNameAlreadyExists'),
+  'git-no-changes': t('ConversationBranches.noChangesToCommit'),
+  'git-no-branch': t('labels.noLocalBranchIsCheckedOutSwitchTo'),
+  'git-no-remote': t('labels.currentBranchHasNoUpstreamAndProjectHas'),
+  'invalid-start': t('labels.startingPointMustBeABranch'),
+  'start-not-found': t('labels.selectedStartingBranchNotFoundChooseAnotherIn'),
+  blocked: t('labels.dependenciesAreNotCompletedAndAcceptedYet'),
+  'dependency-cycle': t('labels.dependencyCyclesAreNotAllowed'),
+  'worktree-failed': t('labels.failedToCreateGitWorktree'),
+  'daemon-unavailable': t('labels.terminalDaemonIsNotRunningPnpmDevDaemon'),
+  'port-process-changed': t('labels.serviceStoppedOrPortOwnershipChangedRefreshAnd'),
+  'port-process-protected': t('PortsPanel.thisIsAnAgentProcessAndCannotBe'),
+  'command-not-found': t('labels.agentCommandClaudeOrCodexNotFoundInstall'),
+  'command-needs-shell': t('labels.thisWindowsCommandRequiresCmdAntumiStartsAgents'),
+  'run-in-progress': t('labels.taskIsStartingPleaseWait'),
+  'task-not-found': t('labels.taskNotFound'),
+  'session-not-found': t('labels.conversationNoLongerExists'),
+  'conversation-not-found': t('labels.conversationNotFound'),
+  'conversation-running': t('labels.thisConversationSAgentIsStartingTryAgain'),
+  'agent-capacity': t('labels.agentConcurrencyLimitReachedWaitForOtherConversations'),
+  'conversation-same-agent': t('labels.chooseAnotherAgentForHandoff'),
+  'invalid-workspace': t('labels.projectMustBeAnExistingAbsoluteDirectory'),
+  'too-many-projects': t('labels.upTo10ProjectsPerConversation'),
+  'duplicate-project': t('labels.theSameProjectDirectoryCannotBeSelectedTwice'),
+  'skills-unavailable': t('labels.thisCoreHasNoSkillsLibrary'),
+  'skills-invalid-url': t('labels.onlyHttpsGitRepositoryUrlsAreAccepted'),
+  'skills-already-installed': t('labels.thisRepositoryIsAlreadyInstalled'),
+  'skills-none-found': t('labels.noUsableSkillsFoundSkillsNameSkillMd'),
+  'skills-unknown': t('labels.skillRepositoryNotFound'),
+  'skills-nothing-to-rollback': t('labels.noVersionToRollBackTo'),
+  'skills-bad-commit': t('labels.commitNotFoundInRepositoryCheckForUpdates'),
+  'skills-name-conflict': t('labels.twoRepositoriesContainSkillsWithTheSameName'),
+  'skills-too-large': t('labels.skillFileIsTooLarge'),
+  'mcp-unavailable': t('labels.thisCoreCannotManageMcpServers'),
+  'mcp-unknown': t('labels.mcpServerNotFound'),
+  'mcp-name-taken': t('labels.anMcpServerWithThisNameAlreadyExists'),
+  'mcp-duplicate-key': t('labels.theSameKeyWasEnteredTwice'),
+  'mcp-relative-cwd': t('labels.workingDirectoryMustBeAnAbsolutePath'),
+  'mcp-insecure-url': t('labels.remoteServersRequireHttpsHttpIsAllowedOnly'),
+  'mcp-import-gone': t('labels.thisServerIsNoLongerInTheOriginal'),
+  'mcp-import-unsupported': t('labels.thisServerCannotBeImported'),
+  'chat-starting': t('labels.agentIsStillStartingWaitBeforeSending'),
+  'chat-busy': t('labels.agentIsStillProcessingThePreviousMessage'),
+  'chat-image-too-large': t('labels.claudeCodeAcceptsImagesUpTo5mb'),
+  'chat-idle': t('labels.noTurnIsCurrentlyRunning'),
+  'chat-request-gone': t('labels.thisRequestIsNoLongerAwaitingAnAnswer'),
+  'browser-unavailable': t('labels.browserIsNotRunning'),
+  'browser-app-closed': t('labels.theBrowserRunsInTheAntumiAppOpen'),
+  'browser-app-outdated': t('labels.antumiAppAndCoreVersionsDifferUpdateThem'),
+  'browser-tab-not-found': t('labels.tabHasBeenClosed'),
+  'browser-not-watching': t('labels.openThisConversationSBrowserPanelFirst'),
+  'browser-user-driving': t('labels.youAreControllingThisTab'),
+  'browser-ref-not-found': t('labels.elementIsNoLongerOnThePage'),
+  'chat-not-running': t('labels.thisConversationSAgentIsNotRunningIn'),
+  'chat-session': t('labels.thisIsNotATerminalPanelShellAnd'),
+  'chat-start-timeout': t('labels.agentStartupTimedOut'),
+  'daemon-outdated': t('labels.runningDaemonIsTooOldForChatRestart'),
+  'stage-not-found': t('labels.earlierChatHistoryNotFound'),
+  'chat-option-invalid': t('labels.thisOptionIsUnavailableHere'),
+  'chat-nothing-queued': t('labels.noQueuedMessages'),
+  'chat-no-steer': t('labels.thisAgentCannotAcceptInstructionsDuringATurn'),
+  planning: t('labels.dependenciesAreUnfinishedContinuePlanningInChatOr'),
+  'plan-only': t('labels.dependenciesAreUnfinishedYouCanPlanButCannot'),
+  'not-planning': t('labels.onlyReadOnlyPlansNeedSavingApprovedExecution'),
+  'not-running': t('labels.onlyRunningTasksCanBeSubmittedForReview'),
+  'not-chat': t('labels.thisTaskHasNoChatAndCannotBe'),
+  'agent-working': t('labels.agentIsStillWorkingSubmitAfterThisTurn'),
+  'check-running': t('labels.projectChecksAreRunningWaitUntilTheyFinish'),
+  'check-failed': t('labels.projectChecksFailedOutputWasSentToAgent'),
+  'project-config-untrusted': t('labels.commandsInProjectConfigurationHaveNotBeenApproved'),
+  'project-config-changed': t('labels.projectConfigurationChangedConfirmItAgain'),
+  'project-config-unavailable': t('labels.thisCoreDoesNotSupportProjectConfiguration'),
+  'no-chat': t('labels.thisTaskHasNotStartedAChat'),
+  abandoned: t('labels.reopenTheCancelledTaskBeforeContinuing'),
+  'task-done': t('labels.completedTasksCannotBeCancelled'),
+  'quick-unsupported': t('labels.thisAgentDoesNotSupportThisOperationYet'),
+  'quick-failed': t('labels.agentReturnedNoResult'),
+  'quick-timeout': t('labels.agentResponseTimedOut'),
+  'task-cancelled': t('labels.taskHasBeenCancelled'),
+  'not-cancelled': t('labels.onlyCancelledTasksCanBeReopened'),
+  'task-redone': t('labels.aSuccessorTaskAlreadyContinuesThisTaskIt'),
+  'task-conversation': t('labels.thisConversationBelongsToATaskContinueFrom'),
+  'managed-workspace': t('labels.conversationsWithoutAProjectRunInAntumiS'),
+  'chat-unavailable': t('labels.thisCoreDoesNotSupportChat'),
+  'dependencies-unfinished': t('labels.dependenciesAreUnfinishedOnlyPlanningIsAvailable'),
+  'already-scheduled': t('labels.thisTaskIsAlreadyScheduled'),
+  'schedule-settled': t('labels.thisScheduleIsNoLongerWaiting'),
+  'schedule-busy': t('labels.thisScheduleIsStarting'),
+  'schedule-not-found': t('labels.scheduleNotFound'),
+  'schedule-no-text': t('labels.onlyConversationSchedulesCarryMessages'),
+  'routine-not-found': t('labels.routineNotFound'),
+  'discussion-not-found': t('labels.groupChatNotFound'),
+  'discussion-member': t('labels.groupMembersCannotBeHandedOffToAnother'),
+  'discussion-member-not-found': t('labels.memberNotFoundInGroupChat'),
+  'discussion-member-busy': t('labels.theMentionedMemberIsStillAnsweringWaitUntil'),
+  'discussion-not-running': t('labels.groupChatIsNotRunning'),
+  'discussion-not-paused': t('labels.groupChatIsRunningPauseItOrWait'),
+  'discussion-summing-up': t('labels.theChairIsWritingASummary'),
+  'discussion-done': t('labels.groupChatHasAlreadyBeenSummarized'),
+  'discussion-busy': t('labels.membersAreSpeakingPauseOrWaitBeforeChanging'),
+  'no-reply': t('labels.agentReturnedNoTextAnswer'),
+  'fork-turn-running': t('labels.thisTurnIsUnfinishedWaitBeforeForking'),
+  'chat-item-not-found': t('labels.messageNotFound'),
+  'routine-paused': t('labels.routineIsPaused'),
+  'previous-running': t('labels.previousRunIsUnfinishedSkippingThisRun'),
+  'routine-invalid-schedule': t('labels.recurringRuleHasNoTimeSpecified'),
+  'routine-no-prompt': t('labels.routineNeedsInstructionsOrAnImage'),
+  'agent-lost': t('labels.agentExitedWithoutLeavingAResult'),
+  'task-started': t('labels.taskHasAlreadyStarted'),
+  'task-finished': t('labels.taskIsNoLongerRunning'),
+  'user-continued': t('labels.youResumedThisConversationYourself'),
+  'agent-changed': t('labels.conversationHandedOffToAnotherAgent'),
+  superseded: t('labels.quotaLimitReachedAgainUsingTheLatestLimit'),
+  'auto-continue-off': t('labels.autoResumeAfterQuotaResetWasDisabled'),
+  'usage-limit-settled': t('labels.thisQuotaLimitEventIsAlreadySettled'),
+  'usage-limit-busy': t('labels.retryingPleaseWait'),
+  'usage-limit-not-found': t('labels.quotaLimitRecordNotFound'),
+  'usage-limit-retry-failed': t('labels.retryCouldNotResume')
+}))
 
 // Reasons whose message says what went wrong in the agent's own words, kept after the summary.
-const REASON_WITH_DETAIL: Record<string, string> = {
-  'chat-start-failed': 'Agent 没能以聊天界面启动',
-  'chat-session-lost': 'Agent 原来的会话已经不在了',
+const REASON_WITH_DETAIL: Record<string, string> = localized(() => ({
+  'chat-start-failed': t('labels.agentCouldNotStartInChatMode'),
+  'chat-session-lost': t('labels.agentSOriginalSessionNoLongerExists'),
   // Chromium's own word on it (net::ERR_NAME_NOT_RESOLVED, a certificate), which says what to fix.
-  'browser-navigation-failed': '页面打不开',
-  'git-commit-failed': '提交失败',
-  'git-push-failed': '提交已经保留在本地，但推送失败',
-  'git-operation-failed': 'Git 操作失败',
+  'browser-navigation-failed': t('labels.cannotOpenPage'),
+  'git-commit-failed': t('labels.commitFailed'),
+  'git-push-failed': t('labels.commitWasKeptLocallyButPushFailed'),
+  'git-operation-failed': t('labels.gitOperationFailed'),
   // Which file and what is wrong with it.
-  'project-config-invalid': '项目配置 .antumi/project.json 有误'
-}
+  'project-config-invalid': t('labels.invalidProjectConfigurationAntumiProjectJson')
+}))
 
 export function reasonText(reason: string, fallback: string): string {
   const summary = REASON_WITH_DETAIL[reason]
@@ -233,7 +237,7 @@ export function reasonText(reason: string, fallback: string): string {
 }
 
 function clock(date: Date): string {
-  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+  return date.toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 export function timeOfDay(ms: number): string {
@@ -243,14 +247,19 @@ export function timeOfDay(ms: number): string {
 // "9月25日 09:28": this app's timestamps are recent enough that the year is noise.
 export function dayAndTime(ms: number): string {
   const date = new Date(ms)
-  return `${date.getMonth() + 1}月${date.getDate()}日 ${clock(date)}`
+  if (getLocale() === 'en') return `${date.toLocaleDateString('en', { month: 'short', day: 'numeric' })} ${clock(date)}`
+  return t('labels.dateAndTime', { value1: date.getMonth() + 1, value2: date.getDate(), value3: clock(date) })
 }
 
 // A day and time in a chat, with the year once it is not this one: a conversation can go on for
 // longer than the rest of the app's timestamps.
 export function chatDayAndTime(ms: number, now = Date.now()): string {
   const year = new Date(ms).getFullYear()
-  return year === new Date(now).getFullYear() ? dayAndTime(ms) : `${year}年${dayAndTime(ms)}`
+  if (getLocale() === 'en' && year !== new Date(now).getFullYear()) {
+    const date = new Date(ms)
+    return `${date.toLocaleDateString('en', { year: 'numeric', month: 'short', day: 'numeric' })} ${clock(date)}`
+  }
+  return year === new Date(now).getFullYear() ? dayAndTime(ms) : t('labels._2502', { year: year, value2: dayAndTime(ms) })
 }
 
 // A chat message's time: the time alone today, and the day too before that, so a conversation
@@ -263,14 +272,14 @@ export function messageTime(ms: number, now = Date.now()): string {
 // How long ago, in a list that only needs to say roughly: past a month the day itself reads better.
 export function agoText(ms: number, now = Date.now()): string {
   const minutes = Math.floor((now - ms) / 60_000)
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes} 分钟前`
+  if (minutes < 1) return t('conversationState.justNow')
+  if (minutes < 60) return t('conversationState.minutesAgo', { minutes: minutes })
   const days = Math.round((new Date(now).setHours(0, 0, 0, 0) - new Date(ms).setHours(0, 0, 0, 0)) / 86_400_000)
-  if (days === 0) return `${Math.floor(minutes / 60)} 小时前`
-  if (days === 1) return '昨天'
-  if (days < 7) return `${days} 天前`
-  if (days < 28) return `${Math.floor(days / 7)} 周前`
+  if (days === 0) return t('labels.hoursAgo', { value1: Math.floor(minutes / 60) })
+  if (days === 1) return t('labels.yesterday')
+  if (days < 7) return t('conversationState.daysAgo', { days: days })
+  if (days < 28) return t('labels.weeksAgo', { value1: Math.floor(days / 7) })
   const date = new Date(ms)
-  const day = `${date.getMonth() + 1}月${date.getDate()}日`
-  return date.getFullYear() === new Date(now).getFullYear() ? day : `${date.getFullYear()}年${day}`
+  const day = t('SourceInboxView.monthAndDay', { value1: date.getMonth() + 1, value2: date.getDate() })
+  return date.getFullYear() === new Date(now).getFullYear() ? day : t('SourceInboxView._1782', { value1: date.getFullYear(), day: day })
 }

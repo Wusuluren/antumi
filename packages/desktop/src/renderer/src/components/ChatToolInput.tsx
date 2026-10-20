@@ -1,3 +1,4 @@
+import { getLocale } from '../i18n'
 import { useMemo, type ReactNode } from 'react'
 import { common, createLowlight } from 'lowlight'
 import { toolInputLanguage } from '../chat-tools'
@@ -38,6 +39,6 @@ function shell(input: string): ReactNode[] {
 // What a call was given, coloured as the language it is written in.
 export function ChatToolInput({ name, input }: { name: string; input: string }) {
   const language = toolInputLanguage(name, input)
-  const content = useMemo(() => (language === 'bash' ? shell(input) : language ? render(lowlight.highlight(language, input).children) : input), [language, input])
+  const content = useMemo(() => (language === 'bash' ? shell(input) : language ? render(lowlight.highlight(language, input).children) : input), [language, input, getLocale()])
   return <ChatCopyRegion text={input}><pre className="chat-tool-io" data-language={language ?? undefined}>{content}</pre></ChatCopyRegion>
 }

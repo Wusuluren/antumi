@@ -1,3 +1,4 @@
+import { localized, t } from '../i18n'
 import { createContext, useCallback, useContext, useState } from 'react'
 import type { ChatItem, ChatTodo } from '@antumi/protocol'
 import { useDisclosure } from '../chat-disclosure'
@@ -55,11 +56,11 @@ type TodoSummary = { state: 'inProgress' | 'completedStep' | 'allDone' | 'idle';
 export function todoSummary(todos: readonly ChatTodo[]): TodoSummary {
   const finished = done(todos)
   const step = todos.find((todo) => todo.status === 'in_progress')
-  if (step) return { state: 'inProgress', label: '当前步骤', detail: step.activeForm ?? step.content }
-  if (todos.length > 0 && finished === todos.length) return { state: 'allDone', label: '全部步骤已完成', detail: null }
+  if (step) return { state: 'inProgress', label: t('ChatTodos.currentStep'), detail: step.activeForm ?? step.content }
+  if (todos.length > 0 && finished === todos.length) return { state: 'allDone', label: t('ChatTodos.allStepsCompleted'), detail: null }
   const last = [...todos].reverse().find((todo) => todo.status === 'completed')
-  if (last) return { state: 'completedStep', label: '已完成', detail: last.content }
-  return { state: 'idle', label: '待办', detail: null }
+  if (last) return { state: 'completedStep', label: t('ChatTodos.completed'), detail: last.content }
+  return { state: 'idle', label: t('chatTools.toDos'), detail: null }
 }
 
 function SummaryText({ summary }: { summary: TodoSummary }) {
@@ -88,7 +89,7 @@ export function currentTodo(todos: readonly ChatTodo[]): string | null {
   return step ? (step.activeForm ?? step.content) : null
 }
 
-const STATUS_LABEL: Record<ChatTodo['status'], string> = { completed: '已完成', in_progress: '进行中', pending: '未开始' }
+const STATUS_LABEL: Record<ChatTodo['status'], string> = localized(() => ({ completed: t('ChatTodos.completed'), in_progress: t('ChatTodos.inProgress'), pending: t('ChatTodos.notStarted') }))
 
 // A step done is ticked and struck through, the one under way is arrowed and read in its active
 // form, the rest wait as rings.
@@ -162,7 +163,7 @@ export function ChatTodosChip({ todos }: { todos: readonly ChatTodo[] }) {
         {step && <span className="muted">{step}</span>}
       </button>
       {open && (
-        <Popover label="Agent 的待办" onClose={close}>
+        <Popover label={t('ChatTodos.agentToDos')} onClose={close}>
           <TodoList todos={todos} />
         </Popover>
       )}

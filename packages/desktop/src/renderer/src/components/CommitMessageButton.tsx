@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useState } from 'react'
 import { RpcError, type GitTarget } from '@antumi/protocol'
 import { useCommitMessageSupported, useCore } from '../core-store'
@@ -31,9 +32,9 @@ export function CommitMessageButton({ target, disabled, onMessage }: { target: G
   }
   return (
     <span className="commit-message-generate">
-      <button type="button" className="button ghost" disabled={disabled || busy} data-tooltip="让这个 Agent 用小模型根据改动写，写好后再看一眼" onClick={() => void generate()}>
+      <button type="button" className="button ghost" disabled={disabled || busy} data-tooltip={t('CommitMessageButton.useThisAgentSSmallModelToDraft')} onClick={() => void generate()}>
         {busy ? <Spinner /> : <SparkIcon />}
-        {busy ? '正在生成…' : '生成提交信息'}
+        {busy ? t('CommitMessageButton.generating') : t('CommitMessageButton.generateCommitMessage')}
       </button>
       {error && <span className="commit-message-error" role="alert">{error}</span>}
     </span>

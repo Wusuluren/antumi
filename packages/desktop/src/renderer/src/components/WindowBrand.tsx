@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useEffect } from 'react'
 import { setPreference, usePreferences } from '../preferences'
 import { hasPrimaryModifier, PRIMARY_KEY_LABEL } from '../shortcut-keys'
@@ -23,7 +24,7 @@ export function WindowBrand() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  const label = hidden ? '展开侧边栏' : '收起侧边栏'
+  const label = hidden ? t('WindowBrand.expandSidebar') : t('WindowBrand.collapseSidebar')
   return (
     <div className="window-brand">
       <span className="window-brand-name">Antumi</span>

@@ -1,3 +1,4 @@
+import { getLocale, t } from './i18n'
 import { useMemo } from 'react'
 import { create } from 'zustand'
 import { isCompaction } from './chat-notices'
@@ -22,7 +23,7 @@ export function usePlans(conversationId: string): PlanItem[] {
   const items = useChat((s) => s[conversationId]?.items)
   return useMemo(
     () => items?.filter((item): item is PlanItem => item.kind === 'approval' && isPlanApproval(item)) ?? NO_PLANS,
-    [items]
+    [items, getLocale()]
   )
 }
 
@@ -196,16 +197,16 @@ export function timeline(stages: readonly ConversationStage[], items: readonly C
 // What one update of the agent's todo list changed from the one before it: the steps it finished
 // and started, or steps it added; the whole list when it is the first.
 export function todoChange(previous: readonly ChatTodo[] | null, next: readonly ChatTodo[]): string | null {
-  if (!previous) return next.length ? `列出 ${next.length} 项待办` : null
+  if (!previous) return next.length ? t('chatState.listedToDos', { value1: next.length }) : null
   const before = new Map(previous.map((todo) => [todo.content, todo.status]))
   const finished = next.filter((todo) => todo.status === 'completed' && before.get(todo.content) !== 'completed')
   const started = next.filter((todo) => todo.status === 'in_progress' && before.get(todo.content) !== 'in_progress')
   const added = next.filter((todo) => !before.has(todo.content))
   const quoted = (todos: readonly ChatTodo[]) => todos.map((todo) => `「${todo.content}」`).join('')
   const said = [
-    finished.length ? `完成${quoted(finished)}` : null,
-    started.length ? `开始${quoted(started)}` : null,
-    added.length && added.length !== started.length ? `新增 ${added.length} 项` : null
+    finished.length ? t('chatState.completed', { value1: quoted(finished) }) : null,
+    started.length ? t('chatState.started', { value1: quoted(started) }) : null,
+    added.length && added.length !== started.length ? t('chatState.addedItems', { value1: added.length }) : null
   ].filter(Boolean)
   return said.length ? said.join('，') : null
 }

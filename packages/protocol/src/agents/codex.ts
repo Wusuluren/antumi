@@ -3,6 +3,17 @@ import { CODEX_PRICES } from './model-prices'
 
 // Its default mode reads "auto" to Codex users.
 export const codex: AgentDescriptor = {
+  translations: { en: {
+    modes: {
+      ask: { label: 'Ask each time', description: 'Ask before every action' },
+      acceptEdits: { label: 'Automatic', description: 'Work freely in the project; ask before going beyond it' },
+      plan: { label: 'Plan', description: 'Read code and propose a plan; execute after your approval' },
+      readOnly: { label: 'Read only', description: 'Read files without modifying them' },
+      bypass: { label: 'Allow everything', description: 'No approval prompts or sandbox restrictions' }
+    },
+    environment: { role: 'Runs with `codex app-server` in chat. Other Agents can be used without it.', install: 'npm install -g @openai/codex', signIn: 'Run codex login in a terminal' },
+    usageWhere: 'Use in Codex usage settings'
+  } },
   label: 'Codex',
   cli: 'codex',
   modes: {

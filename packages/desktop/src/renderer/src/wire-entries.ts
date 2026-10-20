@@ -1,8 +1,9 @@
+import { getLocale, localized, t } from './i18n'
 import type { WireDirection, WireEntry } from '@antumi/protocol'
 
 // Which way an entry went, as the list marks it: → to the agent, ← from it.
 export const WIRE_MARK: Record<WireDirection, string> = { spawn: '▶', stdin: '→', stdout: '←', stderr: '!', exit: '■', note: '·' }
-export const WIRE_DIR_LABEL: Record<WireDirection, string> = { spawn: '启动', stdin: '发给 Agent', stdout: 'Agent 输出', stderr: 'stderr', exit: '退出', note: '说明' }
+export const WIRE_DIR_LABEL: Record<WireDirection, string> = localized(() => ({ spawn: t('wireEntries.start'), stdin: t('wireEntries.sentToAgent'), stdout: t('wireEntries.agentOutput'), stderr: 'stderr', exit: t('wireEntries.exit'), note: t('ChatCommandSettings.description') }))
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null
@@ -30,9 +31,9 @@ export function wireLabel(entry: WireEntry): string {
   const json = record(wireJson(entry))
   if (entry.dir === 'spawn') {
     const command = word(json?.command)
-    return command ? `启动 ${command.split(/[\\/]/).at(-1)}` : '启动'
+    return command ? t('wireEntries.start_2697', { value1: command.split(/[\\/]/).at(-1) }) : t('wireEntries.start')
   }
-  if (entry.dir === 'exit') return json && 'code' in json ? `退出，代码 ${String(json.code)}` : '退出'
+  if (entry.dir === 'exit') return json && 'code' in json ? t('wireEntries.exitedWithCode', { value1: String(json.code) }) : t('wireEntries.exit')
   if (!json) return firstLine(entry.text)
   const method = word(json.method)
   if (method) return 'id' in json ? `${method} #${String(json.id)}` : method
@@ -102,7 +103,7 @@ export function streamText(entries: readonly WireEntry[]): string {
 export function streamLabel(entries: readonly WireEntry[]): string {
   const text = streamText(entries).replace(/\s+/g, ' ').trim()
   const preview = text.length > 80 ? `${text.slice(0, 80)}…` : text
-  return `流式增量 × ${entries.length}${preview ? ` · ${preview}` : ''}`
+  return t('wireEntries.streamDeltas', { value1: entries.length, value2: preview ? ` · ${preview}` : '' })
 }
 
 export function totalSize(entries: readonly WireEntry[]): string {
@@ -118,7 +119,7 @@ export function wireMatches(entry: WireEntry, needle: string): boolean {
 export function wireDetail(entry: WireEntry): string {
   const json = wireJson(entry)
   const text = json === null ? entry.text : JSON.stringify(json, null, 2)
-  return entry.cut === undefined ? text : `${text}\n…（原本 ${entry.cut.toLocaleString()} 个字符，只记了前面这些）`
+  return entry.cut === undefined ? text : t('wireEntries.originallyCharactersOnlyTheBeginningWasRecorded', { text: text, value2: entry.cut.toLocaleString(getLocale()) })
 }
 
 export function wireSize(entry: WireEntry): string {

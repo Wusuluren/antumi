@@ -1,3 +1,4 @@
+import { getLocale, localized, t } from '../i18n'
 import { agentDescriptor, agentModeText, helperAllowsMode, isHelper, type AgentKind, type ChatContextUse, type ChatItem, type ChatModel, type ChatOption, type ChatPermissionMode, type Conversation } from '@antumi/protocol'
 import { perform } from '../core-store'
 import { ChatModelPicker, ChatPicker, type PickerOption } from './ChatPicker'
@@ -5,7 +6,7 @@ import { ChatModelPicker, ChatPicker, type PickerOption } from './ChatPicker'
 type StateItem = Extract<ChatItem, { kind: 'state' }>
 
 export function modeLabel(agent: AgentKind, mode: string): string {
-  return agentModeText(agent, mode)?.label ?? mode
+  return agentModeText(agent, mode, getLocale())?.label ?? mode
 }
 
 // The modes as the picker lists them; one the agent offers but cannot be picked now stays greyed.
@@ -13,7 +14,7 @@ export function modeOptions(agent: AgentKind, modes: readonly string[], offered:
   return modes.map((mode) => ({
     value: mode,
     label: modeLabel(agent, mode),
-    description: agentModeText(agent, mode)?.description ?? null,
+    description: agentModeText(agent, mode, getLocale())?.description ?? null,
     disabled: !offered.includes(mode)
   }))
 }
@@ -35,16 +36,16 @@ export function startModes(agent: AgentKind, model: ChatModel | undefined): Chat
   return [...startModes, ...(model?.autoMode && capabilities.autoMode ? ['auto' as const] : []), ...(capabilities.bypass ? ['bypass' as const] : [])]
 }
 
-const EFFORT_LABEL: Record<string, string> = {
-  none: '无',
-  minimal: '最低',
-  low: '低',
-  medium: '中',
-  high: '高',
-  xhigh: '很高',
-  max: '最高',
-  ultra: '超高'
-}
+const EFFORT_LABEL: Record<string, string> = localized(() => ({
+  none: t('ChatOptionsBar.none'),
+  minimal: t('ChatOptionsBar.minimal'),
+  low: t('ChatOptionsBar.low'),
+  medium: t('ChatOptionsBar.medium'),
+  high: t('ChatOptionsBar.high'),
+  xhigh: t('ChatOptionsBar.extraHigh'),
+  max: t('ChatOptionsBar.maximum'),
+  ultra: t('ChatOptionsBar.ultra')
+}))
 
 export function effortLabel(effort: string): string {
   return EFFORT_LABEL[effort] ?? effort
@@ -59,8 +60,8 @@ function tokens(count: number): string {
 function ContextRing({ context }: { context: ChatContextUse }) {
   const ratio = context.window ? Math.min(1, context.used / context.window) : null
   const title = ratio === null
-    ? `上下文 ${tokens(context.used)} tokens`
-    : `上下文 ${Math.round(ratio * 100)}%（${tokens(context.used)} / ${tokens(context.window ?? 0)}）`
+    ? t('ChatOptionsBar.contextTokens', { value1: tokens(context.used) })
+    : t('ChatOptionsBar.context', { value1: Math.round(ratio * 100), value2: tokens(context.used), value3: tokens(context.window ?? 0) })
   const radius = 7
   const length = 2 * Math.PI * radius
   const level = ratio === null ? 'normal' : ratio >= 0.85 ? 'critical' : ratio >= 0.6 ? 'warning' : 'normal'
@@ -110,18 +111,18 @@ export function ChatOptionsBar({ conversation, state, compact = false }: { conve
   const models = model || !modelId
     ? state.models
     : [{ id: modelId, label: modelId, description: null, efforts: [], isDefault: false }, ...state.models]
-  const later = running ? null : '发下一条消息时按这个启动'
+  const later = running ? null : t('ChatOptionsBar.appliesWhenYouSendTheNextMessage')
   return (
     <>
       {modes.length > 0 && (
         <ChatPicker
-          label="权限模式"
+          label={t('ChatHandoff.permissionMode')}
           value={permissionMode}
-          placeholder="权限模式"
-          options={modeOptions(agent, modes, offered).map((option) => conversation.workspaceReadOnly ? { ...option, label: conversation.squadRunId ? '只读' : '只读协调' } : option)}
+          placeholder={t('ChatHandoff.permissionMode')}
+          options={modeOptions(agent, modes, offered).map((option) => conversation.workspaceReadOnly ? { ...option, label: conversation.squadRunId ? t('ChatOptionsBar.readOnly') : t('ChatOptionsBar.readOnlyCoordination') } : option)}
           tone={modeTone(permissionMode)}
           disabled={managed || (!agentDescriptor(agent).capabilities.optionsWhileBusy && !idle)}
-          title={managed ? '沿用本次小队配置' : later ?? undefined}
+          title={managed ? t('ChatOptionsBar.useThisSquadSConfiguration') : later ?? undefined}
           onChange={(mode) => set('permissionMode', mode)}
         />
       )}
@@ -132,7 +133,7 @@ export function ChatOptionsBar({ conversation, state, compact = false }: { conve
           model={modelId}
           effort={effort}
           disabled={managed || !idle}
-          title={managed ? '沿用本次小队配置' : later ?? (idle ? undefined : '回合结束后才能换模型和推理强度')}
+          title={managed ? t('ChatOptionsBar.useThisSquadSConfiguration') : later ?? (idle ? undefined : t('ChatOptionsBar.changeModelAndReasoningEffortAfterThisTurn'))}
           onModel={(value) => set('model', value)}
           onEffort={(value) => set('effort', value)}
         />

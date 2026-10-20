@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { openTerminal, showError, showTerminal, useCore } from './core-store'
 import { runsAtOnce } from './code-commands'
 import { terminalReady, typeIntoTerminal } from './components/terminal-surface'
@@ -24,6 +25,6 @@ export async function runInTerminal(scope: RunScope, command: string, run = runs
   if (!terminal) return
   showTerminal(terminal.id)
   if (!(await terminalReady(terminal.sessionId)) || !typeIntoTerminal(terminal.sessionId, command, run && runsAtOnce(command))) {
-    showError('终端还没准备好，稍后再试')
+    showError(t('codeRun.terminalIsNotReadyTryAgainShortly'))
   }
 }

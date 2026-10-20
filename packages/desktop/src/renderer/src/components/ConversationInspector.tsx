@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { HelperPanel } from './HelperPanel'
 import { useHelper, useHelperSupported } from '../helper-conversations'
 import { GitInspector } from './GitInspector'
@@ -39,9 +40,9 @@ export function useFolderChanges(id: string, updatedAt: number, refreshCount: nu
 }
 
 function ChangeList({ changes, onOpen }: { changes: FolderChanges[] | null; onOpen: (project: string, file: string) => void }) {
-  if (changes === null) return <p className="inspector-empty muted">正在读取改动…</p>
+  if (changes === null) return <p className="inspector-empty muted">{t('ConversationInspector.loadingChanges')}</p>
   const repos = changes.filter((folder) => folder.head !== null || folder.files.length > 0)
-  if (repos.length === 0) return <p className="inspector-empty muted">这个会话的项目不在 git 仓库里，没有可以对比的改动。</p>
+  if (repos.length === 0) return <p className="inspector-empty muted">{t('ConversationInspector.thisConversationSProjectIsNotInA')}</p>
   return (
     <div className="branch-status inspector-repos">
       <ProjectGroups items={repos}>
@@ -49,13 +50,13 @@ function ChangeList({ changes, onOpen }: { changes: FolderChanges[] | null; onOp
           <section key={folder.path} className="branch-status-project inspector-repo" data-primary={primary || undefined} aria-label={projectName(folder.path)}>
             <ProjectRow path={folder.path} branch={folder.branch} />
             {folder.commits === null
-              ? <p className="inspector-row-empty">会话开始时还没有记录起点，看不到这之后的提交</p>
-              : <CommitList commits={folder.commits} label="本次会话的提交" />}
-            <ChangedFiles label="未提交的改动" files={folder.files} empty="没有未提交的改动" onOpen={(file) => onOpen(folder.path, file)} />
+              ? <p className="inspector-row-empty">{t('ConversationInspector.noStartingCommitWasRecordedForThisConversation')}</p>
+              : <CommitList commits={folder.commits} label={t('ConversationInspector.commitsInThisConversation')} />}
+            <ChangedFiles label={t('ConversationInspector.uncommittedChanges')} files={folder.files} empty={t('ConversationInspector.noUncommittedChanges')} onOpen={(file) => onOpen(folder.path, file)} />
           </section>
         )}
       </ProjectGroups>
-      <p className="branch-status-note">项目目录和你共用，未提交的改动里也可能有你自己的。</p>
+      <p className="branch-status-note">{t('ConversationInspector.youShareTheProjectDirectoryUncommittedChangesMay')}</p>
     </div>
   )
 }
@@ -106,7 +107,7 @@ export function ConversationInspector({ conversation, widthRatio, onWidthRatioCh
   }
   return (
     <InspectorPanel
-      label="会话检查器"
+      label={t('ConversationInspector.conversationInspector')}
       owner={owner}
       maximized={(tab === 'files' && files.maximized) || (tab === 'branch' && gitMaximized)}
       ratio={widthRatio}

@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import {
   AGENT_KINDS,
   agentAdvice,
@@ -42,9 +43,7 @@ export function useRecommendation(candidates: readonly AgentKind[]): AgentRecomm
 
 export function RecommendedMark({ recommendation }: { recommendation: AgentRecommendation }) {
   return (
-    <span className="agent-recommended" title={recommendationText(recommendation)}>
-      推荐
-    </span>
+    <span className="agent-recommended" title={recommendationText(recommendation)}>{t('AgentPicker.recommended')}</span>
   )
 }
 
@@ -55,13 +54,13 @@ export function quotaText(verdict: QuotaVerdict, display: Preferences['usageDisp
   if (!window) {
     return null
   }
-  const stale = verdict.stale ? ' · 可能已过时' : ''
+  const stale = verdict.stale ? t('AgentQuota.mayBeOutdated') : ''
   if (verdict.state === 'exhausted') {
-    const reset = window.resetsAt === null ? '' : ` · ${formatClock(window.resetsAt, now)} 重置`
-    return `${windowLabel(window)} 已用完${reset}${stale}`
+    const reset = window.resetsAt === null ? '' : t('AgentQuota.resets', { value1: formatClock(window.resetsAt, now) })
+    return t('AgentQuota.limitReached', { value1: windowLabel(window), reset: reset, stale: stale })
   }
   const used = Math.round(window.usedPercent)
-  return `${windowLabel(window)} ${display === 'remaining' ? `剩 ${100 - used}%` : `已用 ${used}%`}${stale}`
+  return `${windowLabel(window)} ${display === 'remaining' ? t('AgentQuota.remaining', { value1: 100 - used }) : t('AgentQuota.used', { used: used })}${stale}`
 }
 
 // The agent's tightest window, for wherever it is about to be picked. Says nothing while the usage
@@ -118,13 +117,13 @@ export function confirmQuota(agent: AgentKind, model?: string | null): boolean {
   const display = usePreferences.getState().usageDisplay
   const suggestion =
     other && otherVerdict && (otherVerdict.state === 'ok' || otherVerdict.state === 'tight')
-      ? `\n${agentLabel(other)} 还有额度${otherVerdict.window ? `（${quotaText(otherVerdict, display, now)}）` : ''}，可以先换成它。`
+      ? t('AgentQuota.stillHasQuotaYouCanSwitchToIt', { value1: agentLabel(other), value2: otherVerdict.window ? `（${quotaText(otherVerdict, display, now)}）` : '' })
       : ''
   // Waiting for the reset is a choice too, where core can start things later.
   const later = useCore.getState().rpc?.features.includes('schedules')
-    ? '\n也可以取消，点旁边的时钟按钮预约，额度恢复后自动开始。'
+    ? t('AgentQuota.youCanAlsoCancelAndUseTheClock')
     : ''
   return window.confirm(
-    `${agentLabel(agent)} 已用完${spaced(windowLabel(verdict.window))}额度${reset ? `，${reset}` : ''}。${suggestion}${later}\n\n仍要用 ${agentLabel(agent)} 启动吗？`
+    t('AgentQuota.hasUsedItsQuotaStartWithAnyway', { value1: agentLabel(agent), value2: spaced(windowLabel(verdict.window)), value3: reset ? `，${reset}` : '', suggestion: suggestion, later: later, value6: agentLabel(agent) })
   )
 }

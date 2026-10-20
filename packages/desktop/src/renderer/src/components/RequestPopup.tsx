@@ -1,3 +1,4 @@
+import { getLocale, useLocale, t } from '../i18n'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { create } from 'zustand'
 import type { ChatItem, Conversation } from '@antumi/protocol'
@@ -81,6 +82,7 @@ function useWatchedChat(conversationId: string | null): readonly ChatItem[] {
 // chat at a time, answered with the chat's own cards. It comes up when the main window asks and
 // has something to show, and goes when all is answered, the user closes it, or main puts it away.
 export function RequestPopup() {
+  useLocale((state) => state.locale)
   const wanted = useWanted()
   const [closed, setClosed] = useState(NONE_CLOSED)
   const [picked, setPicked] = useState<string | null>(null)
@@ -88,23 +90,23 @@ export function RequestPopup() {
   const conversations = useCore((s) => s.conversations)
   const error = useCore((s) => s.error)
   const fontSize = usePreferences((s) => s.chatFontSize)
-  const queue = useMemo(() => popupQueue({ tasks, conversations }, closed), [tasks, conversations, closed])
+  const queue = useMemo(() => popupQueue({ tasks, conversations }, closed), [tasks, conversations, closed, getLocale()])
   const at = Math.max(0, queue.findIndex((each) => each.conversationId === picked))
   const entry = wanted ? queue[at] : undefined
   const conversation = entry ? conversations[entry.conversationId] : undefined
   const items = useWatchedChat(entry?.conversationId ?? null)
   const pending = useMemo(
     () => items.filter((item): item is RequestItem => (item.kind === 'approval' || item.kind === 'question') && item.resolution === null),
-    [items]
+    [items, getLocale()]
   )
-  const tools = useMemo(() => new Map(items.flatMap((item) => (item.kind === 'tool' ? [[item.id, item] as const] : []))), [items])
-  const state = useMemo(() => items.findLast((item): item is StateItem => item.kind === 'state') ?? null, [items])
+  const tools = useMemo(() => new Map(items.flatMap((item) => (item.kind === 'tool' ? [[item.id, item] as const] : []))), [items, getLocale()])
+  const state = useMemo(() => items.findLast((item): item is StateItem => item.kind === 'state') ?? null, [items, getLocale()])
   const roots = useMemo(
     () => (conversation ? (conversation.projectPaths.length ? conversation.projectPaths : [conversation.workspacePath]) : []),
-    [conversation]
+    [conversation, getLocale()]
   )
-  const shorten = useMemo(() => pathShortener(roots), [roots])
-  const surface = useMemo(() => (entry ? popupSurface(entry, conversation) : null), [entry, conversation])
+  const shorten = useMemo(() => pathShortener(roots), [roots, getLocale()])
+  const surface = useMemo(() => (entry ? popupSurface(entry, conversation) : null), [entry, conversation, getLocale()])
 
   useEffect(() => (error ? scheduleErrorToastDismiss(dismissError) : undefined), [error])
 
@@ -144,7 +146,7 @@ export function RequestPopup() {
   const step = (by: number) => setPicked(queue[(at + by + queue.length) % queue.length]?.conversationId ?? null)
   return (
     <div ref={frame} className="request-popup-frame">
-      <section className="chat-view request-popup" data-font-size={fontSize} aria-label="等你处理的请求">
+      <section className="chat-view request-popup" data-font-size={fontSize} aria-label={t('ChatDock.requestsAwaitingYourResponse')}>
         <header className="request-popup-header">
           <span className="request-popup-label">{popupLabel(entry.request)}</span>
           <span className="request-popup-title" title={entry.title}>{entry.title}</span>
@@ -152,13 +154,13 @@ export function RequestPopup() {
           <span className="request-popup-spacer" />
           {queue.length > 1 && (
             <span className="request-popup-pager">
-              <button type="button" className="request-popup-step" data-direction="previous" aria-label="上一个" onClick={() => step(-1)}><ChevronRightIcon /></button>
+              <button type="button" className="request-popup-step" data-direction="previous" aria-label={t('ChatRequestCards.previous')} onClick={() => step(-1)}><ChevronRightIcon /></button>
               <span className="request-popup-count">{at + 1} / {queue.length}</span>
-              <button type="button" className="request-popup-step" aria-label="下一个" onClick={() => step(1)}><ChevronRightIcon /></button>
+              <button type="button" className="request-popup-step" aria-label={t('ChatRequestCards.next')} onClick={() => step(1)}><ChevronRightIcon /></button>
             </span>
           )}
-          <button type="button" className="link-button" onClick={() => openFromRequestPopup(entry.target)}>在 Antumi 中打开</button>
-          <button type="button" className="request-popup-close" aria-label="收起，有新的请求再弹出" title="收起，有新的请求再弹出" onClick={close}><CloseIcon /></button>
+          <button type="button" className="link-button" onClick={() => openFromRequestPopup(entry.target)}>{t('RequestPopup.openInAntumi')}</button>
+          <button type="button" className="request-popup-close" aria-label={t('RequestPopup.collapseShowAgainForNewRequests')} title={t('RequestPopup.collapseShowAgainForNewRequests')} onClick={close}><CloseIcon /></button>
         </header>
         {error && <p className="request-popup-error" role="alert">{error}</p>}
         <ChatSurfaceContext.Provider value={surface}>
@@ -166,7 +168,7 @@ export function RequestPopup() {
             <ChatRoots.Provider value={roots}>
               {pending.length > 0
                 ? <PendingRequests conversation={conversation} pending={pending} tools={tools} modes={state?.permissionModes ?? []} />
-                : <p className="request-popup-loading">正在读取…</p>}
+                : <p className="request-popup-loading">{t('DashboardPanel.loading')}</p>}
             </ChatRoots.Provider>
           </ChatPaths.Provider>
         </ChatSurfaceContext.Provider>

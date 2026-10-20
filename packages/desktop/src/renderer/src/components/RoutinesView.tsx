@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { setAwakeMode, setRoutinesOpen, useCore, useSchedulesSupported, type RoutinesTab } from '../core-store'
 import { UNATTENDED_LABEL } from '../schedules'
 import { CloseIcon } from './icons'
@@ -6,7 +7,7 @@ import { SettingsLink } from './SchedulePicker'
 import { SchedulesPanel } from './SchedulesPanel'
 import { Segmented } from './SettingsControls'
 
-const TABS: ReadonlyArray<{ value: RoutinesTab; label: string }> = [{ value: 'routines', label: '定时' }, { value: 'schedules', label: '预约' }]
+const TABS: ReadonlyArray<{ value: RoutinesTab; label: string }> = localized(() => ([{ value: 'routines', label: t('RoutinesEntry.scheduled') }, { value: 'schedules', label: t('OverviewView.schedules') }]))
 
 // The routines: rules that open a conversation on a schedule, each with its runs. Their
 // conversations are kept out of the sidebar, so this is where they are found.
@@ -18,15 +19,9 @@ function RoutinesPanel() {
   return (
     <>
       <div className="routines-intro">
-        <p className="muted">
-          按时间重复的任务：到点新开一个会话，把指令发给 agent，以「{UNATTENDED_LABEL[mode]}」无人值守地做完，<SettingsLink />。
-          做完的运行带未读标记，从规则下面的历史里打开看结果；它开的会话不进左侧的会话列表。
-        </p>
+        <p className="muted">{tr('RoutinesView.repeatingTasksEachRunOpensANewConversation', { value1: UNATTENDED_LABEL[mode], value2: <SettingsLink /> })}</p>
         {awake && awake.mode !== 'on' && scheduled && (
-          <p className="schedule-warning">
-            电脑睡着时到点不会运行，醒来后只补最近错过的一次。
-            <button type="button" className="link-button" onClick={() => void setAwakeMode('on')}>改为始终保持唤醒</button>
-          </p>
+          <p className="schedule-warning">{tr('RoutinesView.nothingRunsWhileTheComputerSleepsOnlyThe', { value1: <button type="button" className="link-button" onClick={() => void setAwakeMode('on')}>{t('RoutinesView.switchToAlwaysAwake')}</button> })}</p>
         )}
       </div>
       <RoutinesSection />
@@ -41,16 +36,16 @@ export function RoutinesView() {
   const chosen = useCore((s) => s.routinesTab)
   const tab = schedulesSupported ? chosen : 'routines'
   return (
-    <section className="worktrees-page routines-page" aria-label="定时">
+    <section className="worktrees-page routines-page" aria-label={t('RoutinesEntry.scheduled')}>
       <header className="worktrees-header">
         <div className="worktrees-heading">
-          <h2>定时</h2>
+          <h2>{t('RoutinesEntry.scheduled')}</h2>
         </div>
         {schedulesSupported && <>
           <Segmented labelId="routines-tab" value={tab} options={TABS} onChange={(next) => setRoutinesOpen(true, next)} />
-          <span id="routines-tab" hidden>定时页的内容</span>
+          <span id="routines-tab" hidden>{t('RoutinesView.scheduledPageContent')}</span>
         </>}
-        <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => setRoutinesOpen(false)}>
+        <button type="button" className="tool-button" aria-label={t('BackdropPicker.close')} data-tooltip={t('BackdropPicker.close')} onClick={() => setRoutinesOpen(false)}>
           <CloseIcon />
         </button>
       </header>

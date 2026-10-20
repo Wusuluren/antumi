@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { setOverviewOpen, useOverview, useCore } from '../core-store'
 import { CountBadge } from './CountBadge'
 import { ListIcon } from './icons'
@@ -7,9 +8,9 @@ export function OverviewEntry() {
   const count = useOverview().counts.mine
   return (
     <button type="button" className="inbox-entry overview-entry" aria-current={open}
-      aria-label={`总览${count ? `，${count} 项等你处理` : ''}`} onClick={() => setOverviewOpen(true)}>
+      aria-label={t('OverviewEntry.overview', { value1: count ? t('OverviewEntry.itemsNeedYourResponse', { count: count }) : '' })} onClick={() => setOverviewOpen(true)}>
       <ListIcon />
-      <span>总览</span>
+      <span>{t('OverviewEntry.overview_1276')}</span>
       <CountBadge count={count} />
     </button>
   )

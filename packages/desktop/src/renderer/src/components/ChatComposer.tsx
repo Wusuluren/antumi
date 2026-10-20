@@ -1,3 +1,4 @@
+import { getLocale, t, tr } from '../i18n'
 import { HelperStartOptions } from './HelperModelPicker'
 import { useCallback, useContext, useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 import { agentDescriptor, type ChatImage, type ChatItem, type ChatQueued, type Conversation } from '@antumi/protocol'
@@ -52,8 +53,8 @@ type StateItem = Extract<ChatItem, { kind: 'state' }>
 // A waiting message as its row reads it: what the user wrote, and how many passages it quotes.
 function queuedText(text: string): string {
   const { quotes, body } = parseQuotes(text)
-  const quoted = quotes.length ? `（引用 ${quotes.length} 段）` : ''
-  return `${quoted}${body}` || '（只有图片）'
+  const quoted = quotes.length ? t('ChatComposer.quotes', { value1: quotes.length }) : ''
+  return `${quoted}${body}` || t('ChatComposer.imagesOnly')
 }
 
 // Sends what the input holds later, unattended: once its time comes and the agent has quota again.
@@ -75,17 +76,17 @@ function ScheduleSendButton({ conversationId, text, quotes, images, disabledReas
     if (!open) setDraft(text)
     setOpen(!open)
   }
-  const extras = [images.length ? `${images.length} 张图片` : null, quotes.length ? `${quotes.length} 段引用` : null].filter(Boolean)
+  const extras = [images.length ? t('ChatComposer.images', { value1: images.length }) : null, quotes.length ? t('ChatComposer.quotes_242', { value1: quotes.length }) : null].filter(Boolean)
   return (
     <span className="menu-anchor chat-schedule-anchor">
       <button
         type="button"
         className="tool-button chat-schedule-button"
-        aria-label="预约发送"
+        aria-label={t('ChatComposer.scheduleMessage')}
         aria-haspopup="dialog"
         aria-expanded={open}
         disabled={disabledReason !== null}
-        data-tooltip={disabledReason ?? '预约发送：额度恢复后或到点再发'}
+        data-tooltip={disabledReason ?? t('ChatComposer.scheduleSendWhenQuotaResetsOrAtA')}
         data-tooltip-side="top-end"
         onClick={toggle}
       >
@@ -93,7 +94,7 @@ function ScheduleSendButton({ conversationId, text, quotes, images, disabledReas
       </button>
       {open && (
         <SchedulePicker
-          title="预约发送"
+          title={t('ChatComposer.scheduleMessage')}
           align="end"
           onSchedule={async (notBefore) => {
             const message = composeMessage(quotes, draft)
@@ -108,13 +109,13 @@ function ScheduleSendButton({ conversationId, text, quotes, images, disabledReas
             className="input schedule-message"
             rows={3}
             value={draft}
-            aria-label="到点后发给 Agent 的指令"
-            placeholder="到点后发给 Agent 的指令；留空就按定下的计划开始实现"
+            aria-label={t('ChatComposer.instructionsToSendToAgentWhenDue')}
+            placeholder={t('ChatComposer.instructionsWhenDueLeaveEmptyToImplementThe')}
             onChange={(event) => setDraft(event.target.value)}
           />
           {extras.length > 0 && (
             <div className="schedule-extras">
-              {extras.map((extra) => <span key={extra} className="schedule-extra">附 {extra}</span>)}
+              {extras.map((extra) => <span key={extra} className="schedule-extra">{tr('ChatComposer.attach', { extra: extra })}</span>)}
             </div>
           )}
         </SchedulePicker>
@@ -140,16 +141,16 @@ function QueuedRow({ entry, index, steerable, onEdit, onRelease, onNow, onCancel
     <>
       {index >= 0 && <span className="chat-queued-index">{index + 1}.</span>}
       <span className="chat-queued-text" title={entry.text}>{queuedText(entry.text)}</span>
-      {entry.images.length > 0 && <span className="chat-queued-images">{entry.images.length} 张图片</span>}
+      {entry.images.length > 0 && <span className="chat-queued-images">{tr('ChatComposer.images', { value1: entry.images.length })}</span>}
       <span className="chat-queued-actions">
         {entry.held && index > 0 && (
-          <button type="button" className="chat-queued-action" aria-label="发送这条" data-tooltip="发送这条" data-tooltip-side="top-end" onClick={() => onRelease(entry.ref)}><EnterIcon /></button>
+          <button type="button" className="chat-queued-action" aria-label={t('ChatComposer.sendThisMessage')} data-tooltip={t('ChatComposer.sendThisMessage')} data-tooltip-side="top-end" onClick={() => onRelease(entry.ref)}><EnterIcon /></button>
         )}
         {steerable && (
-          <button type="button" className="chat-queued-action" aria-label="立刻插入到进行中的回合" data-tooltip="立刻插入" data-tooltip-side="top-end" onClick={() => onNow(entry.ref)}><EnterIcon /></button>
+          <button type="button" className="chat-queued-action" aria-label={t('ChatComposer.insertIntoTheCurrentTurnImmediately')} data-tooltip={t('ChatComposer.insertNow')} data-tooltip-side="top-end" onClick={() => onNow(entry.ref)}><EnterIcon /></button>
         )}
-        <button type="button" className="chat-queued-action" aria-label="编辑，放回输入框" data-tooltip="编辑" data-tooltip-side="top-end" onClick={() => onEdit(entry)}><PencilIcon /></button>
-        <button type="button" className="chat-queued-action" aria-label="删除" data-tooltip="删除" data-tooltip-side="top-end" onClick={() => onCancel(entry.ref)}><CloseIcon /></button>
+        <button type="button" className="chat-queued-action" aria-label={t('ChatComposer.editInComposer')} data-tooltip={t('chatTools.edit')} data-tooltip-side="top-end" onClick={() => onEdit(entry)}><PencilIcon /></button>
+        <button type="button" className="chat-queued-action" aria-label={t('ChatCommandSettings.delete')} data-tooltip={t('ChatCommandSettings.delete')} data-tooltip-side="top-end" onClick={() => onCancel(entry.ref)}><CloseIcon /></button>
       </span>
     </>
   )
@@ -173,7 +174,7 @@ function QueuedList({ queue, held, steerable, ...actions }: {
   if (first && queue.length === 1) {
     return (
       <div className="chat-queue chat-queue-one chat-queued" data-held={held || undefined}>
-        <span className="chat-queue-label">{held ? '上一回合没有完成，还没发：' : '回合结束后发送：'}</span>
+        <span className="chat-queue-label">{held ? t('ChatComposer.previousTurnUnfinishedNotSent') : t('ChatComposer.sendAfterThisTurn')}</span>
         <QueuedRow entry={first} index={-1} steerable={steerable} {...actions} />
       </div>
     )
@@ -182,11 +183,11 @@ function QueuedList({ queue, held, steerable, ...actions }: {
     <div className="chat-queue" data-held={held || undefined}>
       <div className="chat-queue-head">
         <button type="button" className="chat-queue-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
-          <span className="chat-queue-label">{held ? `${queue.length} 条没发出` : `${queue.length} 条排队`}</span>
-          {!open && first && <span className="chat-queue-next">下一条：<span>{queuedText(first.text)}</span></span>}
+          <span className="chat-queue-label">{held ? t('ChatComposer.unsentMessages', { value1: queue.length }) : t('ChatComposer.queuedMessages', { value1: queue.length })}</span>
+          {!open && first && <span className="chat-queue-next">{tr('ChatComposer.next', { value1: <span>{queuedText(first.text)}</span> })}</span>}
           <span className="chat-tool-chevron" aria-hidden="true"><ChevronDownIcon /></span>
         </button>
-        {held && first && <button type="button" className="link-button" onClick={() => actions.onRelease(first.ref)}>继续发送第 1 条</button>}
+        {held && first && <button type="button" className="link-button" onClick={() => actions.onRelease(first.ref)}>{t('ChatComposer.resumeSendingTheFirstMessage')}</button>}
       </div>
       {open && (
         <ol className="chat-queue-list">
@@ -247,7 +248,7 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
   const queueable = optionsSupported && working
   const stopped = !running
   const starting = Boolean(conversation.starting) || (stopped && busy) || Boolean(initialMessage)
-  const initialHint = initialMessage ? initialMessage.phase === 'failed' ? '请先重试上面的首条消息' : initialMessage.phase === 'sending' ? '正在发送首条消息…' : `正在启动 ${agentLabel(conversation.agent)}…` : null
+  const initialHint = initialMessage ? initialMessage.phase === 'failed' ? t('ChatComposer.retryTheFirstMessageAboveFirst') : initialMessage.phase === 'sending' ? t('ChatComposer.sendingFirstMessage') : t('ChatComposer.starting', { value1: agentLabel(conversation.agent) }) : null
   const canTake = (idle || queueable || stopped) && !busy && !starting && !surface.sendBlocker && attached.uploading === 0
   const canSend = canTake && (text.trim() !== '' || attached.images.length > 0 || quotes.length > 0)
   // What the agent guesses comes next, as Claude Code shows it: grey in the empty input, Tab or →
@@ -262,7 +263,7 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
   const chatCommands = useCore((s) => s.chatCommands)
   const commandEntries = useMemo(
     () => [...antumiEntries(chatCommands, conversation.projectPaths), ...agentEntries(state?.commands ?? [])],
-    [chatCommands, conversation.projectPaths, state?.commands]
+    [chatCommands, conversation.projectPaths, state?.commands, getLocale()]
   )
   const commandMenu = useChatCommandMenu({
     text,
@@ -364,14 +365,14 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
           className="chat-input"
           rows={3}
           value={text}
-          aria-label="给 Agent 的消息"
+          aria-label={t('ChatComposer.messageToAgent')}
           {...commandMenu.inputProps}
           {...mentionMenu.inputProps}
           readOnly={starting}
           autoFocus={compact}
-          placeholder={compact ? '交给小助手…' :
-            handingOff ? `交给 ${agentLabel(handingOff)} 接着做：写下要它做的事，也可以不写，直接按 Enter 移交`
-            : surface.sendBlocker ?? initialHint ?? suggestion ?? (idle || stopped ? `给 Agent 发消息，Enter 发送，Shift+Enter 换行${commandEntries.length > 0 ? '，/ 选命令' : ''}${mentionsSupported ? '，@ 引用文件' : ''}`
+          placeholder={compact ? t('ChatComposer.askHelper') :
+            handingOff ? t('ChatComposer.handOffToAddInstructionsOrPressEnter', { value1: agentLabel(handingOff) })
+            : surface.sendBlocker ?? initialHint ?? suggestion ?? (idle || stopped ? t('ChatComposer.messageAgentEnterToSendShiftEnterFor', { value1: commandEntries.length > 0 ? t('ChatComposer.forCommands') : '', value2: mentionsSupported ? t('ChatComposer.toReferenceFiles') : '' })
               : workingPlaceholder({ awaiting: turn === 'awaiting', queueable, steerable }))
           }
           onChange={(event) => {
@@ -412,9 +413,7 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
           </>
         ) : optionsSupported && state ? <ChatOptionsBar compact={compact} conversation={conversation} state={state} /> : compact ? <HelperStartOptions conversation={conversation} /> : null}
         {suggestion && (
-          <span className="chat-suggestion-hint" aria-hidden="true">
-            <kbd>Tab</kbd> 填入建议
-          </span>
+          <span className="chat-suggestion-hint" aria-hidden="true">{tr('ChatComposer.useSuggestion', { value1: <kbd>Tab</kbd> })}</span>
         )}
         {/* A routine's chat is out of the list and its follow-ups light nothing: a run scheduled
             here would finish unseen. Running again belongs to the routine's own schedule. */}
@@ -425,8 +424,8 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
             quotes={quotes}
             images={attached.images.map((image) => image.id)}
             disabledReason={
-              attached.uploading > 0 ? '图片还在上传'
-                : attached.images.length > 0 && !scheduleImagesSupported ? '这个 core 还不能预约带图片的消息'
+              attached.uploading > 0 ? t('ChatComposer.imagesAreStillUploading')
+                : attached.images.length > 0 && !scheduleImagesSupported ? t('ChatComposer.thisCoreCannotScheduleMessagesWithImagesYet')
                   : surface.sendBlocker ?? null
             }
             onScheduled={() => {
@@ -437,29 +436,25 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
           />
         )}
         {canSteer && (
-          <button type="button" className="button ghost chat-steer-button" data-tooltip-side="top-end" data-tooltip={`不等回合结束，现在就交给 Agent（${PRIMARY_KEY_LABEL}Enter）`} onClick={() => void send(true)}>
-            立刻插入
-          </button>
+          <button type="button" className="button ghost chat-steer-button" data-tooltip-side="top-end" data-tooltip={t('ChatComposer.sendToAgentNowWithoutWaitingForThis', { PRIMARY_KEY_LABEL: PRIMARY_KEY_LABEL })} onClick={() => void send(true)}>{t('ChatComposer.insertNow')}</button>
         )}
         {handingOff ? (
           <button
             type="button"
             className="button primary chat-handoff-send"
-            aria-label={`移交给 ${agentLabel(handingOff)}`}
+            aria-label={t('ChatComposer.handOffTo', { value1: agentLabel(handingOff) })}
             data-tooltip-side="top-end"
             aria-disabled={handoff.blocker !== null}
-            data-tooltip={handoff.blocker ? `还不能移交：${handoff.blocker}` : `${handoff.stopsRunning ? `停止 ${agentLabel(handoff.from)}，` : ''}交给 ${agentLabel(handingOff)} 接着做（Enter）`}
+            data-tooltip={handoff.blocker ? t('ChatComposer.cannotHandOffYet', { value1: handoff.blocker }) : t('ChatComposer.handOffToEnter', { value1: handoff.stopsRunning ? t('ChatComposer.stop', { value1: agentLabel(handoff.from) }) : '', value2: agentLabel(handingOff) })}
             disabled={busy || starting}
             onClick={() => void handOff()}
-          >
-            移交
-          </button>
+          >{t('ChatComposer.handOff')}</button>
         ) : working ? (
-          <button type="button" className="chat-input-button" data-tooltip-side="top-end" data-stop aria-label="中断这一回合（Esc）" data-tooltip="中断（Esc）" onClick={interrupt}>
+          <button type="button" className="chat-input-button" data-tooltip-side="top-end" data-stop aria-label={t('ChatComposer.interruptThisTurnEsc')} data-tooltip={t('ChatComposer.interruptEsc')} onClick={interrupt}>
             <StopIcon />
           </button>
         ) : (
-          <button type="button" className="chat-input-button" data-tooltip-side="top-end" aria-label="发送（Enter）" data-tooltip={initialHint ?? (starting ? `正在启动 ${agentLabel(conversation.agent)}…` : '发送（Enter）')} disabled={!canSend} onClick={() => void send()}>
+          <button type="button" className="chat-input-button" data-tooltip-side="top-end" aria-label={t('ChatComposer.sendEnter')} data-tooltip={initialHint ?? (starting ? t('ChatComposer.starting', { value1: agentLabel(conversation.agent) }) : t('ChatComposer.sendEnter'))} disabled={!canSend} onClick={() => void send()}>
             <EnterIcon />
           </button>
         )}

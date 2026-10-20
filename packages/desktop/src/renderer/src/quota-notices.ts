@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { AGENT_KINDS, agentAdvice, type AgentKind, type AgentUsage, type QuotaAdvice } from '@antumi/protocol'
 import type { Notice } from './attention'
 import { agentLabel } from './labels'
@@ -33,7 +34,7 @@ export function quotaNoticesBetween(prev: Usages, next: Usages, now: number, sen
       const key = adviceKey(advice)
       if (!worthTelling(advice, now) || sent.has(key)) continue
       sent.add(key)
-      notices.push({ title: `${agentLabel(usage.agent)} 额度建议`, body: adviceText(advice, now, alternativeAgent(usage.agent, usages, installed, now)), target })
+      notices.push({ title: t('quotaNotices.quotaAdvice', { value1: agentLabel(usage.agent) }), body: adviceText(advice, now, alternativeAgent(usage.agent, usages, installed, now)), target })
     }
     // Only a change seen between two readings: the first one has nothing to compare with.
     const before = prev?.[usage.agent]
@@ -41,7 +42,7 @@ export function quotaNoticesBetween(prev: Usages, next: Usages, now: number, sen
     for (const window of usage.windows) {
       const was = before.windows.find((entry) => entry.kind === window.kind && entry.model === window.model)
       if (was && was.usedPercent >= 100 && window.usedPercent < 100) {
-        notices.push({ title: `${agentLabel(usage.agent)} 额度已恢复`, body: spacedText(`${windowLabel(window)}额度已重置，可以继续用了`), target })
+        notices.push({ title: t('quotaNotices.quotaRestored', { value1: agentLabel(usage.agent) }), body: spacedText(t('quotaNotices.quotaHasResetAndIsReadyToUse', { value1: windowLabel(window) })), target })
       }
     }
   }

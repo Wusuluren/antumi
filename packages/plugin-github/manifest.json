@@ -17,7 +17,13 @@
             "required": true,
             "default": "assignee:@me is:open",
             "mono": true,
-            "hint": "GitHub 搜索条件。默认同步分配给你的开放 issue 和 PR；可以加 org:组织名、label:bug 或 is:pr。每 15 分钟按更新时间同步。"
+            "hint": "GitHub 搜索条件。默认同步分配给你的开放 issue 和 PR；可以加 org:组织名、label:bug 或 is:pr。每 15 分钟按更新时间同步。",
+            "translations": {
+              "en": {
+                "label": "Filter",
+                "hint": "GitHub search query. Syncs open issues and PRs assigned to you by default. Add org:organization, label:bug, or is:pr. Syncs every 15 minutes in update order."
+              }
+            }
           }
         ]
       }

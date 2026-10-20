@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useEffect, useState } from 'react'
 import type { Terminal } from '@antumi/protocol'
 import { addQuote } from '../chat-quotes'
@@ -37,20 +38,17 @@ function QuoteSelection({ terminal, dismiss }: { terminal: Terminal; dismiss: ()
     addQuote(target, null, text)
     setDone(true)
   }
-  if (done) return <span className="terminal-quote-done" role="status">{title ? `已引用到「${title}」` : '已引用到输入框'}</span>
+  if (done) return <span className="terminal-quote-done" role="status">{title ? t('TerminalPanel.quotedIn', { title: title }) : t('TerminalPanel.quotedInComposer')}</span>
   return (
     <button
       type="button"
       className="button terminal-quote-button"
       disabled={!target}
-      title={target ? (title ? `引用到「${title}」的输入框` : '引用到对话的输入框') : '先打开一个会话，再引用'}
+      title={target ? (title ? t('TerminalPanel.quoteInComposer', { title: title }) : t('TerminalPanel.quoteInChatComposer')) : t('TerminalPanel.openAConversationBeforeQuoting')}
       // Keeps the terminal's selection and focus while the click reads it.
       onMouseDown={(event) => event.preventDefault()}
       onClick={quote}
-    >
-      <QuoteIcon />
-      引用到对话
-    </button>
+    >{tr('TerminalPanel.quoteInChat', { value1: <QuoteIcon /> })}</button>
   )
 }
 
@@ -63,7 +61,7 @@ function TabLabel({ terminal }: { terminal: Terminal }) {
     <>
       {terminal.conversationId && <span className="terminal-tab-agent" aria-hidden="true"><AgentIcon agent={owner?.agent ?? null} /></span>}
       {/* Before the command, which a narrow tab cuts short. */}
-      {terminal.exited && <span className="terminal-tab-exit" data-failed={failed || undefined}>{failed ? terminal.exitCode ?? '已结束' : '✓'}</span>}
+      {terminal.exited && <span className="terminal-tab-exit" data-failed={failed || undefined}>{failed ? terminal.exitCode ?? t('SquadWorkPanel.ended') : '✓'}</span>}
       {terminal.title}
     </>
   )
@@ -71,8 +69,8 @@ function TabLabel({ terminal }: { terminal: Terminal }) {
 
 function tabTitle(terminal: Terminal, owner: string | null): string {
   if (!terminal.command) return terminal.cwd
-  const ended = terminal.exited ? `\n已结束${terminal.exitCode === null || terminal.exitCode === undefined ? '' : `，退出码 ${terminal.exitCode}`}` : ''
-  return `${terminal.conversationId ? `${owner ?? '会话'} 的 Agent 运行：` : ''}${terminal.command}\n${terminal.cwd}${ended}`
+  const ended = terminal.exited ? t('TerminalPanel.ended', { value1: terminal.exitCode === null || terminal.exitCode === undefined ? '' : t('TerminalPanel.exitCode', { value1: terminal.exitCode }) }) : ''
+  return `${terminal.conversationId ? t('TerminalPanel.agentRun', { value1: owner ?? t('BrowserPanel.conversation') }) : ''}${terminal.command}\n${terminal.cwd}${ended}`
 }
 
 // The app's own terminals: the user's shells, and commands agents run where the user can watch.
@@ -86,10 +84,10 @@ export function TerminalPanel() {
   const conversations = useCore((s) => s.conversations)
   const active = terminals.find((terminal) => terminal.id === activeId) ?? terminals.at(-1)
   return (
-    <aside className="side-panel terminal-panel" aria-label="终端" data-maximized={maximized || undefined}>
+    <aside className="side-panel terminal-panel" aria-label={t('SettingsPage.terminal')} data-maximized={maximized || undefined}>
       <header className="terminal-panel-header">
         <div className="terminal-tab-strip">
-          <div className="terminal-tabs" role="tablist" aria-label="终端">
+          <div className="terminal-tabs" role="tablist" aria-label={t('SettingsPage.terminal')}>
             {terminals.map((terminal) => (
               <div key={terminal.id} className="terminal-tab" data-active={terminal.id === active?.id || undefined} data-agent={terminal.conversationId ? true : undefined}>
                 <button
@@ -101,13 +99,13 @@ export function TerminalPanel() {
                 >
                   <TabLabel terminal={terminal} />
                 </button>
-                <button type="button" className="terminal-tab-close" aria-label={`关闭终端 ${terminal.title}`} title="关闭：结束这个终端" onClick={() => closeTerminal(terminal.id)}>
+                <button type="button" className="terminal-tab-close" aria-label={t('TerminalPanel.closeTerminal', { value1: terminal.title })} title={t('TerminalPanel.closeEndThisTerminal')} onClick={() => closeTerminal(terminal.id)}>
                   ×
                 </button>
               </div>
             ))}
           </div>
-          <button type="button" className="tool-button terminal-tab-add" aria-label="新建终端" data-tooltip="新建终端" onClick={() => void openTerminal()}>
+          <button type="button" className="tool-button terminal-tab-add" aria-label={t('TerminalPanel.newTerminal')} data-tooltip={t('TerminalPanel.newTerminal')} onClick={() => void openTerminal()}>
             <PlusIcon />
           </button>
         </div>
@@ -115,13 +113,13 @@ export function TerminalPanel() {
         <button
           type="button"
           className="tool-button"
-          aria-label={maximized ? '还原' : '最大化'}
-          data-tooltip={maximized ? '还原' : '最大化'}
+          aria-label={maximized ? t('BrowserSidePanel.restore') : t('BrowserSidePanel.maximize')}
+          data-tooltip={maximized ? t('BrowserSidePanel.restore') : t('BrowserSidePanel.maximize')}
           onClick={() => setTerminalMaximized(!maximized)}
         >
           {maximized ? <RestoreIcon /> : <MaximizeIcon />}
         </button>
-        <button type="button" className="tool-button" aria-label="隐藏终端" data-tooltip="隐藏（终端继续运行）" onClick={() => void toggleTerminalPanel()}>
+        <button type="button" className="tool-button" aria-label={t('TerminalPanel.hideTerminal')} data-tooltip={t('TerminalPanel.hideTerminalKeepsRunning')} onClick={() => void toggleTerminalPanel()}>
           <CloseIcon />
         </button>
       </header>
@@ -129,7 +127,7 @@ export function TerminalPanel() {
         {active ? (
           <SessionTerminal key={active.sessionId} sessionId={active.sessionId} selectionAction={(dismiss) => <QuoteSelection terminal={active} dismiss={dismiss} />} />
         ) : (
-          <p className="inspector-empty muted">正在打开终端…</p>
+          <p className="inspector-empty muted">{t('InstalledAgentsSettings.openingTerminal')}</p>
         )}
       </div>
     </aside>

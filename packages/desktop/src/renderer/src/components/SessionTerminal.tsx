@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useCore } from '../core-store'
 import { createTerminalSurface } from './terminal-surface'
@@ -43,7 +44,7 @@ export function SessionTerminal({ sessionId, selectionAction }: { sessionId: str
       else writeAt(event.offset, event.data)
     })
     const stopExit = rpc.on('sessions.exit', (event) => {
-      if (event.sessionId === sessionId && !disposed) term.write(`\r\n\x1b[2m[进程已退出，code ${event.exitCode}]\x1b[0m\r\n`)
+      if (event.sessionId === sessionId && !disposed) term.write(t('SessionTerminal.2mProcessExitedCode0m', { value1: event.exitCode }))
     })
 
     rpc
@@ -57,13 +58,13 @@ export function SessionTerminal({ sessionId, selectionAction }: { sessionId: str
         queued.length = 0
         attached = true
         if (exited) {
-          term.write('\r\n\x1b[2m[会话已结束]\x1b[0m\r\n')
+          term.write(t('SessionTerminal.2mSessionEnded0m'))
           return
         }
         sendSize()
       })
       .catch((error: unknown) => {
-        term.write(`\r\n[无法连接会话：${error instanceof Error ? error.message : String(error)}]\r\n`)
+        term.write(t('SessionTerminal.cannotConnectToSession', { value1: error instanceof Error ? error.message : String(error) }))
       })
 
     const input = term.onData((data) => {

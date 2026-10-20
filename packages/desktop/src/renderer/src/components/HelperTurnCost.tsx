@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import type { ChatItem } from '@antumi/protocol'
 import { dollars, smallModelExplanation } from '../model-cost-format'
 import { compact } from '../stat-format'
@@ -7,7 +8,7 @@ export function HelperTurnCost({ turn }: { turn: Extract<ChatItem, { kind: 'turn
   if (!cost) return null
   const tokens = turn.usage ? 'total' in turn.usage ? turn.usage.total : turn.usage.input + turn.usage.output : null
   return <span className="helper-turn-cost" title={smallModelExplanation(cost)}>
-    {cost.costUsd !== null ? `花费 ${dollars(cost.costUsd)}` : tokens !== null ? `${compact(tokens)} token · 花费未提供` : '用量未提供'}
-    {cost.savedUsd !== null && ` · 约省 ${dollars(cost.savedUsd)}`}
+    {cost.costUsd !== null ? t('HelperTurnCost.cost', { value1: dollars(cost.costUsd) }) : tokens !== null ? t('HelperTurnCost.tokensCostUnavailable', { value1: compact(tokens) }) : t('HelperTurnCost.usageUnavailable')}
+    {cost.savedUsd !== null && t('HelperTurnCost.savedAbout', { value1: dollars(cost.savedUsd) })}
   </span>
 }

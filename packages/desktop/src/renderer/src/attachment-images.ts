@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { useEffect, useState } from 'react'
 import { ATTACHMENT_CHUNK_BYTES, IMAGE_MIME_TYPES, MAX_ATTACHMENT_BYTES, MAX_IMAGE_NAME_LENGTH, type TaskImage } from '@antumi/protocol'
 import { base64ToBytes, bytesToBase64 } from './base64'
@@ -80,7 +81,7 @@ export async function uploadImageFiles(files: readonly File[]): Promise<TaskImag
   const uploaded: TaskImage[] = []
   for (const file of files) {
     if (file.size > MAX_ATTACHMENT_BYTES) {
-      useCore.setState({ error: `「${file.name}」超过 10MB，没有添加` })
+      useCore.setState({ error: t('attachmentImages.exceeds10mbAndWasNotAdded', { value1: file.name }) })
       continue
     }
     const bytes = new Uint8Array(await file.arrayBuffer())

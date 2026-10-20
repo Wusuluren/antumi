@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { blocksEverything, environmentProblems } from '@antumi/protocol'
 import { setSettingsOpen, useCore } from '../core-store'
 import { problemText } from '../environment-text'
@@ -15,7 +16,7 @@ export function EnvironmentNotice() {
     <button type="button" className="environment-notice" onClick={() => setSettingsOpen(true, blocking[0]!.code === 'git-missing' ? 'about' : 'agents')}>
       <PulseIcon />
       <span>{problemText(blocking[0]!)}</span>
-      <span className="environment-notice-action">查看</span>
+      <span className="environment-notice-action">{t('EnvironmentNotice.view')}</span>
     </button>
   )
 }

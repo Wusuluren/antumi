@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useRef } from 'react'
 import { CloseIcon, SearchIcon } from './icons'
 
@@ -45,8 +46,8 @@ export function SidebarSearchField({ label, placeholder, query, onChange }: {
         <button
           type="button"
           className="sidebar-search-clear"
-          aria-label="清空"
-          title="清空"
+          aria-label={t('SidebarSearch.clear')}
+          title={t('SidebarSearch.clear')}
           onClick={() => {
             onChange('')
             input.current?.focus()

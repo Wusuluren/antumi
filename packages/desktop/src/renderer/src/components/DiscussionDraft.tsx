@@ -1,3 +1,4 @@
+import { localized, t, tr } from '../i18n'
 import { useState } from 'react'
 import { DEFAULT_DISCUSSION_REQUIREMENTS, DEFAULT_DISCUSSION_ROUNDS, MAX_DISCUSSION_MEMBERS, MAX_DISCUSSION_ROUNDS, MIN_DISCUSSION_MEMBERS, type AgentKind, type Discussion } from '@antumi/protocol'
 import { resolveModel, useAgentCatalog } from '../agent-models'
@@ -14,7 +15,7 @@ import { DiscussionRequirements } from './DiscussionRequirements'
 // A member as picked: name is null while it follows the agent and model.
 type Draft = { key: string; agent: AgentKind; model?: string; effort?: string; name: string | null; role: string }
 
-const ROLE_HINTS = ['支持方', '反对方', '关注安全和风险', '关注性能和成本', '挑毛病的人']
+const ROLE_HINTS = localized(() => ([t('DiscussionDraft.supporter'), t('DiscussionDraft.opponent'), t('DiscussionDraft.focusOnSecurityAndRisk'), t('DiscussionDraft.focusOnPerformanceAndCost'), t('DiscussionDraft.critic')]))
 
 function MemberRow({ member, index, agents, chair, busy, removable, onChange, onRemove, onChair }: {
   member: Draft
@@ -44,7 +45,7 @@ function MemberRow({ member, index, agents, chair, busy, removable, onChange, on
           if (agent) onChange({ ...member, agent, model: undefined, effort: undefined })
         }}
       />
-      {!catalog && <span className="chat-options-note muted">{catalog === undefined ? '正在读取模型…' : '默认模型'}</span>}
+      {!catalog && <span className="chat-options-note muted">{catalog === undefined ? t('AgentModelPicker.loadingModels') : t('ChatPicker.defaultModel')}</span>}
       {catalog && (
         <ChatModelPicker
           align="start"
@@ -61,7 +62,7 @@ function MemberRow({ member, index, agents, chair, busy, removable, onChange, on
       )}
       <input
         className="discussion-draft-name"
-        aria-label={`成员 ${index + 1} 的名字，消息里用它 @ 这个成员`}
+        aria-label={t('DiscussionDraft.memberSNameUsedToMentionThem', { value1: index + 1 })}
         value={shownName}
         maxLength={60}
         disabled={busy}
@@ -70,18 +71,15 @@ function MemberRow({ member, index, agents, chair, busy, removable, onChange, on
       />
       <input
         className="discussion-draft-role"
-        aria-label={`成员 ${index + 1} 的立场或角度`}
-        placeholder={`可不填，如：${ROLE_HINTS[index % ROLE_HINTS.length]}`}
+        aria-label={t('DiscussionDraft.memberSPositionOrPerspective', { value1: index + 1 })}
+        placeholder={t('DiscussionDraft.optionalEG', { value1: ROLE_HINTS[index % ROLE_HINTS.length] })}
         value={member.role}
         maxLength={2000}
         disabled={busy}
         onChange={(event) => onChange({ ...member, role: event.target.value })}
       />
-      <label className="discussion-draft-chair" data-tooltip="讨论结束后由主持人写总结">
-        <input type="radio" name="discussion-chair" checked={chair} disabled={busy} onChange={onChair} />
-        主持
-      </label>
-      <button type="button" className="icon-button" aria-label={`移除成员 ${index + 1}`} data-tooltip="移除" disabled={busy || !removable} onClick={onRemove}>
+      <label className="discussion-draft-chair" data-tooltip={t('DiscussionDraft.theChairSummarizesWhenTheDiscussionEnds')}>{tr('DiscussionDraft.chair', { value1: <input type="radio" name="discussion-chair" checked={chair} disabled={busy} onChange={onChair} /> })}</label>
+      <button type="button" className="icon-button" aria-label={t('DiscussionDraft.removeMember', { value1: index + 1 })} data-tooltip={t('ChatQuoteCards.remove')} disabled={busy || !removable} onClick={onRemove}>
         <CloseIcon />
       </button>
     </li>
@@ -150,45 +148,43 @@ export function DiscussionDraft({ from }: { from: Discussion | null }) {
   }
 
   return (
-    <section className="detail terminal-view discussion-view" aria-label="新群聊">
+    <section className="detail terminal-view discussion-view" aria-label={t('DiscussionDraft.newGroupChat')}>
       <header className="detail-header conversation-header">
-        <span className="terminal-view-title">新群聊</span>
+        <span className="terminal-view-title">{t('DiscussionDraft.newGroupChat')}</span>
         <div className="toolbar">
-          <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={closeDiscussionDraft}><CloseIcon /></button>
+          <button type="button" className="tool-button" aria-label={t('BackdropPicker.close')} data-tooltip={t('BackdropPicker.close')} onClick={closeDiscussionDraft}><CloseIcon /></button>
         </div>
       </header>
       <div className="discussion-draft">
-        {from && <p className="discussion-draft-from">沿用群聊「{from.title}」的成员、项目和设置，各成员从头开始，不带之前的讨论。</p>}
-        <p className="muted">
-          几个 Agent 先各自独立作答，再一轮轮看彼此的观点、反驳或修正，最后由主持人总结共识和分歧。讨论始终只读：成员可以读所选项目的代码来佐证，不修改文件、不执行计划。
-        </p>
+        {from && <p className="discussion-draft-from">{tr('DiscussionDraft.reuseMembersProjectsAndSettingsFromEachMember', { value1: from.title })}</p>}
+        <p className="muted">{t('DiscussionDraft.agentsFirstAnswerIndependentlyThenReviewChallengeOr')}</p>
         <label className="discussion-draft-field">
-          <span>主题</span>
+          <span>{t('DiscussionDraft.topic')}</span>
           <textarea
             className="discussion-draft-topic"
             rows={4}
             autoFocus
             value={topic}
             disabled={busy}
-            placeholder="要讨论什么？写清楚问题和背景，例如：本仓库的 chat-host 要不要拆成两层？各自的利弊是什么？"
+            placeholder={t('DiscussionDraft.whatShouldBeDiscussedDescribeTheQuestionAnd')}
             onChange={(event) => setTopic(event.target.value)}
           />
         </label>
         {requirementsSupported && <DiscussionRequirements value={requirements} onChange={setRequirements} disabled={busy} />}
         <div className="discussion-draft-field">
-          <span>项目（可不选）</span>
+          <span>{t('DiscussionDraft.projectsOptional')}</span>
           <ProjectPicker projects={projectPaths.map((path) => ({ path, worktreePath: null }))} onChange={setProjectPaths} locked={busy} />
         </div>
         <div className="discussion-draft-field">
-          <span>成员</span>
+          <span>{t('DiscussionDraft.members')}</span>
           <ul className="discussion-draft-members">
             {/* What each column of a member is: the name most of all, as it is what @ picks it by. */}
             <li className="discussion-draft-member discussion-draft-member-head" aria-hidden="true">
               <span />
               <span>Agent</span>
-              <span>模型</span>
-              <span>名字（@ 它时用）</span>
-              <span>立场或角度</span>
+              <span>{t('AgentModelPicker.model')}</span>
+              <span>{t('DiscussionDraft.nameForMentions')}</span>
+              <span>{t('DiscussionDraft.positionOrPerspective')}</span>
               <span />
               <span />
             </li>
@@ -208,31 +204,24 @@ export function DiscussionDraft({ from }: { from: Discussion | null }) {
             ))}
           </ul>
           {members.length < MAX_DISCUSSION_MEMBERS && (
-            <button type="button" className="link-button discussion-draft-add" disabled={busy} onClick={add}>＋ 添加成员</button>
+            <button type="button" className="link-button discussion-draft-add" disabled={busy} onClick={add}>{t('DiscussionDraft.addMember')}</button>
           )}
-          {clash && <p className="discussion-draft-error">有两个成员都叫「{clash}」，改一个名字，好在消息里 @ 它。</p>}
+          {clash && <p className="discussion-draft-error">{tr('DiscussionDraft.twoMembersAreNamedRenameOneSoThey', { clash: clash })}</p>}
         </div>
         <div className="discussion-draft-options">
-          <span className="discussion-draft-rounds">
-            最多
-            <ChatPicker
-              label="最多几轮"
+          <span className="discussion-draft-rounds">{tr('DiscussionDraft.upToSummarizeEarlyWhenPositionsRemainUnchanged', { value1: <ChatPicker
+              label={t('DiscussionDraft.maximumRounds')}
               value={String(rounds)}
-              placeholder={`${rounds} 轮`}
+              placeholder={t('DiscussionDraft.rounds', { rounds: rounds })}
               placement="above"
               disabled={busy}
-              options={Array.from({ length: MAX_DISCUSSION_ROUNDS }, (_, index) => ({ value: String(index + 1), label: `${index + 1} 轮` }))}
+              options={Array.from({ length: MAX_DISCUSSION_ROUNDS }, (_, index) => ({ value: String(index + 1), label: t('DiscussionDraft.rounds_823', { value1: index + 1 }) }))}
               onChange={(value) => setRounds(Number(value))}
-            />
-            （大家都维持立场时提前总结）
-          </span>
-          <label data-tooltip="互评时只用「成员 A / B」称呼，不透露是哪个 Agent 和模型，减少对品牌的偏向">
-            <input type="checkbox" checked={anonymous} disabled={busy} onChange={(event) => setAnonymous(event.target.checked)} />
-            匿名互评
-          </label>
+            /> })}</span>
+          <label data-tooltip={t('DiscussionDraft.useMemberABWithoutRevealingAgentOr')}>{tr('DiscussionDraft.anonymousPeerReview', { value1: <input type="checkbox" checked={anonymous} disabled={busy} onChange={(event) => setAnonymous(event.target.checked)} /> })}</label>
           <span className="chat-dock-spacer" />
           <button type="button" className="button primary" disabled={!canStart} onClick={() => void start()}>
-            {busy ? '正在启动…' : '开始讨论'}
+            {busy ? t('DiscussionDraft.starting') : t('DiscussionDraft.startDiscussion')}
           </button>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { getLocale, t, tr } from '../i18n'
 import { createContext, Fragment, useEffect, useMemo, useState } from 'react'
 import { addQuote, removeQuote, useQuotes, type ChatQuote } from '../chat-quotes'
 import { diffQuoteText, diffRowId } from '../unified-diff'
@@ -22,7 +23,7 @@ export function CommentableDiff({ patch, path, conversationId, diffKey }: {
   diffKey: string
 }) {
   const rows = useDiffHighlight(patch, path)
-  const ids = useMemo(() => rows.map(diffRowId), [rows])
+  const ids = useMemo(() => rows.map(diffRowId), [rows, getLocale()])
   const quotes = useQuotes(conversationId)
   const comments = quotes.filter((quote) => quote.anchor?.diff === diffKey)
   const [pick, setPick] = useState<LinePick | null>(null)
@@ -73,8 +74,8 @@ export function CommentableDiff({ patch, path, conversationId, diffKey }: {
                       type="button"
                       className="diff-line-number"
                       data-old={row.newLine === null || undefined}
-                      aria-label={`评论第 ${line} 行`}
-                      title="评论这一行，按住 Shift 再点一行可以选一段"
+                      aria-label={t('DiffComments.commentOnLine', { line: line })}
+                      title={t('DiffComments.commentOnThisLineShiftClickAnotherLine')}
                       // Shift would otherwise also stretch the page's text selection.
                       onMouseDown={(event) => event.shiftKey && event.preventDefault()}
                       onClick={(event) => choose(index, event.shiftKey)}
@@ -87,8 +88,8 @@ export function CommentableDiff({ patch, path, conversationId, diffKey }: {
               </div>
               {below.get(index)?.map((quote) => (
                 <div key={quote.id} className="diff-comment">
-                  <span className={quote.note ? 'diff-comment-note' : 'diff-comment-note muted'}>{quote.note || '只引用这段代码'}</span>
-                  <button type="button" className="tool-button" aria-label="移除这条评论" data-tooltip="移除" onClick={() => removeQuote(conversationId, quote.id)}>
+                  <span className={quote.note ? 'diff-comment-note' : 'diff-comment-note muted'}>{quote.note || t('DiffComments.quoteOnlyThisCode')}</span>
+                  <button type="button" className="tool-button" aria-label={t('DiffComments.removeComment')} data-tooltip={t('ChatQuoteCards.remove')} onClick={() => removeQuote(conversationId, quote.id)}>
                     <CloseIcon />
                   </button>
                 </div>
@@ -98,8 +99,8 @@ export function CommentableDiff({ patch, path, conversationId, diffKey }: {
                   <input
                     autoFocus
                     value={note}
-                    placeholder={from === to ? `对第 ${line} 行说点什么` : '对这几行说点什么'}
-                    aria-label="评论"
+                    placeholder={from === to ? t('DiffComments.commentOnLine_794', { line: line }) : t('DiffComments.commentOnTheseLines')}
+                    aria-label={t('DiffComments.comments')}
                     onChange={(event) => setNote(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.nativeEvent.isComposing) return
@@ -113,15 +114,15 @@ export function CommentableDiff({ patch, path, conversationId, diffKey }: {
                       }
                     }}
                   />
-                  <button type="button" className="link-button" onClick={() => setPick(null)}>取消</button>
-                  <button type="button" className="link-button" onClick={submit}>评论</button>
+                  <button type="button" className="link-button" onClick={() => setPick(null)}>{t('ChatCommandSettings.cancel')}</button>
+                  <button type="button" className="link-button" onClick={submit}>{t('DiffComments.comments')}</button>
                 </div>
               )}
             </Fragment>
           )
         })}
       </pre>
-      {comments.length > 0 && <p className="inspector-empty muted">{comments.length} 条评论在输入框里，会随下一条消息发出。</p>}
+      {comments.length > 0 && <p className="inspector-empty muted">{tr('DiffComments.commentsInTheComposerWillBeSentWith', { value1: comments.length })}</p>}
     </>
   )
 }

@@ -1,10 +1,11 @@
+import { localized, t } from '../i18n'
 import { useEffect, useState } from 'react'
 import { formatTokens, workedFor } from '../chat-tools'
 import { useTick } from '../chat-motion'
 
 // What kind of thing the agent is at, when nothing more specific is known.
 export type WorkingPhase = 'tools' | 'thinking' | 'replying' | 'waiting' | 'asking' | 'working'
-const PHASE: Record<WorkingPhase, string> = { tools: '运行工具', thinking: '思考', replying: '写回复', waiting: '等待', asking: '等你回答', working: '处理' }
+const PHASE: Record<WorkingPhase, string> = localized(() => ({ tools: t('ChatWorking.runningTools'), thinking: t('chatTools.thinking'), replying: t('ChatWorking.writingReply'), waiting: t('chatTools.wait'), asking: t('ChatWorking.waitingForYourAnswer'), working: t('ChatWorking.processing') }))
 
 // What the agent is at, at a glance: thinking, running a tool, writing the reply, waiting on work it
 // left in the background, or on the user. Keyed by phase, so each starts its motion afresh. The
@@ -75,8 +76,8 @@ export function ChatWorking({ phase, tokens, background, since }: {
   // With the turn over and only background work out, it is the step: "后台运行中：2 个子 Agent、1 个命令".
   // While the turn itself runs, it is a count beside its step.
   const out = [
-    background.subagents > 0 ? `${background.subagents} 个子 Agent` : null,
-    background.commands > 0 ? `${background.commands} 个命令` : null
+    background.subagents > 0 ? t('ChatWorking.subAgents', { value1: background.subagents }) : null,
+    background.commands > 0 ? t('ChatWorking.commands', { value1: background.commands }) : null
   ].filter((part): part is string => part !== null).join('、')
   const waiting = phase === 'waiting' && out !== ''
   // The count of tokens ticks up as the agent writes: each change lands with a small motion.
@@ -84,9 +85,9 @@ export function ChatWorking({ phase, tokens, background, since }: {
   const parts = [
     workedFor(Math.max(0, now - (since ?? started))),
     ...(tokens !== null && tokens > 0 ? [<>↓ <span key={tick ?? 0} className="chat-working-tick">{formatTokens(tokens)}</span></>] : []),
-    ...(out && !waiting ? [`后台：${out}`] : [])
+    ...(out && !waiting ? [t('ChatWorking.background', { out: out })] : [])
   ]
-  const step = waiting ? `后台运行中：${out}` : `${PHASE[phase]}${phase === 'asking' ? '' : '中…'}`
+  const step = waiting ? t('ChatWorking.runningInBackground', { out: out }) : `${PHASE[phase]}${phase === 'asking' ? '' : t('ChatWorking.inProgressSuffix')}`
   return (
     <div className="chat-working" role="status">
       <PhaseIcon phase={phase} />

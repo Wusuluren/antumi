@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import type { ReactNode } from 'react'
 import { ChevronDownIcon } from './icons'
 
@@ -13,10 +14,10 @@ export function SidebarCollapseButton({ icon, label, count, collapsed, controls,
     <button
       type="button"
       className="sidebar-section-toggle"
-      aria-label={`${collapsed ? '展开' : '折叠'}${label}`}
+      aria-label={t('sidebar.toggleSection', { action: collapsed ? t('FileSource.expand') : t('FileSource.fold'), label })}
       aria-expanded={!collapsed}
       aria-controls={controls}
-      title={`${collapsed ? '展开' : '折叠'}${label}`}
+      title={t('sidebar.toggleSection', { action: collapsed ? t('FileSource.expand') : t('FileSource.fold'), label })}
       onClick={onToggle}
     >
       <span className="sidebar-section-icon">{icon}</span>

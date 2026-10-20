@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { setBrowserMaximized, toggleBrowserPanel, useCore } from '../core-store'
 import { BrowserPanel, BrowserTabStrip } from './BrowserPanel'
 import { CloseIcon, MaximizeIcon, RestoreIcon } from './icons'
@@ -7,19 +8,19 @@ import { CloseIcon, MaximizeIcon, RestoreIcon } from './icons'
 export function BrowserSidePanel() {
   const maximized = useCore((s) => s.browserMaximized)
   return (
-    <aside className="side-panel browser-side-panel" aria-label="浏览器" data-maximized={maximized || undefined}>
+    <aside className="side-panel browser-side-panel" aria-label={t('BrowserSidePanel.browser')} data-maximized={maximized || undefined}>
       <header className="terminal-panel-header browser-side-header">
         <BrowserTabStrip />
         <button
           type="button"
           className="tool-button"
-          aria-label={maximized ? '还原' : '最大化'}
-          data-tooltip={maximized ? '还原' : '最大化'}
+          aria-label={maximized ? t('BrowserSidePanel.restore') : t('BrowserSidePanel.maximize')}
+          data-tooltip={maximized ? t('BrowserSidePanel.restore') : t('BrowserSidePanel.maximize')}
           onClick={() => setBrowserMaximized(!maximized)}
         >
           {maximized ? <RestoreIcon /> : <MaximizeIcon />}
         </button>
-        <button type="button" className="tool-button" aria-label="隐藏浏览器" data-tooltip="隐藏（浏览器继续运行）" onClick={toggleBrowserPanel}>
+        <button type="button" className="tool-button" aria-label={t('BrowserSidePanel.hideBrowser')} data-tooltip={t('BrowserSidePanel.hideBrowserKeepsRunning')} onClick={toggleBrowserPanel}>
           <CloseIcon />
         </button>
       </header>

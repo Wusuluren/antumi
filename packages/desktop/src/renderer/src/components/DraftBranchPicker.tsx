@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useCallback, useEffect, useState, type KeyboardEvent } from 'react'
 import type { ProjectBranches } from '@antumi/protocol'
 import { useCore } from '../core-store'
@@ -59,7 +60,7 @@ export function DraftBranchPicker({ options, picked, worktree, locked, onOpen, o
     }
   }
   const name = chosen ? shortRef(chosen) : 'HEAD'
-  const tooltip = note?.text ?? (worktree ? '新 worktree 从这个分支拉出' : '在这个分支上工作；选别的分支，发送时会把项目目录切过去')
+  const tooltip = note?.text ?? (worktree ? t('DraftBranchPicker.branchTheNewWorktreeFromHere') : t('DraftBranchPicker.workOnThisBranchChoosingAnotherSwitchesThe'))
   return (
     <span className="menu-anchor">
       <button
@@ -81,31 +82,31 @@ export function DraftBranchPicker({ options, picked, worktree, locked, onOpen, o
         }}
       >
         {note?.blocked ? <WarningIcon /> : <BranchIcon />}
-        {worktree && <span className="chat-draft-branch-from">从</span>}
+        {worktree && <span className="chat-draft-branch-from">{t('DraftBranchPicker.from')}</span>}
         {note && options.branch && <><span className="chat-draft-branch-name chat-draft-branch-current mono">{options.branch}</span><span className="chat-draft-branch-arrow" aria-hidden="true">→</span></>}
         <span className="chat-draft-branch-name mono">{name}</span>
         <ChevronDownIcon />
       </button>
       {open && (
-        <Popover label={worktree ? '选择起点分支' : '选择分支'} onClose={close}>
-          <p className="menu-label">{worktree ? `${projectName(options.path)} 的新 worktree 从哪个分支拉出` : `在 ${projectName(options.path)} 的哪个分支上工作`}</p>
-          <input className="input menu-search" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={onKey} placeholder="搜索分支，回车选第一个" aria-label="搜索分支" />
+        <Popover label={worktree ? t('DraftBranchPicker.chooseStartingBranch') : t('DraftBranchPicker.chooseBranch')} onClose={close}>
+          <p className="menu-label">{worktree ? t('DraftBranchPicker.startingBranchForSNewWorktree', { value1: projectName(options.path) }) : t('DraftBranchPicker.branchToWorkOnIn', { value1: projectName(options.path) })}</p>
+          <input className="input menu-search" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={onKey} placeholder={t('DraftBranchPicker.searchBranchesEnterToSelectTheFirst')} aria-label={t('ConversationBranches.searchBranches')} />
           <ul className="menu-list branch-action-list">
             {refs.map((ref) => {
               const holder = options.elsewhere[ref]
               return (
                 <li key={ref} className="menu-row">
-                  <button type="button" className="menu-item" disabled={!pickable(ref)} title={holder && !worktree ? `已在 ${holder} 里检出` : undefined} onClick={() => pick(ref)}>
+                  <button type="button" className="menu-item" disabled={!pickable(ref)} title={holder && !worktree ? t('ConversationBranches.checkedOutIn', { holder: holder }) : undefined} onClick={() => pick(ref)}>
                     <span className="menu-item-title mono">{shortRef(ref)}</span>
-                    {ref === current && <span className="menu-item-path">当前</span>}
-                    {holder && !worktree && <span className="menu-item-path">在 {projectName(holder)} 里</span>}
+                    {ref === current && <span className="menu-item-path">{t('DraftBranchPicker.current')}</span>}
+                    {holder && !worktree && <span className="menu-item-path">{tr('ConversationBranches.in', { value1: projectName(holder) })}</span>}
                     {ref === chosen && <span className="menu-check"><CheckIcon /></span>}
                   </button>
                 </li>
               )
             })}
           </ul>
-          {refs.length === 0 && <p className="branch-action-note">没有匹配的分支</p>}
+          {refs.length === 0 && <p className="branch-action-note">{t('ConversationBranches.noMatchingBranches')}</p>}
         </Popover>
       )}
     </span>
@@ -116,7 +117,7 @@ export function DraftBranchPicker({ options, picked, worktree, locked, onOpen, o
 export function switchNote(options: ProjectBranches, picked: string | null): { text: string; blocked: boolean } | null {
   if (!picked) return null
   const project = projectName(options.path)
-  if (options.changes > 0) return { text: `${project} 有 ${options.changes} 个未提交的改动，切不过去：先提交或暂存，或勾选新 worktree`, blocked: true }
-  const shared = options.sharedWith.length > 0 ? `；会话${options.sharedWith.map((title) => `「${title}」`).join('、')}也在用这个目录` : ''
-  return { text: `发送时会把 ${project} 从 ${options.branch ?? '当前提交'} 切到 ${shortRef(picked)}${shared}`, blocked: false }
+  if (options.changes > 0) return { text: t('DraftBranchPicker.hasUncommittedChangesAndCannotSwitchCommitOr', { project: project, value2: options.changes }), blocked: true }
+  const shared = options.sharedWith.length > 0 ? t('DraftBranchPicker.conversationsAlsoUseThisDirectory', { value1: options.sharedWith.map((title) => `「${title}」`).join('、') }) : ''
+  return { text: t('DraftBranchPicker.sendingSwitchesFromTo', { project: project, value2: options.branch ?? t('DraftBranchPicker.currentCommit'), value3: shortRef(picked), shared: shared }), blocked: false }
 }

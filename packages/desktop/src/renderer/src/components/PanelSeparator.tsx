@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { MAX_SIDE_PANEL_RATIO, MIN_SIDE_PANEL_RATIO, clampSidePanelRatio, sidePanelRatioAtPointer } from './side-panel-size'
 
@@ -53,12 +54,12 @@ export function PanelSeparator({ panelName, ratio, onRatioChange, onReset, disab
       data-dragging={dragging}
       data-closing={disabled}
       role="separator"
-      aria-label={`调整${panelName}宽度`}
+      aria-label={t('PanelSeparator.resize', { panelName: panelName })}
       aria-orientation="vertical"
       aria-valuemin={MIN_SIDE_PANEL_RATIO * 100}
       aria-valuemax={MAX_SIDE_PANEL_RATIO * 100}
       aria-valuenow={Math.round(ratio * 100)}
-      aria-valuetext={`${panelName}占 ${Math.round(ratio * 100)}%`}
+      aria-valuetext={t('PanelSeparator.uses', { panelName: panelName, value2: Math.round(ratio * 100) })}
       tabIndex={disabled ? -1 : 0}
       onKeyDown={handleKeyDown}
       onDoubleClick={onReset}

@@ -1,3 +1,4 @@
+import { getLocale, t, tr } from '../i18n'
 import { useRef } from 'react'
 import { IMAGE_MIME_TYPES, imageLabel, type TaskImage } from '@antumi/protocol'
 import { useImageUrl } from '../attachment-images'
@@ -14,20 +15,20 @@ function Thumbnail({
   onRemove?: () => void
 }) {
   const url = useImageUrl(image.id)
-  const label = imageLabel(image, index)
+  const label = imageLabel(image, index, getLocale())
   return (
     <figure className="image-thumb">
-      <button type="button" className="image-thumb-button" aria-label={`查看${label}`} onClick={onOpen}>
+      <button type="button" className="image-thumb-button" aria-label={t('ImageStrip.view', { label: label })} onClick={onOpen}>
         {url ? <img src={url} alt="" draggable={false} /> : <span className="image-thumb-placeholder" />}
         <span className="image-thumb-number" aria-hidden="true">
           {index + 1}
         </span>
       </button>
       <figcaption className="image-thumb-name" title={image.name || label}>
-        {image.name || `图 ${index + 1}`}
+        {image.name || t('ImageStrip.image', { value1: index + 1 })}
       </figcaption>
       {onRemove && (
-        <button type="button" className="image-thumb-remove" aria-label={`移除${label}`} data-tooltip="移除" onClick={onRemove}>
+        <button type="button" className="image-thumb-remove" aria-label={t('ImageStrip.remove', { label: label })} data-tooltip={t('ChatQuoteCards.remove')} onClick={onRemove}>
           ×
         </button>
       )}
@@ -62,21 +63,17 @@ export function ImageStrip({
         />
       ))}
       {uploading > 0 && (
-        <span className="image-uploading" role="status">
-          正在上传 {uploading} 张…
-        </span>
+        <span className="image-uploading" role="status">{tr('ChatImages.uploadingImages', { uploading: uploading })}</span>
       )}
       {onAddFiles && (
         <>
           <button
             type="button"
             className="chip chip-add-button"
-            data-tooltip="也可以直接粘贴或拖进来"
+            data-tooltip={t('ImageStrip.youCanAlsoPasteOrDragThemHere')}
             data-tooltip-align="start"
             onClick={() => input.current?.click()}
-          >
-            ＋ 添加图片
-          </button>
+          >{t('ImageStrip.addImages')}</button>
           <input
             ref={input}
             type="file"

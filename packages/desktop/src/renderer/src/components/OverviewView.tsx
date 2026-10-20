@@ -1,3 +1,4 @@
+import { getLocale, localized, t, tr } from '../i18n'
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { ChatDecision } from '@antumi/protocol'
 import { quickApproval, type ActionableItem } from '../attention'
@@ -22,7 +23,7 @@ import { WorkingSummary } from './WorkingSummary'
 import { AgentIcon, BoardIcon, ChatIcon, ClockIcon, CloseIcon, RefreshIcon, SquadIcon } from './icons'
 
 const KIND_ICON = { task: BoardIcon, conversation: ChatIcon, squad: SquadIcon, routine: RefreshIcon, schedule: ClockIcon }
-const KIND_LABEL = { task: '任务', conversation: '会话', squad: '研发小队', routine: '定时任务', schedule: '预约' }
+const KIND_LABEL = localized(() => ({ task: t('GitInspector.task'), conversation: t('BrowserPanel.conversation'), squad: t('NewTaskDialog.developmentSquad'), routine: t('OverviewView.routines'), schedule: t('OverviewView.schedules') }))
 
 function openRow(row: OverviewRow): void {
   if (row.attention) return openAttentionItem(row.attention)
@@ -66,7 +67,7 @@ function markSeen(row: OverviewRow): void {
 }
 
 function GoTo({ item, ghost = false }: { item: ActionableItem; ghost?: boolean }) {
-  return <button type="button" className={ghost ? 'button ghost' : 'button'} aria-label={`去处理：${item.title}`} onClick={() => openAttentionItem(item)}>去处理</button>
+  return <button type="button" className={ghost ? 'button ghost' : 'button'} aria-label={t('OverviewView.respond', { value1: item.title })} onClick={() => openAttentionItem(item)}>{t('DiscussionView.respond')}</button>
 }
 
 // An approval that can be answered here gets its answers, and the chat only on hover.
@@ -84,9 +85,9 @@ function ApprovalActions({ item }: { item: ActionableItem }) {
   return (
     <>
       <span className="overview-secondary"><GoTo item={item} ghost /></span>
-      <button type="button" className="button" disabled={busy} aria-label={`拒绝：${quick.title}`} onClick={() => void answer('deny')}>拒绝</button>
-      <button type="button" className="button primary" disabled={busy} aria-label={`允许一次：${quick.title}`}
-        data-tooltip="只允许这一次，不记规则" onClick={() => void answer('allow')}>允许</button>
+      <button type="button" className="button" disabled={busy} aria-label={t('OverviewView.deny', { value1: quick.title })} onClick={() => void answer('deny')}>{t('approvalChoiceText.deny')}</button>
+      <button type="button" className="button primary" disabled={busy} aria-label={t('OverviewView.allowOnce', { value1: quick.title })}
+        data-tooltip={t('OverviewView.allowThisTimeOnlyWithoutSavingARule')} onClick={() => void answer('allow')}>{t('approvalChoiceText.allow')}</button>
     </>
   )
 }
@@ -98,8 +99,8 @@ function Reschedule({ id }: { id: string }) {
   if (!run || run.target.kind === 'resume') return null
   return (
     <span className="menu-anchor">
-      <button type="button" className="button ghost" aria-label={`改期：${run.title}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>改期</button>
-      {open && <SchedulePicker title="改预约时间" initial={run.notBefore} submitLabel="保存" align="end"
+      <button type="button" className="button ghost" aria-label={t('OverviewView.reschedule_1284', { value1: run.title })} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>{t('OverviewView.reschedule')}</button>
+      {open && <SchedulePicker title={t('OverviewView.changeScheduledTime')} initial={run.notBefore} submitLabel={t('FileEditor.save')} align="end"
         onSchedule={async (notBefore) => (await rescheduleRun(id, notBefore)) !== null} onClose={close} />}
     </span>
   )
@@ -117,7 +118,7 @@ function useRowActivity(row: OverviewRow): WorkActivity | null {
   const conversations = useCore((s) => s.conversations)
   const runs = useCore((s) => s.squadRuns)
   return useMemo(() => task ? taskActivity(task, conversations, runs)
-    : conversation ? conversationActivity(conversation, conversation.agent) : null, [task, conversation, conversations, runs])
+    : conversation ? conversationActivity(conversation, conversation.agent) : null, [task, conversation, conversations, runs, getLocale()])
 }
 
 // A squad shows its members' agents, one of each; anything else the agent it runs on, or what it is.
@@ -187,9 +188,9 @@ function Row({ row, section }: { row: OverviewRow; section: 'mine' | 'running' |
           <Meta row={row} />
           {section === 'running' && activity && <WorkingSummary activity={activity} />}
           {!!row.members?.length && <details className="overview-members">
-            <summary>定位成员 · {row.members.length}</summary>
+            <summary>{tr('OverviewView.findMember', { value1: row.members.length })}</summary>
             <ul>{row.members.map((member) => <li className="overview-member" key={member.conversationId}>
-              <span>{member.title}{member.request && ` · ${member.request.title}${member.request.open > 1 ? ` · 还有 ${member.request.open - 1} 项` : ''}`}</span>
+              <span>{member.title}{member.request && ` · ${member.request.title}${member.request.open > 1 ? t('OverviewView.more', { value1: member.request.open - 1 }) : ''}`}</span>
               <span className="overview-actions"><ApprovalActions item={member} /></span>
             </li>)}</ul>
           </details>}
@@ -197,11 +198,11 @@ function Row({ row, section }: { row: OverviewRow; section: 'mine' | 'running' |
         <time className="overview-time" dateTime={new Date(row.at).toISOString()} title={chatDayAndTime(row.at)}>{agoText(row.at)}</time>
         <div className="overview-actions">
           {section === 'mine' && (failure
-            ? <button type="button" className="button" aria-label={`查看失败的${KIND_LABEL[row.kind]}：${row.title}`} onClick={() => row.kind === 'schedule' ? setSchedulesOpen(true) : setRoutinesOpen(true, 'routines')}>{row.kind === 'schedule' ? '去预约页' : '查看'}</button>
+            ? <button type="button" className="button" aria-label={t('OverviewView.viewFailed', { value1: KIND_LABEL[row.kind], value2: row.title })} onClick={() => row.kind === 'schedule' ? setSchedulesOpen(true) : setRoutinesOpen(true, 'routines')}>{row.kind === 'schedule' ? t('OverviewView.goToSchedules') : t('EnvironmentNotice.view')}</button>
             : row.attention && <ApprovalActions item={row.attention} />)}
           {section === 'unread' && <>
-            <span className="overview-secondary"><button type="button" className="button ghost" aria-label={`标为已读：${row.title}`} onClick={() => markSeen(row)}>标为已读</button></span>
-            <button type="button" className="button" aria-label={`打开：${row.title}`} onClick={() => openRow(row)}>打开</button>
+            <span className="overview-secondary"><button type="button" className="button ghost" aria-label={t('OverviewView.markAsRead_1291', { value1: row.title })} onClick={() => markSeen(row)}>{t('OverviewView.markAsRead')}</button></span>
+            <button type="button" className="button" aria-label={t('OverviewView.open', { value1: row.title })} onClick={() => openRow(row)}>{t('ChatBrowserCard.open')}</button>
           </>}
         </div>
       </div>
@@ -223,7 +224,7 @@ function TimelineItem({ row, time, next }: { row: OverviewRow; time: string; nex
       </div>
       <div className="overview-actions overview-secondary">
         {row.scheduleId && row.kind === 'schedule' && <Reschedule id={row.scheduleId} />}
-        {(row.kind === 'schedule' ? row.scheduleId : row.routineId) && <button type="button" className="button ghost" disabled={busy} aria-label={`立即运行：${row.title}`} onClick={() => void runNow()}>立即运行</button>}
+        {(row.kind === 'schedule' ? row.scheduleId : row.routineId) && <button type="button" className="button ghost" disabled={busy} aria-label={t('OverviewView.runNow_1294', { value1: row.title })} onClick={() => void runNow()}>{t('OverviewView.runNow')}</button>}
       </div>
     </li>
   )
@@ -278,15 +279,15 @@ function TodoLineView({ entry, line }: { entry: TodoEntry; line: TodoLine }) {
   }
   return (
     <li className="overview-todo-line" data-owner={line.item.owner} data-done={done || undefined}>
-      <input type="checkbox" checked={done} disabled={busy} aria-label={`${done ? '取消完成' : '完成'}：${line.item.text}`} onChange={() => void check()} />
+      <input type="checkbox" checked={done} disabled={busy} aria-label={`${done ? t('OverviewView.markIncomplete') : t('ChatSubagents.done')}：${line.item.text}`} onChange={() => void check()} />
       <span className="overview-todo-text">{line.item.text}</span>
       <span className="overview-todo-group">{line.group}{line.note ? ` · ${line.note}` : ''}</span>
       {line.item.owner === 'agent' && !done && <span className="overview-actions overview-secondary">
-        <button type="button" className="button ghost" aria-label={`交给 Agent：${line.item.text}`} data-tooltip="打开会话，放进输入框，让 Agent 去做"
+        <button type="button" className="button ghost" aria-label={t('OverviewView.assignToAgent_1297', { value1: line.item.text })} data-tooltip={t('OverviewView.openConversationAndPutThisInTheComposer')}
           onClick={() => {
-            addQuote(entry.conversationId, null, line.item.text, '请处理这一项待办，做完后在待办里把它勾掉。')
+            addQuote(entry.conversationId, null, line.item.text, t('OverviewView.pleaseHandleThisToDoAndMarkIt'))
             openTodos(entry)
-          }}>交给 Agent</button>
+          }}>{t('OverviewView.assignToAgent')}</button>
       </span>}
     </li>
   )
@@ -301,19 +302,19 @@ function TodoEntryView({ entry, now }: { entry: TodoEntry; now: number }) {
       <button type="button" className="overview-todo-head" onClick={() => openTodos(entry)}>
         <span className="overview-avatar" aria-hidden="true"><AgentIcon agent={entry.agent} /></span>
         <span className="overview-todo-title">{entry.title}</span>
-        <span className="overview-count">{entry.mine + entry.agents > 0 ? `${entry.mine + entry.agents} 项` : '都做完了'}</span>
-        {entry.stale && <span className="overview-badge" title={chatDayAndTime(entry.updatedAt)}>{Math.floor((now - entry.updatedAt) / 86_400_000)} 天没动</span>}
+        <span className="overview-count">{entry.mine + entry.agents > 0 ? t('OverviewView.items', { value1: entry.mine + entry.agents }) : t('OverviewView.allDone')}</span>
+        {entry.stale && <span className="overview-badge" title={chatDayAndTime(entry.updatedAt)}>{tr('OverviewView.inactiveForDays', { value1: Math.floor((now - entry.updatedAt) / 86_400_000) })}</span>}
       </button>
       <ul className="overview-todo-lines">
         {entry.lines.slice(0, SHOWN_TODOS).map((line) => <TodoLineView key={line.item.id} entry={entry} line={line} />)}
       </ul>
-      {more > 0 && <button type="button" className="link-button overview-todo-more" onClick={() => openTodos(entry)}>还有 {more} 项</button>}
+      {more > 0 && <button type="button" className="link-button overview-todo-more" onClick={() => openTodos(entry)}>{tr('OverviewView.more_1303', { more: more })}</button>}
     </li>
   )
 }
 
-const WEEKDAY = '日一二三四五六'
-const PANES = [{ value: 'now', label: '现在' }, { value: 'stats', label: '统计' }] as const
+const WEEKDAY = localized(() => [t('ActivityHeatmap.sun'), t('ActivityHeatmap.mon'), t('routines.tue'), t('ActivityHeatmap.wed'), t('routines.thu'), t('ActivityHeatmap.fri'), t('routines.sat')])
+const PANES = localized(() => ([{ value: 'now', label: t('OverviewView.now') }, { value: 'stats', label: t('OverviewView.statistics') }] as const))
 
 export function OverviewView() {
   const data = useOverview()
@@ -347,14 +348,14 @@ export function OverviewView() {
     const conversation = row.conversationId ? conversations[row.conversationId] : undefined
     const activity = task ? taskActivity(task, conversations, runs) : conversation ? conversationActivity(conversation, conversation.agent) : null
     return activity?.workers ?? []
-  }), [data.running, tasks, conversations, runs])
+  }), [data.running, tasks, conversations, runs, getLocale()])
   // What is left to do across conversations: not waiting on anyone, so apart from 等我.
   const todos = overviewTodos(allTodos, conversations, tasks, now, withArchived, kept)
   const counts = { ...data.counts, todos: todos.mine + todos.agents }
   const ranges = [
-    { value: 'mine', label: '等我' },
-    ...(todosShown ? [{ value: 'todos', label: '待办' } as const] : []),
-    { value: 'running', label: '在跑' }, { value: 'next', label: '接下来' }, { value: 'unread', label: '未读' }
+    { value: 'mine', label: t('OverviewView.waitingOnMe') },
+    ...(todosShown ? [{ value: 'todos', label: t('chatTools.toDos') } as const] : []),
+    { value: 'running', label: t('OverviewView.running') }, { value: 'next', label: t('OverviewView.upNext') }, { value: 'unread', label: t('OverviewView.unread') }
   ] as const
   const emptyConfirmed = connected && !loading && !error && mode !== null
   const empty = Object.values(counts).every((count) => count === 0)
@@ -362,61 +363,61 @@ export function OverviewView() {
   const nextUp = data.next.byTime[0] ?? data.next.later[0]
   const latestUnread = data.unread.at(-1)
   const foot: Record<Exclude<OverviewFilter, null>, ReactNode> = {
-    mine: data.counts.mine > 0 ? waitBreakdown(data.mine) : '没有等你的事',
-    todos: counts.todos > 0 ? [todos.mine > 0 && `${todos.mine} 件归你`, todos.agents > 0 && `${todos.agents} 件 Agent 可接着做`].filter(Boolean).join(' · ') : '没有待办',
+    mine: data.counts.mine > 0 ? waitBreakdown(data.mine) : t('OverviewView.nothingWaitingOnYou'),
+    todos: counts.todos > 0 ? [todos.mine > 0 && t('OverviewView.itemsForYou', { value1: todos.mine }), todos.agents > 0 && t('OverviewView.itemsAgentCanContinue', { value1: todos.agents })].filter(Boolean).join(' · ') : t('OverviewView.noToDos'),
     running: working.length > 0
       ? <WorkingSummary activity={{ state: 'running', workers: working, detail: null }} detail={false} />
-      : data.counts.running > 0 ? '正在开始' : '没有在跑的',
-    next: nextUp ? `下一个 ${scheduleTime(nextUp.at, now)}` : data.next.byCondition.length > 0 ? `${data.next.byCondition.length} 项等条件` : '没有安排',
-    unread: latestUnread ? `最近 ${agoText(latestUnread.at, now)}` : '都看过了'
+      : data.counts.running > 0 ? t('OverviewView.starting') : t('OverviewView.nothingRunning'),
+    next: nextUp ? t('OverviewView.next', { value1: scheduleTime(nextUp.at, now) }) : data.next.byCondition.length > 0 ? t('OverviewView.waitingForConditions', { value1: data.next.byCondition.length }) : t('OverviewView.nothingScheduled'),
+    unread: latestUnread ? t('OverviewView.latest', { value1: agoText(latestUnread.at, now) }) : t('OverviewView.allRead')
   }
-  const mine = shows('mine') && <Panel title="需要我" count={data.counts.mine}><Rows rows={data.mine} section="mine" /></Panel>
-  const todoPanel = todosShown && (!filter || filter === 'todos') && (todos.entries.length > 0 || todos.archived > 0) && <Panel title="待办" count={counts.todos}>
+  const mine = shows('mine') && <Panel title={t('OverviewView.needsMe')} count={data.counts.mine}><Rows rows={data.mine} section="mine" /></Panel>
+  const todoPanel = todosShown && (!filter || filter === 'todos') && (todos.entries.length > 0 || todos.archived > 0) && <Panel title={t('chatTools.toDos')} count={counts.todos}>
     {todos.entries.length > 0 && <KeepChecked.Provider value={keep}>
       <ul className="overview-todos">{todos.entries.map((entry) => <TodoEntryView key={entry.conversationId} entry={entry} now={now} />)}</ul>
     </KeepChecked.Provider>}
     {todos.archived > 0 && <button type="button" className="overview-day overview-disclosure" aria-expanded={withArchived}
-      onClick={() => setWithArchived(!withArchived)}>{withArchived ? '不看' : '也看'}已归档会话的 {todos.archived} 项</button>}
+      onClick={() => setWithArchived(!withArchived)}>{tr('OverviewView.itemsInArchivedConversations', { value1: withArchived ? t('OverviewView.hide') : t('OverviewView.include'), value2: todos.archived })}</button>}
   </Panel>
-  const unread = shows('unread') && <Panel title="未读" count={data.counts.unread}><Rows rows={data.unread} section="unread" /></Panel>
-  const running = shows('running') && <Panel title="进行中" count={data.counts.running}><Rows rows={data.running} section="running" /></Panel>
-  const next = shows('next') && <Panel title="接下来" count={data.counts.next}>
-    {data.next.byTime.length > 0 && <><h4 className="overview-day">今天</h4><Timeline rows={data.next.byTime} time={(row) => timeOfDay(row.at)} next={nextUp?.key} /></>}
+  const unread = shows('unread') && <Panel title={t('OverviewView.unread')} count={data.counts.unread}><Rows rows={data.unread} section="unread" /></Panel>
+  const running = shows('running') && <Panel title={t('ChatTodos.inProgress')} count={data.counts.running}><Rows rows={data.running} section="running" /></Panel>
+  const next = shows('next') && <Panel title={t('OverviewView.upNext')} count={data.counts.next}>
+    {data.next.byTime.length > 0 && <><h4 className="overview-day">{t('OverviewView.today')}</h4><Timeline rows={data.next.byTime} time={(row) => timeOfDay(row.at)} next={nextUp?.key} /></>}
     {data.next.later.length > 0 && <>
-      <button type="button" className="overview-day overview-disclosure" aria-expanded={laterOpen} onClick={() => setLaterOpen(!laterOpen)}>明天及以后 {data.next.later.length} 项</button>
+      <button type="button" className="overview-day overview-disclosure" aria-expanded={laterOpen} onClick={() => setLaterOpen(!laterOpen)}>{tr('OverviewView.itemsTomorrowOrLater', { value1: data.next.later.length })}</button>
       {laterOpen && laterByDay(data.next.later, now).map(({ day, rows }) => <div key={day}>
         <h4 className="overview-day">{day}</h4>
         <Timeline rows={rows} time={(row) => timeOfDay(row.at)} next={nextUp?.key} />
       </div>)}
     </>}
-    {data.next.byCondition.length > 0 && <><h4 className="overview-day">等条件</h4><Timeline rows={data.next.byCondition} time={() => ''} /></>}
+    {data.next.byCondition.length > 0 && <><h4 className="overview-day">{t('OverviewView.waitingForConditions_1328')}</h4><Timeline rows={data.next.byCondition} time={() => ''} /></>}
   </Panel>
   const today = new Date(now)
   return (
-    <section ref={page} className="worktrees-page overview-page" aria-label="总览" onScroll={(event) => setOverviewScroll(event.currentTarget.scrollTop)}>
+    <section ref={page} className="worktrees-page overview-page" aria-label={t('OverviewEntry.overview_1276')} onScroll={(event) => setOverviewScroll(event.currentTarget.scrollTop)}>
       <header className="worktrees-header">
         <div className="worktrees-heading">
-          <h2>总览</h2>
-          <p className="muted">{today.getMonth() + 1}月{today.getDate()}日 周{WEEKDAY[today.getDay()]}</p>
+          <h2>{t('OverviewEntry.overview_1276')}</h2>
+          <p className="muted">{tr('OverviewView.todayDate', { value1: today.getMonth() + 1, value2: today.getDate(), value3: WEEKDAY[today.getDay()] })}</p>
         </div>
         {statsSupported && <>
           <Segmented labelId="overview-pane" value={pane} options={PANES} onChange={(next) => {
             setOverviewView(next)
             if (page.current) page.current.scrollTop = 0
           }} />
-          <span id="overview-pane" hidden>总览的内容</span>
+          <span id="overview-pane" hidden>{t('OverviewView.overviewContent')}</span>
         </>}
-        <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => setOverviewOpen(false)}><CloseIcon /></button>
+        <button type="button" className="tool-button" aria-label={t('BackdropPicker.close')} data-tooltip={t('BackdropPicker.close')} onClick={() => setOverviewOpen(false)}><CloseIcon /></button>
       </header>
       {pane === 'stats' ? <DashboardPanel /> : <>
-      {!connected && <p className="attention-notice muted" role="status">尚未连接到 core，事项尚未更新。{!empty ? '以下为最近收到的信息。' : '连接后将显示工作总览。'}</p>}
-      {connected && loading && <p className="attention-notice muted" role="status">正在读取待处理事项…</p>}
-      {mode === 'limited' && <p className="attention-notice muted">当前 core 的任务聊天详情不完整</p>}
+      {!connected && <p className="attention-notice muted" role="status">{tr('OverviewView.notConnectedToCoreItemsAreNotUp', { value1: !empty ? t('OverviewView.showingTheLatestReceivedInformation') : t('OverviewView.workOverviewAppearsAfterConnecting') })}</p>}
+      {connected && loading && <p className="attention-notice muted" role="status">{t('OverviewView.loadingPendingItems')}</p>}
+      {mode === 'limited' && <p className="attention-notice muted">{t('OverviewView.currentCoreProvidesIncompleteTaskChatDetails')}</p>}
       {error && <div className="attention-notice attention-error" role="alert">
-        <div>聊天摘要加载失败，事项可能不完整。<span className="muted">{error}</span></div>
-        <button type="button" className="button ghost" disabled={!connected || loading} onClick={() => void refreshAttentionSummaries()}>重试</button>
+        <div>{tr('OverviewView.chatSummariesFailedToLoadItemsMayBe', { value1: <span className="muted">{error}</span> })}</div>
+        <button type="button" className="button ghost" disabled={!connected || loading} onClick={() => void refreshAttentionSummaries()}>{t('ChatContextMenu.retry')}</button>
       </div>}
-      <div className="overview-kpis" role="group" aria-label="工作范围" data-count={ranges.length}>
+      <div className="overview-kpis" role="group" aria-label={t('OverviewView.workScope')} data-count={ranges.length}>
         {ranges.map(({ value, label }) => <button type="button" key={value} className="overview-kpi" aria-pressed={filter === value}
           aria-label={`${label} ${counts[value]}`} data-waiting={value === 'mine' && data.counts.mine > 0 ? '' : undefined}
           onClick={() => {
@@ -434,7 +435,7 @@ export function OverviewView() {
         {(mine || todoPanel || unread) && <div className="overview-column">{mine}{todoPanel}{unread}</div>}
         {(running || next) && <div className="overview-column">{running}{next}</div>}
       </div>
-      {empty && emptyConfirmed && <p className="attention-empty muted">暂时没有进行中的工作</p>}
+      {empty && emptyConfirmed && <p className="attention-empty muted">{t('OverviewView.noWorkInProgress')}</p>}
       </>}
     </section>
   )

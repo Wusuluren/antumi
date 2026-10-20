@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject, type TextareaHTMLAttributes } from 'react'
 import type { DiscussionMember } from '@antumi/protocol'
 import { EVERYONE, mentionChoices, mentionQuery } from '../discussions'
@@ -28,9 +29,9 @@ function MentionOption({ choice, id, active, onHover, onPick }: { choice: Choice
       onClick={onPick}
     >
       <span className="discussion-mention-mark" aria-hidden="true">{everyone ? '@' : <AgentIcon agent={choice.agent} />}</span>
-      <span className="chat-command-option-name">{everyone ? EVERYONE : choice.name}</span>
+      <span className="chat-command-option-name">{everyone ? t('discussions.everyone') : choice.name}</span>
       <span className="chat-command-option-description">
-        {everyone ? '每位成员现在都回答' : choice.status !== 'idle' ? '还在发言' : `只问它 · ${choice.model ?? agentLabel(choice.agent)}`}
+        {everyone ? t('DiscussionMentions.askEveryMemberToAnswerNow') : choice.status !== 'idle' ? t('DiscussionMentions.stillSpeaking') : t('DiscussionMentions.askOnlyThem', { value1: choice.model ?? agentLabel(choice.agent) })}
       </span>
     </li>
   )
@@ -63,7 +64,7 @@ export function useDiscussionMentionMenu({ text, setText, members, input }: {
   const track = (element: HTMLTextAreaElement) => setCaret(element.selectionStart)
   const pick = (choice: Choice) => {
     if (!found) return
-    const inserted = `@${choice === EVERYONE ? EVERYONE : choice.name} `
+    const inserted = `@${choice === EVERYONE ? t('discussions.everyone').toLowerCase() : choice.name} `
     const before = text.slice(0, found.start)
     const next = `${before}${inserted}${text.slice(caret).replace(/^ /, '')}`
     const at = before.length + inserted.length
@@ -95,7 +96,7 @@ export function useDiscussionMentionMenu({ text, setText, members, input }: {
   const optionId = (index: number) => `${listId}-${index}`
   const menu = open ? (
     <div className="menu menu-up chat-command-menu discussion-mention-menu">
-      <ul id={listId} role="listbox" aria-label="提到成员" className="menu-list">
+      <ul id={listId} role="listbox" aria-label={t('DiscussionMentions.mentionMember')} className="menu-list">
         {choices.map((choice, index) => (
           <MentionOption
             key={choice === EVERYONE ? EVERYONE : choice.id}
@@ -107,9 +108,7 @@ export function useDiscussionMentionMenu({ text, setText, members, input }: {
           />
         ))}
       </ul>
-      <div className="chat-command-keys" aria-hidden="true">
-        <kbd>↑↓</kbd> 选择 <kbd>Enter</kbd> 选用 <kbd>Esc</kbd> 关闭
-      </div>
+      <div className="chat-command-keys" aria-hidden="true">{tr('DiscussionMentions.navigateSelectClose', { value1: <kbd>↑↓</kbd>, value2: <kbd>Enter</kbd>, value3: <kbd>Esc</kbd> })}</div>
     </div>
   ) : null
 

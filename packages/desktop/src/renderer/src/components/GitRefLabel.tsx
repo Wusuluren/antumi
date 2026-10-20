@@ -1,16 +1,17 @@
+import { localized, t } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import type { CommitRef } from '../git-refs'
 import { BranchIcon, TagIcon } from './icons'
 import { Popover } from './Popover'
 
-const KIND_LABEL: Record<CommitRef['kind'], string> = { local: '本地分支', remote: '远程分支', tag: '标签', head: '当前检出（游离）' }
+const KIND_LABEL: Record<CommitRef['kind'], string> = localized(() => ({ local: t('GitRefLabel.localBranch'), remote: t('GitRefLabel.remoteBranch'), tag: t('GitRefLabel.tag'), head: t('GitRefLabel.currentCheckoutDetached') }))
 // Long enough to pass over a row on the way elsewhere without a list popping up.
 const OPEN_DELAY_MS = 250
 
 // One branch or tag, coloured by kind as IDEA's log does: local and remote apart at a glance.
 export function GitRefName({ item }: { item: CommitRef }) {
   return (
-    <span className="git-ref" data-kind={item.kind} data-current={item.current || undefined} title={`${KIND_LABEL[item.kind]}${item.current ? '，当前' : ''}`}>
+    <span className="git-ref" data-kind={item.kind} data-current={item.current || undefined} title={`${KIND_LABEL[item.kind]}${item.current ? t('ConversationView.active') : ''}`}>
       {item.kind === 'tag' ? <TagIcon /> : <BranchIcon />}
       <span className="git-ref-name">{item.name}</span>
     </span>
@@ -33,7 +34,7 @@ export function GitRefLabel({ refs }: { refs: readonly CommitRef[] }) {
       <GitRefName item={first} />
       {more > 0 && <span className="git-ref-more">+{more}</span>}
       {open && (
-        <Popover label="提交所在的分支和标签" onClose={leave}>
+        <Popover label={t('GitRefLabel.branchesAndTagsContainingThisCommit')} onClose={leave}>
           <ul className="git-ref-list">{refs.map((item) => <li key={`${item.kind}:${item.name}`}><GitRefName item={item} /></li>)}</ul>
         </Popover>
       )}

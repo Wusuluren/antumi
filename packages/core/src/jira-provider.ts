@@ -82,6 +82,7 @@ export function jiraProvider(connect: (credentials: JiraCredentials) => JiraApi 
     name: 'Jira',
     settings: [
       {
+        translations: { en: { label: 'Site' } },
         key: 'site',
         type: 'url',
         label: '站点',
@@ -90,6 +91,7 @@ export function jiraProvider(connect: (credentials: JiraCredentials) => JiraApi 
         bindsCredential: true
       },
       {
+        translations: { en: { label: 'Filter (JQL)', hint: 'The inbox syncs every 15 minutes. Defaults to unfinished issues assigned to you. Filter bugs with an issuetype condition, e.g. issuetype = Bug AND (use the type name configured in your Jira).' } },
         key: 'jql',
         type: 'textarea',
         label: '筛选条件（JQL）',
@@ -113,6 +115,7 @@ export function jiraProvider(connect: (credentials: JiraCredentials) => JiraApi 
       for (let attempt = 1; ; attempt += 1) {
         email = (
           await session.prompt({
+            translations: { en: { label: 'Sign-in email', ...(error ? { error: 'Email or API token is invalid. Try again' } : {}) } },
             kind: 'text',
             label: '登录邮箱',
             placeholder: 'you@company.com',
@@ -122,10 +125,11 @@ export function jiraProvider(connect: (credentials: JiraCredentials) => JiraApi 
         ).trim()
         const token = (
           await session.prompt({
+            translations: { en: { hint: 'Read permission is enough. Your token stays on this computer and is never shared with Agents.' } },
             kind: 'secret',
             label: 'API token',
             hint: '只需要读权限。token 只保存在本机，不会交给 Agent。',
-            link: { url: TOKEN_PAGE, label: '在 Atlassian 账号设置里创建' }
+            link: { url: TOKEN_PAGE, label: '在 Atlassian 账号设置里创建', translations: { en: { label: 'Create in Atlassian account settings' } } }
           })
         ).trim()
         try {

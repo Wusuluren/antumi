@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n'
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from 'react'
 import { IMAGE_MIME_TYPES, MAX_CHAT_IMAGES, type ChatImage } from '@antumi/protocol'
 import { copyImageToClipboard, imageFilesOf, uploadImageFiles, useImageUrl } from '../attachment-images'
@@ -15,7 +16,7 @@ export function useComposerImages(initial: readonly ChatImage[] = []) {
   const [uploading, setUploading] = useState(0)
   const add = (files: File[]) => {
     if (images.length + uploading >= MAX_CHAT_IMAGES) {
-      useCore.setState({ error: `一条消息最多带 ${MAX_CHAT_IMAGES} 张图片` })
+      useCore.setState({ error: t('ChatImages.upToImagesPerMessage', { MAX_CHAT_IMAGES: MAX_CHAT_IMAGES }) })
       return
     }
     setUploading((count) => count + files.length)
@@ -26,7 +27,7 @@ export function useComposerImages(initial: readonly ChatImage[] = []) {
         const known = new Set(current.map((image) => image.id))
         const fresh = uploaded.filter((image) => !known.has(image.id)).map(({ id, width, height }) => ({ id, width, height }))
         const next = [...current, ...fresh].slice(0, MAX_CHAT_IMAGES)
-        if (next.length < current.length + fresh.length) useCore.setState({ error: `一条消息最多带 ${MAX_CHAT_IMAGES} 张图片` })
+        if (next.length < current.length + fresh.length) useCore.setState({ error: t('ChatImages.upToImagesPerMessage', { MAX_CHAT_IMAGES: MAX_CHAT_IMAGES }) })
         return next
       })
     })()
@@ -66,8 +67,8 @@ export function ChatAddMenu({ disabled, onAdd }: { disabled?: boolean; onAdd: (f
       <button
         type="button"
         className="chat-add-button"
-        aria-label="添加内容"
-        data-tooltip="添加图片"
+        aria-label={t('ChatImages.addContent')}
+        data-tooltip={t('ChatImages.addImages')}
         data-tooltip-side="top"
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -77,7 +78,7 @@ export function ChatAddMenu({ disabled, onAdd }: { disabled?: boolean; onAdd: (f
         <PlusIcon />
       </button>
       {open && (
-        <Popover label="添加内容" onClose={close}>
+        <Popover label={t('ChatImages.addContent')} onClose={close}>
           <button
             type="button"
             className="menu-item"
@@ -87,9 +88,9 @@ export function ChatAddMenu({ disabled, onAdd }: { disabled?: boolean; onAdd: (f
             }}
           >
             <ImageIcon />
-            <span className="menu-item-title">添加图片</span>
+            <span className="menu-item-title">{t('ChatImages.addImages')}</span>
           </button>
-          <div className="menu-label">也可以直接粘贴或拖进输入框</div>
+          <div className="menu-label">{t('ChatImages.youCanAlsoPasteOrDragThemInto')}</div>
         </Popover>
       )}
       <input
@@ -122,25 +123,25 @@ function Thumb({ image, onOpen, onRemove }: { image: ChatImage; onOpen: () => vo
   return (
     <span className="chat-image">
       {/* Keep the same square before and after sending; the viewer keeps the original shape. */}
-      <button ref={frame} type="button" className="chat-image-button" aria-label="查看图片" data-square="" onClick={onOpen}>
+      <button ref={frame} type="button" className="chat-image-button" aria-label={t('chatTools.viewImage')} data-square="" onClick={onOpen}>
         {url && <img src={url} alt="" draggable={false} />}
       </button>
       <span className="chat-image-actions">
-        <button type="button" className="chat-image-action" aria-label="放大" data-tooltip="放大" onClick={onOpen}>
+        <button type="button" className="chat-image-action" aria-label={t('ChatImages.zoomIn')} data-tooltip={t('ChatImages.zoomIn')} onClick={onOpen}>
           <SearchIcon />
         </button>
         <button
           type="button"
           className="chat-image-action"
           data-copied={copied || undefined}
-          aria-label={copied ? '已复制' : '复制图片'}
-          data-tooltip={copied ? '已复制' : '复制图片'}
+          aria-label={copied ? t('BranchStatus.copied') : t('ChatImages.copyImage')}
+          data-tooltip={copied ? t('BranchStatus.copied') : t('ChatImages.copyImage')}
           disabled={!url}
           onClick={() => {
             if (!url) return
             void copyImageToClipboard(url).then(
               () => setCopied(true),
-              () => useCore.setState({ error: '图片复制失败' })
+              () => useCore.setState({ error: t('ChatImages.failedToCopyImage') })
             )
           }}
         >
@@ -149,7 +150,7 @@ function Thumb({ image, onOpen, onRemove }: { image: ChatImage; onOpen: () => vo
       </span>
       {/* Taking it out sits on the corner, apart from looking at it, as a task's images have it. */}
       {onRemove && (
-        <button type="button" className="chat-image-remove" aria-label="删除图片" data-tooltip="删除" onClick={onRemove}>
+        <button type="button" className="chat-image-remove" aria-label={t('ChatImages.removeImage')} data-tooltip={t('ChatCommandSettings.delete')} onClick={onRemove}>
           <CloseIcon />
         </button>
       )}
@@ -168,7 +169,7 @@ export function ChatImageStrip({ images, uploading = 0, onRemove }: { images: re
         {images.map((image, index) => (
           <Thumb key={image.id} image={image} onOpen={() => setViewing(index)} onRemove={onRemove && (() => onRemove(image.id))} />
         ))}
-        {uploading > 0 && <span className="image-uploading" role="status">正在上传 {uploading} 张…</span>}
+        {uploading > 0 && <span className="image-uploading" role="status">{tr('ChatImages.uploadingImages', { uploading: uploading })}</span>}
       </div>
       {viewing !== null && images.length > 0 && (
         <ImageViewer

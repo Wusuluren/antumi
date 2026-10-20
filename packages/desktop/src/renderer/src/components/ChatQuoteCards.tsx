@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { removeQuote, setQuoteNote, type ChatQuote } from '../chat-quotes'
 import { CloseIcon, QuoteIcon } from './icons'
 
@@ -5,7 +6,7 @@ import { CloseIcon, QuoteIcon } from './icons'
 // user says about it, and a way to drop it. Enter in that line goes on to the message.
 export function QuoteCards({ conversationId, quotes, onDone }: { conversationId: string; quotes: readonly ChatQuote[]; onDone: () => void }) {
   return (
-    <ul className="chat-quotes" aria-label="引用的段落">
+    <ul className="chat-quotes" aria-label={t('ChatQuoteCards.quotedPassage')}>
       {quotes.map((quote) => (
         <li key={quote.id} className="chat-quote-card">
           <span className="chat-quote-icon" aria-hidden="true"><QuoteIcon /></span>
@@ -14,8 +15,8 @@ export function QuoteCards({ conversationId, quotes, onDone }: { conversationId:
             <input
               className="chat-quote-note"
               value={quote.note}
-              placeholder="对这段说点什么（可不填）"
-              aria-label="对这段引用的说明"
+              placeholder={t('ChatQuoteCards.commentOnThisPassageOptional')}
+              aria-label={t('ChatQuoteCards.commentOnThisQuote')}
               onChange={(event) => setQuoteNote(conversationId, quote.id, event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
@@ -25,7 +26,7 @@ export function QuoteCards({ conversationId, quotes, onDone }: { conversationId:
               }}
             />
           </div>
-          <button type="button" className="chat-quote-remove" aria-label="移除这段引用" data-tooltip="移除" data-tooltip-side="top-end" onClick={() => removeQuote(conversationId, quote.id)}>
+          <button type="button" className="chat-quote-remove" aria-label={t('ChatQuoteCards.removeQuote')} data-tooltip={t('ChatQuoteCards.remove')} data-tooltip-side="top-end" onClick={() => removeQuote(conversationId, quote.id)}>
             <CloseIcon />
           </button>
         </li>

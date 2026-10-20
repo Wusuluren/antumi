@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { syntaxTree } from '@codemirror/language'
 import { Prec, type EditorState, type Range, type TransactionSpec } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, WidgetType, keymap, type DecorationSet, type ViewUpdate } from '@codemirror/view'
@@ -9,7 +10,7 @@ import { PRIMARY_KEY_LABEL, hasPrimaryModifier } from '../shortcut-keys'
 // its formatting; fenced code and rules, whose source is the point, show while their line is
 // edited. The document itself is never rewritten; everything here is a decoration.
 
-const OPEN_LINK_HINT = `${PRIMARY_KEY_LABEL}点击打开`
+const OPEN_LINK_HINT = () => t('markdownLivePreview.clickToOpen', { PRIMARY_KEY_LABEL: PRIMARY_KEY_LABEL })
 const INLINE_MARKS = new Set(['EmphasisMark', 'StrikethroughMark', 'CodeMark'])
 
 class BulletWidget extends WidgetType {
@@ -93,7 +94,7 @@ function buildDecorations(view: EditorView): DecorationSet {
     index === count - 1 && 'cm-lp-codeblock-last'
   ]
   const linkMark = (from: number, to: number, url: string) =>
-    out.push(Decoration.mark({ class: 'cm-lp-link', attributes: { title: `${url}（${OPEN_LINK_HINT}）` } }).range(from, to))
+    out.push(Decoration.mark({ class: 'cm-lp-link', attributes: { title: `${url}（${OPEN_LINK_HINT()}）` } }).range(from, to))
 
   // Room between blocks, as rendered Markdown has: before each one that does not follow a blank
   // line, and between the items of a list.
@@ -247,6 +248,7 @@ const decorations = ViewPlugin.fromClass(
     }
     update(update: ViewUpdate) {
       if (
+        update.transactions.some((transaction) => transaction.reconfigured) ||
         update.docChanged ||
         update.selectionSet ||
         update.focusChanged ||

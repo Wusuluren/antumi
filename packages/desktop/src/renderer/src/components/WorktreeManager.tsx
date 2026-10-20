@@ -1,3 +1,4 @@
+import { getLocale, localized, t, tr } from '../i18n'
 import { useEffect, useMemo, useState } from 'react'
 import { openTerminal, selectConversation, selectTask, setWorktreesOpen, showError, useCore } from '../core-store'
 import { timeAgo } from '../conversation-state'
@@ -8,23 +9,23 @@ import { cleanWorktrees, refreshWorktrees, useWorktrees } from '../worktree-stor
 import { CloseIcon, FolderIcon, TerminalIcon } from './icons'
 import { projectName } from './ProjectPicker'
 
-const GROUP_TEXT: Record<WorktreeGroupId, { title: string; note: string }> = {
-  cleanable: { title: '可以清理', note: '任务已完成或已取消，没有未提交的改动' },
-  orphaned: { title: '找不到任务或会话', note: '任务或会话删了，worktree 还在' },
-  attention: { title: '需要你处理', note: '清理会丢东西，先在终端里提交、移走或丢弃' },
-  active: { title: '进行中', note: '任务还没完成或会话还在，只看占用' }
-}
+const GROUP_TEXT: Record<WorktreeGroupId, { title: string; note: string }> = localized(() => ({
+  cleanable: { title: t('WorktreeManager.cleanable'), note: t('WorktreeManager.taskCompletedOrCancelledWithNoUncommittedChanges') },
+  orphaned: { title: t('WorktreeManager.taskOrConversationNotFound'), note: t('WorktreeManager.taskOrConversationDeletedWorktreeRemains') },
+  attention: { title: t('WorktreeManager.needsYourAttention'), note: t('WorktreeManager.cleanupWouldLoseWorkCommitMoveOrDiscard') },
+  active: { title: t('ChatTodos.inProgress'), note: t('WorktreeManager.taskUnfinishedOrConversationStillExistsShowingDisk') }
+}))
 
-const CLEAN_NOTE = '分支和提交都会保留，任务之后继续修改时会重建 worktree。被 .gitignore 忽略的文件（如 node_modules、.env）会一起删除。'
+const CLEAN_NOTE = () => t('WorktreeManager.branchesAndCommitsAreKeptWorktreesAreRecreated')
 
 // Asks first, then says what was kept and why; what went needs no word.
 export async function cleanWithConfirm(paths: readonly string[], subject: string): Promise<void> {
-  if (paths.length === 0 || !window.confirm(`清理${subject}？\n\n${CLEAN_NOTE}`)) return
+  if (paths.length === 0 || !window.confirm(t('WorktreeManager.clean', { subject: subject, CLEAN_NOTE: CLEAN_NOTE() }))) return
   const results = await cleanWorktrees(paths)
   const kept = results?.filter((result) => !result.removed) ?? []
   if (kept.length > 0) {
     const reasons = [...new Set(kept.map((result) => reasonText(result.reason ?? 'worktree-failed', result.reason ?? '')))]
-    showError(`有 ${kept.length} 个 worktree 没有清理：${reasons.join('；')}`)
+    showError(t('WorktreeManager.worktreesWereNotCleaned', { value1: kept.length, value2: reasons.join('；') }))
   }
 }
 
@@ -36,34 +37,30 @@ function Row({ row, now, checked, onToggle }: { row: WorktreeRow; now: number; c
     <li className="worktree-row">
       <span className="worktree-check">
         {checked !== null && (
-          <input type="checkbox" checked={checked} onChange={onToggle} aria-label={`清理 ${task?.title ?? conversation?.title ?? worktree.path}`} />
+          <input type="checkbox" checked={checked} onChange={onToggle} aria-label={t('WorktreeManager.clean_2235', { value1: task?.title ?? conversation?.title ?? worktree.path })} />
         )}
       </span>
       <span className="worktree-main">
-        <span className="worktree-title" title={worktree.path}>{task?.title ?? conversation?.title ?? (worktree.conversationId ? '会话' : '任务或会话已删除')}</span>
+        <span className="worktree-title" title={worktree.path}>{task?.title ?? conversation?.title ?? (worktree.conversationId ? t('BrowserPanel.conversation') : t('WorktreeManager.taskOrConversationDeleted'))}</span>
         <span className="worktree-meta">
-          {[task && STATUS_LABEL[task.status], worktree.conversationId && '会话', timeAgo(worktree.touchedAt, now), project, worktree.planning && '规划副本'].filter(Boolean).join(' · ')}
+          {[task && STATUS_LABEL[task.status], worktree.conversationId && t('BrowserPanel.conversation'), timeAgo(worktree.touchedAt, now), project, worktree.planning && t('WorktreeManager.planningCheckout')].filter(Boolean).join(' · ')}
         </span>
       </span>
-      <span className="worktree-branch mono" title={worktree.path}>{worktree.branch ?? '没有分支'}</span>
+      <span className="worktree-branch mono" title={worktree.path}>{worktree.branch ?? t('WorktreeManager.noBranch')}</span>
       <span className="worktree-state" data-warn={state.warn || undefined}>{state.text}</span>
       <span className="worktree-size">{worktree.size === null ? '…' : formatBytes(worktree.size)}</span>
       <span className="worktree-actions">
         {task && (
-          <button type="button" className="button ghost worktree-open" onClick={() => selectTask(task.id)}>
-            打开任务
-          </button>
+          <button type="button" className="button ghost worktree-open" onClick={() => selectTask(task.id)}>{t('SourceInboxView.openTask')}</button>
         )}
         {worktree.conversationId && (
-          <button type="button" className="button ghost worktree-open" onClick={() => selectConversation(worktree.conversationId ?? null)}>
-            打开会话
-          </button>
+          <button type="button" className="button ghost worktree-open" onClick={() => selectConversation(worktree.conversationId ?? null)}>{t('WorktreeManager.openConversation')}</button>
         )}
-        <button type="button" className="tool-button" aria-label="在终端里打开" data-tooltip="在终端里打开" onClick={() => void openTerminal(worktree.path)}>
+        <button type="button" className="tool-button" aria-label={t('WorktreeManager.openInTerminal')} data-tooltip={t('WorktreeManager.openInTerminal')} onClick={() => void openTerminal(worktree.path)}>
           <TerminalIcon />
         </button>
         {canRevealFile() && (
-          <button type="button" className="tool-button" aria-label="在文件管理器中显示" data-tooltip="在文件管理器中显示" onClick={() => void revealFile([worktree.path])}>
+          <button type="button" className="tool-button" aria-label={t('ChatContextMenu.showInFileManager')} data-tooltip={t('ChatContextMenu.showInFileManager')} onClick={() => void revealFile([worktree.path])}>
             <FolderIcon />
           </button>
         )}
@@ -78,7 +75,7 @@ export function WorktreeManager() {
   const list = useWorktrees((s) => s.list)
   const tasks = useCore((s) => s.tasks)
   const conversations = useCore((s) => s.conversations)
-  const rows = useMemo(() => (list ? worktreeRows(list, tasks, conversations) : []), [list, tasks, conversations])
+  const rows = useMemo(() => (list ? worktreeRows(list, tasks, conversations) : []), [list, tasks, conversations, getLocale()])
   const groups = groupWorktrees(rows)
   const summary = worktreeSummary(rows)
   // Unpicked paths; everything that can be cleaned starts picked.
@@ -97,7 +94,7 @@ export function WorktreeManager() {
     })
   const clean = async () => {
     setBusy(true)
-    await cleanWithConfirm(picked, ` ${picked.length} 个 worktree`)
+    await cleanWithConfirm(picked, t('WorktreeManager.worktrees', { value1: picked.length }))
     setBusy(false)
   }
 
@@ -106,22 +103,18 @@ export function WorktreeManager() {
       <header className="worktrees-header">
         <div className="worktrees-heading">
           <h2>Worktree</h2>
-          <p className="muted">
-            共 {summary.count} 个 · 占用 {formatBytes(summary.bytes)}{summary.counting ? '（还在统计）' : ''} · {summary.cleanable} 个可以清理
-          </p>
-          <p className="muted">清理只删 worktree 目录。{CLEAN_NOTE}</p>
+          <p className="muted">{tr('WorktreeManager.totalUsedCleanable', { value1: summary.count, value2: formatBytes(summary.bytes), value3: summary.counting ? t('WorktreeManager.stillCalculating') : '', value4: summary.cleanable })}</p>
+          <p className="muted">{tr('WorktreeManager.cleanupDeletesOnlyWorktreeDirectories', { CLEAN_NOTE: CLEAN_NOTE() })}</p>
         </div>
-        <button type="button" className="button primary" disabled={busy || picked.length === 0} onClick={() => void clean()}>
-          清理所选（{picked.length} 个）
-        </button>
-        <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => setWorktreesOpen(false)}>
+        <button type="button" className="button primary" disabled={busy || picked.length === 0} onClick={() => void clean()}>{tr('WorktreeManager.cleanSelected', { value1: picked.length })}</button>
+        <button type="button" className="tool-button" aria-label={t('BackdropPicker.close')} data-tooltip={t('BackdropPicker.close')} onClick={() => setWorktreesOpen(false)}>
           <CloseIcon />
         </button>
       </header>
       {list === null ? (
-        <p className="worktrees-empty muted">正在读取…</p>
+        <p className="worktrees-empty muted">{t('DashboardPanel.loading')}</p>
       ) : rows.length === 0 ? (
-        <p className="worktrees-empty muted">没有 Antumi 建的 worktree。</p>
+        <p className="worktrees-empty muted">{t('WorktreeManager.noAntumiWorktrees')}</p>
       ) : (
         groups.map((group) => {
           const collapsed = group.id === 'active' && !showActive
@@ -132,7 +125,7 @@ export function WorktreeManager() {
                 <span className="muted"> · {GROUP_TEXT[group.id].note}</span>
                 {group.id === 'active' && (
                   <button type="button" className="link-button" aria-expanded={!collapsed} onClick={() => setShowActive(!showActive)}>
-                    {collapsed ? '展开' : '收起'}
+                    {collapsed ? t('FileSource.expand') : t('ChatPlan.collapse')}
                   </button>
                 )}
               </h3>
