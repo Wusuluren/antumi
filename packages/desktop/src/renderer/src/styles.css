@@ -8364,7 +8364,9 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .branch-action-button[data-primary] { background: var(--accent); color: var(--accent-text); }
 .branch-action-button[data-primary]:hover:not(:disabled),
 .branch-action-button[data-primary][aria-expanded='true'] { background: color-mix(in srgb, var(--accent) 88%, black); }
-.branch-action { display: grid; gap: 4px; margin-top: 4px; }
+/* One column held to the box: an auto track grew to its widest row (the commit buttons, in
+   English) and pushed the message field past the dialog's edge with it. */
+.branch-action { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin-top: 4px; }
 .branch-action-create { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 .branch-action-create .branch-action-note { grid-column: 1 / -1; }
 .branch-action-list { max-height: 200px; overflow-y: auto; }
@@ -8382,7 +8384,7 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .branch-dialog .branch-action-note { font-size: 12px; }
 .branch-commit { gap: 8px; }
 .branch-commit-message { width: 100%; min-height: 128px; resize: vertical; line-height: 1.5; font-family: var(--mono); font-size: 13px; }
-.branch-commit-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.branch-commit-buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 /* Writing a message leads the row, apart from committing; what went wrong shows beside it. */
 .commit-message-generate { display: inline-flex; align-items: center; gap: 8px; margin-right: auto; min-width: 0; }
 .commit-message-generate .button { display: inline-flex; align-items: center; gap: 4px; }

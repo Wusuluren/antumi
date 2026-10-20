@@ -2258,7 +2258,7 @@ export const MESSAGES = {
   },
   "CommitMessageButton.useThisAgentSSmallModelToDraft": {
     "zh": "让这个 Agent 用小模型根据改动写，写好后再看一眼",
-    "en": "Use this Agent's small model to draft a message from changes, then review it"
+    "en": "This Agent's small model drafts a message from the changes, for you to review"
   },
   "CommitMessageButton.generating": {
     "zh": "正在生成…",
@@ -2266,7 +2266,7 @@ export const MESSAGES = {
   },
   "CommitMessageButton.generateCommitMessage": {
     "zh": "生成提交信息",
-    "en": "Generate commit message"
+    "en": "Generate message"
   },
   "ConversationActions.onlyWasFoundOnThisComputerInstallAnother": {
     "zh": "这台电脑上只找到了 {value1}。装好另一个 Agent 后，在 设置 → 本机 Agent 里重新检测，就可以移交了。",
@@ -2382,11 +2382,11 @@ export const MESSAGES = {
   },
   "ConversationBranches.commitMessageTitleOnTheFirstLineBlank": {
     "zh": "提交信息：第一行是标题，空一行再写说明。留空则由 Agent 用小模型写好后直接提交",
-    "en": "Commit message: title on the first line, blank line before details. Leave empty to let Agent's small model write and commit directly"
+    "en": "Commit message: a title, a blank line, then details. Leave it empty and the Agent's small model writes one and commits"
   },
   "ConversationBranches.commitMessageTitleOnTheFirstLineBlank_595": {
     "zh": "提交信息：第一行是标题，空一行再写详细说明",
-    "en": "Commit message: title on the first line, blank line before details"
+    "en": "Commit message: a title, a blank line, then details"
   },
   "ConversationBranches.commitMessage": {
     "zh": "提交信息",
@@ -2394,15 +2394,15 @@ export const MESSAGES = {
   },
   "ConversationBranches.commitAllChangesInThisRepositoryWithoutAn": {
     "zh": "提交这个仓库里的全部改动{value1}，没有 upstream 时推到 origin 并跟踪它。",
-    "en": "Commit all changes in this repository{value1}. Without an upstream, push to origin and track it."
+    "en": "Commits every change in this repository{value1}. A branch with no upstream is pushed to origin and tracks it."
   },
   "ConversationBranches.commitPushAlsoPushesTheCurrentBranch": {
     "zh": "；Commit & Push 再接着推送当前分支",
-    "en": "; Commit & Push also pushes the current branch"
+    "en": "; Commit & Push then pushes the current branch"
   },
   "ConversationBranches.thenPushTheCurrentBranch": {
     "zh": "，并推送当前分支",
-    "en": ", then push the current branch"
+    "en": ", then pushes the current branch"
   },
   "ConversationBranches.pushCommitsOnTo": {
     "zh": "把 {value1} 上的 {value2} 个提交推送到 {value3}。",
@@ -4314,15 +4314,15 @@ export const MESSAGES = {
   },
   "GitInspector.commitTitleBlankLineThenDetailsLeaveEmpty": {
     "zh": "提交标题，空一行后填写说明。留空则由 Agent 用小模型写好后直接提交",
-    "en": "Commit title, blank line, then details. Leave empty for Agent's small model to write and commit directly"
+    "en": "Commit title, a blank line, then details. Leave it empty and the Agent's small model writes one and commits"
   },
   "GitInspector.commitTitleBlankLineThenDetails": {
     "zh": "提交标题，空一行后填写说明",
-    "en": "Commit title, blank line, then details"
+    "en": "Commit title, a blank line, then details"
   },
   "GitInspector.commitAllChangesInThisRepositoryLocalCommits": {
     "zh": "提交这个仓库的全部改动。推送失败时，本地提交保留。",
-    "en": "Commit all changes in this repository. Local commits are kept if pushing fails."
+    "en": "Commits every change in this repository. If the push fails, the local commit stays."
   },
   "GitInspector.repository": {
     "zh": "仓库：{value1}{value2}{value3}",
