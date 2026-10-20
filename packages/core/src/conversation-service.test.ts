@@ -178,7 +178,8 @@ describe('ConversationService', () => {
   })
 
   it('lets a deferred helper choose its model and effort before its first stage', async () => {
-    const parent = await service.create('claude', [], false, { deferStart: true })
+    // Started, so the models come from its stage rather than from a claude CLI on this machine.
+    const parent = await service.create('claude', [])
     const helper = await service.create('claude', [], false, { helperOf: parent.id, deferStart: true, model: 'haiku' })
     await service.setOption(helper.id, 'model', 'sonnet')
     await service.setOption(helper.id, 'effort', 'high')
