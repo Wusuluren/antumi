@@ -16,7 +16,7 @@ export type ChatRecord =
       level: 'info' | 'warning' | 'error'
       text: string
       id?: string
-      action?: { kind: 'retryCursorTurn'; userItemId: string; stop?: boolean } | null
+      action?: { kind: 'retryTurn'; userItemId: string; stop?: boolean } | null
     }
   // The user switched an option; an agent that takes options per turn applies it from here.
   | { dir: 'option'; at: number; option: ChatOption; value: string }

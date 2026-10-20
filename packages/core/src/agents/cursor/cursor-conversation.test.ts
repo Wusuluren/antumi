@@ -132,12 +132,12 @@ it('tells the user at 30 seconds that Cursor has not answered, stops it at 60, a
   await service.send(created.id, 'do this once')
 
   await vi.advanceTimersByTimeAsync(30_000)
-  expect(stallNotice(created.id)).toMatchObject({ level: 'info', action: { kind: 'retryCursorTurn', stop: true } })
+  expect(stallNotice(created.id)).toMatchObject({ level: 'info', action: { kind: 'retryTurn', stop: true } })
   expect(daemon.written('pipe-1')).not.toEqual(expect.arrayContaining([expect.objectContaining({ method: 'session/cancel' })]))
 
   await vi.advanceTimersByTimeAsync(30_000)
   const notice = stallNotice(created.id)
-  expect(notice).toMatchObject({ level: 'warning', text: expect.stringContaining('60 秒没有回应'), action: { kind: 'retryCursorTurn' } })
+  expect(notice).toMatchObject({ level: 'warning', text: expect.stringContaining('60 秒没有回应'), action: { kind: 'retryTurn' } })
   expect(notice?.kind === 'notice' && notice.action?.stop).toBeFalsy()
   expect(daemon.written('pipe-1')).toEqual(expect.arrayContaining([expect.objectContaining({ method: 'session/cancel' })]))
   expect(daemon.spawns).toHaveLength(1)
@@ -146,7 +146,7 @@ it('tells the user at 30 seconds that Cursor has not answered, stops it at 60, a
   expect(daemon.killed).toContainEqual({ sessionId: 'pipe-1', force: false })
 
   answerPrompt = true
-  await service.retryCursorTurn(created.id, notice!.stageId, notice!.id)
+  await service.retryTurn(created.id, notice!.stageId, notice!.id)
   await vi.runAllTimersAsync()
   expect(daemon.spawns).toHaveLength(2)
   expect(daemon.written('pipe-2')).toEqual(expect.arrayContaining([
@@ -168,7 +168,7 @@ it('stops a still silent Cursor turn and sends it again when the user asks befor
   const notice = stallNotice(created.id)!
 
   answerPrompt = true
-  const retried = service.retryCursorTurn(created.id, notice.stageId, notice.id)
+  const retried = service.retryTurn(created.id, notice.stageId, notice.id)
   await vi.advanceTimersByTimeAsync(2_000)
   await retried
   await vi.runAllTimersAsync()
@@ -201,7 +201,7 @@ it('starts a new Cursor session when the one to resume was never saved', async (
   const notice = stallNotice(created.id)!
 
   answerPrompt = true
-  await service.retryCursorTurn(created.id, notice.stageId, notice.id)
+  await service.retryTurn(created.id, notice.stageId, notice.id)
   await vi.runAllTimersAsync()
   expect(daemon.written('pipe-2')).toEqual(expect.arrayContaining([expect.objectContaining({ method: 'session/load' })]))
   expect(daemon.written('pipe-3')).toEqual(expect.arrayContaining([expect.objectContaining({ method: 'session/new' })]))

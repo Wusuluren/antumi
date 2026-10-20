@@ -87,6 +87,14 @@ describe('ACP without a dialect of its own', () => {
     expect(JSON.stringify(due(reading))).not.toContain('additionalDirectories')
   })
 
+  it('gives extra folders to an agent that names the capability with an object, as the protocol now does', () => {
+    const driver = new AcpDriver(plain, 'stage', { ...OPTIONS, extraDirs: ['/other'] })
+    due(driver)
+    receive(driver, { id: 'plain-init', result: { protocolVersion: 1, agentCapabilities: { sessionCapabilities: { additionalDirectories: {} } } } })
+    expect(driver.failure()).toBeNull()
+    expect(due(driver)).toEqual([expect.objectContaining({ method: 'session/new', params: expect.objectContaining({ additionalDirectories: ['/other'] }) })])
+  })
+
   it('refuses requests from extensions it never declared', () => {
     const driver = opened()
     const message = driver.send('hello')

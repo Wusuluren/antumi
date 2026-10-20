@@ -17,8 +17,9 @@ export interface AcpDialect {
   readonly authMethod?: string
   // A request listing models with their reasoning levels, which the session config may leave out.
   readonly models?: { method: string; parse(result: unknown): AcpModel[] | null }
-  // The tool a call runs, where its input says more than its kind: null leaves it to the kind.
-  toolName?(rawInput: unknown): string | null
+  // The tool a call runs, where its input or the name it gives (an extension) says more than its
+  // kind: null leaves it to the kind.
+  toolName?(rawInput: unknown, name: string | undefined): string | null
   // The input worth showing, where the agent wraps a call's arguments.
   toolInput?(rawInput: unknown): unknown
   // The Task call a subagent announced on its parent's session runs for; without it, subagents

@@ -752,7 +752,7 @@ export class ChatHost {
       id: `${live.agent}-stalled:${watch.ref}`,
       level,
       text,
-      action: offer ? { kind: 'retryCursorTurn', userItemId: `u:${watch.ref}`, ...(offer === 'stop' ? { stop: true } : {}) } : null
+      action: offer ? { kind: 'retryTurn', userItemId: `u:${watch.ref}`, ...(offer === 'stop' ? { stop: true } : {}) } : null
     })
   }
 

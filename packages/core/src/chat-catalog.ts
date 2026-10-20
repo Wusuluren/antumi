@@ -32,7 +32,7 @@ export function probeChatCatalog(driver: ChatDriver, command: AgentCommand, cwd:
   return new Promise((resolve) => {
     let launch
     try {
-      launch = planLaunch(command.command, command.args, cwd, process.env)
+      launch = planLaunch(command.command, command.args, cwd, { ...process.env, ...command.env })
     } catch {
       return resolve(null)
     }

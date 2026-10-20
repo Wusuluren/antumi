@@ -1,6 +1,7 @@
 import { browserToolName } from '@antumi/protocol'
 
-export type AgentCommand = { command: string; args: string[] }
+// env is added to what the agent runs with, for an agent configured through its environment.
+export type AgentCommand = { command: string; args: string[]; env?: Record<string, string> }
 
 // An MCP server the agent starts over stdio.
 // env is added to what the agent starts the server with.

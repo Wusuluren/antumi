@@ -958,7 +958,7 @@ export class ConversationService {
         if (prepared.command) command.command = prepared.command
       }
       this.wire?.record(id, stage.id, [{ dir: 'spawn', text: JSON.stringify({ command: command.command, args: command.args, cwd: current.workspacePath }) }])
-      const spawned = await this.daemon.request('spawnPipe', { command: command.command, args: command.args, cwd: current.workspacePath, env: { [PROCESS_OWNER_ENV]: processOwner({ kind: 'conversation', id }) } })
+      const spawned = await this.daemon.request('spawnPipe', { command: command.command, args: command.args, cwd: current.workspacePath, env: { ...command.env, [PROCESS_OWNER_ENV]: processOwner({ kind: 'conversation', id }) } })
       sessionId = spawned.sessionId
       if (launch) {
         this.wire?.record(id, stage.id, [{
@@ -1366,7 +1366,7 @@ export class ConversationService {
     }
   }
 
-  async retryCursorTurn(id: string, stageId: string, itemId: string): Promise<void> {
+  async retryTurn(id: string, stageId: string, itemId: string): Promise<void> {
     await this.serially(id, async () => {
       const conversation = this.get(id)
       const { agent } = conversation
@@ -1374,7 +1374,7 @@ export class ConversationService {
       const stage = this.store.stages(id).find((candidate) => candidate.id === stageId)
       if (!stage) throw new Rejection('stage-not-found', `no chat stage ${stageId}`)
       const notice = this.chats.items(this.chatStage(conversation, stage)).find((item) => item.id === itemId)
-      if (notice?.kind !== 'notice' || notice.action?.kind !== 'retryCursorTurn') {
+      if (notice?.kind !== 'notice' || notice.action?.kind !== 'retryTurn') {
         throw new Rejection('chat-item-not-found', `no retry action ${itemId}`)
       }
       const user = this.chats.items(this.chatStage(conversation, stage)).find((item) => item.id === notice.action?.userItemId)

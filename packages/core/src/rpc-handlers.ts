@@ -296,7 +296,7 @@ export function createRpcHandlers(
       return OK
     },
     'conversations.retryUsageLimit': async ({ id, stageId, itemId }) => { await limits.retry(id, stageId, itemId); return OK },
-    'conversations.retryCursorTurn': async ({ id, stageId, itemId }) => { await conversations.retryCursorTurn(id, stageId, itemId); return OK },
+    'conversations.retryTurn': async ({ id, stageId, itemId }) => { await conversations.retryTurn(id, stageId, itemId); return OK },
     'conversations.interrupt': async ({ id }) => {
       const run = squads?.roster(id)
       if (run?.leaderConversationId === id && run.state === 'running') await squads?.control(run.id, 'stop')

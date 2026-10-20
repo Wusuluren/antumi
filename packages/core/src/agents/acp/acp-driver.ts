@@ -25,12 +25,12 @@ const Opened = Configs.extend({
 })
 const Initialized = z.looseObject({
   protocolVersion: z.union([z.literal(1), z.literal('1')]),
-  agentCapabilities: z.looseObject({ loadSession: z.boolean().optional(), promptCapabilities: z.looseObject({ image: z.boolean().optional() }).optional(), sessionCapabilities: z.looseObject({ additionalDirectories: z.boolean().optional() }).optional() }).optional(),
+  agentCapabilities: z.looseObject({ loadSession: z.boolean().optional(), promptCapabilities: z.looseObject({ image: z.boolean().optional() }).optional(), sessionCapabilities: z.looseObject({ additionalDirectories: z.union([z.boolean(), z.looseObject({})]).optional() }).optional() }).optional(),
   authMethods: z.array(z.looseObject({ id: z.string() })).optional()
 })
 const Content = z.looseObject({ type: z.string(), text: z.string().optional(), data: z.string().optional() })
 const Update = z.looseObject({
-  sessionUpdate: z.string(), content: z.unknown().optional(), toolCallId: z.string().optional(), title: z.string().optional(), kind: z.string().optional(),
+  sessionUpdate: z.string(), content: z.unknown().optional(), toolCallId: z.string().optional(), name: z.string().optional(), title: z.string().optional(), kind: z.string().optional(),
   status: z.string().optional(), rawInput: z.unknown().optional(), rawOutput: z.unknown().optional(), locations: z.array(z.looseObject({ path: z.string() })).optional(),
   entries: z.array(z.looseObject({ content: z.string(), status: z.string() })).optional(), currentModeId: z.string().optional(), configOptions: z.array(AcpConfig).optional(),
   availableCommands: z.array(z.looseObject({ name: z.string(), description: z.string(), input: z.looseObject({ hint: z.string().optional() }).nullish() })).optional()
@@ -116,8 +116,8 @@ export class AcpDriver implements ChatDriver {
     const known = ChatPermissionMode.safeParse(mode)
     return known.success && this.dialect.modes[known.data] !== undefined
   }
-  private toolName(update: Pick<z.infer<typeof Update>, 'kind' | 'rawInput'>, old: string | undefined): string {
-    return this.dialect.toolName?.(update.rawInput) ?? (update.kind === 'execute' ? 'commandExecution' : update.kind === 'edit' ? 'fileChange' : old ?? update.kind ?? 'tool')
+  private toolName(update: Pick<z.infer<typeof Update>, 'kind' | 'rawInput' | 'name'>, old: string | undefined): string {
+    return this.dialect.toolName?.(update.rawInput, update.name) ?? (update.kind === 'execute' ? 'commandExecution' : update.kind === 'edit' ? 'fileChange' : old ?? update.kind ?? 'tool')
   }
   // The agent's own requests Antumi answers by asking the user.
   private asked(method: string | undefined): boolean {
@@ -416,7 +416,8 @@ export class AcpDriver implements ChatDriver {
       this.initialized = true
       this.load = init.data.agentCapabilities?.loadSession ?? false
       this.images = init.data.agentCapabilities?.promptCapabilities?.image ?? false
-      this.directories = init.data.agentCapabilities?.sessionCapabilities?.additionalDirectories ?? false
+      // Early agents said true; the protocol now names the capability with an object.
+      this.directories = Boolean(init.data.agentCapabilities?.sessionCapabilities?.additionalDirectories)
       const auth = init.data.authMethods ?? []
       const wanted = this.dialect.authMethod
       this.auth = wanted !== undefined && auth.some((method) => method.id === wanted)
@@ -444,7 +445,7 @@ export class AcpDriver implements ChatDriver {
       if (provider && ref) {
         this.items.notice('warning', provider.detail, at, {
           id: `${this.id('provider')}:${ref}`,
-          action: { kind: 'retryCursorTurn', userItemId: `u:${ref}` }
+          action: { kind: 'retryTurn', userItemId: `u:${ref}` }
         })
       }
     } else {
