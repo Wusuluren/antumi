@@ -1,4 +1,5 @@
 import { setRoutinesOpen, useCore, useRoutinesSupported } from '../core-store'
+import { CountBadge } from './CountBadge'
 import { ClockIcon } from './icons'
 
 // The way to what runs later, at the top of the sidebar beside the overview: the routines, whose
@@ -15,7 +16,7 @@ export function RoutinesEntry() {
     <button type="button" className="inbox-entry sidebar-routines" aria-current={open} onClick={() => setRoutinesOpen(true)}>
       <ClockIcon />
       <span>定时</span>
-      {unread > 0 && <span className="inbox-entry-count" aria-label={`${unread} 次运行未看`}>{unread}</span>}
+      <CountBadge count={unread} aria-label={`${unread} 次运行未看`} />
       {failed > 0 && <span className="inbox-entry-alert" role="img" aria-label={`${failed} 个预约没能开始`} title={`${failed} 个预约没能开始`}>!</span>}
     </button>
   )

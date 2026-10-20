@@ -1,6 +1,7 @@
 import { tasksWaitingOnUser } from '../attention'
 import { selectTask, setNewTaskOpen, useActionableItems, useTaskBoardOpen } from '../core-store'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
+import { CountBadge } from './CountBadge'
 import { BoardIcon, PlusIcon } from './icons'
 
 // The sidebar's way to the task board, which holds every task: the entry counts only the ones held
@@ -14,7 +15,7 @@ export function SidebarTasks() {
         <button type="button" className="inbox-entry" aria-current={open} aria-label={`任务${waiting ? `，${waiting} 个等你处理` : ''}`} onClick={() => selectTask(null)}>
           <BoardIcon />
           <span>任务</span>
-          {waiting > 0 && <span className="inbox-entry-count" title={`${waiting} 个任务等你处理`}>{waiting}</span>}
+          <CountBadge count={waiting} title={`${waiting} 个任务等你处理`} />
         </button>
         <button
           type="button"

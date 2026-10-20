@@ -5024,8 +5024,10 @@ body.side-panel-resizing * {
 }
 
 .inbox-entry-count {
+  position: relative;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--accent);
+  font-variant-numeric: tabular-nums;
 }
 
 .inbox-entry-alert {
@@ -5035,6 +5037,21 @@ body.side-panel-resizing * {
 }
 
 .inbox-entry-count + .inbox-entry-alert { margin-left: 4px; }
+
+/* A count that changed (CountBadge): the new number rises in, fading so it never shows outside
+   the badge, and a rise sends one ring out. */
+.inbox-entry-count-digits { display: block; }
+.inbox-entry-count[data-change] .inbox-entry-count-digits { animation: count-roll 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.inbox-entry-count[data-change='up']::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; animation: count-ring 700ms ease-out forwards; }
+@keyframes count-roll { from { transform: translateY(50%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes count-ring {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  to { box-shadow: 0 0 0 7px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inbox-entry-count[data-change] .inbox-entry-count-digits,
+  .inbox-entry-count[data-change='up']::after { animation: none; }
+}
 
 .inbox-synced {
   margin-right: 4px;

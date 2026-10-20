@@ -1,4 +1,5 @@
 import { setInboxOpen, useCore } from '../core-store'
+import { CountBadge } from './CountBadge'
 import { InboxIcon } from './icons'
 
 // The way to the inbox, at the top of the sidebar beside the overview: an issue may become a task
@@ -18,7 +19,7 @@ export function InboxEntry() {
       <span>收件箱</span>
       {failed
         ? <span className="inbox-entry-alert" aria-hidden="true">!</span>
-        : waiting > 0 && <span className="inbox-entry-count">{waiting}</span>}
+        : <CountBadge count={waiting} />}
     </button>
   )
 }

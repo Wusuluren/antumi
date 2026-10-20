@@ -1,4 +1,5 @@
 import { setOverviewOpen, useOverview, useCore } from '../core-store'
+import { CountBadge } from './CountBadge'
 import { ListIcon } from './icons'
 
 export function OverviewEntry() {
@@ -9,7 +10,7 @@ export function OverviewEntry() {
       aria-label={`总览${count ? `，${count} 项等你处理` : ''}`} onClick={() => setOverviewOpen(true)}>
       <ListIcon />
       <span>总览</span>
-      {count > 0 && <span className="inbox-entry-count">{count}</span>}
+      <CountBadge count={count} />
     </button>
   )
 }
