@@ -5866,7 +5866,7 @@ export const MESSAGES = {
   },
   "RoutinesEntry.scheduled": {
     "zh": "定时",
-    "en": "Scheduled"
+    "en": "Routines"
   },
   "RoutinesEntry.unreadRuns": {
     "zh": "{unread} 次运行未看",
@@ -5962,7 +5962,7 @@ export const MESSAGES = {
   },
   "RoutinesView.scheduledPageContent": {
     "zh": "定时页的内容",
-    "en": "Scheduled page content"
+    "en": "Routines page content"
   },
   "SchedulePicker.waitsIfQuotaOrRunSlotsAreUnavailable": {
     "zh": "额度不足或运行位置已满时会等待；同一个 Agent 的预约一个接一个运行；电脑睡着时不会运行。",
