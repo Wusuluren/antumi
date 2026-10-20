@@ -16,8 +16,9 @@ export const opencode: AgentAdapter = {
   permissionModes: Object.keys(OPENCODE_MODES),
   // Antumi sets the mode over ACP, so a stage always starts in one OpenCode has.
   fallbackMode: 'ask',
-  // A session belongs to its folder: loading it from another is refused.
-  session: { preassignedId: false, folderBound: true, nativeFork: false },
+  // A session belongs to its folder: loading it from another is refused. Its ACP forks a session
+  // whole (session/fork), with no point to stop at.
+  session: { preassignedId: false, folderBound: true, nativeFork: 'latest' },
   // It starts a server of its own and loads its providers' models before it answers.
   startTimeoutMs: 60_000,
   // Its agents allow every tool unless the user's config says otherwise, Antumi's terminal tools

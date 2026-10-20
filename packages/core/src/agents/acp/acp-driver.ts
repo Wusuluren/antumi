@@ -25,7 +25,7 @@ const Opened = Configs.extend({
 })
 const Initialized = z.looseObject({
   protocolVersion: z.union([z.literal(1), z.literal('1')]),
-  agentCapabilities: z.looseObject({ loadSession: z.boolean().optional(), promptCapabilities: z.looseObject({ image: z.boolean().optional() }).optional(), sessionCapabilities: z.looseObject({ additionalDirectories: z.union([z.boolean(), z.looseObject({})]).optional() }).optional() }).optional(),
+  agentCapabilities: z.looseObject({ loadSession: z.boolean().optional(), promptCapabilities: z.looseObject({ image: z.boolean().optional() }).optional(), sessionCapabilities: z.looseObject({ additionalDirectories: z.union([z.boolean(), z.looseObject({})]).optional(), fork: z.unknown().optional() }).optional() }).optional(),
   authMethods: z.array(z.looseObject({ id: z.string() })).optional()
 })
 const Content = z.looseObject({ type: z.string(), text: z.string().optional(), data: z.string().optional() })
@@ -40,6 +40,8 @@ const Questions = z.looseObject({ title: z.string().optional(), toolCallId: z.st
 const Plan = z.looseObject({ toolCallId: z.string(), plan: z.string(), name: z.string().optional(), overview: z.string().optional() })
 const Prompt = z.looseObject({ sessionId: z.string(), prompt: z.array(Content) })
 const keyOf = (id: string | number) => `${typeof id}:${id}`
+// The requests that open the session a stage works in.
+const OPENING: ReadonlySet<string> = new Set(['session/new', 'session/load', 'session/fork'])
 const rpc = (id: string | number, method: string, params: unknown) => ({ jsonrpc: '2.0', id, method, params })
 const result = (id: string | number, body: unknown) => ({ jsonrpc: '2.0', id, result: body })
 // A subagent the agent forwards (an extension, AcpDialect.subagentCall): announced on its parent's
@@ -82,6 +84,7 @@ export class AcpDriver implements ChatDriver {
   private load = false
   private images = false
   private directories = false
+  private forks = false
   private session: string | null = null
   private exited = false
   private startError: string | null = null
@@ -161,9 +164,12 @@ export class AcpDriver implements ChatDriver {
     const models = this.modelsSent || !listing ? [] : [rpc(this.id('models'), listing.method, {})]
     if (this.catalogOnly) return this.modelsRead ? frames : [...frames, ...models]
     if (!this.sessionSent) {
-      if (this.options.resume && !this.load) { this.startError = `此 ${this.name} CLI 不支持恢复会话，请升级`; return frames }
+      // A fork takes the session over whole: core asks for one only where that is the fork point.
+      const forking = Boolean(this.options.resume && this.options.fork)
+      if (forking && !this.forks) { this.startError = `此 ${this.name} CLI 不支持分叉会话，请升级`; return frames }
+      if (this.options.resume && !forking && !this.load) { this.startError = `此 ${this.name} CLI 不支持恢复会话，请升级`; return frames }
       const mcp = this.options.mcp
-      return [...frames, rpc(this.id('session'), this.options.resume ? 'session/load' : 'session/new', {
+      return [...frames, rpc(this.id('session'), forking ? 'session/fork' : this.options.resume ? 'session/load' : 'session/new', {
         cwd: this.options.cwd,
         ...(this.options.resume ? { sessionId: this.options.resume } : {}),
         // Only where the agent says it takes them; one that does not is given them otherwise, as
@@ -191,7 +197,7 @@ export class AcpDriver implements ChatDriver {
     const parsed = Frame.safeParse(frame)
     if (!parsed.success) return null
     const { method, id } = parsed.data
-    if (dir === 'out') return method === 'session/prompt' ? 'prompt' : method === 'session/load' ? 'session-load' : method === 'session/new' ? 'session-new' : method === 'session/cancel' ? 'cancel' : null
+    if (dir === 'out') return method === 'session/prompt' ? 'prompt' : method === 'session/load' ? 'session-load' : method === 'session/new' || method === 'session/fork' ? 'session-new' : method === 'session/cancel' ? 'cancel' : null
     // Updates, the agent's own requests, and the answer to the prompt itself.
     return method === 'session/update' || (method !== undefined && id !== undefined) || (id !== undefined && String(id).startsWith(this.id('prompt-'))) ? 'turn' : null
   }
@@ -329,7 +335,7 @@ export class AcpDriver implements ChatDriver {
       if (frame.method === 'initialize') this.initSent = true
       else if (frame.method === 'authenticate') this.authSent = true
       else if (frame.method === this.dialect.models?.method) this.modelsSent = true
-      else if (frame.method === 'session/new' || frame.method === 'session/load') this.sessionSent = true
+      else if (OPENING.has(frame.method)) this.sessionSent = true
       else if (frame.method === 'session/cancel') { this.stopping = true; this.execution = null }
       else if (frame.method === 'session/prompt' && frame.id !== undefined) {
         const prompt = Prompt.safeParse(frame.params)
@@ -402,7 +408,7 @@ export class AcpDriver implements ChatDriver {
     if (frame.error) {
       if (['session/set_config_option', 'session/set_mode', 'session/set_model'].includes(request.method)) this.optionErrors.set(id, frame.error.message)
       if (request.method === 'session/prompt') this.finish(this.stopping ? 'interrupted' : 'failed', frame.error.message, at)
-      else if (!this.setup || String(frame.id).startsWith(this.id('initial-')) || request.method === 'session/new' || request.method === 'session/load') {
+      else if (!this.setup || String(frame.id).startsWith(this.id('initial-')) || OPENING.has(request.method)) {
         const detail = errorDetail(frame.error.data)
         this.startError = `${request.method}: ${detail ?? frame.error.message}`
         this.lost = request.method === 'session/load' && /not found/i.test(detail ?? frame.error.message)
@@ -418,15 +424,17 @@ export class AcpDriver implements ChatDriver {
       this.images = init.data.agentCapabilities?.promptCapabilities?.image ?? false
       // Early agents said true; the protocol now names the capability with an object.
       this.directories = Boolean(init.data.agentCapabilities?.sessionCapabilities?.additionalDirectories)
+      this.forks = Boolean(init.data.agentCapabilities?.sessionCapabilities?.fork)
       const auth = init.data.authMethods ?? []
       const wanted = this.dialect.authMethod
       this.auth = wanted !== undefined && auth.some((method) => method.id === wanted)
       if (wanted && auth.length && !this.auth) this.startError = `${this.name} 没有提供 ${wanted} 认证方式，请在终端登录后重试`
     } else if (request.method === 'authenticate') this.authenticated = true
-    else if (request.method === 'session/new' || request.method === 'session/load') {
+    else if (OPENING.has(request.method)) {
       const opened = Opened.safeParse(frame.result ?? {})
       if (!opened.success) { this.startError = `${this.name} 返回了无效的会话信息`; return }
-      this.session = opened.data.sessionId ?? this.options.resume
+      // A loaded session goes on under its id; a new or forked one is named in the answer.
+      this.session = opened.data.sessionId ?? (request.method === 'session/load' ? this.options.resume : null)
       if (!this.session) { this.startError = `${this.name} 没有返回会话 ID`; return }
       this.catalog(opened.data)
       this.setup = true

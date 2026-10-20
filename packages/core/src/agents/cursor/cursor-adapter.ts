@@ -20,7 +20,7 @@ export const cursor: AgentAdapter = {
   permissionModes: Object.keys(CURSOR_MODES),
   // Antumi sets the mode over ACP, so a stage always starts in one Cursor has.
   fallbackMode: 'ask',
-  session: { preassignedId: false, folderBound: true, nativeFork: false },
+  session: { preassignedId: false, folderBound: true, nativeFork: 'none' },
   // Its CLI starts cold and loads the session before it answers.
   startTimeoutMs: 60_000,
   mcpApproval: 'agent',

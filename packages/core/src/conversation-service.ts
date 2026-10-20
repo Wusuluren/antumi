@@ -6,7 +6,7 @@ import type { DaemonEvent, SessionInfo } from '@antumi/protocol/node'
 import { canReuseConversation, type ConversationConfiguration, type TaskLaunchOptions } from '@antumi/protocol'
 import type { RunMeasure } from './agent-run-store'
 import type { AttachmentStore } from './attachment-store'
-import type { ChatAnswer, StageMessage } from './chat-driver'
+import { WHOLE_SESSION_FORK, type ChatAnswer, type StageMessage } from './chat-driver'
 import { catalogOf, probeChatCatalog } from './chat-catalog'
 import { ChatHost, type ChatStage } from './chat-host'
 import { ChatLog } from './chat-log'
@@ -76,7 +76,8 @@ export type TaskChatLaunch = TaskLaunchOptions & {
 type StageLaunch = { fresh?: boolean; moved?: boolean; planOnly?: boolean; readable?: readonly string[]; fork?: ForkPoint; opening?: string; brief?: string }
 // The provider session another conversation's stage ran, taken over through the turn `at` names;
 // neither null means a session the agent can fork, else the fork starts afresh.
-type ForkPoint = { providerSessionId: string | null; at: string | null }
+// latest: the point is the last the agent's session holds, so the session forked whole is the same.
+type ForkPoint = { providerSessionId: string | null; at: string | null; latest: boolean }
 
 // A chat page stops adding older stages once it holds this many items.
 const CHAT_PAGE_ITEMS = 1000
@@ -804,7 +805,12 @@ export class ConversationService {
     // The agent whose session is forked goes on; one that has never spoken here is the source's.
     const agent = sessionStage?.agent ?? source.agent
     if (!this.capacityAvailable(agent)) throw new Rejection('agent-capacity')
-    const fork: ForkPoint = { providerSessionId: sessionStage?.providerSessionId ?? null, at: earlier?.kind === 'turn' ? earlier.providerRef ?? null : null }
+    const providerSessionId = sessionStage?.providerSessionId ?? null
+    // Nothing the user said after the point, here or in a later stage of the same session.
+    const said = (each: readonly ChatItem[]) => each.some((item) => item.kind === 'user')
+    const latest = !before && turn !== undefined && providerSessionId !== null && !said(items.slice(kept.length)) &&
+      stages.slice(index + 1).every((stage) => stage.providerSessionId !== providerSessionId || !said(this.chats.items(this.chatStage(source, stage))))
+    const fork: ForkPoint = { providerSessionId, at: earlier?.kind === 'turn' ? earlier.providerRef ?? null : null, latest }
     // A fork of a Claude session must run in the folder the session ran in: the same projects, or
     // the source's own managed workspace, shared from now on (remove() leaves a workspace in place).
     const id = randomUUID()
@@ -900,11 +906,13 @@ export class ConversationService {
   }
 
   // The first stage of a fork: the source's session taken over through the fork point, where the
-  // agent can (Claude's session from the same folder, Codex's thread), else a fresh start. The chat
-  // it continues is already copied, so no handoff file is written.
+  // agent can (Claude's session from the same folder, Codex's thread), or whole where the point is
+  // its latest turn and it forks only whole (OpenCode); else a fresh start. The chat it continues
+  // is already copied, so no handoff file is written.
   private async startFork(current: Conversation, agent: AgentKind, fork: ForkPoint): Promise<Conversation> {
     const { session } = adapterOf(agent)
-    const native = session.nativeFork && fork.providerSessionId !== null && fork.at !== null
+    const whole = session.nativeFork === 'latest' && fork.latest
+    const native = fork.providerSessionId !== null && (whole || (session.nativeFork === 'any' && fork.at !== null))
     const providerSessionId = native ? fork.providerSessionId : session.preassignedId ? randomUUID() : null
     // Without a session to fork, the copied chat reaches the agent the way a handoff does.
     let handoffPath: string | null = null
@@ -916,7 +924,7 @@ export class ConversationService {
       await writeFile(handoffPath, buildHandoff(current, messages, '', agent, agent), { mode: 0o600 })
     }
     const stage = this.store.startStage(current.id, agent, providerSessionId, this.store.maxSequence(current.id), randomUUID(), false)
-    return this.startChat(current, stage, native, handoffPath === null ? null : { path: handoffPath, note: '' }, [], native ? fork.at : null)
+    return this.startChat(current, stage, native, handoffPath === null ? null : { path: handoffPath, note: '' }, [], whole ? WHOLE_SESSION_FORK : native ? fork.at : null)
   }
 
   // Runs the stage's agent over stdio, driven by the chat host, and waits until it can take a message.

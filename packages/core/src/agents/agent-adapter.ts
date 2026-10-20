@@ -66,8 +66,9 @@ export interface AgentAdapter {
     preassignedId: boolean
     // Its sessions belong to the folder they ran in: moved elsewhere, it starts afresh from a handoff.
     folderBound: boolean
-    // It takes its own session over through a fork point; otherwise a fork starts from a handoff.
-    nativeFork: boolean
+    // How it takes its own session over in a fork: at any turn (a fork point), only whole (so only
+    // from the latest turn), or not at all. Where it cannot, the fork starts from a handoff.
+    nativeFork: 'any' | 'latest' | 'none'
   }
   // How long its handshake may take, where the host's own wait is too short.
   readonly startTimeoutMs?: number

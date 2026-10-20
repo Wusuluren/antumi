@@ -55,6 +55,10 @@ export type ChatOutgoing = { wire: unknown; logged: unknown }
 export type ChatAnswer = { decision: ChatDecision; choice?: string; mode?: ChatPermissionMode; message?: string; answers?: Record<string, string[]>; saved?: boolean }
 
 // Where and how a chat stage's agent works; the driver speaks for Antumi within these bounds.
+// A fork of the whole session, for an agent whose fork takes no point to stop at: core asks for
+// one only where the point is the session's latest turn (AgentAdapter.session.nativeFork).
+export const WHOLE_SESSION_FORK = 'whole-session'
+
 export type ChatStageOptions = {
   cwd: string
   mcp?: McpServer
@@ -64,8 +68,9 @@ export type ChatStageOptions = {
   extraDirs: readonly string[]
   // The provider session (Claude session, Codex thread) to continue, if any.
   resume: string | null
-  // Where to stop taking `resume` over: the providerRef of the last turn to keep. The agent then
-  // works in a session of its own from there, and the one resumed stays as it was.
+  // Where to stop taking `resume` over: the providerRef of the last turn to keep, or
+  // WHOLE_SESSION_FORK for an agent that forks a session only whole. The agent then works in a
+  // session of its own from there, and the one resumed stays as it was.
   fork?: string | null
   // Whether the user lets this conversation run with nothing asked and nothing sandboxed.
   allowBypass?: boolean
