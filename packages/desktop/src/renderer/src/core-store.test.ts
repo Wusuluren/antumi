@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { Task, createRpcClient, type Conversation, type RpcConnection } from '@antumi/protocol'
 import { actionableItems } from './attention'
 import {
-  openAttentionItem, openConversationDraft, selectConversation, selectTask, setOverviewOpen, setOverviewFilter, setOverviewScroll, setOverviewView, setRoutinesOpen,
+  openAttentionItem, openConversationDraft, selectConversation, selectTask, openOverview, setOverviewFilter, setOverviewScroll, setOverviewView, setRoutinesOpen,
   refreshAttentionSummaries, setInboxOpen, setTaskStarting, openChatWhileStarting, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, useCore,
-  clearInspectorFile, installAgentCli, showConversationChanges, showInspectorFile, showTaskChanges
+  clearInspectorFile, closeConversationDraft, closeDiscussionDraft, installAgentCli, openDiscussionDraft, showConversationChanges, showInspectorFile, showTaskChanges
 } from './core-store'
 import { conversationSurface } from './components/chat-surface'
 
@@ -94,7 +94,7 @@ describe('overview navigation', () => {
     setOverviewFilter('mine')
     setOverviewScroll(240)
     selectConversation('chat')
-    setOverviewOpen(true)
+    openOverview()
     expect(useCore.getState()).toMatchObject({ overviewOpen: true, overviewFilter: 'mine', overviewScroll: 240 })
     setOverviewFilter(null)
     expect(useCore.getState().overviewScroll).toBe(0)
@@ -106,20 +106,20 @@ describe('overview navigation', () => {
     setOverviewView('stats')
     expect(useCore.getState()).toMatchObject({ overviewView: 'stats', overviewScroll: 0 })
     selectTask('task')
-    setOverviewOpen(true)
+    openOverview()
     expect(useCore.getState().overviewView).toBe('stats')
   })
 
   it('opens reservations as a tab of the routines, and the page on the tab it was left on', () => {
     setSchedulesOpen(true)
     expect(useCore.getState()).toMatchObject({ routinesOpen: true, routinesTab: 'schedules', overviewOpen: false })
-    setOverviewOpen(true)
+    openOverview()
     setRoutinesOpen(true)
     expect(useCore.getState()).toMatchObject({ routinesOpen: true, routinesTab: 'schedules' })
     setRoutinesOpen(true, 'routines')
     expect(useCore.getState().routinesTab).toBe('routines')
     setSchedulesOpen(false)
-    expect(useCore.getState().routinesOpen).toBe(false)
+    expect(useCore.getState()).toMatchObject({ routinesOpen: false, overviewOpen: true })
   })
 
   it('closes every other main page when the aggregate opens', () => {
@@ -127,7 +127,7 @@ describe('overview navigation', () => {
       selectedId: 'task', selectedConversationId: 'chat', section: 'conversations', conversationDraft: true,
       settingsOpen: true, routinesOpen: true, worktreesOpen: true, inboxOpen: true
     })
-    setOverviewOpen(true)
+    openOverview()
     expect(useCore.getState()).toMatchObject({
       overviewOpen: true, selectedId: null, selectedConversationId: null, section: 'tasks', conversationDraft: false,
       settingsOpen: false, routinesOpen: false, worktreesOpen: false, inboxOpen: false
@@ -140,14 +140,14 @@ describe('overview navigation', () => {
     ['schedules', () => setSchedulesOpen(true)],
     ['worktrees', () => setWorktreesOpen(true)]
   ])('closes the aggregate when opening %s', (_label, open) => {
-    setOverviewOpen(true)
+    openOverview()
     open()
     expect(useCore.getState().overviewOpen).toBe(false)
   })
 
   it.each([
     ['task', () => selectTask('task')], ['conversation', () => selectConversation('chat')],
-    ['draft', openConversationDraft], ['overview', () => setOverviewOpen(true)],
+    ['draft', openConversationDraft], ['overview', () => openOverview()],
     ['schedules', () => setSchedulesOpen(true)],
     ['worktrees', () => setWorktreesOpen(true)]
   ])('closes the inbox, a page of its own, when opening %s', (_label, open) => {
@@ -157,12 +157,33 @@ describe('overview navigation', () => {
     expect(useCore.getState().inboxOpen).toBe(false)
   })
 
+  it.each([
+    ['inbox', () => setInboxOpen(true), () => setInboxOpen(false)],
+    ['routines', () => setRoutinesOpen(true), () => setRoutinesOpen(false)],
+    ['schedules', () => setSchedulesOpen(true), () => setSchedulesOpen(false)],
+    ['worktrees', () => setWorktreesOpen(true), () => setWorktreesOpen(false)],
+    ['conversation draft', () => openConversationDraft(), closeConversationDraft],
+    ['group chat draft', () => openDiscussionDraft(), closeDiscussionDraft]
+  ])('falls back to the overview when %s closes', (_label, open, close) => {
+    selectConversation('chat')
+    open()
+    close()
+    expect(useCore.getState()).toMatchObject({ overviewOpen: true, section: 'tasks', selectedConversationId: null })
+  })
+
+  it('goes back to the task board, not the overview, when a task closes', () => {
+    useCore.setState({ tasks: { task }, conversations: { chat } })
+    selectTask('task')
+    selectTask(null)
+    expect(useCore.getState()).toMatchObject({ overviewOpen: false, section: 'tasks', selectedId: null })
+  })
+
   it('opens the task chat and changes inspector for review, without resolving any reason', () => {
     useCore.setState({ tasks: { task }, conversations: { chat }, taskInspectorTab: 'plan' })
     const items = actionableItems(useCore.getState())
     const item = items[0]
     if (!item) throw new Error('expected a review item')
-    setOverviewOpen(true)
+    openOverview()
     openAttentionItem(item)
     expect(useCore.getState()).toMatchObject({ overviewOpen: false, selectedId: task.id, view: 'chat', inspectorOpen: true, taskInspectorTab: 'changes' })
     expect(actionableItems(useCore.getState())).toEqual(items)
@@ -179,7 +200,7 @@ describe('overview navigation', () => {
     useCore.setState({ tasks: {}, conversations: { chat: free }, unseen: { chat: true } })
     const item = actionableItems(useCore.getState())[0]
     if (!item) throw new Error('expected an approval item')
-    setOverviewOpen(true)
+    openOverview()
     openAttentionItem(item)
     expect(useCore.getState()).toMatchObject({ section: 'conversations', selectedConversationId: 'chat', overviewOpen: false, unseen: {} })
     expect(actionableItems(useCore.getState())).toEqual([item])
@@ -188,7 +209,7 @@ describe('overview navigation', () => {
   it('does not navigate to a task deleted or finished since its row rendered', () => {
     const item = actionableItems({ tasks: { task }, conversations: {} })[0]
     if (!item) throw new Error('expected a review item')
-    setOverviewOpen(true)
+    openOverview()
     openAttentionItem(item)
     expect(useCore.getState().overviewOpen).toBe(true)
     useCore.setState({ tasks: { task: { ...task, status: 'done' } } })

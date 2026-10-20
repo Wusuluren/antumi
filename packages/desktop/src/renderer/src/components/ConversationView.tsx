@@ -1,7 +1,7 @@
 import { useHelper, useHelperSupported } from '../helper-conversations'
 import { useCallback, useEffect, useState, type DragEvent } from 'react'
 import { usePlans } from '../chat-state'
-import { markRoutineRunSeen, openBeside, selectConversation, selectDiscussion, setConversationInspectorOpen, setRoutinesOpen, useCore, useWireLogShown } from '../core-store'
+import { markRoutineRunSeen, openBeside, openOverview, selectConversation, selectDiscussion, setConversationInspectorOpen, setRoutinesOpen, useCore, useWireLogShown } from '../core-store'
 import { conversationState } from '../conversation-state'
 import { agentLabel } from '../labels'
 import { primaryProjectName } from './ProjectPicker'
@@ -169,7 +169,7 @@ export function ConversationView({ id, pane }: { id: string; pane?: Conversation
         <span className="toolbar-separator" aria-hidden="true" />
         {pane
           ? <button type="button" className="tool-button" aria-label="关闭这一列" data-tooltip="关闭这一列" onClick={pane.onClose}><CloseIcon /></button>
-          : <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => selectConversation(null)}><CloseIcon /></button>}
+          : <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={openOverview}><CloseIcon /></button>}
       </div>
     </header>
     <div className="terminal-body">

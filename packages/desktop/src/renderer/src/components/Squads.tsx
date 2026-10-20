@@ -1,7 +1,7 @@
 import { useId, useState, type ReactNode } from 'react'
 import { AgentKind, SquadFields, type Squad, type SquadMember } from '@antumi/protocol'
 import { useAgentCatalog } from '../agent-models'
-import { perform, selectSquad, useCore, useSquadsSupported } from '../core-store'
+import { openOverview, perform, selectSquad, useCore, useSquadsSupported } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
 import { saveSquad } from '../squads'
@@ -322,7 +322,7 @@ function PageHeader({ title, description, back, actions = null }: { title: strin
         {description && <p className="muted">{description}</p>}
       </div>
       {actions}
-      <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => useCore.setState({ section: 'tasks', selectedSquadId: null, squadDraft: false })}><CloseIcon /></button>
+      <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={openOverview}><CloseIcon /></button>
     </header>
   )
 }

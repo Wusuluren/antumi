@@ -616,7 +616,7 @@ export function useSourceInvestigateSupported(): boolean {
 }
 
 export function closeConversationDraft(): void {
-  useCore.setState({ conversationDraft: false })
+  openOverview()
 }
 
 const PAGES_CLOSED = { settingsOpen: false, worktreesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false } as const
@@ -639,7 +639,7 @@ export function openDiscussionDraft(from?: Discussion): void {
 }
 
 export function closeDiscussionDraft(): void {
-  useCore.setState({ discussionDraft: false })
+  openOverview()
 }
 
 // Whether core runs group chats (discussions.*).
@@ -711,7 +711,7 @@ export function setInboxOpen(open: boolean): void {
         routinesOpen: false,
         overviewOpen: false
       }
-    : { inboxOpen: false })
+    : OVERVIEW)
 }
 
 export function setInboxTab(key: string): void {
@@ -750,13 +750,12 @@ export function setSettingsOpen(open: boolean, section: string | null = null): v
 }
 
 export function setWorktreesOpen(open: boolean): void {
-  useCore.setState({ worktreesOpen: open, routinesOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
+  useCore.setState(open ? { worktreesOpen: true, routinesOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false } : OVERVIEW)
 }
 
 // The reservations are a tab of the routines' page: what runs once, beside what runs again.
 export function setSchedulesOpen(open: boolean): void {
-  if (open) setRoutinesOpen(true, 'schedules')
-  else useCore.setState({ routinesOpen: false })
+  setRoutinesOpen(open, 'schedules')
 }
 
 // Without a tab, the page opens on the one it was left on.
@@ -765,17 +764,23 @@ export function openUsageCard(agent: AgentKind | null): void {
 }
 
 export function setRoutinesOpen(open: boolean, tab?: RoutinesTab): void {
-  useCore.setState({ routinesOpen: open, ...(tab ? { routinesTab: tab } : {}), worktreesOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
+  if (!open) return openOverview()
+  useCore.setState({ routinesOpen: true, ...(tab ? { routinesTab: tab } : {}), worktreesOpen: false, overviewOpen: false, inboxOpen: false, settingsOpen: false })
 }
 
 export function useSchedulesOpen(): boolean {
   return useCore((s) => s.routinesOpen && s.routinesTab === 'schedules')
 }
 
-export function setOverviewOpen(open: boolean): void {
-  useCore.setState(open
-    ? { overviewOpen: true, section: 'tasks', selectedId: null, selectedConversationId: null, conversationDraft: false, inboxOpen: false, worktreesOpen: false, routinesOpen: false, settingsOpen: false }
-    : { overviewOpen: false })
+// The overview has no close of its own: it is what every other page leaves behind when it closes,
+// but a task, which goes back to the task board.
+const OVERVIEW = {
+  overviewOpen: true, section: 'tasks', selectedId: null, selectedConversationId: null, conversationDraft: false, discussionDraft: false,
+  squadDraft: false, inboxOpen: false, worktreesOpen: false, routinesOpen: false, settingsOpen: false
+} as const
+
+export function openOverview(): void {
+  useCore.setState(OVERVIEW)
 }
 
 export function useActionableItems(): ActionableItem[] {
@@ -1278,7 +1283,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
           terminals,
           activeTerminalId: activeAmong(s.activeTerminalId, terminals),
           terminalCommands,
-          inboxOpen: s.inboxOpen && inboxes.some((inbox) => inbox.active)
+          ...(s.inboxOpen && !inboxes.some((inbox) => inbox.active) ? OVERVIEW : {})
         }))
         initialized = true
         taskChanges.clear()

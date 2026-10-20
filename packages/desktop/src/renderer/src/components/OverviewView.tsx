@@ -3,7 +3,7 @@ import type { ChatDecision } from '@antumi/protocol'
 import { quickApproval, type ActionableItem } from '../attention'
 import {
   openAttentionItem, perform, refreshAttentionSummaries, selectConversation, selectTask, setConversationInspectorOpen,
-  setConversationInspectorTab, setInspectorOpen, setOverviewFilter, setOverviewOpen, setOverviewScroll, setOverviewView, setRoutinesOpen,
+  setConversationInspectorTab, setInspectorOpen, setOverviewFilter, setOverviewScroll, setOverviewView, setRoutinesOpen,
   setSchedulesOpen, setTaskInspectorTab, showView, useDashboardSupported, useOverview, useCore, type OverviewFilter
 } from '../core-store'
 import { DashboardPanel } from './DashboardPanel'
@@ -19,7 +19,7 @@ import { primaryProjectName } from './ProjectPicker'
 import { conversationActivity, latestSquadRun, taskActivity, type WorkActivity } from '../work-activity'
 import { SchedulePicker } from './SchedulePicker'
 import { WorkingSummary } from './WorkingSummary'
-import { AgentIcon, BoardIcon, ChatIcon, ClockIcon, CloseIcon, RefreshIcon, SquadIcon } from './icons'
+import { AgentIcon, BoardIcon, ChatIcon, ClockIcon, RefreshIcon, SquadIcon } from './icons'
 
 const KIND_ICON = { task: BoardIcon, conversation: ChatIcon, squad: SquadIcon, routine: RefreshIcon, schedule: ClockIcon }
 const KIND_LABEL = { task: '任务', conversation: '会话', squad: '研发小队', routine: '定时任务', schedule: '预约' }
@@ -406,7 +406,6 @@ export function OverviewView() {
           }} />
           <span id="overview-pane" hidden>总览的内容</span>
         </>}
-        <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => setOverviewOpen(false)}><CloseIcon /></button>
       </header>
       {pane === 'stats' ? <DashboardPanel /> : <>
       {!connected && <p className="attention-notice muted" role="status">尚未连接到 core，事项尚未更新。{!empty ? '以下为最近收到的信息。' : '连接后将显示工作总览。'}</p>}

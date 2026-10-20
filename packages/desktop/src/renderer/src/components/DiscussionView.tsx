@@ -1,7 +1,7 @@
 import { useChatTypeface } from '../chat-typeface'
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { checkDiscussionAction, checkEditDiscussionProjects, checkNewDiscussionTopic, checkRemoveDiscussionMember, currentTopic, MAX_DETAILS_LENGTH, memberLetter, type Discussion, type DiscussionAction, type DiscussionMember, type DiscussionPost } from '@antumi/protocol'
-import { loadConversation, openDiscussionDraft, perform, selectConversation, selectDiscussion, selectTask, useCore, useDiscussionMembersSupported, useDiscussionProjectsSupported, useDiscussionTopicsSupported } from '../core-store'
+import { loadConversation, openDiscussionDraft, openOverview, perform, selectConversation, selectDiscussion, selectTask, useCore, useDiscussionMembersSupported, useDiscussionProjectsSupported, useDiscussionTopicsSupported } from '../core-store'
 import { archiveDiscussion, controlDiscussion, discussionProgress, EVERYONE, loadDiscussionPosts, newDiscussionTopic, removeDiscussionMember, setDiscussionProjects, MEMBER_STATUS_LABEL, mentionedMembers, postToDiscussion, renameDiscussion, useDiscussionPosts } from '../discussions'
 import { agentLabel, messageTime, reasonText } from '../labels'
 import { setPreference, usePreferences } from '../preferences'
@@ -376,7 +376,7 @@ export function DiscussionView({ id }: { id: string }) {
             同成员新群聊
           </button>
           <span className="toolbar-separator" aria-hidden="true" />
-          <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={() => selectDiscussion(null)}><CloseIcon /></button>
+          <button type="button" className="tool-button" aria-label="关闭" data-tooltip="关闭" onClick={openOverview}><CloseIcon /></button>
         </div>
       </header>
       <div className="terminal-body">
