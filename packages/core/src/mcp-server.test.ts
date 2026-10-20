@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { checkPreviewFile, createMcpHandler } from './mcp-server'
+import { checkPreviewFile, conversationToolLimits, createMcpHandler } from './mcp-server'
 
 const frame = (method: string, params?: unknown) => JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
 const notification = (method: string) => JSON.stringify({ jsonrpc: '2.0', method })
@@ -26,6 +26,12 @@ describe('antumi MCP server', () => {
     }
     await readOnly(frame('initialize'))
     expect(initialized).toBe(true)
+  })
+
+  it('gives a group chat member only read-only tools and no to-dos', () => {
+    expect(conversationToolLimits({ discussionId: 'group' })).toEqual({ readOnly: true, todos: false })
+    expect(conversationToolLimits({ workspaceReadOnly: true })).toEqual({ readOnly: true, todos: true })
+    expect(conversationToolLimits({})).toEqual({ readOnly: false, todos: true })
   })
 
   it('answers the handshake with the client version and a tools capability', async () => {

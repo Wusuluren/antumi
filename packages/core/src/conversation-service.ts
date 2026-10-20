@@ -946,7 +946,7 @@ export class ConversationService {
       ...(this.mcp ? { mcp: this.mcp(id) } : {}),
       ...(userMcp.length ? { userMcp } : {}),
       ...(this.userBrowser === undefined ? {} : { userBrowser: this.userBrowser }),
-      todos: this.userTodos,
+      todos: this.userTodos && !current.discussionId,
       ...(knowledgeBase ? { knowledgeBase } : {}),
       ...(skills ? { skills } : {})
     })
@@ -1028,7 +1028,7 @@ export class ConversationService {
         promptSuggestions: this.promptSuggestions,
         preferred: { permissionMode, ...chosen[stage.agent] },
         keepImage: (data) => this.keepImage(data),
-        todos: this.userTodos,
+        todos: this.userTodos && !conversation.discussionId,
         ...(knowledgeBase ? { knowledgeBase } : {}),
         ...(userMcp.length ? { userMcp } : {})
       }

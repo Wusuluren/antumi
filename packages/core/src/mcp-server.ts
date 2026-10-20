@@ -4,7 +4,7 @@ import readline from 'node:readline'
 import { stat } from 'node:fs/promises'
 import { extname, isAbsolute } from 'node:path'
 import { z } from 'zod'
-import { connectRpc, coreUrl, isPreviewImage, PREVIEW_EXTENSIONS, SHOW_PREVIEW_TOOL, type RpcConnection } from '@antumi/protocol'
+import { connectRpc, coreUrl, isPreviewImage, PREVIEW_EXTENSIONS, SHOW_PREVIEW_TOOL, type Conversation, type RpcConnection } from '@antumi/protocol'
 import { readCoreEndpoint, antumiPaths } from '@antumi/protocol/node'
 import { AttachmentStore } from './attachment-store'
 import { BROWSER_ARGUMENTS, BROWSER_TOOL_SPECS, browserToolsOverCore, type BrowserTools, type ToolOutcome } from './mcp-browser-tools'
@@ -210,6 +210,13 @@ export async function checkPreviewFile(path: string): Promise<void> {
   if (!info?.isFile()) throw new Error(`文件不存在：${path}`)
 }
 
+// A group chat member only talks: like a read-only workspace it gets no tool that acts, and no to-dos,
+// since its findings go to the group's summary, not onto a list of the user's.
+export function conversationToolLimits(conversation: Pick<Conversation, 'workspaceReadOnly' | 'discussionId'>): { readOnly: boolean; todos: boolean } {
+  const member = Boolean(conversation.discussionId)
+  return { readOnly: Boolean(conversation.workspaceReadOnly) || member, todos: !member }
+}
+
 // A server started for a conversation has the browser tools, acting for that conversation alone;
 // one without has the preview tool alone. `history` adds the tools that read the user's history.
 // Each call connects anew, so a core restart between calls is harmless.
@@ -229,7 +236,7 @@ export async function serveMcp(home: string | undefined, conversationId?: string
   const scope = conversationId ? await withCore(async (rpc) => {
     const conversation = await rpc.call('conversations.get', { id: conversationId })
     const run = rpc.features.includes('squads') ? await rpc.call('squads.roster', { id: conversationId }) : null
-    return { readOnly: conversation.workspaceReadOnly ?? false, run }
+    return { ...conversationToolLimits(conversation), run }
   }) : null
   const handle = createMcpHandler({
     planOnly: planOnly || scope?.readOnly,
@@ -239,7 +246,7 @@ export async function serveMcp(home: string | undefined, conversationId?: string
     ...(conversationId ? {
       browser: browserToolsOverCore(withCore, conversationId, new AttachmentStore(antumiPaths(home).attachments)),
       terminal: terminalToolsOverCore(withCore, conversationId),
-      ...(todos ? { todo: todoToolsOverCore(withCore, conversationId) } : {})
+      ...(todos && scope?.todos !== false ? { todo: todoToolsOverCore(withCore, conversationId) } : {})
     } : {}),
     ...(history ? { history: historyToolsOverCore(withCore, conversationId ?? null) } : {})
   })
