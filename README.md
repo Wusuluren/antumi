@@ -59,7 +59,7 @@
 
 ### 定时与预约
 
-在侧栏「定时」里让 Claude Code 或 Codex 按每天、工作日或每周执行工作；输入框旁的时钟按钮能把这条消息预约到指定时间或额度恢复后，任务和计划批准也能预约。定时任务可自动选择有额度的 Agent；电脑需保持唤醒，Cursor 暂不支持。
+在侧栏「定时」里让 Claude Code、Codex 或 OpenCode 按每天、工作日或每周执行工作；输入框旁的时钟按钮能把这条消息预约到指定时间或额度恢复后，任务和计划批准也能预约。定时任务可自动选择有额度的 Agent；无人值守时 Agent 问的事由 Antumi 按模式代答，不会停下来等你。电脑需保持唤醒，Cursor 暂不支持。
 
 <img src="docs/assets/features/schedule.webp" alt="定时与预约演示：打开侧栏「定时」和「预约」，再用输入框旁的时钟预约发送消息" width="100%" />
 
@@ -104,7 +104,7 @@ Antumi 驱动的是你已经装好、登录好的 Agent CLI。
 | [**Claude Code**](https://github.com/anthropics/claude-code) | `claude -p`（stream-json） | 逐项确认 · 自动接受编辑 · 规划 · 自动判断 | ✓ | ✓ | ✓ |
 | [**Codex**](https://github.com/openai/codex) | `codex app-server` | 逐项确认 · 自动 · 规划 · 只读 | ✓ | ✓ | ✓ |
 | [**Cursor**](https://cursor.com/cli) | `cursor-agent acp` | Agent · Plan · Ask | ✓ | ✓ | — |
-| [**OpenCode**](https://opencode.ai) | `opencode acp` | Build · Plan · 只读 | — | ✓ | — |
+| [**OpenCode**](https://opencode.ai) | `opencode acp` | Build · 自动 · Plan · 只读 | — | ✓ | ✓ |
 
 「全部放行」不会默认选中。设置 → 本机 Agent 还会列出 Antumi 认识、但尚未接入的 Agent CLI。
 

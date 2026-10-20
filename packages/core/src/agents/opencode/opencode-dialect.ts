@@ -1,6 +1,6 @@
 import { RESERVED_MCP_SERVER_NAME } from '@antumi/protocol'
 import type { AcpDialect } from '../acp/acp-dialect'
-import { OPENCODE_READ_ONLY_AGENT } from './opencode-config'
+import { OPENCODE_AUTO_AGENT, OPENCODE_BYPASS_AGENT, OPENCODE_READ_ONLY_AGENT } from './opencode-config'
 
 const MCP_PREFIX = `${RESERVED_MCP_SERVER_NAME}_`
 // Its tools whose ACP kind already names them (execute, edit, read, search, fetch).
@@ -11,7 +11,7 @@ const BUILT_IN_BY_KIND: ReadonlySet<string> = new Set(['shell', 'bash', 'edit', 
 export const opencodeDialect: AcpDialect = {
   name: 'OpenCode',
   idPrefix: 'opencode',
-  modes: { ask: 'build', plan: 'plan', readOnly: OPENCODE_READ_ONLY_AGENT },
+  modes: { ask: 'build', acceptEdits: OPENCODE_AUTO_AGENT, plan: 'plan', readOnly: OPENCODE_READ_ONLY_AGENT, bypass: OPENCODE_BYPASS_AGENT },
   authMethod: 'opencode-login',
   // It names an MCP tool <server>_<tool>; Antumi knows its own as antumi.<tool>, as Codex and
   // Cursor name them. Its built-in tools are left to their kind; any other keeps its own name,
