@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { nextOccurrence, type AgentUsage, type Routine, type RoutineFields, type UnattendedMode } from '@antumi/protocol'
 import { UNATTENDED_NOTE } from './agent-prompt'
+import { UNATTENDED_DENIAL } from './unattended-answer'
 import { AttachmentStore } from './attachment-store'
 import { ConversationService } from './conversation-service'
 import { ConversationStore } from './conversation-store'
@@ -228,11 +229,30 @@ describe('RoutineService', () => {
     expect(routines.get(routine.id)?.unread).toBe(1)
   })
 
-  it('settles a run as awaiting when the agent asks, and lets the next occurrence go ahead', async () => {
+  it('answers what the agent asks in a run nobody watches, so it never waits on the user', async () => {
     daemon.reply = (id) => daemon.emit(id, {
       type: 'control_request', request_id: 'ask-1',
       request: { subtype: 'can_use_tool', tool_name: 'Bash', input: { command: 'rm -rf build' }, tool_use_id: 'toolu_ask-1' }
     })
+    const { routine, dueAt } = dailySoon()
+    clock = dueAt
+    await tick()
+    const [run] = runs(routine.id)
+    // Automatic, not allow-everything: the command is refused, with word to work around it.
+    expect(run).toMatchObject({ status: 'started', outcome: null, finishedAt: null })
+    expect(conversations.chatPage(run!.id).items.find((item) => item.kind === 'approval')).toMatchObject({ resolution: 'denied' })
+    expect(JSON.stringify(daemon.written(conversations.get(run!.id).sessionId!))).toContain(UNATTENDED_DENIAL)
+  })
+
+  it('settles a run as awaiting when the agent asks after the user took it over, and lets the next occurrence go ahead', async () => {
+    // The user acting in the conversation: what its agent asks then waits for them.
+    daemon.reply = (id) => {
+      conversations.list().forEach((each) => conversations.attend(each.id))
+      daemon.emit(id, {
+        type: 'control_request', request_id: 'ask-1',
+        request: { subtype: 'can_use_tool', tool_name: 'Bash', input: { command: 'rm -rf build' }, tool_use_id: 'toolu_ask-1' }
+      })
+    }
     const { routine, dueAt } = dailySoon()
     clock = dueAt
     await tick()

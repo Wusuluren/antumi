@@ -20,6 +20,7 @@ import { chatCommand } from './conversation-command'
 import { searchSnippet } from './conversation-search'
 import { buildHandoff } from './conversation-handoff'
 import { SCHEDULED_GO_TEXT, UNATTENDED_NOTE } from './agent-prompt'
+import { unattendedAnswer } from './unattended-answer'
 import { createProjectBranch, projectBranches, switchProjectBranch } from './project-branches'
 import { resolveStart } from './task-start'
 import { commitAll, commitAndPush, pushBranch } from './project-commit'
@@ -164,6 +165,12 @@ export class ConversationService {
   private readonly serialActions = new Map<string, Promise<void>>()
   // Antumi's own questions waiting on the user, by request id.
   private readonly asks = new Map<string, { resolve: (decision: ChatDecision) => void; reject: (error: Error) => void }>()
+  // Conversations a scheduled run is carrying out, by the mode it runs in: nobody is there, so
+  // what their agents ask is answered as the mode says (unattendedAnswer) until the user acts in
+  // them. Kept in memory: after a restart, a request waits for the user, as it always did.
+  private readonly unattended = new Map<string, UnattendedMode>()
+  // Requests already answered that way, which the next items may still show as open.
+  private readonly autoAnswered = new Set<string>()
 
   constructor(
     private readonly store: ConversationStore,
@@ -188,6 +195,7 @@ export class ConversationService {
         this.rememberCatalog(conversationId, items)
         this.settleAsks(items)
         this.emit({ type: 'chatItems', conversationId, items })
+        this.answerUnattended(conversationId, items)
       },
       delta: (conversationId, stageId, itemId, append) => this.emit({ type: 'chatDelta', conversationId, stageId, itemId, append }),
       messages: (stage, messages) => messages.forEach((message) => this.recordChatMessage(stage, message)),
@@ -1200,6 +1208,7 @@ export class ConversationService {
     const conversation = this.get(id)
     if (isHelper(conversation)) throw new Rejection('chat-option-invalid', '小助手不能无人值守执行')
     checkUnattended(conversation.agent)
+    this.markUnattended(id, mode)
     const plan = this.waitingPlan(conversation)
     if (plan) {
       await this.chats.respond(id, plan.requestId, { decision: 'allowForSession' })
@@ -1317,6 +1326,33 @@ export class ConversationService {
       if (item.kind !== 'approval' || item.resolution !== 'cancelled' || !isAntumiRequest(item.requestId)) continue
       this.asks.get(item.requestId)?.reject(new Rejection('chat-request-gone', 'the question was withdrawn'))
       this.asks.delete(item.requestId)
+    }
+  }
+
+  // A run nobody watches starting here, or going on (see unattended).
+  markUnattended(id: string, mode: UnattendedMode): void {
+    this.unattended.set(id, mode)
+  }
+
+  // The user acting in the conversation: what its agent asks from now on waits for them.
+  attend(id: string): void {
+    this.unattended.delete(id)
+  }
+
+  // Answered before ChatHost works out whether the stage waits on the user, so a run nobody
+  // watches never shows, or notifies, as waiting: respond applies its answer at once.
+  private answerUnattended(conversationId: string, items: readonly ChatItem[]): void {
+    const mode = this.unattended.get(conversationId)
+    if (!mode) return
+    for (const item of items) {
+      if (item.kind !== 'approval' && item.kind !== 'question') continue
+      const answer = unattendedAnswer(item, mode)
+      const key = `${conversationId}:${item.requestId}`
+      if (!answer || this.autoAnswered.has(key)) continue
+      this.autoAnswered.add(key)
+      void this.respond(conversationId, item.requestId, answer).catch((error: unknown) => {
+        this.wire?.record(conversationId, item.stageId, [{ dir: 'note', text: JSON.stringify({ event: 'unattended-answer-failed', requestId: item.requestId, error: error instanceof Error ? error.message : String(error) }) }])
+      })
     }
   }
 
@@ -1497,6 +1533,7 @@ export class ConversationService {
   private async remove(id: string): Promise<void> {
     if (this.launching.has(id)) throw new Rejection('conversation-running')
     this.retiring.add(id)
+    this.attend(id)
     try {
       const current = this.get(id)
       const helper = this.store.helper(id)
