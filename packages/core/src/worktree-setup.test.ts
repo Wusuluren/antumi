@@ -47,8 +47,10 @@ describe('WorktreeSetup', () => {
   function fakeTerminals(codes: Record<string, number | null>) {
     const ran: { cwd: string; command: string; purpose?: string; env?: Record<string, string> }[] = []
     const commands = new Map<string, string>()
+    const closed: string[] = []
     return {
       ran,
+      closed,
       run: async (conversationId: string, cwd: string, command: string, options: { purpose?: 'setup' | 'check'; env?: Record<string, string> } = {}): Promise<Terminal> => {
         ran.push({ cwd, command, purpose: options.purpose, env: options.env })
         const id = randomUUID()
@@ -56,7 +58,8 @@ describe('WorktreeSetup', () => {
         return { id, sessionId: cwd, cwd, title: command, createdAt: 0, conversationId, command }
       },
       waitForExit: async (id: string) => codes[commands.get(id) ?? ''] ?? 0,
-      read: async (_: string, id: string) => ({ id, command: '', output: 'boom', truncated: false, running: false, exitCode: 1 })
+      read: async (_: string, id: string) => ({ id, command: '', output: 'boom', truncated: false, running: false, exitCode: 1 }),
+      kill: async (id: string) => { closed.push(commands.get(id) ?? '') }
     }
   }
   const setup = (repoPath: string, config: TrustedSetup['config']): TrustedSetup => ({ repoPath, topLevel: repoPath, config, hash: 'h' })
@@ -84,5 +87,18 @@ describe('WorktreeSetup', () => {
     expect(terminals.ran.map(({ cwd, purpose }) => ({ cwd, purpose }))).toEqual([{ cwd: '/wt/app', purpose: 'check' }])
     expect(failures).toHaveLength(1)
     expect(await runner.check('conv', [{ path: '/code/web', dir: '/wt/web' }])).toBeNull()
+  })
+
+  it('closes the tab of a run that passed and keeps one that failed', async () => {
+    const terminals = fakeTerminals({ 'pnpm test': 1 })
+    const runner = new WorktreeSetup({ requireTrusted: async () => [] }, terminals)
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'antumi-setup-'))
+    try {
+      await runner.setUp('conv', [{ topLevel: dir, dir }], [setup(dir, { setup: 'pnpm install' })])
+      await runner.setUp('conv', [{ topLevel: dir, dir }], [setup(dir, { setup: 'pnpm test' })])
+      expect(terminals.closed).toEqual(['pnpm install'])
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

@@ -1026,7 +1026,8 @@ describe('TaskService', () => {
           return { id, sessionId: command, cwd, title: command, createdAt: 0, conversationId, command }
         },
         waitForExit: async (id: string) => { await held; return codes[commands.get(id) ?? ''] ?? 0 },
-        read: async (_: string, id: string) => ({ id, command: '', output: 'test failed: login.spec', truncated: false, running: false, exitCode: 1 })
+        read: async (_: string, id: string) => ({ id, command: '', output: 'test failed: login.spec', truncated: false, running: false, exitCode: 1 }),
+        kill: async () => {}
       }
     }
 

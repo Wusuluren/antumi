@@ -34,10 +34,11 @@ export async function copyListed(topLevel: string, worktree: string, paths: Proj
 
 export type ProjectRun = { terminalId: string; exitCode: number | null; tail: string }
 
-type Runner = Pick<TerminalService, 'run' | 'waitForExit' | 'read'>
+type Runner = Pick<TerminalService, 'run' | 'waitForExit' | 'read' | 'kill'>
 
 // A project's setup or check in a tab of the conversation's, so the user can watch or stop it and
-// its agent can read it; resolves once it ends.
+// its agent can read it; resolves once it ends. A run that passed closes its tab: nothing in it
+// needs a look, while a failed one stays for the user and the agent it is reported to.
 export async function runProjectCommand(
   terminals: Runner,
   conversationId: string,
@@ -51,6 +52,7 @@ export async function runProjectCommand(
   const terminal = await terminals.run(conversationId, worktree, command, { title: `${purpose} · ${path.basename(worktree)}`, env, purpose })
   const exitCode = await terminals.waitForExit(terminal.id)
   const output = await terminals.read(conversationId, terminal.id, FAILURE_TAIL).catch(() => null)
+  if (exitCode === 0) await terminals.kill(terminal.id).catch(() => {})
   return { terminalId: terminal.id, exitCode, tail: output?.output ?? '' }
 }
 
