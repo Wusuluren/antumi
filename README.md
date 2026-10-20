@@ -105,7 +105,7 @@ Antumi 驱动的是你已经装好、登录好的 Agent CLI。
 | [**Codex**](https://github.com/openai/codex) | `codex app-server` | 逐项确认 · 自动 · 规划 · 只读 | ✓ | ✓ | ✓ |
 | [**Cursor**](https://cursor.com/cli) | `cursor-agent acp` | Agent · Plan · Ask | ✓ | ✓ | — |
 
-「全部放行」不会默认选中。设置 → 智能体 还会列出 Antumi 认识、但尚未接入的 Agent CLI。
+「全部放行」不会默认选中。设置 → 本机 Agent 还会列出 Antumi 认识、但尚未接入的 Agent CLI。
 
 ## 快速开始
 
@@ -157,7 +157,7 @@ codesign --force --deep --sign - /Applications/Antumi.app
 **在 Windows 上安装**：安装包没有签名，SmartScreen 会拦一下，点「更多信息 → 仍要运行」。
 
 <p align="center">
-  <img src="docs/assets/agents.png" alt="设置 → 智能体：Claude Code、Codex、Cursor 都已安装并登录" width="720" />
+  <img src="docs/assets/agents.png" alt="设置 → 本机 Agent：Claude Code、Codex、Cursor 都已安装并登录" width="720" />
 </p>
 
 <details>

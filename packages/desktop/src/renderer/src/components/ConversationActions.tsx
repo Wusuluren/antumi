@@ -18,7 +18,7 @@ export function beginHandoff(conversation: Conversation, agent?: AgentKind): voi
   const from = (conversation.taskId ? state.tasks[conversation.taskId]?.agent : null) ?? conversation.agent
   const target = agent ?? otherInstalledAgent(from, currentInstalledAgents())
   if (!target) {
-    useCore.setState({ error: `这台电脑上只找到了 ${agentLabel(from)}。装好另一个 Agent 后，在 设置 → 智能体 里重新检测，就可以移交了。` })
+    useCore.setState({ error: `这台电脑上只找到了 ${agentLabel(from)}。装好另一个 Agent 后，在 设置 → 本机 Agent 里重新检测，就可以移交了。` })
     return
   }
   proposeHandoff(conversation.id, target)

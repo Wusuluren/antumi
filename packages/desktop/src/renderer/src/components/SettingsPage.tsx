@@ -282,7 +282,7 @@ function TranslationSettings() {
         control={(labelId) => <Toggle labelId={labelId} checked={auto} onChange={(next) => setPreference('autoTranslate', next)} />}
       />
       <p className="settings-note">
-        由会话所用的 Agent 翻译，模型在 智能体 →「轻量任务用的模型」里选。翻译单独请求，不占会话上下文，但计入该 Agent 的用量；同一条回复只翻一次。
+        由会话所用的 Agent 翻译，模型在 本机 Agent →「轻量任务用的模型」里选。翻译单独请求，不占会话上下文，但计入该 Agent 的用量；同一条回复只翻一次。
       </p>
     </>
   )
@@ -708,10 +708,10 @@ const SECTIONS: readonly Section[] = [
   },
   {
     id: 'agents',
-    group: '任务',
-    title: '智能体',
+    group: 'Agent',
+    title: '本机 Agent',
     description: '本机 Agent 的安装与登录状态，以及运行、会话和访问的默认设置。',
-    keywords: ['agent', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', '模型', '轻量', '提交信息', 'haiku', '标题', '命名', '重命名', '首轮', '每轮', '归档', '自动归档', '不活跃', '清理'],
+    keywords: ['agent', '智能体', '本机', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', '模型', '轻量', '提交信息', 'haiku', '标题', '命名', '重命名', '首轮', '每轮', '归档', '自动归档', '不活跃', '清理'],
     Icon: SparkIcon,
     Body: AgentSettings,
     grouped: true
@@ -736,10 +736,10 @@ const SECTIONS: readonly Section[] = [
   }
 ]
 
-// On a core that keeps them: the user's own slash commands; it follows 智能体.
+// On a core that keeps them: the user's own slash commands; it follows 本机 Agent.
 const CHAT_COMMANDS_SECTION: Section = {
   id: 'chat-commands',
-  group: '任务',
+  group: 'Agent',
   title: '聊天命令',
   description: '存好的提示词，在输入框输入 / 选用，填入后可改再发；所有 Agent 通用。',
   keywords: ['命令', '斜杠', '/', '提示词', '模板', 'prompt', '聊天', '会话', '快捷'],
@@ -750,7 +750,7 @@ const CHAT_COMMANDS_SECTION: Section = {
 // On a core with a skills library: the Agent Skills it installs for agents; it follows 聊天命令.
 const SKILLS_SECTION: Section = {
   id: 'skills',
-  group: '任务',
+  group: 'Agent',
   title: '技能',
   description: '从 Git 仓库安装 Agent Skills（SKILL.md），Agent 启动时带上。',
   keywords: ['技能', 'skill', 'skills', '插件', 'plugin', 'obsidian', 'markdown', '安装', '更新', '回退', '仓库', 'git', ...AGENT_KINDS],
@@ -762,7 +762,7 @@ const SKILLS_SECTION: Section = {
 // On a core that keeps them: the user's MCP servers, handed to agents at each start; it follows 技能.
 const MCP_SECTION: Section = {
   id: 'mcp',
-  group: '任务',
+  group: 'Agent',
   title: 'MCP',
   description: '统一管理 MCP 服务器，启动时交给你选的 Agent，也可从各 Agent 的配置导入。',
   keywords: ['mcp', '服务器', 'server', '工具', 'tool', '导入', '连接', '测试', 'token', '令牌', '环境变量', '请求头', ...AGENT_KINDS],
