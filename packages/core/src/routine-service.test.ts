@@ -287,6 +287,14 @@ describe('RoutineService', () => {
     expect(routines.pickAgent(auto)).toBe('codex')
   })
 
+  it("spends quota about to go unused first for an 'auto' routine", () => {
+    const auto: Routine = { ...dailySoon().routine, target: { kind: 'new', agent: 'auto', projectPaths: [], text: 'x' } }
+    const week = (agent: 'claude' | 'codex', usedPercent: number, resetsAt: number): AgentUsage => ({ agent, status: 'ok', plan: null, error: null, updatedAt: clock, resetCredits: null,
+      windows: [{ kind: 'weekly', model: null, usedPercent, windowMinutes: 10_080, resetsAt }] })
+    usage = [week('claude', 20, clock + 3 * DAY), week('codex', 40, clock + HOUR)]
+    expect(routines.pickAgent(auto)).toBe('codex')
+  })
+
   it('pauses, which drops the run still waiting, and deletes, which hands its conversations back', async () => {
     const { routine, dueAt } = dailySoon()
     clock = dueAt

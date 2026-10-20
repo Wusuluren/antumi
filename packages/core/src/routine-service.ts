@@ -6,7 +6,7 @@ import {
   isValidSchedule,
   latestOccurrenceAtOrBefore,
   nextOccurrence,
-  quotaVerdict,
+  rankAgents,
   Routine,
   RoutineSchedule,
   RoutineTarget,
@@ -14,7 +14,6 @@ import {
   type AgentUsage,
   type ChatItem,
   type Conversation,
-  type QuotaState,
   type RoutineFields,
   type ScheduledRun
 } from '@antumi/protocol'
@@ -22,10 +21,6 @@ import { checkUnattended } from './agents'
 import type { ConversationService } from './conversation-service'
 import { Rejection } from './rejection'
 import type { ScheduleService } from './schedule-service'
-
-// A quota state's place in line for an 'auto' routine: room first, then unknown (signed out, no
-// reading yet) ahead of used up.
-const QUOTA_RANK: Record<QuotaState, number> = { ok: 0, tight: 1, unknown: 2, exhausted: 3 }
 
 const SELECT = `SELECT id, title, enabled, schedule, target, next_run_at AS nextRunAt, last_fired_at AS lastFiredAt,
   created_at AS createdAt, updated_at AS updatedAt FROM routines`
@@ -144,20 +139,12 @@ export class RoutineService {
     if (this.deps.schedules.markAllSeen(id)) this.announce()
   }
 
-  // Which agent an 'auto' routine's run spends now: the one with the most room, by its tightest
-  // window; one nothing is known of ahead of one used up, which is taken only when both are,
-  // the one to reset first.
+  // Which agent an 'auto' routine's run spends now: the one best spent now (rankAgents), quota
+  // about to go unused ahead of quota that keeps.
   pickAgent(routine: Routine): AgentKind {
     if (routine.target.agent !== 'auto') return routine.target.agent
-    const now = this.now()
-    const ranked = AGENT_KINDS.filter((agent) => agentDescriptor(agent).capabilities.unattended).map((agent) => ({ agent, verdict: quotaVerdict(this.deps.usage.list().find((usage) => usage.agent === agent), now) }))
-    ranked.sort((a, b) => {
-      const byState = QUOTA_RANK[a.verdict.state] - QUOTA_RANK[b.verdict.state]
-      if (byState !== 0) return byState
-      if (a.verdict.state === 'exhausted') return (a.verdict.window?.resetsAt ?? Infinity) - (b.verdict.window?.resetsAt ?? Infinity)
-      return (a.verdict.window?.usedPercent ?? 0) - (b.verdict.window?.usedPercent ?? 0)
-    })
-    return ranked[0]?.agent ?? 'claude'
+    const agents = AGENT_KINDS.filter((agent) => agentDescriptor(agent).capabilities.unattended)
+    return rankAgents(this.deps.usage.list(), agents, this.now())[0] ?? 'claude'
   }
 
   // Called at the start of every scheduler pass: settles what ended without saying so, then

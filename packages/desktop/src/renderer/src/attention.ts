@@ -3,11 +3,12 @@ import { isScheduleOpen, limitOf, PLAN_TOOLS, type AgentKind, type Conversation,
 
 // What waits on the user: a task or a conversation.
 export type ActionableTarget = { kind: 'task' | 'conversation'; id: string }
-// Where a notification leads when clicked: one of those, or the page of routines (for a
-// routine's run that has no conversation to show).
-export type AttentionTarget = ActionableTarget | { kind: 'routines' }
+// Where a notification leads when clicked: one of those, the page of routines (for a routine's
+// run that has no conversation to show), or an agent's usage card (for quota advice).
+export type AttentionTarget = ActionableTarget | { kind: 'routines' } | { kind: 'usage'; agent: AgentKind }
 
-export const targetKey = (target: AttentionTarget): string => (target.kind === 'routines' ? 'routines' : `${target.kind}:${target.id}`)
+export const targetKey = (target: AttentionTarget): string =>
+  target.kind === 'routines' ? 'routines' : target.kind === 'usage' ? `usage:${target.agent}` : `${target.kind}:${target.id}`
 
 export type Notice = { title: string; body: string; target: AttentionTarget }
 

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AgentKind } from '@antumi/protocol'
 import type { ActionableTarget, Notice } from './attention'
 
 // What the Electron preload exposes; absent when the UI runs in a plain browser.
@@ -111,7 +112,11 @@ export function setBadge(count: number): void {
   void window.antumi?.setBadge?.(count).catch(() => {})
 }
 
-const Target = z.union([z.object({ kind: z.enum(['task', 'conversation']), id: z.string() }), z.object({ kind: z.literal('routines') })])
+const Target = z.union([
+  z.object({ kind: z.enum(['task', 'conversation']), id: z.string() }),
+  z.object({ kind: z.literal('routines') }),
+  z.object({ kind: z.literal('usage'), agent: AgentKind })
+])
 
 // Main hands back the target the renderer gave it; only a well-formed one is acted on.
 export function onNotificationClick(listener: (target: Notice['target']) => void): () => void {

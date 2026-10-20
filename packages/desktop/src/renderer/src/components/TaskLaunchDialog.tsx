@@ -5,7 +5,7 @@ import { dismissError, openChatWhileStarting, perform, updateTask, useCore } fro
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel, reasonText } from '../labels'
 import { useOccludesBrowser } from '../browser-occlusion'
-import { AgentQuotaHint, confirmQuota, modelText } from './AgentQuota'
+import { AgentQuotaHint, confirmQuota, modelText, useRecommendation } from './AgentQuota'
 import { AgentModelPicker } from './AgentModelPicker'
 import { modeOptions, startModes } from './ChatOptionsBar'
 import { ChatPicker } from './ChatPicker'
@@ -31,6 +31,7 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
   useOccludesBrowser()
   const dialog = useRef<HTMLDialogElement>(null)
   const installed = useInstalledAgents()
+  const recommended = useRecommendation(installed)?.agent ?? null
   const [agent, setAgent] = useState<AgentKind | null>(task.agent)
   const agents = agent && !installed.includes(agent) ? [...installed, agent] : installed
   const rpc = useCore((s) => s.rpc)
@@ -112,7 +113,7 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
               placeholder="选择 Agent"
               size="field"
               placement="below"
-              options={agents.map((kind) => ({ value: kind, label: agentLabel(kind), icon: <AgentIcon agent={kind} />, description: installed.includes(kind) ? null : '未安装' }))}
+              options={agents.map((kind) => ({ value: kind, label: agentLabel(kind), icon: <AgentIcon agent={kind} />, description: installed.includes(kind) ? (kind === recommended ? '推荐' : null) : '未安装' }))}
               onChange={(value) => {
                 const next = agents.find((each) => each === value)
                 if (next) setAgent(next)
