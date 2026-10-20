@@ -316,7 +316,7 @@ await skills.load()
 const mcpServers = new McpServerStore(paths.mcpServers, credentials, (servers) => server?.broadcast('mcpServers.changed', { servers: [...servers] }))
 await mcpServers.load()
 // Handed through Antumi's launcher, so no secret is in an agent's command line or Antumi's logs.
-conversations.setUserMcpProvider((agent) => agentDescriptor(agent).capabilities.userMcp ? mcpServers.forAgent(agent).map((server) => userMcpServer(paths.home, server)) : [])
+conversations.setUserMcpProvider((agent, readOnly) => agentDescriptor(agent).capabilities.userMcp ? mcpServers.forAgent(agent).map((server) => userMcpServer(paths.home, server, readOnly)) : [])
 // An agent that loads skills gets Obsidian's, where the user turned writing on and has
 // the repository installed; the bundle is the same folder start after start while nothing moved.
 conversations.setSkillsProvider(async (agent) => {

@@ -10,9 +10,10 @@ export function antumiChatMcpServer(home: string, conversationId: string, { hist
 
 // One of the user's MCP servers as an agent is handed it. Antumi's launcher (mcp-main --run) starts a
 // command with its env, and carries a server's messages where it needs headers; a server that
-// needs nothing is reached at its address by the agent itself.
-export function userMcpServer(home: string, server: UserMcpServer): AgentMcpServer {
+// needs nothing is reached at its address by the agent itself. readOnly: always through the
+// launcher, which hands on only the server's read-only tools.
+export function userMcpServer(home: string, server: UserMcpServer, readOnly = false): AgentMcpServer {
   const { transport } = server
-  if (transport.type === 'http' && transport.headerKeys.length === 0) return { name: server.name, type: 'http', url: transport.url }
-  return { name: server.name, type: 'stdio', ...mcpCommand('--home', home, '--run', server.name) }
+  if (!readOnly && transport.type === 'http' && transport.headerKeys.length === 0) return { name: server.name, type: 'http', url: transport.url }
+  return { name: server.name, type: 'stdio', ...mcpCommand('--home', home, '--run', server.name, ...(readOnly ? ['--read-only'] : [])) }
 }

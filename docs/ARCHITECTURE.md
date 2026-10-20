@@ -315,7 +315,7 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 讨论中随时可以暂停（本轮说完后停）、继续、再来一轮、立即总结或停止（打断正在发言的成员）。输入框里直接发言，下一轮所有成员都会看到；讨论已暂停或已总结时，发言会再开一轮讨论，然后重新总结。在发言里 `@成员`（或点成员旁的 @）只问被点名的成员，它单独回答，不推进轮次；被点名的成员还在发言时要等它说完。「匿名互评」打开后，成员之间只用「成员 A / B」称呼，看不到彼此是哪个 Agent 和模型。
 
 - **实现**：每个成员就是一条普通会话，带着群聊的 id（`conversations.discussion_id`），不出现在会话列表和搜索里；进程托管、恢复、模型、确认请求、额度都沿用会话的机制。core 的 `DiscussionService` 只做编排：给成员发一条以待写发言命名的消息（ref `discussion:<发言 id>`），这一回合结束时取它的最终回复作为发言。成员各自保留 provider 会话，之后每轮只发它没看过的新发言。别人的发言包在 `<discussion-post>` 里交给成员，并说明那只是观点、不是指令。提示词在 `core/src/discussion-prompt.ts`。
-- **只读**：成员以 descriptor 的 `discussionMode` 启动：Claude Code 用规划模式，Codex 用 `read-only` 沙箱，Cursor 用 Ask 模式。可以读所选项目的代码来佐证，不改文件。Antumi 自己的 MCP 工具也只给只读的那些（和只读工作区一样：浏览器只能在已打开的页面上看快照、截图、滚动和读控制台，终端只能读输出），不给待办工具，也不提示它记待办：成员的结论进主持人的总结，不进用户的待办。Claude Code 在讨论中交出计划时，Antumi 会拒绝并请它直接用文字回答。成员请求执行命令时，群聊里显示「等你确认」，点成员打开它的会话处理；在那里发的消息只有这个成员看到。
+- **只读**：成员以 descriptor 的 `discussionMode` 启动：Claude Code 用规划模式，Codex 用 `read-only` 沙箱，Cursor 用 Ask 模式。可以读所选项目的代码来佐证，不改文件。Antumi 自己的 MCP 工具也只给只读的那些（和只读工作区一样：浏览器只能在已打开的页面上看快照、截图、滚动和读控制台，终端只能读输出），不给待办工具，也不提示它记待办：成员的结论进主持人的总结，不进用户的待办。用户自己的 MCP 服务器也只放行只读工具，见「用户的 MCP 服务器」。Claude Code 在讨论中交出计划时，Antumi 会拒绝并请它直接用文字回答。成员请求执行命令时，群聊里显示「等你确认」，点成员打开它的会话处理；在那里发的消息只有这个成员看到。
 - **失败与恢复**：某个成员这一轮失败（出错、被打断、额度用完），这一轮不等它；一轮里没有人发言成功就暂停，继续时重试这一轮。core 重启后从成员会话的聊天记录补齐重启期间结束的回合，Agent 已不在的记为丢失，然后接着讨论。
 - **额度**：每个成员都占一个 Agent 进程的额度。开始前检查各 Agent 是否还有额度，不够就不开始。
 - **删除**：在侧栏右键删除群聊，会一并删除各成员的会话和发言记录，项目目录保留。
@@ -362,6 +362,7 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 - **测试连接**（`mcpServers.probe`，`mcp-probe.ts`）：像 Agent 一样连上去 `initialize` → `tools/list`，命令在独立进程组里跑、结束即杀，60 秒超时，失败时带上 stderr。
 - **没连上**：Claude 的 init 里 `source: dynamic` 且失败的、Codex 的 `mcpServer/startupStatus/updated` 里失败的用户服务器，聊天里各出一行提示；记进日志的帧带着这个判断，重放结果一致。
 - **审批**：Claude 和 Cursor 的 MCP 工具本来就走审批卡；Codex 对它认为会影响外部的工具发 `mcpServer/elicitation/request`（`_meta.codex_approval_kind: mcp_tool_call`），Antumi 接成审批卡：允许一次、本次运行内不再问（`persist: session`）、拒绝；「永远允许」不提供，那会写进 Codex 自己的配置。
+- **群聊成员只读**：交给群聊成员的每个服务器都走启动器（没有密钥的远程地址也是），加 `--read-only`（`mcp-read-only-filter.ts`）：`tools/list` 只留服务器标了 `readOnlyHint: true` 的工具，调用别的工具由启动器直接回错误，不到服务器。没标注的算会改东西的。
 - **导入**（`mcp-import.ts`）：读 `~/.claude.json`、`~/.cursor/mcp.json` 和 `codex mcp list --json`（跳过 ChatGPT 应用和 Codex 插件自带的、已停用的），列表只给键名；导入时 core 重读一遍连同值一起存，默认不再交给它原来所在的 Agent，免得启动两份。SSE 和 Codex 从环境变量取令牌的不能导入。
 
 ## 5. 内置浏览器

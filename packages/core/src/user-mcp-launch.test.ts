@@ -36,9 +36,10 @@ async function save(input: McpServerInput): Promise<void> {
   await store.save(input)
 }
 
-// Starts the launcher as an agent would, writes these lines to it and reads as many back.
-async function exchange(name: string, lines: readonly unknown[], expected: number): Promise<unknown[]> {
-  const { command, args } = mcpCommand('--home', home, '--run', name)
+// Starts the launcher as an agent would, writes these lines to it and reads as many back. Stepwise,
+// each line after the one before is answered, as an agent calls a tool once it has the list.
+async function exchange(name: string, lines: readonly unknown[], expected: number, { flags = [], stepwise = false }: { flags?: string[]; stepwise?: boolean } = {}): Promise<unknown[]> {
+  const { command, args } = mcpCommand('--home', home, '--run', name, ...flags)
   const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } })
   const replies: unknown[] = []
   const done = new Promise<unknown[]>((resolve, reject) => {
@@ -47,13 +48,15 @@ async function exchange(name: string, lines: readonly unknown[], expected: numbe
     child.on('exit', () => (replies.length >= expected ? resolve(replies) : reject(new Error(`launcher exited: ${stderr}`))))
     readline.createInterface({ input: child.stdout }).on('line', (line) => {
       replies.push(JSON.parse(line))
+      const next = lines[replies.length]
+      if (stepwise && next !== undefined) child.stdin.write(`${JSON.stringify(next)}\n`)
       if (replies.length === expected) {
         child.stdin.end()
         resolve(replies)
       }
     })
   })
-  for (const line of lines) child.stdin.write(`${JSON.stringify(line)}\n`)
+  for (const line of stepwise ? lines.slice(0, 1) : lines) child.stdin.write(`${JSON.stringify(line)}\n`)
   return done
 }
 
@@ -62,6 +65,25 @@ describe('the launcher of a user\'s MCP server', () => {
     const script = 'process.stdin.once("data", () => { process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { token: process.env.TOKEN, bundled: process.env.ELECTRON_RUN_AS_NODE ?? null } }) + "\\n"); process.exit(0) })'
     await save({ name: 'echo', previousName: null, enabled: true, agents: ['claude'], transport: { type: 'stdio', command: process.execPath, args: ['-e', script], cwd: null, env: [{ key: 'TOKEN', value: 'secret-token' }] } })
     expect(await exchange('echo', [{ jsonrpc: '2.0', id: 1, method: 'ping' }], 1)).toEqual([{ jsonrpc: '2.0', id: 1, result: { token: 'secret-token', bundled: null } }])
+  })
+
+  it('hands an agent that may only read the server\'s read-only tools, and refuses a call to any other', async () => {
+    const script = `require("readline").createInterface({ input: process.stdin }).on("line", (line) => {
+      const m = JSON.parse(line)
+      const result = m.method === "tools/list"
+        ? { tools: [{ name: "search", annotations: { readOnlyHint: true } }, { name: "create_issue", annotations: { readOnlyHint: false } }, { name: "plain" }] }
+        : { called: m.params.name }
+      process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: m.id, result }) + "\\n")
+    })`
+    await save({ name: 'jira', previousName: null, enabled: true, agents: ['claude'], transport: { type: 'stdio', command: process.execPath, args: ['-e', script], cwd: null, env: [] } })
+    const call = (id: number, name: string) => ({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: {} } })
+    const replies = await exchange('jira', [{ jsonrpc: '2.0', id: 1, method: 'tools/list' }, call(2, 'create_issue'), call(3, 'plain'), call(4, 'search')], 4, { flags: ['--read-only'], stepwise: true })
+    expect(replies).toEqual([
+      { jsonrpc: '2.0', id: 1, result: { tools: [{ name: 'search', annotations: { readOnlyHint: true } }] } },
+      { jsonrpc: '2.0', id: 2, error: expect.objectContaining({ code: -32602 }) },
+      { jsonrpc: '2.0', id: 3, error: expect.objectContaining({ code: -32602 }) },
+      { jsonrpc: '2.0', id: 4, result: { called: 'search' } }
+    ])
   })
 
   it('carries messages to a server over HTTP with its headers and session', async () => {

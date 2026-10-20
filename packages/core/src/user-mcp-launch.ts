@@ -1,15 +1,19 @@
 import { spawn } from 'node:child_process'
 import readline from 'node:readline'
+import type { Readable, Writable } from 'node:stream'
 import { antumiPaths, planLaunch } from '@antumi/protocol/node'
 import { CredentialStore } from './credential-store'
 import { McpHttpSession } from './mcp-http'
+import { ReadOnlyToolFilter } from './mcp-read-only-filter'
 import { McpServerStore, type ResolvedMcpServer } from './mcp-servers'
 
 // What an agent starts in place of one of the user's MCP servers (mcp-main --run): it reads the
 // server and its secrets from Antumi's files, so neither the agent's configuration, its command line
 // nor Antumi's logs ever hold them. A command is started with its env added and the agent's stdio
 // handed straight to it; an address is reached over HTTP, this process carrying the messages.
-export async function runUserMcp(home: string, name: string): Promise<void> {
+// readOnly: the agent sees and calls only the server's read-only tools (see ReadOnlyToolFilter), so
+// this process carries a command's messages too.
+export async function runUserMcp(home: string, name: string, readOnly = false): Promise<void> {
   const paths = antumiPaths(home)
   const credentials = new CredentialStore(paths.credentials)
   await credentials.load()
@@ -17,16 +21,36 @@ export async function runUserMcp(home: string, name: string): Promise<void> {
   await store.load()
   const server = store.resolve(name)
   if (!server) throw new Error(`Antumi 里没有名为 ${name} 的 MCP 服务器`)
-  if (server.transport.type === 'stdio') await runCommand(server.transport)
-  else await bridge(server.transport)
+  const filter = readOnly ? new ReadOnlyToolFilter() : null
+  if (server.transport.type === 'stdio') await runCommand(server.transport, filter)
+  else await bridge(server.transport, filter)
 }
 
-function runCommand(transport: Extract<ResolvedMcpServer['transport'], { type: 'stdio' }>): Promise<void> {
+const writeLine = (message: unknown) => process.stdout.write(`${JSON.stringify(message)}\n`)
+
+// One line from the agent as a message, or null for one that is not a JSON-RPC message.
+function agentMessage(line: string): Record<string, unknown> | null {
+  let message: unknown
+  try {
+    message = JSON.parse(line)
+  } catch {
+    console.error('antumi mcp: 收到的不是 JSON-RPC 消息，已忽略')
+    return null
+  }
+  return message && typeof message === 'object' && !Array.isArray(message) ? Object.fromEntries(Object.entries(message)) : null
+}
+
+function runCommand(transport: Extract<ResolvedMcpServer['transport'], { type: 'stdio' }>, filter: ReadOnlyToolFilter | null): Promise<void> {
   // Set where this launcher runs as Antumi's bundled Node; the user's own server is not that.
   const { ELECTRON_RUN_AS_NODE: _ours, ...env } = process.env
   const cwd = transport.cwd ?? process.cwd()
   const launch = planLaunch(transport.command, transport.args, cwd, { ...env, ...transport.env })
-  const child = spawn(launch.file, launch.args, { cwd, env: launch.env, stdio: 'inherit', windowsHide: true })
+  const child = spawn(launch.file, launch.args, { cwd, env: launch.env, stdio: filter ? ['pipe', 'pipe', 'inherit'] : 'inherit', windowsHide: true })
+  if (filter && child.stdin && child.stdout) {
+    relay(child.stdin, child.stdout, filter)
+    // Once the server is gone and its last words passed on, so is this end: the agent sees it exit.
+    child.on('close', () => process.stdin.destroy())
+  }
   for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP'] as const) process.on(signal, () => child.kill(signal))
   return new Promise((resolve, reject) => {
     child.on('error', (error) => reject(new Error(`启动不了 ${transport.command}：${error.message}`)))
@@ -37,23 +61,53 @@ function runCommand(transport: Extract<ResolvedMcpServer['transport'], { type: '
   })
 }
 
+// Carries a command's messages line by line through the filter. Anything that is not one message (a
+// batch, a stray line) does not reach the server, so nothing gets past the filter that way.
+function relay(input: Writable, output: Readable, filter: ReadOnlyToolFilter): void {
+  output.on('error', () => {})
+  input.on('error', () => {})
+  void (async () => {
+    for await (const line of readline.createInterface({ input: process.stdin, crlfDelay: Infinity })) {
+      if (!line.trim()) continue
+      const message = agentMessage(line)
+      if (!message) continue
+      const passed = filter.fromAgent(message)
+      if ('reply' in passed) writeLine(passed.reply)
+      else input.write(`${JSON.stringify(passed.forward)}\n`)
+    }
+    input.end()
+  })()
+  void (async () => {
+    for await (const line of readline.createInterface({ input: output, crlfDelay: Infinity })) {
+      if (!line.trim()) continue
+      let message: unknown
+      try {
+        message = JSON.parse(line)
+      } catch {
+        process.stdout.write(`${line}\n`)
+        continue
+      }
+      writeLine(message && typeof message === 'object' && !Array.isArray(message) ? filter.fromServer(Object.fromEntries(Object.entries(message))) : message)
+    }
+  })()
+}
+
 // The agent's side is newline-delimited JSON-RPC on stdio, as for any command; each message goes
 // out as a request of its own, so a slow tool call holds up nothing else.
-async function bridge(transport: Extract<ResolvedMcpServer['transport'], { type: 'http' }>): Promise<void> {
+async function bridge(transport: Extract<ResolvedMcpServer['transport'], { type: 'http' }>, filter: ReadOnlyToolFilter | null): Promise<void> {
   const session = new McpHttpSession(transport.url, transport.headers)
-  const write = (message: unknown) => process.stdout.write(`${JSON.stringify(message)}\n`)
+  const write = (message: Record<string, unknown>) => writeLine(filter ? filter.fromServer(message) : message)
   const inFlight = new Set<Promise<void>>()
   for await (const line of readline.createInterface({ input: process.stdin, crlfDelay: Infinity })) {
     if (!line.trim()) continue
-    let message: unknown
-    try {
-      message = JSON.parse(line)
-    } catch {
-      console.error('antumi mcp: 收到的不是 JSON-RPC 消息，已忽略')
+    const message = agentMessage(line)
+    if (!message) continue
+    const passed = filter ? filter.fromAgent(message) : { forward: message }
+    if ('reply' in passed) {
+      writeLine(passed.reply)
       continue
     }
-    if (!message || typeof message !== 'object' || Array.isArray(message)) continue
-    const sent = session.send(Object.fromEntries(Object.entries(message)), write).catch((error: unknown) => {
+    const sent = session.send(passed.forward, write).catch((error: unknown) => {
       console.error(`antumi mcp: ${error instanceof Error ? error.message : String(error)}`)
     })
     inFlight.add(sent)

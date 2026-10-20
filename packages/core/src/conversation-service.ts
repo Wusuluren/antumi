@@ -242,8 +242,9 @@ export class ConversationService {
   // start. A bundle that cannot be built keeps no agent from starting: it is noted and left out.
   private skillsFor: ((agent: AgentKind) => Promise<{ dir: string } | null>) | null = null
   // The user's MCP servers an agent's start gets beside Antumi's; asked at each start, like skills.
-  private userMcpFor: ((agent: AgentKind) => AgentMcpServer[]) | null = null
-  setUserMcpProvider(provider: (agent: AgentKind) => AgentMcpServer[]): void {
+  // readOnly: for a group chat member, which gets only the servers' read-only tools.
+  private userMcpFor: ((agent: AgentKind, readOnly: boolean) => AgentMcpServer[]) | null = null
+  setUserMcpProvider(provider: (agent: AgentKind, readOnly: boolean) => AgentMcpServer[]): void {
     this.userMcpFor = provider
   }
   setSkillsProvider(provider: (agent: AgentKind) => Promise<{ dir: string } | null>): void {
@@ -929,7 +930,7 @@ export class ConversationService {
     }) ?? null
     let userMcp: AgentMcpServer[] = []
     try {
-      userMcp = this.userMcpFor?.(agent) ?? []
+      userMcp = this.userMcpFor?.(agent, Boolean(current.discussionId)) ?? []
     } catch (error) {
       this.wire?.record(id, stage.id, [{ dir: 'note', text: JSON.stringify({ event: 'user-mcp-unavailable', error: error instanceof Error ? error.message : String(error) }) }])
     }

@@ -15,15 +15,17 @@ const { values } = parseArgs({
     history: { type: 'boolean' },
     'no-todos': { type: 'boolean' },
     'ready-file': { type: 'string' },
-    // One of the user's MCP servers, started in its place (see runUserMcp).
-    run: { type: 'string' }
+    // One of the user's MCP servers, started in its place (see runUserMcp), with only its
+    // read-only tools under --read-only.
+    run: { type: 'string' },
+    'read-only': { type: 'boolean' }
   }
 })
 
 // Speaks MCP on stdout, so nothing else may print there.
 const readyFile = values['ready-file']
 const served = values.run
-  ? runUserMcp(values.home ?? antumiHome(), values.run)
+  ? runUserMcp(values.home ?? antumiHome(), values.run, values['read-only'])
   : serveMcp(values.home, values.conversation, values['plan-only'], readyFile ? () => writePrivateJson(readyFile, { ready: true }) : undefined, values.history, !values['no-todos'])
 served.catch((error: unknown) => {
   const reason = error instanceof RpcError && error.reason ? ` (${error.reason})` : ''
