@@ -258,7 +258,7 @@ function ServerRow({ server, probe, onProbe, onEdit }: { server: McpServer; prob
   )
 }
 
-const SOURCE_TEXT: Record<AgentKind, string> = localized(() => ({ claude: '~/.claude.json', codex: t('McpSettingsSection.codexConfigToml'), cursor: '~/.cursor/mcp.json' }))
+const SOURCE_TEXT: Record<AgentKind, string> = localized(() => ({ claude: '~/.claude.json', codex: t('McpSettingsSection.codexConfigToml'), cursor: '~/.cursor/mcp.json', opencode: 'opencode.json' }))
 
 // Servers the agents have in their own configuration, taken in under names the user can change.
 // Each goes to the chosen agents but the one it came from, which loads it already.

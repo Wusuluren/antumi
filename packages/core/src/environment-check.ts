@@ -25,7 +25,6 @@ const OTHER_AGENTS: readonly Discoverable[] = [
   { id: 'windsurf', name: 'Windsurf', commands: [], applications: { darwin: ['Windsurf.app'] } },
   { id: 'kiro', name: 'Kiro', commands: [], applications: { darwin: ['Kiro.app'] } },
   { id: 'gemini', name: 'Gemini CLI', commands: ['gemini'], applications: {} },
-  { id: 'opencode', name: 'OpenCode', commands: ['opencode'], applications: { darwin: ['OpenCode.app'] } },
   { id: 'aider', name: 'Aider', commands: ['aider'], applications: {} },
   { id: 'copilot', name: 'GitHub Copilot CLI', commands: ['copilot'], applications: {} },
   { id: 'goose', name: 'Goose', commands: ['goose'], applications: { darwin: ['Goose.app'] } },

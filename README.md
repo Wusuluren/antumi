@@ -6,12 +6,12 @@
 
 **一个工作台，和多个 AI Agent 一起工作。**
 
-本地优先的多 Agent 工作台，统一管理 Claude Code、Codex 和 Cursor 的会话、任务、群聊与定时运行。
+本地优先的多 Agent 工作台，统一管理 Claude Code、Codex、Cursor 和 OpenCode 的会话、任务、群聊与定时运行。
 
 [![Version](https://img.shields.io/github/package-json/v/flyhero/antumi?label=version&color=blue)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
-![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor-8A2BE2)
+![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20OpenCode-8A2BE2)
 
 [特色功能](#特色功能) · [支持的 Agent](#支持的-agent) · [快速开始](#快速开始) · [文档](#文档) · [更新日志](CHANGELOG.md) · [反馈](https://github.com/flyhero/antumi/issues)
 
@@ -104,6 +104,7 @@ Antumi 驱动的是你已经装好、登录好的 Agent CLI。
 | [**Claude Code**](https://github.com/anthropics/claude-code) | `claude -p`（stream-json） | 逐项确认 · 自动接受编辑 · 规划 · 自动判断 | ✓ | ✓ | ✓ |
 | [**Codex**](https://github.com/openai/codex) | `codex app-server` | 逐项确认 · 自动 · 规划 · 只读 | ✓ | ✓ | ✓ |
 | [**Cursor**](https://cursor.com/cli) | `cursor-agent acp` | Agent · Plan · Ask | ✓ | ✓ | — |
+| [**OpenCode**](https://opencode.ai) | `opencode acp` | Build · Plan · 只读 | — | ✓ | — |
 
 「全部放行」不会默认选中。设置 → 本机 Agent 还会列出 Antumi 认识、但尚未接入的 Agent CLI。
 

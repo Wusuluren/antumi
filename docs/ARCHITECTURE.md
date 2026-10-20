@@ -238,7 +238,7 @@ Agent 描述符可提供英语展示文本，客户端传入语言读取，执�
 
 会话不需要「停止」：发消息就会接着聊，状态只有运行中、等待确认和空闲。Agent 空闲 30 分钟后（没有回合在跑、没有等你处理的请求、没有排队的消息），Antumi 会结束它的进程，下次发消息时再接着同一个会话启动，这一次要多等几秒。进程异常退出时，会话显示「异常退出」，发消息会重新启动它。
 
-Claude Code 以 `claude -p --input-format stream-json --output-format stream-json` 运行，Codex 以 `codex app-server` 运行，Cursor 以 `cursor-agent acp` 或 `agent acp` 运行。它们由 daemon 托管：关闭窗口、重启 core 都不会中断 Agent，core 重启后会接着读它的输出，没回答的确认请求也还在。
+Claude Code 以 `claude -p --input-format stream-json --output-format stream-json` 运行，Codex 以 `codex app-server` 运行，Cursor 以 `cursor-agent acp` 或 `agent acp` 运行，OpenCode 以 `opencode acp` 运行。它们由 daemon 托管：关闭窗口、重启 core 都不会中断 Agent，core 重启后会接着读它的输出，没回答的确认请求也还在。
 
 - **显示**：Markdown 格式的回复；工具调用卡片，包括命令和输出、文件改动的 diff；每个回合是完成、中断还是失败。等你处理的确认请求、提问和计划固定在输入框上方，不会被滚走：确认请求可以允许、本会话都允许或拒绝（可以附一句理由告诉 Agent）。输入框上方还有项目里未提交的改动（点开检查器）和 Agent 的待办进度，↑ 跳回你的上一条消息。
 - **回复里的链接和图片**：网页链接（`http://`、`https://`）用系统浏览器打开。本机文件链接和行内代码中的文件名，点击后在右侧检查器的「文件」页只读预览；支持多个标签、代码高亮、行号定位、搜索、自动换行、调宽和最大化。Markdown 显示源码，超过 2 MiB 或非 UTF-8 文本的文件会说明无法预览。图片文件（PNG、JPEG、GIF、WebP、SVG）仍显示缩略图，点开放大；网络图片不加载，只显示链接。连接旧版 core 时，文件点击仍在文件管理器中定位。
@@ -249,6 +249,7 @@ Claude Code 以 `claude -p --input-format stream-json --output-format stream-jso
 - **发消息**：Enter 发送，Shift+Enter 换行，Esc 或输入框右下角的按钮中断当前回合。Agent 处理时按 Enter，消息会排到这个回合结束后再发（再写一条会接在后面），发出前可以编辑或取消；回合被中断或失败时它不会自动发出，等你决定发还是不发。
 - **权限模式、模型和推理强度**：在输入框下方切换。Claude Code 有逐项确认、自动接受编辑、规划和自动判断（模型支持时）；Codex 有逐项确认（`untrusted` 审批）、自动（`on-request` 审批加 `workspace-write` 沙箱，并且允许联网，和 Claude Code 一致）、规划（Codex 自己的 plan 模式，配 `read-only` 沙箱）和只读（`read-only` 沙箱）。权限模式随时可换，模型和推理强度要等回合结束。会话沿用它最后所处的权限模式（比如按计划执行后的「自动接受编辑」），以及你选过的模型和推理强度；Agent 进程不在时也可以改，下次发消息启动时生效。Codex 不继承 `config.toml` 里的审批和沙箱设置，会话的其他项目作为可写目录。
 - **Cursor**：需要已登录且支持 ACP 的 CLI，最低接受版本为 `2026.10.01`，已实测 `2026.10.01-e373342`。先按官方说明安装 CLI 并运行 `agent login`，再「重新检测」。提供原生 Agent / Plan / Ask；模型与模型对应的推理强度来自 CLI 实时接口。Ask / Plan 是 Cursor 的原生行为，不代表 Antumi 提供操作系统沙箱；不提供自动接受编辑、全部放行或无人值守预约与例程；用量按月轮询（`DashboardService`），运行中没有实时上报。Antumi MCP 通过 `session/new` / `session/load` 的 `mcpServers` 逐会话注入，不改项目或用户的 MCP 配置；未成功加载时启动会明确失败。发出消息后 30 秒还没有任何事件，聊天里提示「还没有回应」并给出「停止并重试」；60 秒仍没有就停止这一轮（先取消，再按宽限结束进程），只提供「重新连接并重试」，不自动重发。Cursor 只在一轮有了进展后才保存会话，所以这样停下的会话 `session/load` 会报不存在：这时改用 `session/new` 开新会话，之前的记录按移交带过去，没得到回答的那条不带（重试会再发它）。仅规划阶段的 Antumi MCP 只提供读取工具（外加待办，见「待办」）。
+- **OpenCode**：需要 OpenCode 2.x（1.x 的配置格式不同，显示为需要升级），已对照 2.1.1 的 ACP 源码实现。它没有自己的账号，能不能回答取决于 `opencode auth login` 配过的模型服务商，所以不检查登录。权限模式就是它的 primary agent：逐项确认对应 Build，规划对应 Plan，只读对应 Antumi 启动时加的 `antumi-readonly`（拒绝编辑，运行命令和访问项目外前先问；OpenCode 自带的 Plan 只拦编辑，仍能跑 shell）。OpenCode 的 agent 默认什么工具都放行，Build 不会弹审批卡，除非用户在自己的 OpenCode 配置里设了 `ask`；所以 Antumi MCP 的终端命令由 Antumi 在聊天里确认（`mcpApproval: 'antumi'`）。模型和推理强度来自会话的 config options，模型 id 是 `provider/model`；还没聊过时用 `opencode models --standalone` 列模型。附加项目和可写的知识库走 ACP 的 `additionalDirectories`，Antumi MCP 和用户 MCP 走 `mcpServers`；只读 agent 和技能 bundle 写进 `OPENCODE_CONFIG_CONTENT`，只对这个进程生效，不改用户的 `opencode.json`。OpenCode 把 MCP 工具命名为 `<服务器>_<工具>`，dialect 按 ACP 的 `name` 把 `antumi_x` 认成 Antumi 的 `antumi.x`。不提供全部放行、无人值守、原生 fork，也不接它的表单提问（它会让模型自己说明假设后继续）；子 Agent 的工具调用带着子会话标题前缀显示在父会话里。
 - **全部放行**：支持它的 Agent（Claude Code、Codex）都提供这个模式，但从不默认选中，对应 Claude Code 的 `bypassPermissions`，以及 Codex 的 `never` 审批加 `danger-full-access` 沙箱：Agent 不再请求确认，也不受沙箱限制。
 - **规划**：Agent 在规划模式下拿出计划时，右侧的检查器会自动打开到「计划」页显示全文，每一版计划和它的处理结果都留在那里；输入框上方可以按计划执行（之后自动接受编辑，或者逐项确认），也可以附上意见让它继续规划。Cursor 使用原生 `cursor/create_plan` 审批，确认后等待 Agent 模式切换成功再接受计划。Cursor 的分叉会复制可见历史并新建会话，不使用原生 fork。Codex 的计划在回合结束时交出，按计划执行就是用选定的模式（自动或逐项确认）接着发一回合；直接发消息算作继续规划。
 - **上下文**：输入框右下角的圆环显示上下文窗口用了多少，超过 60% 变黄，超过 85% 变红。
@@ -334,12 +335,12 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 1. **protocol**：在 `packages/protocol/src/agent.ts` 的 `AGENT_KINDS` 里加 id，新建 `packages/protocol/src/agents/<id>.ts` 写一个 `AgentDescriptor`，再登记进 `agents/index.ts` 的 `AGENT_DESCRIPTORS`。descriptor 是纯数据，core 和各客户端共用，内容包括名称、它怎么称呼 Antumi 的权限模式、新会话的起始模式、群聊成员用的只读模式（`discussionMode`）、能力开关（`unattended`、`bypass`、`autoMode`、`pathMentions`、`optionsWhileBusy`）、安装和登录提示、用量重置在哪里用，以及它在 limitreset.net 上对应的产品（`resetTracker`，可选）。core 每小时请求一次 `https://limitreset.net/api/v1/status`（手动刷新用量时也请求，至少隔 5 分钟）；它的 Codex 数据转自 Codex Resets，所以当它连不上，或它自己同步 Codex Resets 失败、超过 6 小时没成功（`discovery`）时，Codex 改问 `https://codex-resets.com/api/v1/status`（没有概率，其余照常），两边都失败就保留上次的结果。把各产品最近一次全员重置、已预告但未生效的重置、48 小时内再次重置的估算概率，作为 `AgentUsage.globalResets` 随用量推给客户端；设置 → 用量额度里可以关掉（`ChatSettings.resetAnnouncements`，默认开），关掉后不再发请求。数据由社区汇总自 X 上的公告，未经核实，界面注明非官方并按 LimitReset 的要求注明来源。界面只读这些数据，不自己编码规则。
 2. **core**：新建 `packages/core/src/agents/<id>/`，写一个 `AgentAdapter`（`agents/agent-adapter.ts`），再登记进 `agents/index.ts` 的 `AGENT_ADAPTERS`。adapter 负责以下几项，大多可选，没给就走默认实现：
-   - 必填：driver（实现 `ChatDriver`）、启动命令（argv 数组）、能用的权限模式、会话策略（是否预先指定会话 id、会话是否绑定目录、是否支持原生 fork）。
+   - 必填：driver（实现 `ChatDriver`）、启动命令（argv 数组，需要时加环境变量 `env`）、能用的权限模式、会话策略（是否预先指定会话 id、会话是否绑定目录、是否支持原生 fork）。
    - 可选：模型目录、环境检测、登录检查、用量读取、使用重置卡（`useResetCredit`，没有它就只能在 Agent 自己的应用里用）、CLI 安装命令、应用发现。
    - 可选 hooks，用于命令行之外的特殊需求：启动前后的准备（`launch`）、回合处理（`turns`：串行发送、取消后分阶段停止进程、首帧超时、换新进程重试、拒绝理由作为消息发送）。注册时 `checkAdapter()` 会检查这些 hooks 是否配套，比如声明了首帧超时，就必须同时能停进程、能重试。
 3. **desktop**：放一个图标资源，登记进 `components/icons.tsx` 的 `AGENT_MARKS`。
 
-说 ACP 的 Agent 不用另写 driver：`agents/acp/acp-driver.ts` 讲标准协议，Agent 自己的部分写成一份 `AcpDialect`，然后用 `new AcpDriver(dialect, …)` 创建 driver。dialect 至少要有显示名、请求 id 前缀（会写进日志，定下后不能改）和权限模式映射；扩展认证方式、模型列表、提问、计划审批、子 Agent、工具命名、写进回复的传输错误等，都按需声明。Cursor 的 dialect（`agents/cursor/cursor-dialect.ts`）可以作参照。`agents/acp/acp-driver.test.ts` 用一个什么扩展都不带的 dialect 跑完一整个回合，新 dialect 可以从它开始。
+说 ACP 的 Agent 不用另写 driver：`agents/acp/acp-driver.ts` 讲标准协议，Agent 自己的部分写成一份 `AcpDialect`，然后用 `new AcpDriver(dialect, …)` 创建 driver。dialect 至少要有显示名、请求 id 前缀（会写进日志，定下后不能改）和权限模式映射；扩展认证方式、模型列表、提问、计划审批、子 Agent、工具命名、写进回复的传输错误等，都按需声明。Cursor 的 dialect（`agents/cursor/cursor-dialect.ts`）扩展最多，OpenCode 的（`agents/opencode/opencode-dialect.ts`）几乎只用标准协议，都可以作参照。`agents/acp/acp-driver.test.ts` 用一个什么扩展都不带的 dialect 跑完一整个回合，新 dialect 可以从它开始。
 
 `agents/agent-registry.test.ts` 检查每个 adapter 提供的权限模式和 descriptor 里写的完全一致，并检查声明的 hooks 都有对应实现。
 
@@ -359,13 +360,13 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 设置 → 任务 → 技能 管理 Agent Skills（`SKILL.md` 目录）。core 从 https 地址 `git clone` 到 `~/.antumi/skills/repos/<id>/`，固定在安装时的提交（detached HEAD），把扫描到的技能写进 `skills.json`；「检查更新」只 fetch 并从 git 对象里读新版本的技能列表，用户确认后才移动 pin，并记住上一个提交供回退。不改用户自己的 `~/.claude`、`~/.codex`。
 
-交给 Agent 的是**bundle**（`bundles/<key>/`）：按需要的技能从各仓库复制出来（只复制 `skills/<名字>/`，跳过软链接，限 32 MiB），同时写成 Claude Code 插件（`.claude-plugin/plugin.json` + `skills/`）和 `.agents/skills/` 两种布局；`key` 是技能及其提交的哈希，同样的选择得到同一个目录，提示词缓存得以保温，更新或回退后自然换新目录。descriptor 的 `capabilities.skills` 说明这个 Agent 能否接收 bundle，adapter 决定怎么交（`AgentLaunch.skills`）：Claude Code 用 `--plugin-dir`，Cursor 用 `--add-dir`；Codex 只读固定目录，暂不支持。第一版的选择是全局的：Obsidian 知识库允许写入时，交出推荐仓库 kepano/obsidian-skills 里的 `obsidian-markdown`（见 `skills-recommended.ts`）；Markdown 文件夹不自动加载该技能。bundle 建不出来只记进 wire log，不阻止 Agent 启动。
+交给 Agent 的是**bundle**（`bundles/<key>/`）：按需要的技能从各仓库复制出来（只复制 `skills/<名字>/`，跳过软链接，限 32 MiB），同时写成 Claude Code 插件（`.claude-plugin/plugin.json` + `skills/`）和 `.agents/skills/` 两种布局；`key` 是技能及其提交的哈希，同样的选择得到同一个目录，提示词缓存得以保温，更新或回退后自然换新目录。descriptor 的 `capabilities.skills` 说明这个 Agent 能否接收 bundle，adapter 决定怎么交（`AgentLaunch.skills`）：Claude Code 用 `--plugin-dir`，Cursor 用 `--add-dir`，OpenCode 写进 `OPENCODE_CONFIG_CONTENT` 的 `skills`；Codex 只读固定目录，暂不支持。第一版的选择是全局的：Obsidian 知识库允许写入时，交出推荐仓库 kepano/obsidian-skills 里的 `obsidian-markdown`（见 `skills-recommended.ts`）；Markdown 文件夹不自动加载该技能。bundle 建不出来只记进 wire log，不阻止 Agent 启动。
 
 ### 用户的 MCP 服务器
 
 设置 → 任务 → MCP 维护一份全局的 MCP 服务器列表（`mcp-servers.ts`）：本地命令（stdio）或远程地址（streamable HTTP，远程只接受 https），每个选好交给哪些 Agent，可以单独停用。设置存在 `mcp-servers.json`；环境变量和请求头的值都当密钥，存进 `credentials.json`（`mcp/<名字>`），客户端只看得到键名。名字 `antumi` 留给 Antumi 自己的服务器（工具名靠它识别）。
 
-和技能库一样，**每次启动时注入，不改 Agent 自己的配置**：descriptor 的 `capabilities.userMcp` 说明能不能接，adapter 用交 Antumi MCP 的同一条路交出去（`AgentLaunch.userMcp`）——Claude Code 合进 `--mcp-config`（仍不加 `--strict-mcp-config`，用户自己配的照常加载），Codex 是整条 `-c mcp_servers.<名字>={...}`（同名时盖过 config.toml 里的那条），Cursor 进 ACP `session/new` 的 `mcpServers`。有密钥的服务器交出去的是 Antumi 的启动器（`mcp-main --run <名字>`，`user-mcp-launch.ts`）：它启动时才从 Antumi 的文件读出密钥，命令带上环境变量直接接管 stdio，远程地址则由它在 stdio 和 HTTP 之间转发（`mcp-http.ts`），所以密钥不进 Agent 的命令行、配置和 Antumi 的日志；没有密钥的远程地址直接交给 Agent。改动从下次启动 Agent 起生效。
+和技能库一样，**每次启动时注入，不改 Agent 自己的配置**：descriptor 的 `capabilities.userMcp` 说明能不能接，adapter 用交 Antumi MCP 的同一条路交出去（`AgentLaunch.userMcp`）——Claude Code 合进 `--mcp-config`（仍不加 `--strict-mcp-config`，用户自己配的照常加载），Codex 是整条 `-c mcp_servers.<名字>={...}`（同名时盖过 config.toml 里的那条），Cursor 和 OpenCode 进 ACP `session/new` 的 `mcpServers`。有密钥的服务器交出去的是 Antumi 的启动器（`mcp-main --run <名字>`，`user-mcp-launch.ts`）：它启动时才从 Antumi 的文件读出密钥，命令带上环境变量直接接管 stdio，远程地址则由它在 stdio 和 HTTP 之间转发（`mcp-http.ts`），所以密钥不进 Agent 的命令行、配置和 Antumi 的日志；没有密钥的远程地址直接交给 Agent。改动从下次启动 Agent 起生效。
 
 - **测试连接**（`mcpServers.probe`，`mcp-probe.ts`）：像 Agent 一样连上去 `initialize` → `tools/list`，命令在独立进程组里跑、结束即杀，60 秒超时，失败时带上 stderr。
 - **没连上**：Claude 的 init 里 `source: dynamic` 且失败的、Codex 的 `mcpServer/startupStatus/updated` 里失败的用户服务器，聊天里各出一行提示；记进日志的帧带着这个判断，重放结果一致。
