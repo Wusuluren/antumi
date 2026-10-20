@@ -475,6 +475,8 @@ pnpm dist:win     # 产物在 packages/desktop/dist/Antumi-Setup-<版本>-x64.ex
 
 ### 自动发布
 
+发版要改的文件和逐步操作见 [RELEASING.md](RELEASING.md)。
+
 [Release 工作流](../.github/workflows/release.yml) 在推送 `v*` 标签时运行：校验五个应用包的版本号与标签一致、运行类型检查和测试，分别在 macOS 和 Windows 上打包，再创建 GitHub Release 并上传 DMG 和 EXE。发布说明取自 `CHANGELOG.md` 对应版本；带 `-alpha`、`-beta` 等后缀的版本标为预发布。
 
 发布前先更新并提交版本号和更新日志，再创建、推送标签，例如 `v0.19.2`。工作流使用内置 `GITHUB_TOKEN`，仅发布阶段有 `contents: write` 权限，无需额外配置个人令牌或签名证书。macOS 继续使用 ad-hoc 签名，Windows 安装包不签名。
