@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { parseLsof, parseProcessFolders, parseProcesses, parseSs, type ProcessSnapshot } from './listening-processes'
-import { SessionPorts, sessionPorts } from './session-ports'
+import { parseLsof, parseProcessFolders, parseProcessOwners, parseProcesses, parseSs, type ProcessSnapshot } from './listening-processes'
+import { SessionPorts, sessionPorts, strayListeners } from './session-ports'
 
 const snapshot: ProcessSnapshot = {
   processes: [
@@ -31,6 +31,14 @@ describe('listening process parsers', () => {
     expect(parseSs('LISTEN 0 511 *:3000 *:* users:(("node",pid=120,fd=20))', 6)).toEqual([{ pid: 120, address: '::', port: 3000 }])
   })
 
+  it('reads the owner from the environment ps -E prints after the arguments', () => {
+    const owner = 'conversation:11111111-1111-4111-8111-111111111111'
+    expect([...parseProcessOwners(`  120 node server.js PATH=/usr/bin ANTUMI_OWNER=${owner} HOME=/Users/me\n  200 node other.js PATH=/usr/bin\n  300 /bin/launchd`)])
+      .toEqual([[120, owner]])
+    // The environment follows the arguments, so an argument that looks like it does not count.
+    expect(parseProcessOwners(`  120 node ANTUMI_OWNER=terminal:fake ANTUMI_OWNER=${owner}`).get(120)).toBe(owner)
+  })
+
   it('preserves spaces in process working directories', () => {
     expect([...parseProcessFolders('p120\nfcwd\nn/project with spaces\np200\nn/another')]).toEqual([[120, '/project with spaces'], [200, '/another']])
   })
@@ -48,10 +56,33 @@ describe('session port ownership', () => {
     expect(sessionPorts(data, roots)).toHaveLength(1)
   })
 
+  it('places a process that left every session\'s tree by the owner it was started under', async () => {
+    const owner = 'conversation:11111111-1111-4111-8111-111111111111'
+    // The shell that started the server is gone, and it now hangs off launchd.
+    const orphaned = { ...snapshot, processes: snapshot.processes.map((each) => each.pid === 120 ? { ...each, parentPid: 1 } : each) }
+    expect(strayListeners(orphaned, roots)).toEqual([120, 200])
+    expect(sessionPorts(orphaned, roots)).toEqual([])
+    expect(sessionPorts(orphaned, roots, new Map([[120, owner]]))).toEqual([
+      { sessionId: '', owner, pid: 120, port: 3000, address: '127.0.0.1', command: 'node', startedAt: 'server', canStop: true }
+    ])
+    // One still in a session's tree goes by the session, whatever its environment says.
+    expect(sessionPorts(snapshot, roots, new Map([[120, owner]]))[0]).toMatchObject({ sessionId: 'terminal' })
+    expect(sessionPorts(snapshot, roots, new Map([[120, owner]]))[0]).not.toHaveProperty('owner')
+
+    const stop = vi.fn(async () => {})
+    const owners = vi.fn(async (pids: readonly number[]) => new Map(pids.includes(120) ? [[120, owner]] : []))
+    const service = new SessionPorts(() => roots, async () => orphaned, stop, async () => new Map(), owners)
+    const [port] = await service.list()
+    if (!port) throw new Error('missing port')
+    expect(owners).toHaveBeenCalledWith([120, 200])
+    await service.stop(port)
+    expect(stop).toHaveBeenCalledExactlyOnceWith(orphaned.processes[2])
+  })
+
   it('protects the agent root while allowing a command terminal root to stop', async () => {
     const data = { ...snapshot, listeners: [{ pid: 100, port: 3000, address: '*' }] }
     const stop = vi.fn(async () => {})
-    const service = new SessionPorts(() => roots, async () => data, stop, async () => new Map())
+    const service = new SessionPorts(() => roots, async () => data, stop, async () => new Map(), async () => new Map())
     const [port] = await service.list()
     if (!port) throw new Error('missing port')
     expect(port.canStop).toBe(false)
@@ -64,7 +95,7 @@ describe('session port ownership', () => {
     let current = structuredClone(snapshot)
     const stop = vi.fn(async () => {})
     let sessions = roots
-    const service = new SessionPorts(() => sessions, async () => current, stop, async () => new Map())
+    const service = new SessionPorts(() => sessions, async () => current, stop, async () => new Map(), async () => new Map())
     const [port] = await service.list()
     if (!port) throw new Error('missing port')
     if (change === 'identity') current = { ...current, processes: current.processes.map((each) => each.pid === port.pid ? { ...each, startedAt: 'reused-pid' } : each) }
@@ -76,7 +107,7 @@ describe('session port ownership', () => {
 
   it('stops only the verified listening process and includes its actual cwd', async () => {
     const stop = vi.fn(async () => {})
-    const service = new SessionPorts(() => roots, async () => snapshot, stop, async () => new Map([[120, '/worktree/frontend']]))
+    const service = new SessionPorts(() => roots, async () => snapshot, stop, async () => new Map([[120, '/worktree/frontend']]), async () => new Map())
     const [port] = await service.list()
     if (!port) throw new Error('missing port')
     expect(port.cwd).toBe('/worktree/frontend')

@@ -404,7 +404,7 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 状态栏右下角的端口按钮打开独立的端口面板，列出 Antumi 托管终端和 Agent 子进程正在监听的 TCP 端口，按任务、会话或终端分组。可以切换为只看当前任务 / 会话，打开内置浏览器、定位所属终端或停止监听进程；停止前会重新核验进程身份和端口归属，不会结束其他终端或 Agent。普通终端里的 shell 保留，Agent 命令结束后标签保留输出。面板打开时每两秒刷新，隐藏后停止扫描。
 
-端口归属优先跟随终端 / Agent 的进程树。用户自己的 shell 只有在实际工作目录能唯一对应任务 worktree 或会话时才关联，多个会话共用目录时仍按终端显示。macOS 和 Linux 能读取实际工作目录；Windows 的普通 shell 按终端显示。没有归属的系统服务、Docker 容器内服务和脱离托管进程树的服务不在列表中。端口发现依赖 macOS 的 `lsof` / `ps`、Linux 的 `ss`（或 `lsof`）/ `ps`、Windows 的 PowerShell。
+端口归属优先跟随终端 / Agent 的进程树。用户自己的 shell 只有在实际工作目录能唯一对应任务 worktree 或会话时才关联，多个会话共用目录时仍按终端显示。macOS 和 Linux 能读取实际工作目录；Windows 的普通 shell 按终端显示。core 启动 Agent 和终端时会在环境变量 `ANTUMI_OWNER` 里写上归属（`conversation:<会话 id>` 或 `terminal:<终端 id>`），它们启动的进程都会继承。进程树断了的服务（启动它的 shell 退出、Agent 已停止，进程被系统接管），daemon 会读它的环境变量，仍归到原来的会话或还开着的终端下，也能停止；Agent 让终端里的命令起的服务归到会话，关掉标签也找得到。环境变量在 macOS 上用 `ps -E` 读，只读得到当前用户、非 Apple 自带程序的进程；Linux 读 `/proc/<pid>/environ`；Windows 读不到，只看进程树。没有归属的系统服务、Docker 容器内服务、只监听 unix socket 的进程，以及环境变量被清空后启动的服务不在列表中。端口发现依赖 macOS 的 `lsof` / `ps`、Linux 的 `ss`（或 `lsof`）/ `ps`、Windows 的 PowerShell。
 
 可以在项目或任务 worktree 的 `.antumi/ports.json` 中给端口命名：`{"ports":[{"port":3000,"label":"Frontend"},{"port":8080,"label":"API"}]}`。配置只给已发现的端口加标签，修改后自动生效，格式有误时仍显示端口。端口面板不分配端口，也不提供远程转发。
 

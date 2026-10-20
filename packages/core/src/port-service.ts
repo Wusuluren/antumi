@@ -1,6 +1,6 @@
 import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { PortLabels, type Conversation, type HostedPort, type ListeningPort, type PortList, type PortRef, type Task, type Terminal } from '@antumi/protocol'
+import { parseProcessOwner, PortLabels, type Conversation, type HostedPort, type ListeningPort, type PortList, type PortRef, type Task, type Terminal } from '@antumi/protocol'
 import type { SessionHost } from './daemon-client'
 import { Rejection } from './rejection'
 
@@ -13,8 +13,11 @@ function inside(folder: string, root: string): boolean {
 
 export function ownedPorts(ports: readonly HostedPort[], context: PortContext): ListeningPort[] {
   return ports.flatMap((port) => {
-    const terminal = context.terminals.find((each) => each.sessionId === port.sessionId)
-    const direct = context.conversations.find((each) => each.sessionId === port.sessionId)
+    // A process that left every session's tree goes by what it was started under: a conversation
+    // whose agent may have stopped since, or a terminal still open.
+    const owner = port.owner ? parseProcessOwner(port.owner) : null
+    const terminal = port.sessionId ? context.terminals.find((each) => each.sessionId === port.sessionId) : owner?.kind === 'terminal' ? context.terminals.find((each) => each.id === owner.id) : undefined
+    const direct = port.sessionId ? context.conversations.find((each) => each.sessionId === port.sessionId) : owner?.kind === 'conversation' ? context.conversations.find((each) => each.id === owner.id) : undefined
     if (!terminal && !direct) return []
     // A pipe root is the agent, not a dev server it started.
     if (!terminal && !port.canStop) return []

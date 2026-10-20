@@ -71,6 +71,8 @@ describe('TerminalService', () => {
     const opened = await service.open(root)
     expect(opened).toMatchObject({ cwd: root, title: path.basename(root), sessionId: 'session-1' })
     expect(daemon.spawns[0]).toMatchObject({ ...userShell(), cwd: root })
+    // What it starts carries the tab, to find a server the shell outlives.
+    expect(daemon.spawns[0]?.env).toMatchObject({ ANTUMI_OWNER: `terminal:${opened.id}` })
     expect((await service.open(path.join(root, 'missing'))).cwd).toBe(os.homedir())
     expect((await service.open('relative/dir')).cwd).toBe(os.homedir())
     expect(emitted.at(-1)).toHaveLength(3)
@@ -110,6 +112,7 @@ describe('TerminalService', () => {
     const run = await service.run('conv-1', root, 'pnpm dev')
     expect(run).toMatchObject({ conversationId: 'conv-1', command: 'pnpm dev', title: 'pnpm dev', cwd: root, exited: false })
     expect(daemon.spawns[0]).toMatchObject({ ...commandShell('pnpm dev'), cwd: root })
+    expect(daemon.spawns[0]?.env).toMatchObject({ ANTUMI_OWNER: 'conversation:conv-1' })
     daemon.buffers.set(run.sessionId, '\x1b[32mready\x1b[0m on http://localhost:5173\r\n')
     expect(await service.read('conv-1', run.id)).toMatchObject({ command: 'pnpm dev', output: 'ready on http://localhost:5173', running: true, exitCode: null })
     service.handleExit(run.sessionId, 130)

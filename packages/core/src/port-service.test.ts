@@ -68,6 +68,18 @@ describe('port ownership in core', () => {
     expect(ownedPorts([agentPort], base)[0]).toMatchObject({ terminalId: null, conversationId: chatId })
     expect(ownedPorts([{ ...agentPort, canStop: false }, { ...port, sessionId: 'browser-host' }], base)).toEqual([])
   })
+
+  it('places a server that left every session by the owner it was started under', () => {
+    const stray = { ...port, sessionId: '', canStop: true }
+    // Its agent stopped: the conversation holds no session now.
+    const stopped = { ...base, conversations: [{ ...conversation(), sessionId: null }] }
+    expect(ownedPorts([{ ...stray, owner: `conversation:${chatId}` }], stopped)[0]).toMatchObject({ terminalId: null, conversationId: chatId, cwd: '/project/frontend' })
+    expect(ownedPorts([{ ...stray, owner: `terminal:${terminalId}` }], stopped)[0]).toMatchObject({ terminalId, conversationId: chatId })
+    // Nothing it names is still here, or it names nothing Antumi knows: it stays out.
+    expect(ownedPorts([{ ...stray, owner: `conversation:${otherId}` }, { ...stray, owner: 'conversation:nope' }, stray], stopped)).toEqual([])
+    // An empty session never matches a conversation that has none.
+    expect(ownedPorts([stray], { ...base, conversations: [{ ...conversation(), sessionId: '' }] })).toEqual([])
+  })
 })
 
 describe('PortService', () => {

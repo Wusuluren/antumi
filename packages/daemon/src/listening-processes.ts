@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { readlink } from 'node:fs/promises'
+import { readFile, readlink } from 'node:fs/promises'
+import { PROCESS_OWNER_ENV } from '@antumi/protocol'
 import { ProcessSnapshotData } from '@antumi/protocol/node'
 
 const execute = promisify(execFile)
@@ -67,6 +68,39 @@ export async function readProcessFolders(pids: readonly number[]): Promise<Map<n
     return parseProcessFolders(await output('lsof', ['-a', '-d', 'cwd', '-Fpn', '-p', [...new Set(pids)].join(',')]).catch(() => ''))
   }
   return new Map()
+}
+
+// `ps -E` prints a process's environment after its arguments, so the last match is the variable.
+export function parseProcessOwners(text: string): Map<number, string> {
+  const owners = new Map<number, string>()
+  const variable = new RegExp(`(?:^|\\s)${PROCESS_OWNER_ENV}=(\\S+)`, 'g')
+  for (const line of text.split('\n')) {
+    const match = /^\s*(\d+)\s(.*)$/.exec(line)
+    const value = match?.[2] ? [...match[2].matchAll(variable)].at(-1)?.[1] : undefined
+    if (match && value) owners.set(Number(match[1]), value)
+  }
+  return owners
+}
+
+// What each process was started under, read from its environment. macOS shows it only for
+// processes the user owns that are not Apple's own platform binaries; Windows offers no simple
+// way to read it, so there the process tree alone decides.
+export async function readProcessOwners(pids: readonly number[], platform: NodeJS.Platform = process.platform): Promise<Map<number, string>> {
+  const unique = [...new Set(pids)]
+  if (unique.length === 0) return new Map()
+  if (platform === 'linux') {
+    const owners = await Promise.all(unique.map(async (pid) => {
+      const environment = await readFile(`/proc/${pid}/environ`, 'utf8').catch(() => '')
+      const entry = environment.split('\0').find((each) => each.startsWith(`${PROCESS_OWNER_ENV}=`))
+      return [pid, entry?.slice(PROCESS_OWNER_ENV.length + 1)] as const
+    }))
+    return new Map(owners.flatMap(([pid, owner]) => owner ? [[pid, owner]] : []))
+  }
+  if (platform !== 'darwin') return new Map()
+  // ps exits 1 when one of the pids has gone, and still prints the rest.
+  const text = await output('ps', ['-E', '-ww', '-o', 'pid=,command=', '-p', unique.join(',')])
+    .catch((error: unknown) => typeof error === 'object' && error !== null && 'stdout' in error && typeof error.stdout === 'string' ? error.stdout : '')
+  return parseProcessOwners(text)
 }
 
 export async function readListeningProcesses(platform: NodeJS.Platform = process.platform): Promise<ProcessSnapshot> {

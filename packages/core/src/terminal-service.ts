@@ -3,11 +3,16 @@ import { stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { agentDescriptor, Terminal, type AgentCliInstallation, type TerminalOutput } from '@antumi/protocol'
+import { agentDescriptor, PROCESS_OWNER_ENV, processOwner, Terminal, type AgentCliInstallation, type ProcessOwner, type TerminalOutput } from '@antumi/protocol'
 import { nodeLaunchHost, resolveCommand, type LaunchHost, type SessionInfo } from '@antumi/protocol/node'
 import type { SessionHost } from './daemon-client'
 import { Rejection } from './rejection'
 import { terminalEnv, type ShellPrompt } from './shell-prompt'
+
+// Marks everything a terminal starts as its owner's, so a server the shell outlives still shows.
+function ownedBy(owner: ProcessOwner): Record<string, string> {
+  return { [PROCESS_OWNER_ENV]: processOwner(owner) }
+}
 
 // The user's own login shell, started the way their terminal app would. An interactive shell is
 // the point here; agent commands, by contrast, never go through one. On Windows that is
@@ -104,9 +109,10 @@ export class TerminalService {
     const shell = userShell()
     // Without its files the shell still opens, only with the prompt it came with.
     const prompt = colorPrompt && this.prompt ? await this.prompt.env(shell.command).catch(() => null) : null
-    const env = { ...terminalEnv(), ...prompt }
+    const id = randomUUID()
+    const env = { ...terminalEnv(), ...prompt, ...ownedBy({ kind: 'terminal', id }) }
     const { sessionId } = await this.daemon.request('spawn', { command: shell.command, args: shell.args, cwd: folder, env, cols: 100, rows: 30 })
-    const terminal = { id: randomUUID(), sessionId, cwd: folder, title: path.basename(folder) || folder, createdAt: this.now() }
+    const terminal = { id, sessionId, cwd: folder, title: path.basename(folder) || folder, createdAt: this.now() }
     this.db.prepare('INSERT INTO terminals (id, session_id, cwd, title, created_at) VALUES (?, ?, ?, ?, ?)')
       .run(terminal.id, terminal.sessionId, terminal.cwd, terminal.title, terminal.createdAt)
     this.changed()
@@ -117,7 +123,9 @@ export class TerminalService {
   async run(conversationId: string, cwd: string, command: string, options: RunOptions = {}): Promise<Terminal> {
     const folder = path.isAbsolute(cwd) && (await stat(cwd).catch(() => null))?.isDirectory() ? cwd : os.homedir()
     const shell = commandShell(command)
-    const { sessionId } = await this.daemon.request('spawn', { command: shell.command, args: shell.args, cwd: folder, env: { ...terminalEnv(), ...options.env }, cols: 120, rows: 32 })
+    // Owned by the conversation rather than the tab: a server it starts outlives a closed tab.
+    const env = { ...terminalEnv(), ...options.env, ...ownedBy({ kind: 'conversation', id: conversationId }) }
+    const { sessionId } = await this.daemon.request('spawn', { command: shell.command, args: shell.args, cwd: folder, env, cols: 120, rows: 32 })
     const title = options.title ?? (command.length > 60 ? `${command.slice(0, 59)}…` : command)
     const purpose = options.purpose ?? null
     const terminal = { id: randomUUID(), sessionId, cwd: folder, title, createdAt: this.now(), conversationId, command, purpose }
@@ -151,8 +159,9 @@ export class TerminalService {
       ? { command: 'powershell.exe', args: ['-NoLogo', '-NoProfile', '-Command', `$ErrorActionPreference = 'Stop'; ${installation.command}`] }
       : { command: '/bin/bash', args: ['-o', 'pipefail', '-c', installation.command] }
     const cwd = os.homedir()
-    const { sessionId } = await this.daemon.request('spawn', { ...shell, cwd, env: terminalEnv(), cols: 120, rows: 32 })
-    const terminal = { id: randomUUID(), sessionId, cwd, title: `安装 ${agentDescriptor(installation.agent).label} CLI`, createdAt: this.now(), command: installation.command }
+    const id = randomUUID()
+    const { sessionId } = await this.daemon.request('spawn', { ...shell, cwd, env: { ...terminalEnv(), ...ownedBy({ kind: 'terminal', id }) }, cols: 120, rows: 32 })
+    const terminal = { id, sessionId, cwd, title: `安装 ${agentDescriptor(installation.agent).label} CLI`, createdAt: this.now(), command: installation.command }
     this.db.prepare('INSERT INTO terminals (id, session_id, cwd, title, created_at, command) VALUES (?, ?, ?, ?, ?, ?)')
       .run(terminal.id, sessionId, cwd, terminal.title, terminal.createdAt, terminal.command)
     this.changed()

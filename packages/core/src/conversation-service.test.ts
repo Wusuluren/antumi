@@ -903,6 +903,11 @@ describe('ConversationService', () => {
     await expect(service.switchBranch(created.id, root, 'refs/heads/main')).rejects.toMatchObject({ reason: 'repo-not-found' })
   })
 
+  it('marks what its agent starts as the conversation\'s, to find a server the agent outlives', async () => {
+    const created = await service.create('claude', [])
+    expect(daemon.spawns.at(-1)?.env).toEqual({ ANTUMI_OWNER: `conversation:${created.id}` })
+  })
+
   it('offers a new chat the models the agent listed last, after a restart too, and starts with one picked', async () => {
     const created = await service.create('claude', [])
     const ids = async () => (await service.chatCatalog('claude'))?.models.map((model) => model.id)

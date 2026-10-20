@@ -34,7 +34,8 @@ describe('live session ports', () => {
       const ports = await service.list()
       const port = ports.find((each) => each.port === announced.port && each.pid === announced.pid)
       expect(port).toMatchObject({ sessionId: 'test-session', canStop: true, cwd: process.cwd() })
-      expect(ports.every((each) => each.sessionId === 'test-session' && each.pid !== process.pid)).toBe(true)
+      // Strays only show by an owner set where Antumi started them, as it may have this test run.
+      expect(ports.filter((each) => !each.owner).every((each) => each.sessionId === 'test-session' && each.pid !== process.pid)).toBe(true)
       expect(await (await fetch(`http://127.0.0.1:${announced.port}`)).text()).toBe('antumi-port-test')
       if (!port) throw new Error('port was not discovered')
       await service.stop(port)
@@ -45,6 +46,26 @@ describe('live session ports', () => {
       if (childPid) { try { process.kill(childPid, 'SIGTERM') } catch {} }
       root.kill('SIGTERM')
       await new Promise<void>((resolve) => foreign.close(() => resolve()))
+    }
+  }, 20_000)
+
+  it.skipIf(process.platform !== 'darwin' && process.platform !== 'linux')('finds a server outside every session by the owner in its environment', async () => {
+    const owner = 'conversation:11111111-1111-4111-8111-111111111111'
+    const server = "const s=require('node:net').createServer();s.listen(0,'127.0.0.1',()=>console.log(s.address().port))"
+    const child = spawn(process.execPath, ['-e', server], { stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, ANTUMI_OWNER: owner } })
+    try {
+      const port = await new Promise<number>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('server never started')), 5000)
+        child.stdout.setEncoding('utf8')
+        child.stdout.once('data', (chunk: string) => {
+          clearTimeout(timeout)
+          resolve(Number(chunk.trim()))
+        })
+      })
+      const found = (await new SessionPorts(() => []).list()).find((each) => each.pid === child.pid && each.port === port)
+      expect(found).toMatchObject({ sessionId: '', owner, canStop: true })
+    } finally {
+      child.kill('SIGTERM')
     }
   }, 20_000)
 })
