@@ -39,13 +39,16 @@ describe('inspector file navigation', () => {
     selectConversation(conversation.id)
     useCore.setState({ conversationInspectorTab: 'branch' })
     const surface = conversationSurface(conversation)
-    surface.showFileChange('../web/src/app.ts')
+    const edit = { conversationId: chat.id, fold: 'turn-1', path: '../web/src/app.ts' }
+    surface.showFileChange('../web/src/app.ts', edit)
     expect(useCore.getState()).toMatchObject({
       conversationInspectorOpen: true, conversationInspectorTab: 'changes',
-      inspectorFile: { kind: 'conversation', id: chat.id, project: '/project/web', file: '/project/web/src/app.ts' }
+      inspectorFile: { kind: 'conversation', id: chat.id, project: '/project/web', file: '/project/web/src/app.ts', edit }
     })
+    expect(surface.inProject('../web/src/app.ts')).toBe(true)
+    expect(surface.inProject('/Users/me/.claude/plans/plan.md')).toBe(false)
     const previous = useCore.getState().inspectorFile?.revision
-    surface.showFileChange('../web/src/app.ts')
+    surface.showFileChange('../web/src/app.ts', edit)
     expect(useCore.getState().inspectorFile?.revision).not.toBe(previous)
     surface.showChanges()
     expect(useCore.getState()).toMatchObject({ conversationInspectorOpen: true, conversationInspectorTab: 'changes', inspectorFile: null })

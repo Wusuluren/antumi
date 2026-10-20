@@ -40,6 +40,7 @@ function popupSurface(entry: PopupEntry, conversation: Conversation | undefined)
     showPlan: open,
     showChanges: open,
     showFileChange: open,
+    inProject: () => false,
     showBrowser: open,
     changes: null,
     changesHint: '',

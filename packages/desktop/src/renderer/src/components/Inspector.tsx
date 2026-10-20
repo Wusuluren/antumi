@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState, type ReactNode } from 'react'
 import { RpcError, type ChangedFile, type Commit, type FileDiff } from '@antumi/protocol'
-import { useCore } from '../core-store'
+import { revealChatEdit, useCore } from '../core-store'
+import type { ChatEdit } from '../inspector-file'
 import type { BranchTarget } from './BranchStatus'
 import { CommentableDiff, DiffCommentConversation } from './DiffComments'
 import { DiffLines } from './DiffLines'
@@ -216,12 +217,14 @@ export function FileList({ files, onOpen }: { files: readonly ChangedFile[]; onO
 // `load` is asked again whenever `loadKey` changes; a stale answer never replaces a newer one.
 // commentKey names the diff for comments on its lines, where the inspector has a chat to send them
 // to; it outlasts a reload, as loadKey does not.
-export function FileDiffView({ file, loadKey, commentKey, load, onBack }: {
+// edit is the turn that changed the file, offered once git no longer has it changed.
+export function FileDiffView({ file, loadKey, commentKey, load, onBack, edit }: {
   file: string
   loadKey: string
   commentKey?: string
   load: () => Promise<FileDiff>
   onBack: () => void
+  edit?: ChatEdit | null
 }) {
   const conversationId = useContext(DiffCommentConversation)
   const [result, setResult] = useState<{ key: string; diff: FileDiff | null; gone: boolean } | null>(null)
@@ -247,7 +250,10 @@ export function FileDiffView({ file, loadKey, commentKey, load, onBack }: {
       {!shown ? (
         <p className="inspector-empty muted">正在读取 diff…</p>
       ) : !shown.diff ? (
-        <p className="inspector-empty muted">{shown.gone ? '这个文件已经不在改动里了，可能已经被还原或提交。' : '读取 diff 失败。'}</p>
+        <div className="inspector-empty muted">
+          <p>{shown.gone ? '这个文件已经不在改动里了，可能已经被还原或提交。' : '读取 diff 失败。'}</p>
+          {shown.gone && edit && <button type="button" className="button" onClick={() => revealChatEdit(edit)}>查看本轮的编辑</button>}
+        </div>
       ) : (
         <>
           {conversationId && commentKey

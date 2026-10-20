@@ -30,7 +30,7 @@ import { ChatTodosLine, TodoHistory } from './ChatTodos'
 import { ChatUsageLimitEntry } from './ChatUsageLimit'
 import { ChatWorking, type WorkingPhase } from './ChatWorking'
 import { CopyButton } from './CopyButton'
-import { ChatEditsCard, ChatPaths, ChatToolCard, ChatToolRun } from './ChatToolCard'
+import { ChatEditsCard, ChatPaths, ChatToolCard, ChatToolRun, editDisclosures } from './ChatToolCard'
 import { ChatPreviewCard } from './ChatPreviewCard'
 import { SelectionComment } from './SelectionComment'
 import { effortLabel } from './ChatOptionsBar'
@@ -449,7 +449,9 @@ function TurnFold({ foldKey, conversationId, turn, blocks, task, replies, steps,
 }
 
 // The files a finished turn changed, under its answer: three up front, then the rest on demand.
-// Each file opens its current diff in the inspector, where changes are available.
+// A file in the projects opens its current diff in the inspector, where changes are available; one
+// outside them (a plan under ~/.claude, say) has no git diff, so it opens the turn's own edit, and
+// review is offered only when some file is in the projects.
 function TurnChanges({ conversationId, fold, files, turn, reply, collapsible }: { conversationId: string; fold: string; files: readonly TurnFile[]; turn: TurnItem; reply: { key: string; text: string } | null; collapsible: boolean }) {
   const [showAll, setShowAll] = useDisclosure(`changes:${fold}`)
   // The reply above shares its translation by its key; it is the one that comes into view to start
@@ -462,6 +464,8 @@ function TurnChanges({ conversationId, fold, files, turn, reply, collapsible }: 
   const { added, removed } = files.reduce((sum, file) => ({ added: sum.added + file.added, removed: sum.removed + file.removed }), { added: 0, removed: 0 })
   const hidden = Math.max(files.length - 3, 0)
   const shown = showAll ? files : files.slice(0, 3)
+  const inProject = (path: string) => surface.changes !== null && surface.inProject(path)
+  const reviewable = files.some((file) => inProject(file.path))
   return (
     <div className="chat-turn-result">
       <div className="chat-changes-rollup">
@@ -474,7 +478,7 @@ function TurnChanges({ conversationId, fold, files, turn, reply, collapsible }: 
               <span className="chat-diff-removed">−{removed}</span>
             </span>
           </div>
-          {surface.changes && (
+          {reviewable && (
             <button type="button" className="button chat-changes-review" onClick={surface.showChanges} title="在检查器里查看项目的全部改动">
               审查
             </button>
@@ -486,8 +490,12 @@ function TurnChanges({ conversationId, fold, files, turn, reply, collapsible }: 
             const slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
             const directory = slash === -1 ? '' : path.slice(0, slash + 1)
             const name = slash === -1 ? path : path.slice(slash + 1)
+            const edit = { conversationId, fold: collapsible ? fold : null, path: file.path }
+            const outside = surface.changes !== null && !inProject(file.path)
             return (
-              <button key={file.path} type="button" className="chat-changes-file" data-change={file.change} data-file-path={file.path} title={file.path} onClick={() => surface.changes ? surface.showFileChange(file.path) : folds.reveal(collapsible ? fold : null, file.path)}>
+              <button key={file.path} type="button" className="chat-changes-file" data-change={file.change} data-file-path={file.path} title={outside ? `${file.path}\n项目外的文件，点开看这一轮的编辑` : file.path}
+                onClick={() => inProject(file.path) ? surface.showFileChange(file.path, edit) : folds.reveal(edit.fold, file.path)}>
+                {outside && <span className="chat-changes-kind" data-kind="outside">项目外</span>}
                 {file.change !== 'update' && (
                   <span className="chat-changes-kind" data-kind={file.change}>{file.change === 'add' ? '新建' : '删除'}</span>
                 )}
@@ -668,16 +676,26 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
     return { endings, mergedTurns }
   }, [blocks, replies])
   const folds = useMemo<FoldState>(() => ({
-    // Opens the turn's work, then brings the file's diff into view once it is there.
+    // Opens the turn's work and the cards that edited the file, then brings its diff into view.
     reveal: (key, path) => {
       if (key) setOpened(id, key, true)
       pinned.current = false
+      const scope = () => key ? list.current?.querySelector(`[data-fold="${CSS.escape(key)}"]`) : list.current
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        const scope = key ? list.current?.querySelector(`[data-fold="${CSS.escape(key)}"]`) : list.current
-        scope?.querySelector(`[data-diff-path="${CSS.escape(path)}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+        const found = scope()
+        if (!found) return
+        for (const disclosure of editDisclosures(found, path)) setOpened(id, disclosure, true)
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          scope()?.querySelector(`[data-diff-path="${CSS.escape(path)}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+        }))
       }))
     }
   }), [id])
+  // The inspector sends the user back here when git has nothing left of a file this chat edited.
+  const reveal = useCore((s) => s.chatReveal?.conversationId === id ? s.chatReveal : null)
+  useEffect(() => {
+    if (reveal) folds.reveal(reveal.fold, reveal.path)
+  }, [reveal?.seq])
   const thoughts = useMemo(() => thoughtDurations(items), [items])
   const todoHistory = useMemo(() => previousTodos(items), [items])
   // What the user sent, in order, for the dock's list of them.

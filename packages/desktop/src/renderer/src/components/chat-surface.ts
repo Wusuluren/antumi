@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react'
 import type { ChatItem, Conversation } from '@antumi/protocol'
 import type { PlanItem } from '../chat-state'
 import { showBrowserPanel, showConversationChanges, showConversationPlan, showInspectorFile } from '../core-store'
-import { locateInspectorFile } from '../inspector-file'
+import { insideProjects, locateInspectorFile, type ChatEdit } from '../inspector-file'
 import type { BranchTarget } from './BranchStatus'
 import { continueConversation } from './ConversationActions'
 
@@ -14,7 +14,10 @@ export type ChatSurface = {
   // The side panel on a plan (by item key; null for the newest), or on the changes.
   showPlan(key: string | null): void
   showChanges(): void
-  showFileChange(path: string): void
+  // A file's diff in the inspector; edit is where the turn changed it, the way back once git has nothing.
+  showFileChange(path: string, edit: ChatEdit): void
+  // Whether a file lies in the projects `changes` covers; git shows nothing of one outside them.
+  inProject(path: string): boolean
   // The browser panel, on this conversation's tab.
   showBrowser(): void
   // Whose uncommitted changes the chip counts, and what the chip says of them; null for none.
@@ -53,10 +56,11 @@ export function conversationSurface(conversation: Conversation, handoff: (() => 
     inspector: 'conversation',
     showPlan: showConversationPlan,
     showChanges: showConversationChanges,
-    showFileChange: (path) => {
+    showFileChange: (path, edit) => {
       const found = locateInspectorFile(path, conversation.workspacePath, conversation.projectPaths.map((folder) => ({ project: folder, folder })))
-      if (found) showInspectorFile('conversation', conversation.id, found.project, found.file)
+      if (found) showInspectorFile('conversation', conversation.id, found.project, found.file, edit)
     },
+    inProject: (path) => insideProjects(path, conversation.workspacePath, conversation.projectPaths),
     showBrowser: () => showBrowserPanel(conversation.id),
     changes: conversation.projectPaths.length > 0 ? { kind: 'conversation', id: conversation.id } : null,
     changesHint: '项目里还没提交的改动，也可能有你自己的；点开检查器看',

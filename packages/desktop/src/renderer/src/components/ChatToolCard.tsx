@@ -71,6 +71,19 @@ function CommandExit({ tool }: { tool: ToolItem }) {
   )
 }
 
+// Marks a card that edits files, so a turn's list of changed files can open it on one (revealEdit).
+function editTarget(disclosure: string, paths: readonly string[]) {
+  return paths.length ? { 'data-disclosure': disclosure, 'data-edit-paths': JSON.stringify(paths) } : {}
+}
+
+// The cards in `scope` that edited `path`, by the disclosure key that opens each.
+export function editDisclosures(scope: ParentNode, path: string): string[] {
+  return [...scope.querySelectorAll<HTMLElement>('[data-edit-paths]')].flatMap((card) => {
+    const paths: unknown = JSON.parse(card.dataset.editPaths ?? '[]')
+    return Array.isArray(paths) && paths.includes(path) && card.dataset.disclosure ? [card.dataset.disclosure] : []
+  })
+}
+
 export function ChatDiffs({ diffs }: { diffs: readonly ChatDiff[] }) {
   const shorten = useContext(ChatPaths)
   return (
@@ -105,7 +118,7 @@ export function ChatEditsCard({ path, tools }: { path: string; tools: readonly T
   const shorten = useContext(ChatPaths)
   const finished = useJustFinished(tools.some((tool) => tool.status === 'running'))
   return (
-    <div className="chat-tool" data-diff-path={path} data-finished={finished || undefined}>
+    <div className="chat-tool" data-diff-path={path} {...editTarget(`edits:${first ? itemKey(first) : path}`, [path])} data-finished={finished || undefined}>
       <button type="button" className="chat-tool-header" aria-expanded={open} onClick={() => setOpen(!open)}>
         <ChatToolIcon name="Edit" status={tools.find((tool) => tool.status === 'running')?.status ?? tools.find((tool) => tool.status !== 'done')?.status ?? 'done'} />
         <span className="chat-tool-name">编辑:</span>
@@ -218,7 +231,7 @@ export function ChatToolCard({ item }: { item: ToolItem }) {
   const terminal = terminalToolKind(item.name) === 'run' ? TERMINAL_ID.exec(item.output ?? '')?.[1] ?? null : null
   const finished = useJustFinished(status === 'running')
   return (
-    <div className="chat-tool" data-status={status} data-finished={finished || undefined}>
+    <div className="chat-tool" data-status={status} {...editTarget(`card:${itemKey(item)}`, item.diffs.map((diff) => diff.path))} data-finished={finished || undefined}>
       <button
         type="button"
         className="chat-tool-header"

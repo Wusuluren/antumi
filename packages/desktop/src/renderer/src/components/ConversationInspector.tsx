@@ -140,6 +140,7 @@ export function ConversationInspector({ conversation, widthRatio, onWidthRatioCh
             commentKey={`conversation:${conversation.id}\0${selected.project}\0${selected.file}`}
             load={() => rpc.call('conversations.diff', { id: conversation.id, project: selected.project, file: selected.file })}
             onBack={clearInspectorFile}
+            edit={selected.edit}
           />
         ) : (
           <ChangeList changes={changes} onOpen={(project, file) => showInspectorFile('conversation', conversation.id, project, file)} />

@@ -79,6 +79,6 @@ export function HelperPanel({ parent }: { parent: Conversation }) {
   const base = helper ? conversationSurface(helper) : null
   return <section className="helper-panel" aria-label="小助手">
     <header className="helper-header"><button type="button" className="button ghost" disabled={!helper || busy} onClick={() => void reset()}>新对话</button></header>
-    {helper && base ? <ConversationChat key={helper.id} conversation={helper} variant="compact" surface={{ ...base, fork: null, handoff: null, changes: null, showPlan: () => {}, showBrowser: () => {}, showChanges: () => {}, showFileChange: () => {} }} /> : <HelperDraft key={parent.id} parent={parent} />}
+    {helper && base ? <ConversationChat key={helper.id} conversation={helper} variant="compact" surface={{ ...base, fork: null, handoff: null, changes: null, showPlan: () => {}, showBrowser: () => {}, showChanges: () => {}, showFileChange: () => {}, inProject: () => false }} /> : <HelperDraft key={parent.id} parent={parent} />}
   </section>
 }

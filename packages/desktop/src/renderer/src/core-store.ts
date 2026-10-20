@@ -43,7 +43,7 @@ import { activeInboxes, inboxKey } from './source-inboxes'
 import type { BrowserStatus } from '@antumi/protocol'
 import { focusBrowserConversation, focusBrowserTab, receiveBrowserTabs } from './browser-state'
 import type { InspectorTab } from './components/Inspector'
-import type { InspectorFile } from './inspector-file'
+import type { ChatEdit, InspectorFile } from './inspector-file'
 import { resolveCoreEndpoint } from './core-endpoint'
 import { reasonText } from './labels'
 import { askProjectTrust } from './project-trust'
@@ -123,6 +123,8 @@ export type CoreState = {
   conversationPlan: string | null
   gitRevision: number
   inspectorFile: InspectorFile | null
+  // A turn's edit a chat should bring into view; seq tells a repeat of the same one apart.
+  chatReveal: (ChatEdit & { seq: number }) | null
   // The hosted browser as core last reported it; null until core says, or on a core without one.
   browser: BrowserStatus | null
   awake: ComputerAwakeStatus | null
@@ -226,6 +228,7 @@ export const useCore = create<CoreState>()(() => ({
   conversationPlan: null,
   gitRevision: 0,
   inspectorFile: null,
+  chatReveal: null,
   browser: null,
   awake: null,
   chatSettings: null,
@@ -308,13 +311,17 @@ export function showTaskChanges(): void {
   useCore.setState({ inspectorOpen: true, taskInspectorTab: 'changes', inspectorFile: null })
 }
 
-export function showInspectorFile(kind: InspectorFile['kind'], id: string, project: string, file: string): void {
+export function showInspectorFile(kind: InspectorFile['kind'], id: string, project: string, file: string, edit: ChatEdit | null = null): void {
   useCore.setState((s) => ({
-    inspectorFile: { kind, id, project, file, revision: (s.inspectorFile?.revision ?? 0) + 1 },
+    inspectorFile: { kind, id, project, file, revision: (s.inspectorFile?.revision ?? 0) + 1, edit },
     ...(kind === 'task'
       ? { inspectorOpen: true, taskInspectorTab: 'changes' as const }
       : { conversationInspectorOpen: true, conversationInspectorTab: 'changes' as const })
   }))
+}
+
+export function revealChatEdit(edit: ChatEdit): void {
+  useCore.setState((s) => ({ chatReveal: { ...edit, seq: (s.chatReveal?.seq ?? 0) + 1 } }))
 }
 
 export function clearInspectorFile(): void {

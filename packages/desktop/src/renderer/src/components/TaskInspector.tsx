@@ -150,6 +150,7 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
             commentKey={`task:${task.id}\0${selected.project}\0${selected.file}`}
             load={() => rpc.call('tasks.diff', { id: task.id, repo: selected.project, file: selected.file })}
             onBack={clearInspectorFile}
+            edit={selected.edit}
           />
         ) : (
           <ChangeList changes={changes} onOpen={(repo, file) => showInspectorFile('task', task.id, repo, file)} />

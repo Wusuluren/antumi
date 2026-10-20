@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { locateInspectorFile } from './inspector-file'
+import { insideProjects, locateInspectorFile } from './inspector-file'
 
 describe('inspector file location', () => {
   const projects = [{ project: '/repo/api', folder: '/wt/api' }, { project: '/repo/api-web', folder: '/wt/api-web' }]
@@ -31,5 +31,15 @@ describe('inspector file location', () => {
     expect(locateInspectorFile('src\\a.ts', 'C:\\wt\\app', folders)).toEqual({ project: 'C:\\repo', file: 'C:/wt/app/src/a.ts' })
     expect(locateInspectorFile('d:\\wt\\APP\\a.ts', 'C:\\wt\\app', folders)).toEqual({ project: 'D:\\repo', file: 'd:/wt/APP/a.ts' })
     expect(locateInspectorFile('a.ts', '\\\\server\\share\\repo', [{ project: 'share', folder: '\\\\server\\share\\repo' }])).toEqual({ project: 'share', file: '//server/share/repo/a.ts' })
+  })
+
+  it('tells files in the project folders from ones elsewhere', () => {
+    const folders = ['/wt/api', '/wt/web']
+    expect(insideProjects('src/app.ts', '/wt/api', folders)).toBe(true)
+    expect(insideProjects('../web/app.ts', '/wt/api', folders)).toBe(true)
+    expect(insideProjects('/wt/api-web/app.ts', '/wt/api', folders)).toBe(false)
+    expect(insideProjects('/Users/me/.claude/plans/plan.md', '/wt/api', folders)).toBe(false)
+    expect(insideProjects('C:\\Repo\\API\\a.ts', 'C:\\Repo\\API', ['c:\\repo\\api'])).toBe(true)
+    expect(insideProjects('a.ts', '/wt/api', [])).toBe(false)
   })
 })

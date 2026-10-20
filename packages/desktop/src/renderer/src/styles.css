@@ -2887,6 +2887,7 @@ body.side-panel-resizing * {
 .inspector-empty {
   margin: 12px 2px;
 }
+div.inspector-empty > p { margin: 0 0 8px; }
 
 /* 原始数据: a toolbar over a list that scrolls on its own, so the body gives up its padding and scroll. */
 .inspector-body:has(> .wire-log) {

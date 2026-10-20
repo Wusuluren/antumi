@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { checkChatResume, shortTaskId, type Squad, type Task } from '@antumi/protocol'
 import { usePlans, type PlanItem } from '../chat-state'
 import { loadConversation, perform, showBrowserPanel, showInspectorFile, showTaskChanges, showTaskPlan, useChatOptionsSupported, useCore, useWireLogShown } from '../core-store'
-import { locateInspectorFile } from '../inspector-file'
+import { insideProjects, locateInspectorFile } from '../inspector-file'
 import { agentLabel, reasonText, STATUS_LABEL } from '../labels'
 import { waitingOn } from '../task-waiting'
 import { confirmQuota } from './AgentQuota'
@@ -43,12 +43,17 @@ function taskSurface(task: Task, dependencies: readonly Task[], planOnly: boolea
     inspector: 'task',
     showPlan: showTaskPlan,
     showChanges: showTaskChanges,
-    showFileChange: (path) => {
+    showFileChange: (path, edit) => {
       const conversation = task.conversationId ? useCore.getState().conversations[task.conversationId] : undefined
       if (!conversation) return
       const projects = task.repos.flatMap((repo) => repo.worktreePath ? [{ project: repo.path, folder: repo.worktreePath }] : [])
       const found = locateInspectorFile(path, conversation.workspacePath, projects)
-      if (found) showInspectorFile('task', task.id, found.project, found.file)
+      if (found) showInspectorFile('task', task.id, found.project, found.file, edit)
+    },
+    inProject: (path) => {
+      const conversation = task.conversationId ? useCore.getState().conversations[task.conversationId] : undefined
+      const folders = task.repos.flatMap((repo) => repo.worktreePath ? [repo.worktreePath] : [])
+      return conversation ? insideProjects(path, conversation.workspacePath, folders) : false
     },
     showBrowser: () => showBrowserPanel(task.conversationId),
     changes: task.repos.some((repo) => repo.worktreePath !== null) ? { kind: 'task', id: task.id } : null,
