@@ -213,7 +213,7 @@ export async function checkPreviewFile(path: string): Promise<void> {
 // A server started for a conversation has the browser tools, acting for that conversation alone;
 // one without has the preview tool alone. `history` adds the tools that read the user's history.
 // Each call connects anew, so a core restart between calls is harmless.
-export async function serveMcp(home: string | undefined, conversationId?: string, planOnly = false, initialized?: () => Promise<void>, history = false): Promise<void> {
+export async function serveMcp(home: string | undefined, conversationId?: string, planOnly = false, initialized?: () => Promise<void>, history = false, todos = true): Promise<void> {
   const withCore = async <T>(work: (rpc: RpcConnection) => Promise<T>): Promise<T> => {
     const endpoint = await readCoreEndpoint(home)
     if (!endpoint) {
@@ -239,7 +239,7 @@ export async function serveMcp(home: string | undefined, conversationId?: string
     ...(conversationId ? {
       browser: browserToolsOverCore(withCore, conversationId, new AttachmentStore(antumiPaths(home).attachments)),
       terminal: terminalToolsOverCore(withCore, conversationId),
-      todo: todoToolsOverCore(withCore, conversationId)
+      ...(todos ? { todo: todoToolsOverCore(withCore, conversationId) } : {})
     } : {}),
     ...(history ? { history: historyToolsOverCore(withCore, conversationId ?? null) } : {})
   })

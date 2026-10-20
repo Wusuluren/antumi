@@ -449,6 +449,15 @@ function AgentSettings() {
             )}
           />
         )}
+        {chatSettings?.userTodos !== undefined && (
+          <SettingsRow
+            label="记录待办"
+            description="Agent 把需要你之后去做的事（上线前要做的、要你验证或配置的）记成会话的待办，在检查器和总览里逐项勾掉。关闭后立即生效：界面不再显示待办，正在运行的 Agent 再去记也会被拒绝。"
+            control={(labelId) => (
+              <Toggle labelId={labelId} checked={chatSettings.userTodos ?? true} onChange={(next) => void setChatSettings({ userTodos: next })} />
+            )}
+          />
+        )}
         <TitleNamingSettings />
         <AutoArchiveSettings />
         <SettingsRow
@@ -475,7 +484,7 @@ function AgentSettings() {
           {chatSettings?.readHistory !== undefined && (
             <SettingsRow
               label="让 Agent 读你在 Antumi 里的记录"
-              description="Agent 可只读地列出和读取你的会话、任务和群聊（含其他 Agent 的），比如让定时任务总结本周工作。下次启动起生效。"
+              description="Agent 可只读地列出和读取你的会话、任务和群聊（含其他 Agent 的），比如让定时任务总结本周工作。关闭后立即生效，正在运行的 Agent 也读不到。"
               control={(labelId) => (
                 <Toggle labelId={labelId} checked={chatSettings.readHistory ?? true} onChange={(next) => void setChatSettings({ readHistory: next })} />
               )}
@@ -711,7 +720,7 @@ const SECTIONS: readonly Section[] = [
     group: 'Agent',
     title: '本机 Agent',
     description: '本机 Agent 的安装与登录状态，以及运行、会话和访问的默认设置。',
-    keywords: ['agent', '智能体', '本机', '默认', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', '模型', '轻量', '提交信息', 'haiku', '标题', '命名', '重命名', '首轮', '每轮', '归档', '自动归档', '不活跃', '清理'],
+    keywords: ['agent', '智能体', '本机', '默认', '待办', 'todo', '已安装', '未安装', '安装', '登录', '版本', '检测', '环境', '检查', 'path', '找不到', '启用', '禁用', ...AGENT_KINDS, '执行', '聊天', '会话', '任务', '规划', '预约', '无人值守', '记录', '历史', '总结', '模型', '轻量', '提交信息', 'haiku', '标题', '命名', '重命名', '首轮', '每轮', '归档', '自动归档', '不活跃', '清理'],
     Icon: SparkIcon,
     Body: AgentSettings,
     grouped: true

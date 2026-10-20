@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { agentDescriptor, historyToolName, type AgentKind, type Conversation, type ConversationMessage, type Discussion, type DiscussionPost, type HistoryToolKind, type RpcConnection, type Task } from '@antumi/protocol'
+import { turnedOff } from './mcp-setting-gate'
 import type { ToolOutcome } from './mcp-browser-tools'
 
 export type HistoryTools = {
@@ -162,6 +163,8 @@ export function historyToolsOverCore(withCore: WithCore, self: string | null, no
     const range = window(args.since, args.until)
     if (typeof range === 'string') return { text: range, isError: true }
     return withCore(async (rpc) => {
+      const off = await turnedOff(rpc, 'readHistory')
+      if (off) return { text: off, isError: true }
       let entries = (await everything(rpc, self)).filter((entry) => entry.createdAt <= range.to && entry.updatedAt >= range.from)
       if (typeof args.query === 'string') {
         const needle = args.query.toLowerCase()
@@ -182,6 +185,8 @@ export function historyToolsOverCore(withCore: WithCore, self: string | null, no
     if (typeof range === 'string') return { text: range, isError: true }
     const max = typeof args.maxChars === 'number' ? args.maxChars : DEFAULT_CHARS
     return withCore(async (rpc) => {
+      const off = await turnedOff(rpc, 'readHistory')
+      if (off) return { text: off, isError: true }
       const id = String(args.id)
       const all = await everything(rpc, self)
       const exact = all.find((entry) => entry.id === id)

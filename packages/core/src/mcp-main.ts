@@ -13,6 +13,7 @@ const { values } = parseArgs({
     conversation: { type: 'string' },
     'plan-only': { type: 'boolean' },
     history: { type: 'boolean' },
+    'no-todos': { type: 'boolean' },
     'ready-file': { type: 'string' },
     // One of the user's MCP servers, started in its place (see runUserMcp).
     run: { type: 'string' }
@@ -23,7 +24,7 @@ const { values } = parseArgs({
 const readyFile = values['ready-file']
 const served = values.run
   ? runUserMcp(values.home ?? antumiHome(), values.run)
-  : serveMcp(values.home, values.conversation, values['plan-only'], readyFile ? () => writePrivateJson(readyFile, { ready: true }) : undefined, values.history)
+  : serveMcp(values.home, values.conversation, values['plan-only'], readyFile ? () => writePrivateJson(readyFile, { ready: true }) : undefined, values.history, !values['no-todos'])
 served.catch((error: unknown) => {
   const reason = error instanceof RpcError && error.reason ? ` (${error.reason})` : ''
   console.error(`antumi mcp: ${error instanceof Error ? error.message : String(error)}${reason}`)

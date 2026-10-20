@@ -34,7 +34,7 @@ export const GIT_READ_TOOLS = ['Bash(git log:*)', 'Bash(git diff:*)', 'Bash(git 
 
 // Claude Code in print mode, speaking stream-json both ways.
 export function claudeCommand(launch: AgentLaunch): AgentCommand {
-  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readOnly, readable = [], mcp, userMcp = [], forkAt, userBrowser, knowledgeBase, skills } = launch
+  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readOnly, readable = [], mcp, userMcp = [], forkAt, userBrowser, knowledgeBase, skills, todos = true } = launch
   // Folders it may read but never edit: a plan-only stage's, or a read-only worker's.
   const fenced = planOnly ?? readOnly
   const allowBypass = (launch.allowBypass ?? false) && !fenced
@@ -57,10 +57,10 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     // Reading or stopping a terminal the conversation opened itself asks nothing either; running
     // a command in one is the agent's to ask about, under the mode the user set. Reading the user's
     // history, which only reads and is there only where the user allows it, asks nothing.
-    ...(mcp ? [...Object.values(SQUAD_TOOL_NAMES), SHOW_PREVIEW_TOOL, ...BROWSER_READ_TOOLS, terminalToolName('read'), terminalToolName('stop'), ...HISTORY_TOOLS.map(historyToolName), ...TODO_TOOLS.map(todoToolName)].map((tool) => `mcp__${RESERVED_MCP_SERVER_NAME}__${tool}`) : [])
+    ...(mcp ? [...Object.values(SQUAD_TOOL_NAMES), SHOW_PREVIEW_TOOL, ...BROWSER_READ_TOOLS, terminalToolName('read'), terminalToolName('stop'), ...HISTORY_TOOLS.map(historyToolName), ...(todos ? TODO_TOOLS.map(todoToolName) : [])].map((tool) => `mcp__${RESERVED_MCP_SERVER_NAME}__${tool}`) : [])
   ]
   const denials = fenced ? claudeEditDenials(fenced.dirs) : []
-  const note = startNote({ knowledgeBase, todos: Boolean(mcp) })
+  const note = startNote({ knowledgeBase, todos: Boolean(mcp) && todos })
   const servers = {
     ...(mcp ? { [RESERVED_MCP_SERVER_NAME]: { type: 'stdio', command: mcp.command, args: mcp.args, ...(mcp.env ? { env: mcp.env } : {}) } } : {}),
     ...Object.fromEntries(userMcp.map((server) => [server.name, server.type === 'stdio' ? { type: 'stdio', command: server.command, args: server.args, ...(server.env ? { env: server.env } : {}) } : { type: 'http', url: server.url }]))

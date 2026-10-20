@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { turnedOff } from './mcp-setting-gate'
 import { openTodoCount, todoToolName, TodoOwner, TodoText, TodoTitle, type RpcConnection, type TodoGroup, type TodoToolKind } from '@antumi/protocol'
 
 const argumentsFor = {
@@ -83,6 +84,8 @@ export function todoToolsOverCore(withCore: <T>(action: (rpc: RpcConnection) => 
     const args = argumentsFor[kind].safeParse(raw)
     if (!args.success) return result(`参数不对：${args.error.issues.map((issue) => `${issue.path.join('.') || '参数'} ${issue.message}`).join('；')}`, true)
     try {
+      const off = await withCore((rpc) => turnedOff(rpc, 'userTodos'))
+      if (off) return result(off, true)
       if (kind === 'list') return result(todosText(await withCore((rpc) => rpc.call('todos.list', { id: conversationId }))))
       if (kind === 'add') {
         const { title, note, group, items } = argumentsFor.add.parse(raw)

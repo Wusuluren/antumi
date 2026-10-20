@@ -9,7 +9,7 @@ import { ProjectGroups, ProjectRow, useProjectHeads } from './BranchStatus'
 import { ChatPlanView } from './ChatPlan'
 import { ChangedFiles, CommitList, FileDiffView, GIT_TABS, InspectorPanel, useFocusCount, type InspectorTab } from './Inspector'
 import { TodoPanel } from './TodoPanel'
-import { useConversationTodos, useTodosSupported } from '../conversation-todos'
+import { useConversationTodos, useTodosShown } from '../conversation-todos'
 import { projectName } from './ProjectPicker'
 import { WireLogView } from './WireLogView'
 import { FileEditor } from './FileEditor'
@@ -81,7 +81,7 @@ export function ConversationInspector({ conversation, widthRatio, onWidthRatioCh
   const wanted = useCore((state) => state.conversationInspectorTab)
   const selectedPlan = useCore((state) => state.conversationPlan)
   const plans = usePlans(conversation.id)
-  const todosShown = useTodosSupported()
+  const todosShown = useTodosShown()
   const todos = useConversationTodos(todosShown ? conversation.id : null)
   const tabs: InspectorTab[] = [...(helperSupported ? ['helper' as const] : []),...(conversation.projectPaths.length > 0 ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(todosShown ? ['todos' as const] : []), ...(wire ? ['wire' as const] : []), ...(files.tabs.length > 0 || (fileEditor && fileRoots.length > 0) ? ['files' as const] : [])]
   const tab = tabs.includes(wanted) ? wanted : (tabs[0] ?? 'changes')

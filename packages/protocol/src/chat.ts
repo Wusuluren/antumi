@@ -41,6 +41,9 @@ export const ChatSettings = z.object({
   // Whether agents get the tools that read the user's conversations, tasks and group chats in
   // Antumi (see HISTORY_TOOLS), from their next start. Older cores omit it.
   readHistory: z.boolean().optional(),
+  // Whether agents note down what is left for the user as the conversation's to-dos (TODO_TOOLS),
+  // from their next start, and clients show them. Older cores omit it.
+  userTodos: z.boolean().optional(),
   // The user's local knowledge base, given to agents from their next start; null is none. Nullable so a
   // client can clear it through a partial update. Older cores omit it.
   knowledgeBase: KnowledgeBase.nullable().optional(),

@@ -13,8 +13,9 @@ export function receiveTodos(conversationId: string, groups: readonly TodoGroup[
   useTodoStore.setState({ [conversationId]: groups })
 }
 
-export function useTodosSupported(): boolean {
-  return useCore((s) => s.rpc?.features.includes('conversation-todos') ?? false)
+// Where core keeps to-dos and the user has not turned them off (ChatSettings.userTodos).
+export function useTodosShown(): boolean {
+  return useCore((s) => (s.rpc?.features.includes('conversation-todos') ?? false) && s.chatSettings?.userTodos !== false)
 }
 
 // Every conversation's to-dos known so far: those with something left, all read at connect
@@ -23,8 +24,8 @@ export function useAllTodos(): Readonly<Record<string, readonly TodoGroup[]>> {
   return useTodoStore((s) => s)
 }
 
-export function useTodoOverviewSupported(): boolean {
-  return useCore((s) => s.rpc?.features.includes('todo-overview') ?? false)
+export function useTodoOverviewShown(): boolean {
+  return useCore((s) => (s.rpc?.features.includes('todo-overview') ?? false) && s.chatSettings?.userTodos !== false)
 }
 
 // How many of a conversation's to-dos are not done, for a badge where the panel is closed.
@@ -35,13 +36,13 @@ export function useOpenTodoCount(conversationId: string | null): number {
 // The conversation's to-dos, read from core the first time they are wanted; empty until then and
 // on a core that keeps none.
 export function useConversationTodos(conversationId: string | null): readonly TodoGroup[] {
-  const supported = useTodosSupported()
+  const shown = useTodosShown()
   const known = useTodoStore((s) => (conversationId ? s[conversationId] : undefined))
   useEffect(() => {
-    if (!supported || !conversationId || known !== undefined) return
+    if (!shown || !conversationId || known !== undefined) return
     void perform((rpc) => rpc.call('todos.list', { id: conversationId })).then((groups) => {
       if (groups) receiveTodos(conversationId, groups)
     })
-  }, [supported, conversationId, known])
+  }, [shown, conversationId, known])
   return known ?? NONE
 }

@@ -20,24 +20,24 @@ describe('ChatSettingsStore', () => {
 
   it('suggests the next message and lets scheduled runs edit, unless the user changed that, and keeps it', async () => {
     const store = new ChatSettingsStore(file, (settings) => changes.push(settings))
-    expect(await store.load()).toEqual({ promptSuggestions: true, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6 }, wireLog: false, userBrowser: true, readHistory: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
+    expect(await store.load()).toEqual({ promptSuggestions: true, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6 }, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
 
     await store.update({ promptSuggestions: false })
     await store.update({ unattendedMode: 'bypass' })
     expect(changes).toEqual([
-      { promptSuggestions: false, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6 }, wireLog: false, userBrowser: true, readHistory: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true },
-      { promptSuggestions: false, titleNaming: 'off', titleModels: {}, unattendedMode: 'bypass', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6 }, wireLog: false, userBrowser: true, readHistory: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true }
+      { promptSuggestions: false, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6 }, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true },
+      { promptSuggestions: false, titleNaming: 'off', titleModels: {}, unattendedMode: 'bypass', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6 }, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true }
     ])
 
     const reopened = new ChatSettingsStore(file, () => {})
-    expect(await reopened.load()).toEqual({ promptSuggestions: false, titleNaming: 'off', titleModels: {}, unattendedMode: 'bypass', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6 }, wireLog: false, userBrowser: true, readHistory: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
+    expect(await reopened.load()).toEqual({ promptSuggestions: false, titleNaming: 'off', titleModels: {}, unattendedMode: 'bypass', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6 }, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
   })
 
   it('falls back to the default for a file it cannot read', async () => {
     writeFileSync(file, '{"promptSuggestions": "nope", "unattendedMode": "yolo"}')
-    expect(await new ChatSettingsStore(file, () => {}).load()).toEqual({ promptSuggestions: true, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6 }, wireLog: false, userBrowser: true, readHistory: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
+    expect(await new ChatSettingsStore(file, () => {}).load()).toEqual({ promptSuggestions: true, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6 }, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
     writeFileSync(file, 'not json')
-    expect(await new ChatSettingsStore(file, () => {}).load()).toEqual({ promptSuggestions: true, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6 }, wireLog: false, userBrowser: true, readHistory: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
+    expect(await new ChatSettingsStore(file, () => {}).load()).toEqual({ promptSuggestions: true, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6 }, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
   })
 
   it('keeps per-agent limits when another agent changes, and rejects invalid limits', async () => {
@@ -73,6 +73,13 @@ describe('ChatSettingsStore', () => {
     expect((await store.load()).readHistory).toBe(true)
     await store.update({ readHistory: false })
     expect((await new ChatSettingsStore(file, () => {}).load()).readHistory).toBe(false)
+  })
+
+  it('has agents note down to-dos until the user turns it off', async () => {
+    const store = new ChatSettingsStore(file, () => {})
+    expect((await store.load()).userTodos).toBe(true)
+    await store.update({ userTodos: false })
+    expect((await new ChatSettingsStore(file, () => {}).load()).userTodos).toBe(false)
   })
 
   it('keeps no wire log until the user turns it on', async () => {

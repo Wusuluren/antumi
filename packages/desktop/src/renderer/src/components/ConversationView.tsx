@@ -16,7 +16,7 @@ import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { DEFAULT_SIDE_PANEL_RATIO } from './side-panel-size'
 import { EMPTY_FILE_TABS, useFileTabs } from '../file-tabs'
 import { TitleEditor } from './TitleEditor'
-import { useOpenTodoCount, useTodosSupported } from '../conversation-todos'
+import { useOpenTodoCount, useTodosShown } from '../conversation-todos'
 import { CONVERSATION_DRAG_TYPE, draggedConversation } from '../conversation-drag'
 import type { ConversationPane } from './conversation-pane'
 import { canReuseConversation, type Conversation } from '@antumi/protocol'
@@ -40,7 +40,7 @@ export function useConversationPanel(conversation: Conversation | undefined) {
   const files = useFileTabs((state) => state[id] ?? EMPTY_FILE_TABS)
   const plans = usePlans(id)
   const wire = useWireLogShown()
-  const todosShown = useTodosSupported()
+  const todosShown = useTodosShown()
   const todoLeft = useOpenTodoCount(todosShown && conversation ? id : null)
   // A managed workspace is Antumi's own scratch folder: nothing of the user's to compare, but the
   // inspector still shows the agent's plans.

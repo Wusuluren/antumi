@@ -4,8 +4,8 @@ import { mcpCommand } from './mcp-command'
 
 // The tools every conversation has (showing a file the agent wrote, the browser), acting for this
 // one conversation, whose tabs are the only ones it reaches; and the user's history, where allowed.
-export function antumiChatMcpServer(home: string, conversationId: string, history = false): McpServer {
-  return mcpCommand('--home', home, '--conversation', conversationId, ...(history ? ['--history'] : []))
+export function antumiChatMcpServer(home: string, conversationId: string, { history = false, todos = true }: { history?: boolean; todos?: boolean } = {}): McpServer {
+  return mcpCommand('--home', home, '--conversation', conversationId, ...(history ? ['--history'] : []), ...(todos ? [] : ['--no-todos']))
 }
 
 // One of the user's MCP servers as an agent is handed it. Antumi's launcher (mcp-main --run) starts a

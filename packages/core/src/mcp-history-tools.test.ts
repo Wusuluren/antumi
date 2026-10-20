@@ -68,4 +68,17 @@ describe('history tools', () => {
     expect(await listed(true)).toContain('history_read')
     expect(await listed(false)).not.toContain('history_')
   })
+
+  it('refuses once the user turns reading their records off', async () => {
+    let readHistory = true
+    const gated = fakeCore({ 'system.chatSettings': () => ({ promptSuggestions: true, readHistory }), 'conversations.list': () => [], 'tasks.list': () => [], 'discussions.list': () => [] })
+    const history = historyToolsOverCore(gated, CHAT, () => day(10))
+    expect((await history.call('list', {})).isError).toBeFalsy()
+    readHistory = false
+    for (const kind of ['list', 'read'] as const) {
+      const refused = await history.call(kind, { id: CHAT })
+      expect(refused.isError).toBe(true)
+      expect(refused.text).toContain('关闭了读取 Antumi 记录')
+    }
+  })
 })

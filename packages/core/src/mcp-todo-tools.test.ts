@@ -16,6 +16,7 @@ describe('to-do MCP tools', () => {
   let tasks: TaskStore
   let todos: TodoStore
   let rpc: RpcConnection
+  let userTodos: boolean
 
   // A core that answers the to-do methods from a store of its own.
   beforeEach(() => {
@@ -23,7 +24,9 @@ describe('to-do MCP tools', () => {
     const file = path.join(root, 'antumi.db')
     tasks = new TaskStore(file)
     todos = new TodoStore(file)
+    userTodos = true
     const answer = (method: string, raw: unknown): unknown => {
+      if (method === 'system.chatSettings') return { promptSuggestions: true, userTodos }
       if (method === 'todos.list') return todos.list(rpcSchemas['todos.list'].params.parse(raw).id)
       if (method === 'todos.add') {
         const { id, ...group } = rpcSchemas['todos.add'].params.parse(raw)
@@ -74,5 +77,18 @@ describe('to-do MCP tools', () => {
     expect(text(checked)).toContain('1 项未完成')
     expect((await tool('user_todo_add').run({ title: '', items: [] })).isError).toBe(true)
     expect((await tool('user_todo_check').run({ group: 'nope' })).isError).toBe(true)
+  })
+
+  it('refuses every call once the user turns to-dos off, though the agent still holds the tools', async () => {
+    const tools = todoToolsOverCore(async (action) => action(rpc), conversationId)
+    const tool = (name: string) => tools.find((each) => each.spec.name === name)!
+    userTodos = false
+    const refused = await tool('user_todo_add').run({ title: '真机验证', items: ['加载已解压'] })
+    expect(refused.isError).toBe(true)
+    expect(text(refused)).toContain('关闭了待办')
+    expect((await tool('user_todo_list').run({})).isError).toBe(true)
+    expect(todos.list(conversationId)).toEqual([])
+    userTodos = true
+    expect((await tool('user_todo_add').run({ title: '真机验证', items: ['加载已解压'] })).isError).toBe(false)
   })
 })

@@ -9,7 +9,7 @@ import {
 import { DashboardPanel } from './DashboardPanel'
 import { Segmented } from './SettingsControls'
 import { addQuote } from '../chat-quotes'
-import { useAllTodos, useTodoOverviewSupported } from '../conversation-todos'
+import { useAllTodos, useTodoOverviewShown } from '../conversation-todos'
 import { overviewTodos, type TodoEntry, type TodoLine } from '../overview-todos'
 import { agentLabel, agoText, chatDayAndTime, timeOfDay } from '../labels'
 import { laterByDay, waitBreakdown, type OverviewRow } from '../overview'
@@ -330,7 +330,7 @@ export function OverviewView() {
   const tasks = useCore((s) => s.tasks)
   const conversations = useCore((s) => s.conversations)
   const runs = useCore((s) => s.squadRuns)
-  const todosSupported = useTodoOverviewSupported()
+  const todosShown = useTodoOverviewShown()
   const allTodos = useAllTodos()
   const [withArchived, setWithArchived] = useState(false)
   const [kept, setKept] = useState<ReadonlySet<string>>(new Set())
@@ -353,7 +353,7 @@ export function OverviewView() {
   const counts = { ...data.counts, todos: todos.mine + todos.agents }
   const ranges = [
     { value: 'mine', label: '等我' },
-    ...(todosSupported ? [{ value: 'todos', label: '待办' } as const] : []),
+    ...(todosShown ? [{ value: 'todos', label: '待办' } as const] : []),
     { value: 'running', label: '在跑' }, { value: 'next', label: '接下来' }, { value: 'unread', label: '未读' }
   ] as const
   const emptyConfirmed = connected && !loading && !error && mode !== null
@@ -371,7 +371,7 @@ export function OverviewView() {
     unread: latestUnread ? `最近 ${agoText(latestUnread.at, now)}` : '都看过了'
   }
   const mine = shows('mine') && <Panel title="需要我" count={data.counts.mine}><Rows rows={data.mine} section="mine" /></Panel>
-  const todoPanel = todosSupported && (!filter || filter === 'todos') && (todos.entries.length > 0 || todos.archived > 0) && <Panel title="待办" count={counts.todos}>
+  const todoPanel = todosShown && (!filter || filter === 'todos') && (todos.entries.length > 0 || todos.archived > 0) && <Panel title="待办" count={counts.todos}>
     {todos.entries.length > 0 && <KeepChecked.Provider value={keep}>
       <ul className="overview-todos">{todos.entries.map((entry) => <TodoEntryView key={entry.conversationId} entry={entry} now={now} />)}</ul>
     </KeepChecked.Provider>}

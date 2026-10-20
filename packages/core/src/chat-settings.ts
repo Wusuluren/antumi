@@ -18,6 +18,7 @@ const DEFAULTS = {
   wireLog: false,
   userBrowser: true,
   readHistory: true,
+  userTodos: true,
   knowledgeBase: null,
   autoArchiveDays: null,
   resetAnnouncements: true
@@ -32,6 +33,7 @@ const Saved = z.object({
   wireLog: z.boolean().catch(DEFAULTS.wireLog),
   userBrowser: z.boolean().catch(DEFAULTS.userBrowser),
   readHistory: z.boolean().catch(DEFAULTS.readHistory),
+  userTodos: z.boolean().catch(DEFAULTS.userTodos),
   knowledgeBase: KnowledgeBase.nullable().catch(DEFAULTS.knowledgeBase),
   autoArchiveDays: ChatSettings.shape.autoArchiveDays.unwrap().catch(DEFAULTS.autoArchiveDays),
   resetAnnouncements: z.boolean().catch(DEFAULTS.resetAnnouncements)
@@ -79,6 +81,7 @@ export class ChatSettingsStore {
       wireLog: patch.wireLog ?? this.settings.wireLog,
       userBrowser: patch.userBrowser ?? this.settings.userBrowser,
       readHistory: patch.readHistory ?? this.settings.readHistory,
+      userTodos: patch.userTodos ?? this.settings.userTodos,
       knowledgeBase,
       autoArchiveDays: patch.autoArchiveDays === undefined ? this.settings.autoArchiveDays : patch.autoArchiveDays,
       resetAnnouncements: patch.resetAnnouncements ?? this.settings.resetAnnouncements

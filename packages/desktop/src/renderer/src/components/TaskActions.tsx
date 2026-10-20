@@ -37,7 +37,7 @@ import { StatusIcon } from './StatusIcon'
 import { useTaskHandoff, type TaskHandoff } from './TaskHandoff'
 import { launchOptions, TaskModelPicker, useEditsInPlace, useTaskLaunch, type TaskLaunch } from './TaskLaunch'
 import { createSchedule, openRunForTask, scheduleState } from '../schedules'
-import { useOpenTodoCount, useTodosSupported } from '../conversation-todos'
+import { useOpenTodoCount, useTodosShown } from '../conversation-todos'
 
 function blockerText(blocker: string, waitingOn: readonly Task[]): string {
   if (blocker === 'blocked' && waitingOn.length > 0) {
@@ -608,7 +608,7 @@ function InspectorToggle({ view, conversationId }: { view: TaskView; conversatio
   const helper = useHelper(helperSupported ? conversationId : null)
   const open = useCore((s) => s.inspectorOpen)
   const pressed = view === 'chat' && open
-  const todoLeft = useOpenTodoCount(useTodosSupported() ? conversationId : null)
+  const todoLeft = useOpenTodoCount(useTodosShown() ? conversationId : null)
   return (
     <button
       type="button"
@@ -717,7 +717,7 @@ export function TaskToolbar({ task, view }: { task: Task; view: TaskView }) {
   const worktree = task.repos.some((repo) => repo.worktreePath !== null)
   const hasFiles = useFileTabs((state) => (state[task.conversationId ?? '']?.tabs.length ?? 0) > 0)
   const wire = useWireLogShown()
-  const todosShown = useTodosSupported()
+  const todosShown = useTodosShown()
   return (
     <div className="toolbar">
       {view === 'chat' && <TaskSteps task={task} />}

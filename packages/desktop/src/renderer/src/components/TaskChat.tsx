@@ -22,7 +22,7 @@ import { TaskToolbar } from './TaskActions'
 import { Spinner } from './Spinner'
 import { BoardCrumb } from './TaskBoard'
 import { useTaskHandoff } from './TaskHandoff'
-import { useTodosSupported } from '../conversation-todos'
+import { useTodosShown } from '../conversation-todos'
 import { WorkingSummary } from './WorkingSummary'
 import { useTaskActivity } from '../work-activity'
 
@@ -111,7 +111,7 @@ export function TaskChat({ taskId }: { taskId: string }) {
   const files = useFileTabs((state) => state[conversationId ?? ''] ?? EMPTY_FILE_TABS)
   const plans = usePlans(conversationId ?? '')
   const wire = useWireLogShown() && conversationId !== null
-  const todosShown = useTodosSupported() && conversationId !== null
+  const todosShown = useTodosShown() && conversationId !== null
   const handoff = useTaskHandoff(task)
   const { open: openHandoff } = handoff
   const handoffNow = handoff.available && handoff.blocker === null

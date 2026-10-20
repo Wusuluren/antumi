@@ -123,6 +123,7 @@ export class ConversationService {
   // Core's chat settings say; main hands them over before any stage starts.
   private promptSuggestions = false
   private userBrowser: boolean | undefined
+  private userTodos = true
   private knowledgeBase: KnowledgeBase | null = null
   private readonly retiring = new Set<string>()
   private readonly launching = new Map<string, AgentKind>()
@@ -223,6 +224,10 @@ export class ConversationService {
   // Read at each start: a running agent keeps what it started with.
   setUserBrowser(enabled: boolean): void {
     this.userBrowser = enabled
+  }
+
+  setUserTodos(enabled: boolean): void {
+    this.userTodos = enabled
   }
 
   setTitleNaming(mode: NonNullable<ChatSettings['titleNaming']>): void { this.titles.setMode(mode) }
@@ -941,6 +946,7 @@ export class ConversationService {
       ...(this.mcp ? { mcp: this.mcp(id) } : {}),
       ...(userMcp.length ? { userMcp } : {}),
       ...(this.userBrowser === undefined ? {} : { userBrowser: this.userBrowser }),
+      todos: this.userTodos,
       ...(knowledgeBase ? { knowledgeBase } : {}),
       ...(skills ? { skills } : {})
     })
@@ -1022,6 +1028,7 @@ export class ConversationService {
         promptSuggestions: this.promptSuggestions,
         preferred: { permissionMode, ...chosen[stage.agent] },
         keepImage: (data) => this.keepImage(data),
+        todos: this.userTodos,
         ...(knowledgeBase ? { knowledgeBase } : {}),
         ...(userMcp.length ? { userMcp } : {})
       }

@@ -143,8 +143,8 @@ const conversations = new ConversationService(
   },
   projects,
   attachments,
-  // Read at each agent start, so turning history off holds from the next start.
-  (id) => antumiChatMcpServer(paths.home, id, chatSettings.current().readHistory),
+  // Read at each agent start, so turning history or to-dos off holds from the next start.
+  (id) => antumiChatMcpServer(paths.home, id, { history: chatSettings.current().readHistory, todos: chatSettings.current().userTodos }),
   paths.worktrees,
   wire
 )
@@ -292,6 +292,7 @@ const chatSettings = new ChatSettingsStore(paths.chatSettings, (settings) => {
   conversations.setPromptSuggestions(settings.promptSuggestions)
   conversations.setTitleNaming(settings.titleNaming ?? 'off')
   conversations.setUserBrowser(settings.userBrowser ?? true)
+  conversations.setUserTodos(settings.userTodos ?? true)
   conversations.setKnowledgeBase(settings.knowledgeBase ?? null)
   conversations.setCapacity(settings, () => { void schedules.tick(); squads.tick() })
   wire.setEnabled(settings.wireLog ?? false)
@@ -328,6 +329,7 @@ const initialChatSettings = await chatSettings.load()
 conversations.setPromptSuggestions(initialChatSettings.promptSuggestions)
 conversations.setTitleNaming(initialChatSettings.titleNaming)
 conversations.setUserBrowser(initialChatSettings.userBrowser)
+conversations.setUserTodos(initialChatSettings.userTodos)
 conversations.setKnowledgeBase(initialChatSettings.knowledgeBase)
 conversations.setCapacity(initialChatSettings, () => { void schedules.tick(); squads.tick() })
 wire.setEnabled(initialChatSettings.wireLog)

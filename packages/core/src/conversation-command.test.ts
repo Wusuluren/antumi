@@ -111,6 +111,14 @@ describe('chatCommand', () => {
     expect(chatCommand('claude', 's', false, null, []).args).not.toContain('--append-system-prompt')
   })
 
+  it('leaves the to-dos out when the user turned them off', () => {
+    const mcp = { command: 'node', args: ['mcp.mjs'] }
+    const claude = chatCommand('claude', 's', false, null, [], { mcp, todos: false }).args
+    expect(claude).not.toContain('--append-system-prompt')
+    expect(claude[claude.indexOf('--allowedTools') + 1]).not.toContain('user_todo')
+    expect(chatCommand('codex', null, false, null, [], { mcp, todos: false }).args.join(' ')).not.toContain('user_todo')
+  })
+
   it('hands Antumi\'s skills to the agents that load a folder of them, each its own way', () => {
     const skills = { dir: '/antumi/skills/bundles/abc' }
     expect(chatCommand('claude', 's', false, null, [], { skills }).args).toEqual(expect.arrayContaining(['--plugin-dir', '/antumi/skills/bundles/abc']))
