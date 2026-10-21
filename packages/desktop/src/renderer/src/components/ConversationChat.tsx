@@ -6,7 +6,7 @@ import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutE
 import { cursorProviderError, isBrowserTool, isPlanApproval, isPreviewTool, parseHandoffMessage, toolImagePath, type AgentKind, type ChatItem, type Conversation, type ConversationStage } from '@antumi/protocol'
 import { firstBrowserCall, shouldOpenBrowser } from '../browser-state'
 import { ChatBrowserCard, ChatBrowserRun, ChatShotCard } from './ChatBrowserCard'
-import { chatBlocks, dropChat, finalReplies, itemKey, pathShortener, prependChatPage, previousTodos, saidText, setChatPage, stageAgents, thoughtDurations, timeline, useChat, type ChatBlock, type TimelineEntry, type TurnAgent, type TurnFile } from '../chat-state'
+import { chatBlocks, dropChat, finalReplies, foldsOfTools, itemKey, pathShortener, prependChatPage, previousTodos, saidText, setChatPage, stageAgents, thoughtDurations, timeline, useChat, type ChatBlock, type TimelineEntry, type TurnAgent, type TurnFile } from '../chat-state'
 import { ChatDisclosureScope, ChatFindExpansion, setOpened, useDisclosure } from '../chat-disclosure'
 import { isCompaction, noticeSummary, readableNotice } from '../chat-notices'
 import { parseQuotes, withoutQuoteMarkers } from '../chat-quotes'
@@ -770,6 +770,25 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
     element.scrollTo({ top: target.offsetTop - IN_VIEW_SLACK, behavior: 'smooth' })
   }
 
+  // Brings a call into view from the working line's list of background work: opens the fold that
+  // holds it and the call itself, then marks it for a moment so the eye finds it.
+  const foldOf = useMemo(() => foldsOfTools(blocks), [blocks])
+  const revealTool = useCallback((tool: Extract<ChatItem, { kind: 'tool' }>) => {
+    const key = itemKey(tool)
+    const fold = foldOf.get(key)
+    if (fold) setOpened(id, fold, true)
+    setOpened(id, `call:${key}`, true)
+    pinned.current = false
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const element = list.current
+      const target = element?.querySelector<HTMLElement>(`[data-tool-key="${CSS.escape(key)}"]`)
+      if (!element || !target) return
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      target.dataset.flash = ''
+      setTimeout(() => delete target.dataset.flash, 1500)
+    }))
+  }, [id, foldOf])
+
   // Brings one of the user's messages into view, and marks it for a moment so the eye finds it.
   const jumpTo = useCallback((key: string) => jump(key), [])
   const jump = (key: string) => {
@@ -812,15 +831,14 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
   // commands run there), for the working line; the step itself shows in the conversation, just above it.
   const running = useMemo(() => {
     const tools = items.filter((item): item is Extract<ChatItem, { kind: 'tool' }> => item.kind === 'tool' && item.status === 'running')
-    const subagents = tools.filter((tool) => isSubagent(tool.name)).length
-    const commands = tools.filter((tool) => tool.background && !isSubagent(tool.name)).length
+    const background = tools.filter((tool) => isSubagent(tool.name) || tool.background)
     const last = items.at(-1)
     const phase: WorkingPhase = turn === 'awaiting' ? 'asking'
       : tools.some((tool) => !isSubagent(tool.name) && !tool.background) ? 'tools'
       : last?.kind === 'reasoning' && last.streaming ? 'thinking'
         : last?.kind === 'assistant' && last.streaming ? 'replying'
           : tools.length > 0 ? 'waiting' : 'working'
-    return { phase, background: { subagents, commands } }
+    return { phase, background }
   }, [items, turn, getLocale()])
   // The model as the stage runs it, or as the next stage would start; by its label where the agent gives one.
   const modelId = state?.model ?? conversation.chatOptions?.model ?? null
@@ -899,6 +917,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
             tokens={state?.turnUsage?.output ?? null}
             background={running.background}
             since={since}
+            onReveal={revealTool}
           />
         )}
         {away && (

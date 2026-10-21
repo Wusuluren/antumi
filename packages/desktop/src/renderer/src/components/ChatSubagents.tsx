@@ -61,6 +61,7 @@ function SubagentCard({ tool, lane, open, panel, onToggle, onHover }: {
         <button
           type="button"
           className="chat-subagent-card"
+          data-tool-key={itemKey(tool)}
           data-status={wireStatus(tool)}
           data-finished={finished || undefined}
           aria-expanded={open}

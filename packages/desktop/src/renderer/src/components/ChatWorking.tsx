@@ -1,7 +1,14 @@
-import { localized, t } from '../i18n'
+import { localized, t, tr } from '../i18n'
 import { useEffect, useState } from 'react'
-import { formatTokens, workedFor } from '../chat-tools'
+import type { ChatItem } from '@antumi/protocol'
+import { formatTokens, isSubagent, workedFor } from '../chat-tools'
 import { useTick } from '../chat-motion'
+import { itemKey } from '../chat-state'
+import { backgroundLabel, bareCommand, isBackgroundCommand, limitAt, limitText, LIMIT_SOON_MS } from '../background-work'
+import { ChatToolIcon } from './ChatToolIcon'
+import { Popover } from './Popover'
+
+type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 
 // What kind of thing the agent is at, when nothing more specific is known.
 export type WorkingPhase = 'tools' | 'thinking' | 'replying' | 'waiting' | 'asking' | 'working'
@@ -55,39 +62,83 @@ function PhaseIcon({ phase }: { phase: WorkingPhase }) {
   return <span key={phase} className="chat-working-icon" data-phase={phase} aria-hidden="true">{icon}</span>
 }
 
+// What runs in the background, a row each: what it is, how long it has run, the command itself, and
+// when its time limit falls where the agent set one. A row leads to the call in the conversation.
+function BackgroundList({ tools, now, onPick }: { tools: readonly ToolItem[]; now: number; onPick: (tool: ToolItem) => void }) {
+  return (
+    <div className="background-list">
+      <div className="menu-label">{t('backgroundWork.listTitle')}</div>
+      {tools.map((tool) => {
+        const command = isBackgroundCommand(tool)
+        const at = command ? limitAt(tool) : null
+        const limit = at === null ? null : limitText(at, now)
+        return (
+          <button key={itemKey(tool)} type="button" className="background-row" onClick={() => onPick(tool)}>
+            <ChatToolIcon name={tool.name} display={tool.display} status="running" />
+            <span className="background-row-title">{backgroundLabel(tool)}</span>
+            <span className="background-row-time">{t('backgroundWork.ranFor', { time: workedFor(Math.max(0, now - tool.at)) })}</span>
+            {command && <span className="background-row-command mono">{bareCommand(tool.input ?? tool.title)}</span>}
+            {limit && <span className="background-row-limit" data-soon={limit.soon || undefined}>{limit.text}</span>}
+          </button>
+        )
+      })}
+      <div className="background-list-hint">{t('backgroundWork.listHint')}</div>
+    </div>
+  )
+}
+
 // While a turn runs, at the end of the conversation: the numbers that say how it goes, as Claude
 // Code's own status reads: how long, how many tokens written, how many subagents out, and what
 // kind of step this is. What the agent is at shows in the conversation itself, just above. The
-// clock ticks for the eye only; a screen reader hears the phase, not every second.
-export function ChatWorking({ phase, tokens, background, since }: {
+// clock ticks for the eye only; a screen reader hears the phase, not every second. What runs in the
+// background is named: the one thing itself, or a list of them, each leading to its call.
+export function ChatWorking({ phase, tokens, background, since, onReveal }: {
   phase: WorkingPhase
   // Output tokens the turn has written so far, where the agent reports them as it goes.
   tokens: number | null
   // What works in the background: subagents, and commands run there.
-  background: { subagents: number; commands: number }
+  background: readonly ToolItem[]
   since: number | null
+  onReveal: (tool: ToolItem) => void
 }) {
   const [started] = useState(() => since ?? Date.now())
   const [now, setNow] = useState(() => Date.now())
+  const [listing, setListing] = useState(false)
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [])
+  const subagents = background.filter((tool) => isSubagent(tool.name)).length
+  const commands = background.length - subagents
   // With the turn over and only background work out, it is the step: "后台运行中：2 个子 Agent、1 个命令".
   // While the turn itself runs, it is a count beside its step.
   const out = [
-    background.subagents > 0 ? t('ChatWorking.subAgents', { value1: background.subagents }) : null,
-    background.commands > 0 ? t('ChatWorking.commands', { value1: background.commands }) : null
+    subagents > 0 ? t('ChatWorking.subAgents', { value1: subagents }) : null,
+    commands > 0 ? t('ChatWorking.commands', { value1: commands }) : null
   ].filter((part): part is string => part !== null).join('、')
   const waiting = phase === 'waiting' && out !== ''
+  const only = background.length === 1 ? background[0] : undefined
+  // The nearest time limit, once it is close enough to warn of.
+  const nearest = Math.min(...background.filter(isBackgroundCommand).map(limitAt).filter((at): at is number => at !== null))
+  const soon = Number.isFinite(nearest) && nearest - now <= LIMIT_SOON_MS ? limitText(nearest, now).text : null
+  const named = only
+    ? <button type="button" className="chat-working-link" title={isBackgroundCommand(only) ? bareCommand(only.input ?? only.title) : undefined} onClick={() => onReveal(only)}>{backgroundLabel(only)}</button>
+    : (
+      <span className="menu-anchor">
+        <button type="button" className="chat-working-link" aria-haspopup="dialog" aria-expanded={listing} onClick={() => setListing(!listing)}>{out}</button>
+        {listing && (
+          <Popover label={t('backgroundWork.listTitle')} onClose={() => setListing(false)}>
+            <BackgroundList tools={background} now={now} onPick={(tool) => { setListing(false); onReveal(tool) }} />
+          </Popover>
+        )}
+      </span>
+    )
   // The count of tokens ticks up as the agent writes: each change lands with a small motion.
   const tick = useTick(tokens)
   const parts = [
     workedFor(Math.max(0, now - (since ?? started))),
-    ...(tokens !== null && tokens > 0 ? [<>↓ <span key={tick ?? 0} className="chat-working-tick">{formatTokens(tokens)}</span></>] : []),
-    ...(out && !waiting ? [t('ChatWorking.background', { out: out })] : [])
+    ...(tokens !== null && tokens > 0 ? [<>↓ <span key={tick ?? 0} className="chat-working-tick">{formatTokens(tokens)}</span></>] : [])
   ]
-  const step = waiting ? t('ChatWorking.runningInBackground', { out: out }) : `${PHASE[phase]}${phase === 'asking' ? '' : t('ChatWorking.inProgressSuffix')}`
   return (
     <div className="chat-working" role="status">
       <PhaseIcon phase={phase} />
@@ -97,7 +148,15 @@ export function ChatWorking({ phase, tokens, background, since }: {
           {part}
         </span>
       ))}
-      <span className="chat-working-part"><span className="chat-working-dot" aria-hidden="true">·</span><span className={phase === 'asking' ? undefined : 'chat-sheen chat-working-sheen'}>{step}</span></span>
+      {out && !waiting && <span className="chat-working-part"><span className="chat-working-dot" aria-hidden="true">·</span>{tr('ChatWorking.background', { out: named })}</span>}
+      <span className="chat-working-part">
+        <span className="chat-working-dot" aria-hidden="true">·</span>
+        {waiting
+          ? <span className="chat-sheen chat-working-sheen">{tr('ChatWorking.runningInBackground', { out: named })}</span>
+          : <span className={phase === 'asking' ? undefined : 'chat-sheen chat-working-sheen'}>{`${PHASE[phase]}${phase === 'asking' ? '' : t('ChatWorking.inProgressSuffix')}`}</span>}
+      </span>
+      {waiting && only && <span className="chat-working-part" aria-hidden="true"><span className="chat-working-dot">·</span>{t('backgroundWork.ranFor', { time: workedFor(Math.max(0, now - only.at)) })}</span>}
+      {soon && <span className="chat-working-part chat-working-soon"><span className="chat-working-dot" aria-hidden="true">·</span>{soon}</span>}
     </div>
   )
 }

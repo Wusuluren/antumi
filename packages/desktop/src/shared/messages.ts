@@ -820,6 +820,38 @@ export const MESSAGES = {
     "zh": "在浏览器面板打开",
     "en": "Open in the browser panel"
   },
+  "backgroundWork.badge": {
+    "zh": "后台",
+    "en": "Background"
+  },
+  "backgroundWork.limitAt": {
+    "zh": "{time} 到上限",
+    "en": "Limit at {time}"
+  },
+  "backgroundWork.limitIn": {
+    "zh": "{time}后到上限",
+    "en": "Limit in {time}"
+  },
+  "backgroundWork.stoppedAtLimit": {
+    "zh": "跑满 {time}上限，被停止",
+    "en": "Stopped at its {time} limit"
+  },
+  "backgroundWork.stoppedAtTheLimit": {
+    "zh": "到后台时长上限，被停止",
+    "en": "Stopped at its background time limit"
+  },
+  "backgroundWork.ranFor": {
+    "zh": "已运行 {time}",
+    "en": "Running for {time}"
+  },
+  "backgroundWork.listTitle": {
+    "zh": "后台运行中",
+    "en": "Running in background"
+  },
+  "backgroundWork.listHint": {
+    "zh": "点一行，跳到它在对话里的位置",
+    "en": "Click a row to find it in the conversation"
+  },
   "ChatBrowserCard.viewFullPageScreenshot": {
     "zh": "查看完整的长截图",
     "en": "View full-page screenshot"

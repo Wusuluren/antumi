@@ -89,3 +89,22 @@ describe('command cards', () => {
     expect(run([tool('old', { execution: undefined }), tool('new')])).toContain('失败')
   })
 })
+
+describe('background commands', () => {
+  const background = (changes: Partial<ToolItem> = {}) => tool('dev', { name: 'Bash', title: 'pnpm dev', description: 'Run dev server', status: 'running', execution: undefined, background: true, at: Date.now(), ...changes })
+
+  it('tags one running in the background, with when its limit falls where the agent set one', () => {
+    const html = run([background({ backgroundLimitMs: 2 * 3_600_000 })])
+    expect(html).toContain('data-tool-key="stage/dev"')
+    expect(html).toContain('>后台<')
+    expect(html).toContain('到上限')
+    expect(run([background()])).not.toContain('到上限')
+  })
+
+  it('says a command its time limit stopped ran out its time, not that it was interrupted', () => {
+    const html = run([background({ status: 'interrupted', stopReason: 'timeLimit', backgroundLimitMs: 1_800_000 })])
+    expect(html).toContain('跑满 30 分钟上限，被停止')
+    expect(html).not.toContain('已中断')
+    expect(run([background({ status: 'interrupted' })])).toContain('已中断')
+  })
+})

@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { create } from 'zustand'
 import { isCompaction } from './chat-notices'
 import { diffCounts, isSubagent } from './chat-tools'
+import { isBackgroundCommand, keepsInView } from './background-work'
 import { browserOperation } from './browser-activity'
 import { parseHandoffMessage, type AgentKind, type ChatDiff, type ChatItem, type ChatQuestion, type ChatTodo, type ConversationStage, browserToolKind, isPlanApproval, isPreviewTool, toolImagePath, terminalToolKind } from '@antumi/protocol'
 
@@ -293,6 +294,11 @@ function editedFile(tool: ToolItem): string | null {
   return only && rest.length === 0 ? only.path : null
 }
 
+// Which turn's fold holds each call, by its key: a call shown from elsewhere opens its fold first.
+export function foldsOfTools(blocks: readonly ChatBlock[]): Map<string, string> {
+  return new Map(blocks.flatMap((block) => block.kind === 'fold' ? block.blocks.flatMap(toolsOf).map((tool) => [itemKey(tool), block.key] as const) : []))
+}
+
 function toolsOf(block: ChatBlock): ToolItem[] {
   if (block.kind === 'tools' || block.kind === 'browser' || block.kind === 'edits' || block.kind === 'agents') return block.tools
   if (block.kind === 'fold') return block.blocks.flatMap(toolsOf)
@@ -335,9 +341,11 @@ function deliverable(block: ChatBlock): boolean {
 }
 
 // What a finished turn tucks away: the work on the way to its answer. What it made for the user,
-// what the user was asked, a plan, and anything that went wrong stay in view.
+// what the user was asked, a plan, anything that went wrong, and a command still out in the
+// background (or stopped there by its time limit) stay in view.
 function foldable(block: ChatBlock): boolean {
   if (deliverable(block)) return false
+  if (block.kind === 'tools' && block.tools.every(keepsInView)) return false
   const item = itemOf(block)
   if (!item) return block.kind !== 'entry'
   switch (item.kind) {
@@ -428,7 +436,8 @@ export function chatBlocks(entries: readonly TimelineEntry[], { foldTurns = true
     const edit = entry.kind === 'item' && entry.item.kind === 'tool' ? entry.item : null
     const file = edit ? editedFile(edit) : null
     const previous = last ? itemOf(last) : null
-    if (tool && last?.kind === 'tools') last.tools.push(tool)
+    // A command left in the background is a line of its own, to be found while it runs.
+    if (tool && last?.kind === 'tools' && !isBackgroundCommand(tool) && !last.tools.some(isBackgroundCommand)) last.tools.push(tool)
     else if (tool) runs.push({ kind: 'tools', key: `tools:${entryKey(entry)}`, tools: [tool] })
     else if (subagent && last?.kind === 'agents') last.tools.push(subagent)
     else if (subagent) runs.push({ kind: 'agents', key: `agents:${entryKey(entry)}`, tools: [subagent] })

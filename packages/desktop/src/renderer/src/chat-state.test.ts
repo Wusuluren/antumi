@@ -4,6 +4,7 @@ import {
   appendText,
   chatBlocks,
   finalReplies,
+  foldsOfTools,
   flushChatDeltas,
   mergeItems,
   pathShortener,
@@ -214,6 +215,17 @@ describe('chatBlocks', () => {
     expect(blocksOf(items).find((block) => block.kind === 'fold')).toMatchObject({ steps: 1, workMs: 200 })
     expect(shape(chatBlocks(items.map((item) => ({ kind: 'item' as const, item })), { foldTurns: false })))
       .toEqual(['u', 'tools:cmd', 'browser:open+click', 'answer', 'end'])
+  })
+
+  it('gives a background command a line of its own, kept out of the fold while it runs or once its limit stopped it', () => {
+    const background = (id: string, changes: Partial<Extract<ChatItem, { kind: 'tool' }>> = {}) => ({ ...tool(id, 'Bash'), background: true, status: 'running' as const, ...changes })
+    const items = (bg: ChatItem) => [user('u'), { ...tool('a', 'Bash'), at: 100 }, { ...bg, at: 150 }, { ...tool('b', 'Bash'), at: 200 }, { ...reply('answer'), at: 400 }, { ...turn('end'), at: 500 }]
+    expect(shape(blocksOf(items(background('dev'))))).toEqual(['u', { fold: ['tools:a', 'tools:b'] }, 'tools:dev', 'answer', 'end'])
+    expect(shape(blocksOf(items(background('dev', { status: 'interrupted', stopReason: 'timeLimit' })))))
+      .toEqual(['u', { fold: ['tools:a', 'tools:b'] }, 'tools:dev', 'answer', 'end'])
+    const done = blocksOf(items(background('dev', { status: 'done' })))
+    expect(shape(done)).toEqual(['u', { fold: ['tools:a', 'tools:dev', 'tools:b'] }, 'answer', 'end'])
+    expect(foldsOfTools(done).get('chat-stage/dev')).toBe('fold:item:chat-stage/end')
   })
 
   it('keeps a preview the agent showed with the answer, out of the fold and its steps', () => {

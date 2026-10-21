@@ -14,6 +14,7 @@ import { useJustFinished } from '../chat-motion'
 import { ChatCopyRegion } from './ChatCopyRegion'
 import { copyTextForItem } from '../message-copy'
 import { fileReference } from '../file-links'
+import { isBackgroundCommand, limitAt, limitText, stoppedAtLimitText } from '../background-work'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 
@@ -54,6 +55,17 @@ function ToolTimer({ since }: { since: number }) {
     return () => clearTimeout(timer)
   }, [now, since])
   return <span className="chat-tool-time" aria-hidden="true">{elapsedText(Math.max(0, now - since))}</span>
+}
+
+// When a background command's time limit falls, beside its timer; a warning once it is close.
+function BackgroundLimit({ at }: { at: number }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+  const limit = limitText(at, now)
+  return <span className="chat-tool-time" data-soon={limit.soon || undefined}>{limit.text}</span>
 }
 
 export function ToolStatus({ status, since }: { status: ChatToolStatus; since?: number }) {
@@ -149,9 +161,11 @@ function ToolLine({ tool }: { tool: ToolItem }) {
   const details = Boolean(tool.input || tool.output || (code !== null && code !== 0))
   const status = toolDisplayStatus(tool)
   const finished = useJustFinished(status === 'running')
+  const background = isBackgroundCommand(tool)
+  const limit = status === 'running' ? limitAt(tool) : null
   return (
     <ChatCopyRegion text={copyTextForItem(tool)}>
-    <div className="chat-tool-line" data-status={status} data-finished={finished || undefined}>
+    <div className="chat-tool-line" data-status={status} data-finished={finished || undefined} data-tool-key={itemKey(tool)}>
       <button
         type="button"
         className="chat-tool-row"
@@ -170,7 +184,11 @@ function ToolLine({ tool }: { tool: ToolItem }) {
           </>
         )}
         {details && <span className="chat-tool-chevron" aria-hidden="true"><ChevronRightIcon /></span>}
-        <ToolStatus status={status} since={tool.at} />
+        {background && <span className="chat-tool-badge" data-ended={status !== 'running' || undefined}>{t('backgroundWork.badge')}</span>}
+        {tool.stopReason === 'timeLimit'
+          ? <span className="chat-tool-status" data-status="limit">{stoppedAtLimitText(tool)}</span>
+          : <ToolStatus status={status} since={tool.at} />}
+        {limit !== null && <BackgroundLimit at={limit} />}
       </button>
       {open && <CommandExit tool={tool} />}
       {open && tool.input && <ChatToolInput name={tool.name} input={tool.input} />}

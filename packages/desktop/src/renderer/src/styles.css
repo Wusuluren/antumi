@@ -6311,6 +6311,11 @@ div.inspector-empty > p { margin: 0 0 8px; }
   color: var(--text-muted);
 }
 .chat-tool-status { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.chat-tool-status[data-status='limit'],
+.chat-tool-time[data-soon] { color: var(--warning); }
+/* A command the agent left in the background: a quiet tag, outlined once it is over. */
+.chat-tool-badge { flex-shrink: 0; padding: 0 6px; border: 1px solid transparent; border-radius: var(--radius-xs); background: var(--fill-2); color: var(--text-muted); font-size: 11px; line-height: 16px; white-space: nowrap; }
+.chat-tool-badge[data-ended] { border-color: var(--border); background: transparent; }
 .chat-tool-time { flex-shrink: 0; color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .chat-tool-status[data-status='failed'],
 .chat-tool-status[data-status='denied'] { color: var(--danger); }
@@ -6948,6 +6953,23 @@ div.inspector-empty > p { margin: 0 0 8px; }
 @keyframes working-write { 0% { stroke-dashoffset: 12; opacity: 1; } 45%, 80% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
 @keyframes working-flip { 0%, 80% { transform: rotate(0); } 100% { transform: rotate(180deg); } }
 .chat-working-dot { opacity: 0.6; }
+/* What runs in the background, named in the working line: a quiet link to it, or to a list of them. */
+.chat-working-link { max-width: 320px; overflow: hidden; padding: 0; border: 0; border-bottom: 1px dashed currentColor; border-radius: 0; background: transparent; color: var(--text-muted); font: inherit; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.chat-working-link:hover, .chat-working-link[aria-expanded='true'] { color: var(--text); }
+.chat-working-soon { color: var(--warning); }
+.background-list { display: flex; flex-direction: column; width: min(480px, calc(100vw - 32px)); }
+.background-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px; align-items: center; width: 100%; padding: 6px 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.background-row:hover, .background-row:focus-visible { background: var(--fill); outline: none; }
+.background-row > .chat-tool-icon { grid-row: 1 / span 2; align-self: start; margin-top: 2px; }
+.background-row-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.background-row-time,
+.background-row-limit { color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.background-row-command { grid-column: 2; overflow: hidden; color: var(--text-3); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+.background-row-limit { grid-column: 3; justify-self: end; }
+.background-row-limit[data-soon] { color: var(--warning); }
+.background-list-hint { margin-top: 4px; padding: 6px 8px 2px; border-top: 1px solid var(--border); color: var(--text-3); font-size: 12px; }
+.chat-tool-line[data-flash],
+.chat-subagent-card[data-flash] { border-radius: var(--radius-sm); box-shadow: 0 0 0 2px var(--focus); }
 /* Each new count of tokens lands with a small rise. */
 .chat-working-tick { display: inline-block; animation: chat-tick 0.3s ease-out; }
 @keyframes chat-tick {
