@@ -1,5 +1,7 @@
 import path from 'node:path'
 import { RESERVED_MCP_SERVER_NAME } from '@antumi/protocol'
+import { PROVIDER_KEY_ENV, providerChatModels, type ProviderLaunch } from '../../provider-launch'
+import { anthropicBaseUrl } from '../../provider-request'
 import type { AgentLaunch } from '../agent-adapter'
 
 // The primary agents Antumi adds for its own modes. An agent starts from allowing everything
@@ -17,13 +19,48 @@ export const OPENCODE_BYPASS_AGENT = 'antumi-bypass'
 
 const rule = (action: string, effect: 'allow' | 'ask' | 'deny', resource = '*') => ({ action, resource, effect })
 
+// The provider as OpenCode names it, and its models under it.
+const providerName = (provider: Pick<ProviderLaunch, 'providerId'>) => `antumi-${provider.providerId}`
+export const opencodeProviderModels = (provider: Pick<ProviderLaunch, 'providerId' | 'models' | 'defaultModel'>) =>
+  providerChatModels(provider, (model) => `${providerName(provider)}/${model.id}`)
+
+// A provider entry in OpenCode's config, through the AI SDK package for its wire. The key is a
+// reference OpenCode fills from the environment, so the config text holds none. Its Anthropic
+// package sends the key as x-api-key; a provider that takes a bearer token gets that header too.
+function opencodeProvider(provider: ProviderLaunch): Record<string, unknown> {
+  const { endpoint } = provider
+  const key = `{env:${PROVIDER_KEY_ENV}}`
+  const anthropic = endpoint.wire === 'anthropic'
+  return {
+    npm: anthropic ? '@ai-sdk/anthropic' : endpoint.wire === 'openai-responses' ? '@ai-sdk/openai' : '@ai-sdk/openai-compatible',
+    name: providerName(provider),
+    options: {
+      // The Anthropic package adds /messages only.
+      baseURL: anthropic ? `${anthropicBaseUrl(endpoint.baseUrl)}/v1` : endpoint.baseUrl.replace(/\/+$/, ''),
+      apiKey: key,
+      ...(anthropic && endpoint.anthropic?.auth === 'auth_token' ? { headers: { authorization: `Bearer ${key}` } } : {})
+    },
+    models: Object.fromEntries(provider.models.map((model) => [model.id, {
+      name: model.label ?? model.id,
+      ...(model.contextWindow !== null && model.maxOutput !== null ? { limit: { context: model.contextWindow, output: model.maxOutput } } : {}),
+      ...(model.efforts.length ? { reasoning: true } : {})
+    }]))
+  }
+}
+
 // What Antumi adds to the user's OpenCode config for one process, through OPENCODE_CONFIG_CONTENT:
 // merged over their own, which stays as it is. The bypass agent exists only where the stage may
 // bypass, so it is never there to switch to otherwise.
-export function opencodeConfig(launch: Pick<AgentLaunch, 'skills' | 'allowBypass' | 'planOnly' | 'readOnly' | 'mcp'>): string {
+export function opencodeConfig(launch: Pick<AgentLaunch, 'skills' | 'allowBypass' | 'planOnly' | 'readOnly' | 'mcp' | 'provider'>): string {
   const bypass = Boolean(launch.allowBypass) && !launch.planOnly && !launch.readOnly
-  const { mcp } = launch
+  const { mcp, provider } = launch
   return JSON.stringify({
+    // On a provider, the one model provider it starts on, with its small model for titles.
+    ...(provider ? {
+      provider: { [providerName(provider)]: opencodeProvider(provider) },
+      model: `${providerName(provider)}/${provider.defaultModel}`,
+      small_model: `${providerName(provider)}/${provider.smallModel}`
+    } : {}),
     // Antumi's own server, here rather than in session/new, which cannot turn off OpenCode's Code
     // Mode: under it the model calls every tool of a server from one `execute` script, and Antumi
     // could no longer tell its own tools (a preview, a screenshot) in the chat. The server comes

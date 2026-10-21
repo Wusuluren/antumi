@@ -52,8 +52,8 @@ describe('providerEndpoint', () => {
     const both = provider({ openai: { chatUrl: 'https://a.example.com/chat', responsesUrl: 'https://a.example.com/responses' } })
     expect(providerEndpoint(both, 'claude')).toMatchObject({ wire: 'anthropic', baseUrl: 'https://a.example.com/anthropic' })
     expect(providerEndpoint(both, 'codex')).toMatchObject({ wire: 'openai-responses', baseUrl: 'https://a.example.com/responses' })
-    expect(providerEndpoint(both, 'opencode')).toMatchObject({ wire: 'openai-responses' })
-    expect(providerEndpoint(provider({ openai: { chatUrl: 'https://a.example.com/chat', responsesUrl: null } }), 'opencode')).toMatchObject({ wire: 'openai-chat' })
+    expect(providerEndpoint(both, 'opencode')).toMatchObject({ wire: 'openai-chat' })
+    expect(providerEndpoint(provider({ openai: { chatUrl: null, responsesUrl: 'https://a.example.com/v1' } }), 'opencode')).toMatchObject({ wire: 'openai-responses' })
   })
 
   it('serves no agent the provider leaves out, none that lacks the wire, and never Cursor', () => {

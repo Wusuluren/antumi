@@ -17,8 +17,13 @@ function trimmed(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, '')
 }
 
+// Where an Anthropic client is pointed: it adds /v1/messages itself.
+export function anthropicBaseUrl(baseUrl: string): string {
+  return trimmed(baseUrl).replace(/\/v1(\/messages)?$/, '')
+}
+
 export function anthropicMessagesUrl(baseUrl: string): string {
-  return `${trimmed(baseUrl).replace(/\/v1(\/messages)?$/, '')}/v1/messages`
+  return `${anthropicBaseUrl(baseUrl)}/v1/messages`
 }
 
 type Built = { url: string; headers: Record<string, string>; body: unknown }
