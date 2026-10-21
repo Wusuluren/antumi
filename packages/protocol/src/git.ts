@@ -42,7 +42,13 @@ export const GitAction = z.discriminatedUnion('kind', [
   // checked out takes the upstream in by method once the two have diverged, its uncommitted
   // changes stashed and put back; any other only fast-forwards. Needs git-update.
   z.object({ kind: z.literal('update'), ref: Ref, method: z.enum(['merge', 'rebase']).optional() }),
-  z.object({ kind: z.literal('push'), remote: z.string().optional(), name: Ref.optional() }),
+  // name: the remote branch; left out, the branch's own name, and a branch whose upstream has
+  // another name is refused (as git's push.default=simple). from: the local branch the user saw,
+  // refused once the checkout has moved on (needs git-push-target). The upstream is set only when
+  // the branch has none.
+  z.object({ kind: z.literal('push'), remote: z.string().optional(), name: Ref.optional(), from: Ref.optional() }),
+  // A local branch set to track a remote one (refs/remotes/…), or to track none; needs git-push-target.
+  z.object({ kind: z.literal('track'), ref: Ref, upstream: Ref.nullable() }),
   z.object({ kind: z.literal('commit'), message: z.string().trim().min(1).max(10000), push: z.boolean() }),
   z.object({ kind: z.literal('merge'), ref: Ref }),
   z.object({ kind: z.literal('resolve'), file: z.string().min(1) }),
@@ -57,6 +63,16 @@ export const GitResult = z.object({
   incoming: z.number().int().optional(), stash: z.enum(['restored', 'kept']).optional()
 })
 export type GitResult = z.infer<typeof GitResult>
+// What a push from the branch checked out would send to remote/name: the newest commits first, how
+// many in all, and whether the branch is new there (then counted against all of the remote's).
+export const GitOutgoing = z.object({ commits: z.array(GitCommit), total: z.number().int(), isNew: z.boolean() })
+export type GitOutgoing = z.infer<typeof GitOutgoing>
+
+// A local branch's upstream as a remote and a branch on it, from refs/remotes/<remote>/<name>.
+export function trackedBranch(branch: Pick<GitBranch, 'upstream'> | undefined): { remote: string; name: string } | null {
+  const match = branch?.upstream ? /^refs\/remotes\/([^/]+)\/(.+)$/.exec(branch.upstream) : null
+  return match?.[1] && match[2] ? { remote: match[1], name: match[2] } : null
+}
 
 // Task worktrees keep their binding even while their agent is idle.
 export function checkGitOperation(kind: GitTarget['kind'], action: GitAction, busy: boolean, status?: GitStatus): string | null {

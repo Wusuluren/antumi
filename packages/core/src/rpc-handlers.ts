@@ -174,6 +174,7 @@ export function createRpcHandlers(
     'git.diff': ({ base, sha, file, ...target }) => git.diff(target, base, sha, file),
     'git.compare': ({ ref, direct, ...target }) => git.compare(target, ref, direct),
     'git.execute': ({ action, ...target }) => git.execute(target, action),
+    'git.outgoing': ({ remote, name, ...target }) => git.outgoing(target, remote, name),
     'git.commitMessage': async ({ model, ...target }) => {
       const { agent, dir } = git.writer(target)
       const context = await commitContext(dir)

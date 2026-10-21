@@ -11021,5 +11021,125 @@ export const MESSAGES = {
   "labels.branchDivergedSwitchToUpdate": {
     "zh": "这个分支和远端已分叉，切换到这个分支后再更新。",
     "en": "This branch has diverged from its remote; switch to it to update it."
+  },
+  "GitPush.pushTo": {
+    "zh": "推送到 {name}",
+    "en": "Push to {name}"
+  },
+  "GitPush.remote": {
+    "zh": "远端",
+    "en": "Remote"
+  },
+  "GitPush.target": {
+    "zh": "远端分支",
+    "en": "Remote branch"
+  },
+  "GitPush.otherName": {
+    "zh": "目标是 {name}，不是同名分支：这个分支的上游是 {upstream}。",
+    "en": "The target is {name}, not a branch of the same name: this branch's upstream is {upstream}."
+  },
+  "GitPush.otherNameNoUpstream": {
+    "zh": "目标是 {name}，不是同名分支。",
+    "en": "The target is {name}, not a branch of the same name."
+  },
+  "GitPush.newAndUpstream": {
+    "zh": "新分支并跟踪",
+    "en": "New, and tracked"
+  },
+  "GitPush.new": {
+    "zh": "新分支",
+    "en": "New"
+  },
+  "GitPush.commits": {
+    "zh": "将推送 {count} 个提交",
+    "en": "{count} {count, plural, one {commit} other {commits}} to push"
+  },
+  "GitPush.loading": {
+    "zh": "正在计算要推送的提交…",
+    "en": "Working out what to push…"
+  },
+  "GitPush.nothing": {
+    "zh": "没有要推送的提交，远端已是最新。",
+    "en": "Nothing to push: the remote is up to date."
+  },
+  "GitPush.more": {
+    "zh": "还有 {count} 个…",
+    "en": "{count} more…"
+  },
+  "GitPush.keepsUpstream": {
+    "zh": "跟踪关系不变（仍是 {upstream}）。",
+    "en": "The upstream stays {upstream}."
+  },
+  "GitPush.setsUpstream": {
+    "zh": "推送后设为这个分支的上游。",
+    "en": "It becomes this branch's upstream."
+  },
+  "GitPush.createsUpstream": {
+    "zh": "远端还没有 {name}：推送后新建，并设为这个分支的上游。",
+    "en": "The remote has no {name} yet: the push creates it and makes it this branch's upstream."
+  },
+  "GitPush.creates": {
+    "zh": "远端还没有 {name}：推送后新建。",
+    "en": "The remote has no {name} yet: the push creates it."
+  },
+  "GitPush.rememberedMerge": {
+    "zh": "推送被拒时会自动合并后重推。",
+    "en": "A rejected push is merged and pushed again automatically."
+  },
+  "GitPush.rememberedRebase": {
+    "zh": "推送被拒时会自动变基后重推。",
+    "en": "A rejected push is rebased and pushed again automatically."
+  },
+  "GitPush.askEachTime": {
+    "zh": "改为每次询问",
+    "en": "Ask each time"
+  },
+  "GitPush.rejectedTitle": {
+    "zh": "推送被拒",
+    "en": "Push rejected"
+  },
+  "GitPush.rejectedExplained": {
+    "zh": "远端 {target} 有本地没有的提交，需要先并进来再推。",
+    "en": "{target} has commits this branch lacks; bring them in before pushing."
+  },
+  "GitPush.rememberChoice": {
+    "zh": "记住这次的选择，以后自动这样更新",
+    "en": "Remember this choice and update this way from now on"
+  },
+  "GitPush.mergeAndPush": {
+    "zh": "合并后重推",
+    "en": "Merge and push"
+  },
+  "GitPush.rebaseAndPush": {
+    "zh": "变基后重推",
+    "en": "Rebase and push"
+  },
+  "GitPush.pushed": {
+    "zh": "已推送到 {target}。",
+    "en": "Pushed to {target}."
+  },
+  "GitPush.updateStopped": {
+    "zh": "更新停在冲突上，没有重推；解决后再推送。",
+    "en": "The update stopped on conflicts and nothing was pushed; push again once they are resolved."
+  },
+  "GitInspector.trackedBranch": {
+    "zh": "跟踪的远端分支",
+    "en": "Tracked branch"
+  },
+  "GitInspector.noTrackedBranch": {
+    "zh": "无",
+    "en": "None"
+  },
+  "GitInspector.untrack": {
+    "zh": "取消跟踪",
+    "en": "Track none"
+  },
+  "labels.notPushed": {
+    "zh": "没有推送",
+    "en": "Not pushed"
+  },
+  "labels.pushRejected": {
+    "zh": "推送被拒",
+    "en": "Push rejected"
   }
 } as const

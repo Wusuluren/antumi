@@ -8990,6 +8990,25 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .git-branch-row svg { width: 12px; height: 12px; flex-shrink: 0; }
 .git-branch-row:hover, .git-tree-filter:hover { background: var(--fill); }
 .git-branch-row[data-selected], .git-tree-filter[aria-pressed='true'] { background: var(--fill-2); }
+/* A push as IntelliJ shows it: branch → remote : target, then what goes. */
+.git-push-dialog { width: min(540px, calc(100vw - 32px)); }
+.git-push-route { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.git-push-route > .mono { overflow-wrap: anywhere; }
+.git-push-route .git-push-remote { width: auto; min-width: 88px; }
+.git-push-route .git-push-target { flex: 1; min-width: 160px; }
+.git-push-route .git-push-target[data-other] { border-color: var(--warning); color: var(--warning); }
+.git-push-tag { flex-shrink: 0; padding: 1px 8px; border-radius: 999px; font-size: 11px; white-space: nowrap; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.git-push-other { margin: -4px 0 0; font-size: 12px; line-height: 1.6; color: var(--warning); }
+.git-push-commits { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.git-push-commits-head { padding: 6px 10px; font-size: 12px; color: var(--text-muted); background: var(--fill); border-bottom: 1px solid var(--border); }
+.git-push-commit { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: baseline; padding: 5px 10px; font-size: 12px; }
+.git-push-commit + .git-push-commit { border-top: 1px solid var(--border); }
+.git-push-subject { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.git-push-more { grid-template-columns: 1fr; }
+.git-push-empty { margin: 0; padding: 10px; font-size: 12px; }
+.git-push-note { margin: 0; font-size: 12px; line-height: 1.6; }
+.git-push-note .link-button { margin-left: 0; font-size: 12px; }
+.git-push-remember { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 /* How far a local branch is from its upstream, as IntelliJ shows it: incoming, then outgoing. */
 .git-branch-track { display: inline-flex; gap: 4px; flex-shrink: 0; font-size: var(--chat-font-small, 12px); font-variant-numeric: tabular-nums; }
 .git-branch-track [data-side='behind'] { color: var(--info); }

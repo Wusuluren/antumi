@@ -226,6 +226,10 @@ const REASON_WITH_DETAIL: Record<string, string> = localized(() => ({
   'browser-navigation-failed': t('labels.cannotOpenPage'),
   'git-commit-failed': t('labels.commitFailed'),
   'git-push-failed': t('labels.commitWasKeptLocallyButPushFailed'),
+  // core's own words name the branches involved.
+  'git-push-name-mismatch': t('labels.notPushed'),
+  'git-branch-changed': t('labels.notPushed'),
+  'git-push-rejected': t('labels.pushRejected'),
   'git-operation-failed': t('labels.gitOperationFailed'),
   // Which file and what is wrong with it.
   'project-config-invalid': t('labels.invalidProjectConfigurationAntumiProjectJson')

@@ -1,5 +1,5 @@
 import path from 'node:path'
-import type { AgentKind, GitTarget, GitAction, GitResult, GitStatus, GitHistory, GitDetail, GitComparison, FileDiff } from '@antumi/protocol'
+import type { AgentKind, GitTarget, GitAction, GitResult, GitStatus, GitHistory, GitDetail, GitComparison, GitOutgoing, FileDiff } from '@antumi/protocol'
 import { checkGitOperation } from '@antumi/protocol'
 import type { TaskService } from './task-service'
 import type { ConversationService } from './conversation-service'
@@ -9,6 +9,17 @@ import { commitAll } from './project-commit'
 import { Rejection } from './rejection'
 import { checkoutKey, commitRef, committedDiff, conflictFiles, filesBetween, gitOperation, logCommits, repositoryKey, writeGit } from './git-repository'
 import { abortOperation, continueOperation, parseTrack, rebasing, updateBranch } from './git-update'
+import { outgoingCommits, pushBranch, trackBranch } from './git-push'
+
+// A remote the repository has, never one that reads as an option.
+const remoteIn = (status: GitStatus) => (remote: string) => {
+  if (!status.remotes.includes(remote) || remote.startsWith('-')) throw new Rejection('git-no-remote', '请选择已配置的 remote。')
+  return remote
+}
+
+const validBranchName = (dir: string) => async (name: string) => {
+  if (name.startsWith('-') || !await writeGit(dir, ['check-ref-format', '--branch', name]).then((output) => output === name, () => false)) throw new Rejection('invalid-branch-name')
+}
 
 export class GitService {
   private readonly locked = new Set<string>()
@@ -183,6 +194,12 @@ export class GitService {
     return { base: direct ? base : ancestor ?? base, target: targetSha, ancestor, ahead: counts[0] ?? 0, behind: counts[1] ?? 0, commits, files: await filesBetween(dir, direct ? base : ancestor, targetSha) }
   }
 
+  async outgoing(target: GitTarget, remote: string, name: string): Promise<GitOutgoing> {
+    const dir = this.directory(target)
+    const status = await this.status(target)
+    return outgoingCommits(dir, status, remote, name, { remoteAt: remoteIn(status), validName: validBranchName(dir) })
+  }
+
   async execute(target: GitTarget, action: GitAction): Promise<GitResult> {
     const dir = this.directory(target)
     const key = await repositoryKey(dir)
@@ -221,27 +238,13 @@ export class GitService {
       if (!branch) throw new Rejection('branch-not-found')
       return branch
     }
-    const validName = async (name: string) => {
-      if (name.startsWith('-') || !await writeGit(dir, ['check-ref-format', '--branch', name]).then((output) => output === name, () => false)) throw new Rejection('invalid-branch-name')
-    }
-    const remoteAt = (remote: string) => {
-      if (!status.remotes.includes(remote) || remote.startsWith('-')) throw new Rejection('git-no-remote', '请选择已配置的 remote。')
-      return remote
-    }
+    const validName = validBranchName(dir)
+    const remoteAt = remoteIn(status)
     const requireBranch = () => {
       if (!status.branch) throw new Rejection('git-no-branch', '请先检出一个本地分支。')
       return status.branch
     }
-    const push = async (remote?: string, name?: string): Promise<GitResult> => {
-      const branch = requireBranch()
-      const tracked = status.branches.find((entry) => entry.ref === `refs/heads/${branch}`)?.upstream
-      const match = tracked ? /^refs\/remotes\/([^/]+)\/(.+)$/.exec(tracked) : null
-      const chosenRemote = remoteAt(remote ?? match?.[1] ?? 'origin')
-      const chosenName = name ?? match?.[2] ?? branch
-      await validName(chosenName)
-      await writeGit(dir, ['push', '--set-upstream', chosenRemote, `refs/heads/${branch}:refs/heads/${chosenName}`])
-      return { state: 'done', branch, upstream: `${chosenRemote}/${chosenName}` }
-    }
+    const push = (change: { remote?: string; name?: string; from?: string } = {}) => pushBranch(dir, status, change, { remoteAt, validName })
     switch (action.kind) {
       case 'create': {
         await validName(action.name)
@@ -300,7 +303,8 @@ export class GitService {
         break
       }
       case 'update': return updateBranch(dir, status, action.ref, action.method, remoteAt)
-      case 'push': return push(action.remote, action.name)
+      case 'push': return push(action)
+      case 'track': return trackBranch(dir, status, action.ref, action.upstream)
       case 'commit': {
         requireBranch()
         const commit = await commitAll(dir, action.message)
