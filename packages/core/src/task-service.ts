@@ -249,6 +249,8 @@ export class TaskService {
     if (title !== undefined && title !== task.title) patch.slug = null
     // Another agent has models and modes of its own, so what was picked for the last one goes.
     if (agent !== undefined && agent !== task.agent && launch === undefined) patch.launch = {}
+    // Once the task has a conversation, its provider is the conversation's, whatever a launch says.
+    if (patch.launch && task.conversationId) patch.launch = { ...patch.launch, modelProvider: this.requireChats().get(task.conversationId).modelProvider ?? null }
     if (repos !== undefined) {
       const blocker = checkEditProjects(task, this.isLaunching(task.id))
       if (blocker) throw new Rejection(blocker)
@@ -452,7 +454,7 @@ export class TaskService {
       const modeBlocker = checkStartMode(dependencies, permissionMode)
       if (modeBlocker) throw new Rejection(modeBlocker)
       if (permissionMode === 'bypass' && !allowBypass && unattended !== 'bypass') throw new Rejection('chat-option-invalid', '全部放行需要先在设置中开启')
-      await chats.validateStartOptions(agent, { ...launch, permissionMode })
+      await chats.validateStartOptions(agent, { ...launch, permissionMode }, this.providerOf(task, launch))
       if (!unattended) this.changed(this.store.update(task.id, { launch: { ...launch, permissionMode } }))
       const images = await this.images(task)
       const imageIds = this.chatImageIds(task, images.prompt)
@@ -535,8 +537,14 @@ export class TaskService {
     if (blocker) throw new Rejection(blocker)
     // A task still being planned only plans, whoever takes it over.
     if (task.status === 'pending' && choice.permissionMode && choice.permissionMode !== 'plan') throw new Rejection('chat-option-invalid', 'a task being planned may only plan')
-    await chats.validateStartOptions(agent, choice)
+    await chats.validateStartOptions(agent, choice, this.providerOf(task, {}))
     return this.goOnChatting(task, dependencies, agent, allowBypass, note, choice)
+  }
+
+  // The provider the task's agent runs on: its conversation's once it has one, else as launched.
+  private providerOf(task: Task, launch: TaskLaunchOptions): string | undefined {
+    const fixed = task.conversationId ? this.requireChats().get(task.conversationId).modelProvider : launch.modelProvider
+    return fixed ?? undefined
   }
 
   // The agent is the task's from here on once it has started.

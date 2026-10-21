@@ -13,6 +13,8 @@ import { ConversationStore } from './conversation-store'
 import { fakeChatDaemon } from './fake-chat-agent'
 import { gifBytes, pngBytes } from './image-fixtures'
 import { ProjectRegistry } from './project-registry'
+import { CredentialStore } from './credential-store'
+import { ModelProviderStore } from './model-providers'
 import { TaskService, type TaskEvent } from './task-service'
 import { TaskStore } from './task-store'
 import { ProjectConfigStore } from './project-config'
@@ -850,6 +852,28 @@ describe('TaskService', () => {
     await settle()
     await conversations.respond(started.conversationId ?? '', 'plan-1', { decision: 'allowForSession' })
     expect(service.get(task.id).plan).toMatchObject({ markdown: '# Plan', agent: 'claude', approved: true, requestId: 'plan-1' })
+  })
+
+  it('starts a task on the provider its launch names, which its conversation then keeps', async () => {
+    const credentials = new CredentialStore(path.join(dir, 'credentials.json'))
+    await credentials.load()
+    const providers = new ModelProviderStore(path.join(dir, 'model-providers.json'), credentials)
+    await providers.load()
+    conversations.setModelProviders(providers)
+    const { id: providerId } = await providers.save({
+      id: null, name: 'Gateway', preset: 'custom', agents: ['claude'], apiKey: 'sk-task-key',
+      anthropic: { baseUrl: 'http://127.0.0.1:4000', auth: 'auth_token', env: {} }, openai: null,
+      models: [{ id: 'gw-big', label: null, contextWindow: null, maxOutput: null, efforts: [] }], defaultModel: 'gw-big', smallModel: 'gw-big'
+    })
+    const task = readyTask('On a provider', [initRepo('app')])
+    const started = await service.start(task.id, undefined, undefined, { modelProvider: providerId })
+    expect(daemon.spawns.at(-1)?.env).toMatchObject({ ANTHROPIC_AUTH_TOKEN: 'sk-task-key' })
+    expect(conversations.get(started.conversationId ?? '')).toMatchObject({ modelProvider: providerId, route: { reason: 'served' } })
+    expect(service.get(task.id).launch.modelProvider).toBe(providerId)
+    // A launch saved later keeps the conversation's provider; a start naming another is refused.
+    expect(service.update({ id: task.id, launch: { permissionMode: 'ask', modelProvider: null } }).launch.modelProvider).toBe(providerId)
+    const again = { cwd: started.repos[0]?.worktreePath ?? '', extraDirs: [], planOnly: false, session: 'resume' as const }
+    await expect(conversations.startForTask({ id: task.id, title: task.title, agent: 'claude' }, { ...again, modelProvider: null })).rejects.toMatchObject({ reason: 'model-provider-fixed' })
   })
 
   it('takes a task by the id prefix the CLI names it by', async () => {

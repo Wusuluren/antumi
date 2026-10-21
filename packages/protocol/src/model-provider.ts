@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { AgentKind } from './agent'
 import { agentDescriptor } from './agents'
+import { ModelProviderId } from './model-provider-id'
 
 // Third-party model providers (a coding plan's endpoints and key) that an agent can be started on in
 // place of its own account. Core injects one into each agent process it starts; nothing goes into
@@ -10,9 +11,7 @@ import { agentDescriptor } from './agents'
 export const ProviderWire = z.enum(['anthropic', 'openai-responses', 'openai-chat'])
 export type ProviderWire = z.infer<typeof ProviderWire>
 
-// Never renamed: agents keep it in what they record (Codex's thread names its provider by it).
-export const ModelProviderId = z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/)
-export type ModelProviderId = z.infer<typeof ModelProviderId>
+export { ModelProviderId }
 
 export const MODEL_PROVIDER_PRESET_IDS = [
   'volcengine-agent-plan', 'volcengine-coding-plan', 'zhipu-glm-coding', 'zai-glm-coding', 'kimi-code', 'minimax-cn', 'minimax'

@@ -614,7 +614,9 @@ export class ConversationService {
       throw new Rejection('chat-option-invalid', `${agent} has no permission mode ${permissionMode}`)
     }
     if (model || effort) {
-      const models = (await this.chatCatalog(agent, providerId))?.models ?? []
+      // An agent the provider does not serve runs on its own account (decideRoute).
+      const provider = providerId === undefined ? null : this.providers?.get(providerId)
+      const models = (await this.chatCatalog(agent, provider && providerEndpoint(provider, agent) ? providerId : undefined))?.models ?? []
       const picked = models.find((each) => each.id === (model ?? models.find((one) => one.isDefault)?.id))
       if (model && !picked) throw new Rejection('chat-option-invalid', `${agent} lists no model ${model}`)
       if (effort && !picked?.efforts.includes(effort)) throw new Rejection('chat-option-invalid', `the model takes no effort ${effort}`)
@@ -627,8 +629,14 @@ export class ConversationService {
     const cwd = await realpath(launch.cwd)
     const extraDirs = await Promise.all(launch.extraDirs.map((dir) => realpath(dir)))
     const projectPaths = [cwd, ...extraDirs]
-    const conversation = this.store.byTask(task.id)
-      ?? this.store.create(task.agent, cwd, projectPaths, randomUUID(), {}, { id: task.id, title: task.title })
+    const existing = this.store.byTask(task.id)
+    // The provider is settled with the conversation: a later start may only name the same one.
+    if (existing && launch.modelProvider !== undefined && launch.modelProvider !== (existing.modelProvider ?? null)) {
+      throw new Rejection('model-provider-fixed', '任务的服务商在第一次启动时已定下')
+    }
+    if (!existing && launch.modelProvider) this.requireProvider(launch.modelProvider, task.agent)
+    const conversation = existing ?? this.store.create(task.agent, cwd, projectPaths, randomUUID(), {}, { id: task.id, title: task.title })
+    if (!existing && launch.modelProvider) this.store.setModelProvider(conversation.id, launch.modelProvider)
     const { id } = conversation
     if (this.launching.has(id)) throw new Rejection('conversation-running')
     // Another cwd is another place for the agent; only the directories it was given changed, the
