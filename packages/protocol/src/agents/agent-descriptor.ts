@@ -1,5 +1,6 @@
 import type { ChatPermissionMode } from '../chat'
 import type { ModelPrice } from '../model-cost'
+import type { ProviderWire } from '../model-provider'
 
 export type AgentModeText = { label: string; description: string }
 
@@ -37,6 +38,9 @@ export type AgentDescriptor = {
     skills: boolean
     // Takes the user's MCP servers at its start, beside Antumi's (Settings → MCP).
     userMcp: boolean
+    // The wires it can reach a third-party model provider over, the one it prefers first; none, and
+    // it only runs on its own account.
+    modelProviders: readonly ProviderWire[]
   }
   // A plan it approves runs on in one of its own modes, named as the agent names them, rather than
   // in Antumi's run modes.
