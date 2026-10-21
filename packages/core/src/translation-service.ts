@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { LANGUAGE_NAMES, type AgentKind, type TranslateLanguage, type Translation } from '@antumi/protocol'
-import type { QuickRequests, QuickTracking } from './quick-request'
+import type { QuickProvider, QuickRequests, QuickTracking } from './quick-request'
 
 const REMEMBERED = 200
 
@@ -19,19 +19,21 @@ export function translatePrompt(text: string, to: TranslateLanguage): string {
   ].join('\n')
 }
 
-// Translates a reply with the agent that wrote it, as a quick request. The same reply into the same
-// language with the same model is translated once.
+// Translates a reply with the agent that wrote it, as a quick request, or with the model provider
+// it runs on. The same reply into the same language by the same model on the same route is
+// translated once.
 export class TranslationService {
   private readonly done = new Map<string, Promise<Translation>>()
 
   constructor(private readonly quick: QuickRequests) {}
 
   // `model`: the user's pick for this agent; without it, its cheapest (quickModel).
-  translate(agent: AgentKind, text: string, to: TranslateLanguage, model?: string, tracking?: QuickTracking): Promise<Translation> {
-    const key = createHash('sha256').update(`${agent}\n${model ?? ''}\n${to}\n${text}`).digest('hex')
+  translate(agent: AgentKind, text: string, to: TranslateLanguage, model?: string, tracking?: QuickTracking, provider?: QuickProvider): Promise<Translation> {
+    const route = provider ? `${provider.routeKey}\n${provider.model}` : `${agent}\n${model ?? ''}`
+    const key = createHash('sha256').update(`${route}\n${to}\n${text}`).digest('hex')
     const known = this.done.get(key)
     if (known) return known
-    const work = this.quick.ask(agent, translatePrompt(text, to), model, tracking)
+    const work = this.quick.ask(agent, translatePrompt(text, to), model, tracking, provider)
     this.done.set(key, work)
     // A failure is tried again next time; the oldest go once there are too many.
     work.catch(() => this.done.delete(key))

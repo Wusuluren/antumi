@@ -15,6 +15,8 @@ import { Rejection } from './rejection'
 import { ScheduleService } from './schedule-service'
 import { UsageLimitResumes } from './usage-limit-resume'
 import { TaskStore } from './task-store'
+import { CredentialStore } from './credential-store'
+import { ModelProviderStore } from './model-providers'
 
 const HOUR = 3_600_000
 
@@ -177,6 +179,30 @@ describe('ScheduleService', () => {
     await due()
     expect(run(scheduled.id)).toMatchObject({ status: 'failed', error: 'agent-unattended-unsupported' })
     expect(starts).toEqual([])
+  })
+
+  it('runs a conversation on a model provider whatever the agent\'s own quota says, and waits on no reset of it', async () => {
+    const credentials = new CredentialStore(path.join(root, 'credentials.json'))
+    await credentials.load()
+    const providers = new ModelProviderStore(path.join(root, 'model-providers.json'), credentials)
+    await providers.load()
+    conversations.setModelProviders(providers)
+    const { id: modelProvider } = await providers.save({
+      id: null, name: 'Gateway', preset: 'custom', agents: ['claude'], apiKey: 'k',
+      anthropic: { baseUrl: 'http://127.0.0.1:4000', auth: 'auth_token', env: {} }, openai: null,
+      models: [{ id: 'gw', label: null, contextWindow: null, maxOutput: null, efforts: [] }], defaultModel: 'gw', smallModel: 'gw'
+    })
+    usage = exhausted(clock + 2 * HOUR)
+    const conversation = await conversations.create('claude', [], undefined, { modelProvider })
+    const scheduled = schedules.create({ kind: 'conversation', conversationId: conversation.id, text: 'Implement the plan' }, clock)
+    await due()
+    expect(run(scheduled.id)).toMatchObject({ status: 'started', conversationId: conversation.id })
+    // A limit the provider sets says when it lifts, or nothing: never the agent's own reset.
+    limitTurns(1, null)
+    await conversations.send(conversation.id, 'again')
+    await settle()
+    const item = conversations.chatPage(conversation.id).items.find((each) => each.kind === 'usageLimit')
+    expect(item && statusOf(item)?.resetsAt).toBeNull()
   })
 
   it('sends a conversation\'s message once its time has come and the quota has reset, unattended', async () => {

@@ -56,7 +56,8 @@ import { normalizeRepoPath, prepareRefineWorkspace, prepareWorkspace, projectHea
 export type TaskEvent = { type: 'changed'; task: Task } | { type: 'deleted'; id: string }
 
 // English words for a title's branch, from the task's agent; null when it gave none.
-export type BranchNamer = (agent: AgentKind, title: string) => Promise<string | null>
+// modelProvider: the one the task's agent runs on, which names the branch too.
+export type BranchNamer = (agent: AgentKind, title: string, modelProvider: string | null) => Promise<string | null>
 
 // How long a start that makes a branch waits for a slug still on its way, before naming it without.
 const SLUG_WAIT_MS = 10_000
@@ -283,12 +284,14 @@ export class TaskService {
     return task
   }
 
-  private nameBranch({ id, title, slug, agent }: Task): Promise<void> {
+  private nameBranch(task: Task): Promise<void> {
+    const { id, title, slug, agent } = task
     if (!this.namer || !agent || slug !== null || !needsSlug(title)) return Promise.resolve()
-    const key = `${id}\n${agent}\n${title}`
+    const modelProvider = (task.conversationId ? this.chats?.get(task.conversationId).modelProvider : task.launch.modelProvider) ?? null
+    const key = `${id}\n${agent}\n${title}\n${modelProvider ?? ''}`
     const known = this.naming.get(key)
     if (known) return known
-    const work = this.namer(agent, title)
+    const work = this.namer(agent, title, modelProvider)
       .then((words) => {
         const current = this.store.get(id)
         // The title may have changed meanwhile, and its own words are on their way.

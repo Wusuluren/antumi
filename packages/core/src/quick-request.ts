@@ -2,12 +2,13 @@ import { spawn } from 'node:child_process'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { agentDescriptor, quickModel, type AgentKind, type ChatCatalog, type CostBaseline } from '@antumi/protocol'
+import { agentDescriptor, quickModel, type AgentKind, type ChatCatalog, type CostBaseline, type ModelMetering, type ProviderEndpoint } from '@antumi/protocol'
 import { planLaunch } from '@antumi/protocol/node'
 import type { QuickCommand } from './agents/agent-adapter'
 import { adapterOf } from './agents'
 import { Rejection } from './rejection'
 import type { SmallModelStore } from './small-model-store'
+import { askProvider } from './provider-request'
 
 const TIMEOUT_MS = 120_000
 // Opening an old conversation with translation on asks for many at once; a few run, the rest wait.
@@ -16,10 +17,19 @@ const AT_ONCE = 2
 export type QuickTracking = { kind: 'translation' | 'commitMessage' | 'title'; conversationId: string | null; baseline(): CostBaseline }
 type QuickOutput = { stdout: string; error: Rejection | null }
 
+// Where a small job for a conversation on a model provider goes: the provider, on its small model,
+// whatever model the user picked for the agent's own small jobs. routeKey: ProviderRoute.key.
+export type QuickProvider = { endpoint: ProviderEndpoint; apiKey: string; model: string; routeKey: string }
+
+// A translation's answer is as long as the reply; a provider caps what it takes below this anyway.
+const PROVIDER_MAX_TOKENS = 8192
+
 export type QuickDeps = {
   catalog(agent: AgentKind): Promise<ChatCatalog | null>
   // Runs a one-off command to its end: what it printed, or why it failed.
   run?(command: QuickCommand, cwd: string): Promise<string | QuickOutput>
+  // How a request reaches a model provider.
+  fetch?: typeof fetch
   accounting?: SmallModelStore
 }
 
@@ -33,8 +43,25 @@ export class QuickRequests {
 
   constructor(private readonly deps: QuickDeps) {}
 
-  ask(agent: AgentKind, prompt: string, picked?: string, tracking?: QuickTracking): Promise<{ text: string; model: string | null }> {
-    return this.queued(() => this.request(agent, prompt, picked, tracking))
+  ask(agent: AgentKind, prompt: string, picked?: string, tracking?: QuickTracking, provider?: QuickProvider): Promise<{ text: string; model: string | null }> {
+    return this.queued(() => (provider ? this.requestProvider(agent, prompt, provider, tracking) : this.request(agent, prompt, picked, tracking)))
+  }
+
+  // One request straight to the provider, as testing it does: no agent CLI, which would need the
+  // provider set up for it all over again.
+  private async requestProvider(agent: AgentKind, prompt: string, provider: QuickProvider, tracking?: QuickTracking): Promise<{ text: string; model: string | null }> {
+    const accounting = this.deps.accounting
+    const job = tracking && accounting ? accounting.begin({ kind: tracking.kind, agent, model: provider.model, conversationId: tracking.conversationId, baseline: tracking.baseline(), unpriced: true }) : undefined
+    const reply = await askProvider(provider, prompt, { maxTokens: PROVIDER_MAX_TOKENS, timeoutMs: TIMEOUT_MS, ...(this.deps.fetch ? { fetchImpl: this.deps.fetch } : {}) })
+    const text = reply.ok ? reply.text.trim() : ''
+    const metering: ModelMetering | undefined = reply.ok && reply.usage ? {
+      models: [{ model: provider.model, input: reply.usage.input, output: reply.usage.output, cacheRead: null, cacheWrite: null, cacheWrite1h: null, costUsd: null }],
+      calls: 1, callsEstimated: false, reportedCostUsd: null
+    } : undefined
+    if (job) accounting?.finish(job, text ? 'completed' : 'failed', metering)
+    if (!reply.ok) throw new Rejection('quick-failed', reply.message)
+    if (!text) throw new Rejection('quick-failed', 'the provider gave no answer')
+    return { text, model: provider.model }
   }
 
   private async request(agent: AgentKind, prompt: string, picked: string | undefined, tracking?: QuickTracking): Promise<{ text: string; model: string | null }> {

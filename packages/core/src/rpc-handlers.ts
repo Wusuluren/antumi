@@ -97,8 +97,9 @@ export function createRpcHandlers(
   conversations.setTitleGenerator(async (conversation, prompt) => (await quick.ask(conversation.agent, prompt,
     chatSettings.current().titleModels[conversation.agent], {
       kind: 'title', conversationId: conversation.id, baseline: () => conversations.costBaseline(conversation.id)
-    })).text)
-  service.setBranchNamer(async (agent, title) => cleanSlug((await quick.ask(agent, slugPrompt(title))).text))
+    }, conversations.quickProvider(conversation.id))).text)
+  service.setBranchNamer(async (agent, title, modelProvider) => cleanSlug((await quick.ask(agent, slugPrompt(title), undefined, undefined,
+    modelProvider ? conversations.quickProviderFor(modelProvider, agent) : undefined)).text))
   const cliInstaller = new AgentCliInstaller(environment, terminals)
   const ports = new PortService(sessions, () => ({ terminals: terminals.list(), conversations: conversations.listAll(), tasks: service.list() }))
   // An agent's own terminals: run in the conversation's folder unless it names another, and
@@ -180,10 +181,10 @@ export function createRpcHandlers(
       const answer = await quick.ask(agent, commitMessagePrompt(context), model, {
         kind: 'commitMessage', conversationId,
         baseline: () => conversationId ? conversations.costBaseline(conversationId) : EMPTY_BASELINE
-      })
+      }, conversationId ? conversations.quickProvider(conversationId) : undefined)
       return { message: cleanCommitMessage(answer.text), model: answer.model }
     },
-    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'squads' || Boolean(squads)) && (feature !== 'plugins' || Boolean(plugins)) && (feature !== 'skills-library' || Boolean(skills)) && (feature !== 'mcp-servers' || Boolean(mcpServers)) && (feature !== 'small-model-stats' || Boolean(smallModels))) }),
+    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'squads' || Boolean(squads)) && (feature !== 'plugins' || Boolean(plugins)) && (feature !== 'skills-library' || Boolean(skills)) && (feature !== 'mcp-servers' || Boolean(mcpServers)) && (feature !== 'small-model-stats' || Boolean(smallModels)) && (feature !== 'model-providers' || Boolean(modelProviders))) }),
     'files.resolve': ({ conversationId, path }) => files.resolve(conversationId, path),
     'files.read': ({ conversationId, path }) => files.read(conversationId, path),
     'files.list': ({ conversationId, path }) => files.list(conversationId, path),
@@ -281,7 +282,7 @@ export function createRpcHandlers(
     'conversations.create': ({ agent, projectPaths, worktree, branch, allowBypass, permissionMode, model, effort, deferStart, helperOf, modelProvider }) =>
       conversations.create(agent, projectPaths, allowBypass, { permissionMode, model, effort, worktree, branch, deferStart, helperOf, modelProvider }),
     'conversations.chatCatalog': ({ agent, modelProvider }) => conversations.chatCatalog(agent, modelProvider),
-    'conversations.translate': ({ id, text, to, model }) => translations.translate(conversations.get(id).agent, text, to, model, { kind: 'translation', conversationId: id, baseline: () => conversations.costBaseline(id) }),
+    'conversations.translate': ({ id, text, to, model }) => translations.translate(conversations.get(id).agent, text, to, model, { kind: 'translation', conversationId: id, baseline: () => conversations.costBaseline(id) }, conversations.quickProvider(id)),
     'conversations.setAdditionalProjects': ({ id, projectPaths }) => conversations.setAdditionalProjects(id, projectPaths),
     'conversations.rename': ({ id, title }) => conversations.rename(id, title),
     'conversations.setPinned': ({ id, pinned }) => conversations.setPinned(id, pinned),

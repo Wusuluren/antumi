@@ -35,6 +35,7 @@ import { ConversationTitles, type TitleGenerator } from './conversation-titles'
 import { conversationRoute, decideRoute, providerLaunch, sameRoute, type RouteDecision } from './conversation-route'
 import type { ModelProviderStore } from './model-providers'
 import type { ProviderLaunch } from './provider-launch'
+import type { QuickProvider } from './quick-request'
 
 export type ConversationEvent =
   | { type: 'changed'; conversation: Conversation }
@@ -280,6 +281,20 @@ export class ConversationService {
   private catalogProvider(conversation: Pick<Conversation, 'id' | 'modelProvider'>, agent: AgentKind): string | undefined {
     const decision = this.routeFor(conversation, agent)
     return decision.kind === 'provider' ? decision.route.providerId : undefined
+  }
+
+  // Where a small job for the conversation goes (a title, a translation, a commit message): the
+  // provider its agent runs on, else the agent's own account (undefined). A provider gone refuses
+  // the job rather than spend the agent's own account on it.
+  quickProvider(conversationId: string): QuickProvider | undefined {
+    const conversation = this.store.get(conversationId)
+    return conversation?.modelProvider ? quickProviderOf(this.routeFor(conversation, conversation.agent)) : undefined
+  }
+
+  // The same for something that has no conversation yet, such as a task's branch name: as its
+  // first start would run.
+  quickProviderFor(providerId: string, agent: AgentKind): QuickProvider | undefined {
+    return quickProviderOf(decideRoute(providerId, agent, null, this.providers?.resolve(providerId) ?? null))
   }
 
   // A provider a new conversation is to start on: one that has a key and serves its agent.
@@ -1740,6 +1755,13 @@ export class ConversationService {
     this.emit({ type: 'changed', conversation: decorated })
     return decorated
   }
+}
+
+function quickProviderOf(decision: RouteDecision): QuickProvider | undefined {
+  if (decision.kind === 'unavailable') throw new Rejection('model-provider-unavailable', decision.message)
+  if (decision.kind === 'own') return undefined
+  const { route, apiKey } = decision
+  return { endpoint: { wire: route.wire, baseUrl: route.baseUrl, anthropic: route.anthropic }, apiKey, model: route.smallModel, routeKey: route.key }
 }
 
 // What was said in a lost provider session that never got an answer is left out of the handoff:

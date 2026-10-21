@@ -443,8 +443,9 @@ export class ScheduleService {
         this.limitChanged(run)
         continue
       }
-      // Every run of an agent whose quota is used up waits for the reset, and says when it is.
-      const exhausted = this.exhausted(agent)
+      // Every run of an agent whose quota is used up waits for the reset, and says when it is; one
+      // on a model provider spends the provider's, not the agent's.
+      const exhausted = this.onProvider(run) ? null : this.exhausted(agent)
       if (exhausted) {
         const resetsAt = exhausted.resetsAt
         this.settle(run, { agent, resets_at: resetsAt, check_at: resetsAt !== null && resetsAt > this.now() ? resetsAt + GRACE_MS : this.now() + UNKNOWN_RESET_MS })
@@ -612,6 +613,16 @@ export class ScheduleService {
   private working(agent: AgentKind): boolean {
     return this.rows("WHERE status = 'started' AND agent = ? AND settled_at > ?", agent, this.now() - HOLD_MS)
       .some((run) => run.conversationId !== null && this.conversation(run.conversationId)?.chat?.turn === 'running')
+  }
+
+  // Whether the run goes to a model provider: its conversation runs on one, or the task it starts
+  // is launched on one.
+  private onProvider(run: Row): boolean {
+    const { target } = run
+    const task = target.kind === 'task' ? this.deps.tasks.get(target.taskId) : null
+    const conversationId = target.kind === 'task' ? task?.conversationId : target.kind === 'routine' ? run.conversationId : target.conversationId
+    if (conversationId) return this.conversation(conversationId)?.route?.reason === 'served'
+    return Boolean(task?.launch.modelProvider)
   }
 
   private exhausted(agent: AgentKind): { resetsAt: number | null } | null {

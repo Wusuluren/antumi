@@ -123,7 +123,8 @@ const conversations = new ConversationService(
       if (helper.helperOf) smallModels.begin({
         id: `${event.stageId}/turn:${event.ref}`, kind: 'helper', agent: helper.agent,
         model: helper.chatOptions?.model ?? null, conversationId: helper.id,
-        baseline: conversations.costBaseline(helper.helperOf)
+        baseline: conversations.costBaseline(helper.helperOf),
+        unpriced: Boolean(conversations.stages(helper.id).find((stage) => stage.id === event.stageId)?.route)
       })
     } else if (event.type === 'chatItems') {
       limits.observe(event.conversationId, event.items)

@@ -1,4 +1,4 @@
-import { quotaVerdict, type AgentKind, type AgentUsage, type ChatItem, type LimitRef } from '@antumi/protocol'
+import { quotaVerdict, type AgentUsage, type ChatItem, type Conversation, type LimitRef } from '@antumi/protocol'
 import type { ConversationService } from './conversation-service'
 import { Rejection } from './rejection'
 import { GRACE_MS, ScheduleService, type LimitRun } from './schedule-service'
@@ -33,7 +33,7 @@ export class UsageLimitResumes {
       if (item.kind !== 'usageLimit' || this.now() - item.at >= FRESH_MS || this.schedules.runForLimit(refOf(item))) continue
       const conversation = this.conversation(conversationId)
       if (!conversation) continue
-      this.schedules.createResume(conversationId, refOf(item), item.resetsAt ?? this.resetFromUsage(conversation.agent))
+      this.schedules.createResume(conversationId, refOf(item), item.resetsAt ?? this.resetFromUsage(conversation))
     }
   }
 
@@ -55,7 +55,7 @@ export class UsageLimitResumes {
       const item = this.conversations.chatItem(conversationId, stageId, itemId)
       if (item?.kind !== 'usageLimit') throw new Rejection('usage-limit-not-found', 'no such usage limit in this conversation')
       const conversation = this.conversations.get(conversationId)
-      this.schedules.createResume(conversationId, limit, item.resetsAt ?? this.resetFromUsage(conversation.agent))
+      this.schedules.createResume(conversationId, limit, item.resetsAt ?? this.resetFromUsage(conversation))
       return
     }
     if (!run || run.status !== 'waiting') return
@@ -94,8 +94,10 @@ export class UsageLimitResumes {
     if (item?.kind === 'usageLimit') this.emit(conversationId, [withRun(item, this.schedules.runForLimit(limit))])
   }
 
-  // When the window holding the agent back lifts, by core's latest reading of its usage.
-  private resetFromUsage(agent: AgentKind): number | null {
+  // When the window holding the agent back lifts, by core's latest reading of its usage. A
+  // conversation on a model provider is held back by the provider's limit, which that says nothing of.
+  private resetFromUsage({ agent, route }: Pick<Conversation, 'agent' | 'route'>): number | null {
+    if (route?.reason === 'served') return null
     const verdict = quotaVerdict(this.usage.list().find((usage) => usage.agent === agent), this.now())
     return verdict.state === 'exhausted' ? (verdict.window?.resetsAt ?? null) : null
   }

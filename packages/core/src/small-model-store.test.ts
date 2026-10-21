@@ -186,6 +186,29 @@ describe('small-model accounting', () => {
     expect(report.current.tokens).toBe(110)
   })
 
+  it('sends a job on a model provider straight to it, on its small model, and keeps it unpriced', async () => {
+    const asked: Array<{ url: string; body: Record<string, unknown> }> = []
+    const quick = new QuickRequests({
+      accounting: store, catalog: async () => null,
+      run: async () => { throw new Error('the agent CLI is not used') },
+      fetch: async (url, init) => {
+        asked.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+        return new Response(JSON.stringify({ content: [{ type: 'text', text: '标题' }], usage: { input_tokens: 120, output_tokens: 8 } }), { status: 200 })
+      }
+    })
+    const provider = { endpoint: { wire: 'anthropic' as const, baseUrl: 'https://gw.example.com', anthropic: { baseUrl: 'https://gw.example.com', auth: 'auth_token' as const, env: {} } }, apiKey: 'k', model: 'gw-small', routeKey: 'gw|anthropic|https://gw.example.com' }
+    const tracking = { kind: 'translation' as const, conversationId: 'parent', baseline: () => baseline }
+    expect(await quick.ask('claude', 'name it', 'haiku', tracking, provider)).toEqual({ text: '标题', model: 'gw-small' })
+    expect(asked).toMatchObject([{ url: 'https://gw.example.com/v1/messages', body: { model: 'gw-small' } }])
+    const [kept] = store.endedSince(0)
+    expect(kept).toMatchObject({ model: 'gw-small', totalTokens: 128, prices: [], baseline: EMPTY_BASELINE, cost: { costUsd: null, savedUsd: null } })
+    // A reply is translated on the provider once.
+    const translations = new TranslationService(quick)
+    await translations.translate('claude', 'hi', 'en', undefined, tracking, provider)
+    await translations.translate('claude', 'hi', 'en', undefined, tracking, provider)
+    expect(asked).toHaveLength(2)
+  })
+
   it('keeps reported usage from a failed command and records a retry as a new execution', async () => {
     let failure = true
     const quick = new QuickRequests({ accounting: store, catalog: async () => null, run: async () => ({

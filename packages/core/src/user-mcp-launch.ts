@@ -6,6 +6,7 @@ import { CredentialStore } from './credential-store'
 import { McpHttpSession } from './mcp-http'
 import { ReadOnlyToolFilter } from './mcp-read-only-filter'
 import { McpServerStore, type ResolvedMcpServer } from './mcp-servers'
+import { PROVIDER_KEY_ENV, PROVIDER_MARK_ENV } from './provider-launch'
 
 // What an agent starts in place of one of the user's MCP servers (mcp-main --run): it reads the
 // server and its secrets from Antumi's files, so neither the agent's configuration, its command line
@@ -40,9 +41,18 @@ function agentMessage(line: string): Record<string, unknown> | null {
   return message && typeof message === 'object' && !Array.isArray(message) ? Object.fromEntries(Object.entries(message)) : null
 }
 
+// What the user's server starts with of this launcher's environment. ELECTRON_RUN_AS_NODE is set
+// where the launcher runs as Antumi's bundled Node, which the server is not. An agent on a model
+// provider passes its environment on, the provider's key with it, which the server is not given.
+export function serverEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const { ELECTRON_RUN_AS_NODE: _ours, ...rest } = env
+  if (!rest[PROVIDER_MARK_ENV]) return rest
+  const { [PROVIDER_KEY_ENV]: _key, [PROVIDER_MARK_ENV]: _mark, ANTHROPIC_AUTH_TOKEN: _token, ANTHROPIC_API_KEY: _apiKey, ...clean } = rest
+  return clean
+}
+
 function runCommand(transport: Extract<ResolvedMcpServer['transport'], { type: 'stdio' }>, filter: ReadOnlyToolFilter | null): Promise<void> {
-  // Set where this launcher runs as Antumi's bundled Node; the user's own server is not that.
-  const { ELECTRON_RUN_AS_NODE: _ours, ...env } = process.env
+  const env = serverEnv(process.env)
   const cwd = transport.cwd ?? process.cwd()
   const launch = planLaunch(transport.command, transport.args, cwd, { ...env, ...transport.env })
   const child = spawn(launch.file, launch.args, { cwd, env: launch.env, stdio: filter ? ['pipe', 'pipe', 'inherit'] : 'inherit', windowsHide: true })
