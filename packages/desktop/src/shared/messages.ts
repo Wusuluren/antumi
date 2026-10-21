@@ -2904,6 +2904,14 @@ export const MESSAGES = {
     "zh": "{value1}已归档{value2}",
     "en": "{value1}Archived{value2}"
   },
+  "ConversationList.showMore": {
+    "zh": "显示更多（{hidden}）",
+    "en": "Show {hidden} more"
+  },
+  "ConversationList.showLess": {
+    "zh": "收起",
+    "en": "Show less"
+  },
   "ConversationSplit.rightPane": {
     "zh": "右列",
     "en": "Right pane"

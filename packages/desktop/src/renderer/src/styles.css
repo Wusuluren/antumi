@@ -604,6 +604,12 @@ body.stacked-panel-resizing * {
    section's own ＋. */
 .conversation-group-new { margin-right: 4px; opacity: 0; }
 .conversation-group-title:hover .conversation-group-new, .conversation-group-new:focus-visible { opacity: 1; }
+/* Under a group cut short, its text lined up with the rows' titles. */
+.conversation-group-more { width: 100%; display: flex; align-items: center; gap: 6px; padding: 4px 12px 4px 39px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.conversation-group-more:hover { background: var(--surface-muted); color: var(--text); }
+.conversation-group-more:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.conversation-group-more svg { width: 12px; height: 12px; flex-shrink: 0; transition: transform 0.15s; }
+.conversation-group-more[aria-expanded='true'] svg { transform: rotate(180deg); }
 /* Centered in the row's 16px icon column, on the title's first line, like a task's status icon. */
 /* The mark before a conversation's name: a ring when nothing is going on, a spinner while its agent
    works, a dot for what wants the user: amber and pulsing when it waits on them, red when it failed,

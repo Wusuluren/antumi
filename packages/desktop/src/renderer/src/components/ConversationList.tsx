@@ -31,6 +31,13 @@ const COMPARE: Record<SortBy, (a: Conversation, b: Conversation) => number> = {
   title: (a, b) => a.title.localeCompare(b.title, getLocale())
 }
 
+// A group shows its first few rows until asked for the rest; the open conversation stays in sight
+// wherever it falls.
+export const GROUP_LIMIT = 6
+export function shownRows(items: Conversation[], selected: string | null): Conversation[] {
+  return items.filter((conversation, index) => index < GROUP_LIMIT || conversation.id === selected)
+}
+
 // Groups keep a fixed order where there is one (running first, agents as listed);
 // projects go by name, with conversations that have no project last. A conversation belongs to its
 // primary project, where its agent works; the others only lend it folders.
@@ -236,6 +243,13 @@ export function ConversationList() {
     const id = foldKey(key)
     setPreference('foldedConversationGroups', folded.includes(id) ? folded.filter((each) => each !== id) : [...folded, id])
   }
+  // Groups showing all their rows; a search shows every row anyway.
+  const [expanded, setExpanded] = useState<string[]>([])
+  const isExpanded = (key: string) => searching || expanded.includes(foldKey(key))
+  const toggleExpanded = (key: string) => {
+    const id = foldKey(key)
+    setExpanded((current) => (current.includes(id) ? current.filter((each) => each !== id) : [...current, id]))
+  }
   const [menu, setMenu] = useState<{ id: string; at: MenuPoint } | null>(null)
   const closeMenu = useCallback(() => setMenu(null), [])
   const [viewAt, setViewAt] = useState<MenuPoint | null>(null)
@@ -337,7 +351,17 @@ export function ConversationList() {
                 </button>
               )}
             </h3>
-            {!isFolded(group.key) && <ul>{group.items.map((conversation) => row(conversation, group.key === 'pinned' ? 'none' : groupBy))}</ul>}
+            {!isFolded(group.key) && <ul>
+              {(isExpanded(group.key) ? group.items : shownRows(group.items, selected)).map((conversation) => row(conversation, group.key === 'pinned' ? 'none' : groupBy))}
+              {!searching && group.items.length > GROUP_LIMIT && (
+                <li>
+                  <button type="button" className="conversation-group-more" aria-expanded={isExpanded(group.key)} onClick={() => toggleExpanded(group.key)}>
+                    {isExpanded(group.key) ? t('ConversationList.showLess') : t('ConversationList.showMore', { hidden: group.items.length - shownRows(group.items, selected).length })}
+                    <ChevronDownIcon />
+                  </button>
+                </li>
+              )}
+            </ul>}
           </section>)}
       {archived.length > 0 && (
         <section className="conversation-group conversation-archive" aria-label={t('ConversationList.archived')}>
