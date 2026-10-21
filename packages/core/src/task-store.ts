@@ -317,7 +317,11 @@ export const MIGRATIONS = [
   // A project's setup or check run in a worktree (Terminal.purpose), rather than an agent's command.
   `ALTER TABLE terminals ADD COLUMN purpose TEXT;`,
   // When the user last took a conversation out of the archive, which auto-archiving counts as activity.
-  `ALTER TABLE conversations ADD COLUMN restored_at INTEGER;`
+  `ALTER TABLE conversations ADD COLUMN restored_at INTEGER;`,
+  // The model provider a conversation was started on, and what each stage ran on (a ProviderRoute
+  // as JSON); null on the agent's own account.
+  `ALTER TABLE conversations ADD COLUMN model_provider TEXT;
+   ALTER TABLE conversation_stages ADD COLUMN provider_route TEXT;`
 ]
 
 

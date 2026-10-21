@@ -153,3 +153,30 @@ export function providerEndpoint(provider: Endpoints & Pick<ModelProvider, 'agen
 export function providerRouteKey(providerId: string, endpoint: Pick<ProviderEndpoint, 'wire' | 'baseUrl'>): string {
   return `${providerId}|${endpoint.wire}|${endpoint.baseUrl}`
 }
+
+// What a chat stage ran on, kept with the stage: the provider as it was then, never its key. A stage
+// replays, and one still running is taken back after a restart, from this alone. key is
+// providerRouteKey's.
+export const ProviderRoute = z.object({
+  providerId: ModelProviderId,
+  name: z.string(),
+  wire: ProviderWire,
+  baseUrl: z.string(),
+  anthropic: AnthropicEndpoint.nullable(),
+  key: z.string(),
+  models: z.array(ProviderModel),
+  defaultModel: z.string(),
+  smallModel: z.string()
+})
+export type ProviderRoute = z.infer<typeof ProviderRoute>
+
+// What a conversation's next stage runs on, where the conversation was started on a provider:
+// served, on it; agent-unsupported, the provider does not serve this agent, which runs on its own
+// account; unavailable, the provider is gone, has no key or stopped serving an agent that ran on it,
+// so the agent does not start rather than quietly run elsewhere.
+export const ConversationRoute = z.object({
+  providerId: ModelProviderId,
+  name: z.string().nullable(),
+  reason: z.enum(['served', 'agent-unsupported', 'unavailable'])
+})
+export type ConversationRoute = z.infer<typeof ConversationRoute>

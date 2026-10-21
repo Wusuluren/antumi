@@ -287,13 +287,17 @@ export const rpcMethods = {
       deferStart: z.boolean().optional(),
       helperOf: z.string().uuid().optional(),
       model: z.string().trim().min(1).max(200).optional(),
-      effort: z.string().trim().min(1).max(200).optional()
+      effort: z.string().trim().min(1).max(200).optional(),
+      // The model provider it runs on (Conversation.modelProvider), which must serve the agent; a
+      // helper runs on its parent's. Needs model-providers.
+      modelProvider: ModelProviderId.optional()
     }),
     result: Conversation
   },
   // What the agent offers a new chat: the models its latest chat stage listed, or, when it never
-  // ran one, what it lists when asked. null when it cannot be asked.
-  'conversations.chatCatalog': { params: z.object({ agent: AgentKind }), result: ChatCatalog.nullable() },
+  // ran one, what it lists when asked; on a model provider, that provider's. null when it cannot
+  // be asked.
+  'conversations.chatCatalog': { params: z.object({ agent: AgentKind, modelProvider: ModelProviderId.optional() }), result: ChatCatalog.nullable() },
   // A reply of the conversation's put into another language by its own agent, on the smallest model
   // it has, in a one-off request with no tools that is kept nowhere. Needs translate.
   // model: the one the user picked for translating with this agent; without it, quickModel's.
@@ -674,7 +678,8 @@ export const rpcMethods = {
       allowBypass: AllowBypass,
       permissionMode: ChatPermissionMode.optional(),
       model: z.string().trim().min(1).max(200).optional(),
-      effort: z.string().trim().min(1).max(200).optional()
+      effort: z.string().trim().min(1).max(200).optional(),
+      modelProvider: ModelProviderId.optional()
     }),
     result: Conversation
   },

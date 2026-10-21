@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { ChatDecision, ChatTurnActivity } from './chat'
+import { ConversationRoute, ModelProviderId, ProviderRoute } from './model-provider'
 import { TaskSource } from './source'
 import { AgentKind } from './task'
 
@@ -83,12 +84,16 @@ export const Conversation = z.object({
   helperOf: z.string().uuid().nullable().optional(),
   workspaceReadOnly: z.boolean().optional(),
   // The issue it was opened to look into, from the inbox. Older cores leave it out.
-  source: TaskSource.nullable().optional()
+  source: TaskSource.nullable().optional(),
+  // The model provider it was started on, fixed for good; null on the agents' own accounts. route:
+  // what its agent's next stage runs on. Older cores leave both out.
+  modelProvider: ModelProviderId.nullable().optional(),
+  route: ConversationRoute.nullable().optional()
 })
 export type Conversation= z.infer<typeof Conversation>
 
 // A fresh conversation's settings, without any session, history or task ownership.
-export const ConversationConfiguration = Conversation.pick({ agent: true, projectPaths: true }).extend({
+export const ConversationConfiguration = Conversation.pick({ agent: true, projectPaths: true, modelProvider: true }).extend({
   permissionMode: z.string().nullable(),
   model: z.string().nullable(),
   effort: z.string().nullable()
@@ -110,7 +115,9 @@ export const ConversationStage = z.object({
   endedAt: z.number().nullable(),
   exitCode: z.number().nullable(),
   // A stage that may only plan (see Conversation.planOnly).
-  planOnly: z.boolean().optional()
+  planOnly: z.boolean().optional(),
+  // The model provider it ran on; null on the agent's own account. Older cores leave it out.
+  route: ProviderRoute.nullable().optional()
 })
 export type ConversationStage = z.infer<typeof ConversationStage>
 

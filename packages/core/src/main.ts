@@ -318,6 +318,7 @@ const mcpServers = new McpServerStore(paths.mcpServers, credentials, (servers) =
 await mcpServers.load()
 const modelProviders = new ModelProviderStore(paths.modelProviders, credentials, (providers) => server?.broadcast('modelProviders.changed', { providers }))
 await modelProviders.load()
+conversations.setModelProviders(modelProviders)
 // Handed through Antumi's launcher, so no secret is in an agent's command line or Antumi's logs.
 conversations.setUserMcpProvider((agent, readOnly) => agentDescriptor(agent).capabilities.userMcp ? mcpServers.forAgent(agent).map((server) => userMcpServer(paths.home, server, readOnly)) : [])
 // An agent that loads skills gets Obsidian's, where the user turned writing on and has

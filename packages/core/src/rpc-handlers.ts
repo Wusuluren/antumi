@@ -278,9 +278,9 @@ export function createRpcHandlers(
     'conversations.get': ({ id }) => conversations.get(id),
     'conversations.configuration': ({ id }) => conversations.configuration(id),
     'conversations.helper': ({ id }) => conversations.helper(id),
-    'conversations.create': ({ agent, projectPaths, worktree, branch, allowBypass, permissionMode, model, effort, deferStart, helperOf }) =>
-      conversations.create(agent, projectPaths, allowBypass, { permissionMode, model, effort, worktree, branch, deferStart, helperOf }),
-    'conversations.chatCatalog': ({ agent }) => conversations.chatCatalog(agent),
+    'conversations.create': ({ agent, projectPaths, worktree, branch, allowBypass, permissionMode, model, effort, deferStart, helperOf, modelProvider }) =>
+      conversations.create(agent, projectPaths, allowBypass, { permissionMode, model, effort, worktree, branch, deferStart, helperOf, modelProvider }),
+    'conversations.chatCatalog': ({ agent, modelProvider }) => conversations.chatCatalog(agent, modelProvider),
     'conversations.translate': ({ id, text, to, model }) => translations.translate(conversations.get(id).agent, text, to, model, { kind: 'translation', conversationId: id, baseline: () => conversations.costBaseline(id) }),
     'conversations.setAdditionalProjects': ({ id, projectPaths }) => conversations.setAdditionalProjects(id, projectPaths),
     'conversations.rename': ({ id, title }) => conversations.rename(id, title),
