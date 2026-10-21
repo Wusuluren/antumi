@@ -8152,6 +8152,10 @@ export const MESSAGES = {
     "zh": "等待依赖",
     "en": "Waiting for dependencies"
   },
+  "TaskBoard.dependencies": {
+    "zh": "，依赖：{titles}",
+    "en": ", depends on: {titles}"
+  },
   "TaskBoard.cannotYet": {
     "zh": "还不能{value1}：{value2}",
     "en": "Cannot {value1} yet: {value2}"

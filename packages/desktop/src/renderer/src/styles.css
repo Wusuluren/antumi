@@ -9123,15 +9123,20 @@ div.inspector-empty > p { margin: 0 0 8px; }
    past which the board scrolls sideways, and a card's, past which more room is left over rather
    than stretching the cards. Each scrolls down by itself, so a long done column does not push the
    others out of view. */
-.task-board-columns { flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 400px); gap: 12px; padding: 4px 20px 20px; overflow-x: auto; overflow-y: hidden; }
+.task-board-viewport { position: relative; flex: 1; min-height: 0; display: flex; overflow: hidden; isolation: isolate; }
+.task-board-columns { flex: 1; min-width: 0; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 400px); gap: 12px; padding: 4px 20px 32px; overflow-x: auto; overflow-y: hidden; }
+.task-dependencies { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+.task-dependency-line { fill: none; stroke: var(--text-3); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.6; }
+.task-dependencies[data-active] .task-dependency-line { opacity: 0.15; }
+.task-dependencies .task-dependency-line[data-related] { stroke: var(--text-muted); stroke-width: 2; opacity: 1; }
 /* Each column a wash of its status colour, as Multica's board has, the cards sitting on it. The
    sticky title lays the same wash over the surface, so it stays opaque over cards scrolling under. */
-.task-board-column { --column-tint: color-mix(in srgb, var(--status-pending) 7%, transparent); min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 8px 8px; border-radius: var(--radius-lg); background: var(--column-tint); }
+.task-board-column { --column-tint: color-mix(in srgb, var(--status-pending) 7%, transparent); min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 20px 8px; border-radius: var(--radius-lg); background: var(--column-tint); }
 .task-board-column[data-status='running'] { --column-tint: color-mix(in srgb, var(--status-running) 6%, transparent); }
 .task-board-column[data-status='review'] { --column-tint: color-mix(in srgb, var(--status-review) 8%, transparent); }
 .task-board-column[data-status='done'] { --column-tint: color-mix(in srgb, var(--status-done) 6%, transparent); }
 .task-board-column[data-status='abandoned'] { --column-tint: color-mix(in srgb, var(--status-abandoned) 8%, transparent); }
-.task-board-column-title { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin: 0 -8px; height: 40px; padding: 0 12px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: linear-gradient(var(--column-tint), var(--column-tint)), var(--surface); font-size: 12px; font-weight: 600; }
+.task-board-column-title { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin: 0 -20px; height: 40px; padding: 0 12px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: linear-gradient(var(--column-tint), var(--column-tint)), var(--surface); font-size: 12px; font-weight: 600; }
 .task-board-column-title .count { font-weight: 400; color: var(--text-3); }
 .task-board-column-empty { display: grid; place-items: center; height: 64px; margin: 0; border: 1px dashed var(--border-2); border-radius: var(--radius-lg); font-size: 12px; color: var(--text-3); }
 .task-board-more { height: 32px; border: 1px dashed var(--border-2); border-radius: var(--radius); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
