@@ -156,6 +156,8 @@ export type CoreState = {
   // empty on a core without them.
   routines: Routine[]
   overviewOpen: boolean
+  // The getting-started guide stands in the overview's place until anything else is opened.
+  guideOpen: boolean
   // What the overview shows: the work now, or the stats of the days before.
   overviewView: OverviewPane
   overviewFilter: OverviewFilter
@@ -249,6 +251,7 @@ export const useCore = create<CoreState>()(() => ({
   routinesOpen: false,
   routinesTab: 'routines',
   overviewOpen: true,
+  guideOpen: false,
   overviewView: 'now',
   overviewFilter: null,
   overviewScroll: 0,
@@ -780,12 +783,16 @@ export function useSchedulesOpen(): boolean {
 // The overview has no close of its own: it is what every other page leaves behind when it closes,
 // but a task, which goes back to the task board.
 const OVERVIEW = {
-  overviewOpen: true, section: 'tasks', selectedId: null, selectedConversationId: null, conversationDraft: false, discussionDraft: false,
+  overviewOpen: true, guideOpen: false, section: 'tasks', selectedId: null, selectedConversationId: null, conversationDraft: false, discussionDraft: false,
   squadDraft: false, inboxOpen: false, worktreesOpen: false, routinesOpen: false, settingsOpen: false
 } as const
 
 export function openOverview(): void {
   useCore.setState(OVERVIEW)
+}
+
+export function openGuide(): void {
+  useCore.setState({ ...OVERVIEW, guideOpen: true })
 }
 
 export function useActionableItems(): ActionableItem[] {

@@ -9721,3 +9721,11 @@ button.squad-member-main { cursor: pointer; }
   line-height: 18px;
   white-space: nowrap;
 }
+
+/* The getting-started guide reads as a document, at the chat's measure rather than the overview's. */
+.guide-page > * { width: 100%; max-width: 800px; margin-inline: auto; }
+.guide-page .worktrees-header { align-items: center; }
+.guide-markdown img { display: block; max-width: 100%; height: auto; margin: 12px 0; border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.guide-markdown h2 { margin-top: 32px; }
+.guide-markdown table { display: table; width: 100%; }
+.guide-markdown td:first-child { white-space: nowrap; }

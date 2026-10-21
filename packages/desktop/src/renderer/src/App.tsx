@@ -30,6 +30,7 @@ import { DiscussionView } from './components/DiscussionView'
 import { DiscussionDraft } from './components/DiscussionDraft'
 import { OverviewEntry } from './components/OverviewEntry'
 import { OverviewView } from './components/OverviewView'
+import { GuideView, useFirstRunGuide } from './components/GuideView'
 import { WindowBrand } from './components/WindowBrand'
 import { ErrorToast } from './components/ErrorToast'
 import { TaskLaunchDialog } from './components/TaskLaunchDialog'
@@ -68,6 +69,8 @@ export function App() {
   const worktreesOpen = useCore((s) => s.worktreesOpen)
   const routinesOpen = useCore((s) => s.routinesOpen)
   const overviewOpen = useCore((s) => s.overviewOpen)
+  const guideOpen = useCore((s) => s.guideOpen)
+  useFirstRunGuide()
   const inboxOpen = useCore((s) => s.inboxOpen)
   const loginOpen = useCore((s) => s.login !== null)
   const terminalPanelOpen = useCore((s) => s.terminalPanelOpen)
@@ -169,7 +172,7 @@ export function App() {
               <ConversationList />
             </Sidebar>
             {overviewOpen ? (
-              <OverviewView />
+              guideOpen ? <GuideView /> : <OverviewView />
             ) : inboxOpen ? (
               <SourceInboxView />
             ) : worktreesOpen ? (

@@ -2912,6 +2912,22 @@ export const MESSAGES = {
     "zh": "收起",
     "en": "Show less"
   },
+  "GuideView.guide": {
+    "zh": "新手指导",
+    "en": "Getting started"
+  },
+  "GuideView.backToOverview": {
+    "zh": "回到总览",
+    "en": "Back to Overview"
+  },
+  "GuideView.startFirstConversation": {
+    "zh": "开始第一条会话",
+    "en": "Start a conversation"
+  },
+  "SettingsPage.openGuide": {
+    "zh": "打开",
+    "en": "Open"
+  },
   "ConversationSplit.rightPane": {
     "zh": "右列",
     "en": "Right pane"

@@ -3,7 +3,7 @@ import type { BrowserStatus, WireUsage } from '@antumi/protocol'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { AGENT_KINDS, agentDescriptor, LANGUAGE_NAMES, PROTOCOL_VERSION, quickModel, TRANSLATE_LANGUAGES, UNATTENDED_MODES, type AgentKind, type SourceDescriptor } from '@antumi/protocol'
 import packageJson from '../../../../package.json'
-import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useMcpServersSupported, useModelProvidersSupported, useProjectConfigEditSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
+import { openGuide, perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useMcpServersSupported, useModelProvidersSupported, useProjectConfigEditSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
 import { DEFAULT_PREFERENCES, setPreference, usePreferences } from '../preferences'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { UNATTENDED_LABEL } from '../schedules'
@@ -667,6 +667,7 @@ function AboutSettings() {
         )}
       />
       <GitRow />
+      <SettingsRow label={t('GuideView.guide')} control={() => <button type="button" className="button" onClick={openGuide}>{t('SettingsPage.openGuide')}</button>} />
       {shortcuts.map(([label, keys]) => (
         <SettingsRow key={label} label={label} control={() => <kbd className="settings-kbd">{keys}</kbd>} />
       ))}

@@ -63,6 +63,9 @@ const Preferences = z.object({
   // On, the browser panel appears with the agent's first tab; off, the page's card in the chat
   // offers to open it and the browser works in the background.
   openBrowserOnTab: z.boolean().catch(false),
+  // Set once Antumi has decided whether to show the guide at first launch, so it never comes up
+  // unasked again.
+  guideSeen: z.boolean().catch(false),
   // On, the sidebar is put away and the panes take the whole window.
   sidebarHidden: z.boolean().catch(false),
   // As the user dragged it, before the cap a small window puts on it.
