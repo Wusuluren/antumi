@@ -10743,5 +10743,129 @@ export const MESSAGES = {
   "labels.dateAndTime": {
     "zh": "{value1}月{value2}日 {value3}",
     "en": "{value1}/{value2} {value3}"
+  },
+  "AppUpdate.newVersion": {
+    "zh": "新版本 {version}",
+    "en": "New version {version}"
+  },
+  "AppUpdate.available": {
+    "zh": "Antumi {version} 可以更新了",
+    "en": "Antumi {version} is available"
+  },
+  "AppUpdate.current": {
+    "zh": "当前版本 {version}",
+    "en": "You have {version}"
+  },
+  "AppUpdate.installAndRestart": {
+    "zh": "下载并安装",
+    "en": "Download and install"
+  },
+  "AppUpdate.downloadInstaller": {
+    "zh": "下载安装包",
+    "en": "Download installer"
+  },
+  "AppUpdate.releasePage": {
+    "zh": "发布页",
+    "en": "Release page"
+  },
+  "AppUpdate.skipVersion": {
+    "zh": "跳过此版本",
+    "en": "Skip this version"
+  },
+  "AppUpdate.downloading": {
+    "zh": "正在下载 {percent}%",
+    "en": "Downloading {percent}%"
+  },
+  "AppUpdate.installing": {
+    "zh": "正在安装，完成后自动重启…",
+    "en": "Installing; Antumi restarts when done…"
+  },
+  "AppUpdate.restartNote": {
+    "zh": "只重启 Antumi 的窗口，正在运行的 Agent 和终端不受影响。",
+    "en": "Only the Antumi window restarts; running agents and terminals carry on."
+  },
+  "AppUpdate.manualMac": {
+    "zh": "下载后打开 dmg，把 Antumi 拖进「应用程序」替换旧版本。打开时被拦的话，到 系统设置 → 隐私与安全性 点「仍要打开」。",
+    "en": "Open the dmg and drag Antumi into Applications to replace the old version. If macOS blocks it, go to System Settings → Privacy & Security and click Open Anyway."
+  },
+  "AppUpdate.manualWindows": {
+    "zh": "下载后运行安装程序，它会替换旧版本。",
+    "en": "Run the installer once downloaded; it replaces the old version."
+  },
+  "AppUpdate.failed": {
+    "zh": "更新失败：{reason}",
+    "en": "Update failed: {reason}"
+  },
+  "AppUpdate.retry": {
+    "zh": "重试",
+    "en": "Retry"
+  },
+  "AppUpdate.errorDownload": {
+    "zh": "下载失败，请检查网络",
+    "en": "the download failed; check your connection"
+  },
+  "AppUpdate.errorIncomplete": {
+    "zh": "安装包没有下载完整",
+    "en": "the installer did not download completely"
+  },
+  "AppUpdate.errorDigest": {
+    "zh": "安装包校验不通过",
+    "en": "the installer failed its checksum"
+  },
+  "AppUpdate.errorBadInstaller": {
+    "zh": "安装包内容不对",
+    "en": "the installer is not the expected Antumi build"
+  },
+  "AppUpdate.updates": {
+    "zh": "更新",
+    "en": "Updates"
+  },
+  "AppUpdate.checkNow": {
+    "zh": "检查更新",
+    "en": "Check for updates"
+  },
+  "AppUpdate.checking": {
+    "zh": "正在检查…",
+    "en": "Checking…"
+  },
+  "AppUpdate.upToDate": {
+    "zh": "已是最新版本",
+    "en": "Up to date"
+  },
+  "AppUpdate.checkFailed": {
+    "zh": "检查失败：{reason}",
+    "en": "Check failed: {reason}"
+  },
+  "AppUpdate.lastChecked": {
+    "zh": "上次检查 {time}",
+    "en": "Last checked {time}"
+  },
+  "AppUpdate.skipped": {
+    "zh": "已跳过 {version}",
+    "en": "Skipped {version}"
+  },
+  "AppUpdate.unskip": {
+    "zh": "取消跳过",
+    "en": "Undo skip"
+  },
+  "AppUpdate.prerelease": {
+    "zh": "接收测试版",
+    "en": "Include pre-releases"
+  },
+  "AppUpdate.prereleaseDescription": {
+    "zh": "也提示带 beta 等后缀的预发布版本，可能不稳定。",
+    "en": "Also offer beta and other pre-release versions, which may be unstable."
+  },
+  "AppUpdate.updatesDescription": {
+    "zh": "每 6 小时到 GitHub 查一次新版本。",
+    "en": "Looks for a new version on GitHub every 6 hours."
+  },
+  "AppUpdate.restartNoteWindows": {
+    "zh": "安装时 Antumi 会关闭，装好后自动重新打开。所有 Agent 和终端都停下后才能安装。",
+    "en": "Antumi closes while it installs and reopens when done. It installs only once no agent or terminal is running."
+  },
+  "AppUpdate.errorAgentsRunning": {
+    "zh": "还有 Agent 或终端在运行，等它们都停下后再重试",
+    "en": "agents or terminals are still running; retry once they have stopped"
   }
 } as const

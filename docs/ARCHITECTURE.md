@@ -503,6 +503,14 @@ pnpm dist:win     # 产物在 packages/desktop/dist/Antumi-Setup-<版本>-x64.ex
 - **和源码版共用数据**：两者都用 `~/.antumi`（任务库、worktrees、会话记录）和同一个 daemon socket，可以混用；谁先启动，core 就是谁的。
 - **卸载**：删除 App 即可（Windows 在「设置 → 应用」里卸载）；`~/.antumi` 里是任务数据和 worktrees（可能有未合并的工作成果），确认不要了再删。
 
+### 应用更新
+
+主进程的 `AppUpdater`（`desktop/src/main/app-update.ts`）在启动 10 秒后、之后每 6 小时，向 GitHub 的 Releases 接口要最近 20 个版本，挑出比当前高的最新正式版（用户在 设置 → 关于 打开「接收测试版」时也算预发布），把结果推给窗口：状态栏出现「新版本」，设置里显示状态、手动检查和跳过。跳过的版本和测试版开关存在 userData 的 `update.json`。只有打包的 App 会去查；`ANTUMI_UPDATE_API` 可以把它指向一个模仿 GitHub 接口的本地服务，用来手动试一次更新。
+
+macOS 上没有 Developer ID，Squirrel 式的自动更新用不了（它要求新旧版本同一张证书），所以 App 自己换自己（`app-bundle-swap.ts`）：用 Chromium 的网络栈（走系统代理）下载 dmg，按 Release 资产的大小和 `sha256` digest 校验，挂载后确认 `CFBundleIdentifier` 和版本号对得上，`ditto` 到 App 旁边的 `.Antumi-update.app`，去掉隔离属性并 `codesign --verify`，再两次 `rename` 把旧版挪成 `.Antumi-previous-<时间>.app`、新版放到原位（第二步失败会把旧版挪回去），然后重启。新版本启动后把这些留下的副本移到废纸篓。下载由 App 自己写入，不带隔离属性，所以新版本和旧版本一样直接打开。daemon 和 core 不随 App 退出，正在跑的 Agent 不受影响，新版启动时按 `backend.ts` 的规则接管 core。从 dmg 里直接运行、被 Gatekeeper 搬到 AppTranslocation、或所在文件夹不可写时不能换，界面改为给出安装包下载链接和手动步骤。
+
+Windows 不让覆盖正在运行的 exe，而 daemon 和 core 就是安装目录里的 `Antumi.exe`（`ELECTRON_RUN_AS_NODE`），NSIS 安装程序还会 `taskkill` 掉当前用户所有的 `Antumi.exe`。所以安装前先请 daemon 退出（`retire`，它只在没有 Agent 和终端在跑时才同意），再让 core 退出（`stopBackendForInstall`）；有东西在跑就不装，报「还有 Agent 或终端在运行」，下载好的安装包留着，重试不再下载。之后用 `/S --updated --force-run` 静默运行安装程序：装进注册表里记下的原安装位置，跳过向导，装完启动新版本。只有 NSIS 装的 App（旁边有 `Uninstall Antumi.exe`）才这样更新，别的情况给下载链接。
+
 ### 自动发布
 
 发版要改的文件和逐步操作见 [RELEASING.md](RELEASING.md)。
@@ -528,4 +536,4 @@ pnpm dist:win     # 打包 Windows 安装包
 
 - **验收**：按项目配置的测试命令在 worktree 里跑，结果放进检查器；合并分支
 - **SSH / WSL 执行宿主**：给 git、PTY 操作加上 `hostId`
-- **Windows**：代码按 Windows 写好了，也有单元测试，但还没在 Windows 实机上验证过，也没有 Windows CI、代码签名和自动更新；named pipe 没有设 ACL；「用…打开」的应用列表只有 macOS 有
+- **Windows**：代码按 Windows 写好了，也有单元测试，但还没在 Windows 实机上验证过，也没有 Windows CI 和代码签名，应用内更新也没在实机上试过；named pipe 没有设 ACL；「用…打开」的应用列表只有 macOS 有

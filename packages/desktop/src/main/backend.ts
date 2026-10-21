@@ -133,6 +133,22 @@ async function retireCore(endpoint: CoreEndpoint): Promise<void> {
   while (Date.now() < until && (await reachable(endpoint.port))) await sleep(200)
 }
 
+// Before an installer replaces the app's files, which Windows will not do while daemon and core
+// run from them: the daemon leaves only if it runs nothing (it decides, as for retireOldDaemon),
+// then core goes. Running agents are never stopped for an update; how many there are comes back
+// instead. A daemon that answers but cannot say counts as busy.
+export async function stopBackendForInstall(): Promise<{ stopped: true } | { stopped: false; live: number | null }> {
+  if (await daemonReachable()) {
+    const answer = await daemonCall('retire')
+    if (answer?.retired !== true) return { stopped: false, live: typeof answer?.live === 'number' ? answer.live : null }
+    const until = Date.now() + 10_000
+    while (Date.now() < until && (await daemonReachable())) await sleep(200)
+  }
+  const core = await runningCore()
+  if (core) await retireCore(core)
+  return { stopped: true }
+}
+
 // Starts daemon and core from the app's bundled copies when none serve this home yet, or when
 // the ones that do are of another build: an app updated in place would otherwise keep talking to
 // what it found, and lack whatever the update put there. The daemon only goes when it runs nothing. Both are detached with their own

@@ -1,16 +1,19 @@
 import { readFile, realpath, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { extname, isAbsolute, join } from 'node:path'
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, Notification, protocol, shell, type OpenDialogOptions } from 'electron'
+import { spawn } from 'node:child_process'
+import { dirname, extname, isAbsolute, join } from 'node:path'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, net, Notification, protocol, shell, type OpenDialogOptions } from 'electron'
 import { z } from 'zod'
 import { resolveUiLocale, UiLocale } from '@antumi/protocol'
 import { applicationMenu } from './application-menu'
 import { antumiPaths, readCoreEndpoint } from '@antumi/protocol/node'
-import { ensureBackend } from './backend'
+import { ensureBackend, stopBackendForInstall } from './backend'
 import { popupWindowOptions, RequestPopup } from './request-popup'
 import { startBrowserHost, type BrowserHost } from './browser/browser-host'
 import { WindowSlot } from './browser/window-slot'
 import { installedApps, openWith, type InstalledApp } from './open-with'
+import { AppUpdater } from './app-update'
+import { bundleOf, leftovers, stageFromDmg, swapBlocked, swapInto } from './app-bundle-swap'
 
 // The built-in browser: its tabs live here, in main, so a window closing or its renderer going
 // never touches a page an agent is on. The slot puts the one on show into the current window.
@@ -302,6 +305,78 @@ ipcMain.handle('antumi:request-popup-open', (event, target: unknown) => {
   revealMainWindow(target)
 })
 
+// Newer Antumi releases on GitHub. Only a packaged app looks, unless ANTUMI_UPDATE_API points it at
+// a stand-in for GitHub's API (to try an update by hand). On macOS the app replaces its own bundle;
+// elsewhere the user downloads the installer.
+const updateApi = process.env.ANTUMI_UPDATE_API
+const updater = app.isPackaged || updateApi ? new AppUpdater({
+  current: app.getVersion(),
+  platform: process.platform,
+  arch: process.arch,
+  api: updateApi ?? 'https://api.github.com',
+  preferencesFile: join(app.getPath('userData'), 'update.json'),
+  downloads: join(app.getPath('temp'), 'antumi-update'),
+  // Chromium's network stack, so the system proxy applies as in the browser.
+  fetch: (url, init) => net.fetch(url, init),
+  installBlocked: async () => {
+    if (!app.isPackaged) return 'not-packaged'
+    if (process.platform === 'darwin') return swapBlocked(bundleOf(app.getPath('exe')))
+    // Only an app the NSIS installer put there can be updated by running the next one.
+    if (process.platform === 'win32') return (await exists(join(dirname(app.getPath('exe')), 'Uninstall Antumi.exe'))) ? null : 'not-installed'
+    return 'unsupported'
+  },
+  install: async (installer, version) => {
+    if (process.platform === 'win32') return installOnWindows(installer)
+    const bundle = bundleOf(app.getPath('exe'))
+    if (!bundle) throw new Error('not-a-bundle')
+    const staged = await stageFromDmg(installer, bundle, version)
+    await swapInto(bundle, staged)
+    // The daemon and core outlive the app (backend.ts): agents keep running, and the new version
+    // takes core over when it starts.
+    app.relaunch()
+    app.quit()
+  },
+  publish: (state) => mainWindow?.webContents.send('antumi:update', state)
+}) : null
+
+// Windows will not overwrite an exe that runs, and daemon and core run as Antumi.exe from the
+// install folder; so they go first, which the daemon allows only while no agent or terminal runs.
+// The installer then runs silently into the same folder (--updated keeps it an update) and starts
+// the new version when done (--force-run).
+async function installOnWindows(installer: string): Promise<void> {
+  const backend = await stopBackendForInstall()
+  if (!backend.stopped) throw new Error('agents-running')
+  const child = spawn(installer, ['/S', '--updated', '--force-run'], { detached: true, stdio: 'ignore', windowsHide: true })
+  try {
+    await new Promise<void>((resolve, reject) => {
+      child.once('spawn', resolve)
+      child.once('error', reject)
+    })
+  } catch (error) {
+    // Nothing replaced the app: bring back what was stopped for it.
+    void ensureBackend()
+    throw error
+  }
+  child.unref()
+  app.quit()
+}
+
+// The bundles an update put aside, gone once the new version runs.
+async function removeUpdateLeftovers(): Promise<void> {
+  const bundle = process.platform === 'darwin' && app.isPackaged ? bundleOf(app.getPath('exe')) : null
+  if (!bundle) return
+  for (const path of await leftovers(bundle)) await shell.trashItem(path).catch(() => {})
+}
+
+ipcMain.handle('antumi:update-state', () => updater?.current() ?? null)
+ipcMain.handle('antumi:update-check', () => updater?.check())
+ipcMain.handle('antumi:update-install', (event) => {
+  if (event.sender !== mainWindow?.webContents) return
+  return updater?.install()
+})
+ipcMain.handle('antumi:update-skip', (_event, version: unknown) => updater?.skip(typeof version === 'string' ? version : null))
+ipcMain.handle('antumi:update-prerelease', (_event, prerelease: unknown) => updater?.setPrerelease(prerelease === true))
+
 // Packaged, a second launch would race the first for daemon and core; hand it to the open window.
 const primary = !app.isPackaged || app.requestSingleInstanceLock()
 if (!primary) {
@@ -323,6 +398,8 @@ void app.whenReady().then(() => {
   uiLocale = resolveUiLocale('system', app.getPreferredSystemLanguages())
   Menu.setApplicationMenu(Menu.buildFromTemplate(applicationMenu(uiLocale, process.platform)))
   createWindow()
+  void updater?.start()
+  void removeUpdateLeftovers()
   // After the backend: ensureBackend may move the home, and the host file belongs in the one core reads.
   void ensureBackend().finally(() => startBrowserHost(slot, antumiPaths().browserHostFile).then(
     (host) => { browserHost = host },

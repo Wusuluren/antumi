@@ -35,6 +35,7 @@ import { ErrorToast } from './components/ErrorToast'
 import { TaskLaunchDialog } from './components/TaskLaunchDialog'
 import { usePreferences } from './preferences'
 import { usePortPolling } from './port-state'
+import { useUpdateFeed } from './update-state'
 
 // Esc goes from a task back to the board, unless it is meant for what has the focus:
 // typing (the composer interrupts the agent with it), a terminal, or a menu or dialog, which close first.
@@ -49,6 +50,7 @@ function leavesTask(event: KeyboardEvent): boolean {
 export function App() {
   useLocale((state) => state.locale)
   usePortPolling()
+  useUpdateFeed()
   const selectedId = useCore((s) => s.selectedId)
   const section = useCore((s) => s.section)
   const selectedConversationId = useCore((s) => s.selectedConversationId)

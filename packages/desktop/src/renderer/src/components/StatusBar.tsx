@@ -10,6 +10,7 @@ import { usePorts } from '../port-state'
 import { UsageBar } from './UsageBar'
 import { openRuns } from '../schedules'
 import { Popover } from './Popover'
+import { UpdateButton } from './UpdateNotice'
 
 type ConnectionIssue = Exclude<ConnectionState, 'connected'>
 
@@ -208,6 +209,7 @@ export function StatusBar() {
     <footer className="statusbar">
       <SettingsButton />
       <ConnectionStatus />
+      <UpdateButton />
       <UsageBar />
       <ScheduleButton />
       <WorktreeButton />

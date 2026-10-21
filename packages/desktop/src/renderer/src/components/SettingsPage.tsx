@@ -53,6 +53,7 @@ import { ProjectConfigDialog, projectConfigSummary } from './ProjectConfigDialog
 import { PalettePicker } from './PalettePicker'
 import { BackdropPicker } from './BackdropPicker'
 import { useOccludesBrowser } from '../browser-occlusion'
+import { UpdateSettings } from './UpdateNotice'
 
 function AppearanceSettings() {
   const language = usePreferences((s) => s.language)
@@ -647,6 +648,7 @@ function AboutSettings() {
         )}
       />
       <SettingsRow label={t('SettingsPage.desktopVersion')} control={() => <span className="mono">{packageJson.version}</span>} />
+      <UpdateSettings />
       <SettingsRow label={t('SettingsPage.protocolVersion')} control={() => <span className="mono">{PROTOCOL_VERSION}</span>} />
       <SettingsRow
         label="Antumi core"
@@ -740,7 +742,7 @@ const SECTIONS: readonly Section[] = localized(() => ([
     group: t('ChatFontPicker.other'),
     title: t('SettingsPage.about'),
     description: t('SettingsPage.websiteVersionsConnectionStatusGitAndKeyboardShortcuts'),
-    keywords: [t('SettingsPage.projectWebsite'), 'GitHub', t('SettingsPage.repository'), t('SettingsPage.version'), t('SettingsPage.protocol'), t('SettingsPage.connection'), 'core', 'git', t('SettingsPage.environment'), t('SettingsPage.keyboardShortcuts')],
+    keywords: [t('SettingsPage.projectWebsite'), 'GitHub', t('SettingsPage.repository'), t('SettingsPage.version'), t('AppUpdate.updates'), t('AppUpdate.checkNow'), t('SettingsPage.protocol'), t('SettingsPage.connection'), 'core', 'git', t('SettingsPage.environment'), t('SettingsPage.keyboardShortcuts')],
     Icon: InfoIcon,
     Body: AboutSettings
   }

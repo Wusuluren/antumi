@@ -34,6 +34,13 @@ declare global {
       browserOccluded?(occluded: boolean): Promise<unknown>
       onBrowserFocused?(listener: (event: unknown) => void): () => void
       onBrowserShortcut?(listener: (event: unknown) => void): () => void
+      // Newer releases (main's app-update.ts); absent from a main older than the renderer.
+      updateState?(): Promise<unknown>
+      checkForUpdate?(): Promise<unknown>
+      installUpdate?(): Promise<unknown>
+      skipUpdate?(version: string | null): Promise<unknown>
+      setUpdatePrerelease?(prerelease: boolean): Promise<unknown>
+      onUpdate?(listener: (state: unknown) => void): () => void
     }
   }
 }

@@ -41,6 +41,16 @@ contextBridge.exposeInMainWorld('antumi', {
     ipcRenderer.on('antumi:browser-focused', handler)
     return () => ipcRenderer.removeListener('antumi:browser-focused', handler)
   },
+  updateState: (): Promise<unknown> => ipcRenderer.invoke('antumi:update-state'),
+  checkForUpdate: (): Promise<unknown> => ipcRenderer.invoke('antumi:update-check'),
+  installUpdate: (): Promise<unknown> => ipcRenderer.invoke('antumi:update-install'),
+  skipUpdate: (version: string | null): Promise<unknown> => ipcRenderer.invoke('antumi:update-skip', version),
+  setUpdatePrerelease: (prerelease: boolean): Promise<unknown> => ipcRenderer.invoke('antumi:update-prerelease', prerelease),
+  onUpdate: (listener: (state: unknown) => void): (() => void) => {
+    const handler = (_event: IpcRendererEvent, state: unknown) => listener(state)
+    ipcRenderer.on('antumi:update', handler)
+    return () => ipcRenderer.removeListener('antumi:update', handler)
+  },
   onBrowserShortcut: (listener: (event: unknown) => void): (() => void) => {
     const handler = (_event: IpcRendererEvent, payload: unknown) => listener(payload)
     ipcRenderer.on('antumi:browser-shortcut', handler)
