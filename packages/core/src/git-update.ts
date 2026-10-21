@@ -92,7 +92,8 @@ export async function updateBranch(dir: string, status: GitStatus, ref: string, 
   try {
     if (ahead === 0) await writeGit(dir, ['merge', '--ff-only', branch.upstream])
     else if (method === 'rebase') await writeGit(dir, ['rebase', branch.upstream])
-    else await writeGit(dir, ['merge', '--no-edit', branch.upstream])
+    // By its short name, so the merge commit says 'origin/main' as git's own pull would.
+    else await writeGit(dir, ['merge', '--no-edit', branch.upstream.slice('refs/remotes/'.length)])
   } catch (error) {
     // Conflicts wait for the user, the stash with them; it goes back once they finish or abort.
     if (await gitOperation(dir) && (await conflictFiles(dir)).length) return { state: 'conflicts', branch: branch.name, incoming: behind }

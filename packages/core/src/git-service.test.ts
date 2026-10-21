@@ -296,6 +296,7 @@ describe('Git management', () => {
       git(repo, 'branch', 'saved')
       expect(await service.execute(target, { kind: 'update', ref: main, method: 'merge' })).toMatchObject({ state: 'done', incoming: 1 })
       expect(git(repo, 'log', '-1', '--format=%P').split(' ')).toHaveLength(2)
+      expect(git(repo, 'log', '-1', '--format=%s')).toBe("Merge remote-tracking branch 'origin/main'")
       git(repo, 'reset', '-q', '--hard', 'saved')
       expect(await service.execute(target, { kind: 'update', ref: main, method: 'rebase' })).toMatchObject({ state: 'done', incoming: 1 })
       expect(git(repo, 'log', '--format=%s', '-3').split('\n')).toEqual(['local.txt', 'remote remote.txt', 'initial'])
