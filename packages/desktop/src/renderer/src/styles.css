@@ -8063,8 +8063,6 @@ div.inspector-empty > p { margin: 0 0 8px; }
   .chat-todos-count,
   .chat-tool-time,
   .chat-user-steer,
-  .chat-page-sub,
-  .chat-page-more,
   .chat-plan-preview-more,
   .chat-changes-review,
   .chat-approve-hint,
@@ -8439,39 +8437,54 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .settings-inline { display: inline-flex; align-items: center; gap: 10px; }
 .browser-tab-owner { display: inline-block; max-width: 72px; margin-right: 6px; padding: 0 5px; overflow: hidden; border-radius: var(--radius-xs); background: var(--fill-2); color: var(--text-3); font-size: 11px; text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap; }
 
-/* A page the agent opened, as a card: title, where it is, and the button to the browser panel. */
+/* A turn's browser work: a schematic browser window whose tabs are the pages it left open. */
 .chat-browser-work { display: flex; flex-direction: column; gap: 8px; }
-.chat-browser-activity { width: 100%; max-width: 248px; min-width: 0; margin: 0 auto 8px; color: var(--accent); }
+.chat-browser-activity { width: 100%; max-width: 460px; min-width: 0; margin: 0 auto 8px; color: var(--accent); }
 .chat-browser-activity[data-status='done'] { color: var(--status-done); }
 .chat-browser-activity:is([data-status='failed'], [data-status='denied']) { color: var(--danger); }
 .chat-browser-activity[data-status='interrupted'] { color: var(--text-muted); }
-.chat-browser-scene { position: relative; height: 140px; }
-.chat-browser-window { position: absolute; inset: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); transform-origin: 50% 100%; }
-.chat-browser-chrome { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; background: var(--bg); border-bottom: 1px solid var(--border); }
-.chat-browser-window-dots { display: flex; gap: 3px; flex-shrink: 0; }
-.chat-browser-window-dots i { width: 3px; height: 3px; border-radius: 50%; background: var(--text-3); }
+.chat-browser-scene { position: relative; height: 188px; }
+.chat-browser-scene[data-tabs] { height: 220px; }
+.chat-browser-window { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); transform-origin: 50% 100%; }
+.chat-browser-tabs { display: flex; flex-shrink: 0; align-items: flex-end; gap: 2px; height: 32px; padding: 0 8px; overflow: hidden; background: var(--bg); }
+.chat-browser-tab { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 160px; height: 26px; margin-bottom: -1px; padding: 0 10px; border: 1px solid transparent; border-bottom: 0; border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: transparent; color: var(--text-muted); font: inherit; font-size: var(--chat-font-small, 12px); cursor: pointer; }
+.chat-browser-tab span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.chat-browser-tab:hover { color: var(--text); }
+.chat-browser-tab[data-active] { border-color: var(--border); background: var(--surface); color: var(--text); }
+.chat-browser-tab-dot { flex-shrink: 0; width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; }
+.chat-browser-activity[data-status='running'] .chat-browser-tab[data-active] { color: var(--accent); }
+.chat-browser-activity[data-status='running'] .chat-browser-tab[data-active] .chat-browser-tab-dot { background: currentColor; }
+.chat-browser-bar { display: flex; flex-shrink: 0; align-items: center; gap: 8px; height: 34px; padding: 0 6px 0 10px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.chat-browser-scene:not([data-tabs]) .chat-browser-bar { border-top: 0; background: var(--bg); }
 .chat-browser-address { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); font-size: var(--chat-font-small, 12px); }
-.chat-browser-schematic { flex-shrink: 0; color: var(--text-3); font-size: var(--chat-font-small, 12px); }
-.chat-browser-page { padding: 12px; }
-.chat-browser-page-label { margin-bottom: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); font-size: var(--chat-font-small, 12px); }
-.chat-browser-page-line { height: 3px; width: 84%; margin: 6px 0; border-radius: 1px; background: var(--border-2); }
+/* Highlighted text, not a button: the window is a sketch, and the way into the panel stays light. */
+.chat-browser-open { display: inline-flex; flex-shrink: 0; align-items: center; gap: 3px; padding: 2px 6px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--accent); font: inherit; font-size: var(--chat-font-small, 12px); font-weight: 500; cursor: pointer; }
+.chat-browser-open svg { width: 13px; height: 13px; }
+.chat-browser-open:hover { background: var(--accent-bg); }
+.chat-browser-body { position: relative; flex: 1; min-height: 0; }
+.chat-browser-page { padding: 14px 16px; }
+.chat-browser-page-label { margin-bottom: 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); font-size: var(--chat-font-small, 12px); }
+.chat-browser-page-line { height: 4px; width: 84%; margin: 8px 0; border-radius: 1px; background: var(--border-2); }
 .chat-browser-page-line[data-short] { width: 63%; }
-.chat-browser-page-field { position: relative; width: 100px; max-width: 100%; height: 20px; margin-top: 8px; border: 1px solid var(--border); border-radius: var(--radius-xs); }
-.chat-browser-typed { position: absolute; left: 6px; top: 8px; height: 2px; width: 36px; background: currentColor; }
-.chat-browser-cursor { position: absolute; left: 33%; top: 66px; width: 12px; height: 16px; background: currentColor; clip-path: polygon(0 0, 100% 68%, 58% 68%, 78% 100%, 56% 100%, 37% 72%, 0 100%); }
-.chat-browser-click-ring { position: absolute; left: calc(33% - 4px); top: 62px; width: 12px; height: 12px; border: 1px solid currentColor; border-radius: 50%; opacity: 0; }
-.chat-browser-loading { height: 2px; width: 36%; background: currentColor; opacity: 0; }
+.chat-browser-page-field { position: relative; width: 150px; max-width: 100%; height: 24px; margin-top: 12px; border: 1px solid var(--border); border-radius: var(--radius-xs); }
+.chat-browser-page-button { width: 64px; height: 20px; margin-top: 12px; border-radius: var(--radius-xs); background: var(--border-2); }
+.chat-browser-typed { position: absolute; left: 6px; top: 10px; height: 2px; width: 64px; background: currentColor; }
+.chat-browser-cursor { position: absolute; left: 52px; top: 112px; width: 12px; height: 16px; background: currentColor; clip-path: polygon(0 0, 100% 68%, 58% 68%, 78% 100%, 56% 100%, 37% 72%, 0 100%); }
+.chat-browser-click-ring { position: absolute; left: 47px; top: 107px; width: 12px; height: 12px; border: 1px solid currentColor; border-radius: 50%; opacity: 0; }
+.chat-browser-loading { flex-shrink: 0; height: 2px; width: 36%; background: currentColor; opacity: 0; }
 .chat-browser-activity-caption { display: flex; align-items: center; gap: 8px; min-height: 28px; padding-top: 4px; color: var(--text-muted); font-size: var(--chat-font-small, 12px); }
 .chat-browser-activity-dot { flex-shrink: 0; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
 .chat-browser-activity[data-status='done'] .chat-browser-activity-dot { background: var(--status-done); }
 .chat-browser-activity:is([data-status='failed'], [data-status='denied']) .chat-browser-activity-dot { background: var(--danger); }
 .chat-browser-activity[data-status='interrupted'] .chat-browser-activity-dot { background: var(--text-muted); }
+.chat-tool > .chat-browser-activity { width: auto; margin: 4px 12px 12px; }
+.chat-browser-gone { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-muted); font-size: var(--chat-font-small, 12px); }
 .chat-browser-activity[data-status='running'] .chat-browser-window { animation: chat-browser-window-open 0.3s cubic-bezier(.2, .8, .2, 1) both; }
 .chat-browser-activity[data-status='running']:is([data-action='navigate'], [data-action='tabs'], [data-action='wait'], [data-action='working']) .chat-browser-loading { opacity: 1; animation: chat-browser-load 1.8s ease-in-out infinite; }
 .chat-browser-activity[data-status='running'][data-action='click'] .chat-browser-cursor { animation: chat-browser-point 2.4s ease-in-out infinite; }
 .chat-browser-activity[data-status='running'][data-action='click'] .chat-browser-click-ring { animation: chat-browser-click 2.4s ease-out infinite; }
-.chat-browser-activity[data-status='running'][data-action='type'] .chat-browser-cursor { left: 24%; top: 102px; }
-.chat-browser-activity[data-status='running'][data-action='type'] .chat-browser-typed { animation: chat-browser-type 2.4s steps(6) infinite; }
+.chat-browser-activity[data-status='running'][data-action='type'] .chat-browser-cursor { left: 96px; top: 76px; }
+.chat-browser-activity[data-status='running'][data-action='type'] .chat-browser-typed { animation: chat-browser-type 2.4s steps(8) infinite; }
 .chat-browser-activity[data-status='running'][data-action='scroll'] .chat-browser-page { animation: chat-browser-scroll 2.4s ease-in-out infinite; }
 .chat-browser-activity[data-status='running'][data-action='read'] .chat-browser-page-line { animation: chat-browser-read 1.8s ease-in-out infinite; }
 .chat-browser-activity[data-status='running'][data-action='screenshot'] .chat-browser-page { animation: chat-browser-read 1.2s ease-in-out infinite; }
@@ -8480,19 +8493,13 @@ div.inspector-empty > p { margin: 0 0 8px; }
 @keyframes chat-browser-load { 0%, 100% { transform: translateX(-100%); } 70% { transform: translateX(280%); } }
 @keyframes chat-browser-point { 0%, 100% { transform: translate(32px, 20px); } 45%, 60% { transform: translate(0, 0); } 55% { transform: scale(0.85); } }
 @keyframes chat-browser-click { 0%, 48% { opacity: 0; transform: scale(0.4); } 55% { opacity: 0.8; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(2.5); } }
-@keyframes chat-browser-type { 0%, 10% { width: 0; } 80%, 100% { width: 36px; } }
+@keyframes chat-browser-type { 0%, 10% { width: 0; } 80%, 100% { width: 64px; } }
 @keyframes chat-browser-scroll { 0%, 20%, 100% { transform: translateY(0); } 70%, 85% { transform: translateY(-12px); } }
 @keyframes chat-browser-read { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 @media (prefers-reduced-motion: reduce) {
   .chat-browser-activity[data-status='running'] .chat-browser-window,
   .chat-browser-activity[data-status='running'][data-action] :is(.chat-browser-loading, .chat-browser-cursor, .chat-browser-click-ring, .chat-browser-typed, .chat-browser-page, .chat-browser-page-line) { animation: none; }
 }
-.chat-page-row { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 12px; }
-.chat-page-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.chat-page-title { overflow: hidden; color: var(--text); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.chat-page-sub { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.chat-page-open { flex-shrink: 0; }
-.chat-page-more { margin: 0 12px 8px; font-size: 12px; }
 
 /* Environment check: the notice over the lists while nothing can run, and the settings rows. */
 .environment-notice {

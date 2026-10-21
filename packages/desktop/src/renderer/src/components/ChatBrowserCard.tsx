@@ -1,14 +1,11 @@
 import { t, tr } from '../i18n'
 import { useContext, useEffect, useRef, useState, type RefObject } from 'react'
-import { browserToolKind, parseBrowserPage, toolImagePath, type ChatItem } from '@antumi/protocol'
+import { browserToolKind, toolImagePath, type ChatItem } from '@antumi/protocol'
 import { useImageUrl } from '../attachment-images'
 import { useNearView } from '../near-view'
-import { useBrowserTabs, ALL_TABS } from '../browser-state'
 import { ChatFindExpansion, useDisclosure } from '../chat-disclosure'
 import { itemKey } from '../chat-state'
-import { latestBrowserPages } from '../chat-browser'
-import { toolLabel, toolRunStatus } from '../chat-tools'
-import { showBrowserTab, useCore } from '../core-store'
+import { toolLabel } from '../chat-tools'
 import { ChatPaths, ChevronRightIcon, ToolStatus, clipped } from './chat-tool-parts'
 import { previewUrl } from '../file-links'
 import { LocalImageViewer } from './ChatMarkdown'
@@ -16,7 +13,7 @@ import { ImageViewer } from './ImageViewer'
 import { ChatToolIcon } from './ChatToolIcon'
 import { ChatToolInput } from './ChatToolInput'
 import { ChatToolRun } from './ChatToolCard'
-import { ChatBrowserActivity } from './ChatBrowserActivity'
+import { ChatBrowserWindow } from './ChatBrowserWindow'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 
@@ -73,66 +70,19 @@ function outputBeside(output: string | null, shown: boolean): string | null {
   return output.split('\n').filter((line) => line.trim() !== '[图片]').join('\n').trim() || null
 }
 
-// The host a URL names, for a card's subtitle; the URL itself when it is not one.
-function hostLine(url: string): string {
-  try {
-    const parsed = new URL(url)
-    return parsed.host ? `${parsed.host}${parsed.pathname === '/' ? '' : parsed.pathname}${parsed.search}${parsed.hash}` : url
-  } catch {
-    return url
-  }
-}
-
-// A page the agent opened: its title and address, and the way to see it. The browser works in
-// the background; 打开 brings the panel up on this tab. A navigation that did not come to a page
-// (the user was asked, or refused) says so instead.
-function ChatPageCard({ item, disclosureKey = itemKey(item) }: { item: ToolItem; disclosureKey?: string }) {
-  const searching = useContext(ChatFindExpansion)
-  const page = item.output ? parseBrowserPage(item.output) : null
-  const open = useCore((s) => s.browserPanelOpen)
-  const shown = useBrowserTabs((s) => s[ALL_TABS]?.selectedId)
-  const [viewing, setViewing] = useDisclosure(`card:${disclosureKey}`)
-  const label = typeof item.title === 'string' && item.title ? item.title : t('ChatBrowserCard.page')
-  const current = page !== null && open && shown === page.id
-  return (
-    <div className="chat-tool chat-page" data-status={item.status}>
-      <div className="chat-page-row">
-        <ChatToolIcon name={item.name} status={item.status} />
-        <div className="chat-page-text">
-          <div className="chat-page-title">{page ? (page.title || hostLine(page.url)) : label}</div>
-          <div className="chat-page-sub muted" title={page?.url}>
-            {page ? <><span className="mono">{hostLine(page.url)}</span> · {current ? t('ChatBrowserCard.showInBrowserPanel') : t('ChatBrowserCard.openedInBrowser')}</> : item.status === 'running' ? t('ChatBrowserCard.opening') : (item.output?.split('\n')[0] ?? '')}
-          </div>
-        </div>
-        {page && !current && <button type="button" className="button chat-page-open" onClick={() => showBrowserTab(page.id)}>{t('ChatBrowserCard.open')}</button>}
-        <ToolStatus status={item.status} since={item.at} />
-      </div>
-      {item.output && page && (
-        <button type="button" className="chat-page-more link-button" aria-expanded={viewing} onClick={() => setViewing(!viewing)}>{viewing ? t('ChatBrowserCard.collapseSnapshot') : t('chatTools.pageSnapshot')}</button>
-      )}
-      {viewing && item.output && <pre className="chat-tool-io">{searching ? item.output : clipped(item.output)}</pre>}
-    </div>
-  )
-}
-
-// A turn's browser work stays inspectable without repeating its entry point after every refresh.
+// A turn's browser work: its calls folded into one line, and a window on the tabs they left.
 export function ChatBrowserRun({ tools }: { tools: readonly ToolItem[] }) {
-  const first = tools[0]
-  const active = tools.find((tool) => tool.status === 'running') ?? tools.at(-1)
   return (
     <div className="chat-browser-work">
       <ChatToolRun tools={tools} summary={t('ChatBrowserCard.browserActions', { value1: tools.length })} />
-      {active && <ChatBrowserActivity tool={active} status={toolRunStatus(tools).status} />}
-      {latestBrowserPages(tools).map(({ item, page }) => (
-        <ChatPageCard key={page.id} item={item} disclosureKey={`browser:${first ? itemKey(first) : ''}:${page.id}`} />
-      ))}
+      <ChatBrowserWindow tools={tools} />
     </div>
   )
 }
 
 // A browser call that brought back a picture: what it did on the page, and the page as it looked.
 export function ChatBrowserCard({ item }: { item: ToolItem }) {
-  if (browserToolKind(item.name) === 'navigate' && !item.images?.length) return <ChatPageCard item={item} />
+  if (browserToolKind(item.name) === 'navigate' && !item.images?.length) return <ChatBrowserWindow tools={[item]} />
   return <ChatShotCard item={item} />
 }
 
@@ -158,7 +108,7 @@ export function ChatShotCard({ item }: { item: ToolItem }) {
         {details && <span className="chat-tool-chevron" aria-hidden="true"><ChevronRightIcon /></span>}
         <ToolStatus status={item.status} since={item.at} />
       </button>
-      {item.status === 'running' && <ChatBrowserActivity tool={item} />}
+      {item.status === 'running' && <ChatBrowserWindow tools={[item]} />}
       {images.map((image, index) => <BrowserShot key={image.id} image={image} onOpen={() => setViewing(index)} />)}
       {open && path && <FileShot path={path} />}
       {open && item.input && <ChatToolInput name={item.name} input={item.input} />}

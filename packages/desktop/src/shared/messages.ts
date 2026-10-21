@@ -792,25 +792,33 @@ export const MESSAGES = {
     "zh": "隐藏（浏览器继续运行）",
     "en": "Hide (browser keeps running)"
   },
-  "ChatBrowserActivity.browserActionCompleted": {
+  "ChatBrowserWindow.browserActionCompleted": {
     "zh": "浏览器操作已完成",
     "en": "Browser action completed"
   },
-  "ChatBrowserActivity.browserActionFailed": {
+  "ChatBrowserWindow.browserActionFailed": {
     "zh": "浏览器操作失败",
     "en": "Browser action failed"
   },
-  "ChatBrowserActivity.browserActionDenied": {
+  "ChatBrowserWindow.browserActionDenied": {
     "zh": "浏览器操作已拒绝",
     "en": "Browser action denied"
   },
-  "ChatBrowserActivity.browserActionInterrupted": {
+  "ChatBrowserWindow.browserActionInterrupted": {
     "zh": "浏览器操作已中断",
     "en": "Browser action interrupted"
   },
-  "ChatBrowserActivity.illustration": {
-    "zh": "示意",
-    "en": "Illustration"
+  "ChatBrowserWindow.tabsClosed": {
+    "zh": "打开过 {count} 个标签页，都已关闭",
+    "en": "{count, plural, one {The tab it opened is closed} other {The tabs it opened are all closed}}"
+  },
+  "ChatBrowserWindow.openTab": {
+    "zh": "在浏览器面板打开 {title}",
+    "en": "Open {title} in the browser panel"
+  },
+  "ChatBrowserWindow.openInPanel": {
+    "zh": "在浏览器面板打开",
+    "en": "Open in the browser panel"
   },
   "ChatBrowserCard.viewFullPageScreenshot": {
     "zh": "查看完整的长截图",
@@ -832,29 +840,9 @@ export const MESSAGES = {
     "zh": "查看图片 {path}",
     "en": "View image {path}"
   },
-  "ChatBrowserCard.page": {
-    "zh": "页面",
-    "en": "Page"
-  },
-  "ChatBrowserCard.showInBrowserPanel": {
-    "zh": "显示在浏览器面板里",
-    "en": "Show in browser panel"
-  },
-  "ChatBrowserCard.openedInBrowser": {
-    "zh": "在浏览器里打开了",
-    "en": "Opened in browser"
-  },
-  "ChatBrowserCard.opening": {
-    "zh": "正在打开…",
-    "en": "Opening…"
-  },
   "ChatBrowserCard.open": {
     "zh": "打开",
     "en": "Open"
-  },
-  "ChatBrowserCard.collapseSnapshot": {
-    "zh": "收起快照",
-    "en": "Collapse snapshot"
   },
   "ChatBrowserCard.browserActions": {
     "zh": "浏览器操作 {value1} 次",

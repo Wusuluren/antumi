@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { describeBrowserPage, type ChatItem } from '@antumi/protocol'
 import { ChatBrowserCard, ChatBrowserRun } from './ChatBrowserCard'
-import { ChatFindExpansion } from '../chat-disclosure'
 
 const opened = vi.hoisted(() => new Set<string>())
 vi.mock('../chat-disclosure', async (original) => ({ ...await original<typeof import('../chat-disclosure')>(), useDisclosure: (key: string) => [opened.has(key), () => {}] }))
@@ -26,18 +25,10 @@ const call = (id: string, changes: Partial<ToolItem> = {}): ToolItem => ({
 const render = (tools: ToolItem[]) => renderToStaticMarkup(createElement(ChatBrowserRun, { tools }))
 
 describe('browser work', () => {
-  it('exposes the entire page snapshot while searching', () => {
-    const page = call('long', { output: describeBrowserPage({ id: tabId, title: 'Long page', url: 'http://localhost/' }, 'x'.repeat(5000) + 'unique tail') })
-    opened.add('card:stage/long')
-    const card = createElement(ChatBrowserCard, { item: page })
-    expect(renderToStaticMarkup(card)).not.toContain('unique tail')
-    expect(renderToStaticMarkup(createElement(ChatFindExpansion.Provider, { value: true }, card))).toContain('unique tail')
-  })
-
   it('renders a collapsed history and just one latest page for a repeated tab', () => {
     const html = render([call('first'), call('refresh'), call('click', { name: 'antumi.browser_click' })])
     expect(html).toContain('浏览器操作 3 次')
-    expect(html.match(/class="chat-tool chat-page"/g)).toHaveLength(1)
+    expect(html.match(/class="chat-browser-tab"/g)).toHaveLength(1)
     expect(html).toContain('Page click')
     expect(html).toContain('preview?version=click')
     expect(html).not.toContain('Page first')
@@ -52,23 +43,14 @@ describe('browser work', () => {
     expect(render([call('first')])).toContain('first snapshot')
   })
 
-  it('retains every historical result without adding page cards when history opens', () => {
+  it('retains every historical result without adding tabs when history opens', () => {
     opened.add('run:stage/first')
     opened.add('call:stage/first')
     opened.add('call:stage/refresh')
     const html = render([call('first'), call('refresh')])
     expect(html).toContain('first snapshot')
     expect(html).toContain('refresh snapshot')
-    expect(html.match(/class="chat-tool chat-page"/g)).toHaveLength(1)
-  })
-
-  it('keeps the page disclosure attached to the tab when its latest result changes', () => {
-    opened.add(`card:browser:stage/first:${tabId}`)
-    expect(render([call('first')])).toContain('first snapshot')
-    const html = render([call('first'), call('refresh')])
-    expect(html).toContain('refresh snapshot')
-    expect(html).not.toContain('first snapshot')
-    expect(html).toContain('收起快照')
+    expect(html.match(/class="chat-browser-tab"/g)).toHaveLength(1)
   })
 
   it('shows separate entry points for different tabs', () => {
@@ -76,7 +58,7 @@ describe('browser work', () => {
       id: '20dbacd0-d598-495a-997a-498a87d1e70e', title: 'Other tab', url: 'http://localhost/'
     }, null) })
     const html = render([call('first'), other, call('refresh')])
-    expect(html.match(/class="chat-tool chat-page"/g)).toHaveLength(2)
+    expect(html.match(/class="chat-browser-tab"/g)).toHaveLength(2)
     expect(html).toContain('Other tab')
     expect(html).toContain('Page refresh')
   })
@@ -87,15 +69,15 @@ describe('browser work', () => {
     expect(html).toContain('1 项异常')
     expect(html).toContain('1 项已拒绝')
     expect(html).toContain('Page first')
-    expect(html.match(/class="chat-tool chat-page"/g)).toHaveLength(1)
+    expect(html.match(/class="chat-browser-tab"/g)).toHaveLength(1)
   })
 
   it('does not invent an entry point while waiting for permission or the first response', () => {
     const html = render([call('waiting', { status: 'running', output: null })])
     expect(html).toContain('浏览器操作 1 次')
     expect(html).toContain('aria-label="进行中"')
-    expect(html).not.toContain('chat-page-row')
-    expect(render([call('gate', { output: '等待用户确认' })])).not.toContain('chat-page-row')
+    expect(html).not.toContain('chat-browser-open')
+    expect(render([call('gate', { output: '等待用户确认' })])).not.toContain('chat-browser-open')
   })
 
   it('keeps screenshot images as independent cards, including images returned by navigation', () => {
