@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { antumiToolName, type ChatItem } from '@antumi/protocol'
+import { antumiToolName, ChatItem } from '@antumi/protocol'
 import type { ChatStageOptions } from '../../chat-driver'
 import { OpenCodeAcp } from './opencode-acp'
+import { parseChatRecord } from '../../chat-log'
 
 // Frames as OpenCode 2.1's ACP (packages/cli/src/acp) sends them: capabilities named by objects,
 // its primary agents, models and effort as session config options, and tool calls with a name.
@@ -124,5 +126,31 @@ describe('OpenCode over ACP', () => {
     receive(driver, { id: 'opencode-session', result: { configOptions: config() } })
     expect(driver.ready()).toBe(true)
     expect(driver.providerSessionId()).toBe('ses_1')
+  })
+
+  // Recorded from OpenCode 2.1.1 (fixtures/opencode-recordings.md).
+  const replay = (file: string, options: ChatStageOptions) => {
+    const records = readFileSync(new URL(`./fixtures/${file}`, import.meta.url), 'utf8').trim().split('\n').map(parseChatRecord)
+    expect(records.flatMap((record, index) => record ? [] : [index])).toEqual([])
+    const driver = new OpenCodeAcp('stage', options)
+    records.forEach((record) => { if (record) driver.apply(record) })
+    for (const item of driver.items.list()) expect(ChatItem.safeParse(item).success).toBe(true)
+    expect(driver.due()).toEqual([])
+    return driver
+  }
+
+  it('replays a real session: Antumi\'s preview, browser and terminal tools by Antumi\'s names, its own ask answered', () => {
+    const driver = replay('opencode-session.jsonl', { ...OPTIONS, extraDirs: [] })
+    expect(items(driver, 'turn').map((turn) => turn.state)).toEqual(['completed', 'completed', 'completed'])
+    const tools = items(driver, 'tool').map((tool) => tool.name)
+    expect(tools).toEqual(expect.arrayContaining(['fileChange', 'antumi.show_preview', 'antumi.browser_navigate', 'antumi.browser_screenshot', 'antumi.terminal_run', 'antumi.terminal_read']))
+    expect(tools.filter((name) => name === 'execute')).toEqual([])
+    expect(items(driver, 'approval').find((approval) => approval.tool === 'antumi_terminal_run' || approval.tool === 'antumi.terminal_run')).toMatchObject({ resolution: 'allowed' })
+  })
+
+  it('replays a real resume: the loaded session goes on under its id', () => {
+    const driver = replay('opencode-resume.jsonl', { ...OPTIONS, extraDirs: [], resume: 'ses_0001' })
+    expect(driver.providerSessionId()).toBe('ses_0001')
+    expect(items(driver, 'turn').at(-1)).toMatchObject({ state: 'completed' })
   })
 })
