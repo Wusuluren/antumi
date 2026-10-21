@@ -58,7 +58,7 @@
 
 - 客户端 ↔ core：JSON-RPC 2.0 over WebSocket，只绑定 `127.0.0.1`，并要求 `core.json` 里的 token，因为任何网页都能连本机的 WebSocket。
 - core ↔ daemon：NDJSON over Unix socket（Windows 上是 named pipe）。只有连接被拒绝才说明 daemon 的 socket 已失效，超时或 EPERM 不能证明什么。
-- `packages/protocol` 是唯一的类型来源：RPC 方法和通知都先在这里定义 zod schema，再在 `core/src/rpc-handlers.ts` 实现。客户端和 core 可以是不同版本；增加可选字段是安全的，破坏性改动要提升 `PROTOCOL_VERSION`（daemon 线路是 `DAEMON_PROTOCOL_VERSION`）。当前 core RPC 协议版本为 12，daemon 协议版本为 3，浏览器宿主协议版本为 2。桌面端和 core 跨越 RPC 版本时应一起升级。
+- `packages/protocol` 是唯一的类型来源：RPC 方法和通知都先在这里定义 zod schema，再在 `core/src/rpc-handlers.ts` 实现。客户端和 core 可以是不同版本；增加可选字段是安全的，破坏性改动要提升 `PROTOCOL_VERSION`（daemon 线路是 `DAEMON_PROTOCOL_VERSION`）。当前 core RPC 协议版本为 14，daemon 协议版本为 3，浏览器宿主协议版本为 2。桌面端和 core 跨越 RPC 版本时应一起升级。
 - 启动 Agent 用 argv 数组，prompt 前加 `--`，从不经过 shell。
 
 ## 2. 任务模型
@@ -375,6 +375,29 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 - **审批**：Claude 和 Cursor 的 MCP 工具本来就走审批卡；Codex 对它认为会影响外部的工具发 `mcpServer/elicitation/request`（`_meta.codex_approval_kind: mcp_tool_call`），Antumi 接成审批卡：允许一次、本次运行内不再问（`persist: session`）、拒绝；「永远允许」不提供，那会写进 Codex 自己的配置。
 - **群聊成员只读**：交给群聊成员的每个服务器都走启动器（没有密钥的远程地址也是），加 `--read-only`（`mcp-read-only-filter.ts`）：`tools/list` 只留服务器标了 `readOnlyHint: true` 的工具，调用别的工具由启动器直接回错误，不到服务器。没标注的算会改东西的。
 - **导入**（`mcp-import.ts`）：读 `~/.claude.json`、`~/.cursor/mcp.json` 和 `codex mcp list --json`（跳过 ChatGPT 应用和 Codex 插件自带的、已停用的），列表只给键名；导入时 core 重读一遍连同值一起存，默认不再交给它原来所在的 Agent，免得启动两份。SSE 和 Codex 从环境变量取令牌的不能导入。
+
+### 服务商
+
+服务商（model provider）是第三方编程套餐的接口和 Key，比如火山方舟 Agent Plan、智谱 GLM Coding Plan。设置 → Agent → 服务商（`model-providers.ts`）维护列表：预设（火山 Agent Plan / Coding Plan、智谱、Z.ai、Kimi Code、MiniMax 国内和海外，`protocol/src/model-provider-presets.ts`）或自定义。预设的地址不存，每次用时从预设表取，发版修了地址就自动生效；自定义的地址只接受 https（http 只能连本机），不许带账号密码、`?` 和 `#`。Key 存进 `credentials.json`（`model-provider/<id>.<revision>`），每次换 Key 都是新记录：先写新 Key，再写列表，最后删旧 Key，启动时清掉没人引用的。客户端只看得到 `hasKey`。
+
+和技能库、MCP 一样，**每次启动 Agent 时注入，不改 Agent 自己的配置**，Key 只进子进程的环境变量：
+
+| Agent | 协议 | 怎么注入 |
+|---|---|---|
+| Claude Code | Anthropic | 全走 env：`ANTHROPIC_BASE_URL`、`ANTHROPIC_AUTH_TOKEN`（Kimi 用 `ANTHROPIC_API_KEY`，另一个置空），加 `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST=1`，否则用户 settings.json 里的 `env` 会盖过进程环境（2.1.288 实测）。Bedrock/Vertex 等路由开关、`CLAUDE_CODE_OAUTH_TOKEN`、`ANTHROPIC_MODEL` 置空（daemon 删不掉继承的变量）。opus/sonnet/haiku 别名映射到服务商的模型；≥1M 上下文的模型 id 加 `[1m]`，其余用 `CLAUDE_CODE_MAX_CONTEXT_TOKENS`。不设 `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB`：它会把权限模式强制改回 default，而 Bash 工具本来就拿不到这两个 Key。 |
+| Codex | Responses | `-c model_providers.antumi-<id>={…, env_key="ANTUMI_MODEL_PROVIDER_KEY"}` 加 `model_provider`、`model`、`model_context_window`；名字固定，恢复 thread 时找得到。Codex 的 shell 会继承整个环境，所以再加 `shell_environment_policy.set.ANTUMI_MODEL_PROVIDER_KEY=""`。 |
+| OpenCode | Chat（优先）/ Responses / Anthropic | `OPENCODE_CONFIG_CONTENT` 里加一个 `provider`，`apiKey: "{env:ANTUMI_MODEL_PROVIDER_KEY}"`，配置文本里没有 Key；`small_model` 是服务商的小模型。它的 shell 能读到这个变量，没有配置能挡。 |
+| Cursor | — | 不支持，只用自己的账号。 |
+
+谁能用什么协议写在描述符的 `capabilities.modelProviders` 里，适配器的 `providerModels` 给出这个 Agent 叫服务商模型的名字（OpenCode 是 `antumi-<id>/<model>`）。驱动在服务商上只列服务商的模型、只许切到它们，CLI 报的费用（按官方价）丢掉、token 照记。
+
+**路由**（`conversation-route.ts`）：会话创建时定下服务商（`conversations.model_provider`），之后不改；fork 和小助手跟着来源。每个阶段记一份不含 Key 的路由快照（`conversation_stages.provider_route`：服务商、协议、地址、模型列表），重放和重启后接回运行中的进程只读快照。下一阶段怎么走只在 `decideRoute` 一处算：服务商服务这个 Agent 就用它；不服务就用 Agent 自己的账号（移交到 Cursor 时就是这样）；这个 Agent 在会话里跑过的，按跑过的方式继续——服务商被删、没 Key 或不再服务它时拒绝启动（`model-provider-unavailable`），不悄悄回到官方账号。原生 session 只在同一条路由（服务商 + 协议 + 地址，`providerRouteKey`）上恢复或 fork，换了就按移交重开。`Conversation.route` 告诉客户端下一阶段走哪：标题栏、每轮开头、输入框里的小标，移交菜单里每个 Agent 是沿用还是用自己的账号。任务用 `TaskLaunchOptions.modelProvider`（不传沿用，`null` 是官方账号），任务一有会话就以会话为准（`model-provider-fixed`）。
+
+**周边**：标题、翻译、提交说明、分支名在服务商会话里直接对服务商发一个请求（`provider-request.ts`，和测试连接共用），用它的小模型，不走 Agent 的 CLI；记成「未计价」，只记 token，不算费用和节省。服务商阶段的用量上报不算 Agent 官方账号的，定时任务和用量上限后的自动续跑也不看官方额度。用户 MCP 服务器经启动器启动时，进程带 `ANTUMI_MODEL_PROVIDER` 标记就去掉 Key 变量。
+
+- **测试连接**（`modelProviders.probe`，`model-provider-probe.ts`）：每个接口、默认模型和小模型各发一个最短的请求，30 秒超时，不跟随重定向，返回服务端原话（截断、去掉 Key）。
+- **预设是否「已验证」**：用真 Key 在 Antumi 里把三个 Agent 都跑过才标，记下 CLI 版本；现在都还是未验证。额度不在 Antumi 里显示，只给控制台链接。
+- **mock 端到端**：Claude Code、Codex、OpenCode 的注入都用一个本地模拟服务（三种协议、记录请求）实跑过，包括 settings.json 里指向别处的地址和工具能否读到 Key。改了注入方式或升级 CLI 后要重跑。
 
 ## 5. 内置浏览器
 
