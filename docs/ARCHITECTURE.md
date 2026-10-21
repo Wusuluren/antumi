@@ -281,7 +281,7 @@ Claude Code 以 `claude -p --input-format stream-json --output-format stream-jso
 
 完整价格表按内容哈希保存在 `small_model_price_versions`，同一版本只存一份，账目引用开始时的版本；计算结果只保留本次使用的去重单价。升级时分批迁移已有快照，不重新计算历史金额，未结束的请求恢复后仍用原版本计价。「统计」只读取独立的精简摘要，按模型合并 token，不加载每笔的完整用量和计算依据。目前保留全部账目，未设置明细过期或按日归档。
 
-Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 的 JSONL（答案仍读输出文件）、Cursor 的 JSON。回合的可选 `metering` 保留缓存读写和实际模型；Claude 用 `num_turns`，Codex 从去重后的累计用量增长保守估算调用，无法识别时按一次。Cursor 当前 ACP 不提供回合用量，小助手只统计次数；支持标准 ACP `usage_update` 的上下文信息，不能将上下文大小视作消耗 token。缓存写入时长或长上下文档位无法确定时保留已有 token，金额降级为未提供。
+Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 的 JSONL（答案仍读输出文件）、Cursor 的 JSON。回合的可选 `metering` 保留缓存读写和实际模型；Claude 用 `num_turns`，Codex 从去重后的累计用量增长保守估算调用，无法识别时按一次。说 ACP 的 Agent 在回合结束时读 `session/prompt` 返回的标准 `usage`：输入算上缓存读写（OpenCode 的 `inputTokens` 不含命中缓存的部分），输出算上推理，回复底下显示 ↑ / ↓；花费取 `usage_update` 里会话累计的 `cost`，一轮的花费是这轮前后两次累计之差，恢复的会话在第一轮里还不知道之前的累计，就记为未提供。OpenCode 两样都报；Cursor CLI（实测 2026.10.01）都不报，所以 Cursor 的回合仍没有用量，小助手只统计次数，等它的 CLI 报了自然就有。`usage_update` 的上下文大小只用于上下文占用，不能视作消耗的 token。缓存写入时长或长上下文档位无法确定时保留已有 token，金额降级为未提供。
 
 模型价格是 Agent 描述符引用的纯数据，来源及更新日期见 `protocol/src/agents/model-prices.ts`，支持缓存类别、长上下文档位和已公布的生效日期；未解析的别名、未知模型不猜价格。协议增加 `small-model-stats` feature 和可选字段，不提升版本。新客户端用 `dashboard.stats.includeSmallModels` 请求新统计，同时将翻译、提交说明 token 加入原合计、每日趋势和模型明细；小助手仍从原回合统计，避免重复。老客户端未请求此字段时保留原统计口径。
 

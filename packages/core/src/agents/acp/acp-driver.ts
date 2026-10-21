@@ -39,6 +39,14 @@ const Permission = z.looseObject({ toolCall: Update.omit({ sessionUpdate: true }
 const Questions = z.looseObject({ title: z.string().optional(), toolCallId: z.string(), questions: z.array(z.looseObject({ id: z.string(), prompt: z.string(), allowMultiple: z.boolean().optional(), options: z.array(z.looseObject({ id: z.string(), label: z.string() })).catch([]) })).min(1) })
 const Plan = z.looseObject({ toolCallId: z.string(), plan: z.string(), name: z.string().optional(), overview: z.string().optional() })
 const Prompt = z.looseObject({ sessionId: z.string(), prompt: z.array(Content) })
+// What a turn used, where the agent says (ACP's PromptResponse.usage): input apart from what the
+// cache served, so Antumi adds it back, and reasoning apart from the reply.
+const TurnTokens = z.looseObject({
+  inputTokens: z.number().int().nonnegative(), outputTokens: z.number().int().nonnegative(),
+  thoughtTokens: z.number().int().nonnegative().nullish(), cachedReadTokens: z.number().int().nonnegative().nullish(), cachedWriteTokens: z.number().int().nonnegative().nullish()
+})
+// The session's cost so far, in a usage_update: a running total, so a turn's is the difference.
+const SessionCost = z.looseObject({ cost: z.looseObject({ amount: z.number().nonnegative(), currency: z.string() }).nullish() })
 const keyOf = (id: string | number) => `${typeof id}:${id}`
 // The requests that open the session a stage works in.
 const OPENING: ReadonlySet<string> = new Set(['session/new', 'session/load', 'session/fork'])
@@ -99,6 +107,10 @@ export class AcpDriver implements ChatDriver {
   private messages: StageMessage[] = []
   private execution: { text: string; images: ChatImage[]; ref: string } | null = null
   private subagents = new Map<string, Subagent>()
+  // The session's cost in dollars as last reported; null until a report, but 0 for a session this
+  // stage opened new. turnCost is what it stood at as the running turn began.
+  private sessionCost: number | null = null
+  private turnCost: number | null = null
 
   constructor(private readonly dialect: AcpDialect, private readonly stageId: string, private readonly options: ChatStageOptions, private readonly catalogOnly = false) {
     this.items = new ChatItems(stageId)
@@ -347,6 +359,7 @@ export class AcpDriver implements ChatDriver {
         if (ref === this.execution?.ref) this.execution = null
         this.stopping = false
         this.turn = { id: keyOf(frame.id), ref: eventRef, began: at, text: '', block: null, blocks: 0 }
+        this.turnCost = this.sessionCost
         this.items.put({ id: `u:${eventRef}`, kind: 'user', text, images: [...images] }, at)
         this.messages.push({ role: 'user', text: messageText(text, images), eventKey: `chat:${eventRef}:user`, complete: false })
       }
@@ -435,6 +448,7 @@ export class AcpDriver implements ChatDriver {
       if (!opened.success) { this.startError = `${this.name} 返回了无效的会话信息`; return }
       // A loaded session goes on under its id; a new or forked one is named in the answer.
       this.session = opened.data.sessionId ?? (request.method === 'session/load' ? this.options.resume : null)
+      if (request.method === 'session/new') this.sessionCost = 0
       if (!this.session) { this.startError = `${this.name} 没有返回会话 ID`; return }
       this.catalog(opened.data)
       this.setup = true
@@ -449,7 +463,7 @@ export class AcpDriver implements ChatDriver {
       const provider = this.peelProviderError(at)
       const ref = this.turn?.ref ?? null
       const error = stop === 'refusal' ? `${this.name} 拒绝了请求` : provider?.summary ?? null
-      this.finish(this.stopping || stop === 'cancelled' ? 'interrupted' : error ? 'failed' : 'completed', error, at)
+      this.finish(this.stopping || stop === 'cancelled' ? 'interrupted' : error ? 'failed' : 'completed', error, at, this.turnMetering(frame.result))
       if (provider && ref) {
         this.items.notice('warning', provider.detail, at, {
           id: `${this.id('provider')}:${ref}`,
@@ -560,6 +574,8 @@ export class AcpDriver implements ChatDriver {
     if (update.sessionUpdate === 'usage_update') {
       const usage = z.object({ used: z.number().int().nonnegative(), size: z.number().int().positive() }).safeParse(update)
       if (usage.success) this.state.setContext({ used: usage.data.used, window: usage.data.size })
+      const cost = SessionCost.safeParse(update).data?.cost
+      if (cost?.currency === 'USD') this.sessionCost = cost.amount
       return
     }
 
@@ -742,14 +758,32 @@ export class AcpDriver implements ChatDriver {
     return found
   }
 
-  private finish(state: ChatTurnState, error: string | null, at: number): void {
+  // A turn's tokens and cost, as its answer and the session's running cost tell them; nothing where
+  // the agent reports neither (Cursor's CLI so far). The cost needs the total from before the turn.
+  private turnMetering(result: unknown): Pick<Extract<ChatItem, { kind: 'turn' }>, 'usage' | 'metering'> {
+    const tokens = TurnTokens.safeParse(z.looseObject({ usage: z.unknown() }).safeParse(result).data?.usage).data
+    // To the micro-dollar: a difference of two totals leaves float dust (0.15000000000000002).
+    const costUsd = this.sessionCost !== null && this.turnCost !== null ? Math.max(0, Math.round((this.sessionCost - this.turnCost) * 1e6) / 1e6) : null
+    if (!tokens) return costUsd ? { metering: { models: [], calls: null, callsEstimated: false, reportedCostUsd: costUsd } } : {}
+    const cacheRead = tokens.cachedReadTokens ?? null
+    const cacheWrite = tokens.cachedWriteTokens ?? null
+    const input = tokens.inputTokens + (cacheRead ?? 0) + (cacheWrite ?? 0)
+    const output = tokens.outputTokens + (tokens.thoughtTokens ?? 0)
+    const model = this.config.find((entry) => entry.category === 'model')?.currentValue ?? null
+    return {
+      usage: { input, output },
+      metering: { models: [{ model, input, output, cacheRead, cacheWrite, cacheWrite1h: null, costUsd }], calls: null, callsEstimated: false, reportedCostUsd: costUsd }
+    }
+  }
+
+  private finish(state: ChatTurnState, error: string | null, at: number, used: Pick<Extract<ChatItem, { kind: 'turn' }>, 'usage' | 'metering'> = {}): void {
     const turn = this.turn
     if (!turn) return
     if (state !== 'completed') this.execution = null
     this.cancelPending(at)
     for (const item of this.items.list()) if ((item.kind === 'assistant' || item.kind === 'reasoning') && item.streaming) this.items.put({ ...item, streaming: false }, at)
     this.items.settleTools(state === 'failed' ? 'failed' : 'interrupted', at)
-    this.items.put({ id: `turn:${turn.ref}`, kind: 'turn', state, error, durationMs: at - turn.began }, at)
+    this.items.put({ id: `turn:${turn.ref}`, kind: 'turn', state, error, durationMs: at - turn.began, ...used }, at)
     if (turn.text) this.messages.push({ role: 'assistant', text: turn.text, eventKey: `chat:${turn.ref}:assistant`, complete: state === 'completed' })
     this.queue.turnEnded(state)
     this.state.endTurn()

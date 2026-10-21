@@ -142,6 +142,8 @@ describe('OpenCode over ACP', () => {
   it('replays a real session: Antumi\'s preview, browser and terminal tools by Antumi\'s names, its own ask answered', () => {
     const driver = replay('opencode-session.jsonl', { ...OPTIONS, extraDirs: [] })
     expect(items(driver, 'turn').map((turn) => turn.state)).toEqual(['completed', 'completed', 'completed'])
+    // Its answer's tokens, the cache counted as input; the free model costs nothing.
+    expect(items(driver, 'turn')[0]).toMatchObject({ usage: { input: 15232 + 27136, output: 475 }, metering: { reportedCostUsd: 0 } })
     const tools = items(driver, 'tool').map((tool) => tool.name)
     expect(tools).toEqual(expect.arrayContaining(['fileChange', 'antumi.show_preview', 'antumi.browser_navigate', 'antumi.browser_screenshot', 'antumi.terminal_run', 'antumi.terminal_read']))
     expect(tools.filter((name) => name === 'execute')).toEqual([])
@@ -151,6 +153,6 @@ describe('OpenCode over ACP', () => {
   it('replays a real resume: the loaded session goes on under its id', () => {
     const driver = replay('opencode-resume.jsonl', { ...OPTIONS, extraDirs: [], resume: 'ses_0001' })
     expect(driver.providerSessionId()).toBe('ses_0001')
-    expect(items(driver, 'turn').at(-1)).toMatchObject({ state: 'completed' })
+    expect(items(driver, 'turn').at(-1)).toMatchObject({ state: 'completed', usage: { input: expect.any(Number), output: expect.any(Number) } })
   })
 })
