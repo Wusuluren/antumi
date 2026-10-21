@@ -24,6 +24,8 @@ import { DraftBranchPicker, useProjectBranches } from './DraftBranchPicker'
 import { composerDraft, EMPTY_DRAFT, saveComposerDraft } from '../composer-drafts'
 import { keepInitialMessage, sendInitialMessage } from '../initial-messages'
 import { inboxKey, rememberInvestigationProjects } from '../source-inboxes'
+import { catalogKey, providerFor } from '../model-provider-choice'
+import { ProviderPicker } from './ProviderPicker'
 
 // A new conversation while chats are the default: the agent and projects are picked on the page,
 // and the first message creates the conversation and starts the agent, so none is left empty.
@@ -58,8 +60,13 @@ export function ConversationDraft() {
   const [picks, setPicks] = useState<Partial<Record<AgentKind, { model?: string; effort?: string }>>>(() => initial ? {
     [initial.agent]: { model: initial.model ?? undefined, effort: initial.effort ?? undefined }
   } : {})
-  // Each agent's models, asked for once it is picked; absent while asking, null when core cannot say.
-  const [catalogs, setCatalogs] = useState<Partial<Record<AgentKind, ChatCatalog | null>>>({})
+  // The model provider picked, for whichever agent it serves; null is the agent's own account.
+  const [providerId, setProviderId] = useState<string | null>(() => initial?.modelProvider ?? null)
+  const providers = useCore((s) => s.modelProviders)
+  const providerOf = (kind: AgentKind | null) => providerFor(providers, providerId, kind)
+  // Each agent's models (a provider's where it runs on one), asked for once it is picked; absent
+  // while asking, null when core cannot say.
+  const [catalogs, setCatalogs] = useState<Record<string, ChatCatalog | null>>({})
   const rpc = useCore((s) => s.rpc)
   const deferStart = rpc?.features.includes('deferred-conversation-start') ?? false
   const optionsSupported = useChatOptionsSupported()
@@ -87,16 +94,18 @@ export function ConversationDraft() {
   // Written out for the agent picked when it goes, which may not be the one picked before.
   const written = agent ? writeMentions(value, agent) : text
 
+  const provider = providerOf(agent)
+  const key = agent ? catalogKey(agent, provider) : null
   useEffect(() => {
-    if (!agent || !rpc || !optionsSupported || agent in catalogs) return
+    if (!agent || !key || !rpc || !optionsSupported || key in catalogs) return
     let current = true
-    const settle = (catalog: ChatCatalog | null) => current && setCatalogs((known) => ({ ...known, [agent]: catalog }))
+    const settle = (catalog: ChatCatalog | null) => current && setCatalogs((known) => ({ ...known, [key]: catalog }))
     // Not through perform: an older core without the method just offers no models.
-    rpc.call('conversations.chatCatalog', { agent }).then(settle, () => settle(null))
+    rpc.call('conversations.chatCatalog', { agent, ...(provider ? { modelProvider: provider.id } : {}) }).then(settle, () => settle(null))
     return () => { current = false }
-  }, [agent, rpc, optionsSupported, catalogs])
+  }, [agent, key, provider, rpc, optionsSupported, catalogs])
 
-  const catalog = agent ? catalogs[agent] : null
+  const catalog = key ? catalogs[key] : null
   const pick = (agent ? picks[agent] : undefined) ?? {}
   const modelId = pick.model ?? catalog?.models.find((each) => each.isDefault)?.id ?? null
   const model = catalog?.models.find((each) => each.id === modelId)
@@ -112,7 +121,7 @@ export function ConversationDraft() {
   const canSend = agent !== null && !busy && !settingsLoading && attached.uploading === 0 && (issue !== null || text.trim() !== '' || attached.images.length > 0)
   // The model a start would run, as quota windows name models; unknown until its catalog is in.
   const modelFor = (kind: AgentKind) => {
-    const models = catalogs[kind]?.models ?? []
+    const models = catalogs[catalogKey(kind, providerOf(kind))]?.models ?? []
     const id = picks[kind]?.model ?? models.find((each) => each.isDefault)?.id
     return modelText(models.find((each) => each.id === id))
   }
@@ -120,18 +129,21 @@ export function ConversationDraft() {
     if (agent) setPicks({ ...picks, [agent]: next })
   }
 
-  const chosen = optionsSupported
-    ? { permissionMode: mode ?? undefined, ...(pick.model ? { model: pick.model } : {}), ...(effort ? { effort } : {}) }
-    : {}
+  const chosen = {
+    ...(optionsSupported ? { permissionMode: mode ?? undefined, ...(pick.model ? { model: pick.model } : {}), ...(effort ? { effort } : {}) } : {}),
+    ...(provider ? { modelProvider: provider.id } : {})
+  }
+  // A start on a provider spends its plan, not the agent's own quota.
+  const quotaAllows = (kind: AgentKind) => providerOf(kind) !== null || confirmQuota(kind, modelFor(kind))
   const where = { projectPaths, ...(inWorktree ? { worktree: true } : {}), ...(startBranch ? { branch: startBranch } : {}) }
   // The page is how a chat start begins, as settings choose; a terminal start has its dialog.
   const create = () => {
-    if (!agent || !confirmQuota(agent, modelFor(agent))) return Promise.resolve(null)
+    if (!agent || !quotaAllows(agent)) return Promise.resolve(null)
     return perform((rpc) => rpc.call('conversations.create', { agent, ...where, ...(deferStart ? { deferStart: true } : {}), ...startOptions(), ...chosen }))
   }
   // Core fetches the issue and starts the agent on it before answering, so the page waits.
   const investigate = async () => {
-    if (!agent || !issue || !confirmQuota(agent, modelFor(agent))) return
+    if (!agent || !issue || !quotaAllows(agent)) return
     setBusy(true)
     const note = written.trim()
     const opened = await perform((rpc) => rpc.call('sources.investigate', {
@@ -210,8 +222,12 @@ export function ConversationDraft() {
                   >
                     <AgentIcon agent={kind} />
                     <span>{agentLabel(kind)}</span>
-                    {recommendation?.agent === kind && <RecommendedMark recommendation={recommendation} />}
-                    <AgentQuotaHint agent={kind} model={modelFor(kind)} />
+                    {providerOf(kind) ? <span className="chat-draft-agent-provider">{providerOf(kind)?.name}</span> : (
+                      <>
+                        {recommendation?.agent === kind && <RecommendedMark recommendation={recommendation} />}
+                        <AgentQuotaHint agent={kind} model={modelFor(kind)} />
+                      </>
+                    )}
                   </button>
                 ))}
               </div>
@@ -276,6 +292,13 @@ export function ConversationDraft() {
               </MentionField>
               <div className="chat-options">
                 {imagesSupported && !issue && <ChatAddMenu disabled={busy} onAdd={attached.add} />}
+                {agent && (
+                  <ProviderPicker agent={agent} value={providerId} disabled={busy} onChange={(next) => {
+                    // Models differ between accounts, so what was picked for the old one goes.
+                    setProviderId(next)
+                    setPicks({})
+                  }} />
+                )}
                 {agent && optionsSupported && (
                   <>
                     <ChatPicker

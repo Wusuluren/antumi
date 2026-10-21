@@ -25,6 +25,7 @@ import { useFileTabs } from '../file-tabs'
 import { waitingOn } from '../task-waiting'
 import { AgentPicker } from './AgentPicker'
 import { confirmQuota, modelText } from './AgentQuota'
+import { providerFor } from '../model-provider-choice'
 import { useProjectCheckRunning } from './ProjectRunNotice'
 import { PickerItem } from './ChatPicker'
 import { effortLabel, modeLabel, modeOptions } from './ChatOptionsBar'
@@ -136,10 +137,16 @@ function bypassOption(bypassable: boolean): { allowBypass?: boolean } {
   return bypassable ? { allowBypass: true } : {}
 }
 
-// A task's agent with its quota used up would stall at once; the user decides.
+// A task's agent with its quota used up would stall at once; the user decides. One on a model
+// provider spends the provider's plan instead.
 function quotaAllows(taskId: string): boolean {
-  const agent = useCore.getState().tasks[taskId]?.agent
-  return !agent || confirmQuota(agent)
+  const task = useCore.getState().tasks[taskId]
+  return !task?.agent || onProvider(task) || confirmQuota(task.agent)
+}
+
+function onProvider(task: Task): boolean {
+  const conversation = task.conversationId ? useCore.getState().conversations[task.conversationId] : undefined
+  return conversation ? conversation.route?.reason === 'served' : Boolean(task.launch.modelProvider)
 }
 
 // Both the toolbar and context menu open the same launch configuration.
@@ -327,7 +334,9 @@ function ScheduleButton({ task, dependencies, labelled }: { task: Task; dependen
   const close = useCallback(() => setOpen(false), [])
   // A scheduled run takes the task's model and effort (its mode is the unattended one).
   const launchSupported = useTaskLaunchSupported()
-  const catalog = useAgentCatalog(task.agent, open && launchSupported)
+  const providers = useCore((s) => s.modelProviders)
+  const conversationProvider = useCore((s) => (task.conversationId ? s.conversations[task.conversationId]?.modelProvider : undefined))
+  const catalog = useAgentCatalog(task.agent, open && launchSupported, providerFor(providers, conversationProvider ?? task.launch.modelProvider, task.agent))
   const { model, effort } = resolveModel(catalog, { model: task.launch.model ?? undefined, effort: task.launch.effort ?? undefined })
   const runsIn = model ? t('TaskActions.use', { value1: model.label, value2: effort ? ` · ${effortLabel(effort)}` : '' }) : ''
   if (!supported) return null
@@ -377,7 +386,7 @@ function ScheduleButton({ task, dependencies, labelled }: { task: Task; dependen
 
 // Started from the details as the task keeps its launch, so the dialog is not needed there.
 async function startNow(task: Task, launch: TaskLaunch): Promise<void> {
-  if (!task.agent || !confirmQuota(task.agent, modelText(launch.model))) return
+  if (!task.agent || (!onProvider(task) && !confirmQuota(task.agent, modelText(launch.model)))) return
   const bypass = useCore.getState().rpc?.features.includes('chat-options') ? { allowBypass: true } : {}
   await openChatWhileStarting(task.id, () => perform((rpc) => rpc.call('tasks.start', { id: task.id, ...bypass, ...launchOptions(launch) })))
 }

@@ -4861,6 +4861,7 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .provider-checks { margin: 0; padding: 4px 0 8px; list-style: none; font-size: 12px; line-height: 1.7; }
 .provider-check { overflow-wrap: anywhere; }
 .provider-link { color: var(--accent); text-decoration: none; }
+.chat-draft-agent-provider { color: var(--text-muted); font-size: 12px; }
 .provider-link:hover { text-decoration: underline; }
 .provider-check[data-ok='true'] > span:first-child { color: var(--status-done); }
 .provider-check[data-ok='false'] > span:first-child { color: var(--danger); }

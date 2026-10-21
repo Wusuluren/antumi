@@ -13,6 +13,8 @@ import { ChatPicker } from './ChatPicker'
 import { AgentIcon, CloseIcon } from './icons'
 import { SquadLaunchDialog } from './SquadLaunchDialog'
 import { useEditsInPlace } from './TaskLaunch'
+import { providerFor, servingProviders } from '../model-provider-choice'
+import { ProviderPicker } from './ProviderPicker'
 
 
 function closeTaskLaunch() {
@@ -44,7 +46,13 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
   const [busy, setBusy] = useState(false)
   const inPlace = useEditsInPlace(task)
   const conversation = useCore((s) => s.conversations[task.conversationId ?? ''])
-  const catalog = useAgentCatalog(agent, supported)
+  // The provider the task runs on: settled with its conversation, picked here until it has one.
+  const providers = useCore((s) => s.modelProviders)
+  const providersSupported = rpc?.features.includes('model-providers') ?? false
+  const providerFixed = Boolean(task.conversationId)
+  const [providerId, setProviderId] = useState<string | null>(() => conversation?.modelProvider ?? task.launch.modelProvider ?? null)
+  const provider = providerFor(providers, providerId, agent)
+  const catalog = useAgentCatalog(agent, supported, provider)
   // What the task keeps (a core with Task.launch), else what its chat last ran in.
   const [choices, setChoices] = useState<Partial<Record<AgentKind, ModelChoice>>>(() => {
     if (!task.agent) return {}
@@ -79,7 +87,8 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
   // Once the agent is settled, the dialog closes and the chat opens while the task starts; an error
   // from then on is the app's, not the closed dialog's.
   const submit = async () => {
-    if (!agent || busy || blocker || !confirmQuota(agent, modelText(model))) return
+    // On a provider it spends the provider's plan, not the agent's own quota.
+    if (!agent || busy || blocker || (!provider && !confirmQuota(agent, modelText(model)))) return
     setBusy(true)
     dismissError()
     if ((agent !== task.agent || task.squadId) && !await updateTask(task.id, { agent, ...(task.squadId ? { squadId: null } : {}) })) {
@@ -89,7 +98,8 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
     const params = {
       id: task.id,
       ...(rpc?.features.includes('chat-options') ? { allowBypass: true } : {}),
-      ...(supported ? { permissionMode: mode, model: modelId ?? null, effort: effort ?? null } : {})
+      ...(supported ? { permissionMode: mode, model: modelId ?? null, effort: effort ?? null } : {}),
+      ...(providersSupported && !providerFixed ? { modelProvider: provider?.id ?? null } : {})
     }
     closeTaskLaunch()
     await openChatWhileStarting(task.id, () => perform((connection) => connection.call('tasks.start', params)))
@@ -121,6 +131,12 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
               }}
             />
           </div>
+          {providersSupported && agent && servingProviders(providers, agent).length > 0 && (
+            <div className="task-launch-field"><span>{t('ProviderPicker.provider')}</span>
+              <ProviderPicker agent={agent} value={providerId} size="field" placement="below" disabled={providerFixed}
+                onChange={(next) => { setProviderId(next); setChoices({}) }} />
+            </div>
+          )}
           {supported && <>
             <div className="task-launch-field"><span>{t('AgentModelPicker.model')}</span>
               <AgentModelPicker catalog={catalog} choice={choice} size="field" onChange={choose} />
@@ -145,7 +161,7 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
           {checkStartMode(dependencies, 'ask') ? t('TaskLaunchDialog.dependenciesAreUnfinishedOnlyPlanningIsAvailableNow') : options.find((each) => each.value === mode)?.description ?? t('TaskLaunchDialog.planFirstThenExecuteAfterApproval')}
         </p>
         {inPlace && mode !== 'plan' && mode !== 'readOnly' && <p className="task-launch-description muted">{t('SquadLaunchDialog.thisProjectIsNotAGitRepositoryChanges')}</p>}
-        {agent && <AgentQuotaHint agent={agent} model={modelText(model)} />}
+        {agent && !provider && <AgentQuotaHint agent={agent} model={modelText(model)} />}
         {blocker && <p className="modal-error">{reasonText(blocker, blocker)}</p>}
         {error && <p className="modal-error" role="alert">{error}</p>}
         <footer className="modal-footer">

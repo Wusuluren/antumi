@@ -2,7 +2,7 @@ import { t } from '../i18n'
 import { useState } from 'react'
 import type { Conversation } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
-import { ensureHelper, helperModel, useHelper } from '../helper-conversations'
+import { ensureHelper, helperModel, helperProvider, useHelper } from '../helper-conversations'
 import { keepInitialMessage, sendInitialMessage } from '../initial-messages'
 import { useChat } from '../chat-state'
 import { setQuotes, useQuotes } from '../chat-quotes'
@@ -22,9 +22,10 @@ function HelperDraft({ parent }: { parent: Conversation }) {
   const [picked, setPicked] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const rpc = useCore((state) => state.rpc)
-  const catalog = useHelperCatalog(parent.agent)
+  const catalog = useHelperCatalog(parent.agent, helperProvider(parent))
+  // The small model picked for the agent's own jobs means nothing on a provider.
   const preference = usePreferences((state) => state.quickModels[parent.agent])
-  const model = choice?.model ?? (preference || helperModel(parent, catalog ?? null))
+  const model = choice?.model ?? ((helperProvider(parent) ? null : preference) || helperModel(parent, catalog ?? null))
   const effort = choice?.effort ?? null
   const offered = helperModes(parent.agent, catalog, model)
   const permissionMode = helperMode(offered, picked)

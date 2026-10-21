@@ -10902,5 +10902,9 @@ export const MESSAGES = {
   "ModelProviderSettings.none": { "zh": "还没有服务商", "en": "No providers yet" },
   "ModelProviderSettings.add": { "zh": "添加服务商", "en": "Add provider" },
   "SettingsPage.modelProviders": { "zh": "服务商", "en": "Model providers" },
-  "SettingsPage.modelProvidersDescription": { "zh": "让 Agent 用第三方编程套餐的模型，比如火山方舟、智谱 GLM。新建会话时选用哪一个。", "en": "Let agents use a third-party coding plan's models, such as Volcengine Ark or Zhipu GLM. Pick one when starting a conversation." }
+  "SettingsPage.modelProvidersDescription": { "zh": "让 Agent 用第三方编程套餐的模型，比如火山方舟、智谱 GLM。新建会话时选用哪一个。", "en": "Let agents use a third-party coding plan's models, such as Volcengine Ark or Zhipu GLM. Pick one when starting a conversation." },
+  "ProviderPicker.provider": { "zh": "服务商", "en": "Provider" },
+  "ProviderPicker.ownAccount": { "zh": "{value1} 账号", "en": "{value1} account" },
+  "ProviderPicker.ownAccountDescription": { "zh": "用 {value1} 自己登录的账号", "en": "The account {value1} is signed in with" },
+  "ProviderPicker.manage": { "zh": "管理服务商…", "en": "Manage providers…" }
 } as const
