@@ -100,7 +100,7 @@ node -e 'for (const d of [".","packages/core","packages/daemon","packages/deskto
  - ……
 ```
 
-条目内容不要改写。
+发版前按 [AGENTS.md 的「Changelog」](../AGENTS.md#changelog) 过一遍条目：超出长度的精简成一两句，意思不变；别的不要改写。
 
 ### 4. 校验并提交
 
