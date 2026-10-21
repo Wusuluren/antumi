@@ -62,7 +62,7 @@ export type BranchNamer = (agent: AgentKind, title: string) => Promise<string | 
 const SLUG_WAIT_MS = 10_000
 
 // What a task needs of its chat.
-export type TaskConversations = Pick<ConversationService, 'startForTask' | 'send' | 'savePlan' | 'stopForTask' | 'deleteForTask' | 'get' | 'runUsage' | 'capacityAvailable' | 'validateStartOptions'>
+export type TaskConversations = Pick<ConversationService, 'startForTask' | 'send' | 'markUnattended' | 'savePlan' | 'stopForTask' | 'deleteForTask' | 'get' | 'runUsage' | 'capacityAvailable' | 'validateStartOptions'>
 
 export type TaskSquads = {
   preparing(id: string): boolean
@@ -476,6 +476,7 @@ export class TaskService {
         // A leader going on from its planning reads its brief first, in a handoff if it moved.
         ...(coordinator && resume ? { opening: { text: leaderStartPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, task.plan, coordinator), imageIds } } : {})
       })
+      if (unattended) chats.markUnattended(conversation.id, unattended)
       // The planning agent stopped for the new stage, so nothing reads there any more.
       await removePlanningCheckouts(task.id, this.worktreesRoot)
       // The agent waits for setup, so its first message finds the worktrees ready; the task shows

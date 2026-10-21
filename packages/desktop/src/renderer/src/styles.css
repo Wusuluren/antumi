@@ -1428,7 +1428,8 @@ button.task-tag:hover {
 }
 
 /* OpenAI's terms allow its blossom only in black or white. */
-.agent-mark-codex {
+.agent-mark-codex,
+.agent-mark-opencode {
   color: var(--mark-mono);
 }
 

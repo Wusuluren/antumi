@@ -271,10 +271,10 @@ function ChatNotice({ conversationId, item }: { conversationId: string; item: No
   if (isCompaction(item.text)) return <div className="chat-divider" role="separator">{t('ConversationChat.contextCompacted')}</div>
   const text = readableNotice(item.text)
   const { first, more } = noticeSummary(text)
-  const retry = item.action?.kind === 'retryCursorTurn' ? async () => {
+  const retry = item.action?.kind === 'retryTurn' ? async () => {
     setRetrying(true)
     try {
-      await perform((rpc) => rpc.call('conversations.retryCursorTurn', {
+      await perform((rpc) => rpc.call('conversations.retryTurn', {
         id: conversationId,
         stageId: item.stageId,
         itemId: item.id

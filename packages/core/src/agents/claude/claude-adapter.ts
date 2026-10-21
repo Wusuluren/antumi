@@ -9,7 +9,7 @@ export const claude: AgentAdapter = {
   createDriver: (stageId, options) => new ClaudeStream(stageId, options),
   command: claudeCommand,
   permissionModes: Object.keys(CLAUDE_MODE_NAMES),
-  session: { preassignedId: true, folderBound: true, nativeFork: true },
+  session: { preassignedId: true, folderBound: true, nativeFork: 'any' },
   // Claude Code asks for MCP tools itself, under whatever mode the user set.
   mcpApproval: 'agent',
   signedIn: hasClaudeCredentials,

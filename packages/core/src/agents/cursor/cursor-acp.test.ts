@@ -103,7 +103,7 @@ describe('Cursor ACP', () => {
     expect(items(driver, 'notice')[0]).toMatchObject({
       level: 'warning',
       text: expect.stringContaining('再发一次'),
-      action: { kind: 'retryCursorTurn' }
+      action: { kind: 'retryTurn' }
     })
   })
 

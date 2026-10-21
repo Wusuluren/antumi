@@ -16,12 +16,21 @@ const LogLine = z.discriminatedUnion('dir', [
     level: Level,
     text: z.string(),
     id: z.string().optional(),
-    action: z.object({ kind: z.literal('retryCursorTurn'), userItemId: z.string(), stop: z.boolean().optional() }).nullable().optional()
+    // retryCursorTurn is what logs written before the action was renamed carry.
+    action: z.object({ kind: z.enum(['retryTurn', 'retryCursorTurn']).transform(() => 'retryTurn' as const), userItemId: z.string(), stop: z.boolean().optional() }).nullable().optional()
   }),
   z.object({ dir: z.literal('option'), at: z.number(), option: ChatOption, value: z.string() }),
   z.object({ dir: z.literal('queue'), at: z.number(), text: z.string().nullable(), ref: z.string().optional(), images: Images, release: z.boolean().optional(), held: z.boolean().optional() }),
   z.object({ dir: z.literal('exit'), at: z.number(), code: z.number().nullable(), stderr: z.string() }),
-  z.object({ dir: z.literal('ask'), at: z.number(), requestId: z.string(), ask: z.object({ kind: z.literal('browser-host'), host: z.string(), url: z.string() }) }),
+  z.object({
+    dir: z.literal('ask'),
+    at: z.number(),
+    requestId: z.string(),
+    ask: z.discriminatedUnion('kind', [
+      z.object({ kind: z.literal('browser-host'), host: z.string(), url: z.string() }),
+      z.object({ kind: z.literal('terminal-run'), command: z.string(), cwd: z.string() })
+    ])
+  }),
   z.object({
     dir: z.literal('answer'),
     at: z.number(),

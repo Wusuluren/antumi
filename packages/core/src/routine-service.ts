@@ -17,7 +17,7 @@ import {
   type RoutineFields,
   type ScheduledRun
 } from '@antumi/protocol'
-import { checkUnattended } from './agents'
+import { adapterOf, checkUnattended } from './agents'
 import type { ConversationService } from './conversation-service'
 import { Rejection } from './rejection'
 import type { ScheduleService } from './schedule-service'
@@ -140,10 +140,11 @@ export class RoutineService {
   }
 
   // Which agent an 'auto' routine's run spends now: the one best spent now (rankAgents), quota
-  // about to go unused ahead of quota that keeps.
+  // about to go unused ahead of quota that keeps. Only an agent whose quota Antumi reads: one paid
+  // by whatever provider it is set up with (OpenCode) is picked by name, never by chance.
   pickAgent(routine: Routine): AgentKind {
     if (routine.target.agent !== 'auto') return routine.target.agent
-    const agents = AGENT_KINDS.filter((agent) => agentDescriptor(agent).capabilities.unattended)
+    const agents = AGENT_KINDS.filter((agent) => agentDescriptor(agent).capabilities.unattended && adapterOf(agent).usage !== undefined)
     return rankAgents(this.deps.usage.list(), agents, this.now())[0] ?? 'claude'
   }
 

@@ -127,6 +127,18 @@ function CursorMark() {
   )
 }
 
+// OpenCode's mark, the two paths of its brand logo (sst/opencode,
+// packages/console/app/src/asset/brand) unaltered, in one colour like Codex's: the frame, and the block it holds
+// shown lighter as the logo does. The viewBox centres the 240-wide drawing in a square.
+function OpenCodeMark() {
+  return (
+    <svg className="agent-mark agent-mark-opencode" viewBox="-30 0 300 300" fill="currentColor" aria-hidden="true">
+      <path d="M180 240H60V120H180V240Z" opacity="0.45" />
+      <path fillRule="evenodd" d="M180 60H60V240H180V60ZM240 300H0V0H240V300Z" />
+    </svg>
+  )
+}
+
 function NoAgentMark() {
   return (
     <svg className="agent-mark agent-mark-none" {...stroked} strokeDasharray="2.4 2.2">
@@ -135,7 +147,7 @@ function NoAgentMark() {
   )
 }
 
-const AGENT_MARKS = { claude: ClaudeMark, codex: CodexMark, cursor: CursorMark } satisfies Record<AgentKind, () => ReactElement>
+const AGENT_MARKS = { claude: ClaudeMark, codex: CodexMark, cursor: CursorMark, opencode: OpenCodeMark } satisfies Record<AgentKind, () => ReactElement>
 
 export function AgentIcon({ agent }: { agent: AgentKind | null }) {
   if (agent === null) return <NoAgentMark />

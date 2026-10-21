@@ -52,6 +52,9 @@ const PREVIEW_TOOL = {
 export type McpTools = {
   planOnly?: boolean
   initialized?: () => Promise<void>
+  // The client has its tools: an agent that loads the server alongside its session (OpenCode) can
+  // offer them only from then on.
+  listed?: () => Promise<void>
   // Checks the file may be shown (it exists, and is a page, an SVG or a picture); throws with the reason if not.
   preview: (path: string) => Promise<void>
   // The browser tools, there when the server was started for a conversation.
@@ -185,8 +188,11 @@ export function createMcpHandler(tools: McpTools) {
       }
       case 'ping':
         return reply({})
-      case 'tools/list':
-        return reply({ tools: specs })
+      case 'tools/list': {
+        const listed = reply({ tools: specs })
+        void tools.listed?.()
+        return listed
+      }
       case 'tools/call': {
         const call = CallParams.safeParse(params)
         const entry = call.success ? table.find((candidate) => candidate.spec.name === call.data.name) : undefined
@@ -220,7 +226,7 @@ export function conversationToolLimits(conversation: Pick<Conversation, 'workspa
 // A server started for a conversation has the browser tools, acting for that conversation alone;
 // one without has the preview tool alone. `history` adds the tools that read the user's history.
 // Each call connects anew, so a core restart between calls is harmless.
-export async function serveMcp(home: string | undefined, conversationId?: string, planOnly = false, initialized?: () => Promise<void>, history = false, todos = true): Promise<void> {
+export async function serveMcp(home: string | undefined, conversationId?: string, planOnly = false, initialized?: () => Promise<void>, history = false, todos = true, listed?: () => Promise<void>): Promise<void> {
   const withCore = async <T>(work: (rpc: RpcConnection) => Promise<T>): Promise<T> => {
     const endpoint = await readCoreEndpoint(home)
     if (!endpoint) {
@@ -242,6 +248,7 @@ export async function serveMcp(home: string | undefined, conversationId?: string
     planOnly: planOnly || scope?.readOnly,
     ...(conversationId && scope?.run ? { squad: squadToolsOverCore(withCore, conversationId, scope.run) } : {}),
     initialized,
+    ...(listed ? { listed } : {}),
     preview: checkPreviewFile,
     ...(conversationId ? {
       browser: browserToolsOverCore(withCore, conversationId, new AttachmentStore(antumiPaths(home).attachments)),

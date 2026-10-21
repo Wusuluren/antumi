@@ -10,7 +10,7 @@ export const codex: AgentAdapter = {
   command: codexCommand,
   permissionModes: Object.keys(CODEX_MODES),
   // A thread is Codex's own, wherever the conversation's folder moved.
-  session: { preassignedId: false, folderBound: false, nativeFork: true },
+  session: { preassignedId: false, folderBound: false, nativeFork: 'any' },
   // Codex asks only before a tool it reads as acting on the outside world, which Antumi's own are
   // not marked as, so Antumi asks in the chat.
   mcpApproval: 'antumi',

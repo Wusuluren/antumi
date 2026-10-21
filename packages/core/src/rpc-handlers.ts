@@ -113,6 +113,7 @@ export function createRpcHandlers(
   const page = (result: { items: ChatItem[]; before: string | null }) => ({ ...result, items: limits.decorate(smallModels?.decorate(result.items) ?? result.items) })
   // The user going on with a conversation themselves: core no longer continues it after a limit.
   const userActed = async <T>(id: string, act: () => Promise<T>): Promise<T> => {
+    conversations.attend(id)
     const since = limits.mark()
     const result = await act()
     limits.cancelFor(id, since)
@@ -296,14 +297,14 @@ export function createRpcHandlers(
       return OK
     },
     'conversations.retryUsageLimit': async ({ id, stageId, itemId }) => { await limits.retry(id, stageId, itemId); return OK },
-    'conversations.retryCursorTurn': async ({ id, stageId, itemId }) => { await conversations.retryCursorTurn(id, stageId, itemId); return OK },
+    'conversations.retryTurn': async ({ id, stageId, itemId }) => { await conversations.retryTurn(id, stageId, itemId); return OK },
     'conversations.interrupt': async ({ id }) => {
       const run = squads?.roster(id)
       if (run?.leaderConversationId === id && run.state === 'running') await squads?.control(run.id, 'stop')
       else await conversations.interrupt(id)
       return OK
     },
-    'conversations.respond': async ({ id, requestId, ...answer }) => { squads?.guardUser(id); await conversations.respond(id, requestId, answer); return OK },
+    'conversations.respond': async ({ id, requestId, ...answer }) => { squads?.guardUser(id); conversations.attend(id); await conversations.respond(id, requestId, answer); return OK },
     // Read after subscribing, so an item that changes in between reaches the client either way.
     'conversations.watchChat': ({ id }, connection) => {
       connection.watching.add(id)

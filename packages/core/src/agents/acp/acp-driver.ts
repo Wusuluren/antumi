@@ -25,12 +25,12 @@ const Opened = Configs.extend({
 })
 const Initialized = z.looseObject({
   protocolVersion: z.union([z.literal(1), z.literal('1')]),
-  agentCapabilities: z.looseObject({ loadSession: z.boolean().optional(), promptCapabilities: z.looseObject({ image: z.boolean().optional() }).optional(), sessionCapabilities: z.looseObject({ additionalDirectories: z.boolean().optional() }).optional() }).optional(),
+  agentCapabilities: z.looseObject({ loadSession: z.boolean().optional(), promptCapabilities: z.looseObject({ image: z.boolean().optional() }).optional(), sessionCapabilities: z.looseObject({ additionalDirectories: z.union([z.boolean(), z.looseObject({})]).optional(), fork: z.unknown().optional() }).optional() }).optional(),
   authMethods: z.array(z.looseObject({ id: z.string() })).optional()
 })
 const Content = z.looseObject({ type: z.string(), text: z.string().optional(), data: z.string().optional() })
 const Update = z.looseObject({
-  sessionUpdate: z.string(), content: z.unknown().optional(), toolCallId: z.string().optional(), title: z.string().optional(), kind: z.string().optional(),
+  sessionUpdate: z.string(), content: z.unknown().optional(), toolCallId: z.string().optional(), name: z.string().optional(), title: z.string().optional(), kind: z.string().optional(),
   status: z.string().optional(), rawInput: z.unknown().optional(), rawOutput: z.unknown().optional(), locations: z.array(z.looseObject({ path: z.string() })).optional(),
   entries: z.array(z.looseObject({ content: z.string(), status: z.string() })).optional(), currentModeId: z.string().optional(), configOptions: z.array(AcpConfig).optional(),
   availableCommands: z.array(z.looseObject({ name: z.string(), description: z.string(), input: z.looseObject({ hint: z.string().optional() }).nullish() })).optional()
@@ -39,7 +39,17 @@ const Permission = z.looseObject({ toolCall: Update.omit({ sessionUpdate: true }
 const Questions = z.looseObject({ title: z.string().optional(), toolCallId: z.string(), questions: z.array(z.looseObject({ id: z.string(), prompt: z.string(), allowMultiple: z.boolean().optional(), options: z.array(z.looseObject({ id: z.string(), label: z.string() })).catch([]) })).min(1) })
 const Plan = z.looseObject({ toolCallId: z.string(), plan: z.string(), name: z.string().optional(), overview: z.string().optional() })
 const Prompt = z.looseObject({ sessionId: z.string(), prompt: z.array(Content) })
+// What a turn used, where the agent says (ACP's PromptResponse.usage): input apart from what the
+// cache served, so Antumi adds it back, and reasoning apart from the reply.
+const TurnTokens = z.looseObject({
+  inputTokens: z.number().int().nonnegative(), outputTokens: z.number().int().nonnegative(),
+  thoughtTokens: z.number().int().nonnegative().nullish(), cachedReadTokens: z.number().int().nonnegative().nullish(), cachedWriteTokens: z.number().int().nonnegative().nullish()
+})
+// The session's cost so far, in a usage_update: a running total, so a turn's is the difference.
+const SessionCost = z.looseObject({ cost: z.looseObject({ amount: z.number().nonnegative(), currency: z.string() }).nullish() })
 const keyOf = (id: string | number) => `${typeof id}:${id}`
+// The requests that open the session a stage works in.
+const OPENING: ReadonlySet<string> = new Set(['session/new', 'session/load', 'session/fork'])
 const rpc = (id: string | number, method: string, params: unknown) => ({ jsonrpc: '2.0', id, method, params })
 const result = (id: string | number, body: unknown) => ({ jsonrpc: '2.0', id, result: body })
 // A subagent the agent forwards (an extension, AcpDialect.subagentCall): announced on its parent's
@@ -82,6 +92,7 @@ export class AcpDriver implements ChatDriver {
   private load = false
   private images = false
   private directories = false
+  private forks = false
   private session: string | null = null
   private exited = false
   private startError: string | null = null
@@ -96,6 +107,10 @@ export class AcpDriver implements ChatDriver {
   private messages: StageMessage[] = []
   private execution: { text: string; images: ChatImage[]; ref: string } | null = null
   private subagents = new Map<string, Subagent>()
+  // The session's cost in dollars as last reported; null until a report, but 0 for a session this
+  // stage opened new. turnCost is what it stood at as the running turn began.
+  private sessionCost: number | null = null
+  private turnCost: number | null = null
 
   constructor(private readonly dialect: AcpDialect, private readonly stageId: string, private readonly options: ChatStageOptions, private readonly catalogOnly = false) {
     this.items = new ChatItems(stageId)
@@ -116,8 +131,8 @@ export class AcpDriver implements ChatDriver {
     const known = ChatPermissionMode.safeParse(mode)
     return known.success && this.dialect.modes[known.data] !== undefined
   }
-  private toolName(update: Pick<z.infer<typeof Update>, 'kind' | 'rawInput'>, old: string | undefined): string {
-    return this.dialect.toolName?.(update.rawInput) ?? (update.kind === 'execute' ? 'commandExecution' : update.kind === 'edit' ? 'fileChange' : old ?? update.kind ?? 'tool')
+  private toolName(update: Pick<z.infer<typeof Update>, 'kind' | 'rawInput' | 'name'>, old: string | undefined): string {
+    return this.dialect.toolName?.(update.rawInput, update.name) ?? (update.kind === 'execute' ? 'commandExecution' : update.kind === 'edit' ? 'fileChange' : old ?? update.kind ?? 'tool')
   }
   // The agent's own requests Antumi answers by asking the user.
   private asked(method: string | undefined): boolean {
@@ -161,16 +176,19 @@ export class AcpDriver implements ChatDriver {
     const models = this.modelsSent || !listing ? [] : [rpc(this.id('models'), listing.method, {})]
     if (this.catalogOnly) return this.modelsRead ? frames : [...frames, ...models]
     if (!this.sessionSent) {
-      if (this.options.resume && !this.load) { this.startError = `此 ${this.name} CLI 不支持恢复会话，请升级`; return frames }
+      // A fork takes the session over whole: core asks for one only where that is the fork point.
+      const forking = Boolean(this.options.resume && this.options.fork)
+      if (forking && !this.forks) { this.startError = `此 ${this.name} CLI 不支持分叉会话，请升级`; return frames }
+      if (this.options.resume && !forking && !this.load) { this.startError = `此 ${this.name} CLI 不支持恢复会话，请升级`; return frames }
       const mcp = this.options.mcp
-      return [...frames, rpc(this.id('session'), this.options.resume ? 'session/load' : 'session/new', {
+      return [...frames, rpc(this.id('session'), forking ? 'session/fork' : this.options.resume ? 'session/load' : 'session/new', {
         cwd: this.options.cwd,
         ...(this.options.resume ? { sessionId: this.options.resume } : {}),
         // Only where the agent says it takes them; one that does not is given them otherwise, as
         // Cursor is on its command line, and reads them by their paths either way.
         ...(this.roots().length && this.directories ? { additionalDirectories: this.roots() } : {}),
         mcpServers: [
-          ...(mcp ? [{ name: RESERVED_MCP_SERVER_NAME, command: mcp.command, args: mcp.args, env: acpEnv(mcp.env) }] : []),
+          ...(mcp && !this.dialect.ownMcpOnCommand ? [{ name: RESERVED_MCP_SERVER_NAME, command: mcp.command, args: mcp.args, env: acpEnv(mcp.env) }] : []),
           ...(this.options.userMcp ?? []).map((server) => server.type === 'stdio'
             ? { name: server.name, command: server.command, args: server.args, env: acpEnv(server.env) }
             : { type: 'http', name: server.name, url: server.url, headers: [] })
@@ -191,7 +209,7 @@ export class AcpDriver implements ChatDriver {
     const parsed = Frame.safeParse(frame)
     if (!parsed.success) return null
     const { method, id } = parsed.data
-    if (dir === 'out') return method === 'session/prompt' ? 'prompt' : method === 'session/load' ? 'session-load' : method === 'session/new' ? 'session-new' : method === 'session/cancel' ? 'cancel' : null
+    if (dir === 'out') return method === 'session/prompt' ? 'prompt' : method === 'session/load' ? 'session-load' : method === 'session/new' || method === 'session/fork' ? 'session-new' : method === 'session/cancel' ? 'cancel' : null
     // Updates, the agent's own requests, and the answer to the prompt itself.
     return method === 'session/update' || (method !== undefined && id !== undefined) || (id !== undefined && String(id).startsWith(this.id('prompt-'))) ? 'turn' : null
   }
@@ -329,7 +347,7 @@ export class AcpDriver implements ChatDriver {
       if (frame.method === 'initialize') this.initSent = true
       else if (frame.method === 'authenticate') this.authSent = true
       else if (frame.method === this.dialect.models?.method) this.modelsSent = true
-      else if (frame.method === 'session/new' || frame.method === 'session/load') this.sessionSent = true
+      else if (OPENING.has(frame.method)) this.sessionSent = true
       else if (frame.method === 'session/cancel') { this.stopping = true; this.execution = null }
       else if (frame.method === 'session/prompt' && frame.id !== undefined) {
         const prompt = Prompt.safeParse(frame.params)
@@ -341,6 +359,7 @@ export class AcpDriver implements ChatDriver {
         if (ref === this.execution?.ref) this.execution = null
         this.stopping = false
         this.turn = { id: keyOf(frame.id), ref: eventRef, began: at, text: '', block: null, blocks: 0 }
+        this.turnCost = this.sessionCost
         this.items.put({ id: `u:${eventRef}`, kind: 'user', text, images: [...images] }, at)
         this.messages.push({ role: 'user', text: messageText(text, images), eventKey: `chat:${eventRef}:user`, complete: false })
       }
@@ -402,7 +421,7 @@ export class AcpDriver implements ChatDriver {
     if (frame.error) {
       if (['session/set_config_option', 'session/set_mode', 'session/set_model'].includes(request.method)) this.optionErrors.set(id, frame.error.message)
       if (request.method === 'session/prompt') this.finish(this.stopping ? 'interrupted' : 'failed', frame.error.message, at)
-      else if (!this.setup || String(frame.id).startsWith(this.id('initial-')) || request.method === 'session/new' || request.method === 'session/load') {
+      else if (!this.setup || String(frame.id).startsWith(this.id('initial-')) || OPENING.has(request.method)) {
         const detail = errorDetail(frame.error.data)
         this.startError = `${request.method}: ${detail ?? frame.error.message}`
         this.lost = request.method === 'session/load' && /not found/i.test(detail ?? frame.error.message)
@@ -416,16 +435,20 @@ export class AcpDriver implements ChatDriver {
       this.initialized = true
       this.load = init.data.agentCapabilities?.loadSession ?? false
       this.images = init.data.agentCapabilities?.promptCapabilities?.image ?? false
-      this.directories = init.data.agentCapabilities?.sessionCapabilities?.additionalDirectories ?? false
+      // Early agents said true; the protocol now names the capability with an object.
+      this.directories = Boolean(init.data.agentCapabilities?.sessionCapabilities?.additionalDirectories)
+      this.forks = Boolean(init.data.agentCapabilities?.sessionCapabilities?.fork)
       const auth = init.data.authMethods ?? []
       const wanted = this.dialect.authMethod
       this.auth = wanted !== undefined && auth.some((method) => method.id === wanted)
       if (wanted && auth.length && !this.auth) this.startError = `${this.name} 没有提供 ${wanted} 认证方式，请在终端登录后重试`
     } else if (request.method === 'authenticate') this.authenticated = true
-    else if (request.method === 'session/new' || request.method === 'session/load') {
+    else if (OPENING.has(request.method)) {
       const opened = Opened.safeParse(frame.result ?? {})
       if (!opened.success) { this.startError = `${this.name} 返回了无效的会话信息`; return }
-      this.session = opened.data.sessionId ?? this.options.resume
+      // A loaded session goes on under its id; a new or forked one is named in the answer.
+      this.session = opened.data.sessionId ?? (request.method === 'session/load' ? this.options.resume : null)
+      if (request.method === 'session/new') this.sessionCost = 0
       if (!this.session) { this.startError = `${this.name} 没有返回会话 ID`; return }
       this.catalog(opened.data)
       this.setup = true
@@ -440,11 +463,11 @@ export class AcpDriver implements ChatDriver {
       const provider = this.peelProviderError(at)
       const ref = this.turn?.ref ?? null
       const error = stop === 'refusal' ? `${this.name} 拒绝了请求` : provider?.summary ?? null
-      this.finish(this.stopping || stop === 'cancelled' ? 'interrupted' : error ? 'failed' : 'completed', error, at)
+      this.finish(this.stopping || stop === 'cancelled' ? 'interrupted' : error ? 'failed' : 'completed', error, at, this.turnMetering(frame.result))
       if (provider && ref) {
         this.items.notice('warning', provider.detail, at, {
           id: `${this.id('provider')}:${ref}`,
-          action: { kind: 'retryCursorTurn', userItemId: `u:${ref}` }
+          action: { kind: 'retryTurn', userItemId: `u:${ref}` }
         })
       }
     } else {
@@ -551,6 +574,8 @@ export class AcpDriver implements ChatDriver {
     if (update.sessionUpdate === 'usage_update') {
       const usage = z.object({ used: z.number().int().nonnegative(), size: z.number().int().positive() }).safeParse(update)
       if (usage.success) this.state.setContext({ used: usage.data.used, window: usage.data.size })
+      const cost = SessionCost.safeParse(update).data?.cost
+      if (cost?.currency === 'USD') this.sessionCost = cost.amount
       return
     }
 
@@ -733,14 +758,32 @@ export class AcpDriver implements ChatDriver {
     return found
   }
 
-  private finish(state: ChatTurnState, error: string | null, at: number): void {
+  // A turn's tokens and cost, as its answer and the session's running cost tell them; nothing where
+  // the agent reports neither (Cursor's CLI so far). The cost needs the total from before the turn.
+  private turnMetering(result: unknown): Pick<Extract<ChatItem, { kind: 'turn' }>, 'usage' | 'metering'> {
+    const tokens = TurnTokens.safeParse(z.looseObject({ usage: z.unknown() }).safeParse(result).data?.usage).data
+    // To the micro-dollar: a difference of two totals leaves float dust (0.15000000000000002).
+    const costUsd = this.sessionCost !== null && this.turnCost !== null ? Math.max(0, Math.round((this.sessionCost - this.turnCost) * 1e6) / 1e6) : null
+    if (!tokens) return costUsd ? { metering: { models: [], calls: null, callsEstimated: false, reportedCostUsd: costUsd } } : {}
+    const cacheRead = tokens.cachedReadTokens ?? null
+    const cacheWrite = tokens.cachedWriteTokens ?? null
+    const input = tokens.inputTokens + (cacheRead ?? 0) + (cacheWrite ?? 0)
+    const output = tokens.outputTokens + (tokens.thoughtTokens ?? 0)
+    const model = this.config.find((entry) => entry.category === 'model')?.currentValue ?? null
+    return {
+      usage: { input, output },
+      metering: { models: [{ model, input, output, cacheRead, cacheWrite, cacheWrite1h: null, costUsd }], calls: null, callsEstimated: false, reportedCostUsd: costUsd }
+    }
+  }
+
+  private finish(state: ChatTurnState, error: string | null, at: number, used: Pick<Extract<ChatItem, { kind: 'turn' }>, 'usage' | 'metering'> = {}): void {
     const turn = this.turn
     if (!turn) return
     if (state !== 'completed') this.execution = null
     this.cancelPending(at)
     for (const item of this.items.list()) if ((item.kind === 'assistant' || item.kind === 'reasoning') && item.streaming) this.items.put({ ...item, streaming: false }, at)
     this.items.settleTools(state === 'failed' ? 'failed' : 'interrupted', at)
-    this.items.put({ id: `turn:${turn.ref}`, kind: 'turn', state, error, durationMs: at - turn.began }, at)
+    this.items.put({ id: `turn:${turn.ref}`, kind: 'turn', state, error, durationMs: at - turn.began, ...used }, at)
     if (turn.text) this.messages.push({ role: 'assistant', text: turn.text, eventKey: `chat:${turn.ref}:assistant`, complete: state === 'completed' })
     this.queue.turnEnded(state)
     this.state.endTurn()

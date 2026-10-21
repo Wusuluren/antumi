@@ -87,6 +87,14 @@ describe('ACP without a dialect of its own', () => {
     expect(JSON.stringify(due(reading))).not.toContain('additionalDirectories')
   })
 
+  it('gives extra folders to an agent that names the capability with an object, as the protocol now does', () => {
+    const driver = new AcpDriver(plain, 'stage', { ...OPTIONS, extraDirs: ['/other'] })
+    due(driver)
+    receive(driver, { id: 'plain-init', result: { protocolVersion: 1, agentCapabilities: { sessionCapabilities: { additionalDirectories: {} } } } })
+    expect(driver.failure()).toBeNull()
+    expect(due(driver)).toEqual([expect.objectContaining({ method: 'session/new', params: expect.objectContaining({ additionalDirectories: ['/other'] }) })])
+  })
+
   it('refuses requests from extensions it never declared', () => {
     const driver = opened()
     const message = driver.send('hello')
@@ -116,5 +124,39 @@ describe('ACP without a dialect of its own', () => {
     const driver = opened()
     expect(Request.parse(driver.setOption('permissionMode', 'plan')[0])).toMatchObject({ method: 'session/set_mode', params: { modeId: 'plan' } })
     expect(() => driver.setOption('permissionMode', 'readOnly')).toThrow()
+  })
+
+  it('counts a turn\'s tokens as its answer reports them, cache in the input and reasoning in the output', () => {
+    const driver = opened()
+    const turn = (n: number, usage: unknown, cost?: number) => {
+      const message = driver.send(`turn ${n}`)
+      driver.apply({ dir: 'out', at: 3, frame: message.logged })
+      if (cost !== undefined) receive(driver, { method: 'session/update', params: { sessionId: 'session', update: { sessionUpdate: 'usage_update', used: 1000, size: 200000, cost: { amount: cost, currency: 'USD' } } } })
+      receive(driver, { id: `plain-prompt-${n}`, result: { stopReason: 'end_turn', ...(usage ? { usage } : {}) } })
+      return items(driver, 'turn').at(-1)
+    }
+    // The session's cost is a running total: a turn's is what it added.
+    expect(turn(1, { inputTokens: 100, outputTokens: 20, thoughtTokens: 5, cachedReadTokens: 900, totalTokens: 1025 }, 0.25)).toMatchObject({
+      usage: { input: 1000, output: 25 },
+      metering: { models: [{ input: 1000, output: 25, cacheRead: 900, cacheWrite: null, costUsd: 0.25 }], reportedCostUsd: 0.25 }
+    })
+    expect(turn(2, { inputTokens: 10, outputTokens: 2 }, 0.4)).toMatchObject({ usage: { input: 10, output: 2 }, metering: { reportedCostUsd: 0.15 } })
+    // An agent that reports neither leaves the turn without: nothing is made up.
+    const silent = turn(3, null)
+    expect(silent).not.toHaveProperty('usage')
+    expect(silent).not.toHaveProperty('metering')
+  })
+
+  it('leaves a resumed session\'s first cost unknown: its running total before the turn is not known', () => {
+    const driver = new AcpDriver(plain, 'stage', { ...OPTIONS, resume: 'session' })
+    due(driver)
+    receive(driver, { id: 'plain-init', result: { protocolVersion: 1, agentCapabilities: { loadSession: true } } })
+    due(driver)
+    receive(driver, { id: 'plain-session', result: { modes } })
+    const message = driver.send('again')
+    driver.apply({ dir: 'out', at: 3, frame: message.logged })
+    receive(driver, { method: 'session/update', params: { sessionId: 'session', update: { sessionUpdate: 'usage_update', used: 1000, size: 200000, cost: { amount: 3, currency: 'USD' } } } })
+    receive(driver, { id: 'plain-prompt-1', result: { stopReason: 'end_turn', usage: { inputTokens: 10, outputTokens: 2 } } })
+    expect(items(driver, 'turn').at(-1)).toMatchObject({ usage: { input: 10, output: 2 }, metering: { reportedCostUsd: null } })
   })
 })

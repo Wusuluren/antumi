@@ -6,7 +6,7 @@ import type { DaemonEvent, SessionInfo } from '@antumi/protocol/node'
 import { canReuseConversation, type ConversationConfiguration, type TaskLaunchOptions } from '@antumi/protocol'
 import type { RunMeasure } from './agent-run-store'
 import type { AttachmentStore } from './attachment-store'
-import type { ChatAnswer, StageMessage } from './chat-driver'
+import { WHOLE_SESSION_FORK, type ChatAnswer, type StageMessage } from './chat-driver'
 import { catalogOf, probeChatCatalog } from './chat-catalog'
 import { ChatHost, type ChatStage } from './chat-host'
 import { ChatLog } from './chat-log'
@@ -20,6 +20,7 @@ import { chatCommand } from './conversation-command'
 import { searchSnippet } from './conversation-search'
 import { buildHandoff } from './conversation-handoff'
 import { SCHEDULED_GO_TEXT, UNATTENDED_NOTE } from './agent-prompt'
+import { unattendedAnswer } from './unattended-answer'
 import { createProjectBranch, projectBranches, switchProjectBranch } from './project-branches'
 import { resolveStart } from './task-start'
 import { commitAll, commitAndPush, pushBranch } from './project-commit'
@@ -75,7 +76,8 @@ export type TaskChatLaunch = TaskLaunchOptions & {
 type StageLaunch = { fresh?: boolean; moved?: boolean; planOnly?: boolean; readable?: readonly string[]; fork?: ForkPoint; opening?: string; brief?: string }
 // The provider session another conversation's stage ran, taken over through the turn `at` names;
 // neither null means a session the agent can fork, else the fork starts afresh.
-type ForkPoint = { providerSessionId: string | null; at: string | null }
+// latest: the point is the last the agent's session holds, so the session forked whole is the same.
+type ForkPoint = { providerSessionId: string | null; at: string | null; latest: boolean }
 
 // A chat page stops adding older stages once it holds this many items.
 const CHAT_PAGE_ITEMS = 1000
@@ -164,6 +166,12 @@ export class ConversationService {
   private readonly serialActions = new Map<string, Promise<void>>()
   // Antumi's own questions waiting on the user, by request id.
   private readonly asks = new Map<string, { resolve: (decision: ChatDecision) => void; reject: (error: Error) => void }>()
+  // Conversations a scheduled run is carrying out, by the mode it runs in: nobody is there, so
+  // what their agents ask is answered as the mode says (unattendedAnswer) until the user acts in
+  // them. Kept in memory: after a restart, a request waits for the user, as it always did.
+  private readonly unattended = new Map<string, UnattendedMode>()
+  // Requests already answered that way, which the next items may still show as open.
+  private readonly autoAnswered = new Set<string>()
 
   constructor(
     private readonly store: ConversationStore,
@@ -188,6 +196,7 @@ export class ConversationService {
         this.rememberCatalog(conversationId, items)
         this.settleAsks(items)
         this.emit({ type: 'chatItems', conversationId, items })
+        this.answerUnattended(conversationId, items)
       },
       delta: (conversationId, stageId, itemId, append) => this.emit({ type: 'chatDelta', conversationId, stageId, itemId, append }),
       messages: (stage, messages) => messages.forEach((message) => this.recordChatMessage(stage, message)),
@@ -796,7 +805,12 @@ export class ConversationService {
     // The agent whose session is forked goes on; one that has never spoken here is the source's.
     const agent = sessionStage?.agent ?? source.agent
     if (!this.capacityAvailable(agent)) throw new Rejection('agent-capacity')
-    const fork: ForkPoint = { providerSessionId: sessionStage?.providerSessionId ?? null, at: earlier?.kind === 'turn' ? earlier.providerRef ?? null : null }
+    const providerSessionId = sessionStage?.providerSessionId ?? null
+    // Nothing the user said after the point, here or in a later stage of the same session.
+    const said = (each: readonly ChatItem[]) => each.some((item) => item.kind === 'user')
+    const latest = !before && turn !== undefined && providerSessionId !== null && !said(items.slice(kept.length)) &&
+      stages.slice(index + 1).every((stage) => stage.providerSessionId !== providerSessionId || !said(this.chats.items(this.chatStage(source, stage))))
+    const fork: ForkPoint = { providerSessionId, at: earlier?.kind === 'turn' ? earlier.providerRef ?? null : null, latest }
     // A fork of a Claude session must run in the folder the session ran in: the same projects, or
     // the source's own managed workspace, shared from now on (remove() leaves a workspace in place).
     const id = randomUUID()
@@ -892,11 +906,13 @@ export class ConversationService {
   }
 
   // The first stage of a fork: the source's session taken over through the fork point, where the
-  // agent can (Claude's session from the same folder, Codex's thread), else a fresh start. The chat
-  // it continues is already copied, so no handoff file is written.
+  // agent can (Claude's session from the same folder, Codex's thread), or whole where the point is
+  // its latest turn and it forks only whole (OpenCode); else a fresh start. The chat it continues
+  // is already copied, so no handoff file is written.
   private async startFork(current: Conversation, agent: AgentKind, fork: ForkPoint): Promise<Conversation> {
     const { session } = adapterOf(agent)
-    const native = session.nativeFork && fork.providerSessionId !== null && fork.at !== null
+    const whole = session.nativeFork === 'latest' && fork.latest
+    const native = fork.providerSessionId !== null && (whole || (session.nativeFork === 'any' && fork.at !== null))
     const providerSessionId = native ? fork.providerSessionId : session.preassignedId ? randomUUID() : null
     // Without a session to fork, the copied chat reaches the agent the way a handoff does.
     let handoffPath: string | null = null
@@ -908,7 +924,7 @@ export class ConversationService {
       await writeFile(handoffPath, buildHandoff(current, messages, '', agent, agent), { mode: 0o600 })
     }
     const stage = this.store.startStage(current.id, agent, providerSessionId, this.store.maxSequence(current.id), randomUUID(), false)
-    return this.startChat(current, stage, native, handoffPath === null ? null : { path: handoffPath, note: '' }, [], native ? fork.at : null)
+    return this.startChat(current, stage, native, handoffPath === null ? null : { path: handoffPath, note: '' }, [], whole ? WHOLE_SESSION_FORK : native ? fork.at : null)
   }
 
   // Runs the stage's agent over stdio, driven by the chat host, and waits until it can take a message.
@@ -944,7 +960,8 @@ export class ConversationService {
       readOnly: options.readOnly ? { dirs: [options.cwd, ...options.extraDirs] } : undefined,
       readable,
       forkAt,
-      ...(this.mcp ? { mcp: this.mcp(id) } : {}),
+      // As its adapter starts it, for an agent that takes it on its command (OpenCode's config).
+      ...(this.mcp ? { mcp: launch ? launch.mcp(this.mcp(id), agentStage) : this.mcp(id) } : {}),
       ...(userMcp.length ? { userMcp } : {}),
       ...(this.userBrowser === undefined ? {} : { userBrowser: this.userBrowser }),
       todos: this.userTodos && !current.discussionId,
@@ -958,7 +975,7 @@ export class ConversationService {
         if (prepared.command) command.command = prepared.command
       }
       this.wire?.record(id, stage.id, [{ dir: 'spawn', text: JSON.stringify({ command: command.command, args: command.args, cwd: current.workspacePath }) }])
-      const spawned = await this.daemon.request('spawnPipe', { command: command.command, args: command.args, cwd: current.workspacePath, env: { [PROCESS_OWNER_ENV]: processOwner({ kind: 'conversation', id }) } })
+      const spawned = await this.daemon.request('spawnPipe', { command: command.command, args: command.args, cwd: current.workspacePath, env: { ...command.env, [PROCESS_OWNER_ENV]: processOwner({ kind: 'conversation', id }) } })
       sessionId = spawned.sessionId
       if (launch) {
         this.wire?.record(id, stage.id, [{
@@ -1200,6 +1217,7 @@ export class ConversationService {
     const conversation = this.get(id)
     if (isHelper(conversation)) throw new Rejection('chat-option-invalid', '小助手不能无人值守执行')
     checkUnattended(conversation.agent)
+    this.markUnattended(id, mode)
     const plan = this.waitingPlan(conversation)
     if (plan) {
       await this.chats.respond(id, plan.requestId, { decision: 'allowForSession' })
@@ -1320,6 +1338,33 @@ export class ConversationService {
     }
   }
 
+  // A run nobody watches starting here, or going on (see unattended).
+  markUnattended(id: string, mode: UnattendedMode): void {
+    this.unattended.set(id, mode)
+  }
+
+  // The user acting in the conversation: what its agent asks from now on waits for them.
+  attend(id: string): void {
+    this.unattended.delete(id)
+  }
+
+  // Answered before ChatHost works out whether the stage waits on the user, so a run nobody
+  // watches never shows, or notifies, as waiting: respond applies its answer at once.
+  private answerUnattended(conversationId: string, items: readonly ChatItem[]): void {
+    const mode = this.unattended.get(conversationId)
+    if (!mode) return
+    for (const item of items) {
+      if (item.kind !== 'approval' && item.kind !== 'question') continue
+      const answer = unattendedAnswer(item, mode)
+      const key = `${conversationId}:${item.requestId}`
+      if (!answer || this.autoAnswered.has(key)) continue
+      this.autoAnswered.add(key)
+      void this.respond(conversationId, item.requestId, answer).catch((error: unknown) => {
+        this.wire?.record(conversationId, item.stageId, [{ dir: 'note', text: JSON.stringify({ event: 'unattended-answer-failed', requestId: item.requestId, error: error instanceof Error ? error.message : String(error) }) }])
+      })
+    }
+  }
+
   async respond(id: string, requestId: string, answer: ChatAnswer): Promise<void> {
     const conversation = this.get(id)
     if (isHelper(conversation)) {
@@ -1366,7 +1411,7 @@ export class ConversationService {
     }
   }
 
-  async retryCursorTurn(id: string, stageId: string, itemId: string): Promise<void> {
+  async retryTurn(id: string, stageId: string, itemId: string): Promise<void> {
     await this.serially(id, async () => {
       const conversation = this.get(id)
       const { agent } = conversation
@@ -1374,7 +1419,7 @@ export class ConversationService {
       const stage = this.store.stages(id).find((candidate) => candidate.id === stageId)
       if (!stage) throw new Rejection('stage-not-found', `no chat stage ${stageId}`)
       const notice = this.chats.items(this.chatStage(conversation, stage)).find((item) => item.id === itemId)
-      if (notice?.kind !== 'notice' || notice.action?.kind !== 'retryCursorTurn') {
+      if (notice?.kind !== 'notice' || notice.action?.kind !== 'retryTurn') {
         throw new Rejection('chat-item-not-found', `no retry action ${itemId}`)
       }
       const user = this.chats.items(this.chatStage(conversation, stage)).find((item) => item.id === notice.action?.userItemId)
@@ -1497,6 +1542,7 @@ export class ConversationService {
   private async remove(id: string): Promise<void> {
     if (this.launching.has(id)) throw new Rejection('conversation-running')
     this.retiring.add(id)
+    this.attend(id)
     try {
       const current = this.get(id)
       const helper = this.store.helper(id)

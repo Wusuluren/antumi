@@ -295,7 +295,7 @@ export const ChatItem = z.discriminatedUnion('kind', [
     // A newer core may offer a narrowly scoped recovery action. Optional so older clients can
     // still read the notice, and nullable once the action has been used.
     action: z.object({
-      kind: z.literal('retryCursorTurn'),
+      kind: z.literal('retryTurn'),
       userItemId: z.string(),
       // The turn is still running, silent: retrying stops it first.
       stop: z.boolean().optional()
