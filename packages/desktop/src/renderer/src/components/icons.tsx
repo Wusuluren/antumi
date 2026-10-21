@@ -648,6 +648,14 @@ export function PlugIcon() {
   )
 }
 
+export function CloudIcon() {
+  return (
+    <svg {...stroked}>
+      <path d="M6 15.5h8.2a3.3 3.3 0 0 0 .4-6.6 4.8 4.8 0 0 0-9.2 1.2A2.7 2.7 0 0 0 6 15.5z" />
+    </svg>
+  )
+}
+
 export function TagIcon() {
   return (
     <svg {...stroked}>

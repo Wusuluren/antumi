@@ -3,7 +3,7 @@ import type { BrowserStatus, WireUsage } from '@antumi/protocol'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { AGENT_KINDS, agentDescriptor, LANGUAGE_NAMES, PROTOCOL_VERSION, quickModel, TRANSLATE_LANGUAGES, UNATTENDED_MODES, type AgentKind, type SourceDescriptor } from '@antumi/protocol'
 import packageJson from '../../../../package.json'
-import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useMcpServersSupported, useProjectConfigEditSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
+import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useMcpServersSupported, useModelProvidersSupported, useProjectConfigEditSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
 import { DEFAULT_PREFERENCES, setPreference, usePreferences } from '../preferences'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { UNATTENDED_LABEL } from '../schedules'
@@ -32,6 +32,7 @@ import {
   GlobeIcon,
   InfoIcon,
   PlugIcon,
+  CloudIcon,
   PuzzleIcon,
   SourceIcon,
   SearchIcon,
@@ -42,6 +43,7 @@ import { ChatCommandSettings } from './ChatCommandSettings'
 import { KnowledgeBaseSettings } from './KnowledgeBaseSettings'
 import { SkillsSettingsSection } from './SkillsSettingsSection'
 import { McpSettingsSection } from './McpSettingsSection'
+import { ModelProviderSettings } from './ModelProviderSettings'
 import { CopyButton } from './CopyButton'
 import { checkStatusText, GIT_INSTALL_HINT } from '../environment-text'
 import { settingsSectionOf } from './SourceInboxView'
@@ -782,6 +784,17 @@ const MCP_SECTION: Section = localized(() => ({
   Body: McpSettingsSection
 }))
 
+// On a core that keeps them: third-party coding plans agents can run on; it follows 本机 Agent.
+const MODEL_PROVIDERS_SECTION: Section = localized(() => ({
+  id: 'model-providers',
+  group: 'Agent',
+  title: t('SettingsPage.modelProviders'),
+  description: t('SettingsPage.modelProvidersDescription'),
+  keywords: [t('SettingsPage.modelProviders'), 'provider', 'api key', 'key', t('ModelProviderSettings.plan'), 'coding plan', '火山', 'volcengine', 'ark', 'glm', '智谱', 'z.ai', 'kimi', 'minimax', 'anthropic', 'openai', ...AGENT_KINDS],
+  Icon: CloudIcon,
+  Body: ModelProviderSettings
+}))
+
 // On a core that keeps a wire log: whether it does, and what it holds.
 const DEBUG_SECTION: Section = localized(() => ({
   id: 'debug',
@@ -861,14 +874,15 @@ export function SettingsPage() {
   const knowledge = useKnowledgeBaseSupported()
   const skills = useSkillsSupported()
   const mcp = useMcpServersSupported()
+  const modelProviders = useModelProvidersSupported()
   const chatCommands = useChatCommandsSupported()
   const wireLog = useWireLogSupported()
   const sections = useMemo(() => {
     const about = SECTIONS.filter((section) => section.id === 'about')
     const own = SECTIONS.filter((section) => section.id !== 'about' && (section.id !== 'notifications' || canNotify() || canShowRequestPopup()))
-      .flatMap((section) => (section.id === 'agents' ? [section, ...(chatCommands ? [CHAT_COMMANDS_SECTION] : []), ...(skills ? [SKILLS_SECTION] : []), ...(mcp ? [MCP_SECTION] : [])] : [section]))
+      .flatMap((section) => (section.id === 'agents' ? [section, ...(modelProviders ? [MODEL_PROVIDERS_SECTION] : []), ...(chatCommands ? [CHAT_COMMANDS_SECTION] : []), ...(skills ? [SKILLS_SECTION] : []), ...(mcp ? [MCP_SECTION] : [])] : [section]))
     return [...own, ...(plugins ? [PLUGINS_SECTION] : []), ...sourceSections(sources ?? []), ...(knowledge ? [KNOWLEDGE_SECTION] : []), ...(browser ? [BROWSER_SECTION] : []), ...(wireLog ? [DEBUG_SECTION] : []), ...about]
-  }, [sources, browser, knowledge, skills, mcp, chatCommands, wireLog, plugins, getLocale()])
+  }, [sources, browser, knowledge, skills, mcp, modelProviders, chatCommands, wireLog, plugins, getLocale()])
   const [activeId, setActiveId] = useState(() => useCore.getState().settingsSection ?? SECTIONS[0]?.id ?? '')
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()

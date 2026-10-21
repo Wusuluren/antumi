@@ -19,6 +19,7 @@ export const MODEL_PROVIDER_PRESET_IDS = [
 export const ModelProviderPresetId = z.enum(MODEL_PROVIDER_PRESET_IDS)
 export type ModelProviderPresetId = z.infer<typeof ModelProviderPresetId>
 export const ModelProviderPreset = z.union([ModelProviderPresetId, z.literal('custom')])
+export type ModelProviderPreset = z.infer<typeof ModelProviderPreset>
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
 
