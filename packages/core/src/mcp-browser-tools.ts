@@ -5,6 +5,7 @@ import {
   browserToolName,
   BrowserUrl, BrowserViewport,
   describeBrowserPage,
+  describeClosedTab,
   RpcError,
   SnapshotRef,
   type BrowserAction,
@@ -404,7 +405,7 @@ export function browserToolsOverCore(
           if (action === 'close') {
             await rpc.call('browser.close', { conversationId, tabId: target.id })
             if (currentTab === target.id) currentTab = null
-            return { text: `已关闭标签页 ${target.id}` }
+            return { text: describeClosedTab(target.id) }
           }
           currentTab = target.id
           return { text: `当前标签页：${describePage(target, null)}` }

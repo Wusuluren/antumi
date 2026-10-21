@@ -135,6 +135,16 @@ export function parseBrowserPage(text: string): Pick<BrowserTab, 'id' | 'url' | 
   return match ? { title: match[1] ?? '', url: match[2] ?? '', id: match[3] ?? '' } : null
 }
 
+// What closing a tab tells the model; a client reads it back with parseClosedTab to drop the tab.
+export function describeClosedTab(id: string): string {
+  return `已关闭标签页 ${id}`
+}
+
+const CLOSED_TAB = /^已关闭标签页 ([0-9a-f-]{36})$/
+export function parseClosedTab(text: string): string | null {
+  return CLOSED_TAB.exec(text)?.[1] ?? null
+}
+
 // Hosts the browser opens without asking: where a developer's own servers live. A rule on the
 // name alone; a name that resolves to loopback is not local by it.
 export function isLocalHost(hostname: string): boolean {

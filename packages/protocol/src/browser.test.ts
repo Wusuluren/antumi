@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { browserHostOf, describeBrowserPage, isLocalHost, normalizeBrowserUrl, parseBrowserPage } from './browser'
+import { browserHostOf, describeBrowserPage, describeClosedTab, isLocalHost, normalizeBrowserUrl, parseBrowserPage, parseClosedTab } from './browser'
 import { browserToolKind, imageMarker, isAntumiRequest, isBrowserTool, isPreviewImage, isPreviewTool, antumiToolName, takeImageMarkers, toolImagePath } from './chat'
 import { McpServerName } from './mcp'
 import { isTerminalRunTool } from './terminal'
@@ -106,5 +106,10 @@ describe('browser page text', () => {
     expect(parseBrowserPage(describeBrowserPage(tab, '- heading [ref=e1]'))).toEqual(tab)
     expect(parseBrowserPage(describeBrowserPage({ ...tab, title: '' }, null))).toEqual({ ...tab, title: '' })
     expect(parseBrowserPage('用户拒绝了访问 example.com。')).toBeNull()
+  })
+
+  it('reads a closed tab back, and nothing else as one', () => {
+    expect(parseClosedTab(describeClosedTab(tab.id))).toBe(tab.id)
+    expect(parseClosedTab(describeBrowserPage(tab, null))).toBeNull()
   })
 })
