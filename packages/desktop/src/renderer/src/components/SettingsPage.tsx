@@ -17,7 +17,7 @@ import { AutoArchiveSettings } from './AutoArchiveSettings'
 import { ChatFontPicker } from './ChatFontPicker'
 import { CodeFontPicker } from './CodeFontPicker'
 import { agentLabel } from '../labels'
-import { canNotify, canShowRequestPopup } from '../desktop-bridge'
+import { appVersion, canNotify, canShowRequestPopup } from '../desktop-bridge'
 import { formatBytes } from '../wire-entries'
 import {
   AgentIcon,
@@ -634,6 +634,11 @@ function GitRow() {
 
 function AboutSettings() {
   const connection = useCore((s) => s.connection)
+  // What runs, not what the renderer was built from: a beta build sets its own version.
+  const [version, setVersion] = useState(packageJson.version)
+  useEffect(() => {
+    void appVersion().then((running) => { if (running) setVersion(running) })
+  }, [])
   const shortcuts = [
     [t('SettingsPage.newTask'), `${PRIMARY_KEY_LABEL}N`],
     [t('SettingsPage.createTaskInTheNewTaskDialog'), `${PRIMARY_KEY_LABEL}↵`],
@@ -649,7 +654,7 @@ function AboutSettings() {
           </a>
         )}
       />
-      <SettingsRow label={t('SettingsPage.desktopVersion')} control={() => <span className="mono">{packageJson.version}</span>} />
+      <SettingsRow label={t('SettingsPage.desktopVersion')} control={() => <span className="mono">{version}</span>} />
       <UpdateSettings />
       <SettingsRow label={t('SettingsPage.protocolVersion')} control={() => <span className="mono">{PROTOCOL_VERSION}</span>} />
       <SettingsRow

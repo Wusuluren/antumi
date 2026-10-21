@@ -10,6 +10,8 @@ declare global {
       platform: string
       onFullScreenChange(listener: (fullScreen: boolean) => void): () => void
       getCoreEndpoint(): Promise<unknown>
+      // Absent from a main older than the renderer.
+      appVersion?(): Promise<unknown>
       pickPlugin?(kind: 'directory' | 'zip'): Promise<unknown>
       // title: the dialog's, where it is not a code repository being picked; a main older than the
       // renderer ignores it.
@@ -59,6 +61,12 @@ export function applyTitleBar(): void {
       delete root.dataset.fullscreen
     }
   })
+}
+
+// The version of the app that runs; null outside Electron or from an older main.
+export async function appVersion(): Promise<string | null> {
+  const version = await window.antumi?.appVersion?.().catch(() => null)
+  return typeof version === 'string' && version ? version : null
 }
 
 export function canPickFolder(): boolean {
