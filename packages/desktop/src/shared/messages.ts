@@ -10906,5 +10906,12 @@ export const MESSAGES = {
   "ProviderPicker.provider": { "zh": "服务商", "en": "Provider" },
   "ProviderPicker.ownAccount": { "zh": "{value1} 账号", "en": "{value1} account" },
   "ProviderPicker.ownAccountDescription": { "zh": "用 {value1} 自己登录的账号", "en": "The account {value1} is signed in with" },
-  "ProviderPicker.manage": { "zh": "管理服务商…", "en": "Manage providers…" }
+  "ProviderPicker.manage": { "zh": "管理服务商…", "en": "Manage providers…" },
+  "RouteBadge.onProvider": { "zh": "在服务商「{value1}」上运行，这个会话固定用它", "en": "Runs on {value1}, fixed for this conversation" },
+  "RouteBadge.ownAccount": { "zh": "服务商「{value2}」不服务 {value1}，它用自己的账号", "en": "{value2} does not serve {value1}, which uses its own account" },
+  "RouteBadge.ownAccountShort": { "zh": "{value1} 账号", "en": "{value1} account" },
+  "RouteBadge.unavailable": { "zh": "服务商「{value1}」已删除或没有 Key，补上之前 Agent 不能继续", "en": "{value1} is gone or has no key; the agent cannot go on until it is back" },
+  "RouteBadge.removedProvider": { "zh": "已删除的服务商", "en": "Removed provider" },
+  "ChatHandoff.keepsProvider": { "zh": "沿用服务商「{value1}」", "en": "Keeps {value1}" },
+  "ChatHandoff.ownAccountInstead": { "zh": "用自己的账号：「{value1}」不服务它", "en": "Its own account: {value1} does not serve it" }
 } as const

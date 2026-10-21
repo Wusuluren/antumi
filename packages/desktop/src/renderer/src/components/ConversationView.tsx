@@ -1,4 +1,5 @@
 import { t, tr } from '../i18n'
+import { RouteBadge } from './RouteBadge'
 import { useHelper, useHelperSupported } from '../helper-conversations'
 import { useCallback, useEffect, useState, type DragEvent } from 'react'
 import { usePlans } from '../chat-state'
@@ -132,6 +133,7 @@ export function ConversationView({ id, pane }: { id: string; pane?: Conversation
           ? <TitleEditor title={conversation.title} label={t('ConversationList.conversationTitle')} onSave={rename} onDone={() => setRenaming(false)} />
           : <button type="button" className="terminal-view-title conversation-title" title={t('ConversationView.clickToRename', { value1: conversation.title })} disabled={busy} onClick={() => setRenaming(true)}>{conversation.title}</button>}
         <span className="muted">{agentLabel(conversation.agent)}</span>
+        <RouteBadge conversation={conversation} />
         <span className="muted" title={conversation.projectPaths.join('\n') || conversation.workspacePath}>{primaryProjectName(conversation.projectPaths)}</span>
         <BranchStatus target={{ kind: 'conversation', id }} updatedAt={conversation.updatedAt} />
         <span className={state.failed ? 'conversation-exit-failed' : 'muted'} title={state.detail ?? undefined}>{state.label}</span>

@@ -8198,6 +8198,12 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .chat-turn-head-effort { flex-shrink: 0; color: var(--text-3); white-space: nowrap; }
 .chat-turn-head-model::before,
 .chat-turn-head-effort::before { content: '·'; margin-right: 8px; }
+.chat-turn-head-provider { flex-shrink: 0; color: var(--text-3); white-space: nowrap; }
+.chat-turn-head-provider::before { content: '·'; margin-right: 8px; }
+.route-badge { display: inline-flex; flex-shrink: 0; align-items: center; gap: 4px; padding: 1px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.route-badge svg { width: 12px; height: 12px; }
+.route-badge[data-reason='agent-unsupported'] { border-style: dashed; color: var(--text-3); }
+.route-badge[data-reason='unavailable'] { border-color: var(--warning); color: var(--warning); }
 .chat-turn-head .chat-message-time { margin-left: 0; }
 .chat-turn-tokens { font-family: var(--mono); }
 

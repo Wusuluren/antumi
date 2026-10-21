@@ -17,6 +17,7 @@ import { useChatCommandMenu } from './ChatCommandMenu'
 import { useChatMentionMenu } from './ChatMentionMenu'
 import { MentionField, useMentionedText } from './ChatMentionField'
 import { ChatOptionsBar } from './ChatOptionsBar'
+import { RouteBadge } from './RouteBadge'
 import { HandoffAgentPicker, HandoffModePicker, HandoffModelPicker, useComposerHandoff } from './ChatHandoff'
 import { ChevronDownIcon, ClockIcon, CloseIcon, EnterIcon, PencilIcon, StopIcon } from './icons'
 import { SchedulePicker } from './SchedulePicker'
@@ -405,6 +406,7 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
       <div className="chat-options">
         {imagesSupported && <ChatAddMenu disabled={starting} onAdd={attached.add} />}
         {!compact && handoff.targets.length > 0 && <HandoffAgentPicker conversationId={id} handoff={handoff} disabled={busy || starting} />}
+        {!compact && !handoff.target && <RouteBadge conversation={conversation} locked />}
         {handingOff ? (
           <>
             <HandoffModePicker conversationId={id} handoff={handoff} />
