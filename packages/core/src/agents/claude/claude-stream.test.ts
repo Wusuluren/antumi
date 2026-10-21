@@ -855,6 +855,19 @@ describe('ClaudeStream background tasks, as recorded', () => {
     ])
   })
 
+  // The same session's Monitor: a command watched in the background, its limit timeout_ms.
+  it('shows a Monitor as the command it watches, under what the agent said it waits for', () => {
+    const monitor = ofKind(replay(fixture('claude-background-limit.jsonl')).items.list(), 'tool').find((tool) => tool.name === 'Monitor')
+    expect(monitor).toMatchObject({
+      title: 'until [ -s /tmp/bg-test ]; do sleep 2; done; echo "Step 1 completed"',
+      description: 'waiting for step 1 timeout',
+      input: 'until [ -s /tmp/bg-test ]; do sleep 2; done; echo "Step 1 completed"',
+      background: true,
+      backgroundLimitMs: 35000,
+      status: 'done'
+    })
+  })
+
   it('tells a failed command from a subagent, and leaves out the turn the CLI opened and closed on nothing', () => {
     const driver = replay(fixture('claude-background-mixed.jsonl'))
     const tools = ofKind(driver.items.list(), 'tool')

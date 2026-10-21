@@ -273,6 +273,7 @@ function firstLine(value: string, max = 200): string {
 export function describeClaudeTool(name: string, input: Record<string, unknown>): string {
   switch (name) {
     case 'Bash':
+    case 'Monitor':
       return firstLine(str(input.command) ?? '')
     case 'Read':
     case 'Write':
@@ -304,9 +305,20 @@ export function describeClaudeTool(name: string, input: Record<string, unknown>)
   }
 }
 
+// Calls that run a shell command: Bash, and Monitor, which watches one in the background and hands
+// the agent each line it prints.
+const COMMAND_TOOLS = new Set(['Bash', 'Monitor'])
+
+// How long a background command may run before the CLI stops it, where the agent set a limit: a
+// Bash call sent to the background, by its timeout; a Monitor, always in the background, by its own.
+function backgroundLimit(name: string, input: Record<string, unknown>): { backgroundLimitMs?: number } {
+  const limit = name === 'Bash' && input.run_in_background === true ? input.timeout : name === 'Monitor' ? input.timeout_ms : undefined
+  return typeof limit === 'number' && limit > 0 ? { backgroundLimitMs: Math.round(limit) } : {}
+}
+
 // The input worth showing beside the title; file tools show a diff instead.
 function inputText(name: string, input: Record<string, unknown>): string | null {
-  if (name === 'Bash') return str(input.command)
+  if (COMMAND_TOOLS.has(name)) return str(input.command)
   if (name === 'ExitPlanMode') return str(input.plan)
   if (['Read', 'Write', 'Edit', 'MultiEdit', 'Glob', 'Grep', 'WebFetch', 'WebSearch'].includes(name)) return null
   const browser = browserToolKind(name)
@@ -946,10 +958,9 @@ export class ClaudeStream implements ChatDriver {
       kind: 'tool',
       name,
       title: describeClaudeTool(name, input),
-      description: name === 'Bash' ? (str(input.description)?.trim() || null) : null,
+      description: COMMAND_TOOLS.has(name) ? (str(input.description)?.trim() || null) : null,
       input: inputText(name, input),
-      // A command sent to the background runs until its timeout, where the agent gave one.
-      ...(name === 'Bash' && input.run_in_background === true && typeof input.timeout === 'number' && input.timeout > 0 ? { backgroundLimitMs: Math.round(input.timeout) } : {}),
+      ...backgroundLimit(name, input),
       status: earlier?.status ?? 'running',
       output: earlier?.output ?? null,
       diffs: inputDiffs(name, input),

@@ -220,6 +220,10 @@ export const MESSAGES = {
     "zh": "命令",
     "en": "Command"
   },
+  "chatTools.monitor": {
+    "zh": "监视",
+    "en": "Monitor"
+  },
   "chatTools.read": {
     "zh": "读取",
     "en": "Read"

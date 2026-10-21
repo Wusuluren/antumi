@@ -8,6 +8,7 @@ type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 const TOOL_LABEL: Record<string, string> = localized(() => ({
   Bash: t('chatTools.command'),
   commandExecution: t('chatTools.command'),
+  Monitor: t('chatTools.monitor'),
   Read: t('chatTools.read'),
   imageView: t('chatTools.viewImage'),
   Write: t('chatTools.write'),
@@ -89,7 +90,7 @@ export type ToolIconKind = 'read' | 'edit' | 'terminal' | 'search' | 'browser' |
 
 const TOOL_ICONS: Record<string, ToolIconKind> = {
   Read: 'read', Write: 'edit', Edit: 'edit', MultiEdit: 'edit', NotebookEdit: 'edit', fileChange: 'edit',
-  Bash: 'terminal', commandExecution: 'terminal',
+  Bash: 'terminal', commandExecution: 'terminal', Monitor: 'terminal',
   Grep: 'search', Glob: 'search', WebSearch: 'search', webSearch: 'search',
   WebFetch: 'browser', [BROWSER_HOST_TOOL]: 'browser', imageView: 'image',
   Task: 'agent', Agent: 'agent', spawnAgent: 'agent', TodoWrite: 'list', ExitPlanMode: 'list',
@@ -111,7 +112,7 @@ export function toolIconKind(name: string, display?: ToolDisplay | null): ToolIc
 export type ToolInputLanguage = 'bash' | 'markdown' | 'json'
 
 export function toolInputLanguage(name: string, input: string): ToolInputLanguage | null {
-  if (name === 'Bash' || name === 'commandExecution') return 'bash'
+  if (isCommandTool(name)) return 'bash'
   if (name === 'ExitPlanMode') return 'markdown'
   return /^\s*[[{]/.test(input) ? 'json' : null
 }
@@ -154,10 +155,10 @@ export function runHeadline(tools: readonly Pick<ToolItem, 'name' | 'status' | '
   return described ? { text: described, described: true } : { text: runSummary(tools), described: false }
 }
 
-// A call that hands work to a subagent of its own: Claude's Task (Agent in newer versions), or a
-// Codex spawn.
+// A call that runs a shell command: Claude's Bash, and its Monitor, which watches one in the
+// background; Codex's command execution.
 export function isCommandTool(name: string): boolean {
-  return name === 'Bash' || name === 'commandExecution'
+  return name === 'Bash' || name === 'Monitor' || name === 'commandExecution'
 }
 
 type ToolExecution = Pick<ToolItem, 'name' | 'status' | 'execution'>
@@ -215,6 +216,8 @@ export function commandKeyword(command: string): string {
   return words[0] ?? command
 }
 
+// A call that hands work to a subagent of its own: Claude's Task (Agent in newer versions), or a
+// Codex spawn.
 export function isSubagent(name: string): boolean {
   return name === 'Task' || name === 'Agent' || name === 'spawnAgent'
 }

@@ -41,7 +41,9 @@ describe('command execution presentation', () => {
 describe('toolIconKind', () => {
   it('recognizes both agents and Antumi MCP aliases', () => {
     expect(['Write', 'MultiEdit', 'fileChange'].map((name) => toolIconKind(name))).toEqual(['edit', 'edit', 'edit'])
-    expect(['Bash', 'commandExecution', 'mcp__antumi__terminal_run', 'antumi.terminal_read'].map((name) => toolIconKind(name))).toEqual(['terminal', 'terminal', 'terminal', 'terminal'])
+    expect(['Bash', 'Monitor', 'commandExecution', 'mcp__antumi__terminal_run', 'antumi.terminal_read'].map((name) => toolIconKind(name))).toEqual(['terminal', 'terminal', 'terminal', 'terminal', 'terminal'])
+    // A Monitor watches a shell command: its input is that command.
+    expect(toolInputLanguage('Monitor', 'until [ -s out ]; do sleep 2; done')).toBe('bash')
     expect(['Read', 'Grep', 'Glob', 'webSearch'].map((name) => toolIconKind(name))).toEqual(['read', 'search', 'search', 'search'])
     expect(['WebFetch', 'mcp__antumi__browser_navigate', 'antumi.browser_click'].map((name) => toolIconKind(name))).toEqual(['browser', 'browser-control', 'browser-control'])
     expect(['imageView', 'mcp__antumi__browser_screenshot', 'antumi.show_preview'].map((name) => toolIconKind(name))).toEqual(['image', 'image', 'image'])
