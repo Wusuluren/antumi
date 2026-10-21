@@ -26,11 +26,17 @@ describe('OpenCode CLI', () => {
     expect(await detectOpenCode(root, process.platform)).toMatchObject({ status: 'ok', version: '2.1.1' })
   })
 
-  it('reads the models it lists as provider/model, one a line', () => {
-    expect(parseOpenCodeModels('anthropic/claude-sonnet-5-5\nopenrouter/meta/llama-5\n\nWarning: something\n')).toEqual({ models: [
-      { id: 'anthropic/claude-sonnet-5-5', label: 'anthropic/claude-sonnet-5-5', description: null, efforts: [], isDefault: false },
-      { id: 'openrouter/meta/llama-5', label: 'openrouter/meta/llama-5', description: null, efforts: [], isDefault: false }
+  it('reads the enabled models from its API as its session names them, with their effort levels', () => {
+    const listed = JSON.stringify({ location: { directory: '/work' }, data: [
+      { providerID: 'opencode', id: 'big-pickle', name: 'Big Pickle', enabled: true, variants: [] },
+      { providerID: 'opencode', id: 'glm-5.3-flash-free', name: 'GLM-5.3-Flash Free', enabled: true, variants: [{ id: 'low' }, { id: 'high' }] },
+      { providerID: 'github-copilot', id: 'gpt-6', name: 'GPT-6', enabled: false, variants: [] }
     ] })
-    expect(parseOpenCodeModels('')).toBeNull()
+    expect(parseOpenCodeModels(listed)).toEqual({ models: [
+      { id: 'opencode/big-pickle', label: 'opencode/Big Pickle', description: null, efforts: [], isDefault: false },
+      { id: 'opencode/glm-5.3-flash-free', label: 'opencode/GLM-5.3-Flash Free', description: null, efforts: ['low', 'high', 'default'], isDefault: false }
+    ] })
+    expect(parseOpenCodeModels('not json')).toBeNull()
+    expect(parseOpenCodeModels(JSON.stringify({ data: [] }))).toBeNull()
   })
 })

@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { z } from 'zod'
 import type { AgentCliInstallation, ChatCatalog } from '@antumi/protocol'
 import { launchFile } from '@antumi/protocol/node'
 import { findOnPath, parseVersion } from '../../environment-check'
@@ -40,16 +41,29 @@ export async function requireOpenCode(): Promise<string> {
   return command
 }
 
-// `opencode models` prints provider/model, one a line, the ids its ACP session takes. Asked of a
-// private server (--standalone), so it leaves no shared one running. Efforts come only from a
-// session's config.
+const ModelList = z.looseObject({
+  data: z.array(z.looseObject({ providerID: z.string(), id: z.string(), name: z.string(), enabled: z.boolean().catch(false), variants: z.array(z.looseObject({ id: z.string() })).catch([]) }))
+})
+
+// Its models as its ACP session names them: provider/model, labelled provider/name, with the
+// effort levels a model has and the default its session adds to them. Only the enabled ones, as
+// a session offers: `opencode models` would list every model of every provider it knows.
 export function parseOpenCodeModels(printed: string): ChatCatalog | null {
-  const ids = printed.split(/\r?\n/).map((line) => line.trim()).filter((line) => /^[^\s/]+\/\S+$/.test(line))
-  return ids.length ? { models: ids.map((id) => ({ id, label: id, description: null, efforts: [], isDefault: false })) } : null
+  let json: unknown
+  try { json = JSON.parse(printed) } catch { return null }
+  const enabled = (ModelList.safeParse(json).data?.data ?? []).filter((model) => model.enabled)
+  if (!enabled.length) return null
+  return {
+    models: enabled.map((model) => {
+      const variants = model.variants.map((variant) => variant.id)
+      return { id: `${model.providerID}/${model.id}`, label: `${model.providerID}/${model.name}`, description: null, efforts: variants.length ? [...new Set([...variants, 'default'])] : [], isDefault: false }
+    })
+  }
 }
 
+// Asked of a private server (--standalone), so it leaves no shared one running.
 export async function opencodeCatalog(cwd: string): Promise<ChatCatalog | null> {
-  return parseOpenCodeModels(await output(await requireOpenCode(), ['models', '--standalone'], cwd, 30_000))
+  return parseOpenCodeModels(await output(await requireOpenCode(), ['api', '--standalone', 'GET', '/api/model', '--param', `location[directory]=${cwd}`], cwd, 30_000))
 }
 
 // Commands published by OpenCode, selected for the core host rather than the client OS.
