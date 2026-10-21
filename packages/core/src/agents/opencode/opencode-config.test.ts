@@ -13,12 +13,18 @@ describe('OpenCode config Antumi adds', () => {
     ] }))
   })
 
-  it('adds an automatic agent that works in the project and asks only to go outside it', () => {
-    expect(agents({})[OPENCODE_AUTO_AGENT].permissions).toEqual([
+  it('adds an automatic agent that works in the project and refuses, never asks, to go outside it', () => {
+    const permissions = agents({})[OPENCODE_AUTO_AGENT].permissions
+    expect(permissions).toEqual([
       { action: 'edit', resource: '*', effect: 'allow' },
       { action: 'shell', resource: '*', effect: 'allow' },
-      { action: 'external_directory', resource: '*', effect: 'ask' }
+      { action: 'external_directory', resource: '*', effect: 'deny' },
+      { action: 'read', resource: '*.env', effect: 'deny' },
+      { action: 'read', resource: '*.env.*', effect: 'deny' },
+      { action: 'read', resource: '*.env.example', effect: 'allow' }
     ])
+    // A run nobody watches in this mode is never stopped on a request: OpenCode ends the turn on one rejected.
+    expect(permissions.some((each: { effect: string }) => each.effect === 'ask')).toBe(false)
   })
 
   it('adds the allow-everything agent only where the stage may bypass', () => {

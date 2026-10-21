@@ -55,7 +55,10 @@ export const opencode: AgentAdapter = {
   turns: {
     serialized: true,
     stopAfterCancel: { cancelGraceMs: 2000, termGraceMs: 2000 },
-    retryByRestart: true
+    retryByRestart: true,
+    // It ends the turn on a rejected request, whose answer carries no words: the user's reason
+    // reaches it as the next message.
+    denialAsMessage: true
   },
   optionsFromState: true,
   discovery: { commands: ['opencode'], applications: { darwin: ['OpenCode.app'] } }
