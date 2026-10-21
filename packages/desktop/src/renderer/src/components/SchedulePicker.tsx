@@ -18,7 +18,7 @@ export function SettingsLink() {
 
 // When a run may start: as soon as its agent's quota allows, or not before a time, a night hour
 // by default. It waits for the quota either way, and runs with nobody there, which the note says.
-export function SchedulePicker({ title, note, children, initial, submitLabel = t('OverviewView.schedules'), align = 'start', onSchedule, onClose }: {
+export function SchedulePicker({ title, note, children, initial, submitLabel = t('SchedulePicker.schedule'), align = 'start', onSchedule, onClose }: {
   title: string
   // 'end' for a trigger at the end of a row: the picker's right edge on the trigger's.
   align?: 'start' | 'end'

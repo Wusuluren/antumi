@@ -5168,6 +5168,10 @@ export const MESSAGES = {
     "zh": "预约",
     "en": "Schedules"
   },
+  "SchedulePicker.schedule": {
+    "zh": "预约",
+    "en": "Schedule"
+  },
   "OverviewView.respond": {
     "zh": "去处理：{value1}",
     "en": "Respond: {value1}"

@@ -366,7 +366,7 @@ function ScheduleButton({ task, dependencies, labelled }: { task: Task; dependen
         onClick={() => setOpen((current) => !current)}
       >
         <ClockIcon />
-        {labelled && t('OverviewView.schedules')}
+        {labelled && t('SchedulePicker.schedule')}
       </button>
       {open && (reason ? (
         <Popover label={t('TaskActions.cannotScheduleYet_1987')} onClose={close}>
