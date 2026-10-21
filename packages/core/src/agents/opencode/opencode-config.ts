@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { RESERVED_MCP_SERVER_NAME } from '@antumi/protocol'
 import type { AgentLaunch } from '../agent-adapter'
 
 // The primary agents Antumi adds for its own modes. An agent starts from allowing everything
@@ -16,9 +17,28 @@ const rule = (action: string, effect: 'allow' | 'ask' | 'deny') => ({ action, re
 // What Antumi adds to the user's OpenCode config for one process, through OPENCODE_CONFIG_CONTENT:
 // merged over their own, which stays as it is. The bypass agent exists only where the stage may
 // bypass, so it is never there to switch to otherwise.
-export function opencodeConfig(launch: Pick<AgentLaunch, 'skills' | 'allowBypass' | 'planOnly' | 'readOnly'>): string {
+export function opencodeConfig(launch: Pick<AgentLaunch, 'skills' | 'allowBypass' | 'planOnly' | 'readOnly' | 'mcp'>): string {
   const bypass = Boolean(launch.allowBypass) && !launch.planOnly && !launch.readOnly
+  const { mcp } = launch
   return JSON.stringify({
+    // Antumi's own server, here rather than in session/new, which cannot turn off OpenCode's Code
+    // Mode: under it the model calls every tool of a server from one `execute` script, and Antumi
+    // could no longer tell its own tools (a preview, a screenshot) in the chat. The server comes
+    // as the adapter starts it (launch.mcp): reporting when it is loaded, read-only where need be.
+    // OpenCode 2's shape, servers under `servers`: a server named at the top is read as 1's, which
+    // drops codemode.
+    ...(mcp ? {
+      mcp: {
+        servers: {
+          [RESERVED_MCP_SERVER_NAME]: {
+            type: 'local',
+            command: [mcp.command, ...mcp.args],
+            environment: mcp.env ?? {},
+            codemode: false
+          }
+        }
+      }
+    } : {}),
     agents: {
       [OPENCODE_READ_ONLY_AGENT]: {
         description: 'Read-only: reads files and answers; edits nothing (Antumi)',

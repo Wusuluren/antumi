@@ -41,13 +41,14 @@ function opened(options: ChatStageOptions = OPTIONS): OpenCodeAcp {
   expect(due(driver).map((frame) => frame.method)).toEqual(['authenticate'])
   receive(driver, { id: 'opencode-auth', result: {} })
   const [session] = due(driver)
-  expect(session).toMatchObject({ method: 'session/new', params: { cwd: '/work/repo', additionalDirectories: ['/work/other'], mcpServers: [{ name: 'antumi', command: 'node' }] } })
+  // Antumi's own MCP server rides in its config instead (opencodeConfig), where Code Mode can be off.
+  expect(session).toMatchObject({ method: 'session/new', params: { cwd: '/work/repo', additionalDirectories: ['/work/other'], mcpServers: [] } })
   receive(driver, { id: 'opencode-session', result: { sessionId: 'ses_1', configOptions: config() } })
   return driver
 }
 
 describe('OpenCode over ACP', () => {
-  it('opens a session with its login, extra folders and Antumi\'s MCP server, and reads its config', () => {
+  it('opens a session with its login and extra folders, and reads its config', () => {
     const driver = opened()
     expect(driver.ready()).toBe(true)
     expect(driver.failure()).toBeNull()

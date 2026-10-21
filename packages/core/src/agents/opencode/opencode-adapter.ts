@@ -1,7 +1,14 @@
-import type { AgentAdapter } from '../agent-adapter'
+import { Rejection } from '../../rejection'
+import type { AgentAdapter, AgentStage } from '../agent-adapter'
+import { clearMcpReadyFile, mcpReadyFile, mcpReadyWithin, mcpServerReporting } from '../mcp-ready-file'
 import { OPENCODE_MODES, OpenCodeAcp } from './opencode-acp'
 import { detectOpenCode, opencodeCatalog, opencodeInstallation, requireOpenCode } from './opencode-cli'
 import { opencodeConfig } from './opencode-config'
+
+const readyFile = (stage: AgentStage) => mcpReadyFile(stage, 'opencode')
+// It starts the server with its own, after loading its config and providers.
+const MCP_WAIT_MS = 20_000
+const MCP_SETTLE_MS = 1500
 
 export const opencode: AgentAdapter = {
   kind: 'opencode',
@@ -27,10 +34,23 @@ export const opencode: AgentAdapter = {
   catalog: opencodeCatalog,
   detect: detectOpenCode,
   installation: opencodeInstallation,
+  // Antumi's server rides in its config, where OpenCode loads it beside the session, not before
+  // the session opens as one given in session/new: a first message sent before it has listed the
+  // tools goes without them. So the stage waits for that.
   launch: {
-    mcp: (server) => server,
-    prepare: async () => ({ command: await requireOpenCode() }),
-    ready: async () => {}
+    mcp: (server, stage) => mcpServerReporting(server, readyFile(stage), stage.planOnly, true),
+    prepare: async (stage) => {
+      const command = await requireOpenCode()
+      await clearMcpReadyFile(readyFile(stage))
+      return { command }
+    },
+    ready: async (stage) => {
+      if (!await mcpReadyWithin(readyFile(stage), MCP_WAIT_MS)) throw new Rejection('opencode-mcp-unavailable', 'OpenCode 未能加载 Antumi MCP，请检查 OpenCode 配置后重试')
+      // Listed is not yet offered: it takes listed tools in after a 100ms debounce and a reload of
+      // its catalog, under a second as measured on 2.1.1, and says nothing when it has. A turn that
+      // still comes first has them from the next one.
+      await new Promise((resolve) => setTimeout(resolve, MCP_SETTLE_MS))
+    }
   },
   turns: {
     serialized: true,

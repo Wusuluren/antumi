@@ -28,6 +28,15 @@ describe('antumi MCP server', () => {
     expect(initialized).toBe(true)
   })
 
+  it('reports the tools listed, for an agent that offers them only once it has listed them', async () => {
+    let listed = 0
+    const server = createMcpHandler({ preview: checkPreviewFile, listed: async () => { listed++ } })
+    await server(frame('initialize'))
+    expect(listed).toBe(0)
+    expect((await server(frame('tools/list')))?.result).toMatchObject({ tools: expect.any(Array) })
+    expect(listed).toBe(1)
+  })
+
   it('gives a group chat member only read-only tools and no to-dos', () => {
     expect(conversationToolLimits({ discussionId: 'group' })).toEqual({ readOnly: true, todos: false })
     expect(conversationToolLimits({ workspaceReadOnly: true })).toEqual({ readOnly: true, todos: true })

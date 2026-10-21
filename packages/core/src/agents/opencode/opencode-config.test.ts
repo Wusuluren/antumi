@@ -28,6 +28,12 @@ describe('OpenCode config Antumi adds', () => {
     expect(agents({ allowBypass: true, readOnly: { dirs: ['/work'] } })).not.toHaveProperty(OPENCODE_BYPASS_AGENT)
   })
 
+  it('starts Antumi\'s MCP server with Code Mode off, as its adapter starts it', () => {
+    const mcp = { command: 'node', args: ['mcp.mjs', '--conversation', 'c', '--ready-file', '/r.json'], env: { ELECTRON_RUN_AS_NODE: '1' } }
+    expect(JSON.parse(opencodeConfig({ mcp })).mcp).toEqual({ servers: { antumi: { type: 'local', command: ['node', 'mcp.mjs', '--conversation', 'c', '--ready-file', '/r.json'], environment: { ELECTRON_RUN_AS_NODE: '1' }, codemode: false } } })
+    expect(JSON.parse(opencodeConfig({}))).not.toHaveProperty('mcp')
+  })
+
   it('points it at the skills bundle in the Agent Skills layout', () => {
     expect(JSON.parse(opencodeConfig({ skills: { dir: '/antumi/skills/bundles/abc' } })).skills).toEqual([path.join('/antumi/skills/bundles/abc', '.agents', 'skills')])
   })

@@ -9,6 +9,7 @@ import { ConversationStore } from '../../conversation-store'
 import { fakeChatDaemon } from '../../fake-chat-agent'
 import { ProjectRegistry } from '../../project-registry'
 import { TaskStore } from '../../task-store'
+import { writePrivateJson } from '@antumi/protocol/node'
 
 vi.mock('./opencode-cli', async (original) => ({ ...await original<object>(), requireOpenCode: vi.fn(async () => '/fake/opencode'), opencodeCatalog: vi.fn(async () => null) }))
 const Frame = z.looseObject({ id: z.union([z.number(), z.string()]).optional(), method: z.string().optional(), params: z.unknown().optional() })
@@ -38,6 +39,13 @@ beforeEach(() => {
   const request = daemon.request
   daemon.request = async (method, params) => {
     const result = await request(method, params)
+    // OpenCode loads Antumi's MCP server from its config, which reports once it has the tools.
+    if (method === 'spawnPipe') {
+      const { env } = z.object({ env: z.record(z.string(), z.string()) }).parse(params)
+      const config = z.object({ mcp: z.object({ servers: z.object({ antumi: z.object({ command: z.array(z.string()) }) }) }) }).parse(JSON.parse(env.OPENCODE_CONFIG_CONTENT ?? '{}'))
+      const command = config.mcp.servers.antumi.command
+      await writePrivateJson(command[command.indexOf('--ready-file') + 1]!, { ready: true })
+    }
     if (method !== 'write') return result
     const write = z.object({ sessionId: z.string(), data: z.string() }).parse(params)
     for (const line of write.data.split('\n').filter(Boolean)) {
@@ -73,10 +81,12 @@ async function twoTurns(): Promise<string> {
   return created.id
 }
 
-it('starts OpenCode with the agents Antumi adds in its environment', async () => {
+it('starts OpenCode with the agents Antumi adds and its MCP server, reporting once listed, in its environment', async () => {
   await service.create('opencode', [])
   const env = z.object({ env: z.record(z.string(), z.string()) }).parse(daemon.spawns[0]).env
-  expect(JSON.parse(env.OPENCODE_CONFIG_CONTENT ?? '{}').agents).toHaveProperty('antumi-readonly')
+  const config = JSON.parse(env.OPENCODE_CONFIG_CONTENT ?? '{}')
+  expect(config.agents).toHaveProperty('antumi-readonly')
+  expect(config.mcp.servers.antumi).toMatchObject({ codemode: false, command: expect.arrayContaining(['--ready-on-list']) })
 })
 
 it('forks its session whole from the latest turn, which then holds all the fork shows', async () => {

@@ -960,7 +960,8 @@ export class ConversationService {
       readOnly: options.readOnly ? { dirs: [options.cwd, ...options.extraDirs] } : undefined,
       readable,
       forkAt,
-      ...(this.mcp ? { mcp: this.mcp(id) } : {}),
+      // As its adapter starts it, for an agent that takes it on its command (OpenCode's config).
+      ...(this.mcp ? { mcp: launch ? launch.mcp(this.mcp(id), agentStage) : this.mcp(id) } : {}),
       ...(userMcp.length ? { userMcp } : {}),
       ...(this.userBrowser === undefined ? {} : { userBrowser: this.userBrowser }),
       todos: this.userTodos && !current.discussionId,

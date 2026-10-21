@@ -176,7 +176,7 @@ export class AcpDriver implements ChatDriver {
         // Cursor is on its command line, and reads them by their paths either way.
         ...(this.roots().length && this.directories ? { additionalDirectories: this.roots() } : {}),
         mcpServers: [
-          ...(mcp ? [{ name: RESERVED_MCP_SERVER_NAME, command: mcp.command, args: mcp.args, env: acpEnv(mcp.env) }] : []),
+          ...(mcp && !this.dialect.ownMcpOnCommand ? [{ name: RESERVED_MCP_SERVER_NAME, command: mcp.command, args: mcp.args, env: acpEnv(mcp.env) }] : []),
           ...(this.options.userMcp ?? []).map((server) => server.type === 'stdio'
             ? { name: server.name, command: server.command, args: server.args, env: acpEnv(server.env) }
             : { type: 'http', name: server.name, url: server.url, headers: [] })

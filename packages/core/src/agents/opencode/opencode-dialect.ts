@@ -13,6 +13,7 @@ export const opencodeDialect: AcpDialect = {
   idPrefix: 'opencode',
   modes: { ask: 'build', acceptEdits: OPENCODE_AUTO_AGENT, plan: 'plan', readOnly: OPENCODE_READ_ONLY_AGENT, bypass: OPENCODE_BYPASS_AGENT },
   authMethod: 'opencode-login',
+  ownMcpOnCommand: true,
   // It names an MCP tool <server>_<tool>; Antumi knows its own as antumi.<tool>, as Codex and
   // Cursor name them. Its built-in tools are left to their kind; any other keeps its own name,
   // which says more than the kind `other`.

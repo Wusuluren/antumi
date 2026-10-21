@@ -13,6 +13,9 @@ export interface AcpDialect {
   readonly modes: Partial<Record<ChatPermissionMode, string>>
   // Extensions Antumi asks for in initialize (clientCapabilities._meta).
   readonly clientMeta?: Record<string, unknown>
+  // Antumi's own MCP server reaches the agent on its command rather than in session/new: the agent
+  // offers a server's tools as Antumi needs them only where its own config says so.
+  readonly ownMcpOnCommand?: boolean
   // The auth method Antumi starts the agent with; an agent naming others is signed in elsewhere.
   readonly authMethod?: string
   // A request listing models with their reasoning levels, which the session config may leave out.

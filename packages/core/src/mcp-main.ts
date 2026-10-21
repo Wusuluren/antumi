@@ -15,6 +15,8 @@ const { values } = parseArgs({
     history: { type: 'boolean' },
     'no-todos': { type: 'boolean' },
     'ready-file': { type: 'string' },
+    // The ready file is written once the client has listed the tools rather than once it connects.
+    'ready-on-list': { type: 'boolean' },
     // One of the user's MCP servers, started in its place (see runUserMcp), with only its
     // read-only tools under --read-only.
     run: { type: 'string' },
@@ -24,9 +26,11 @@ const { values } = parseArgs({
 
 // Speaks MCP on stdout, so nothing else may print there.
 const readyFile = values['ready-file']
+const ready = readyFile ? () => writePrivateJson(readyFile, { ready: true }) : undefined
+const onList = values['ready-on-list']
 const served = values.run
   ? runUserMcp(values.home ?? antumiHome(), values.run, values['read-only'])
-  : serveMcp(values.home, values.conversation, values['plan-only'], readyFile ? () => writePrivateJson(readyFile, { ready: true }) : undefined, values.history, !values['no-todos'])
+  : serveMcp(values.home, values.conversation, values['plan-only'], onList ? undefined : ready, values.history, !values['no-todos'], onList ? ready : undefined)
 served.catch((error: unknown) => {
   const reason = error instanceof RpcError && error.reason ? ` (${error.reason})` : ''
   console.error(`antumi mcp: ${error instanceof Error ? error.message : String(error)}${reason}`)
