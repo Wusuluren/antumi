@@ -53,6 +53,7 @@ import { ConversationAutoArchive } from './conversation-auto-archive'
 import { ResetAnnouncements } from './reset-announcements'
 import { SkillsLibrary } from './skills-library'
 import { McpServerStore } from './mcp-servers'
+import { ModelProviderStore } from './model-providers'
 import { knowledgeBaseSkills } from './skills-recommended'
 import { WireLog } from './wire-log'
 import { timestampConsole } from './log-timestamps'
@@ -315,6 +316,8 @@ const skills = new SkillsLibrary(paths.skills, (repos) => server?.broadcast('ski
 await skills.load()
 const mcpServers = new McpServerStore(paths.mcpServers, credentials, (servers) => server?.broadcast('mcpServers.changed', { servers: [...servers] }))
 await mcpServers.load()
+const modelProviders = new ModelProviderStore(paths.modelProviders, credentials, (providers) => server?.broadcast('modelProviders.changed', { providers }))
+await modelProviders.load()
 // Handed through Antumi's launcher, so no secret is in an agent's command line or Antumi's logs.
 conversations.setUserMcpProvider((agent, readOnly) => agentDescriptor(agent).capabilities.userMcp ? mcpServers.forAgent(agent).map((server) => userMcpServer(paths.home, server, readOnly)) : [])
 // An agent that loads skills gets Obsidian's, where the user turned writing on and has
@@ -386,7 +389,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()

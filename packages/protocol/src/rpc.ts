@@ -31,6 +31,7 @@ import { KnowledgeFolder, KnowledgeVault } from './knowledge'
 import { CommitSha, RecommendedSkillRepo, SkillRepo, SkillRepoId, SkillUpdateCheck } from './skills'
 import { TodoList, TodoOwner, TodoText, TodoTitle } from './todos'
 import { McpImportCandidate, McpImportItem, McpProbe, McpServer, McpServerInput, McpServerName } from './mcp'
+import { ModelProvider, ModelProviderId, ModelProviderInput, ModelProviderProbe } from './model-provider'
 
 // Bump only for breaking changes; additive optional fields keep the version.
 export const PROTOCOL_VERSION = 14
@@ -193,6 +194,12 @@ export const rpcMethods = {
   // The servers Claude, Codex and Cursor have in their own configuration, and taking some in.
   'mcpServers.importable': { params: z.object({}), result: z.array(McpImportCandidate) },
   'mcpServers.import': { params: z.object({ items: z.array(McpImportItem).min(1).max(64), agents: z.array(AgentKind) }), result: z.array(McpServer) },
+  'modelProviders.list': { params: z.object({}), result: z.array(ModelProvider) },
+  // Adds a provider (id null) or replaces one, from the next start of each agent on it.
+  'modelProviders.save': { params: ModelProviderInput, result: ModelProvider },
+  'modelProviders.remove': { params: z.object({ id: ModelProviderId }), result: Ok },
+  // One small request per endpoint and model, as an agent would send it.
+  'modelProviders.probe': { params: z.object({ id: ModelProviderId }), result: ModelProviderProbe },
   // What of git and the agent CLIs core finds on its path; the last answer, unless asked to look again.
   'system.environment': { params: z.object({ refresh: z.boolean().optional() }), result: Environment },
   'system.installAgentCli': { params: z.object({ agent: AgentKind }), result: Terminal },
@@ -685,6 +692,8 @@ export const rpcNotifications = {
   'skills.changed': z.object({ repos: z.array(SkillRepo) }),
   // Every MCP server (mcpServers.list) after one is added, changed or removed.
   'mcpServers.changed': z.object({ servers: z.array(McpServer) }),
+  // Every model provider (modelProviders.list) after one is added, changed or removed.
+  'modelProviders.changed': z.object({ providers: z.array(ModelProvider) }),
   'system.environmentChanged': z.object({ environment: Environment }),
   // Entries just added to a stage's wire log; only to connections watching the conversation's.
   'debug.wireEntries': z.object({ conversationId: z.string(), stageId: z.string(), entries: z.array(WireEntry) }),

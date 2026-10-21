@@ -42,6 +42,12 @@ export class CredentialStore {
     return this.records[recordKey(provider, instance)] ?? null
   }
 
+  // The instances a provider has records under, to find the ones nothing names any more.
+  instances(provider: string): string[] {
+    const prefix = `${provider}/`
+    return Object.keys(this.records).filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length))
+  }
+
   // Memory changes only once the file does, so a failed write keeps the credential that worked.
   set(provider: string, instance: string, record: CredentialRecord): Promise<void> {
     return this.write((records) => ({ ...records, [recordKey(provider, instance)]: record }))

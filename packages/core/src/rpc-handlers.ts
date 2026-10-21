@@ -45,6 +45,7 @@ import { TranslationService } from './translation-service'
 import { inspectKnowledgeFolder, readObsidianVaults } from './obsidian-vaults'
 import type { SkillsLibrary } from './skills-library'
 import type { McpServerStore } from './mcp-servers'
+import type { ModelProviderStore } from './model-providers'
 
 const OK = { ok: true } as const
 
@@ -78,7 +79,8 @@ export function createRpcHandlers(
   skills?: SkillsLibrary,
   mcpServers?: McpServerStore,
   smallModels?: SmallModelStore,
-  projectConfigs?: ProjectConfigStore
+  projectConfigs?: ProjectConfigStore,
+  modelProviders?: ModelProviderStore
 ): RpcHandlers {
   const git = new GitService(service, conversations, gitChanged)
   const requireProjectConfigs = (): ProjectConfigStore => {
@@ -130,6 +132,10 @@ export function createRpcHandlers(
   const mcpServerStore = () => {
     if (!mcpServers) throw new Rejection('mcp-unavailable')
     return mcpServers
+  }
+  const modelProviderStore = () => {
+    if (!modelProviders) throw new Rejection('model-providers-unavailable')
+    return modelProviders
   }
   const pluginService = () => {
     if (!plugins) throw new Rejection('plugins-unavailable', '当前 core 不支持插件')
@@ -203,6 +209,10 @@ export function createRpcHandlers(
     'mcpServers.probe': ({ name }) => mcpServerStore().probe(name),
     'mcpServers.importable': () => mcpServerStore().importable(),
     'mcpServers.import': ({ items, agents }) => mcpServerStore().import(items, agents),
+    'modelProviders.list': () => modelProviderStore().list(),
+    'modelProviders.save': (input) => modelProviderStore().save(input),
+    'modelProviders.remove': async ({ id }) => { await modelProviderStore().remove(id); return OK },
+    'modelProviders.probe': ({ id }) => modelProviderStore().probe(id),
     'debug.wire': ({ id, stageId, before }) => {
       const known = new Map(conversations.stages(id).map((stage) => [stage.id, stage]))
       const stages = wire.stages(id)
