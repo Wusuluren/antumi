@@ -217,6 +217,12 @@ export const ChatItem = z.discriminatedUnion('kind', [
     // The agent left it working in the background, as a command run with run_in_background: it
     // stays running past its turn until it reports. Older cores leave it out.
     background: z.boolean().optional(),
+    // How long a command left in the background may run before its agent stops it, where the agent
+    // set that limit itself (Claude's Bash timeout). Older cores leave it out.
+    backgroundLimitMs: z.number().int().positive().optional().catch(undefined),
+    // Why a call stopped short, where the agent says: a background command that ran out its time
+    // limit. Older cores leave it out.
+    stopReason: z.enum(['timeLimit']).optional().catch(undefined),
     diffs: z.array(ChatDiff).default([]),
     // What a subagent did, once it reports back: its calls, tokens and time. Older cores leave it out.
     metrics: z.object({ tools: z.number(), tokens: z.number(), durationMs: z.number() }).nullable().optional(),

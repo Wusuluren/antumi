@@ -846,6 +846,15 @@ describe('ClaudeStream background tasks, as recorded', () => {
     expect(driver.activity()).toBe('idle')
   })
 
+  // Claude Code 2.1.288: one command with a 15 s timeout stopped at it, one with none stopped by the agent.
+  it('keeps a background command\'s time limit, and tells a stop at it from one by the agent', () => {
+    const commands = ofKind(replay(fixture('claude-background-limit.jsonl')).items.list(), 'tool').filter((tool) => tool.name === 'Bash')
+    expect(commands.map((tool) => [tool.title, tool.status, tool.backgroundLimitMs ?? null, tool.stopReason ?? null])).toEqual([
+      ['sleep 90', 'interrupted', 15000, 'timeLimit'],
+      ['sleep 300', 'interrupted', null, null]
+    ])
+  })
+
   it('tells a failed command from a subagent, and leaves out the turn the CLI opened and closed on nothing', () => {
     const driver = replay(fixture('claude-background-mixed.jsonl'))
     const tools = ofKind(driver.items.list(), 'tool')

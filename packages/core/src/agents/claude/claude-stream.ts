@@ -107,6 +107,9 @@ const TaskFrame = z.looseObject({
   summary: z.string().optional()
 })
 type BackgroundKind = 'subagent' | 'command'
+// How the CLI words a background command it stopped for running past its time limit (2.1.288); a
+// stop by the agent, or by the session ending, gives only the command.
+const TIME_LIMIT = /reaching its background time limit/
 const ModelRow = z.looseObject({
   value: z.string(),
   resolvedModel: z.string().nullish(),
@@ -945,6 +948,8 @@ export class ClaudeStream implements ChatDriver {
       title: describeClaudeTool(name, input),
       description: name === 'Bash' ? (str(input.description)?.trim() || null) : null,
       input: inputText(name, input),
+      // A command sent to the background runs until its timeout, where the agent gave one.
+      ...(name === 'Bash' && input.run_in_background === true && typeof input.timeout === 'number' && input.timeout > 0 ? { backgroundLimitMs: Math.round(input.timeout) } : {}),
       status: earlier?.status ?? 'running',
       output: earlier?.output ?? null,
       diffs: inputDiffs(name, input),
@@ -1072,7 +1077,8 @@ export class ClaudeStream implements ChatDriver {
       ...tool, status: settled, output,
       ...(known.kind === 'command' && (status === 'completed' || status === 'failed') ? {
         execution: { status, exitCode: null }
-      } : {})
+      } : {}),
+      ...(known.kind === 'command' && status === 'stopped' && TIME_LIMIT.test(summary ?? '') ? { stopReason: 'timeLimit' as const } : {})
     }, at)
   }
 
