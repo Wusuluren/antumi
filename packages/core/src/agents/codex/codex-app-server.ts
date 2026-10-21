@@ -587,10 +587,22 @@ export class CodexAppServer implements ChatDriver {
 
   activeTurnRef(): string | null { return this.turn?.ref ?? null }
 
+  // Between turns, a command left running in its session keeps the stage busy, so it is neither
+  // stopped as idle nor out of sight.
   activity(): ChatTurnActivity {
     if (this.antumi.pending > 0) return 'awaiting'
-    if (!this.turn) return [...this.pending.values()].some((pending) => pending.kind === 'plan') ? 'awaiting' : 'idle'
+    if (!this.turn) return [...this.pending.values()].some((pending) => pending.kind === 'plan') ? 'awaiting' : this.backgroundCommands() > 0 ? 'running' : 'idle'
     return this.pending.size > 0 ? 'awaiting' : 'running'
+  }
+
+  private backgroundCommands(): number {
+    return this.items.list().filter((item) => item.kind === 'tool' && item.background && item.status === 'running').length
+  }
+
+  // What the stage waits on between turns, for the working line; nothing once the last one exits.
+  private showBackground(): void {
+    const commands = this.backgroundCommands()
+    this.state.set({ activity: commands > 0 ? `等 ${commands} 个后台命令结束` : null })
   }
 
   providerSessionId(): string | null {
@@ -1176,6 +1188,7 @@ export class CodexAppServer implements ChatDriver {
       }
       case 'commandExecution': {
         const command = item.command ?? ''
+        const earlier = this.items.get(toolId)
         this.items.put({
           id: toolId,
           kind: 'tool',
@@ -1188,8 +1201,10 @@ export class CodexAppServer implements ChatDriver {
             execution: { status: item.status, exitCode: item.exitCode ?? null }
           } : {}),
           output: item.aggregatedOutput ? clip(item.aggregatedOutput) : null,
-          diffs: []
+          diffs: [],
+          ...(earlier?.kind === 'tool' && earlier.background ? { background: true } : {})
         }, at)
+        if (completed && !this.turn && earlier?.kind === 'tool' && earlier.background) this.showBackground()
         return
       }
       case 'fileChange': {
@@ -1543,6 +1558,14 @@ export class CodexAppServer implements ChatDriver {
       this.messages.push({ role: 'assistant', text: turn.assistant, eventKey: `chat:${turn.ref}:assistant`, complete: true })
     }
     this.turn = null
+    // A command still running as its turn completes runs on in its session (unified exec) until it
+    // exits, which Codex reports then: it is the agent's background work now.
+    if (state === 'completed') {
+      for (const item of this.items.list()) {
+        if (item.kind === 'tool' && item.name === 'commandExecution' && item.status === 'running') this.items.put({ ...item, background: true }, at)
+      }
+      this.showBackground()
+    }
   }
 
   // Codex lets one process write a thread at a time: one the Codex app (or another codex) has open

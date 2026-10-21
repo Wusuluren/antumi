@@ -1010,3 +1010,28 @@ describe('CodexAppServer usage limits', () => {
     expect(driver.items.get('t:i2')).toMatchObject({ kind: 'tool', name: 'imageView', title: '/tmp/shot.png', status: 'done' })
   })
 })
+
+describe('CodexAppServer commands that outlive their turn', () => {
+  // codex-cli 0.160.1, unified exec: a command started with a short yield keeps running in its
+  // session after the turn completes, the agent looks at it in a second turn, and it exits later.
+  const records = fixture('codex-unified-exec.jsonl')
+  const firstEnd = records.findIndex((record) => record.dir === 'in' && JSON.stringify(record.frame).includes('"turn/completed"'))
+
+  it('keeps one still running as its turn completes as background work, the stage busy', () => {
+    const driver = replay(records.slice(0, firstEnd + 1))
+    const [command] = ofKind(driver.items.list(), 'tool')
+    expect(command).toMatchObject({ name: 'commandExecution', status: 'running', background: true })
+    expect(driver.activity()).toBe('running')
+    expect(ofKind(driver.items.list(), 'state')[0]?.activity).toBe('等 1 个后台命令结束')
+  })
+
+  it('settles it when it exits after the turns, and lets the stage go idle', () => {
+    const driver = replay(records)
+    const [command] = ofKind(driver.items.list(), 'tool')
+    expect(command).toMatchObject({ status: 'done', background: true, execution: { status: 'completed', exitCode: 0 } })
+    expect(command?.output).toContain('tick 35')
+    expect(driver.activity()).toBe('idle')
+    expect(ofKind(driver.items.list(), 'state')[0]?.activity ?? null).toBeNull()
+  })
+})
+
