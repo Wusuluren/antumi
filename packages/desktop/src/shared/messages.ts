@@ -1020,6 +1020,10 @@ export const MESSAGES = {
     "zh": "到点后发给 Agent 的指令",
     "en": "Instructions to send to Agent when due"
   },
+  "ChatComposer.messageToSendWhenDue": {
+    "zh": "到点后发给 Agent 的消息",
+    "en": "Message to send to the Agent when due"
+  },
   "ChatComposer.instructionsWhenDueLeaveEmptyToImplementThe": {
     "zh": "到点后发给 Agent 的指令；留空就按定下的计划开始实现",
     "en": "Instructions when due; leave empty to implement the approved plan"
