@@ -101,6 +101,7 @@ const REASON_TEXT: Record<string, string> = localized(() => ({
   'git-no-changes': t('ConversationBranches.noChangesToCommit'),
   'git-no-branch': t('labels.noLocalBranchIsCheckedOutSwitchTo'),
   'git-no-remote': t('labels.currentBranchHasNoUpstreamAndProjectHas'),
+  'git-update-diverged': t('labels.branchDivergedSwitchToUpdate'),
   'invalid-start': t('labels.startingPointMustBeABranch'),
   'start-not-found': t('labels.selectedStartingBranchNotFoundChooseAnotherIn'),
   blocked: t('labels.dependenciesAreNotCompletedAndAcceptedYet'),

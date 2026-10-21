@@ -4,7 +4,11 @@ import { ChangedFile } from './changes'
 export const GitTarget = z.object({ kind: z.enum(['task', 'conversation']), id: z.string().min(1), project: z.string().min(1) })
 export type GitTarget = z.infer<typeof GitTarget>
 const Ref = z.string().min(1).max(500)
-export const GitBranch = z.object({ ref: Ref, name: z.string(), remote: z.string().nullable(), sha: z.string(), upstream: z.string().nullable(), worktree: z.string().nullable(), protected: z.boolean() })
+export const GitBranch = z.object({
+  ref: Ref, name: z.string(), remote: z.string().nullable(), sha: z.string(), upstream: z.string().nullable(), worktree: z.string().nullable(), protected: z.boolean(),
+  // A local branch's commits its upstream lacks, and the upstream's it lacks, as of the last fetch.
+  ahead: z.number().int().optional(), behind: z.number().int().optional()
+})
 export type GitBranch = z.infer<typeof GitBranch>
 export const GitCommit = z.object({ sha: z.string(), parents: z.array(z.string()), subject: z.string(), author: z.string(), date: z.string(), refs: z.array(z.string()), side: z.enum(['current', 'target']).optional() })
 export type GitCommit = z.infer<typeof GitCommit>
@@ -14,7 +18,9 @@ export const GitStatus = z.object({
   git: z.boolean(), directory: z.string(), branch: z.string().nullable(), head: z.string().nullable(),
   upstream: z.string().nullable(), ahead: z.number().int(), behind: z.number().int(), changes: z.number().int(),
   branches: z.array(GitBranch), remotes: z.array(z.string()), blocker: z.string().nullable(),
-  operation: z.enum(['merge', 'other']).nullable(), conflicts: z.array(z.string())
+  operation: z.enum(['merge', 'other']).nullable(), conflicts: z.array(z.string()),
+  // The 'other' operation is a rebase, which a core with git-update carries on like a merge.
+  rebase: z.boolean().optional()
 })
 export type GitStatus = z.infer<typeof GitStatus>
 export const GitDetail = z.object({ commit: GitCommit, message: z.string(), parent: z.string().nullable(), files: z.array(ChangedFile) })
@@ -32,6 +38,10 @@ export const GitAction = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('delete'), ref: Ref }),
   z.object({ kind: z.literal('fetch'), remote: z.string().optional() }),
   z.object({ kind: z.literal('pull') }),
+  // A local branch brought up to its upstream, as IntelliJ's Update: fetched first; the branch
+  // checked out takes the upstream in by method once the two have diverged, its uncommitted
+  // changes stashed and put back; any other only fast-forwards. Needs git-update.
+  z.object({ kind: z.literal('update'), ref: Ref, method: z.enum(['merge', 'rebase']).optional() }),
   z.object({ kind: z.literal('push'), remote: z.string().optional(), name: Ref.optional() }),
   z.object({ kind: z.literal('commit'), message: z.string().trim().min(1).max(10000), push: z.boolean() }),
   z.object({ kind: z.literal('merge'), ref: Ref }),
@@ -40,7 +50,12 @@ export const GitAction = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('abort') })
 ])
 export type GitAction = z.infer<typeof GitAction>
-export const GitResult = z.object({ state: z.enum(['done', 'conflicts']), commit: z.string().optional(), branch: z.string().optional(), upstream: z.string().optional() })
+export const GitResult = z.object({
+  state: z.enum(['done', 'conflicts']), commit: z.string().optional(), branch: z.string().optional(), upstream: z.string().optional(),
+  // From update: how many commits came in, and whether stashed changes went back ('kept' when they
+  // would not apply cleanly and wait in the stash).
+  incoming: z.number().int().optional(), stash: z.enum(['restored', 'kept']).optional()
+})
 export type GitResult = z.infer<typeof GitResult>
 
 // Task worktrees keep their binding even while their agent is idle.
@@ -50,9 +65,11 @@ export function checkGitOperation(kind: GitTarget['kind'], action: GitAction, bu
   if (!status) return null
   const mergeAction = ['resolve', 'continue', 'abort'].includes(action.kind)
   if (status.operation && !mergeAction) return 'git-in-progress'
-  if (mergeAction && status.operation !== 'merge') return 'git-in-progress'
+  if (mergeAction && status.operation !== 'merge' && !status.rebase) return 'git-in-progress'
   if (['switch', 'detach', 'pull', 'merge'].includes(action.kind) && status.changes > 0) return 'uncommitted-changes'
   if (['commit', 'push', 'pull', 'merge'].includes(action.kind) && !status.branch) return 'git-no-branch'
+  // Git will not move a branch another worktree has checked out from here.
+  if (action.kind === 'update' && status.branches.some((branch) => branch.ref === action.ref && branch.worktree && branch.worktree !== status.directory)) return 'branch-elsewhere'
   if (action.kind === 'rename' || action.kind === 'delete') {
     const branch = status.branches.find((branch) => branch.ref === action.ref)
     if (branch?.protected) return 'git-protected'

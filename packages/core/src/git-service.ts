@@ -8,6 +8,7 @@ import { projectHead } from './workspace'
 import { commitAll } from './project-commit'
 import { Rejection } from './rejection'
 import { checkoutKey, commitRef, committedDiff, conflictFiles, filesBetween, gitOperation, logCommits, repositoryKey, writeGit } from './git-repository'
+import { abortOperation, continueOperation, parseTrack, rebasing, updateBranch } from './git-update'
 
 export class GitService {
   private readonly locked = new Set<string>()
@@ -97,7 +98,7 @@ export class GitService {
     if (!key) return empty
     const [head, sha, listing, worktrees, remotes, protectedRefs, busy, operation, conflicts] = await Promise.all([
       projectHead(dir), gitOrNull(dir, ['rev-parse', 'HEAD']),
-      git(dir, ['for-each-ref', '--sort=-committerdate', '--format=%(refname)%00%(objectname)%00%(upstream)', 'refs/heads', 'refs/remotes']),
+      git(dir, ['for-each-ref', '--sort=-committerdate', '--format=%(refname)%00%(objectname)%00%(upstream)%00%(upstream:track,nobracket)', 'refs/heads', 'refs/remotes']),
       git(dir, ['worktree', 'list', '--porcelain', '-z']), git(dir, ['remote']), this.protectedRefs(key), this.busy(dir), gitOperation(dir), conflictFiles(dir)
     ])
     const holders = new Map<string, string>()
@@ -109,13 +110,13 @@ export class GitService {
     return {
       ...empty, git: true, directory: await gitOrNull(dir, ['rev-parse', '--show-toplevel']) ?? dir, branch: head.detached ? null : head.branch, head: sha,
       upstream: head.upstream ?? null, ahead: head.ahead ?? 0, behind: head.behind ?? 0, changes: head.changes ?? 0,
-      remotes: remotes.trim().split('\n').filter(Boolean), operation, conflicts,
+      remotes: remotes.trim().split('\n').filter(Boolean), operation, conflicts, rebase: operation === 'other' && await rebasing(dir),
       blocker: busy ? 'Agent 正在处理、等待批准或启动，请等这一轮结束。' : this.locked.has(key) ? 'Git 操作进行中。' : null,
       branches: listing.split('\n').filter(Boolean).flatMap((line) => {
-        const [ref = '', sha = '', upstream = ''] = line.split('\0')
+        const [ref = '', sha = '', upstream = '', track = ''] = line.split('\0')
         const remote = /^refs\/remotes\/([^/]+)\/(.+)$/.exec(ref)
         if (remote?.[2] === 'HEAD') return []
-        return [{ ref, name: remote?.[2] ?? ref.slice('refs/heads/'.length), remote: remote?.[1] ?? null, sha, upstream: upstream || null, worktree: holders.get(ref) ?? null, protected: protectedRefs.has(ref) }]
+        return [{ ref, name: remote?.[2] ?? ref.slice('refs/heads/'.length), remote: remote?.[1] ?? null, sha, upstream: upstream || null, worktree: holders.get(ref) ?? null, protected: protectedRefs.has(ref), ...(upstream ? parseTrack(track) : {}) }]
       })
     }
   }
@@ -196,7 +197,7 @@ export class GitService {
       if (target.kind === 'task' && status.branch !== this.tasks.get(target.id).repos.find((repo) => repo.path === target.project)?.branch) throw new Rejection('git-task-branch', 'worktree 的实际分支与任务绑定不符，请先在终端修复。')
       const result = await this.perform(dir, status, action)
       const after = await projectHead(dir)
-      const moved = ['switch', 'detach', 'merge', 'pull', 'continue', 'abort', 'resolve'].includes(action.kind) || (action.kind === 'create' && action.checkout) || (action.kind === 'rename' && action.ref === `refs/heads/${status.branch}`)
+      const moved = ['switch', 'detach', 'merge', 'pull', 'continue', 'abort', 'resolve'].includes(action.kind) || (action.kind === 'update' && action.ref === `refs/heads/${status.branch}`) || (action.kind === 'create' && action.checkout) || (action.kind === 'rename' && action.ref === `refs/heads/${status.branch}`)
       if (moved) {
         for (const conversation of this.conversations.listAll()) {
           for (const project of conversation.projectPaths) {
@@ -298,6 +299,7 @@ export class GitService {
         await writeGit(dir, ['pull', '--ff-only', remoteAt(remote[1]), remote[2]])
         break
       }
+      case 'update': return updateBranch(dir, status, action.ref, action.method, remoteAt)
       case 'push': return push(action.remote, action.name)
       case 'commit': {
         requireBranch()
@@ -321,11 +323,8 @@ export class GitService {
         await writeGit(dir, ['add', '--', action.file])
         break
       }
-      case 'continue':
-        if (status.conflicts.length) throw new Rejection('git-conflicts', '仍有未解决的冲突文件。')
-        await writeGit(dir, ['commit', '--no-edit'])
-        break
-      case 'abort': await writeGit(dir, ['merge', '--abort']); break
+      case 'continue': return continueOperation(dir, status)
+      case 'abort': return abortOperation(dir, status)
     }
     return { state: 'done' }
   }

@@ -8984,6 +8984,15 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .git-branch-row svg { width: 12px; height: 12px; flex-shrink: 0; }
 .git-branch-row:hover, .git-tree-filter:hover { background: var(--fill); }
 .git-branch-row[data-selected], .git-tree-filter[aria-pressed='true'] { background: var(--fill-2); }
+/* How far a local branch is from its upstream, as IntelliJ shows it: incoming, then outgoing. */
+.git-branch-track { display: inline-flex; gap: 4px; flex-shrink: 0; font-size: var(--chat-font-small, 12px); font-variant-numeric: tabular-nums; }
+.git-branch-track [data-side='behind'] { color: var(--info); }
+.git-branch-track [data-side='ahead'] { color: var(--status-done); }
+.git-update-methods { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 8px; }
+.git-dialog .git-update-method { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: 8px; cursor: pointer; }
+.git-update-method input { margin-top: 3px; }
+.git-update-method > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.git-update-method .muted { font-size: 12px; line-height: 1.5; }
 .git-branch-badge { color: var(--text-muted); font-size: var(--chat-font-small, 12px); border-radius: var(--radius-xs); background: var(--fill); padding: 0 4px; }
 .git-tree-filter { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--text); font: inherit; font-size: var(--chat-font-small, 12px); padding: 8px; cursor: pointer; border-radius: var(--radius-xs); }
 .git-history { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }

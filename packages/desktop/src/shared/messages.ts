@@ -10913,5 +10913,81 @@ export const MESSAGES = {
   "RouteBadge.unavailable": { "zh": "服务商「{value1}」已删除或没有 Key，补上之前 Agent 不能继续", "en": "{value1} is gone or has no key; the agent cannot go on until it is back" },
   "RouteBadge.removedProvider": { "zh": "已删除的服务商", "en": "Removed provider" },
   "ChatHandoff.keepsProvider": { "zh": "沿用服务商「{value1}」", "en": "Keeps {value1}" },
-  "ChatHandoff.ownAccountInstead": { "zh": "用自己的账号：「{value1}」不服务它", "en": "Its own account: {value1} does not serve it" }
+  "ChatHandoff.ownAccountInstead": { "zh": "用自己的账号：「{value1}」不服务它", "en": "Its own account: {value1} does not serve it" },
+  "GitInspector.updateFromRemote": {
+    "zh": "从远端更新",
+    "en": "Update from remote"
+  },
+  "GitInspector.updateBranch": {
+    "zh": "更新 {branch}",
+    "en": "Update {branch}"
+  },
+  "GitInspector.updateDiverged": {
+    "zh": "{branch} 和 {upstream} 已分叉：本地有 {ahead} 个提交还没推送，远端有 {behind} 个新提交。选择怎样把远端的提交并进来：",
+    "en": "{branch} and {upstream} have diverged: {ahead} local commits are not pushed and the remote has {behind} new ones. Choose how to bring the remote commits in:"
+  },
+  "GitInspector.updateMerge": {
+    "zh": "合并（Merge）",
+    "en": "Merge"
+  },
+  "GitInspector.updateMergeDescription": {
+    "zh": "多出一个合并提交，本地提交保持原样。",
+    "en": "Adds a merge commit and leaves your local commits as they are."
+  },
+  "GitInspector.updateRebase": {
+    "zh": "变基（Rebase）",
+    "en": "Rebase"
+  },
+  "GitInspector.updateRebaseDescription": {
+    "zh": "把本地的提交重新接到远端之后，历史是一条直线。已经推送出去的提交不要变基。",
+    "en": "Replays your local commits on top of the remote ones for a straight history. Do not rebase commits you have already pushed."
+  },
+  "GitInspector.updateStashNote": {
+    "zh": "有未提交的改动时，会先暂存起来，更新完再放回。",
+    "en": "Uncommitted changes are stashed first and put back afterwards."
+  },
+  "GitInspector.upToDate": {
+    "zh": "{branch} 已是最新。",
+    "en": "{branch} is up to date."
+  },
+  "GitInspector.updated": {
+    "zh": "{branch} 已更新，拉入 {count} 个提交。",
+    "en": "{branch} updated with {count} incoming commits."
+  },
+  "GitInspector.stashKept": {
+    "zh": "未提交的改动没能自动放回，留在 stash 里（antumi-update:{branch}），请在终端用 git stash pop 处理。",
+    "en": "Your uncommitted changes did not apply cleanly and wait in the stash (antumi-update:{branch}); run git stash pop in a terminal."
+  },
+  "GitInspector.rebaseConflicts": {
+    "zh": "变基出现冲突，请处理下面列出的文件。",
+    "en": "Rebase conflicts found. Resolve the files listed below."
+  },
+  "GitInspector.rebaseIsUnfinished": {
+    "zh": "变基尚未完成",
+    "en": "Rebase is unfinished"
+  },
+  "GitInspector.continueRebase": {
+    "zh": "继续变基",
+    "en": "Continue rebase"
+  },
+  "GitInspector.abortRebase": {
+    "zh": "中止变基…",
+    "en": "Abort rebase…"
+  },
+  "GitInspector.abortRebaseTitle": {
+    "zh": "中止变基",
+    "en": "Abort rebase"
+  },
+  "GitInspector.abortRebaseExplained": {
+    "zh": "中止这次变基，分支回到更新之前的样子。",
+    "en": "Abort this rebase and return the branch to where it was before the update."
+  },
+  "GitInspector.aheadBehind": {
+    "zh": "落后 {behind} 个提交 · 领先 {ahead} 个提交",
+    "en": "{behind} behind · {ahead} ahead"
+  },
+  "labels.branchDivergedSwitchToUpdate": {
+    "zh": "这个分支和远端已分叉，切换到这个分支后再更新。",
+    "en": "This branch has diverged from its remote; switch to it to update it."
+  }
 } as const
