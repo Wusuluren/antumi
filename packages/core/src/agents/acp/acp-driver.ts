@@ -65,6 +65,15 @@ type ThoughtLevel = { id: string; name: string; values: AcpOptionValue[] }
 // Speaks the Agent Client Protocol for any agent, asking its dialect for what the agent adds.
 // Every transition comes from a log record, including outbound frames. Reattaching to a live
 // daemon process therefore restores pending requests without repeating the handshake.
+
+// A call's input as its card shows it, as Claude's and Codex's are: a command as the command it
+// runs, not the JSON around it; a call whose input is only the file its title names, as nothing.
+function shownInput(name: string, input: unknown): string | null {
+  const fields = z.looseObject({ command: z.string().optional(), path: z.string().optional() }).safeParse(input).data
+  if (name === 'commandExecution' && fields?.command) return clip(fields.command)
+  if (fields?.path && Object.keys(fields).length === 1) return null
+  return clip(JSON.stringify(input))
+}
 export class AcpDriver implements ChatDriver {
   readonly items: ChatItems
   private readonly state: StageState
@@ -638,7 +647,7 @@ export class AcpDriver implements ChatDriver {
     const exitCode = z.looseObject({ exitCode: z.number().int().nullish() }).safeParse(update.rawOutput).data?.exitCode ?? null
     this.items.put({
       id, kind: 'tool', name, title: raw?.command ?? raw?.path ?? task?.description ?? update.title ?? old?.title ?? name,
-      input: input === undefined || (subagent && old) ? old?.input ?? null : clip(JSON.stringify(input)), status,
+      input: input === undefined || (subagent && old) ? old?.input ?? null : shownInput(name, input), status,
       output: output.text ? clip(output.text) : update.rawOutput !== undefined && !subagent ? clip(typeof update.rawOutput === 'string' ? update.rawOutput : JSON.stringify(update.rawOutput)) : old?.output ?? null,
       ...(timing ? { metrics: { tools: old?.metrics?.tools ?? 0, tokens: 0, durationMs: timing.durationMs } } : old?.metrics ? { metrics: old.metrics } : {}),
       diffs: content.some((entry) => entry.type === 'diff') ? content.flatMap((entry) => entry.type === 'diff' && entry.path ? [{ path: entry.path, change: entry.oldText == null ? 'add' as const : 'update' as const, patch: clip(`--- ${entry.path}\n+++ ${entry.path}\n@@\n${(entry.oldText ?? '').split('\n').map((line) => `-${line}`).join('\n')}\n${(entry.newText ?? '').split('\n').map((line) => `+${line}`).join('\n')}`, 50_000) }] : []) : old?.diffs ?? [],

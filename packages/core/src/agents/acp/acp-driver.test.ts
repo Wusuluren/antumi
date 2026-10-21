@@ -62,9 +62,19 @@ describe('ACP without a dialect of its own', () => {
 
     receive(driver, { method: 'session/update', params: { sessionId: 'session', update: { sessionUpdate: 'tool_call_update', toolCallId: 'call', status: 'completed', rawOutput: { exitCode: 0 } } } })
     receive(driver, { id: 'plain-prompt-1', result: { stopReason: 'end_turn' } })
-    expect(items(driver, 'tool')[0]).toMatchObject({ name: 'commandExecution', status: 'done', execution: { status: 'completed', exitCode: 0 } })
+    // The command itself, as Claude's and Codex's cards show one, not the JSON it came in.
+    expect(items(driver, 'tool')[0]).toMatchObject({ name: 'commandExecution', input: 'pnpm test', status: 'done', execution: { status: 'completed', exitCode: 0 } })
     expect(items(driver, 'turn')[0]).toMatchObject({ state: 'completed', error: null })
     expect(driver.takeMessages().map((each) => each.role)).toEqual(['user', 'assistant'])
+  })
+
+  it('shows no input for a call on a file its title names, and the rest of a search\'s', () => {
+    const driver = opened()
+    driver.apply({ dir: 'out', at: 3, frame: driver.send('look').logged })
+    const call = (toolCallId: string, kind: string, rawInput: unknown) => receive(driver, { method: 'session/update', params: { sessionId: 'session', update: { sessionUpdate: 'tool_call', toolCallId, title: kind, kind, status: 'completed', rawInput } } })
+    call('read', 'read', { path: '/work/a.ts' })
+    call('search', 'search', { path: '/work', pattern: 'TODO' })
+    expect(items(driver, 'tool').map((tool) => [tool.title, tool.input])).toEqual([['/work/a.ts', null], ['/work', '{"path":"/work","pattern":"TODO"}']])
   })
 
   it('tells the agent of the user\'s vault ahead of its first prompt only, and only on the wire', () => {
