@@ -1,4 +1,4 @@
-import { ClaudeTokenUsage, claudeMetering } from '../../model-metering'
+import { ClaudeTokenUsage, claudeMetering, withoutCost } from '../../model-metering'
 import type { ModelMetering } from '@antumi/protocol'
 import { z } from 'zod'
 import { browserToolKind, ChatPermissionMode, CONTEXT_COMPACTED, RESERVED_MCP_SERVER_NAME, takeImageMarkers, toolImagePath, type ChatCommand, type ChatDiff, type ChatImage, type ChatModel, type ChatOption, type ChatTurnActivity, type ChatTurnState } from '@antumi/protocol'
@@ -250,6 +250,14 @@ function modelRows(value: unknown): ModelRow[] {
   })
 }
 
+// A provider's models as catalog rows. The API names a model without the [1m] the CLI is told it
+// by, so that is what a turn reports; the provider's default stands for the CLI's own.
+function providerRows(models: readonly ChatModel[]): ModelRow[] {
+  const rows = models.map((model) => ({ value: model.id, resolvedModel: model.id.replace(/\[1m\]$/, ''), displayName: model.label, description: model.description, supportedEffortLevels: [...model.efforts], supportsAutoMode: false }))
+  const fallback = models.find((model) => model.isDefault) ?? models[0]
+  return fallback ? [...rows, { value: 'default', resolvedModel: fallback.id.replace(/\[1m\]$/, '') }] : rows
+}
+
 // Names with a leading __ are the CLI's own plumbing, not for a person to type.
 function commandRows(value: unknown): ChatCommand[] {
   return (Array.isArray(value) ? value : []).flatMap((row) => {
@@ -453,6 +461,7 @@ export class ClaudeStream implements ChatDriver {
     this.antumi = new AntumiRequests(this.items)
     this.state = new StageState(this.items)
     this.sessionId = options.resume
+    if (options.providerModels) this.catalog = providerRows(options.providerModels)
   }
 
   apply(record: ChatRecord): void {
@@ -1122,7 +1131,8 @@ export class ClaudeStream implements ChatDriver {
     // notification and ends it at once, the report already taken: no request, nothing said. That
     // one is left out, rather than shown as a turn of its own.
     const empty = state === 'completed' && this.turn?.resumed === true && !this.turn.assistant && result.num_turns === 0
-    this.turnMetering = claudeMetering(frame, this.currentModel()?.resolvedModel ?? this.reportedModel, [...this.modelRequests.values()])
+    const metering = claudeMetering(frame, this.currentModel()?.resolvedModel ?? this.reportedModel, [...this.modelRequests.values()])
+    this.turnMetering = metering && this.options.providerModels ? withoutCost(metering) : metering
     this.endTurn(state, error, result.duration_ms ?? null, at, usage, limit, empty)
   }
 
@@ -1279,7 +1289,7 @@ export class ClaudeStream implements ChatDriver {
     this.initialized = true
     const init = InitResponse.safeParse(response)
     if (!init.success) return
-    this.catalog = modelRows(init.data.models)
+    this.catalog = this.options.providerModels ? providerRows(this.options.providerModels) : modelRows(init.data.models)
     this.commands = commandRows(init.data.commands)
     const mode = init.data.current_permission_mode
     if (mode) this.permissionMode = PERMISSION_MODES[mode] ?? mode

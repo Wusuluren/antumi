@@ -510,6 +510,10 @@ export class CodexAppServer implements ChatDriver {
     this.state = new StageState(this.items)
     // A stage that only plans runs every turn in plan mode, whatever was remembered.
     this.chosen = { ...options.preferred, ...(options.planOnly ? { permissionMode: PLAN_MODE } : options.readOnly ? { permissionMode: 'readOnly' } : {}) }
+    // On a provider, its models stand in for what model/list offers, which knows only OpenAI's.
+    if (options.providerModels) {
+      this.catalog = options.providerModels.map((model) => ({ id: model.id, displayName: model.label, description: model.description, isDefault: model.isDefault, supportedReasoningEfforts: model.efforts.map((effort) => ({ reasoningEffort: effort })), defaultReasoningEffort: null }))
+    }
   }
 
   apply(record: ChatRecord): void {
@@ -988,7 +992,7 @@ export class CodexAppServer implements ChatDriver {
       this.steered(String(frame.id), error, at)
     } else if (method === 'model/list') {
       const list = ModelList.safeParse(frame.result)
-      if (list.success) this.catalog = this.modelEntries(list.data.data)
+      if (list.success && !this.options.providerModels) this.catalog = this.modelEntries(list.data.data)
     } else if (method === 'config/read') {
       this.configModel = ConfigRead.safeParse(frame.result).data?.config.model ?? null
     } else if (method === 'skills/list') {
