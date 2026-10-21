@@ -9,7 +9,6 @@
 本地优先的多 Agent 工作台，统一管理 Claude Code、Codex 和 Cursor 的会话、任务、群聊与定时运行。
 
 [![Version](https://img.shields.io/github/package-json/v/flyhero/antumi?label=version&color=blue)](CHANGELOG.md)
-[![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor-8A2BE2)
 
