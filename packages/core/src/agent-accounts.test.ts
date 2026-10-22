@@ -4,6 +4,8 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentAccounts, AgentUsage, Terminal } from '@antumi/protocol'
 import { AgentAccountStore } from './agent-accounts'
+import { UsageService } from './usage-service'
+import type { UsageReading } from './usage-source'
 
 const NOW = 1_790_000_000_000
 
@@ -65,6 +67,33 @@ describe('AgentAccountStore', () => {
     })
     expect(await accounts.launch('claude')).toEqual({ id: 'default', env: null })
     expect(await accounts.launch('cursor')).toBeNull()
+  })
+
+  it('keeps polling Cursor’s own usage alongside managed accounts and after one is removed', async () => {
+    const accounts = store()
+    await accounts.load()
+    await accounts.add('claude', 'Work')
+    let now = NOW
+    const claude = vi.fn(async (_home?: string): Promise<UsageReading> => ({ signedIn: true, windows: [], plan: 'max' }))
+    const cursor = vi.fn(async (): Promise<UsageReading> => ({
+      signedIn: true, plan: 'Pro', windows: [{ kind: 'monthly', model: null, usedPercent: 42, windowMinutes: 43_200, resetsAt: null }]
+    }))
+    const service = new UsageService({ claude, cursor }, () => {}, () => now, {}, () => accounts.homes())
+    await service.refresh()
+    expect(claude.mock.calls).toEqual([[undefined], [path.join(root, 'agent-accounts', 'claude', 'work')]])
+    expect(cursor).toHaveBeenCalledExactlyOnceWith(undefined)
+    expect(service.list()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ agent: 'claude', account: 'default', status: 'ok' }),
+      expect.objectContaining({ agent: 'claude', account: 'work', status: 'ok' }),
+      expect.objectContaining({ agent: 'cursor', account: 'default', status: 'ok', windows: [expect.objectContaining({ kind: 'monthly', usedPercent: 42 })] })
+    ]))
+    expect(accounts.list().accounts.some((account) => account.agent === 'cursor')).toBe(false)
+
+    await accounts.remove('claude', 'work')
+    now += 30_000
+    await service.refresh()
+    expect(cursor).toHaveBeenCalledTimes(2)
+    expect(service.list().map((entry) => [entry.agent, entry.account])).toEqual([['claude', 'default'], ['cursor', 'default']])
   })
 
   it('adds an account by signing in, in its own folder, and reads who signed in once the terminal ends', async () => {

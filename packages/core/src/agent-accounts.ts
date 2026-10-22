@@ -119,9 +119,12 @@ export class AgentAccountStore {
     return { id, env: accounts.env(home) }
   }
 
-  // The account's folder for whatever reads its usage; one no longer kept reads as none.
+  // Usage also reads the user's own login for agents without managed accounts.
   homes(): Array<{ agent: AgentKind; id: string; home: string | undefined }> {
-    return this.list().accounts.map((account) => ({ agent: account.agent, id: account.id, home: this.home(account.agent, account.id) }))
+    const accounts = this.list().accounts
+    return AGENT_KINDS.flatMap((agent) => accountsSupported(agent)
+      ? accounts.filter((account) => account.agent === agent).map((account) => ({ agent, id: account.id, home: this.home(agent, account.id) }))
+      : [{ agent, id: DEFAULT_ACCOUNT, home: undefined }])
   }
 
   async add(agent: AgentKind, label: string | null): Promise<{ account: AgentAccount; terminal: Terminal }> {
