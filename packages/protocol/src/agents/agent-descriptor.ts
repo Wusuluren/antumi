@@ -44,6 +44,9 @@ export type AgentDescriptor = {
     // Signs in to more than one account, each in a config folder of its own (agent-account.ts).
     accounts: boolean
   }
+  // Its file tools reach only the primary project: it gets at the others, a task's reference
+  // projects among them, through commands alone. Clients say so where it is given several.
+  primaryOnlyFiles?: boolean
   // A plan it approves runs on in one of its own modes, named as the agent names them, rather than
   // in Antumi's run modes.
   nativePlanRun?: { hint: string }

@@ -28,6 +28,8 @@ export const antigravity: AgentDescriptor = {
   defaultStartMode: 'ask',
   discussionMode: 'ask',
   readOnlyMode: 'ask',
+  // Signed in with a personal account, its file tools refuse anything outside its cwd.
+  primaryOnlyFiles: true,
   capabilities: { unattended: false, bypass: true, autoMode: false, pathMentions: false, optionsWhileBusy: false, skills: false, userMcp: true, modelProviders: [], accounts: false },
   environment: {
     role: '聊天界面运行 Google 的 Antigravity ACP 服务（Zed、JetBrains 扩展用的同一个），由 Antumi 下载到自己的目录；不需要 agy 或 Antigravity 编辑器。',

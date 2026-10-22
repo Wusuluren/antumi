@@ -13,6 +13,7 @@ import { ChatPicker } from './ChatPicker'
 import { AgentIcon, CloseIcon } from './icons'
 import { SquadLaunchDialog } from './SquadLaunchDialog'
 import { useEditsInPlace } from './TaskLaunch'
+import { OtherProjectsHint } from './OtherProjectsHint'
 import { providerFor, servingProviders } from '../model-provider-choice'
 import { ProviderPicker } from './ProviderPicker'
 
@@ -161,6 +162,7 @@ function LaunchForm({ task, onSquad }: { task: Task; onSquad(): void }) {
           {checkStartMode(dependencies, 'ask') ? t('TaskLaunchDialog.dependenciesAreUnfinishedOnlyPlanningIsAvailableNow') : options.find((each) => each.value === mode)?.description ?? t('TaskLaunchDialog.planFirstThenExecuteAfterApproval')}
         </p>
         {inPlace && mode !== 'plan' && mode !== 'readOnly' && <p className="task-launch-description muted">{t('SquadLaunchDialog.thisProjectIsNotAGitRepositoryChanges')}</p>}
+        <OtherProjectsHint agent={agent} projectCount={task.repos.length} />
         {agent && !provider && <AgentQuotaHint agent={agent} model={modelText(model)} />}
         {blocker && <p className="modal-error">{reasonText(blocker, blocker)}</p>}
         {error && <p className="modal-error" role="alert">{error}</p>}

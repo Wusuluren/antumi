@@ -76,6 +76,9 @@ describe('ACP without a dialect of its own', () => {
     ask(7, { toolCallId: 'edit', title: 'Edit `/refs/docs/README.md`', kind: 'edit', content: [{ type: 'diff', path: '/refs/docs/README.md', oldText: 'a', newText: 'b' }] })
     expect(due(driver)).toEqual([{ jsonrpc: '2.0', id: 7, result: { outcome: { outcome: 'selected', optionId: 'no' } } }])
     expect(items(driver, 'approval')[0]).toMatchObject({ resolution: 'denied', detail: expect.stringContaining('/refs/docs/README.md') })
+    // Antigravity names the file in the request's locations, with no diff.
+    ask(10, { toolCallId: 'write', title: 'Run write_to_file?', kind: 'edit', locations: [{ path: '/refs/docs/new.md' }], rawInput: { TargetFile: '/refs/docs/new.md' } })
+    expect(due(driver)).toEqual([{ jsonrpc: '2.0', id: 10, result: { outcome: { outcome: 'selected', optionId: 'no' } } }])
     expect(driver.activity()).not.toBe('awaiting')
     // Reading there, editing elsewhere, or a folder that only shares the name, is the user's to answer.
     ask(8, { toolCallId: 'read', title: 'Read', kind: 'read', locations: [{ path: '/refs/docs/README.md' }] })

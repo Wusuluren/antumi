@@ -51,4 +51,6 @@ Antumi 用 `oauth-personal`（Google 账号）认证：
 
 - 模型调用失败（例如额度用尽）不会作为 JSON-RPC 错误返回，而是作为一段回复文字，回合照常以 `end_turn` 结束。
 - 服务的 harness 会往 `~/.gemini/antigravity/bin` 写辅助程序，即使设置了 `GEMINI_HOME` 也一样。
-- 会话不接受 `additionalDirectories`。其他项目的路径会写在第一条消息前的说明里，访问这些项目时，项目外文件的审批按服务自身规则处理。
+- 会话不接受 `additionalDirectories`。其他项目的路径会写在第一条消息前的说明里。
+- 用个人 Google 账号登录时，服务的文件读写工具只能访问工作目录（主项目）、`~/.gemini` 和技能目录，访问别处直接报错（1.4.1 的 `make_safe_view_file` 和 harness 都是这样）。所以多项目任务和多项目会话里，附加项目和只读参考项目只能通过运行命令访问；默认和 Auto Edit 模式下每条命令都要批准。描述里的 `primaryOnlyFiles` 让启动任务和新建会话时给出提醒。企业账号按管理员的文件访问策略处理，可能允许访问工作区外。
+- 只读参考项目：文件工具碰不到它，所以改不了；Default 模式下发来的编辑审批也由 Antumi 直接拒绝。Auto Edit 和 YOLO 下编辑不发审批，企业账号又允许访问工作区外时，Antumi 拦不住；命令写文件同样拦不住，只靠提示约束。

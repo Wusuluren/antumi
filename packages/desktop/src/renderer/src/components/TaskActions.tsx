@@ -27,6 +27,7 @@ import { AgentPicker } from './AgentPicker'
 import { confirmQuota, modelText } from './AgentQuota'
 import { providerFor } from '../model-provider-choice'
 import { useProjectCheckRunning } from './ProjectRunNotice'
+import { OtherProjectsHint } from './OtherProjectsHint'
 import { PickerItem } from './ChatPicker'
 import { effortLabel, modeLabel, modeOptions } from './ChatOptionsBar'
 import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
@@ -466,6 +467,7 @@ function StartSplitButton({ task, dependencies, launch }: { task: Task; dependen
         </span>
       </span>
       {writes && inPlace && <p className="task-launch-note">{t('SquadLaunchDialog.thisProjectIsNotAGitRepositoryChanges')}</p>}
+      <OtherProjectsHint agent={agent} projectCount={task.repos.length} />
     </>
   )
 }

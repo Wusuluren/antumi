@@ -1664,6 +1664,19 @@ button.task-tag:hover {
   height: 14px;
 }
 
+.other-projects-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: default;
+}
+.other-projects-hint svg { width: 13px; height: 13px; flex-shrink: 0; }
+/* Under the task's actions, after the agent picker, rather than among them. */
+.task-detail-actions .other-projects-hint { order: 1; flex-basis: 100%; }
+
 .task-launch-note {
   flex-basis: 100%;
   margin: 0;

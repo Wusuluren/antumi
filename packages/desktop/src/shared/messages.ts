@@ -8527,6 +8527,14 @@ export const MESSAGES = {
     "zh": "多项目任务里，非 Git 文件夹只能作为只读参考",
     "en": "In a task with several projects, a folder outside Git can only be a reference"
   },
+  "OtherProjectsHint.summary": {
+    "zh": "{value1} 只能用命令访问附加项目",
+    "en": "{value1} reaches other projects only through commands"
+  },
+  "OtherProjectsHint.detail": {
+    "zh": "{value1} 的文件工具只能读写主项目。附加项目和只读参考项目要靠运行命令访问，多数模式下每条命令都要你批准。",
+    "en": "{value1}'s file tools reach only the primary project. It gets at other projects, reference ones included, by running commands, which most modes ask you to approve."
+  },
   "TaskStarts.startingPoint": {
     "zh": "起点",
     "en": "Starting point"
