@@ -9,6 +9,7 @@ import { hasClaudeCredentials, readClaudeUsage } from './claude-usage'
 
 export const claude: AgentAdapter = {
   kind: 'claude',
+  maintenance: { packageName: '@anthropic-ai/claude-code', brew: { name: 'claude-code', cask: true }, native: { roots: { darwin: ['.local/share/claude', '.claude/bin'], linux: ['.local/share/claude', '.claude/bin'] }, args: ['update'] } },
   createDriver: (stageId, options) => new ClaudeStream(stageId, options),
   command: claudeCommand,
   providerModels: claudeProviderModels,

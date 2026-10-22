@@ -39,12 +39,15 @@ export function probeChatCatalog(driver: ChatDriver, command: AgentCommand, cwd:
     const child = spawn(launch.file, launch.args, { cwd, env: launch.env, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true })
     const waiting = new Set<string>()
     let settled = false
+    let closed = false
     const finish = (catalog: ChatCatalog | null) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
+      if (closed || child.pid === undefined) { resolve(catalog); return }
+      const force = setTimeout(() => child.kill('SIGKILL'), 2000)
+      child.once('close', () => { clearTimeout(force); resolve(catalog) })
       child.kill()
-      resolve(catalog)
     }
     const timer = setTimeout(() => finish(null), PROBE_TIMEOUT_MS)
     const write = () => {
@@ -58,7 +61,7 @@ export function probeChatCatalog(driver: ChatDriver, command: AgentCommand, cwd:
       }
     }
     child.on('error', () => finish(null))
-    child.on('close', () => finish(null))
+    child.on('close', () => { closed = true; finish(null) })
     child.stdin.on('error', () => finish(null))
     child.stdout.on('data', createLineDecoder((line) => {
       let frame: unknown

@@ -9,6 +9,7 @@ import { hasCodexCredentials, readCodexUsage, useCodexResetCredit } from './code
 
 export const codex: AgentAdapter = {
   kind: 'codex',
+  maintenance: { packageName: '@openai/codex', brew: { name: 'codex', cask: true }, native: { roots: { darwin: ['.local/share/codex'], linux: ['.local/share/codex'], win32: ['AppData/Local/OpenAI/Codex'] }, args: ['update'], latestUrl: 'https://api.github.com/repos/openai/codex/releases/latest', tagPrefix: 'rust-v' } },
   createDriver: (stageId, options) => new CodexAppServer(stageId, options),
   command: codexCommand,
   providerModels: codexProviderModels,

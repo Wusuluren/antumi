@@ -1,3 +1,4 @@
+import type { AgentKind } from '@antumi/protocol'
 import { randomUUID } from 'node:crypto'
 import type {
   DaemonEvent,
@@ -40,6 +41,10 @@ type Session = {
   output: OutputBuffer
   stderr: OutputBuffer | null
   exitCode: number | null
+  agent?: AgentKind
+  upgradeId?: string
+  stopReason?: 'cancelled' | 'timed-out'
+  timer?: ReturnType<typeof setTimeout>
 }
 
 export type DaemonHandlers = {
@@ -84,14 +89,17 @@ export function createSessionHost(emit: (event: DaemonEvent) => void, awake: Awa
       sessionId: session.id,
       exited: session.exitCode !== null,
       exitCode: session.exitCode,
-      io: session.io
+      io: session.io,
+      ...(session.agent ? { agent: session.agent } : {}),
+      ...(session.upgradeId ? { upgradeId: session.upgradeId } : {}),
+      ...(session.stopReason ? { stopReason: session.stopReason } : {})
     }
   }
 
-  function track(io: SessionIo, start: (events: ProcessEvents) => HostedProcess): { sessionId: string } {
+  function track(io: SessionIo, start: (events: ProcessEvents) => HostedProcess, agent?: AgentKind, upgradeId?: string): { sessionId: string } {
     const output = new OutputBuffer(io === 'pty' ? PTY_SCROLLBACK_CHARS : PIPE_OUTPUT_CHARS)
     const stderr = io === 'pipe' ? new OutputBuffer(PIPE_STDERR_CHARS) : null
-    const session: Session = { id: randomUUID(), io, process: NOT_STARTED, output, stderr, exitCode: null }
+    const session: Session = { id: randomUUID(), io, process: NOT_STARTED, output, stderr, exitCode: null, agent, upgradeId }
     const sessionId = session.id
     sessions.set(sessionId, session)
     try {
@@ -102,6 +110,7 @@ export function createSessionHost(emit: (event: DaemonEvent) => void, awake: Awa
           emit({ event: 'stderr', sessionId, data })
         },
         exit: (exitCode) => {
+          if (session.timer) clearTimeout(session.timer)
           session.exitCode = exitCode
           emit({ event: 'exit', sessionId, exitCode })
         }
@@ -110,7 +119,25 @@ export function createSessionHost(emit: (event: DaemonEvent) => void, awake: Awa
       sessions.delete(sessionId)
       throw error
     }
+    if (upgradeId && session.exitCode === null) {
+      session.timer = setTimeout(() => stop(session, 'timed-out'), 5 * 60_000)
+      session.timer.unref()
+    }
     return { sessionId }
+  }
+
+  function stop(session: Session, reason: 'cancelled' | 'timed-out'): void {
+    if (session.stopReason) return
+    session.stopReason = reason
+    if (session.timer) clearTimeout(session.timer)
+    session.process.kill(false)
+    if (session.exitCode !== null) return
+    session.timer = setTimeout(() => { if (session.exitCode === null) session.process.kill(true) }, 2000)
+    session.timer.unref()
+  }
+
+  function guard(agent?: AgentKind): void {
+    if (agent && [...sessions.values()].some((session) => session.exitCode === null && session.upgradeId && session.agent === agent)) throw new Error('agent-cli-maintenance-running')
   }
 
   const handlers: DaemonHandlers = {
@@ -119,11 +146,19 @@ export function createSessionHost(emit: (event: DaemonEvent) => void, awake: Awa
       await ports.stop(ref)
       return { ok: true }
     },
+    spawnCliUpgrade({ agent, upgradeId, cols, rows, ...launch }) {
+      if ([...sessions.values()].some((session) => session.exitCode === null && session.upgradeId)) throw new Error('agent-cli-maintenance-running')
+      if ([...sessions.values()].some((session) => session.exitCode === null && (session.agent === agent || (session.io === 'pipe' && !session.agent)))) throw new Error('agent-cli-active')
+      return track('pty', (events) => startPty(launch, cols, rows, events), agent, upgradeId)
+    },
     spawn({ cols, rows, ...launch }) {
-      return track('pty', (events) => startPty(launch, cols, rows, events))
+      guard(launch.agent)
+      return track('pty', (events) => startPty(launch, cols, rows, events), launch.agent)
     },
     spawnPipe(launch) {
-      return track('pipe', (events) => startPipe(launch, events))
+      if (!launch.agent && [...sessions.values()].some((session) => session.exitCode === null && session.upgradeId)) throw new Error('agent-cli-maintenance-running')
+      guard(launch.agent)
+      return track('pipe', (events) => startPipe(launch, events), launch.agent)
     },
     write({ sessionId, data }) {
       const session = getSession(sessionId)
@@ -142,7 +177,8 @@ export function createSessionHost(emit: (event: DaemonEvent) => void, awake: Awa
     kill({ sessionId, force }) {
       const session = getSession(sessionId)
       if (session.exitCode === null) {
-        session.process.kill(force ?? false)
+        if (session.upgradeId && !force) stop(session, 'cancelled')
+        else session.process.kill(force ?? false)
       }
       return { ok: true }
     },
@@ -172,7 +208,7 @@ export function createSessionHost(emit: (event: DaemonEvent) => void, awake: Awa
       return awake.status()
     },
     info() {
-      return { version: lifecycle.version, pid: process.pid }
+      return { version: lifecycle.version, pid: process.pid, features: ['agent-cli-maintenance'] }
     },
     retire() {
       const live = [...sessions.values()].filter((session) => session.exitCode === null).length

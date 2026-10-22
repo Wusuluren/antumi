@@ -8680,6 +8680,9 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .font-picker-note { margin: 4px 8px; color: var(--text-3); font-size: 12px; }
 .agent-list-note { margin: 4px 0 0; }
 .agent-row { justify-content: flex-start; }
+.agent-row:has(.agent-cli-maintenance) { align-items: flex-start; }
+.agent-row:has(.agent-cli-maintenance) .settings-row-control { padding-top: 4px; }
+.agent-cli-maintenance { margin-top: 8px; }
 .agent-row .settings-row-text { flex: 1; min-width: 0; }
 .agent-row-icon {
   flex-shrink: 0;

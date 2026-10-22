@@ -1,3 +1,4 @@
+import { agentCliAccess } from './agent-cli-access'
 import { randomUUID } from 'node:crypto'
 import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -161,6 +162,7 @@ export class ConversationService {
   private maxConcurrentAgents = 20
   private agentConcurrency: Partial<Record<AgentKind, number>> = {}
   private capacityReleased: (() => void) | null = null
+  private readonly freshCatalogs = new Set<AgentKind>()
   private readonly catalogs = new Map<AgentKind, Promise<ChatCatalog | null>>()
   private readonly chats: ChatHost
   private readonly titles: ConversationTitles
@@ -1095,7 +1097,7 @@ export class ConversationService {
         if (prepared.args) command.args = [...command.args, ...prepared.args]
       }
       this.wire?.record(id, stage.id, [{ dir: 'spawn', text: JSON.stringify({ command: command.command, args: command.args, cwd: current.workspacePath }) }])
-      const spawned = await this.daemon.request('spawnPipe', { command: command.command, args: command.args, cwd: current.workspacePath, env: { ...command.env, [PROCESS_OWNER_ENV]: processOwner({ kind: 'conversation', id }) } })
+      const spawned = await agentCliAccess.use(agent, () => this.daemon.request('spawnPipe', { agent, command: command.command, args: command.args, cwd: current.workspacePath, env: { ...command.env, [PROCESS_OWNER_ENV]: processOwner({ kind: 'conversation', id }) } }))
       sessionId = spawned.sessionId
       if (launch) {
         this.wire?.record(id, stage.id, [{
@@ -1260,6 +1262,8 @@ export class ConversationService {
     this.changed(conversation)
   }
 
+  invalidateCli(agent: AgentKind): void { this.catalogs.delete(agent); this.freshCatalogs.add(agent) }
+
   // What a new chat can pick from before its agent starts: the models the agent listed last,
   // kept as each chat stage reports them, read back from the newest stage after a restart, and
   // asked of the CLI only when it never ran a chat. On a provider, the provider's models; null
@@ -1272,12 +1276,13 @@ export class ConversationService {
     }
     const known = this.catalogs.get(agent)
     if (known) return known
-    const found = this.catalogFromStages(agent)
+    const found = this.freshCatalogs.has(agent) ? null : this.catalogFromStages(agent)
     const adapter = adapterOf(agent)
-    const catalog = found ? Promise.resolve(found) : adapter.catalog ? adapter.catalog(this.sessionsRoot).catch(() => null) : this.probeCatalog(agent)
+    const catalog = found ? Promise.resolve(found) : agentCliAccess.use(agent, () => adapter.catalog ? adapter.catalog(this.sessionsRoot) : this.probeCatalog(agent)).catch(() => null)
     this.catalogs.set(agent, catalog)
     // A probe that failed is tried again next time rather than remembered.
     void catalog.then((result) => {
+      if (result) this.freshCatalogs.delete(agent)
       if (!result && this.catalogs.get(agent) === catalog) this.catalogs.delete(agent)
     })
     return catalog

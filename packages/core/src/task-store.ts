@@ -334,7 +334,8 @@ export const MIGRATIONS = [
      PRIMARY KEY (agent, provider_session_id)
    );`,
   // The agent account a stage ran on (AgentAccount.id); null on a provider, or for an agent without accounts.
-  `ALTER TABLE conversation_stages ADD COLUMN account TEXT;`
+  `ALTER TABLE conversation_stages ADD COLUMN account TEXT;`,
+  `CREATE TABLE agent_cli_operations (agent TEXT PRIMARY KEY, data TEXT NOT NULL);`
 ]
 
 

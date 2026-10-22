@@ -3,7 +3,7 @@ import { stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { agentDescriptor, PROCESS_OWNER_ENV, processOwner, Terminal, type AgentCliInstallation, type ProcessOwner, type TerminalOutput } from '@antumi/protocol'
+import { agentDescriptor, PROCESS_OWNER_ENV, processOwner, Terminal, type AgentKind, type AgentCliInstallation, type ProcessOwner, type TerminalOutput } from '@antumi/protocol'
 import { nodeLaunchHost, resolveCommand, type LaunchHost, type SessionInfo } from '@antumi/protocol/node'
 import type { SessionHost } from './daemon-client'
 import { Rejection } from './rejection'
@@ -59,6 +59,7 @@ export type RunOptions = { title?: string; env?: Record<string, string>; purpose
 // because the daemon keeps the shells running; reconcile drops the ones it no longer has.
 export class TerminalService {
   private readonly db: DatabaseSync
+  private beforeCloseUpgrade: (() => Promise<void>) | null = null
   private readonly exits = new Map<string, ((exitCode: number | null) => void)[]>()
 
   constructor(
@@ -71,6 +72,8 @@ export class TerminalService {
     this.db = new DatabaseSync(file)
     this.db.exec('PRAGMA journal_mode = WAL')
   }
+
+  onBeforeCloseUpgrade(reconcile: () => Promise<void>): void { this.beforeCloseUpgrade = reconcile }
 
   close(): void {
     this.db.close()
@@ -162,15 +165,32 @@ export class TerminalService {
   }
 
   // An agent's CLI signing in to an account: its own argv, no shell, pointed at the account's folder.
-  signIn(argv: { command: string; args: readonly string[] }, env: Record<string, string>, title: string): Promise<Terminal> {
-    return this.runFinite({ command: argv.command, args: [...argv.args] }, title, [argv.command, ...argv.args].join(' '), env)
+  signIn(argv: { command: string; args: readonly string[] }, env: Record<string, string>, title: string, agent?: AgentKind): Promise<Terminal> {
+    return this.runFinite({ command: argv.command, args: [...argv.args] }, title, [argv.command, ...argv.args].join(' '), env, agent)
+  }
+
+  async upgradeCli(agent: AgentKind, upgradeId: string, argv: { command: string; args: string[] }): Promise<Terminal> {
+    const cwd = os.homedir()
+    const { sessionId } = await this.daemon.request('spawnCliUpgrade', { ...argv, agent, upgradeId, cwd, env: { ...terminalEnv(), ...ownedBy({ kind: 'terminal', id: upgradeId }) }, cols: 120, rows: 32 })
+    return this.adoptUpgrade(agent, upgradeId, sessionId, [argv.command, ...argv.args].join(' '))
+  }
+
+  async adoptUpgrade(agent: AgentKind, id: string, sessionId: string, command: string): Promise<Terminal> {
+    this.db.prepare('INSERT OR IGNORE INTO terminals (id, session_id, cwd, title, created_at, command) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(id, sessionId, os.homedir(), `升级 ${agentDescriptor(agent).label} CLI`, this.now(), command)
+    const attached = await this.daemon.request('attach', { sessionId })
+    if (attached.exited) this.handleExit(sessionId, attached.exitCode)
+    this.changed()
+    const terminal = this.list().find((each) => each.id === id)
+    if (!terminal) throw new Rejection('terminal-not-found')
+    return terminal
   }
 
   // A finite command the user started and follows in a tab; command: how the tab names it.
-  private async runFinite(argv: { command: string; args: string[] }, title: string, command: string, env: Record<string, string> = {}): Promise<Terminal> {
+  private async runFinite(argv: { command: string; args: string[] }, title: string, command: string, env: Record<string, string> = {}, agent?: AgentKind): Promise<Terminal> {
     const cwd = os.homedir()
     const id = randomUUID()
-    const { sessionId } = await this.daemon.request('spawn', { ...argv, cwd, env: { ...terminalEnv(), ...env, ...ownedBy({ kind: 'terminal', id }) }, cols: 120, rows: 32 })
+    const { sessionId } = await this.daemon.request('spawn', { ...argv, agent, cwd, env: { ...terminalEnv(), ...env, ...ownedBy({ kind: 'terminal', id }) }, cols: 120, rows: 32 })
     const terminal = { id, sessionId, cwd, title, createdAt: this.now(), command }
     this.db.prepare('INSERT INTO terminals (id, session_id, cwd, title, created_at, command) VALUES (?, ?, ?, ?, ?, ?)')
       .run(terminal.id, sessionId, cwd, terminal.title, terminal.createdAt, terminal.command)
@@ -220,6 +240,7 @@ export class TerminalService {
   async kill(id: string): Promise<void> {
     const terminal = this.rows().find((each) => each.id === id)
     if (!terminal) return
+    if (terminal.exited === 1) await this.beforeCloseUpgrade?.()
     this.remove(terminal.sessionId)
     if (terminal.exited === 1) await this.daemon.request('release', { sessionId: terminal.sessionId }).catch(() => {})
     else await this.daemon.request('kill', { sessionId: terminal.sessionId }).catch(() => {})
