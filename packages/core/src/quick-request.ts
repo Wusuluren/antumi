@@ -1,3 +1,4 @@
+import { agentCliAccess } from './agent-cli-access'
 import { spawn } from 'node:child_process'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import os from 'node:os'
@@ -88,7 +89,7 @@ export class QuickRequests {
       const env = account?.env ?? await this.deps.accountEnv?.(agent)
       const command = { ...await quick.command(prompt, model, outputFile), ...(env ? { env } : {}) }
       if (tracking && accounting) job = accounting.begin({ kind: tracking.kind, agent, model, conversationId: tracking.conversationId, baseline: tracking.baseline() })
-      const output = await (this.deps.run ?? runQuick)(command, dir)
+      const output = await agentCliAccess.use(agent, () => (this.deps.run ?? runQuick)(command, dir))
       const printed = typeof output === 'string' ? output : output.stdout
       const answer = quick.parse(printed, model)
       if (answer.metering) this.deps.observe?.({ id: job, agent, account: account?.id ?? null, identity: account?.identity ?? null, startedAt, metering: answer.metering, unpriced: false })
@@ -130,9 +131,12 @@ function runQuick(command: QuickCommand, cwd: string): Promise<QuickOutput> {
     const child = spawn(launch.file, launch.args, { cwd, env: launch.env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
     let out = ''
     let err = ''
+    let timedOut = false
+    let force: ReturnType<typeof setTimeout> | undefined
     const timer = setTimeout(() => {
+      timedOut = true
       child.kill()
-      resolve({ stdout: out, error: new Rejection('quick-timeout', 'the agent took too long') })
+      force = setTimeout(() => child.kill('SIGKILL'), 2000)
     }, TIMEOUT_MS)
     child.stdout.setEncoding('utf8').on('data', (chunk: string) => { out += chunk })
     child.stderr.setEncoding('utf8').on('data', (chunk: string) => { err = (err + chunk).slice(-2000) })
@@ -142,6 +146,8 @@ function runQuick(command: QuickCommand, cwd: string): Promise<QuickOutput> {
     })
     child.on('close', (code) => {
       clearTimeout(timer)
+      if (force) clearTimeout(force)
+      if (timedOut) { resolve({ stdout: out, error: new Rejection('quick-timeout', 'the agent took too long') }); return }
       resolve({ stdout: out, error: code === 0 ? null : new Rejection('quick-failed', err.trim().split('\n').at(-1) || `exited with ${code}`) })
     })
     child.stdin.on('error', () => {})

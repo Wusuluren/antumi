@@ -335,6 +335,7 @@ export const MIGRATIONS = [
    );`,
   // The agent account a stage ran on (AgentAccount.id); null on a provider, or for an agent without accounts.
   `ALTER TABLE conversation_stages ADD COLUMN account TEXT;`,
+  `CREATE TABLE agent_cli_operations (agent TEXT PRIMARY KEY, data TEXT NOT NULL);`,
   `CREATE TABLE usage_records (file TEXT NOT NULL, id TEXT NOT NULL, at INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY (file,id));
    CREATE INDEX usage_records_at ON usage_records(at);
    CREATE TABLE usage_scan_files (file TEXT PRIMARY KEY, data TEXT NOT NULL);

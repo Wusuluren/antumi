@@ -1,7 +1,8 @@
 import { getLocale, t, tr } from '../i18n'
-import { useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import { AGENT_KINDS, agentDescriptor, type AgentCliInstallation, type AgentKind, type DetectedAgent, type EnvironmentCheck } from '@antumi/protocol'
-import { installAgentCli, refreshEnvironment, showTerminal, useCore } from '../core-store'
+import { refreshAgentCli, upgradeAgentCli, cancelAgentCliUpgrade, selectConversation, installAgentCli, refreshEnvironment, showTerminal, useCore } from '../core-store'
+import { cliStatusText, cliErrorText } from '../agent-cli-text'
 import { checkStatusText } from '../environment-text'
 import { agentLabel } from '../labels'
 import { setPreference, usePreferences } from '../preferences'
@@ -27,9 +28,44 @@ function Fix({ label, command }: { label: string; command: string }) {
   )
 }
 
+function CliMaintenance({ kind }: { kind: AgentKind }) {
+  const status = useCore((s) => s.agentCli[kind])
+  const conversations = useCore((s) => s.conversations)
+  const terminals = useCore((s) => s.terminals)
+  const [opening, setOpening] = useState(false)
+  const busy = opening || status?.phase === 'checking' || status?.phase === 'starting' || status?.phase === 'running'
+  const running = status?.phase === 'running' || status?.phase === 'starting'
+  const upgrade = async () => {
+    if (opening) return
+    setOpening(true)
+    try { await upgradeAgentCli(kind) } finally { setOpening(false) }
+  }
+  if (!status) return <p className="settings-row-description">{t('agentCli.checking')}</p>
+  const terminal = terminals.find((each) => each.id === status.terminalId)
+  const blockers = Object.values(conversations).filter((each) => each.sessionId && status.blockers.includes(each.sessionId))
+  return (
+    <div className="agent-cli-maintenance">
+      <p className="settings-row-description" role="status">{status.channel !== 'unknown' ? `${status.channel === 'native' ? t('agentCli.native') : status.channel === 'desktop' ? t('agentCli.desktop') : status.channel} · ` : ''}{cliStatusText(status)}{status.latestVersion ? ` · ${t('agentCli.latest', { version: status.latestVersion })}` : ''}</p>
+      {status.path && <p className="settings-row-description mono agent-row-where" title={status.path}>{status.path}</p>}
+      {status.error && <p className="settings-row-description" role="status">{cliErrorText(status.error)}</p>}
+      {blockers.map((conversation) => <button key={conversation.id} type="button" className="button ghost" onClick={() => selectConversation(conversation.id)}>{t('agentCli.openConversation', { title: conversation.title })}</button>)}
+      <div className="agent-install-actions">
+        {running ? <button type="button" className="button" onClick={() => void cancelAgentCliUpgrade(kind)}>{t('agentCli.cancel')}</button> : <>
+          {status.canUpgrade && status.availability !== 'current' && <button type="button" className="button" disabled={busy} onClick={() => void upgrade()}>{opening ? t('agentCli.starting') : status.availability === 'available' ? t('agentCli.upgrade') : t('agentCli.checkUpgrade')}</button>}
+          <button type="button" className="button ghost" disabled={busy} onClick={() => void refreshAgentCli(kind, true)}>{t('agentCli.check')}</button>
+        </>}
+        {terminal && <button type="button" className="button ghost" onClick={() => showTerminal(terminal.id)}>{t('agentCli.output')}</button>}
+        {!status.canUpgrade && status.availability !== 'missing' && status.channel !== 'desktop' && !status.error && <span className="settings-row-description">{t('agentCli.manual')}</span>}
+      </div>
+    </div>
+  )
+}
+
 function AgentRow({ kind, check, enabled, last }: { kind: AgentKind; check: EnvironmentCheck; enabled: boolean; last: boolean }) {
   const labelId = useId()
-  const version = check.version ?? (check.status === 'unknown' ? t('InstalledAgentsSettings.versionUnknown') : null)
+  const maintenanceSupported = useCore((s) => s.rpc?.features.includes('agent-cli-maintenance') ?? false)
+  const currentVersion = useCore((s) => s.agentCli[kind]?.currentVersion)
+  const version = currentVersion ?? check.version ?? (check.status === 'unknown' ? t('InstalledAgentsSettings.versionUnknown') : null)
   return (
     <div className="settings-row agent-row" data-off={!enabled || undefined}>
       <span className="agent-row-icon" aria-hidden="true"><AgentIcon agent={kind} /></span>
@@ -43,6 +79,7 @@ function AgentRow({ kind, check, enabled, last }: { kind: AgentKind; check: Envi
           )}
         </div>
         {check.status === 'unknown' && <p className="settings-row-description">{tr('InstalledAgentsSettings.checkWhetherTheCliCanStart', { value1: checkStatusText(check), value2: agentDescriptor(kind, getLocale()).environment.outdated?.hint ?? '' })}</p>}
+        {maintenanceSupported && <CliMaintenance kind={kind} />}
         {check.signedIn === false && <Fix label={t('InstalledAgentsSettings.signIn')} command={agentDescriptor(kind, getLocale()).environment.signIn} />}
       </div>
       <div className="settings-row-control">
@@ -140,6 +177,8 @@ function Group({ title, count, children }: { title: string; count: number; child
 export function InstalledAgentsSettings() {
   const environment = useCore((s) => s.environment)
   const installationSupported = useCore((s) => s.rpc?.features.includes('agent-cli-installation') ?? false)
+  const maintenanceSupported = useCore((s) => s.rpc?.features.includes('agent-cli-maintenance') ?? false)
+  useEffect(() => { if (maintenanceSupported) void refreshAgentCli() }, [maintenanceSupported])
   const disabled = usePreferences((s) => s.disabledAgents)
   const [checking, setChecking] = useState(false)
   const checkOf = (kind: AgentKind) => environment?.checks.find((each) => each.tool === kind)
@@ -153,7 +192,7 @@ export function InstalledAgentsSettings() {
   const recheck = async () => {
     setChecking(true)
     try {
-      await refreshEnvironment()
+      await Promise.all([refreshEnvironment(), ...(maintenanceSupported ? [refreshAgentCli(undefined, true)] : [])])
     } finally {
       setChecking(false)
     }

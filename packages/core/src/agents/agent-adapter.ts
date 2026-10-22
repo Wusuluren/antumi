@@ -71,6 +71,12 @@ export type AgentStage = { sessionsRoot: string; conversationId: string; stageId
 // and read its limits. Core asks the adapter rather than the agent's name, so an agent is added by
 // writing one and registering it (agents/index.ts).
 export interface AgentAdapter {
+  readonly maintenance?: {
+    packageName?: string
+    packageArgs?: readonly string[]
+    brew?: { name: string; cask: boolean }
+    native?: { roots: Partial<Record<NodeJS.Platform, readonly string[]>>; args: readonly string[]; latestUrl?: string; tagPrefix?: string }
+  }
   readonly kind: AgentKind
   createDriver(stageId: string, options: ChatStageOptions): ChatDriver
   command(launch: AgentLaunch): AgentCommand

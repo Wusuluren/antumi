@@ -1,3 +1,4 @@
+import { mergeCliStatuses } from './agent-cli-state'
 import { getLocale, t } from './i18n'
 import { accountsSupported, activeAccount, isHelper, usageAccount, type AgentAccounts } from '@antumi/protocol'
 import { useEffect, useMemo, useState } from 'react'
@@ -7,6 +8,7 @@ import {
   USAGE_WINDOW_KINDS,
   connectRpc,
   coreUrl,
+  type AgentCliStatus,
   type AgentKind,
   type AgentUsage,
   type ResetCreditOutcome,
@@ -133,6 +135,7 @@ export type CoreState = {
   // How chats run, as core keeps them; null until core says, or on a core without them.
   chatSettings: ChatSettings | null
   // What core found of git and the agent CLIs; null until it says, or on a core that does not look.
+  agentCli: Partial<Record<AgentKind, AgentCliStatus>>
   environment: Environment | null
   newTaskOpen: boolean
   // What the new task dialog starts from when it opens on a task already begun, as the board's quick add hands over.
@@ -242,6 +245,7 @@ export const useCore = create<CoreState>()(() => ({
   browser: null,
   awake: null,
   chatSettings: null,
+  agentCli: {},
   environment: null,
   newTaskOpen: false,
   newTaskDraft: null,
@@ -446,6 +450,27 @@ export async function openTerminal(cwd = contextFolder(useCore.getState())): Pro
     }))
   }
   return terminal
+}
+
+export async function refreshAgentCli(agent?: AgentKind, refresh = false): Promise<void> {
+  const statuses = await perform((rpc) => rpc.call('system.agentCliStatus', { agent, refresh }))
+  if (statuses) useCore.setState((s) => ({ agentCli: mergeCliStatuses(s.agentCli, statuses) }))
+}
+
+export async function upgradeAgentCli(agent: AgentKind): Promise<void> {
+  const result = await perform((rpc) => rpc.call('system.upgradeAgentCli', { agent }))
+  if (!result) return
+  useCore.setState((s) => ({ agentCli: mergeCliStatuses(s.agentCli, [result.status]) }))
+  if (result.terminal) {
+    const terminal = result.terminal
+    useCore.setState((s) => ({ terminals: s.terminals.some((each) => each.id === terminal.id) ? s.terminals : [...s.terminals, terminal] }))
+    showTerminal(terminal.id)
+  }
+}
+
+export async function cancelAgentCliUpgrade(agent: AgentKind): Promise<void> {
+  const status = await perform((rpc) => rpc.call('system.cancelAgentCliUpgrade', { agent }))
+  if (status) useCore.setState((s) => ({ agentCli: mergeCliStatuses(s.agentCli, [status]) }))
 }
 
 export async function installAgentCli(agent: AgentKind): Promise<Terminal | null> {
@@ -855,7 +880,7 @@ export function openAttentionItem(item: ActionableItem): void {
 export async function refreshAttentionSummaries(): Promise<void> {
   const { rpc, attentionSummaryLoading } = useCore.getState()
   if (!rpc || attentionSummaryLoading) return
-  useCore.setState({ attentionSummaryLoading: true, attentionSummaryError: null })
+  useCore.setState({ attentionSummaryLoading: true, attentionSummaryError: null, agentCli: {} })
   try {
     const conversations = await fetchAttentionSummaries(rpc)
     if (useCore.getState().rpc !== rpc) return
@@ -1215,7 +1240,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         const runChanges = new Map<string, SquadRun | null>()
         const squadChanges = new Map<string, Squad | null>()
         const discussionChanges = new Map<string, Discussion | null>()
-        useCore.setState({ attentionSummaryLoading: true, attentionSummaryError: null })
+        useCore.setState({ attentionSummaryLoading: true, attentionSummaryError: null, agentCli: {} })
         rpc.on('squads.changed', ({ squad }) => {
           if (!initialized) squadChanges.set(squad.id, squad)
           useCore.setState((state) => ({ squads: { ...state.squads, [squad.id]: squad } }))
@@ -1260,6 +1285,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         rpc.on('browser.changed', ({ status }) => useCore.setState({ browser: status }))
         rpc.on('system.awakeChanged', ({ status }) => useCore.setState({ awake: status }))
         rpc.on('system.chatSettingsChanged', ({ settings }) => useCore.setState({ chatSettings: settings }))
+        rpc.on('system.agentCliChanged', ({ status }) => useCore.setState((s) => ({ agentCli: mergeCliStatuses(s.agentCli, [status]) })))
         rpc.on('system.environmentChanged', ({ environment }) => useCore.setState({ environment }))
         rpc.on('browser.tabsChanged', ({ conversationId, tabs }) => receiveBrowserTabs(conversationId, tabs))
         rpc.on('usage.changed', ({ usage }) =>

@@ -60,6 +60,7 @@ export function fakeChatDaemon() {
   }
 
   const handlers: { [M in DaemonMethod]: (params: DaemonParams<M>) => DaemonResult<M> } = {
+    spawnCliUpgrade: () => { throw new Error('upgrade not mocked') },
     portsList: () => [],
     portsStop: () => ({ ok: true }),
     awakeSet: () => ({ active: false, supported: true, problem: null }),

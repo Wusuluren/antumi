@@ -1,3 +1,4 @@
+import { AgentCliMaintenance } from './agent-cli-maintenance'
 import { randomBytes } from 'node:crypto'
 import { mkdir, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
@@ -250,8 +251,7 @@ const usage = new UsageService(usageSources, (entry) => {
 },
 Date.now,
 resetCreditUses,
-() => [...accounts.homes(), ...AGENT_KINDS.filter((agent) => usageSources[agent] && !accounts.homes().some((account) => account.agent === agent))
-  .map((agent) => ({ agent, id: 'default', home: undefined }))]
+() => accounts.homes()
 )
 const analytics = new UsageAnalytics(paths.database, {
   roots: () => accounts.homes().flatMap((account): ScanRoot[] => {
@@ -341,8 +341,24 @@ service.setSquads(squads)
 conversations.setSquadGuard((conversation) => squads.guardMember(conversation))
 
 const terminals = new TerminalService(paths.database, daemon, (list) => server?.broadcast('terminals.changed', { terminals: list }), Date.now, new ShellPrompt(path.join(paths.home, 'shell')))
+// Looked for where the daemon looks: it was started with the same PATH as core.
+const environment = new EnvironmentService({
+  pathEnv: process.env.PATH ?? '',
+  platform: process.platform,
+  signedIn,
+  changed: (environment) => server?.broadcast('system.environmentChanged', { environment })
+})
+
+const cliMaintenance = new AgentCliMaintenance(paths.database, {
+  environment, daemon, terminals,
+  changed: (status) => server?.broadcast('system.agentCliChanged', { status }),
+  invalidate: async (agent) => { conversations.invalidateCli(agent); await accounts.refresh(agent) }
+})
+
+terminals.onBeforeCloseUpgrade(() => cliMaintenance.reconcile())
+
 const accounts = new AgentAccountStore(paths.agentAccounts, paths.agentAccountHomes, {
-  signIn: (argv, env, title) => terminals.signIn(argv, env, title),
+  signIn: (argv, env, title, agent) => terminals.signIn(argv, env, title, agent),
   waitForExit: (id) => terminals.waitForExit(id),
   accountChanged: (agent, id, removed) => {
     if (removed) usage.forget(agent, id)
@@ -437,6 +453,7 @@ daemon.onConnect(() => {
   daemon
     .request('list', {})
     .then(async ({ sessions }) => {
+      await cliMaintenance.reconcile(sessions)
       await conversations.reconcile(sessions)
       await smallModels.recoverHelpers({ stages: () => conversations.chatStageRefs(), items: (id, stageId) => conversations.stageChatItems(id, stageId) })
       terminals.reconcile(sessions)
@@ -449,14 +466,6 @@ daemon.onConnect(() => {
     .catch((error) => console.error('[antumi-core] reconcile failed', error))
 })
 
-// Looked for where the daemon looks: it was started with the same PATH as core.
-const environment = new EnvironmentService({
-  pathEnv: process.env.PATH ?? '',
-  platform: process.platform,
-  signedIn,
-  changed: (environment) => server?.broadcast('system.environmentChanged', { environment })
-})
-
 const token = randomBytes(32).toString('hex')
 server = await startRpcServer({
   port: Number(process.env.ANTUMI_PORT ?? 0),
@@ -464,7 +473,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts, analytics, automation)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts, cliMaintenance, analytics, automation)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()
@@ -510,6 +519,7 @@ async function shutdown(): Promise<void> {
   await plugins.close()
   await sources.pause(sources.list().map((source) => source.provider))
   awake?.stop()
+  cliMaintenance.close()
   daemon.stop()
   await server?.close()
   await removeCoreEndpoint(process.pid)

@@ -1,3 +1,4 @@
+import type { AgentCliMaintenance } from './agent-cli-maintenance'
 import { suggestForProject } from './project-config-suggest'
 import { EMPTY_BASELINE, type SmallModelStore } from './small-model-store'
 import { GitService } from './git-service'
@@ -87,9 +88,14 @@ export function createRpcHandlers(
   modelProviders?: ModelProviderStore,
   sessionImports?: SessionImports,
   accounts?: AgentAccountStore,
+  cliMaintenance?: AgentCliMaintenance,
   analytics?: UsageAnalytics,
   automation?: UsageAutomation
 ): RpcHandlers {
+  const maintenance = (): AgentCliMaintenance => {
+    if (!cliMaintenance) throw new Rejection('agent-cli-maintenance-unavailable')
+    return cliMaintenance
+  }
   const git = new GitService(service, conversations, gitChanged)
   const requireProjectConfigs = (): ProjectConfigStore => {
     if (!projectConfigs) throw new Rejection('project-config-unavailable')
@@ -275,6 +281,9 @@ export function createRpcHandlers(
     'debug.unwatchWire': ({ id }, connection) => { connection.wiring.delete(id); return OK },
     'debug.wireUsage': () => wire.usage(),
     'debug.clearWire': () => wire.clear(),
+    'system.agentCliStatus': ({ agent, refresh }) => maintenance().list(agent, refresh),
+    'system.upgradeAgentCli': ({ agent }) => maintenance().upgrade(agent),
+    'system.cancelAgentCliUpgrade': ({ agent }) => maintenance().cancel(agent),
     'system.environment': ({ refresh }) => environment.check(refresh ?? false),
     'system.installAgentCli': ({ agent }) => cliInstaller.install(agent),
     'tasks.list': ({ status }) => service.list(status),
