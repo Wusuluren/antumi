@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync, openSync, readFileSync, closeSync, fstatSync, ftruncateSync, readSync } from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
-import { ChatImage, ChatOption } from '@antumi/protocol'
+import { ChatImage, ChatItem, ChatOption } from '@antumi/protocol'
 import type { ChatRecord } from './chat-driver'
 
 const Level = z.enum(['info', 'warning', 'error']).catch('info')
@@ -22,6 +22,7 @@ const LogLine = z.discriminatedUnion('dir', [
   z.object({ dir: z.literal('option'), at: z.number(), option: ChatOption, value: z.string() }),
   z.object({ dir: z.literal('queue'), at: z.number(), text: z.string().nullable(), ref: z.string().optional(), images: Images, release: z.boolean().optional(), held: z.boolean().optional() }),
   z.object({ dir: z.literal('exit'), at: z.number(), code: z.number().nullable(), stderr: z.string() }),
+  z.object({ dir: z.literal('item'), at: z.number(), item: ChatItem }),
   z.object({
     dir: z.literal('ask'),
     at: z.number(),

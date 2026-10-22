@@ -35,7 +35,7 @@ const PLAN_SAVED = 'The plan is saved to the task for later: the tasks it builds
 const KEEP_PLANNING = 'Keep planning. '
 const REVISE_PLAN = 'Keep planning: revise the plan and present it again.'
 const DECLINED_CALL = 'The user declined this tool call.'
-const HIDDEN_TOOLS: ReadonlySet<string> = new Set(['AskUserQuestion', 'ToolSearch', ...CLAUDE_TASK_TOOLS])
+export const HIDDEN_TOOLS: ReadonlySet<string> = new Set(['AskUserQuestion', 'ToolSearch', ...CLAUDE_TASK_TOOLS])
 const FILE_TOOLS: ReadonlySet<string> = new Set(['Write', 'Edit', 'MultiEdit'])
 // Plan mode drafts its plan in a file of its own (~/.claude/plans/<name>.md) before proposing it.
 const PLAN_FILE = /\/plans\/[^/]+\.md$/
@@ -169,7 +169,7 @@ const SubagentResult = z.looseObject({
 })
 const SUBAGENT_TOOLS: ReadonlySet<string> = new Set(['Agent', 'Task'])
 // The hand-back's report is framed and indented by the CLI; the report itself is what shows.
-const HAND_BACK = /^\[Subagent hand-back\][\s\S]*?The report follows:\n/
+export const HAND_BACK = /^\[Subagent hand-back\][\s\S]*?The report follows:\n/
 const ResultFrame = z.looseObject({
   subtype: z.string().optional(),
   is_error: z.boolean().optional(),
@@ -315,7 +315,7 @@ export function describeClaudeTool(name: string, input: Record<string, unknown>)
 
 // Calls that run a shell command: Bash, and Monitor, which watches one in the background and hands
 // the agent each line it prints.
-const COMMAND_TOOLS = new Set(['Bash', 'Monitor'])
+export const COMMAND_TOOLS: ReadonlySet<string> = new Set(['Bash', 'Monitor'])
 
 // How long a background command may run before the CLI stops it, where the agent set a limit: a
 // Bash call sent to the background, by its timeout; a Monitor, always in the background, by its own.
@@ -325,7 +325,7 @@ function backgroundLimit(name: string, input: Record<string, unknown>): { backgr
 }
 
 // The input worth showing beside the title; file tools show a diff instead.
-function inputText(name: string, input: Record<string, unknown>): string | null {
+export function inputText(name: string, input: Record<string, unknown>): string | null {
   if (COMMAND_TOOLS.has(name)) return str(input.command)
   if (name === 'ExitPlanMode') return str(input.plan)
   if (['Read', 'Write', 'Edit', 'MultiEdit', 'Glob', 'Grep', 'WebFetch', 'WebSearch'].includes(name)) return null
@@ -340,7 +340,7 @@ function editPatch(before: string, after: string): string {
   return ['@@', ...lines(before).map((line) => `-${line}`), ...lines(after).map((line) => `+${line}`)].join('\n')
 }
 
-function inputDiffs(name: string, input: Record<string, unknown>): ChatDiff[] {
+export function inputDiffs(name: string, input: Record<string, unknown>): ChatDiff[] {
   const path = str(input.file_path)
   if (!path) return []
   if (name === 'Write') {
@@ -360,7 +360,7 @@ function inputDiffs(name: string, input: Record<string, unknown>): ChatDiff[] {
 }
 
 // The hunks Claude Code applied, when the tool result carries them: better than the input's guess.
-function resultDiffs(previous: ChatDiff[], raw: unknown): ChatDiff[] {
+export function resultDiffs(previous: ChatDiff[], raw: unknown): ChatDiff[] {
   const parsed = EditResult.safeParse(raw)
   const hunks = parsed.success ? (parsed.data.structuredPatch ?? []) : []
   const [first] = previous
@@ -373,7 +373,7 @@ function resultDiffs(previous: ChatDiff[], raw: unknown): ChatDiff[] {
 // A result's text, and the images it names (see imageMarker) or that were just kept from its bytes.
 // An image block neither names (a Read of a picture, which the chat shows from its file) shows as a
 // placeholder, since its bytes are not kept.
-function toolResult(content: unknown, kept: readonly ChatImage[] = []): { text: string; images: ChatImage[] } {
+export function toolResult(content: unknown, kept: readonly ChatImage[] = []): { text: string; images: ChatImage[] } {
   if (typeof content === 'string') return takeImageMarkers(content)
   if (!Array.isArray(content)) return { text: '', images: [] }
   const blocks = content.map((block) => Block.safeParse(block)).flatMap((parsed) => (parsed.success ? [parsed.data] : []))
@@ -486,6 +486,9 @@ export class ClaudeStream implements ChatDriver {
         break
       case 'exit':
         this.ended(record.code, record.stderr, record.at)
+        break
+      case 'item':
+        this.items.put(record.item, record.at)
         break
       case 'ask':
       case 'answer':

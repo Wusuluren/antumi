@@ -21,6 +21,8 @@ import { mergeUsageReports, type UsageReport } from '../../usage-source'
 // only the part Antumi uses, loosely, since the server is marked experimental.
 
 const MAX_PATCH = 50_000
+// How Antumi names itself to Codex, which keeps it as the originator of each thread it starts.
+export const CODEX_CLIENT_NAME = 'antumi'
 
 const Id = z.union([z.string(), z.number()])
 const Frame = z.looseObject({
@@ -402,7 +404,7 @@ function toolStatus(status: string | undefined, exitCode: number | null | undefi
 const lines = (text: string) => (text === '' ? [] : text.replace(/\n$/, '').split('\n'))
 
 // An added file comes as its content and a deleted one may too; an update is a unified diff already.
-function diffOf(change: { path: string; kind: { type: string }; diff: string }): ChatDiff {
+export function diffOf(change: { path: string; kind: { type: string }; diff: string }): ChatDiff {
   const kind = change.kind.type === 'add' || change.kind.type === 'delete' ? change.kind.type : 'update'
   const looksLikeDiff = /^(@@|---|\+\+\+)/m.test(change.diff)
   const patch = kind === 'update' || looksLikeDiff
@@ -553,6 +555,9 @@ export class CodexAppServer implements ChatDriver {
         break
       case 'reply':
         this.closeAsk(record.requestId, record.answers, record.at)
+        break
+      case 'item':
+        this.items.put(record.item, record.at)
     }
     this.refreshOptions()
     // The composer offers sending into the turn while one that takes it runs.
@@ -567,7 +572,7 @@ export class CodexAppServer implements ChatDriver {
       frames.push({
         id: 'antumi-init',
         method: 'initialize',
-        params: { clientInfo: { name: 'antumi', title: 'Antumi', version: '0.1.0' }, capabilities: { experimentalApi: true, requestAttestation: false } }
+        params: { clientInfo: { name: CODEX_CLIENT_NAME, title: 'Antumi', version: '0.1.0' }, capabilities: { experimentalApi: true, requestAttestation: false } }
       })
       return frames
     }

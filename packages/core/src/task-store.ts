@@ -322,7 +322,15 @@ export const MIGRATIONS = [
   // as JSON); null on the agent's own account.
   `ALTER TABLE conversations ADD COLUMN model_provider TEXT;
    ALTER TABLE conversation_stages ADD COLUMN provider_route TEXT;`,
-  `ALTER TABLE tasks ADD COLUMN auto_run INTEGER NOT NULL DEFAULT 0;`
+  `ALTER TABLE tasks ADD COLUMN auto_run INTEGER NOT NULL DEFAULT 0;`,
+  // Sessions an agent ran outside Antumi, imported as conversations: how far each was taken in
+  // (its last record's time) and how its file stood then.
+  `CREATE TABLE session_imports (
+     agent TEXT NOT NULL, provider_session_id TEXT NOT NULL,
+     conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+     imported_through INTEGER NOT NULL, source_modified_at INTEGER NOT NULL,
+     PRIMARY KEY (agent, provider_session_id)
+   );`
 ]
 
 

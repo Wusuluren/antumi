@@ -4,6 +4,7 @@ import type { ChatDriver, ChatPreferences, ChatStageOptions } from '../chat-driv
 import type { ResetCreditUse, UsageSource } from '../usage-source'
 import type { QuickAnswer } from '../model-metering'
 import type { ProviderLaunch } from '../provider-launch'
+import type { TranscriptSource } from '../agent-transcripts'
 
 // What a chat stage's agent starts with, which its adapter turns into its own command line. The
 // stream carries every message, the handoff prompt included: none goes in argv.
@@ -81,6 +82,8 @@ export interface AgentAdapter {
   // A model provider's models under the ids it takes them by, for an agent that can run on one
   // (its descriptor's capabilities.modelProviders); its command then takes AgentLaunch.provider.
   providerModels?(provider: Pick<ProviderLaunch, 'providerId' | 'models' | 'defaultModel'>): ChatModel[]
+  // The sessions it kept of its runs outside Antumi, which an imported conversation resumes.
+  readonly transcripts?: TranscriptSource
   // Its models without a chat to read them from; without it, a probe of its chat protocol.
   catalog?(cwd: string): Promise<ChatCatalog | null>
   // How the environment check finds it; without it, its kind on PATH, asked for --version.

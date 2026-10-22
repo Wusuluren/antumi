@@ -9,7 +9,8 @@ import type { AttachmentStore } from './attachment-store'
 import { WHOLE_SESSION_FORK, type ChatAnswer, type StageMessage } from './chat-driver'
 import { catalogOf, probeChatCatalog } from './chat-catalog'
 import { ChatHost, type ChatStage } from './chat-host'
-import { ChatLog } from './chat-log'
+import { ChatLog, type LoggedRecord } from './chat-log'
+import type { Transcript } from './agent-transcripts'
 import type { SessionHost } from './daemon-client'
 import { ConversationStore } from './conversation-store'
 import { folderChanges, folderDiff, folderHead } from './conversation-changes'
@@ -908,6 +909,24 @@ export class ConversationService {
     this.changed(created)
     await this.start(id, agent, '', false, { fork })
     return this.withChat(this.store.get(id)!)
+  }
+
+  // A session the agent ran outside Antumi, taken in as a stage that has ended, on that session: the
+  // next start resumes it, as it would a stage of Antumi's own. title: what the session was called.
+  importStage(id: string, agent: AgentKind, providerSessionId: string, transcript: Transcript, title: { text: string; locked: boolean } | null = null): Conversation {
+    const current = this.get(id)
+    if (current.sessionId || this.launching.has(id)) throw new Rejection('conversation-running')
+    const stageId = randomUUID()
+    this.store.startStage(id, agent, providerSessionId, this.store.maxSequence(id), stageId)
+    // No exit record: no process ran here, and the driver would read one as a start that failed.
+    ChatLog.of(this.sessionsRoot, id, stageId).append(transcript.entries.map((entry): LoggedRecord => ({ dir: 'item', at: entry.at, item: { ...entry.item, stageId, revision: 1, at: entry.at } })))
+    for (const message of transcript.messages) {
+      this.store.addMessage({ conversationId: id, stageId, role: message.role, agent, text: message.text, eventKey: `chat:${message.ref}:${message.role}`, complete: true })
+    }
+    this.store.endStage(stageId, null)
+    if (title) this.store.update(id, { title: title.text, titleLocked: title.locked })
+    else this.store.touch(id)
+    return this.changed(this.get(id))
   }
 
   private async start(id: string, agent: AgentKind, note: string, handoff: boolean, launch: StageLaunch = {}): Promise<Conversation> {

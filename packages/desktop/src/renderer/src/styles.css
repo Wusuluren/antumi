@@ -4860,6 +4860,22 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .mcp-candidate { flex-wrap: wrap; }
 .mcp-candidate-name { width: 160px; }
 
+/* Sessions run in a terminal, to import (Settings → 导入会话): by folder, newest first. */
+.session-import-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-bottom: 12px; }
+.session-import-search { flex: 1; min-width: 160px; }
+.session-import-hide { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.session-import-group { padding-top: 8px; }
+.session-import-group + .session-import-group { border-top: 1px solid var(--border); }
+.session-import-folder { display: flex; align-items: center; gap: 12px; padding: 8px 0 0; }
+.session-import-folder input, .session-import-row > input[type='checkbox'] { accent-color: var(--accent); }
+.session-import-row { gap: 10px; padding: 8px 0 8px 24px; }
+.session-import-agent { display: inline-flex; flex-shrink: 0; }
+.session-import-agent .agent-mark { width: 14px; height: 14px; }
+.session-import-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-import-time { flex-shrink: 0; font-size: 12px; white-space: nowrap; }
+.session-import-badge { flex-shrink: 0; padding: 0 6px; border-radius: var(--radius-xs); background: var(--fill-2); color: var(--text-muted); font-size: 11px; line-height: 18px; white-space: nowrap; }
+.session-import-badge.updated { background: var(--accent-bg); color: var(--accent); }
+
 .provider-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 .provider-preset { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); text-align: left; cursor: pointer; }
 .provider-preset:hover { border-color: var(--border-2); }
