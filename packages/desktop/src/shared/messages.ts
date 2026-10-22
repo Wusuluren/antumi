@@ -11194,6 +11194,34 @@ export const MESSAGES = {
     "zh": "重新扫描",
     "en": "Scan again"
   },
+  "SessionImportSettings.expandAll": {
+    "zh": "全部展开",
+    "en": "Expand all"
+  },
+  "SessionImportSettings.collapseAll": {
+    "zh": "全部折叠",
+    "en": "Collapse all"
+  },
+  "SessionImportSettings.summary": {
+    "zh": "{folders} 个目录 · {count} 个会话",
+    "en": "{folders} {folders, plural, one {folder} other {folders}} · {count} {count, plural, one {session} other {sessions}}"
+  },
+  "SessionImportSettings.sessionCount": {
+    "zh": "{count} 个会话",
+    "en": "{count} {count, plural, one {session} other {sessions}}"
+  },
+  "SessionImportSettings.selectedCount": {
+    "zh": "已选 {count}",
+    "en": "{count} selected"
+  },
+  "SessionImportSettings.hiddenSelected": {
+    "zh": "其中 {count} 个不在当前筛选中",
+    "en": "{count} outside current filters"
+  },
+  "SessionImportSettings.clearSelection": {
+    "zh": "清空选择",
+    "en": "Clear selection"
+  },
   "SessionImportSettings.scanning": {
     "zh": "正在读取会话…",
     "en": "Reading sessions…"
