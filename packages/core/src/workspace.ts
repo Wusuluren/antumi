@@ -22,9 +22,12 @@ export type WorkspaceEntry = {
   // when a project's setup runs.
   topLevel: string | null
   created: boolean
+  // A project the agent only reads (TaskRepo.reference), where it is.
+  reference: boolean
 }
 
-export type Workspace = { cwd: string; extraDirs: string[]; multi: boolean; entries: WorkspaceEntry[]; repos: TaskRepo[] }
+// extraDirs: the other folders the agent may edit; referenceDirs: those it may only read.
+export type Workspace = { cwd: string; extraDirs: string[]; referenceDirs: string[]; multi: boolean; entries: WorkspaceEntry[]; repos: TaskRepo[] }
 
 export function normalizeRepoPath(input: string): string {
   const expanded = input === '~' || /^~[\\/]/.test(input) ? path.join(os.homedir(), input.slice(1)) : input
@@ -37,7 +40,11 @@ export function normalizeRepoPath(input: string): string {
 // Keeps what earlier runs recorded for repos that stay on the list.
 export function withKnownWorktrees(current: readonly TaskRepo[], paths: readonly string[]): TaskRepo[] {
   const known = new Map(current.map((repo) => [repo.path, repo]))
-  return [...new Set(paths)].map((repoPath) => known.get(repoPath) ?? { path: repoPath, worktreePath: null, branch: null, startRef: null, start: null })
+  // The primary is where the agent works, so it is never only read.
+  return [...new Set(paths)].map((repoPath, index) => {
+    const repo = known.get(repoPath) ?? { path: repoPath, worktreePath: null, branch: null, startRef: null, start: null }
+    return index === 0 && repo.reference ? { ...repo, reference: false } : repo
+  })
 }
 
 // Keys are checked on import, but a branch name gets only what git and every shell take plainly.
@@ -161,8 +168,11 @@ async function addWorktree(topLevel: string, worktreePath: string, args: readonl
 }
 
 // Each git repo gets its own worktree on the task's branch, under one task directory.
-// The agent works in the primary worktree and gets the others as additional directories.
-// A plain folder runs in place, so it can only be a task's sole repo.
+// The agent works in the primary worktree and gets the others as additional directories. A
+// reference project is read where it is, git repo or not. Any other plain folder runs in place, so
+// it can only be a task's sole repo.
+const isReference = (repo: TaskRepo, index: number) => index > 0 && Boolean(repo.reference)
+
 export async function prepareWorkspace(
   task: Pick<Task, 'id' | 'title' | 'repos' | 'source'> & Partial<Pick<Task, 'slug'>>,
   dependencies: readonly Pick<Task, 'repos'>[],
@@ -177,18 +187,20 @@ export async function prepareWorkspace(
   const taskDir = path.join(worktreesRoot, shortId)
   const multi = task.repos.length > 1
 
-  const resolved: { repo: TaskRepo; topLevel: string | null }[] = []
-  for (const repo of task.repos) {
+  const resolved: { repo: TaskRepo; topLevel: string | null; reference: boolean }[] = []
+  for (const [index, repo] of task.repos.entries()) {
     if (!(await isDirectory(repo.path))) {
       throw new Rejection('repo-not-found', `repo path does not exist: ${repo.path}`)
     }
     const topLevel = await gitTopLevel(repo.path)
-    if (multi && !topLevel) {
+    const reference = isReference(repo, index)
+    if (multi && !topLevel && !reference) {
       throw new Rejection('repo-not-git', `every repo of a multi-repo task must be a git repo: ${repo.path}`)
     }
-    resolved.push({ repo, topLevel })
+    resolved.push({ repo, topLevel, reference })
   }
-  const topLevels = resolved.flatMap(({ topLevel }) => (topLevel ? [topLevel] : []))
+  // Reading a folder of a repo the task also edits is no clash.
+  const topLevels = resolved.flatMap(({ topLevel, reference }) => (topLevel && !reference ? [topLevel] : []))
   if (new Set(topLevels).size !== topLevels.length) {
     throw new Rejection('repo-duplicate', 'two entries point into the same git repo')
   }
@@ -197,13 +209,15 @@ export async function prepareWorkspace(
   // Reordering must not let a newly added repo claim a retained worktree's name.
   const taken = new Set(task.repos.flatMap((repo) => repo.worktreePath ? [path.basename(repo.worktreePath)] : []))
   const entries: WorkspaceEntry[] = []
-  for (const { repo, topLevel } of resolved) {
+  for (const { repo, topLevel, reference } of resolved) {
     const name = repo.worktreePath ? path.basename(repo.worktreePath) : uniqueName(path.basename(topLevel ?? repo.path), taken)
     const { startRef } = repo
-    if (repo.worktreePath && (await isDirectory(repo.worktreePath))) {
-      entries.push({ name, source: repo.path, dir: repo.worktreePath, branch: repo.branch, base: null, startRef, start: repo.start, topLevel, created: false })
+    if (reference) {
+      entries.push({ name, source: repo.path, dir: repo.path, branch: null, base: null, startRef: null, start: null, topLevel, created: false, reference })
+    } else if (repo.worktreePath && (await isDirectory(repo.worktreePath))) {
+      entries.push({ name, source: repo.path, dir: repo.worktreePath, branch: repo.branch, base: null, startRef, start: repo.start, topLevel, created: false, reference })
     } else if (!topLevel) {
-      entries.push({ name, source: repo.path, dir: repo.path, branch: null, base: null, startRef, start: null, topLevel, created: false })
+      entries.push({ name, source: repo.path, dir: repo.path, branch: null, base: null, startRef, start: null, topLevel, created: false, reference })
     } else {
       // A start the task picked wins over a dependency's branch.
       const base = startRef === null ? onlyBranch(stackable, topLevel) : null
@@ -223,7 +237,7 @@ export async function prepareWorkspace(
           start = resolved.start
         }
       }
-      entries.push({ name, source: repo.path, dir: worktreePath, branch: repoBranch, base, startRef, start, topLevel, created })
+      entries.push({ name, source: repo.path, dir: worktreePath, branch: repoBranch, base, startRef, start, topLevel, created, reference })
     }
   }
 
@@ -234,9 +248,11 @@ export async function prepareWorkspace(
   if (!first) {
     throw new Rejection('missing-repo')
   }
+  const others = entries.slice(1)
   return {
     cwd: first.dir,
-    extraDirs: entries.slice(1).map((entry) => entry.dir),
+    extraDirs: others.filter((entry) => !entry.reference).map((entry) => entry.dir),
+    referenceDirs: others.filter((entry) => entry.reference).map((entry) => entry.dir),
     multi,
     entries,
     repos: entries.map((entry) => ({
@@ -244,7 +260,8 @@ export async function prepareWorkspace(
       worktreePath: entry.dir === entry.source ? null : entry.dir,
       branch: entry.branch,
       startRef: entry.startRef,
-      start: entry.start
+      start: entry.start,
+      ...(entry.reference ? { reference: true } : {})
     }))
   }
 }
@@ -388,6 +405,8 @@ export type RefineWorkspace = {
   landed: ReadonlySet<string>
   // What each planning checkout holds, by its folder; a repo read where it is has none.
   starts: ReadonlyMap<string, TaskStart>
+  // The reference projects among dirs, which execution reads where they are too.
+  references: ReadonlySet<string>
 }
 
 // Planning checkouts: the code a task's branch would start from, checked out with no branch, apart
@@ -420,9 +439,15 @@ export async function prepareRefineWorkspace(
   const taken = new Set<string>()
   const dirs: string[] = []
   const starts = new Map<string, TaskStart>()
-  for (const repo of task.repos) {
+  const references = new Set<string>()
+  for (const [index, repo] of task.repos.entries()) {
     if (!(await isDirectory(repo.path))) {
       throw new Rejection('repo-not-found', `repo path does not exist: ${repo.path}`)
+    }
+    if (isReference(repo, index)) {
+      dirs.push(repo.path)
+      references.add(repo.path)
+      continue
     }
     const topLevel = await gitTopLevel(repo.path)
     if (!topLevel) {
@@ -461,7 +486,7 @@ export async function prepareRefineWorkspace(
       }
     }
   }
-  return { cwd: first, dirs, landed, starts }
+  return { cwd: first, dirs, landed, starts, references }
 }
 
 // Once the task runs in its worktrees, its planning checkouts go. The agent only read there, but

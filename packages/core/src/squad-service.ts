@@ -349,9 +349,9 @@ export class SquadService {
       try {
         const task = this.tasks.get(run.taskId)
         const context = await this.tasks.squadContext(task.id)
-        await this.chats.create(member.agent, task.repos.map((repo) => repo.worktreePath ?? repo.path), run.allowBypass,
+        await this.chats.create(member.agent, task.repos.flatMap((repo) => repo.reference ? [] : [repo.worktreePath ?? repo.path]), run.allowBypass,
           { permissionMode: work.capability === 'readOnly' ? agentDescriptor(member.agent).readOnlyMode : run.permissionMode, model: member.model ?? undefined, effort: member.effort ?? undefined, deferStart: true },
-          null, conversationId, null, { runId: id, readOnly: work.capability === 'readOnly' })
+          null, conversationId, null, { runId: id, readOnly: work.capability === 'readOnly', referencePaths: task.repos.flatMap((repo) => repo.reference ? [repo.path] : []) })
         await this.chats.continue(conversationId, run.allowBypass, context.readable)
         await this.chats.send(conversationId, squadMemberPrompt(task, member, work, context.text), [], false, false, refOf(work))
         const conversation = this.chats.get(conversationId)

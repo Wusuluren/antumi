@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkCancel, checkChangePrimary, checkChatResume, checkContinue, checkEditProjects, checkEditStart, checkMove, checkRedo, checkReopen, checkSavePlan, checkStart, checkStartMode, checkSubmit, checkTaskHandoff, isStartRef, reopenStatus, startKind, type Task } from './task'
+import { checkCancel, checkChangePrimary, checkChatResume, checkContinue, checkEditProjects, checkEditReference, checkEditStart, checkMove, checkRedo, checkReopen, checkSavePlan, checkStart, checkStartMode, checkSubmit, checkTaskHandoff, isStartRef, reopenStatus, startKind, type Task } from './task'
 
 function task(overrides: Partial<Task> = {}): Task {
   return {
@@ -44,6 +44,18 @@ describe('checkEditStart', () => {
     expect(checkEditStart(task({ status: 'review' }), { branch: 'antumi/00000000-refactor-login' })).toBe('branch-exists')
     expect(checkEditStart(task({ status: 'running' }), { branch: null })).toBe('task-running')
     expect(checkEditStart(task(), { branch: null }, true)).toBe('run-in-progress')
+  })
+})
+
+describe('checkEditReference', () => {
+  it('makes only an additional project one to read, and never one that has its worktree', () => {
+    const repo = (path: string, more: object = {}) => ({ path, worktreePath: null, branch: null, ...more })
+    const twoRepos = task({ repos: [{ ...repo('/app'), startRef: null, start: null }, { ...repo('/docs'), startRef: null, start: null }] })
+    expect(checkEditReference(twoRepos, repo('/docs'))).toBeNull()
+    expect(checkEditReference(twoRepos, repo('/app'))).toBe('primary-reference')
+    expect(checkEditReference(twoRepos, repo('/docs', { worktreePath: '/wt/docs', branch: 'antumi/x' }))).toBe('worktree-exists')
+    expect(checkEditReference(twoRepos, repo('/docs', { reference: true }))).toBeNull()
+    expect(checkEditReference(task({ ...twoRepos, status: 'running' }), repo('/docs'))).toBe('task-running')
   })
 })
 

@@ -21,6 +21,9 @@ export type AgentLaunch = {
   readOnly?: { dirs: readonly string[] }
   // Files the agent may read without asking, such as a task's images.
   readable?: readonly string[]
+  // Folders it may read but never edit, whatever its mode: a task's reference projects. Not
+  // working folders, as a read-only vault is not.
+  references?: readonly string[]
   // Resume only through this message (its uuid), as a new session: a fork of the one resumed.
   forkAt?: string | null
   // Antumi's own tools for the agent (showing a file it wrote); none for an older setup.

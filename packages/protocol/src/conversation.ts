@@ -32,6 +32,8 @@ export const Conversation = z.object({
   workspacePath: z.string(),
   // Ordered: primary project first, followed by additional directories.
   projectPaths: z.array(z.string()),
+  // Folders the agent may read but never edit: a task's reference projects. Older cores leave it out.
+  referencePaths: z.array(z.string()).optional(),
   managedWorkspace: z.boolean(),
   sessionId: z.string().nullable(),
   // Includes CLI checks and handshake, before the agent can take a message.

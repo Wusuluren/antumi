@@ -1,6 +1,6 @@
 import { getLocale, t, tr } from '../i18n'
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react'
-import { checkEditStart, START_HEAD, type RepoStartOptions, type Task, type TaskRepo } from '@antumi/protocol'
+import { checkEditReference, checkEditStart, START_HEAD, type RepoStartOptions, type Task, type TaskRepo } from '@antumi/protocol'
 import { perform, updateTask, useCore, useTaskStartSupported } from '../core-store'
 import { dayAndTime, reasonText } from '../labels'
 import { fallbackText, pickedText, shortRef, START_NOTE_TEXT } from '../task-starts'
@@ -86,7 +86,38 @@ function StartMenu({ repo, option, branchTasks, onPick, onClose }: {
   )
 }
 
-function StartPicker({ task, repo, option, named }: { task: Task; repo: TaskRepo; option: RepoStartOptions; named: boolean }) {
+// Whether an additional project is only read: no worktree or branch, and never edited.
+function ReferenceToggle({ task, repo }: { task: Task; repo: TaskRepo }) {
+  const launching = useCore((s) => s.startingTasks.includes(task.id))
+  const blocker = checkEditReference(task, repo, launching)
+  return (
+    <label className="task-start-reference" data-tooltip={blocker ? reasonText(blocker, blocker) : t('TaskStarts.referenceTooltip')}>
+      <input
+        type="checkbox"
+        checked={Boolean(repo.reference)}
+        disabled={blocker !== null}
+        aria-label={t('TaskStarts.referenceFor', { value1: projectName(repo.path) })}
+        onChange={(event) => void updateTask(task.id, { references: [{ path: repo.path, reference: event.target.checked }] })}
+      />
+      {t('TaskStarts.reference')}
+    </label>
+  )
+}
+
+// An additional project with no branch to start: one only read, or a folder that is no git repo,
+// which can be nothing else.
+function ReferenceRow({ task, repo, git }: { task: Task; repo: TaskRepo; git: boolean }) {
+  return (
+    <div className="task-start">
+      <span className="task-start-project">{projectName(repo.path)}</span>
+      <span className={repo.reference ? undefined : 'muted'}>{repo.reference ? t('TaskStarts.readWhereItIs') : t('TaskStarts.notAGitRepository')}</span>
+      <ReferenceToggle task={task} repo={repo} />
+      {!repo.reference && !git && <p className="task-start-note" data-note>{t('TaskStarts.aFolderThatIsNoGitRepository')}</p>}
+    </div>
+  )
+}
+
+function StartPicker({ task, repo, option, named, toggle }: { task: Task; repo: TaskRepo; option: RepoStartOptions; named: boolean; toggle: boolean }) {
   const [open, setOpen] = useState(false)
   const close = useCallback(() => setOpen(false), [])
   const branchTasks = useBranchTasks()
@@ -118,6 +149,7 @@ function StartPicker({ task, repo, option, named }: { task: Task; repo: TaskRepo
       </span>
       <span>{t('TaskStarts.branch')}</span>
       {picked.says && <span className="muted">· {picked.says}</span>}
+      {toggle && <ReferenceToggle task={task} repo={repo} />}
       {repo.startRef !== null && option.stacked && <p className="task-start-note">{t('TaskStarts.dependencyTaskChangesAreNotIncluded')}</p>}
     </div>
   )
@@ -136,9 +168,11 @@ function StartRecord({ repo, named }: { repo: TaskRepo & { start: NonNullable<Ta
 }
 
 // Where each git repo's branch starts: picked until the branch is made, a record after. A plain
-// folder runs in place and has none; neither has a branch made before starts were recorded.
+// folder runs in place and has none; neither has a branch made before starts were recorded. An
+// additional project may instead be one the agent only reads, with no branch at all.
 export function TaskStarts({ task }: { task: Task }) {
   const supported = useTaskStartSupported()
+  const referable = useCore((s) => s.rpc?.features.includes('task-references') ?? false)
   const [options, setOptions] = useState<readonly RepoStartOptions[]>([])
   // Read again when what they depend on changes: the repos, their branches, the dependencies.
   const key = `${task.repos.map((repo) => `${repo.path}\n${repo.branch ?? ''}`).join('\n')}\n${task.dependsOn.join(',')}`
@@ -155,11 +189,13 @@ export function TaskStarts({ task }: { task: Task }) {
 
   if (!supported) return null
   const named = task.repos.length > 1
-  const rows = task.repos.flatMap((repo) => {
-    if (repo.start) return [<StartRecord key={repo.path} repo={{ ...repo, start: repo.start }} named={named} />]
+  const rows = task.repos.flatMap((repo, index) => {
     const option = options.find((each) => each.path === repo.path)
+    const additional = referable && index > 0
+    if (additional && (repo.reference || (option && !option.git))) return [<ReferenceRow key={repo.path} task={task} repo={repo} git={option?.git ?? true} />]
+    if (repo.start) return [<StartRecord key={repo.path} repo={{ ...repo, start: repo.start }} named={named} />]
     if (repo.branch || !option?.git) return []
-    return [<StartPicker key={repo.path} task={task} repo={repo} option={option} named={named} />]
+    return [<StartPicker key={repo.path} task={task} repo={repo} option={option} named={named} toggle={additional && !repo.worktreePath} />]
   })
   if (rows.length === 0) return null
   return (

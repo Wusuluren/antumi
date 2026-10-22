@@ -68,6 +68,9 @@ export type ChatStageOptions = {
   userMcp?: readonly AgentMcpServer[]
   // The conversation's other projects, which the agent may also write to.
   extraDirs: readonly string[]
+  // Folders the agent may only read (Conversation.referencePaths): a driver refuses its requests
+  // to edit there.
+  references?: readonly string[]
   // The provider session (Claude session, Codex thread) to continue, if any.
   resume: string | null
   // Where to stop taking `resume` over: the providerRef of the last turn to keep, or

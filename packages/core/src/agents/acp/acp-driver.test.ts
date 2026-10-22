@@ -19,8 +19,8 @@ const due = (driver: AcpDriver) => {
 }
 const items = <K extends ChatItem['kind']>(driver: AcpDriver, kind: K) => driver.items.list().filter((item): item is Extract<ChatItem, { kind: K }> => item.kind === kind)
 
-function opened(): AcpDriver {
-  const driver = new AcpDriver(plain, 'stage', OPTIONS)
+function opened(options: ChatStageOptions = OPTIONS): AcpDriver {
+  const driver = new AcpDriver(plain, 'stage', options)
   due(driver)
   // Listing auth methods asks nothing of a dialect that names none: the CLI is signed in on its own.
   receive(driver, { id: 'plain-init', result: { protocolVersion: 1, authMethods: [{ id: 'oauth' }] } })
@@ -66,6 +66,22 @@ describe('ACP without a dialect of its own', () => {
     expect(items(driver, 'tool')[0]).toMatchObject({ name: 'commandExecution', input: 'pnpm test', status: 'done', execution: { status: 'completed', exitCode: 0 } })
     expect(items(driver, 'turn')[0]).toMatchObject({ state: 'completed', error: null })
     expect(driver.takeMessages().map((each) => each.role)).toEqual(['user', 'assistant'])
+  })
+
+  it('refuses an edit of a reference project itself, and leaves other requests to the user', () => {
+    const driver = opened({ ...OPTIONS, references: ['/refs/docs'] })
+    driver.apply({ dir: 'out', at: 3, frame: driver.send('hello').logged })
+    const options = [{ optionId: 'yes', name: 'Allow', kind: 'allow_once' }, { optionId: 'no', name: 'Reject', kind: 'reject_once' }]
+    const ask = (id: number, toolCall: object) => receive(driver, { id, method: 'session/request_permission', params: { sessionId: 'session', toolCall, options } })
+    ask(7, { toolCallId: 'edit', title: 'Edit `/refs/docs/README.md`', kind: 'edit', content: [{ type: 'diff', path: '/refs/docs/README.md', oldText: 'a', newText: 'b' }] })
+    expect(due(driver)).toEqual([{ jsonrpc: '2.0', id: 7, result: { outcome: { outcome: 'selected', optionId: 'no' } } }])
+    expect(items(driver, 'approval')[0]).toMatchObject({ resolution: 'denied', detail: expect.stringContaining('/refs/docs/README.md') })
+    expect(driver.activity()).not.toBe('awaiting')
+    // Reading there, editing elsewhere, or a folder that only shares the name, is the user's to answer.
+    ask(8, { toolCallId: 'read', title: 'Read', kind: 'read', locations: [{ path: '/refs/docs/README.md' }] })
+    ask(9, { toolCallId: 'other', title: 'Edit', kind: 'edit', rawInput: { filePath: '/refs/docs-v2/README.md' } })
+    expect(due(driver)).toEqual([])
+    expect(items(driver, 'approval').filter((item) => item.resolution === null)).toHaveLength(2)
   })
 
   it('answers a bare decision with the option of its kind, and refuses one it offers none of', () => {

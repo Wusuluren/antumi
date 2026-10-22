@@ -71,7 +71,11 @@ export const TaskRepo = z.object({
   // What the user picked for this task's branch to start from. Null is the branch a dependency
   // left in the repo, when exactly one did, and otherwise origin's default branch.
   startRef: z.string().nullable().default(null),
-  start: TaskStart.nullable().default(null)
+  start: TaskStart.nullable().default(null),
+  // An additional project the agent only reads, for reference: read where it is, with no worktree
+  // or branch, and never edited. It need not be a git repo. The primary never is one. Older cores
+  // leave it out.
+  reference: z.boolean().optional()
 })
 export type TaskRepo = z.infer<typeof TaskRepo>
 
@@ -147,6 +151,21 @@ export function checkEditStart(
   launching = false
 ): StartEditBlocker | null {
   return checkEditProjects(task, launching) ?? (repo.branch ? 'branch-exists' : null)
+}
+
+export type ReferenceEditBlocker = ProjectEditBlocker | 'primary-reference' | 'worktree-exists'
+
+// Whether an additional project is only read. A project the agent has a worktree in stays one it
+// edits, so that worktree's work is not left behind; a reference may become one to edit any time.
+export function checkEditReference(
+  task: Pick<Task, 'status' | 'repos'>,
+  repo: Pick<TaskRepo, 'path' | 'branch' | 'worktreePath' | 'reference'>,
+  launching = false
+): ReferenceEditBlocker | null {
+  const blocker = checkEditProjects(task, launching)
+  if (blocker) return blocker
+  if (task.repos[0]?.path === repo.path) return 'primary-reference'
+  return !repo.reference && (repo.branch || repo.worktreePath) ? 'worktree-exists' : null
 }
 
 export type PrimaryChangeBlocker = 'primary-fixed'

@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { branchKey, branchSlug, normalizeRepoPath, prepareRefineWorkspace, prepareWorkspace, projectHead, removePlanningCheckouts } from './workspace'
+import { branchKey, branchSlug, normalizeRepoPath, prepareRefineWorkspace, prepareWorkspace, projectHead, removePlanningCheckouts, withKnownWorktrees } from './workspace'
 
 describe('branchKey', () => {
   it('keeps an issue key as it is, and strips what a branch name should not carry', () => {
@@ -96,6 +96,29 @@ describe('prepareWorkspace', () => {
     expect(first.entries[0]).toMatchObject({ created: true, topLevel: path.normalize(git(source, 'rev-parse', '--show-toplevel')) })
     const again = await prepareWorkspace({ ...task(source), repos: first.repos }, [], root)
     expect(again.entries[0]?.created).toBe(false)
+  })
+
+  it('reads a reference project where it is, git repo or plain folder, and never makes the primary one', async () => {
+    const primary = repo()
+    const extra = repo()
+    const docs = tempDir()
+    mkdirSync(path.join(primary, 'spec'))
+    const repos = [primary, extra, docs, path.join(primary, 'spec')].map((repoPath) => ({ path: repoPath, worktreePath: null, branch: null, startRef: null, start: null, reference: true }))
+    const all = { ...task(primary), repos }
+
+    const workspace = await prepareWorkspace(all, [], tempDir())
+    expect(workspace.cwd).not.toBe(primary)
+    expect(workspace.extraDirs).toEqual([])
+    expect(workspace.referenceDirs).toEqual([extra, docs, path.join(primary, 'spec')])
+    expect(workspace.repos[1]).toEqual({ path: extra, worktreePath: null, branch: null, startRef: null, start: null, reference: true })
+    expect(workspace.repos[0]?.reference).toBeUndefined()
+    expect(registered(extra)).not.toMatch(/refs\/heads\/antumi\//)
+
+    const planning = await prepareRefineWorkspace(all, [], tempDir())
+    expect(planning.dirs.slice(1)).toEqual([extra, docs, path.join(primary, 'spec')])
+    expect([...planning.references]).toEqual([extra, docs, path.join(primary, 'spec')])
+    // Made primary, a project is edited after all.
+    expect(withKnownWorktrees(repos, [extra, primary]).map((each) => each.reference)).toEqual([false, true])
   })
 
   it('lays out again, on its branch, a worktree whose folder was deleted by hand', async () => {

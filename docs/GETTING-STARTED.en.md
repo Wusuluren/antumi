@@ -1,10 +1,50 @@
 # Welcome to Antumi
 
-Antumi drives the Claude Code, Codex, Cursor and OpenCode you already have, all from one window. Chatting, editing code and approving actions work much as in each agent's own desktop app, so this guide covers only what Antumi adds.
+Antumi drives the Claude Code, Codex, Cursor, OpenCode, Pi and DeepSeek Harness you already have, all from one window. Chatting, editing code and approving actions work much as in each agent's own desktop app. Do the setup below before a conversation can start; the rest is there when you want it.
 
-> First make sure at least one agent is installed and signed in: **Settings → Local Agents**.
+## Step 1: Install and sign in to an agent
 
-## Every agent, every quota at a glance
+**Required.** At least one agent has to be installed before it is offered for a new conversation.
+
+1. Open **Settings → Local Agents**.
+2. Under **Installed**, confirm it is there and its switch is on. One that is off is not offered for a new conversation.
+3. Claude Code, Codex and Cursor also have to show **Signed in**. On **Not signed in**, run the sign-in command on that row in a terminal, then click **Scan again**.
+4. Listed under **Available to install**, or a Cursor app with no CLI: click **Install in terminal**, or copy the install command and run it yourself. Click **Scan again** when it finishes.
+
+OpenCode, Pi and DeepSeek Harness show no sign-in state and have no subscription of their own. After they are installed, do step 2 as well, or follow the note on that row and configure a model in their own terminal, before they can answer. Claude and Codex can skip their own sign-in and answer through a provider once step 2 is done. Cursor keeps its own account.
+
+When that is done, click **Start a conversation** at the top of this guide, pick an agent and write the first message.
+
+## Step 2: Add a model provider
+
+**Skip this when Claude, Codex or Cursor is signed in to its own account.** Add one to use a coding plan such as Volcengine Ark, Zhipu GLM, Kimi, MiniMax or Alibaba Cloud Model Studio, or to let OpenCode, Pi or DeepSeek Harness answer.
+
+1. Open **Settings → Model providers** and click **Add provider**.
+2. Pick a plan. One marked **Unverified** follows that vendor's docs and has not been tried with a real key in Antumi yet. **Custom** is for an address and models you fill in yourself.
+3. Enter a name and paste the API key. **Get one in the console** opens that vendor's console. The key stays on this machine and never goes into an agent's configuration.
+4. Models are one per line, and a preset already fills them in. Confirm the **Default model**, and the **Small model** used for titles, translations and commit messages.
+5. Tick **Agents that use it**. Cursor cannot use a provider and keeps its own account.
+6. Click **Save and test**. A ✓ on each line means it works. On a failure, the provider's own words say whether the key, address or model name is wrong.
+
+When you start a conversation or a task, pick this plan in the **Provider** control in the input box. Leave it unset to use the account the agent is signed in with, which spends that account's quota. A conversation on a provider spends the provider's plan instead. Once a conversation has started, its provider cannot be changed.
+
+## Step 3: Sign in to more than one account
+
+**Optional.** Only Claude Code and Codex can hold more than one account. Skip this when one account is enough.
+
+1. Open **Settings → Accounts**.
+2. Click **Add Claude Code account** or **Add Codex account**. The name can be left empty, or set to something like Work.
+3. Click **Add and sign in**, and finish in the terminal below. The account's email shows here once it is done.
+4. Click **Make active**. Whatever starts next uses it; a conversation already running keeps the account it started on. **Default account** in the list is the one you signed in to yourself, and it cannot be removed.
+5. **Move to the next account when one runs out** is on by default: a conversation that hits a usage limit goes on at once on an account that still has quota. Turn it off to switch yourself: hover an agent's usage in the status bar and pick another account on the card, or click **Manage accounts…**.
+
+Conversation history stays put, so the same conversation carries on after a switch.
+
+## Using it
+
+None of the following has to be set up before you start.
+
+### Every agent, every quota at a glance
 
 ![Choosing an agent for a new conversation, with Cursor marked Recommended](assets/guide/agents.en.png)
 
@@ -12,15 +52,15 @@ Pick the agent when you start a conversation. The one marked **Recommended** is 
 
 ![Each agent's usage in the status bar](assets/guide/usage.en.png)
 
-The status bar always shows each agent's usage. Hover to see when it resets; reset cards are used from here too.
+The status bar always shows each agent's usage. Hover to see when it resets; reset cards are used from here too. With more than one account, switch from the card.
 
-## Handoff
+### Handoff
 
 ![The agent menu at the bottom left of the input box](assets/guide/handoff.en.png)
 
 Out of quota, or want another agent to carry on? Click the agent's name at the bottom left of the input box, pick another, add a note and click **Hand off**. The new agent gets the chat history and keeps working in the same folder.
 
-## Scheduling: send when quota resets, or at a set time
+### Scheduling: send when quota resets, or at a set time
 
 ![The Schedule message popover opened from the clock button](assets/guide/schedule.en.png)
 
@@ -37,19 +77,19 @@ Out of quota, or want another agent to carry on? Click the agent's name at the b
 
 When it is due, the agent runs unattended in the mode shown in the popover; **Change in settings** picks another. Nothing runs while the computer sleeps; turn on **Keep computer awake** from the coffee cup in the status bar.
 
-## Overview: everything waiting on you
+### Overview: everything waiting on you
 
 ![The Overview's figures and its "Needs me" list](assets/guide/overview.en.png)
 
 **Overview**, at the top of the sidebar, gathers every conversation and task: approvals and questions waiting on you, to-dos, work in progress, what comes next, and what you haven't read. Approve right there.
 
-## Squads
+### Squads
 
 ![A squad's lead, developer and reviewer](assets/guide/squad.en.png)
 
 Give a lead, developers and a reviewer their own agent, model and duties, then hand a task to the whole squad. The lead agrees a plan with you first, then assigns the work: development runs in sequence, read-only analysis in parallel.
 
-## Split view: two conversations side by side
+### Split view: two conversations side by side
 
 ![Open in right split pane in a conversation's right-click menu](assets/guide/split.en.png)
 
@@ -62,7 +102,7 @@ Give a lead, developers and a reviewer their own agent, model and duties, then h
 
 Each side has its own input, progress and approvals.
 
-## Helper and translation
+### Helper and translation
 
 ![The right-click menu on selected text](assets/guide/helper.en.png)
 
@@ -78,7 +118,7 @@ Select part of a reply and right-click:
 | Language to translate into, auto-translate | **Settings → Translate** |
 | Model used for translation | **Settings → Local Agents → "Model for quick tasks"** |
 
-## Also worth knowing
+### Also worth knowing
 
 | Feature | How |
 |---|---|

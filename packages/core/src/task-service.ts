@@ -7,6 +7,7 @@ import {
   checkChatResume,
   checkChangePrimary,
   checkDependencies,
+  checkEditReference,
   checkEditProjects,
   checkEditStart,
   checkMove,
@@ -128,8 +129,9 @@ export class TaskService {
   }
 
   // The worktree is where this task's agent works; the picked folder is shared with everything else.
+  // A reference project is only read, so the task has no branch of its own there.
   branches(id: string): Promise<ProjectHead[]> {
-    return Promise.all(this.get(id).repos.map(async (repo) => repo.worktreePath
+    return Promise.all(this.get(id).repos.filter((repo) => !repo.reference).map(async (repo) => repo.worktreePath
       ? { path: repo.path, ...await projectHead(repo.worktreePath) }
       : { path: repo.path, branch: null, detached: false }))
   }
@@ -239,7 +241,7 @@ export class TaskService {
     return this.changed(this.store.update(task.id, { sourceSnapshot: snapshot }))
   }
 
-  update({ id, title, details, repos, dependsOn, agent, squadId, starts, launch, autoRun }: RpcParsedParams<'tasks.update'>): Task {
+  update({ id, title, details, repos, dependsOn, agent, squadId, starts, references, launch, autoRun }: RpcParsedParams<'tasks.update'>): Task {
     const task = this.get(id)
     if (squadId !== undefined && squadId !== task.squadId) {
       if (this.isLaunching(task.id) || task.status !== 'pending' || this.squads?.busy(task.id)) throw new Rejection('squad-busy', '开发开始后不能更换小队')
@@ -267,6 +269,9 @@ export class TaskService {
     }
     if (starts !== undefined) {
       patch.repos = this.withStarts(task, patch.repos ?? task.repos, starts)
+    }
+    if (references !== undefined) {
+      patch.repos = this.withReferences(task, patch.repos ?? task.repos, references)
     }
     if (dependsOn !== undefined) {
       const ids = this.resolveIds(dependsOn)
@@ -317,7 +322,7 @@ export class TaskService {
   // The task as a start lays its worktrees out: a branch is named once, when first made, so only then
   // are the words worth a short wait.
   private async withSlug(task: Task): Promise<Task> {
-    if (task.repos.every((repo) => repo.branch !== null)) return task
+    if (task.repos.every((repo) => repo.branch !== null || repo.reference)) return task
     let timer: ReturnType<typeof setTimeout> | undefined
     await Promise.race([this.nameBranch(task), new Promise<void>((resolve) => { timer = setTimeout(resolve, SLUG_WAIT_MS) })])
     clearTimeout(timer)
@@ -334,10 +339,27 @@ export class TaskService {
       const blocker = checkEditStart(task, repo, this.isLaunching(task.id))
       if (blocker) throw new Rejection(blocker)
       if (ref !== null && !isStartRef(ref)) throw new Rejection('invalid-start', `${ref} is not a branch to start from`)
+      if (ref !== null && repo.reference) throw new Rejection('repo-reference', `${repoPath} is only read, where it is`)
     }
     return repos.map((repo) => {
       const ref = picked.get(repo.path)
       return ref === undefined ? repo : { ...repo, startRef: ref }
+    })
+  }
+
+  // A reference project is read where it is, so it has no start to pick.
+  private withReferences(task: Task, repos: readonly TaskRepo[], wanted: NonNullable<RpcParsedParams<'tasks.update'>['references']>): TaskRepo[] {
+    const picked = new Map(wanted.map(({ path: repoPath, reference }) => [normalizeRepoPath(repoPath), reference]))
+    for (const [repoPath, reference] of picked) {
+      const repo = repos.find((each) => each.path === repoPath)
+      if (!repo) throw new Rejection('repo-not-found', `${repoPath} is not one of the task's repos`)
+      if (reference === Boolean(repo.reference)) continue
+      const blocker = checkEditReference({ ...task, repos: [...repos] }, repo, this.isLaunching(task.id))
+      if (blocker) throw new Rejection(blocker)
+    }
+    return repos.map((repo) => {
+      const reference = picked.get(repo.path)
+      return reference === undefined || reference === Boolean(repo.reference) ? repo : { ...repo, reference, startRef: null }
     })
   }
 
@@ -475,7 +497,7 @@ export class TaskService {
       if (startKind(dependencies) === 'plan') {
         const workspace = await prepareRefineWorkspace(task, dependencies, this.worktreesRoot)
         const conversation = await chats.startForTask({ id: task.id, title: task.title, agent }, {
-          cwd: workspace.cwd, extraDirs: workspace.dirs.filter((dir) => dir !== workspace.cwd), planOnly: true, session: 'new',
+          cwd: workspace.cwd, extraDirs: workspace.dirs.filter((dir) => dir !== workspace.cwd && !workspace.references.has(dir)), referenceDirs: [...workspace.references], planOnly: true, session: 'new',
           readable: images.readable, allowBypass, ...launch, permissionMode
         })
         await chats.send(conversation.id, chatPlanPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt), imageIds)
@@ -494,7 +516,7 @@ export class TaskService {
       checkDependenciesNow()
       this.store.update(task.id, { repos: workspace.repos })
       const conversation = await chats.startForTask({ id: task.id, title: task.title, agent }, {
-        cwd: workspace.cwd, extraDirs: workspace.extraDirs, planOnly: false, session: coordinator && resume ? 'resume' : 'new', readable: images.readable,
+        cwd: workspace.cwd, extraDirs: workspace.extraDirs, referenceDirs: workspace.referenceDirs, planOnly: false, session: coordinator && resume ? 'resume' : 'new', readable: images.readable,
         allowBypass: coordinator ? false : unattended === 'bypass' || allowBypass, ...launch,
         permissionMode: coordinator ? agentDescriptor(agent).readOnlyMode : permissionMode, workspaceReadOnly: Boolean(coordinator),
         // A leader going on from its planning reads its brief first, in a handoff if it moved.
@@ -579,7 +601,7 @@ export class TaskService {
       if (task.status === 'pending') {
         const workspace = await prepareRefineWorkspace(task, dependencies, this.worktreesRoot, { refresh: false })
         await chats.startForTask({ id: task.id, title: task.title, agent }, {
-          cwd: workspace.cwd, extraDirs: workspace.dirs.filter((dir) => dir !== workspace.cwd), planOnly: true, session: 'resume',
+          cwd: workspace.cwd, extraDirs: workspace.dirs.filter((dir) => dir !== workspace.cwd && !workspace.references.has(dir)), referenceDirs: [...workspace.references], planOnly: true, session: 'resume',
           readable: images.readable, allowBypass, handoffNote, ...choice
         })
         return kept()
@@ -588,7 +610,7 @@ export class TaskService {
       const workspace = await prepareWorkspace(await this.withSlug(task), dependencies, this.worktreesRoot)
       this.store.update(task.id, { repos: workspace.repos })
       const conversation = await chats.startForTask({ id: task.id, title: task.title, agent }, {
-        cwd: workspace.cwd, extraDirs: workspace.extraDirs, planOnly: false, session: 'resume', readable: images.readable, allowBypass, handoffNote, ...choice
+        cwd: workspace.cwd, extraDirs: workspace.extraDirs, referenceDirs: workspace.referenceDirs, planOnly: false, session: 'resume', readable: images.readable, allowBypass, handoffNote, ...choice
       })
       // A worktree the user removed comes back without what setup put there; a failure shows in its tab.
       await this.setUp(conversation.id, workspace, setups)
@@ -631,7 +653,8 @@ export class TaskService {
   // out when the user has yet to trust its commands; going on in worktrees already there asks nothing.
   private async trustedSetups(task: Task): Promise<TrustedSetup[]> {
     if (!this.setup) return []
-    const laidOut = await Promise.all(task.repos.map(async (repo) => repo.worktreePath !== null && (await stat(repo.worktreePath).catch(() => null))?.isDirectory() === true))
+    // A reference project is only read, where it is, so setup never runs there.
+    const laidOut = await Promise.all(task.repos.map(async (repo) => repo.reference || (repo.worktreePath !== null && (await stat(repo.worktreePath).catch(() => null))?.isDirectory() === true)))
     return this.setup.requireTrusted(task.repos.filter((_, index) => !laidOut[index]).map((repo) => repo.path))
   }
 
@@ -691,11 +714,11 @@ export class TaskService {
 
   async squadContext(id: string): Promise<{ text: string; readable: string[] }> {
     const task = this.get(id)
-    const entries = task.repos.map((repo) => ({ name: path.basename(repo.path), source: repo.path, dir: repo.worktreePath ?? repo.path, branch: repo.branch, base: null, startRef: repo.startRef, start: repo.start, topLevel: null, created: false }))
+    const entries = task.repos.map((repo) => ({ name: path.basename(repo.path), source: repo.path, dir: repo.worktreePath ?? repo.path, branch: repo.branch, base: null, startRef: repo.startRef, start: repo.start, topLevel: null, created: false, reference: Boolean(repo.reference) }))
     const cwd = entries[0]?.dir
     if (!cwd) throw new Rejection('missing-repo')
     const images = await this.images(task)
-    return { readable: images.readable, text: `${agentPrompt(task, { cwd, extraDirs: entries.slice(1).map((entry) => entry.dir), multi: entries.length > 1, entries, repos: task.repos }, this.dependenciesOf(task), this.previousAttempt(task), images.prompt)}${task.plan ? `\n\n已确认规划：\n${task.plan.markdown}` : ''}` }
+    return { readable: images.readable, text: `${agentPrompt(task, { cwd, extraDirs: entries.slice(1).flatMap((entry) => entry.reference ? [] : [entry.dir]), referenceDirs: entries.slice(1).flatMap((entry) => entry.reference ? [entry.dir] : []), multi: entries.length > 1, entries, repos: task.repos }, this.dependenciesOf(task), this.previousAttempt(task), images.prompt)}${task.plan ? `\n\n已确认规划：\n${task.plan.markdown}` : ''}` }
   }
 
   // launch: the mode the squad will develop in, kept while its leader plans.
@@ -718,7 +741,7 @@ export class TaskService {
       const images = await this.images(task)
       const workspace = await prepareRefineWorkspace(task, dependencies, this.worktreesRoot)
       const conversation = await chats.startForTask({ id: task.id, title: task.title, agent }, {
-        cwd: workspace.cwd, extraDirs: workspace.dirs.filter((dir) => dir !== workspace.cwd), planOnly: true, session: 'new',
+        cwd: workspace.cwd, extraDirs: workspace.dirs.filter((dir) => dir !== workspace.cwd && !workspace.references.has(dir)), referenceDirs: [...workspace.references], planOnly: true, session: 'new',
         readable: images.readable, allowBypass: false, permissionMode: 'plan', ...choice
       })
       await chats.send(conversation.id, chatPlanPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, brief), this.chatImageIds(task, images.prompt))
@@ -743,7 +766,7 @@ export class TaskService {
       this.store.update(task.id, { repos: workspace.repos })
       const images = await this.images(task)
       await this.requireChats().startForTask({ id: task.id, title: task.title, agent: conversation.agent }, {
-        cwd: workspace.cwd, extraDirs: workspace.extraDirs, planOnly: false, readable: images.readable,
+        cwd: workspace.cwd, extraDirs: workspace.extraDirs, referenceDirs: workspace.referenceDirs, planOnly: false, readable: images.readable,
         workspaceReadOnly: true, session: 'resume', allowBypass: false
       })
       await this.setUp(conversation.id, workspace, setups)

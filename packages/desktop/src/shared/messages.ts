@@ -8503,6 +8503,30 @@ export const MESSAGES = {
     "zh": "从 {value1} {value2} 拉出",
     "en": "Branched from {value1} {value2}"
   },
+  "TaskStarts.reference": {
+    "zh": "只读参考",
+    "en": "Reference only"
+  },
+  "TaskStarts.referenceFor": {
+    "zh": "{value1} 只读参考",
+    "en": "{value1} is for reference only"
+  },
+  "TaskStarts.referenceTooltip": {
+    "zh": "勾选后 Agent 只读这个项目、不会修改，也不为它建 worktree 和分支",
+    "en": "When checked, the agent only reads this project: no edits, no worktree and no branch"
+  },
+  "TaskStarts.readWhereItIs": {
+    "zh": "不建 worktree",
+    "en": "No worktree"
+  },
+  "TaskStarts.notAGitRepository": {
+    "zh": "不是 Git 仓库",
+    "en": "Not a Git repository"
+  },
+  "TaskStarts.aFolderThatIsNoGitRepository": {
+    "zh": "多项目任务里，非 Git 文件夹只能作为只读参考",
+    "en": "In a task with several projects, a folder outside Git can only be a reference"
+  },
   "TaskStarts.startingPoint": {
     "zh": "起点",
     "en": "Starting point"
@@ -9534,6 +9558,18 @@ export const MESSAGES = {
   "labels.thePrimaryProjectIsFixedAfterChatStarts": {
     "zh": "任务的对话开始后不能更换主项目，附加项目仍可增删",
     "en": "The primary project is fixed after chat starts; additional projects can still be added or removed"
+  },
+  "labels.thePrimaryProjectCannotBeAReference": {
+    "zh": "主项目不能设为只读参考",
+    "en": "The primary project cannot be a reference"
+  },
+  "labels.thisProjectAlreadyHasAWorktree": {
+    "zh": "这个项目已经建了 worktree，不能再设为只读参考",
+    "en": "This project already has a worktree and cannot become a reference"
+  },
+  "labels.aReferenceProjectHasNoStartingPoint": {
+    "zh": "只读参考的项目没有起点可选",
+    "en": "A reference project has no starting point"
   },
   "labels.theTaskBranchAlreadyExistsItsStartingPoint": {
     "zh": "任务分支已经建好，起点不能再改",

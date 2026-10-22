@@ -33,7 +33,7 @@ export function dshRuntimeConfig(launch: AgentLaunch): DshRuntimeConfig {
   return {
     mode, lock, allowBypass: Boolean(launch.allowBypass) && !lock,
     workDirs: [...launch.extraProjects, ...(launch.knowledgeBase?.write ? [launch.knowledgeBase.path] : [])],
-    noEdit: [...(launch.planOnly?.dirs ?? launch.readOnly?.dirs ?? []), ...(launch.knowledgeBase && !launch.knowledgeBase.write ? [launch.knowledgeBase.path] : [])],
+    noEdit: [...(launch.planOnly?.dirs ?? launch.readOnly?.dirs ?? []), ...(launch.references ?? []), ...(launch.knowledgeBase && !launch.knowledgeBase.write ? [launch.knowledgeBase.path] : [])],
     readTools: antumiReadTools(launch.todos !== false).map((tool) => `mcp__antumi__${tool}`),
     skills: launch.skills ? [path.join(launch.skills.dir, '.agents', 'skills')] : [],
     ...(launch.provider ? { initialModel: { provider: providerName(launch.provider), model: launch.provider.defaultModel } } : {})
