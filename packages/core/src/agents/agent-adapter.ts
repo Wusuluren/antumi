@@ -39,12 +39,26 @@ export type AgentLaunch = {
   // A model provider to run on in place of the agent's own account; preferred.model, if any, is
   // one of providerModels'.
   provider?: ProviderLaunch
+  // The account to run on, other than the user's own: the variables pointing it at its folder.
+  account?: { id: string; env: Record<string, string> }
+}
+
+// How an agent signs in to more than one account (its descriptor's capabilities.accounts): each in
+// a folder of its own, which its process is pointed at. home: that folder; undefined, the user's.
+export type AccountSupport = {
+  env(home: string): Record<string, string>
+  // Readies the folder for a start, sharing with the user's own what is not tied to the sign-in.
+  prepare(home: string): Promise<void>
+  identity(home: string | undefined): Promise<{ email: string | null }>
+  // Its CLI's arguments to sign in, and out, in the folder its env names.
+  login: readonly string[]
+  logout: readonly string[]
 }
 
 export type AgentDetection = Omit<EnvironmentCheck, 'tool'>
 
 // A one-off request: the prompt on stdin or in argv, and the answer on stdout or in a file.
-export type QuickCommand = { command: string; args: string[]; stdin: string | null; output: 'stdout' | 'file' }
+export type QuickCommand = { command: string; args: string[]; stdin: string | null; output: 'stdout' | 'file'; env?: Record<string, string> }
 
 // How long an agent is given to obey a cancel, then a TERM, before it is stopped harder.
 export type CancelGrace = { cancelGraceMs: number; termGraceMs: number }
@@ -85,8 +99,9 @@ export interface AgentAdapter {
   catalog?(cwd: string): Promise<ChatCatalog | null>
   // How the environment check finds it; without it, its kind on PATH, asked for --version.
   detect?(pathEnv: string, platform: NodeJS.Platform): Promise<AgentDetection>
-  signedIn?(): Promise<boolean>
+  signedIn?(home?: string): Promise<boolean>
   readonly usage?: UsageSource
+  readonly accounts?: AccountSupport
   // Spends one of the usage resets its reading reports, without the agent's own app.
   readonly useResetCredit?: ResetCreditUse
   // The command that installs its CLI, offered when its application is found without the CLI.

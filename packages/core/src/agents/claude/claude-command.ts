@@ -69,7 +69,9 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
   // On a provider its default is named outright: Claude Code's own would be one of Anthropic's.
   const providerDefault = provider?.models.find((model) => model.id === provider.defaultModel)
   const model = preferred.model ?? (providerDefault ? claudeModelId(providerDefault) : undefined)
-  return { command: 'claude', ...(provider ? { env: claudeProviderEnv(provider) } : {}), args: [
+  // A provider is reached with a key, not an account: it takes the place of one.
+  const env = provider ? claudeProviderEnv(provider) : launch.account?.env
+  return { command: 'claude', ...(env ? { env } : {}), args: [
     '-p', '--verbose', '--output-format', 'stream-json', '--input-format', 'stream-json',
     '--include-partial-messages', '--permission-prompt-tool', 'stdio',
     // Makes bypass a mode the user can switch to, without starting in it.

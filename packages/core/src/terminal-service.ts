@@ -154,14 +154,24 @@ export class TerminalService {
   }
 
   // A user-started installer is a finite command, retained just like an agent's command.
-  async installCli(installation: AgentCliInstallation): Promise<Terminal> {
+  installCli(installation: AgentCliInstallation): Promise<Terminal> {
     const shell = installation.shell === 'powershell'
       ? { command: 'powershell.exe', args: ['-NoLogo', '-NoProfile', '-Command', `$ErrorActionPreference = 'Stop'; ${installation.command}`] }
       : { command: '/bin/bash', args: ['-o', 'pipefail', '-c', installation.command] }
+    return this.runFinite(shell, `安装 ${agentDescriptor(installation.agent).label} CLI`, installation.command)
+  }
+
+  // An agent's CLI signing in to an account: its own argv, no shell, pointed at the account's folder.
+  signIn(argv: { command: string; args: readonly string[] }, env: Record<string, string>, title: string): Promise<Terminal> {
+    return this.runFinite({ command: argv.command, args: [...argv.args] }, title, [argv.command, ...argv.args].join(' '), env)
+  }
+
+  // A finite command the user started and follows in a tab; command: how the tab names it.
+  private async runFinite(argv: { command: string; args: string[] }, title: string, command: string, env: Record<string, string> = {}): Promise<Terminal> {
     const cwd = os.homedir()
     const id = randomUUID()
-    const { sessionId } = await this.daemon.request('spawn', { ...shell, cwd, env: { ...terminalEnv(), ...ownedBy({ kind: 'terminal', id }) }, cols: 120, rows: 32 })
-    const terminal = { id, sessionId, cwd, title: `安装 ${agentDescriptor(installation.agent).label} CLI`, createdAt: this.now(), command: installation.command }
+    const { sessionId } = await this.daemon.request('spawn', { ...argv, cwd, env: { ...terminalEnv(), ...env, ...ownedBy({ kind: 'terminal', id }) }, cols: 120, rows: 32 })
+    const terminal = { id, sessionId, cwd, title, createdAt: this.now(), command }
     this.db.prepare('INSERT INTO terminals (id, session_id, cwd, title, created_at, command) VALUES (?, ?, ?, ?, ?, ?)')
       .run(terminal.id, sessionId, cwd, terminal.title, terminal.createdAt, terminal.command)
     this.changed()

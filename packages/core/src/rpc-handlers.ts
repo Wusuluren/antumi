@@ -46,6 +46,7 @@ import { inspectKnowledgeFolder, readObsidianVaults } from './obsidian-vaults'
 import type { SkillsLibrary } from './skills-library'
 import type { McpServerStore } from './mcp-servers'
 import type { ModelProviderStore } from './model-providers'
+import type { AgentAccountStore } from './agent-accounts'
 
 const OK = { ok: true } as const
 
@@ -80,7 +81,8 @@ export function createRpcHandlers(
   mcpServers?: McpServerStore,
   smallModels?: SmallModelStore,
   projectConfigs?: ProjectConfigStore,
-  modelProviders?: ModelProviderStore
+  modelProviders?: ModelProviderStore,
+  accounts?: AgentAccountStore
 ): RpcHandlers {
   const git = new GitService(service, conversations, gitChanged)
   const requireProjectConfigs = (): ProjectConfigStore => {
@@ -92,7 +94,11 @@ export function createRpcHandlers(
   conversations.setGitPreparation((dirs, run) => git.withRepositories(dirs, run))
   worktrees.setGitRemoval((dirs, run) => git.withRepositoryLock(dirs, run))
   const files = new ConversationFiles((id) => conversations.get(id))
-  const quick = new QuickRequests({ catalog: (agent) => conversations.chatCatalog(agent), accounting: smallModels })
+  const quick = new QuickRequests({
+    catalog: (agent) => conversations.chatCatalog(agent),
+    accounting: smallModels,
+    accountEnv: async (agent) => (await accounts?.launch(agent))?.env ?? null
+  })
   const translations = new TranslationService(quick)
   conversations.setTitleGenerator(async (conversation, prompt) => (await quick.ask(conversation.agent, prompt,
     chatSettings.current().titleModels[conversation.agent], {
@@ -133,6 +139,10 @@ export function createRpcHandlers(
   const mcpServerStore = () => {
     if (!mcpServers) throw new Rejection('mcp-unavailable')
     return mcpServers
+  }
+  const accountStore = () => {
+    if (!accounts) throw new Rejection('accounts-unavailable')
+    return accounts
   }
   const modelProviderStore = () => {
     if (!modelProviders) throw new Rejection('model-providers-unavailable')
@@ -185,7 +195,7 @@ export function createRpcHandlers(
       }, conversationId ? conversations.quickProvider(conversationId) : undefined)
       return { message: cleanCommitMessage(answer.text), model: answer.model }
     },
-    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'squads' || Boolean(squads)) && (feature !== 'plugins' || Boolean(plugins)) && (feature !== 'skills-library' || Boolean(skills)) && (feature !== 'mcp-servers' || Boolean(mcpServers)) && (feature !== 'small-model-stats' || Boolean(smallModels)) && (feature !== 'model-providers' || Boolean(modelProviders))) }),
+    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'squads' || Boolean(squads)) && (feature !== 'plugins' || Boolean(plugins)) && (feature !== 'skills-library' || Boolean(skills)) && (feature !== 'mcp-servers' || Boolean(mcpServers)) && (feature !== 'small-model-stats' || Boolean(smallModels)) && (feature !== 'model-providers' || Boolean(modelProviders)) && (feature !== 'agent-accounts' || Boolean(accounts))) }),
     'files.resolve': ({ conversationId, path }) => files.resolve(conversationId, path),
     'files.read': ({ conversationId, path }) => files.read(conversationId, path),
     'files.list': ({ conversationId, path }) => files.list(conversationId, path),
@@ -215,6 +225,13 @@ export function createRpcHandlers(
     'modelProviders.save': (input) => modelProviderStore().save(input),
     'modelProviders.remove': async ({ id }) => { await modelProviderStore().remove(id); return OK },
     'modelProviders.probe': ({ id }) => modelProviderStore().probe(id),
+    'accounts.list': () => accountStore().list(),
+    'accounts.add': ({ agent, label }) => accountStore().add(agent, label),
+    'accounts.login': ({ agent, id }) => accountStore().login(agent, id),
+    'accounts.rename': ({ agent, id, label }) => accountStore().rename(agent, id, label),
+    'accounts.remove': async ({ agent, id }) => { await accountStore().remove(agent, id); return OK },
+    'accounts.activate': ({ agent, id }) => accountStore().activate(agent, id),
+    'accounts.setAutoSwitch': ({ autoSwitch }) => accountStore().setAutoSwitch(autoSwitch),
     'debug.wire': ({ id, stageId, before }) => {
       const known = new Map(conversations.stages(id).map((stage) => [stage.id, stage]))
       const stages = wire.stages(id)
@@ -484,7 +501,7 @@ export function createRpcHandlers(
     },
     'usage.list': ({ windowKinds }, connection) => readableUsage(connection.usageKinds, windowKinds, usage.list()),
     'usage.refresh': async ({ windowKinds }, connection) => readableUsage(connection.usageKinds, windowKinds, await usage.requestRefresh()),
-    'usage.useResetCredit': async ({ agent, requestId, creditId }) => ({ outcome: await usage.useResetCredit(agent, requestId, creditId) }),
+    'usage.useResetCredit': async ({ agent, account, requestId, creditId }) => ({ outcome: await usage.useResetCredit(agent, requestId, creditId, account) }),
     'agents.stats': () => runs.stats(),
     'agents.conversationStats': () => turns.stats(),
     'dashboard.stats': ({ includeSmallModels, ...params }) => {

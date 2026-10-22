@@ -321,7 +321,9 @@ export const MIGRATIONS = [
   // The model provider a conversation was started on, and what each stage ran on (a ProviderRoute
   // as JSON); null on the agent's own account.
   `ALTER TABLE conversations ADD COLUMN model_provider TEXT;
-   ALTER TABLE conversation_stages ADD COLUMN provider_route TEXT;`
+   ALTER TABLE conversation_stages ADD COLUMN provider_route TEXT;`,
+  // The agent account a stage ran on (AgentAccount.id); null on a provider, or for an agent without accounts.
+  `ALTER TABLE conversation_stages ADD COLUMN account TEXT;`
 ]
 
 

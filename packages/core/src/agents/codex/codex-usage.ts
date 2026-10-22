@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises'
-import os from 'node:os'
 import path from 'node:path'
 import { z } from 'zod'
 import type { ResetCreditOutcome, ResetCredits, UsageWindow } from '@antumi/protocol'
 import { fetchUsageJson, parseJson, type UsageReading } from '../../usage-source'
+import { codexDefaultHome } from './codex-account'
 
 // The endpoint behind Codex's /status; only ChatGPT sign-ins have plan limits.
 const USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'
@@ -169,16 +169,16 @@ async function supplementResetCredits(
   }
 }
 
-async function readTokens() {
-  const home = process.env.CODEX_HOME ?? path.join(os.homedir(), '.codex')
-  const raw = await readFile(path.join(home, 'auth.json'), 'utf8').catch(() => null)
+// home: an account's own folder; without one, the user's.
+async function readTokens(home?: string) {
+  const raw = await readFile(path.join(home ?? codexDefaultHome(), 'auth.json'), 'utf8').catch(() => null)
   const auth = Auth.safeParse(parseJson(raw))
   return auth.success ? auth.data.tokens : null
 }
 
 // Whether Codex has an account here, without asking the service anything.
-export async function hasCodexCredentials(): Promise<boolean> {
-  return (await readTokens()) !== null
+export async function hasCodexCredentials(home?: string): Promise<boolean> {
+  return (await readTokens(home)) !== null
 }
 
 // Sent as the Codex client, the one these endpoints serve; same headers as Orca.
@@ -192,8 +192,8 @@ function codexHeaders(tokens: NonNullable<z.infer<typeof Auth>['tokens']>): Reco
   }
 }
 
-export async function readCodexUsage(): Promise<UsageReading> {
-  const tokens = await readTokens()
+export async function readCodexUsage(home?: string): Promise<UsageReading> {
+  const tokens = await readTokens(home)
   if (!tokens) {
     return { signedIn: false }
   }
@@ -215,8 +215,8 @@ export function consumeRequest(requestId: string, creditId?: string): Record<str
   return { redeem_request_id: requestId, ...(creditId ? { credit_id: creditId } : {}), credit_type: CONSUME_CREDIT_TYPE }
 }
 
-export async function useCodexResetCredit(requestId: string, creditId?: string): Promise<ResetCreditOutcome> {
-  const tokens = await readTokens()
+export async function useCodexResetCredit(requestId: string, creditId?: string, home?: string): Promise<ResetCreditOutcome> {
+  const tokens = await readTokens(home)
   if (!tokens) {
     throw new Error('Codex 没有登录')
   }

@@ -4,11 +4,12 @@ export type UsageReading =
   | { signedIn: false }
   | { signedIn: true; windows: UsageWindow[]; plan: string | null; resetCredits?: ResetCredits | null }
 
-export type UsageSource = () => Promise<UsageReading>
+// home: an account's own folder (AccountSupport); without one, the user's.
+export type UsageSource = (home?: string) => Promise<UsageReading>
 
 // Spends one usage reset, the one `creditId` names if given, under an id the service uses to spend
 // it at most once.
-export type ResetCreditUse = (requestId: string, creditId?: string) => Promise<ResetCreditOutcome>
+export type ResetCreditUse = (requestId: string, creditId?: string, home?: string) => Promise<ResetCreditOutcome>
 
 // What a running agent said about its limits, and when: the frame's time as it came in, which a
 // stage replayed from its log keeps. The windows it named (the rest unchanged), and whether the full
