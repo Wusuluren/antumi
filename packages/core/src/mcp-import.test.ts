@@ -35,6 +35,19 @@ describe('the agents\' own MCP servers', () => {
     ])
   })
 
+  it('reads Antigravity\'s, whose address is serverUrl, leaving what the user turned off', async () => {
+    mkdirSync(path.join(home, '.gemini', 'config'), { recursive: true })
+    writeFileSync(path.join(home, '.gemini', 'config', 'mcp_config.json'), JSON.stringify({ mcpServers: {
+      docs: { serverUrl: 'https://mcp.example.com/mcp', headers: { Authorization: 'Bearer x' } },
+      fs: { command: 'npx', args: ['-y', 'fs-server'] },
+      off: { command: 'off', disabled: true }
+    } }))
+    expect(await findAgentMcpServers({ env: {}, homedir: home, codex: async () => '[]' })).toEqual([
+      { source: 'antigravity', name: 'docs', transport: { type: 'http', url: 'https://mcp.example.com/mcp', headers: { Authorization: 'Bearer x' } }, problem: null },
+      { source: 'antigravity', name: 'fs', transport: { type: 'stdio', command: 'npx', args: ['-y', 'fs-server'], cwd: null, env: {} }, problem: null }
+    ])
+  })
+
   it('finds none where nothing is installed', async () => {
     expect(await findAgentMcpServers({ env: {}, homedir: home, codex: async () => { throw new Error('codex: not found') } })).toEqual([])
   })

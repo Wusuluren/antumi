@@ -4,16 +4,18 @@ import type { EnvironmentService } from './environment-check'
 import type { TerminalService } from './terminal-service'
 import { Rejection } from './rejection'
 
-// Offered only for an agent whose application is there without its CLI, by the commands its
-// maker publishes for the core host rather than the client OS.
+// Offered for an agent whose application is there without its CLI, by the commands its maker
+// publishes for the core host rather than the client OS; or, for one whose runtime Antumi
+// downloads itself, whenever that is missing.
 export function agentCliInstallations(environment: Pick<Environment, 'checks' | 'detectedAgents'>, platform: NodeJS.Platform): AgentCliInstallation[] {
   return AGENT_KINDS.flatMap((kind) => {
-    const installation = adapterOf(kind).installation?.(platform)
+    const adapter = adapterOf(kind)
+    const installation = adapter.installation?.(platform)
     if (!installation) return []
     const check = environment.checks.find((each) => each.tool === kind)
     const locations = environment.detectedAgents?.find((each) => each.id === kind)?.locations ?? []
     return check?.status === 'missing' && check.path === null &&
-      locations.some((each) => each.source === 'application') && !locations.some((each) => each.source === 'cli')
+      (adapter.installWithoutApplication || locations.some((each) => each.source === 'application')) && !locations.some((each) => each.source === 'cli')
       ? [installation] : []
   })
 }

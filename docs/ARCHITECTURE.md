@@ -363,7 +363,9 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 `agents/agent-registry.test.ts` 检查每个 adapter 提供的权限模式和 descriptor 里写的完全一致，并检查声明的 hooks 都有对应实现。
 
-DeepSeek Harness 使用同一 ACP driver；`packages/dsh-runtime` 在官方导出的 ACP `apply` 上接入消息 stream，保留官方会话、模型、MCP 和取消实现，补充权限模式、提问及计划审批。服务商和技能作为启动覆盖层，文件与命令提供者按当前模式和项目范围实施限制；恢复会话先重设权限再交给 driver。插件随构建打包成 tarball，首次使用时准备 DSH 的专用 `antumi` profile，按内容摘要更新，不修改其他 profile。安装和兼容边界见 [DeepSeek Harness](DEEPSEEK.md)。ACP 恢复优先使用旧 Agent 已声明的 `loadSession`，仅声明 `resume` 时使用 `session/resume`。
+DeepSeek Harness 使用同一 ACP driver；`packages/dsh-runtime` 在官方导出的 ACP `apply` 上接入消息 stream，保留官方会话、模型、MCP 和取消实现，补充权限模式、提问及计划审批。服务商和技能作为启动覆盖层，文件与命令提供者按当前模式和项目范围实施限制；恢复会话先重设权限再交给 driver。插件随构建打包成 tarball，首次使用时准备 DSH 的专用 `antumi` profile，按内容摘要更新，不修改其他 profile。安装和兼容边界见 [DeepSeek Harness](DEEPSEEK.md)。
+
+Antigravity 也只是一份 dialect（`agents/antigravity/`）：`agy` 本身不说 ACP，跑的是 Google 发到 ACP registry 的 Antigravity ACP 服务。它没有安装器，Antumi 按版本钉住各平台压缩包的 SHA-256，用 adapter 的 `installation` 下载到 `~/.antumi/runtimes/antigravity-acp/<版本>/`；`installWithoutApplication` 让这条安装命令不必先检测到 Antigravity 应用。细节见 [Antigravity](ANTIGRAVITY.md)。ACP 恢复优先使用旧 Agent 已声明的 `loadSession`，仅声明 `resume` 时使用 `session/resume`。
 
 ### Agent CLI 版本与升级
 

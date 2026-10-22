@@ -8,12 +8,13 @@ import { cursor } from './cursor'
 import { opencode } from './opencode'
 import { pi } from './pi'
 import { dsh } from './dsh'
+import { antigravity } from './antigravity'
 
 export type { AgentDescriptor, AgentModeText } from './agent-descriptor'
 export { modelPrice } from './model-prices'
 
 // One entry per agent kind: one left out fails to compile.
-export const AGENT_DESCRIPTORS = { claude, codex, cursor, opencode, pi, dsh } satisfies Record<AgentKind, AgentDescriptor>
+export const AGENT_DESCRIPTORS = { claude, codex, cursor, opencode, pi, dsh, antigravity } satisfies Record<AgentKind, AgentDescriptor>
 
 export function agentDescriptor(kind: AgentKind, locale: UiLocale = 'zh-CN'): AgentDescriptor {
   const descriptor = AGENT_DESCRIPTORS[kind]

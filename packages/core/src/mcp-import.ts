@@ -14,7 +14,7 @@ export type FoundMcpServer = { source: AgentKind; name: string; transport: Resol
 
 type Where = { env?: NodeJS.ProcessEnv; homedir?: string; codex?: () => Promise<string> }
 
-// Claude Code's and Cursor's: an mcpServers object, as both document it.
+// Claude Code's, Cursor's and Antigravity's: an mcpServers object, as each documents it.
 const JsonEntry = z.looseObject({
   type: z.string().optional(),
   command: z.string().optional(),
@@ -22,6 +22,9 @@ const JsonEntry = z.looseObject({
   cwd: z.string().optional(),
   env: z.record(z.string(), z.string()).catch({}).optional(),
   url: z.string().optional(),
+  // Antigravity's name for url.
+  serverUrl: z.string().optional(),
+  disabled: z.boolean().optional(),
   headers: z.record(z.string(), z.string()).catch({}).optional()
 })
 const JsonConfig = z.looseObject({ mcpServers: z.record(z.string(), z.unknown()).catch({}).optional() })
@@ -32,13 +35,15 @@ function fromJson(source: AgentKind, name: string, raw: unknown): FoundMcpServer
   const entry = parsed.data
   if (entry.type === 'sse') return { source, name, transport: null, problem: 'Antumi 不支持 SSE 传输' }
   if (entry.command) return { source, name, transport: { type: 'stdio', command: entry.command, args: entry.args ?? [], cwd: entry.cwd ?? null, env: entry.env ?? {} }, problem: null }
-  if (entry.url) return { source, name, transport: { type: 'http', url: entry.url, headers: entry.headers ?? {} }, problem: null }
+  const url = entry.url ?? entry.serverUrl
+  if (url) return { source, name, transport: { type: 'http', url, headers: entry.headers ?? {} }, problem: null }
   return { source, name, transport: null, problem: '既没有命令也没有地址' }
 }
 
 async function readJsonServers(source: AgentKind, file: string): Promise<FoundMcpServer[]> {
   const parsed = JsonConfig.safeParse(await readJsonIfExists(file).catch(() => undefined))
-  return Object.entries(parsed.data?.mcpServers ?? {}).map(([name, raw]) => fromJson(source, name, raw))
+  // What the user turned off is not in use.
+  return Object.entries(parsed.data?.mcpServers ?? {}).filter(([, raw]) => JsonEntry.safeParse(raw).data?.disabled !== true).map(([name, raw]) => fromJson(source, name, raw))
 }
 
 // Codex's, as its own CLI lists them: config.toml is TOML, and the CLI knows its overrides.
@@ -73,7 +78,7 @@ const runCodex = async () => {
   return stdout
 }
 
-// Every server in the three agents' own user-wide configuration. Never throws: an agent not
+// Every server in the agents' own user-wide configuration. Never throws: an agent not
 // installed, or a file it cannot read, has none to offer.
 export async function findAgentMcpServers({ env = process.env, homedir = os.homedir(), codex = runCodex }: Where = {}): Promise<FoundMcpServer[]> {
   const claudeFile = path.join(env.CLAUDE_CONFIG_DIR || homedir, '.claude.json')
@@ -82,7 +87,8 @@ export async function findAgentMcpServers({ env = process.env, homedir = os.home
     const listed: unknown = JSON.parse(out)
     return Array.isArray(listed) ? listed.flatMap((entry) => fromCodex(entry, codexHome) ?? []) : []
   }).catch(() => [])
-  const found = await Promise.all([readJsonServers('claude', claudeFile), codexServers, readJsonServers('cursor', path.join(homedir, '.cursor', 'mcp.json'))])
+  const found = await Promise.all([readJsonServers('claude', claudeFile), codexServers, readJsonServers('cursor', path.join(homedir, '.cursor', 'mcp.json')),
+    readJsonServers('antigravity', path.join(env.GEMINI_HOME || path.join(homedir, '.gemini'), 'config', 'mcp_config.json'))])
   return found.flat()
 }
 
