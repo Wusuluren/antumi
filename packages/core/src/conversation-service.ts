@@ -973,6 +973,7 @@ export class ConversationService {
       if (launch) {
         const prepared = await launch.prepare(agentStage, options.mcp)
         if (prepared.command) command.command = prepared.command
+        if (prepared.args) command.args = [...command.args, ...prepared.args]
       }
       this.wire?.record(id, stage.id, [{ dir: 'spawn', text: JSON.stringify({ command: command.command, args: command.args, cwd: current.workspacePath }) }])
       const spawned = await this.daemon.request('spawnPipe', { command: command.command, args: command.args, cwd: current.workspacePath, env: { ...command.env, [PROCESS_OWNER_ENV]: processOwner({ kind: 'conversation', id }) } })
