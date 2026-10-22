@@ -1,3 +1,4 @@
+import { UsageAutomationSettings } from './UsageAutomationSettings'
 import { getLocale, localized, messageSearchText, t, tr } from '../i18n'
 import type { BrowserStatus, WireUsage } from '@antumi/protocol'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
@@ -345,6 +346,7 @@ function UsageSettings() {
           )}
         />
       )}
+      <UsageAutomationSettings />
     </>
   )
 }

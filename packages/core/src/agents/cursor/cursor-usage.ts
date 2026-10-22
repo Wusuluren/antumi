@@ -17,7 +17,7 @@ const MONTH_MINUTES = 30 * 24 * 60
 const execFileAsync = promisify(execFile)
 
 // macOS keeps the Cursor CLI's login in the keychain; elsewhere, or when told to, it uses auth.json.
-async function readAccessToken(): Promise<string | null> {
+export async function readCursorAccessToken(): Promise<string | null> {
   if (process.platform === 'darwin') {
     try {
       const { stdout } = await execFileAsync('security', ['find-generic-password', '-s', KEYCHAIN_SERVICE, '-a', KEYCHAIN_ACCOUNT, '-w'], {
@@ -67,7 +67,7 @@ export function parseCursorPlan(body: unknown): string | null {
 }
 
 export async function readCursorUsage(): Promise<UsageReading> {
-  const token = await readAccessToken()
+  const token = await readCursorAccessToken()
   if (!token) {
     return { signedIn: false }
   }

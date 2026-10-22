@@ -1,6 +1,6 @@
 import { parseClaudeQuick } from '../../model-metering'
 import type { AgentAdapter } from '../agent-adapter'
-import { claudeAccounts } from './claude-account'
+import { claudeAccounts, claudeDefaultHome } from './claude-account'
 import { claudeCommand } from './claude-command'
 import { claudeProviderModels } from './claude-provider'
 import { CLAUDE_MODE_NAMES, ClaudeStream } from './claude-stream'
@@ -8,7 +8,9 @@ import { claudeTranscripts } from './claude-transcripts'
 import { hasClaudeCredentials, readClaudeUsage } from './claude-usage'
 
 export const claude: AgentAdapter = {
+  usageTranscripts: { format: 'claude', home: (home) => home ?? claudeDefaultHome() },
   kind: 'claude',
+  maintenance: { packageName: '@anthropic-ai/claude-code', brew: { name: 'claude-code', cask: true }, native: { roots: { darwin: ['.local/share/claude', '.claude/bin'], linux: ['.local/share/claude', '.claude/bin'] }, args: ['update'] } },
   createDriver: (stageId, options) => new ClaudeStream(stageId, options),
   command: claudeCommand,
   providerModels: claudeProviderModels,

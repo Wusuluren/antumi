@@ -1,3 +1,4 @@
+import { agentCliAccess } from './agent-cli-access'
 import { execFile } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { lstat, readdir, rm, unlink } from 'node:fs/promises'
@@ -33,7 +34,7 @@ const LOGOUT_TIMEOUT_MS = 30_000
 
 export type AccountDeps = {
   // Signs in, in a terminal the user follows.
-  signIn(argv: { command: string; args: readonly string[] }, env: Record<string, string>, title: string): Promise<Terminal>
+  signIn(argv: { command: string; args: readonly string[] }, env: Record<string, string>, title: string, agent?: AgentKind): Promise<Terminal>
   waitForExit(terminalId: string): Promise<number | null>
   // An account was signed in, or out, or removed: its usage is worth reading now, or no more.
   accountChanged(agent: AgentKind, id: string, removed: boolean): void
@@ -108,19 +109,30 @@ export class AgentAccountStore {
   }
 
   // Where the agent's next process runs, its folder readied; null for an agent without accounts.
-  async launch(agent: AgentKind): Promise<AccountLaunch | null> {
+  async launch(agent: AgentKind, picked?: string): Promise<AccountLaunch | null> {
     const accounts = adapterOf(agent).accounts
     if (!accountsSupported(agent) || !accounts) return null
-    const id = this.activeOf(agent)
+    const id = picked ?? this.activeOf(agent)
+    this.require(agent, id)
     const home = this.home(agent, id)
     if (!home) return { id, env: null }
     await accounts.prepare(home)
     return { id, env: accounts.env(home) }
   }
 
-  // The account's folder for whatever reads its usage; one no longer kept reads as none.
+  // Usage also reads the user's own login for agents without managed accounts.
   homes(): Array<{ agent: AgentKind; id: string; home: string | undefined }> {
-    return this.list().accounts.map((account) => ({ agent: account.agent, id: account.id, home: this.home(account.agent, account.id) }))
+    const accounts = this.list().accounts
+    return AGENT_KINDS.flatMap((agent) => accountsSupported(agent)
+      ? accounts.filter((account) => account.agent === agent).map((account) => ({ agent, id: account.id, home: this.home(agent, account.id) }))
+      : [{ agent, id: DEFAULT_ACCOUNT, home: undefined }])
+  }
+
+  async refreshIdentity(agent: AgentKind, id: string): Promise<void> {
+    // Usage also polls the user's own login of agents without accounts, which has no identity to refresh.
+    if (!accountsSupported(agent)) return
+    this.require(agent, id)
+    await this.check(agent, id)
   }
 
   async add(agent: AgentKind, label: string | null): Promise<{ account: AgentAccount; terminal: Terminal }> {
@@ -160,7 +172,7 @@ export class AgentAccountStore {
     return this.serially(async () => {
       this.require(agent, id)
       const home = this.home(agent, id)!
-      await (this.deps.signOut ?? runQuietly)(agentDescriptor(agent).cli, accounts.logout, accounts.env(home))
+      await agentCliAccess.use(agent, () => (this.deps.signOut ?? runQuietly)(agentDescriptor(agent).cli, accounts.logout, accounts.env(home)))
       const active = { ...this.active }
       if (active[agent] === id) delete active[agent]
       this.active = active
@@ -230,13 +242,22 @@ export class AgentAccountStore {
     const home = this.home(agent, id)
     const name = this.require(agent, id)
     const title = `登录 ${agentDescriptor(agent).label}${name.label ? `（${name.label}）` : ''}`
-    const terminal = await this.deps.signIn({ command: agentDescriptor(agent).cli, args: accounts.login }, home ? accounts.env(home) : {}, title)
+    const terminal = await agentCliAccess.use(agent, () => this.deps.signIn({ command: agentDescriptor(agent).cli, args: accounts.login }, home ? accounts.env(home) : {}, title, agent))
     void this.deps.waitForExit(terminal.id).then(() => this.check(agent, id)).then(() => this.deps.accountChanged(agent, id, false))
     return terminal
   }
 
+  async refresh(agent: AgentKind): Promise<void> {
+    await Promise.all(this.list().accounts.filter((account) => account.agent === agent).map((account) => this.check(agent, account.id)))
+  }
+
   // Reads again whether the account is signed in and as whom.
   private async check(agent: AgentKind, id: string): Promise<void> {
+    if (agentCliAccess.blocked(agent)) return
+    return agentCliAccess.use(agent, () => this.checkIdentity(agent, id))
+  }
+
+  private async checkIdentity(agent: AgentKind, id: string): Promise<void> {
     const adapter = adapterOf(agent)
     const home = this.home(agent, id)
     const signedIn = await adapter.signedIn?.(home).catch(() => false) ?? false

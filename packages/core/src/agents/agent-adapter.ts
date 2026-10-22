@@ -71,6 +71,12 @@ export type AgentStage = { sessionsRoot: string; conversationId: string; stageId
 // and read its limits. Core asks the adapter rather than the agent's name, so an agent is added by
 // writing one and registering it (agents/index.ts).
 export interface AgentAdapter {
+  readonly maintenance?: {
+    packageName?: string
+    packageArgs?: readonly string[]
+    brew?: { name: string; cask: boolean }
+    native?: { roots: Partial<Record<NodeJS.Platform, readonly string[]>>; args: readonly string[]; latestUrl?: string; tagPrefix?: string }
+  }
   readonly kind: AgentKind
   createDriver(stageId: string, options: ChatStageOptions): ChatDriver
   command(launch: AgentLaunch): AgentCommand
@@ -98,6 +104,8 @@ export interface AgentAdapter {
   providerModels?(provider: Pick<ProviderLaunch, 'providerId' | 'models' | 'defaultModel'>): ChatModel[]
   // The sessions it kept of its runs outside Antumi, which an imported conversation resumes.
   readonly transcripts?: TranscriptSource
+  readonly usageTranscripts?: { format: 'claude' | 'codex'; home(home?: string): string }
+  readonly warmup?: { probe: QuickCommand; args(printed: string): string[] }
   // Its models without a chat to read them from; without it, a probe of its chat protocol.
   catalog?(cwd: string): Promise<ChatCatalog | null>
   // How the environment check finds it; without it, its kind on PATH, asked for --version.

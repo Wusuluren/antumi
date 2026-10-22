@@ -31,6 +31,7 @@ import { clearsText, formatClock, formatDuration, globalResetText, percentText, 
 import { agentNames } from '../environment-text'
 import { AgentIcon, CheckIcon } from './icons'
 import { Spinner } from './Spinner'
+import { forecastText, useQuotaForecasts } from '../quota-forecast'
 
 function errorText(usage: AgentUsage): string {
   return usage.error === 'auth-expired'
@@ -273,6 +274,7 @@ function UsageCard({ usage, accounts, accountLabel, now, advice, alternative, sh
   onSpendingChange: (spending: Spending | null) => void
 }) {
   const left = Math.max(8, Math.min(anchor.left, window.innerWidth - CARD_WIDTH - 8))
+  const forecasts = useQuotaForecasts().filter((entry) => entry.agent === usage.agent && entry.account === usageAccount(usage))
   const bottom = window.innerHeight - anchor.top + 6
   const footer =
     usage.status === 'error'
@@ -315,6 +317,7 @@ function UsageCard({ usage, accounts, accountLabel, now, advice, alternative, sh
           </div>
         )
       })}
+      {showPace && forecasts.map((forecast) => <p className="usage-forecast-note" key={`${forecast.window.kind}/${forecast.window.model}`}>{windowLabel(forecast.window)} · {forecastText(forecast)}</p>)}
       {advice.length > 0 && <AdviceList advice={advice} now={now} alternative={alternative} />}
       {usage.resetCredits && (usage.resetCredits.available > 0 || usage.resetCredits.blockedBy || spending) && (
         <ResetCreditList usage={usage} credits={usage.resetCredits} now={now} spending={spending} onSpend={onSpend} onChange={onSpendingChange} />

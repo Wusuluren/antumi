@@ -1,5 +1,6 @@
 import { StringDecoder } from 'node:string_decoder'
 import { z } from 'zod'
+import { AgentKind } from '../agent'
 import { HostedPort, PortRef } from '../ports'
 
 // Newline-delimited JSON over a Unix socket / named pipe between core and the PTY daemon.
@@ -24,10 +25,14 @@ const SessionInfo = z.object({
   exited: z.boolean(),
   exitCode: z.number().nullable(),
   // Older daemons host PTYs only and leave it out.
-  io: SessionIo.optional()
+  io: SessionIo.optional(),
+  agent: AgentKind.optional(),
+  upgradeId: z.string().uuid().optional(),
+  stopReason: z.enum(['cancelled', 'timed-out']).optional()
 })
 export type SessionInfo = z.infer<typeof SessionInfo>
 const Launch = z.object({
+  agent: AgentKind.optional(),
   command: z.string(),
   args: z.array(z.string()),
   cwd: z.string(),
@@ -37,6 +42,10 @@ const Launch = z.object({
 export const daemonMethods = {
   portsList: { params: z.object({}), result: z.array(HostedPort) },
   portsStop: { params: PortRef, result: Ok },
+  spawnCliUpgrade: {
+    params: Launch.extend({ agent: AgentKind, upgradeId: z.string().uuid(), cols: z.number().int().min(1), rows: z.number().int().min(1) }),
+    result: SessionRef
+  },
   spawn: {
     params: Launch.extend({ cols: z.number().int().min(1), rows: z.number().int().min(1) }),
     result: SessionRef
@@ -71,7 +80,7 @@ export const daemonMethods = {
   },
   awakeStatus: { params: z.object({}), result: AwakeBackendStatus },
   // The daemon's own build, for an app updated in place to tell an old one from its own.
-  info: { params: z.object({}), result: z.object({ version: z.string(), pid: z.number().int() }) },
+  info: { params: z.object({}), result: z.object({ version: z.string(), pid: z.number().int(), features: z.array(z.string()).optional() }) },
   // Leaves, but only when nothing it hosts still runs (a browser host aside, which core starts
   // again when it needs one): an app updated in place replaces it then. live: what kept it.
   retire: { params: z.object({}), result: z.object({ retired: z.boolean(), live: z.number().int() }) }

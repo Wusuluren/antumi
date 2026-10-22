@@ -140,7 +140,7 @@ describe('retiring for an update', () => {
     const events: DaemonEvent[] = []
     const leave = vi.fn()
     const host = createSessionHost((event) => events.push(event), undefined, { version: '9.9.9', leave })
-    expect(host.handlers.info({})).toEqual({ version: '9.9.9', pid: process.pid })
+    expect(host.handlers.info({})).toEqual({ version: '9.9.9', pid: process.pid, features: ['agent-cli-maintenance'] })
     const keep = `setTimeout(() => {}, 10_000)`
     const agent = host.handlers.spawnPipe({ command: process.execPath, args: ['-e', keep], cwd: process.cwd(), env: {} }).sessionId
     expect(host.handlers.retire({})).toEqual({ retired: false, live: 1 })
@@ -153,5 +153,55 @@ describe('retiring for an update', () => {
     expect(host.handlers.retire({})).toEqual({ retired: true, live: 0 })
     await new Promise((resolve) => setTimeout(resolve, 100))
     expect(leave).toHaveBeenCalledOnce()
+  })
+})
+
+describe('CLI upgrade admission', () => {
+  const launch = { command: process.execPath, args: [], cwd: process.cwd(), env: {}, cols: 80, rows: 24 }
+  const upgradeId = '00000000-0000-4000-8000-000000000001'
+
+  it('blocks an upgrade for a live agent, including an idle PTY, but ignores exited processes', () => {
+    const host = createSessionHost(() => {})
+    host.handlers.spawn({ ...launch, agent: 'codex' })
+    expect(() => host.handlers.spawnCliUpgrade({ ...launch, agent: 'codex', upgradeId })).toThrow('agent-cli-active')
+    callbacks.exit({ exitCode: 0 })
+    const upgrade = host.handlers.spawnCliUpgrade({ ...launch, agent: 'codex', upgradeId })
+    expect(host.handlers.attach(upgrade)).toMatchObject({ agent: 'codex', upgradeId, exited: false })
+    callbacks.exit({ exitCode: 0 })
+  })
+
+  it('atomically prevents same-agent starts and concurrent upgrades while allowing other agents and terminals', () => {
+    const host = createSessionHost(() => {})
+    const upgrade = host.handlers.spawnCliUpgrade({ ...launch, agent: 'codex', upgradeId })
+    const finishUpgrade = callbacks.exit
+    expect(() => host.handlers.spawnPipe({ ...launch, agent: 'codex' })).toThrow('agent-cli-maintenance-running')
+    expect(() => host.handlers.spawn({ ...launch, agent: 'codex' })).toThrow('agent-cli-maintenance-running')
+    expect(() => host.handlers.spawnCliUpgrade({ ...launch, agent: 'claude', upgradeId })).toThrow('agent-cli-maintenance-running')
+    expect(() => host.handlers.spawn({ ...launch, agent: 'claude' })).not.toThrow()
+    expect(() => host.handlers.spawn(launch)).not.toThrow()
+    finishUpgrade({ exitCode: 0 })
+    expect(host.handlers.attach(upgrade).exited).toBe(true)
+    expect(() => host.handlers.spawn({ ...launch, agent: 'codex' })).not.toThrow()
+  })
+
+  it('retains a cancellation reason until the actual exit and keeps the admission lock meanwhile', () => {
+    const host = createSessionHost(() => {})
+    const upgrade = host.handlers.spawnCliUpgrade({ ...launch, agent: 'codex', upgradeId })
+    host.handlers.kill(upgrade)
+    expect(host.handlers.attach(upgrade)).toMatchObject({ stopReason: 'cancelled', exited: false })
+    expect(() => host.handlers.spawn({ ...launch, agent: 'codex' })).toThrow('agent-cli-maintenance-running')
+    callbacks.exit({ exitCode: 143 })
+  })
+
+  it('times out an upgrade in the daemon, even with no core connected', () => {
+    vi.useFakeTimers()
+    try {
+      const host = createSessionHost(() => {})
+      const upgrade = host.handlers.spawnCliUpgrade({ ...launch, agent: 'codex', upgradeId })
+      vi.advanceTimersByTime(5 * 60_000)
+      expect(host.handlers.attach(upgrade)).toMatchObject({ stopReason: 'timed-out', exited: false })
+      callbacks.exit({ exitCode: 143 })
+      expect(host.handlers.attach(upgrade).exited).toBe(true)
+    } finally { vi.useRealTimers() }
   })
 })

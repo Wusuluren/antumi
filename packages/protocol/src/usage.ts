@@ -16,7 +16,8 @@ export const UsageWindow = z.object({
   model: z.string().nullable(),
   usedPercent: z.number().min(0).max(100),
   windowMinutes: z.number().int().positive(),
-  resetsAt: z.number().nullable()
+  resetsAt: z.number().nullable(),
+  recentRate: z.object({ percentPerHour: z.number().nonnegative(), measuredAt: z.number() }).optional()
 })
 export type UsageWindow = z.infer<typeof UsageWindow>
 

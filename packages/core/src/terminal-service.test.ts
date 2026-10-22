@@ -17,6 +17,7 @@ function fakeDaemon(): SessionHost & { spawns: DaemonParams<'spawn'>[]; killed: 
   const buffers = new Map<string, string>()
   const exited = new Map<string, number>()
   const handlers: Handlers = {
+    spawnCliUpgrade: () => { throw new Error('upgrade not mocked') },
     portsList: () => [],
     portsStop: () => ({ ok: true }),
     spawn: (params) => {

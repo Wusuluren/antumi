@@ -90,6 +90,7 @@ export type ScheduleDeps = {
   }
   conversations: Pick<ConversationService, 'get' | 'create' | 'continue' | 'send' | 'runScheduled' | 'sentRef' | 'capacityAvailable'> & Partial<Pick<ConversationService, 'leaveSpentAccount'>>
   usage: { list(): AgentUsage[]; refresh(): Promise<AgentUsage[]> }
+  beforeQuotaWait?(agent: AgentKind): Promise<void>
   // The mode runs start in, as the user last set it.
   mode: () => UnattendedMode
   emit: (runs: ScheduledRun[]) => void
@@ -436,6 +437,13 @@ export class ScheduleService {
     return this.ticking
   }
 
+  quotaRestored(agent: AgentKind): void {
+    this.db.prepare(`UPDATE scheduled_runs SET check_at = NULL,
+      not_before = CASE WHEN json_extract(target,'$.kind') = 'resume' AND not_before = resets_at + ? THEN NULL ELSE not_before END,
+      resets_at = NULL WHERE status = 'waiting' AND agent = ? AND (resets_at IS NOT NULL OR error IS NULL)`).run(GRACE_MS, agent)
+    void this.tick()
+  }
+
   private async pass(): Promise<void> {
     if (this.stopped) return
     this.syncAutoRuns()
@@ -443,6 +451,20 @@ export class ScheduleService {
     await this.deps.routines.pass()
     if (this.stopped) return
     const now = this.now()
+    if (this.deps.beforeQuotaWait) {
+      const checked = new Set<AgentKind>()
+      for (const run of this.rows("WHERE status = 'waiting' ORDER BY position")) {
+        const quotaDelay = run.target.kind === 'resume' && run.resetsAt !== null && run.notBefore === run.resetsAt + GRACE_MS
+        if ((!quotaDelay && run.notBefore !== null && run.notBefore > now) || this.autoRunBlocked(run) || this.onProvider(run)) continue
+        if (run.target.kind === 'task' && this.deps.tasks.scheduleBlocker(run.target.taskId)) continue
+        const agent = this.agentOf(run)
+        if (agent && !checked.has(agent) && this.exhausted(agent) && !this.working(agent)) {
+          checked.add(agent)
+          await this.deps.beforeQuotaWait(agent)
+          if (this.stopped) return
+        }
+      }
+    }
     const due = this.rows("WHERE status = 'waiting' AND (not_before IS NULL OR not_before <= ?) AND (check_at IS NULL OR check_at <= ?) ORDER BY position", now, now)
       .filter((run) => !this.autoRunBlocked(run))
     if (due.length === 0) return

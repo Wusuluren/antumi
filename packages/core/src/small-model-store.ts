@@ -136,7 +136,9 @@ export class SmallModelStore {
   }
 
   endedSince(since: number): SmallModelJob[] {
-    return this.db.prepare('SELECT data FROM small_model_jobs WHERE ended_at >= ?').all(since).map((row) => Job.parse(JSON.parse(String(row.data))))
+    return this.db.prepare('SELECT data,price_version FROM small_model_jobs WHERE ended_at >= ?').all(since).map((row) => ({
+      ...Job.parse(JSON.parse(String(row.data))), prices: row.price_version === null ? [] : this.loadPrices(String(row.price_version))
+    }))
   }
 
   statsSince(since: number): SmallModelSummary[] {

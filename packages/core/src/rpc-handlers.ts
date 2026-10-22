@@ -1,3 +1,4 @@
+import type { AgentCliMaintenance } from './agent-cli-maintenance'
 import { suggestForProject } from './project-config-suggest'
 import { EMPTY_BASELINE, type SmallModelStore } from './small-model-store'
 import { GitService } from './git-service'
@@ -48,6 +49,8 @@ import type { McpServerStore } from './mcp-servers'
 import type { ModelProviderStore } from './model-providers'
 import type { AgentAccountStore } from './agent-accounts'
 import type { SessionImports } from './session-imports'
+import type { UsageAnalytics } from './usage-analytics'
+import type { UsageAutomation } from './usage-automation'
 
 const OK = { ok: true } as const
 
@@ -84,8 +87,15 @@ export function createRpcHandlers(
   projectConfigs?: ProjectConfigStore,
   modelProviders?: ModelProviderStore,
   sessionImports?: SessionImports,
-  accounts?: AgentAccountStore
+  accounts?: AgentAccountStore,
+  cliMaintenance?: AgentCliMaintenance,
+  analytics?: UsageAnalytics,
+  automation?: UsageAutomation
 ): RpcHandlers {
+  const maintenance = (): AgentCliMaintenance => {
+    if (!cliMaintenance) throw new Rejection('agent-cli-maintenance-unavailable')
+    return cliMaintenance
+  }
   const git = new GitService(service, conversations, gitChanged)
   const requireProjectConfigs = (): ProjectConfigStore => {
     if (!projectConfigs) throw new Rejection('project-config-unavailable')
@@ -99,7 +109,11 @@ export function createRpcHandlers(
   const quick = new QuickRequests({
     catalog: (agent) => conversations.chatCatalog(agent),
     accounting: smallModels,
-    accountEnv: async (agent) => (await accounts?.launch(agent))?.env ?? null
+    account: async (agent) => {
+      const launch = await accounts?.launch(agent)
+      return launch ? { ...launch, identity: accounts?.list().accounts.find((entry) => entry.agent === agent && entry.id === launch.id)?.email ?? null } : null
+    },
+    observe: (facts) => analytics?.quick(facts)
   })
   const translations = new TranslationService(quick)
   conversations.setTitleGenerator(async (conversation, prompt) => (await quick.ask(conversation.agent, prompt,
@@ -267,6 +281,9 @@ export function createRpcHandlers(
     'debug.unwatchWire': ({ id }, connection) => { connection.wiring.delete(id); return OK },
     'debug.wireUsage': () => wire.usage(),
     'debug.clearWire': () => wire.clear(),
+    'system.agentCliStatus': ({ agent, refresh }) => maintenance().list(agent, refresh),
+    'system.upgradeAgentCli': ({ agent }) => maintenance().upgrade(agent),
+    'system.cancelAgentCliUpgrade': ({ agent }) => maintenance().cancel(agent),
     'system.environment': ({ refresh }) => environment.check(refresh ?? false),
     'system.installAgentCli': ({ agent }) => cliInstaller.install(agent),
     'tasks.list': ({ status }) => service.list(status),
@@ -509,7 +526,14 @@ export function createRpcHandlers(
     },
     'usage.list': ({ windowKinds }, connection) => readableUsage(connection.usageKinds, windowKinds, usage.list()),
     'usage.refresh': async ({ windowKinds }, connection) => readableUsage(connection.usageKinds, windowKinds, await usage.requestRefresh()),
-    'usage.useResetCredit': async ({ agent, account, requestId, creditId }) => ({ outcome: await usage.useResetCredit(agent, requestId, creditId, account) }),
+    'usage.history': (filter) => { if (!analytics) throw new Rejection('usage-unavailable'); return analytics.history(filter) },
+    'usage.scan': async () => { if (!analytics) throw new Rejection('usage-unavailable'); await analytics.scan(); return analytics.status() },
+    'usage.forecasts': () => analytics?.forecasts(usage.list()) ?? [],
+    'usage.automation': () => automation?.state() ?? { policies: [], recent: [] },
+    'usage.configureAutomation': (policy) => { if (!automation) throw new Rejection('usage-unavailable'); return automation.configure(policy) },
+    'usage.retryReset': async ({ id }) => { if (!automation) throw new Rejection('usage-unavailable'); return automation.retry(id) },
+    'usage.useResetCredit': async ({ agent, account, requestId, creditId }) => ({ outcome: automation
+      ? await automation.manual(agent, account ?? 'default', requestId, creditId) : await usage.useResetCredit(agent, requestId, creditId, account) }),
     'agents.stats': () => runs.stats(),
     'agents.conversationStats': () => turns.stats(),
     'dashboard.stats': ({ includeSmallModels, ...params }) => {

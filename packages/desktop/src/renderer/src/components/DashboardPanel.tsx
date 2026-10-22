@@ -9,6 +9,7 @@ import { ActivityHeatmap } from './ActivityHeatmap'
 import { DailyBars } from './DailyBars'
 import { DashboardKpis } from './DashboardKpis'
 import { SmallModelStats } from './SmallModelStats'
+import { UsageAnalysis } from './UsageAnalysis'
 import { RefreshIcon } from './icons'
 import { ModelBreakdown } from './ModelBreakdown'
 import { Segmented } from './SettingsControls'
@@ -98,6 +99,7 @@ export function DashboardPanel() {
             <p className="dashboard-empty dashboard-empty-all muted">{t('DashboardPanel.noRunHistoryYetCompletedTaskRunsConversation')}</p>
           )}
           <DashboardKpis stats={report.stats} days={days} range={range} />
+          <UsageAnalysis range={range} />
           {report.stats.smallModels && <SmallModelStats stats={report.stats.smallModels} />}
           <DailyBars days={days} />
           <ActivityHeatmap days={report.stats.days} />

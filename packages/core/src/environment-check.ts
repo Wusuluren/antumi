@@ -1,3 +1,4 @@
+import { agentCliAccess } from './agent-cli-access'
 import { execFile } from 'node:child_process'
 import { access, constants, stat } from 'node:fs/promises'
 import { delimiter, join } from 'node:path'
@@ -86,7 +87,7 @@ async function discoverOtherAgents(pathEnv: string, platform: NodeJS.Platform, a
     ]
     return locations.length > 0 ? {
       id, name, locations,
-      ...(commandPath ? { cliCheck: await probeAgentCli(commandPath, platform) } : {})
+      ...(commandPath && !(isAgentKind(id) && agentCliAccess.blocked(id)) ? { cliCheck: isAgentKind(id) ? await agentCliAccess.use(id, () => probeAgentCli(commandPath, platform)).catch(() => undefined) : await probeAgentCli(commandPath, platform) } : {})
     } : null
   }))
   return discovered.filter((agent): agent is DetectedAgent => agent !== null)
@@ -190,6 +191,14 @@ export class EnvironmentService {
   }
 
   private async checkTool(tool: EnvironmentTool): Promise<EnvironmentCheck> {
+    if (isAgentKind(tool)) {
+      if (agentCliAccess.blocked(tool)) return this.last?.checks.find((check) => check.tool === tool) ?? { tool, status: 'unknown', path: null, version: null, signedIn: null }
+      return agentCliAccess.use(tool, () => this.detectTool(tool))
+    }
+    return this.detectTool(tool)
+  }
+
+  private async detectTool(tool: EnvironmentTool): Promise<EnvironmentCheck> {
     const { pathEnv, platform, signedIn } = this.options
     const detect = isAgentKind(tool) ? adapterOf(tool).detect : undefined
     if (detect) return { tool, ...await detect(pathEnv, platform) }

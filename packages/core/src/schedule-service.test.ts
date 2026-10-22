@@ -52,6 +52,7 @@ describe('ScheduleService', () => {
   let routine: Routine | null
   let picked: AgentKind
   let heard: ScheduledRun[]
+  let beforeQuotaWait: ((agent: AgentKind) => Promise<void>) | undefined
 
   function serve(autoRun = false): void {
     conversations = new ConversationService(store, daemon, path.join(root, 'sessions'),
@@ -64,6 +65,7 @@ describe('ScheduleService', () => {
       else target.handleStderr(event.sessionId, event.data)
     }
     schedules = new ScheduleService(database, {
+      beforeQuotaWait: (agent) => beforeQuotaWait?.(agent) ?? Promise.resolve(),
       tasks: {
         get: (id) => (task?.id === id ? task : dependencies.get(id) ?? null),
         autoRuns: autoRun ? () => task?.autoRun ? [task] : [] : undefined,
@@ -143,6 +145,7 @@ describe('ScheduleService', () => {
   const run = (id: string) => schedules.list().find((each) => each.id === id)
 
   beforeEach(() => {
+    beforeQuotaWait = undefined
     root = mkdtempSync(path.join(os.tmpdir(), 'antumi-schedule-'))
     database = path.join(root, 'antumi.db')
     tasks = new TaskStore(database)
@@ -403,6 +406,30 @@ describe('ScheduleService', () => {
   })
 
   describe('resuming after a usage limit', () => {
+    it('checks automatic resets before the natural reset deadline and resumes immediately once quota is restored', async () => {
+      const resetsAt = clock + HOUR
+      usage = exhausted(resetsAt)
+      const { id } = await limitedChat(resetsAt)
+      const checked: AgentKind[] = []
+      beforeQuotaWait = async (agent) => { checked.push(agent); usage = []; schedules.quotaRestored(agent) }
+      await due()
+      expect(checked).toEqual(['claude'])
+      expect(continues(id)).toHaveLength(1)
+      expect(schedules.list()[0]).toMatchObject({ status: 'started', notBefore: null })
+    })
+
+    it('preserves a user-edited future deadline when quota is restored', async () => {
+      const resetsAt = clock + HOUR
+      const { id } = await limitedChat(resetsAt)
+      const waiting = schedules.list()[0]
+      if (!waiting) throw new Error('missing scheduled resume')
+      schedules.update(waiting.id, { notBefore: clock + 2 * HOUR })
+      schedules.quotaRestored('claude')
+      await due()
+      expect(continues(id)).toHaveLength(0)
+      expect(run(waiting.id)?.notBefore).toBe(clock + 2 * HOUR)
+    })
+
     it('schedules a resume ahead of the queue, and resumes once the limit lifts, keeping the mode', async () => {
       const resetsAt = clock + HOUR
       const { id, item } = await limitedChat(resetsAt)

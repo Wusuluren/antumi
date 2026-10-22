@@ -274,6 +274,8 @@ Claude Code 以 `claude -p --input-format stream-json --output-format stream-jso
 
 ### 小模型用量与节省估算
 
+深度用量分析、额度预测和按账号自动化见 [用量账本与额度自动化](USAGE-ANALYTICS.md)。它在总览统计中单独汇总 Antumi 内外的消耗，不改变任务验收率等工作指标。
+
 总览「统计」里的「小模型省下」和用途明细统计翻译、提交说明、小助手、会话标题，每次小助手回合在「处理了 N 秒」旁显示花费和约省金额。美元均标注「按 API 标价折算」，不代表订阅账号的实际扣款。按完成日期、客户端时区和所选时间范围汇总，分别注明有多少次能计价和估算；未知金额不作为零参与合计。标题用途通过 `includeTitleCosts` 显式请求，旧客户端不接收新枚举项。
 
 - **模型差价**：同一份输入、输出和缓存用量按主模型计价，减去小模型花费。
@@ -362,6 +364,16 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 `agents/agent-registry.test.ts` 检查每个 adapter 提供的权限模式和 descriptor 里写的完全一致，并检查声明的 hooks 都有对应实现。
 
 DeepSeek Harness 使用同一 ACP driver；`packages/dsh-runtime` 在官方导出的 ACP `apply` 上接入消息 stream，保留官方会话、模型、MCP 和取消实现，补充权限模式、提问及计划审批。服务商和技能作为启动覆盖层，文件与命令提供者按当前模式和项目范围实施限制；恢复会话先重设权限再交给 driver。插件随构建打包成 tarball，首次使用时准备 DSH 的专用 `antumi` profile，按内容摘要更新，不修改其他 profile。安装和兼容边界见 [DeepSeek Harness](DEEPSEEK.md)。ACP 恢复优先使用旧 Agent 已声明的 `loadSession`，仅声明 `resume` 时使用 `session/resume`。
+
+### Agent CLI 版本与升级
+
+设置 → 任务 → 已安装的 Agent 打开时调用 `system.agentCliStatus`，按需查询版本；成功缓存一小时，失败五分钟，手动检查绕过缓存。不做启动通知或自动升级。`agent-cli-maintenance` feature 区分新旧 core，daemon 的 `info.features` 单独声明升级能力；旧 daemon 保留版本检查，只禁用升级。
+
+安装与更新事实属于各 Agent adapter 的 `maintenance`。core 的 `agent-cli-target.ts` 从环境检测选中的实际路径开始，验证包管理器的全局包名、bin 与真实路径，或 Homebrew 的安装前缀与安装记录；不按路径里出现 `homebrew` 就判断来源。npm/pnpm/bun 使用原管理器，Homebrew 使用原 formula/cask，已确认的原生安装必须在 help 中声明自更新子命令。应用内置、项目本地和归属不明的 CLI 只给手动指引。Cursor 的日期版本保留完整构建标识，同一天不同 hash 不推断先后；没有最新版本接口时显示由 CLI 检查，查询失败不显示「已是最新」。默认查询稳定版本，拒绝降级。
+
+`AgentCliMaintenance` 在 core 管理查询、全局串行升级、结果复核和 `agent_cli_operations` 中的操作记录。`AgentCliAccess` 协调 core 内的检测、模型探测、临时调用、登录和退出；daemon 会话附带可选 `agent`，`spawnCliUpgrade` 原子检查目标 Agent 的存活进程（包括空闲驻留会话）并启动升级 PTY。升级会话带 `upgradeId`，其存活期间 daemon 拒绝同种 Agent 启动；其他 Agent 和普通终端照常运行。无法归属的旧 pipe 会话保守阻止升级。不扫描外部终端中的 CLI，不主动结束现有会话。
+
+升级命令是 argv，不经过 shell，终端面板保留输出。五分钟超时和取消由 daemon 处理，升级进程实际退出前不释放限制。关闭窗口不影响升级；core 重连按 `upgradeId` 找回 daemon 会话，必要时重建尚未持久化的终端标签，再复核版本。已被用户关掉的标签不自动打开。命令退出码为零还需确认真实版本增长并达到查询到的目标，才显示成功；未变化、无法验证、取消和失败分别展示。结束后重新检测环境和登录状态，并让模型目录下次从 CLI 重读。
 
 ### 本地知识库
 
