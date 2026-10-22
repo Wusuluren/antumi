@@ -77,7 +77,7 @@ export function TaskDependencies({ columns, children }: { columns: readonly Boar
       {children}
       <svg className="task-dependencies" aria-hidden="true" data-active={active !== null || undefined}>
         <defs>
-          <marker id={marker} viewBox="0 0 8 8" refX="8" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <marker id={marker} viewBox="0 0 8 8" refX="8" refY="4" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
             <path d="M 0 0 L 8 4 L 0 8 Z" fill="context-stroke" />
           </marker>
         </defs>
