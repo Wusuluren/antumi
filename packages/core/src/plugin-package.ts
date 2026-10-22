@@ -25,7 +25,8 @@ export async function readManifest(root: string, antumiVersion: string): Promise
   const info = await lstat(file)
   if (!info.isFile() || info.size > 128 * 1024) throw new Error('插件 manifest 无效或过大')
   const manifest = PluginManifest.parse(JSON.parse(await readFile(file, 'utf8')))
-  if (!valid(manifest.version) || !validRange(manifest.engines.antumi) || !satisfies(antumiVersion, manifest.engines.antumi)) throw new Error('插件版本无效或不兼容当前 Antumi')
+  // Beta hosts use the same plugin contract; semver otherwise excludes them from stable ranges.
+  if (!valid(manifest.version) || !validRange(manifest.engines.antumi) || !satisfies(antumiVersion, manifest.engines.antumi, { includePrerelease: true })) throw new Error('插件版本无效或不兼容当前 Antumi')
   if (new Set(manifest.contributes.sources.map((source) => source.id)).size !== manifest.contributes.sources.length) throw new Error('插件重复声明了来源')
   for (const source of manifest.contributes.sources) {
     if (new Set(source.settings.map((field) => field.key)).size !== source.settings.length) throw new Error('插件重复声明了设置字段')
