@@ -52,6 +52,16 @@ const GLM_NOTES = [
 
 const MINIMAX_MODELS: readonly ProviderModel[] = [model('MiniMax-M2.7')]
 
+// Alibaba Cloud Model Studio's Token Plan: personal and team plans share these addresses, each with
+// its own key. auto lets the plan pick the model. Only its Beijing region serves the plan.
+const TOKEN_PLAN = 'https://token-plan.cn-beijing.maas.aliyuncs.com'
+const TOKEN_PLAN_MODELS: readonly ProviderModel[] = ['auto', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-max', 'qwen3.7-plus', 'qwen3.6-flash',
+  'deepseek-v4.1-flash', 'deepseek-v4-pro', 'glm-5.3', 'glm-5.2'].map((id) => model(id))
+const TOKEN_PLAN_NOTES = [
+  { zh: '个人版和团队版用同一个地址；团队版的 Key 在百炼控制台的团队成员页生成。', en: 'Personal and team plans share this address; a team plan\'s key is made on the team members page of the Model Studio console.' },
+  { zh: '只用 token-plan 开头的地址：按量付费的地址不扣套餐额度，会另外计费。', en: 'Use the token-plan address only: the pay-as-you-go one is billed apart from the plan.' }
+]
+
 export const MODEL_PROVIDER_PRESETS: Record<ModelProviderPresetId, ModelProviderPresetEntry> = {
   'volcengine-agent-plan': {
     name: '火山方舟 Agent Plan',
@@ -61,7 +71,7 @@ export const MODEL_PROVIDER_PRESETS: Record<ModelProviderPresetId, ModelProvider
     models: ARK_MODELS,
     defaultModel: 'ark-code-latest',
     smallModel: 'ark-code-latest',
-    agents: ['claude', 'codex', 'opencode'],
+    agents: ['claude', 'codex', 'opencode', 'pi'],
     keyUrl: 'https://ark.volcengine.com/region:cn-beijing/apikey',
     consoleUrl: 'https://console.volcengine.com/ark/region:ark+cn-beijing/openManagement',
     docsUrl: 'https://docs.volcengine.com/docs/ark/agent-plan-personal-claude-code?lang=zh',
@@ -77,7 +87,7 @@ export const MODEL_PROVIDER_PRESETS: Record<ModelProviderPresetId, ModelProvider
     models: ARK_MODELS,
     defaultModel: 'ark-code-latest',
     smallModel: 'ark-code-latest',
-    agents: ['claude', 'codex', 'opencode'],
+    agents: ['claude', 'codex', 'opencode', 'pi'],
     keyUrl: 'https://ark.volcengine.com/region:cn-beijing/apikey',
     consoleUrl: 'https://console.volcengine.com/ark/region:ark+cn-beijing/openManagement',
     docsUrl: 'https://www.volcengine.com/docs/82379/1928261',
@@ -93,7 +103,7 @@ export const MODEL_PROVIDER_PRESETS: Record<ModelProviderPresetId, ModelProvider
     models: GLM_MODELS,
     defaultModel: 'glm-5.3',
     smallModel: 'glm-5.3-flash',
-    agents: ['claude', 'codex', 'opencode'],
+    agents: ['claude', 'codex', 'opencode', 'pi'],
     keyUrl: 'https://bigmodel.cn/usercenter/proj-mgmt/apikeys',
     consoleUrl: 'https://bigmodel.cn/usercenter/proj-mgmt/apikeys',
     docsUrl: 'https://docs.bigmodel.cn/cn/coding-plan/tool/claude',
@@ -109,7 +119,7 @@ export const MODEL_PROVIDER_PRESETS: Record<ModelProviderPresetId, ModelProvider
     models: GLM_MODELS,
     defaultModel: 'glm-5.3',
     smallModel: 'glm-5.3-flash',
-    agents: ['claude', 'codex', 'opencode'],
+    agents: ['claude', 'codex', 'opencode', 'pi'],
     keyUrl: 'https://z.ai/manage-apikey/apikey-list',
     consoleUrl: 'https://z.ai/manage-apikey/apikey-list',
     docsUrl: 'https://docs.z.ai/devpack/tool/claude',
@@ -126,7 +136,7 @@ export const MODEL_PROVIDER_PRESETS: Record<ModelProviderPresetId, ModelProvider
     models: [model('kimi-for-coding')],
     defaultModel: 'kimi-for-coding',
     smallModel: 'kimi-for-coding',
-    agents: ['claude', 'opencode'],
+    agents: ['claude', 'opencode', 'pi'],
     keyUrl: 'https://www.kimi.com/code/console',
     consoleUrl: 'https://www.kimi.com/code/console',
     docsUrl: 'https://www.kimi.com/code/docs/more/third-party-agents.html',
@@ -142,7 +152,7 @@ export const MODEL_PROVIDER_PRESETS: Record<ModelProviderPresetId, ModelProvider
     models: MINIMAX_MODELS,
     defaultModel: 'MiniMax-M2.7',
     smallModel: 'MiniMax-M2.7',
-    agents: ['claude', 'opencode'],
+    agents: ['claude', 'opencode', 'pi'],
     keyUrl: 'https://platform.minimaxi.com/user-center/basic-information/interface-key',
     consoleUrl: 'https://platform.minimaxi.com/user-center/payment/token-plan',
     docsUrl: 'https://platform.minimaxi.com/docs/token-plan/claude-code',
@@ -158,12 +168,28 @@ export const MODEL_PROVIDER_PRESETS: Record<ModelProviderPresetId, ModelProvider
     models: MINIMAX_MODELS,
     defaultModel: 'MiniMax-M2.7',
     smallModel: 'MiniMax-M2.7',
-    agents: ['claude', 'opencode'],
+    agents: ['claude', 'opencode', 'pi'],
     keyUrl: 'https://platform.minimax.io/user-center/basic-information/interface-key',
     consoleUrl: 'https://platform.minimax.io/user-center/payment/token-plan',
     docsUrl: 'https://platform.minimax.io/docs/token-plan/opencode',
     checked: CHECKED,
     verified: null,
     notes: []
+  },
+  'bailian-token-plan': {
+    name: '阿里云百炼 Token Plan',
+    translations: { en: { name: 'Alibaba Cloud Model Studio Token Plan' } },
+    anthropic: { baseUrl: `${TOKEN_PLAN}/apps/anthropic`, auth: 'auth_token', env: {} },
+    openai: { chatUrl: `${TOKEN_PLAN}/compatible-mode/v1`, responsesUrl: `${TOKEN_PLAN}/compatible-mode/v1` },
+    models: TOKEN_PLAN_MODELS,
+    defaultModel: 'qwen3.8-max',
+    smallModel: 'qwen3.6-flash',
+    agents: ['claude', 'codex', 'opencode', 'pi'],
+    keyUrl: 'https://bailian.console.aliyun.com/cn-beijing/subscription/token-plan/personal',
+    consoleUrl: 'https://bailian.console.aliyun.com/cn-beijing/subscription/overview',
+    docsUrl: 'https://help.aliyun.com/zh/model-studio/token-plan-personal-overview',
+    checked: '2026-10-22',
+    verified: null,
+    notes: TOKEN_PLAN_NOTES
   }
 }

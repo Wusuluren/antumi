@@ -181,6 +181,39 @@ describe('Pi over RPC', () => {
     expect(opened({ ...OPTIONS, resume: '/home/user/.pi/agent/sessions/--work-repo--/s.jsonl' }).providerSessionId()).toBe('/home/user/.pi/agent/sessions/--work-repo--/s.jsonl')
   })
 
+  it('on a model provider offers only its models, and starts on its default one', () => {
+    const providerModels = [{ id: 'antumi-glm/glm-5', label: 'GLM 5', description: null, efforts: ['high'], isDefault: true }]
+    const driver = opened({ ...OPTIONS, providerModels })
+    expect(state(driver)?.models).toEqual(providerModels)
+    expect(driver.ready()).toBe(false)
+    const [initial] = driver.due()
+    expect(initial).toEqual({ id: 'pi-initial-model', type: 'set_model', provider: 'antumi-glm', modelId: 'glm-5' })
+    driver.apply({ dir: 'out', at: 3, frame: initial })
+    receive(driver, { id: 'pi-initial-model', type: 'response', command: 'set_model', success: true, data: { ...MODEL, provider: 'antumi-glm', id: 'glm-5' } })
+    expect(driver.ready()).toBe(true)
+    expect(state(driver)?.model).toBe('antumi-glm/glm-5')
+    // Pi lists the user's own models too; none of them is offered.
+    expect(() => driver.setOption('model', 'openai-codex/gpt-5.5')).toThrow(/模型/)
+    send(driver, 'hi')
+    reply(driver, 'hello')
+    // Pi prices a turn at the model's list price, which is not what the provider charges.
+    expect(items(driver, 'turn').at(-1)).toMatchObject({ usage: { input: 150, output: 20 }, metering: { reportedCostUsd: null, models: [expect.objectContaining({ costUsd: null })] } })
+  })
+
+  it('fails the start on a model provider whose model Pi will not take, rather than run on another', () => {
+    const driver = opened({ ...OPTIONS, providerModels: [{ id: 'antumi-glm/glm-5', label: 'GLM 5', description: null, efforts: [], isDefault: true }] })
+    driver.due().forEach((frame) => driver.apply({ dir: 'out', at: 3, frame }))
+    receive(driver, { id: 'pi-initial-model', type: 'response', command: 'set_model', success: false, error: 'Model not found: antumi-glm/glm-5' })
+    expect(driver.ready()).toBe(false)
+    expect(driver.failure()).toMatch(/服务商的模型/)
+  })
+
+  it('shows an item another record brought, as an imported session does', () => {
+    const driver = new PiRpc('stage', OPTIONS)
+    driver.apply({ dir: 'item', at: 1, item: { id: 'u:old', kind: 'user', text: 'from before', images: [], stageId: 'stage', revision: 1, at: 1 } })
+    expect(items(driver, 'user').map((item) => item.text)).toEqual(['from before'])
+  })
+
   it('takes a resumed session Pi opens empty as one that is gone', () => {
     // Pi 1.3.0 answers --session with a missing file by starting a new, empty session there.
     const driver = new PiRpc('stage', { ...OPTIONS, resume: '/gone.jsonl' })

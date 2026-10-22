@@ -19,20 +19,41 @@ async function load(config: PiExtensionConfig) {
   process.env[PI_CONFIG_ENV] = JSON.stringify(config)
   const extension: { default: (pi: unknown) => void } = await import(pathToFileURL(file).href)
   const servers: Array<[string, unknown]> = []
+  const providers: Array<[string, unknown]> = []
   const commands = new Map<string, Command>()
   let toolCall: Handler = async () => undefined
   extension.default({
     registerMcpServer: (name: string, server: unknown) => servers.push([name, server]),
+    registerProvider: (name: string, provider: unknown) => providers.push([name, provider]),
     registerCommand: (name: string, command: Command) => commands.set(name, command),
     on: (event: string, handler: Handler) => { if (event === 'tool_call') toolCall = handler }
   })
   const blocked = async (toolName: string, input: Record<string, unknown> = {}) => (await toolCall({ toolName, input }))?.reason ?? null
-  return { servers, commands, blocked }
+  return { servers, providers, commands, blocked }
 }
 
 const CONFIG: PiExtensionConfig = { mode: 'ask', servers: {}, noEdit: [], workDirs: [], readTools: ['mcp__antumi__show_preview'] }
 
+const PROVIDER = { name: 'antumi-glm', baseUrl: 'https://open.bigmodel.cn/api/anthropic', api: 'anthropic-messages' as const, bearer: true, models: [] }
+const KEY = 'ANTUMI_MODEL_PROVIDER_KEY'
+
 describe('Antumi extension for Pi', () => {
+  it('registers the model provider with its key, then takes the key out of the environment Pi starts tools in', async () => {
+    process.env[KEY] = 'sk-secret'
+    const { providers } = await load({ ...CONFIG, provider: PROVIDER })
+    expect(providers).toEqual([['antumi-glm', { name: 'antumi-glm', baseUrl: 'https://open.bigmodel.cn/api/anthropic', api: 'anthropic-messages', apiKey: 'sk-secret', headers: { authorization: 'Bearer sk-secret' }, models: [] }]])
+    expect(process.env[KEY]).toBeUndefined()
+  })
+
+  it('keeps a key Pi would read as a variable or a command its own', async () => {
+    process.env[KEY] = '$dollar'
+    expect((await load({ ...CONFIG, provider: { ...PROVIDER, bearer: false } })).providers[0]?.[1]).toMatchObject({ apiKey: '$$dollar' })
+    process.env[KEY] = '!bang'
+    expect((await load({ ...CONFIG, provider: { ...PROVIDER, bearer: false } })).providers[0]?.[1]).toMatchObject({ apiKey: '$ANTUMI_MODEL_PROVIDER_KEY' })
+    expect(process.env[KEY]).toBe('!bang')
+    delete process.env[KEY]
+  })
+
   it('brings Antumi MCP servers in as tools the model sees', async () => {
     const { servers } = await load({ ...CONFIG, servers: { antumi: { command: 'node', args: ['mcp.mjs'] }, docs: { url: 'https://docs.example/mcp' } } })
     expect(servers).toEqual([['antumi', { command: 'node', args: ['mcp.mjs'], exposure: 'direct' }], ['docs', { url: 'https://docs.example/mcp', exposure: 'direct' }]])

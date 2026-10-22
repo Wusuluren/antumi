@@ -3,7 +3,10 @@ import { RESERVED_MCP_SERVER_NAME } from '@antumi/protocol'
 import { antumiReadTools, type AgentCommand } from '../../agent-command'
 import { startNote } from '../../agent-prompt'
 import type { AgentLaunch } from '../agent-adapter'
-import { PI_CONFIG_ENV, type PiExtensionConfig, type PiMcpServer } from './pi-extension'
+import { anthropicBaseUrl } from '../../provider-request'
+import { PROVIDER_KEY_ENV, PROVIDER_MARK_ENV, type ProviderLaunch } from '../../provider-launch'
+import { PI_CONFIG_ENV, type PiExtensionConfig, type PiMcpServer, type PiProvider } from './pi-extension'
+import { piProviderEntries, piProviderName } from './pi-models'
 import { isPiMode, type PiMode } from './pi-modes'
 
 // Not a moment spent asking pi.dev for a newer release.
@@ -32,7 +35,22 @@ export function piExtensionConfig(launch: AgentLaunch): PiExtensionConfig {
     servers,
     noEdit: [...(fenced?.dirs ?? []), ...(knowledgeBase && !knowledgeBase.write ? [knowledgeBase.path] : [])],
     workDirs: [...launch.extraProjects, ...(knowledgeBase?.write ? [knowledgeBase.path] : [])],
-    readTools: mcp ? antumiReadTools(todos).map((tool) => `mcp__${RESERVED_MCP_SERVER_NAME}__${tool}`) : []
+    readTools: mcp ? antumiReadTools(todos).map((tool) => `mcp__${RESERVED_MCP_SERVER_NAME}__${tool}`) : [],
+    ...(launch.provider ? { provider: piProvider(launch.provider) } : {})
+  }
+}
+
+// The provider as the extension registers it with Pi, on the wire this stage reaches it over.
+// Pi's Anthropic API appends /v1/messages to its base, as Anthropic's SDK does.
+export function piProvider(provider: ProviderLaunch): PiProvider {
+  const { endpoint } = provider
+  const anthropic = endpoint.wire === 'anthropic'
+  return {
+    name: piProviderName(provider),
+    baseUrl: anthropic ? anthropicBaseUrl(endpoint.baseUrl) : endpoint.baseUrl.replace(/\/+$/, ''),
+    api: anthropic ? 'anthropic-messages' : endpoint.wire === 'openai-responses' ? 'openai-responses' : 'openai-completions',
+    bearer: anthropic && endpoint.anthropic?.auth === 'auth_token',
+    models: piProviderEntries(provider)
   }
 }
 
@@ -66,6 +84,11 @@ export function piCommand(launch: AgentLaunch): AgentCommand {
       ...(skills ? ['--skill', path.join(skills.dir, '.agents', 'skills')] : []),
       ...(note ? ['--append-system-prompt', note] : [])
     ],
-    env: { ...PI_ENV, [PI_CONFIG_ENV]: JSON.stringify(piExtensionConfig(launch)) }
+    env: {
+      ...PI_ENV,
+      [PI_CONFIG_ENV]: JSON.stringify(piExtensionConfig(launch)),
+      // The key in the environment only, which the extension takes it out of.
+      ...(launch.provider ? { [PROVIDER_KEY_ENV]: launch.provider.apiKey, [PROVIDER_MARK_ENV]: launch.provider.providerId } : {})
+    }
   }
 }
