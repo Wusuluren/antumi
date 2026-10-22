@@ -82,6 +82,7 @@
 - **开始执行**：依赖都已完成时，Antumi 先建好 worktree 和分支，任务进入「执行中」，Agent 以规划模式在 worktree 里启动：先读代码，有疑问先问你，再拿出计划。计划显示在右侧检查器的「计划」页，按计划执行（自动接受编辑或逐项确认）之后才开始改代码。确认的计划记在任务上，详情页只读显示，你写的详情不会被改。
 - **开始规划**：还有依赖没完成时，Agent 只读规划，不建任务分支。它读的是任务分支将来拉出的起点（见「分支起点」）：Antumi 把起点提交检出成一个没有分支的只读副本，放在 `~/.antumi/worktrees/<任务id>/.planning/<项目名>/`；起点就是项目当前检出的分支时，直接在项目里读。Claude Code 用规划模式并禁止改动这些目录里的文件，Codex 用 plan 模式配 `read-only` 沙箱，权限模式只有「规划」。未完成依赖的详情和计划直接写在第一条消息里。拿出计划后可以继续规划，也可以「保存计划」：计划存到任务上，任务仍是「未执行」，列表里标「计划已保存」。依赖都完成后点「开始执行」，Antumi 结束规划用的 Agent，在新建的 worktree 里开一个新会话，把保存的计划交给它，让它先对照当时的代码核对一遍。
 - **提交验收**：Agent 退出不会让任务进入待验收，因为 Agent 空闲 30 分钟就会被结束，下次发消息再接着同一个会话启动。觉得做完了就点「提交验收」（Agent 正在处理时不行），检查器会打开到改动。
+- **依赖完成后自动执行**：在详情的依赖项下开启「自动执行」，core 将这一次启动放入预约队列，等所有依赖进入「已完成」再运行，待验收、已取消都不算完成。沿用任务的模型、推理强度和服务商，权限采用设置里的无人值守模式；额度或并发不足时继续等待，启动失败保留预约记录。启动、取消排队或移除全部依赖后开关关闭；删除前置任务也会关闭其后续任务的自动执行，避免把删除当成完成。core 重启后从数据库恢复，手动开始、关闭开关不会重复执行。小队和不支持无人值守的 Agent 暂不支持。
 - **其他**：任务的聊天不出现在「会话」列表和搜索里，从任务打开；删除任务时一并删除它的聊天记录，worktree 保留。任务的聊天有 Antumi 的预览和浏览器工具。
 
 ### 验收之后
@@ -238,7 +239,7 @@ Agent 描述符可提供英语展示文本，客户端传入语言读取，执�
 
 会话不需要「停止」：发消息就会接着聊，状态只有运行中、等待确认和空闲。Agent 空闲 30 分钟后（没有回合在跑、没有后台命令或子 Agent 在跑、没有等你处理的请求、没有排队的消息），Antumi 会结束它的进程，下次发消息时再接着同一个会话启动，这一次要多等几秒。进程异常退出时，会话显示「异常退出」，发消息会重新启动它。
 
-Claude Code 以 `claude -p --input-format stream-json --output-format stream-json` 运行，Codex 以 `codex app-server` 运行，Cursor 以 `cursor-agent acp` 或 `agent acp` 运行，OpenCode 以 `opencode acp` 运行。它们由 daemon 托管：关闭窗口、重启 core 都不会中断 Agent，core 重启后会接着读它的输出，没回答的确认请求也还在。
+Claude Code 以 `claude -p --input-format stream-json --output-format stream-json` 运行，Codex 以 `codex app-server` 运行，Cursor 以 `cursor-agent acp` 或 `agent acp` 运行，OpenCode 以 `opencode acp` 运行，Pi 以 `pi --mode rpc` 运行。它们由 daemon 托管：关闭窗口、重启 core 都不会中断 Agent，core 重启后会接着读它的输出，没回答的确认请求也还在。
 
 - **显示**：Markdown 格式的回复；工具调用卡片，包括命令和输出、文件改动的 diff；每个回合是完成、中断还是失败。等你处理的确认请求、提问和计划固定在输入框上方，不会被滚走：确认请求可以允许、本会话都允许或拒绝（可以附一句理由告诉 Agent）。输入框上方还有项目里未提交的改动（点开检查器）和 Agent 的待办进度，↑ 跳回你的上一条消息。
 - **回复里的链接和图片**：网页链接（`http://`、`https://`）用系统浏览器打开。本机文件链接和行内代码中的文件名，点击后在右侧检查器的「文件」页只读预览；支持多个标签、代码高亮、行号定位、搜索、自动换行、调宽和最大化。Markdown 显示源码，超过 2 MiB 或非 UTF-8 文本的文件会说明无法预览。图片文件（PNG、JPEG、GIF、WebP、SVG）仍显示缩略图，点开放大；网络图片不加载，只显示链接。连接旧版 core 时，文件点击仍在文件管理器中定位。
@@ -251,8 +252,9 @@ Claude Code 以 `claude -p --input-format stream-json --output-format stream-jso
 - **权限模式、模型和推理强度**：在输入框下方切换。Claude Code 有逐项确认、自动接受编辑、规划和自动判断（模型支持时）；Codex 有逐项确认（`untrusted` 审批）、自动（`on-request` 审批加 `workspace-write` 沙箱，并且允许联网，和 Claude Code 一致）、规划（Codex 自己的 plan 模式，配 `read-only` 沙箱）和只读（`read-only` 沙箱）。权限模式随时可换，模型和推理强度要等回合结束。会话沿用它最后所处的权限模式（比如按计划执行后的「自动接受编辑」），以及你选过的模型和推理强度；Agent 进程不在时也可以改，下次发消息启动时生效。Codex 不继承 `config.toml` 里的审批和沙箱设置，会话的其他项目作为可写目录。
 - **Cursor**：需要已登录且支持 ACP 的 CLI，最低接受版本为 `2026.10.01`，已实测 `2026.10.01-e373342`。先按官方说明安装 CLI 并运行 `agent login`，再「重新检测」。提供原生 Agent / Plan / Ask；模型与模型对应的推理强度来自 CLI 实时接口。Ask / Plan 是 Cursor 的原生行为，不代表 Antumi 提供操作系统沙箱；不提供自动接受编辑、全部放行或无人值守预约与例程；用量按月轮询（`DashboardService`），运行中没有实时上报。Antumi MCP 通过 `session/new` / `session/load` 的 `mcpServers` 逐会话注入，不改项目或用户的 MCP 配置；未成功加载时启动会明确失败。发出消息后 30 秒还没有任何事件，聊天里提示「还没有回应」并给出「停止并重试」；60 秒仍没有就停止这一轮（先取消，再按宽限结束进程），只提供「重新连接并重试」，不自动重发。Cursor 只在一轮有了进展后才保存会话，所以这样停下的会话 `session/load` 会报不存在：这时改用 `session/new` 开新会话，之前的记录按移交带过去，没得到回答的那条不带（重试会再发它）。仅规划阶段的 Antumi MCP 只提供读取工具（外加待办，见「待办」）。
 - **OpenCode**：需要 OpenCode 2.x（1.x 的配置格式不同，显示为需要升级），已对照 2.1.1 的 ACP 源码实现。它没有自己的账号，能不能回答取决于 `opencode auth login` 配过的模型服务商，所以不检查登录。权限模式就是它的 primary agent：逐项确认对应 Build，规划对应 Plan；自动、只读和全部放行对应 Antumi 启动时加的 `antumi-auto`（项目内编辑、跑命令直接做，访问项目外和读 `.env` 直接拒绝而不是问：OpenCode 一被拒绝请求就结束整个回合，按规则拒绝则只是工具报错、接着做，无人值守的运行因此不会被请求打断）、`antumi-readonly`（拒绝编辑，运行命令和访问项目外前先问；OpenCode 自带的 Plan 只拦编辑，仍能跑 shell）和 `antumi-bypass`（什么都放行，只在设置允许全部放行、且不是规划或只读阶段时才加）。OpenCode 的 agent 默认什么工具都放行，Build 不会弹审批卡，除非用户在自己的 OpenCode 配置里设了 `ask`；所以 Antumi MCP 的终端命令由 Antumi 在聊天里确认（`mcpApproval: 'antumi'`）。模型和推理强度来自会话的 config options，模型 id 是 `provider/model`；还没聊过时用 `opencode api --standalone GET /api/model` 列模型，只取启用的（`opencode models` 会列出所有服务商的所有模型）。你拒绝请求时，它不带理由地结束这一轮，所以理由作为下一条消息发过去（`denialAsMessage`）。附加项目和可写的知识库走 ACP 的 `additionalDirectories`，用户 MCP 走 `mcpServers`；加的这几个 agent、技能 bundle 和 Antumi 自己的 MCP 服务写进 `OPENCODE_CONFIG_CONTENT`（2.x 的格式，服务器在 `mcp.servers` 下），只对这个进程生效，不改用户的 `opencode.json`。Antumi MCP 不走 `session/new`，因为 OpenCode 2 默认把 MCP 工具收进 Code Mode（模型写一段调用 `tools.<服务器>.<工具>()` 的 `execute` 脚本），聊天里就认不出预览、截图这些 Antumi 工具；只有配置里能给服务器设 `codemode: false`，这时工具名是 `<服务器>_<工具>`，dialect 按 ACP 的 `name` 把 `antumi_x` 认成 `antumi.x`（`AcpDialect.ownMcpOnCommand`）。配置里的服务器和会话并行加载，第一条消息可能赶在工具注册之前：服务器带 `--ready-on-list`，在 OpenCode 列出工具后写 ready 文件，阶段等它出现、再等 1.5 秒让 OpenCode 收进工具（它防抖 100ms 后重载，实测不到 1 秒），之后才发第一条消息。可以定时和例行运行，但读不到它的额度，所以「自动选择 Agent」的例行任务不会选它。它的 `session/fork` 只能复制整个会话：从最新一轮分叉时原生 fork，从更早的消息分叉时按可见记录开新会话。不接它的表单提问（它会让模型自己说明假设后继续）；子 Agent 的工具调用带着子会话标题前缀显示在父会话里。
+- **Pi**：需要 Pi 0.99 以上（`pi.registerMcpServer` 从 0.99 起才有），说的是 Pi 自己的 RPC 模式（stdin 一行一条命令，stdout 一行一条应答或事件，`agents/pi/pi-rpc.ts`），不经 ACP 桥（社区的 pi-acp 不把 `mcpServers` 交给 Pi，也没有审批）。事件形状对照 orca 录下的 Pi 1.0.4 真实会话实现：`agent_end` 之后还可能重试或压缩，`agent_settled` 才是一轮结束；中止后回复的 `stopReason` 是 `error`，按停止处理。它没有自己的账号，不检查登录；`get_state` 报出的模型是 `unknown` 又没有可用模型时，提示去终端 `/login`。Pi 不做任何审批，所以「默认」和「全部放行」都是 Pi 原样运行；「自动」「规划」和「只读」由 Antumi 自己的扩展守着，都是直接拒绝而不是问，所以「自动」也能用于定时任务和例程（全局的无人值守模式默认就是它）：启动前把扩展源码（`agents/pi/pi-extension.ts`，纯 JS，无构建）写进会话目录，以 `--extension` 交给 Pi（`launch.prepare` 返回的 `args`），配置经环境变量 `ANTUMI_PI` 传入。扩展做三件事：用 `registerMcpServer` 注册 Antumi MCP 和用户选的 MCP，`exposure` 设为 `direct`（默认的 `codemode` 会把工具藏起来，聊天里认不出预览、截图）；注册 `/antumi-mode <模式>` 命令，切模式不经模型（Pi 对它回 `disposition: handled`）；在 `tool_call` 里拦下：自动模式下用 edit、write 改工作目录、其他项目和可写知识库以外的文件（bash 拦不住，命令照常跑）；规划和只读模式下的编辑、写入、不在白名单里的 bash（只认不带管道和重定向的只读命令）、不在只读清单里的 MCP 工具；任何模式下对只读文件夹（规划阶段、只读成员的目录，不可写的知识库）的编辑。Pi 没有规划模式，规划模式下每条消息前在线路上加一句说明（聊天和日志里只有消息本身），回合结束时把最后的回复当作计划，按 Codex 的方式交出。Pi 的扩展对话框（select、confirm、input、editor）一律回 `cancelled`，`notify` 显示成提示。Antumi MCP 的终端命令由 Antumi 在聊天里确认（`mcpApproval: 'antumi'`）。会话是一个文件：`get_state` 的 `sessionFile` 就是会话 id，Pi 写入第一条消息后才算有会话可接；续接用 `--session <文件>`，从最新一轮分叉用 `--fork <文件>` 整个复制，更早的分叉按可见记录开新会话；会话绑定目录。文件不在时 Pi 不报错，而是在原路径开一个空会话（1.3.0 实测），所以续接时 `get_state` 报 0 条消息就当作会话丢失，改用交接。edit 的卡片用它结果里的 `details.patch`（带行号和上下文的统一 diff），没有时才按参数拼。模型 id 是 `provider/id`，推理强度按 Pi 的规则列出（推理模型默认有 off 到 high，`thinkingLevelMap` 里设为 null 的去掉，xhigh、max 要在映射里才有）；没聊过时用 `pi --mode rpc --no-session` 列模型，不留会话文件。记住的模型和推理强度在握手后用 `set_model`、`set_thinking_level` 设置，不放命令行。Antumi 的启动说明、其他项目文件夹和只读文件夹走 `--append-system-prompt`（Pi 没有附加目录的参数，靠绝对路径访问），技能 bundle 走 `--skill`。正在跑的回合可以插话（`streamingBehavior: steer`），排队用 Antumi 自己的队列。每轮的 token 和花费来自每条助手消息的 `usage`。读不到额度，「自动选择 Agent」的例行任务不会选它。不在服务商上时，用的是用户在 Pi 自己的 `~/.pi/agent/models.json` 里配的服务商和模型；在服务商上见下文。
 - **全部放行**：支持它的 Agent（Claude Code、Codex）都提供这个模式，但从不默认选中，对应 Claude Code 的 `bypassPermissions`，以及 Codex 的 `never` 审批加 `danger-full-access` 沙箱：Agent 不再请求确认，也不受沙箱限制。
-- **规划**：Agent 在规划模式下拿出计划时，右侧的检查器会自动打开到「计划」页显示全文，每一版计划和它的处理结果都留在那里；输入框上方可以按计划执行（之后自动接受编辑，或者逐项确认），也可以附上意见让它继续规划。Cursor 使用原生 `cursor/create_plan` 审批，确认后等待 Agent 模式切换成功再接受计划。Cursor 的分叉会复制可见历史并新建会话，不使用原生 fork；OpenCode 只在从最新一轮分叉时原生 fork（见上）。Codex 的计划在回合结束时交出，按计划执行就是用选定的模式（自动或逐项确认）接着发一回合；直接发消息算作继续规划。
+- **规划**：Agent 在规划模式下拿出计划时，右侧的检查器会自动打开到「计划」页显示全文，每一版计划和它的处理结果都留在那里；输入框上方可以按计划执行（之后自动接受编辑，或者逐项确认），也可以附上意见让它继续规划。Cursor 使用原生 `cursor/create_plan` 审批，确认后等待 Agent 模式切换成功再接受计划。Cursor 的分叉会复制可见历史并新建会话，不使用原生 fork；OpenCode 只在从最新一轮分叉时原生 fork（见上）。Codex 的计划在回合结束时交出，按计划执行就是用选定的模式（自动或逐项确认）接着发一回合；直接发消息算作继续规划。Pi 同样在回合结束时交出计划，执行前先发 `/antumi-mode` 切到选定的模式（默认或自动）。
 - **上下文**：输入框右下角的圆环显示上下文窗口用了多少，超过 60% 变黄，超过 85% 变红。
 - **无人值守**：定时任务、例行任务和预约的消息由 core 标记为无人值守（`ConversationService.markUnattended`），之后这条会话里 Agent 问的事都由 core 按运行模式代答，不会停在「等你确认」：全部放行时允许这一次（不选「总是允许」，那可能超出这次运行，比如 OpenCode 会把它记到项目里）；自动模式下拒绝，并告诉 Agent 换一种在项目内的做法，做不到就写进总结；提问不作答，让它按合理假设继续并在总结里写明；计划直接批准。代答在 ChatHost 算出「等你确认」之前完成，所以不会闪一下或发通知。你在这条会话里发消息或回答请求后，就改回由你处理。标记只在内存里，core 重启后请求照旧等你。规则在 `unattended-answer.ts`。
 - **通知**：窗口不在前台时，Agent 等你允许或回答、这一轮做完、异常退出，都发一条系统通知，点它回到那条会话或任务（任务的聊天用任务的标题）。Dock 图标上的数字是等你处理的会话和任务有几个：Agent 在等你、你没看到的做完的回合、任务里等你回复的 Agent，一个任务的聊天只算一次（macOS 和 Linux；Windows 没有角标）。设置 → 通知 可以关掉通知，角标不受影响。macOS 第一次会问要不要允许 Antumi 通知。
@@ -282,7 +284,7 @@ Claude Code 以 `claude -p --input-format stream-json --output-format stream-jso
 
 完整价格表按内容哈希保存在 `small_model_price_versions`，同一版本只存一份，账目引用开始时的版本；计算结果只保留本次使用的去重单价。升级时分批迁移已有快照，不重新计算历史金额，未结束的请求恢复后仍用原版本计价。「统计」只读取独立的精简摘要，按模型合并 token，不加载每笔的完整用量和计算依据。目前保留全部账目，未设置明细过期或按日归档。
 
-Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 的 JSONL（答案仍读输出文件）、Cursor 的 JSON。回合的可选 `metering` 保留缓存读写和实际模型；Claude 用 `num_turns`，Codex 从去重后的累计用量增长保守估算调用，无法识别时按一次。说 ACP 的 Agent 在回合结束时读 `session/prompt` 返回的标准 `usage`：输入算上缓存读写（OpenCode 的 `inputTokens` 不含命中缓存的部分），输出算上推理，回复底下显示 ↑ / ↓；花费取 `usage_update` 里会话累计的 `cost`，一轮的花费是这轮前后两次累计之差，恢复的会话在第一轮里还不知道之前的累计，就记为未提供。OpenCode 两样都报；Cursor CLI（实测 2026.10.01）都不报，所以 Cursor 的回合仍没有用量，小助手只统计次数，等它的 CLI 报了自然就有。`usage_update` 的上下文大小只用于上下文占用，不能视作消耗的 token。缓存写入时长或长上下文档位无法确定时保留已有 token，金额降级为未提供。
+Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 的 JSONL（答案仍读输出文件）、Cursor 的 JSON。回合的可选 `metering` 保留缓存读写和实际模型；Claude 用 `num_turns`，Codex 从去重后的累计用量增长保守估算调用，无法识别时按一次。说 ACP 的 Agent 在回合结束时读 `session/prompt` 返回的标准 `usage`：输入算上缓存读写（OpenCode 的 `inputTokens` 不含命中缓存的部分），输出算上推理，回复底下显示 ↑ / ↓；花费取 `usage_update` 里会话累计的 `cost`，一轮的花费是这轮前后两次累计之差，恢复的会话在第一轮里还不知道之前的累计，就记为未提供。OpenCode 两样都报。Pi 不走 ACP，每条助手消息带自己的 `usage`（含缓存读写和 `cost.total`），一轮按模型累加，调用次数就是助手消息数。Cursor CLI（实测 2026.10.01）都不报，所以 Cursor 的回合仍没有用量，小助手只统计次数，等它的 CLI 报了自然就有。`usage_update` 的上下文大小只用于上下文占用，不能视作消耗的 token。缓存写入时长或长上下文档位无法确定时保留已有 token，金额降级为未提供。
 
 模型价格是 Agent 描述符引用的纯数据，来源及更新日期见 `protocol/src/agents/model-prices.ts`，支持缓存类别、长上下文档位和已公布的生效日期；未解析的别名、未知模型不猜价格。协议增加 `small-model-stats` feature 和可选字段，不提升版本。新客户端用 `dashboard.stats.includeSmallModels` 请求新统计，同时将翻译、提交说明 token 加入原合计、每日趋势和模型明细；小助手仍从原回合统计，避免重复。老客户端未请求此字段时保留原统计口径。
 
@@ -302,6 +304,19 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 设置 → 本机 Agent →「自动归档不活跃的会话」默认关闭；打开后选 7、14、30、60 或 90 天。core 启动一分钟后检查一次，之后每小时一次，设置变了也立即检查：最后一条消息（`updated_at`）和从归档取出的时间（`restored_at`）都早于这个天数的普通会话，按手动归档的同一路径归档。置顶的、任务的、群聊和小队成员的会话以及小助手不在其列；Agent 正在工作、正在启动或在等批准、回答问题的会话归档时会被拒绝，留到下次检查。从归档取出不改 `updated_at`（列表顺序不变），但自动归档把它算作一次活动，不会马上又被收回去。
 
 在会话列表里右键选「删除会话」。删除会删除数据库记录、结构化消息、交接文件和聊天记录，但**无论外部还是 Antumi 托管的工作目录都会保留**，因为其中可能有唯一的工作成果。
+
+### 导入终端里的会话
+
+设置 → 导入会话列出 Claude Code 和 Codex 在 Antumi 之外跑过的会话（`session-imports.ts`），勾选后各导入成一条会话，下一条消息用 Agent 自己的恢复接着聊。读哪里、怎么读归 adapter 的 `transcripts`（`agent-transcripts.ts`），没有它的 Agent 不出现在列表里：
+
+- **Claude Code**（`claude-transcripts.ts`）：`$CLAUDE_CONFIG_DIR/projects/*/<会话 id>.jsonl`（默认 `~/.claude`），会话 id 取文件名，目录取记录里的 `cwd`，不从目录名反推。从最后一条主线记录沿 `parentUuid` 往回走（压缩处接 `logicalParentUuid`），/rewind 丢掉的分支和 sidechain 不算；`isMeta`、压缩摘要和 CLI 自己注入的用户轮次（`<local-command-…>`、`<system-reminder>`、`<task-notification>` 等）跳过，斜杠命令显示成 `/命令 参数`。标题依次取 `custom-title`（用户 /rename 的，导入后锁定）、`ai-title`、`summary`、第一条提问。`<id>/subagents/` 不是会话。
+- **Codex**（`codex-transcripts.ts`）：`$CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl`，旧的已压成 `.jsonl.zst`，两份都在时读没压的那份（Codex 还在写它）。第一行 `session_meta` 的 `source` 是对象（子 Agent、审查）、`thread_source` 不是 `user`，或 `originator` 是 Antumi 自己（`CODEX_CLIENT_NAME`）的线程不算。内容按回合读 `event_msg` 里的 `item_completed`，回合以 `task_complete` / `turn_aborted` 收尾；更早没有这些事件的 rollout 只显示消息。标题取 `session_index.jsonl` 的 `thread_name`，没有就用第一条提问。
+
+扫描只读每个文件开头 256KB，最后活动时间用文件的修改时间，按路径、大小和修改时间缓存，第二次几乎不花时间。隐藏的有：`conversation_stages` 里已有、却不是导入来的会话（Antumi 自己跑的），目录在 `ANTUMI_HOME` 或临时目录下的。目录已不存在的列出但不能选，因为 Claude 只能在原目录恢复。
+
+导入新会话时建一条不启动的会话（`create(..., deferStart)`，项目就是原目录，不建 worktree），再由 `ConversationService.importStage` 补一个已结束的 stage：`provider_session_id` 是原会话的 id，聊天记录写成 `item` 记录（各 driver 原样放进条目，不写 `exit`，否则会被当成没启动成功），用户消息和每轮最终回复写进 `conversation_messages`（Claude 恢复要先看到这些消息，标题、搜索、`history_read` 和移交也读它们）。之后和重启后继续一样：`startStage` 找到这个 stage，Claude 用 `--resume`，Codex 用 `thread/resume`；原会话不在了照常退回移交文件。
+
+`session_imports` 表记每个导入的会话导到哪条记录（`imported_through`）和当时文件的修改时间。文件之后又改过，而改动时间不落在这条会话任何 stage 的 `[开始, 结束 + 2 秒]` 里，就算在终端里又聊过，列表标「有更新」；Antumi 自己恢复时也写同一个文件，这段时间的改动不算。再导入一次，只取时间晚于 `imported_through`、又不在这些区间里的记录，作为一个新的已结束 stage 接在后面，原会话 id 不变，下一次仍从它恢复。会话的 Agent 正在运行时不导入。删掉会话后，它导入的会话回到「未导入」。
 
 ### 待办
 
@@ -339,10 +354,10 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 2. **core**：新建 `packages/core/src/agents/<id>/`，写一个 `AgentAdapter`（`agents/agent-adapter.ts`），再登记进 `agents/index.ts` 的 `AGENT_ADAPTERS`。adapter 负责以下几项，大多可选，没给就走默认实现：
    - 必填：driver（实现 `ChatDriver`）、启动命令（argv 数组，需要时加环境变量 `env`）、能用的权限模式、会话策略（是否预先指定会话 id、会话是否绑定目录、原生 fork 能从任意一轮、只能整个会话复制（只用于从最新一轮分叉），还是不支持）。
    - 可选：模型目录、环境检测、登录检查、用量读取、使用重置卡（`useResetCredit`，没有它就只能在 Agent 自己的应用里用）、CLI 安装命令、应用发现。
-   - 可选 hooks，用于命令行之外的特殊需求：启动前后的准备（`launch`）、回合处理（`turns`：串行发送、取消后分阶段停止进程、首帧超时、换新进程重试、拒绝理由作为消息发送）。注册时 `checkAdapter()` 会检查这些 hooks 是否配套，比如声明了首帧超时，就必须同时能停进程、能重试。
+   - 可选 hooks，用于命令行之外的特殊需求：启动前后的准备（`launch`，`prepare` 可以换可执行文件，也可以追加它刚写出的文件的参数，比如 Pi 的扩展）、回合处理（`turns`：串行发送、取消后分阶段停止进程、首帧超时、换新进程重试、拒绝理由作为消息发送）。注册时 `checkAdapter()` 会检查这些 hooks 是否配套，比如声明了首帧超时，就必须同时能停进程、能重试。
 3. **desktop**：放一个图标资源，登记进 `components/icons.tsx` 的 `AGENT_MARKS`。
 
-说 ACP 的 Agent 不用另写 driver：`agents/acp/acp-driver.ts` 讲标准协议，Agent 自己的部分写成一份 `AcpDialect`，然后用 `new AcpDriver(dialect, …)` 创建 driver。dialect 至少要有显示名、请求 id 前缀（会写进日志，定下后不能改）和权限模式映射；扩展认证方式、模型列表、提问、计划审批、子 Agent、工具命名、写进回复的传输错误等，都按需声明。Cursor 的 dialect（`agents/cursor/cursor-dialect.ts`）扩展最多，OpenCode 的（`agents/opencode/opencode-dialect.ts`）几乎只用标准协议，都可以作参照。`agents/acp/acp-driver.test.ts` 用一个什么扩展都不带的 dialect 跑完一整个回合，新 dialect 可以从它开始。
+说 ACP 的 Agent 不用另写 driver：`agents/acp/acp-driver.ts` 讲标准协议，Agent 自己的部分写成一份 `AcpDialect`，然后用 `new AcpDriver(dialect, …)` 创建 driver。dialect 至少要有显示名、请求 id 前缀（会写进日志，定下后不能改）和权限模式映射；扩展认证方式、模型列表、提问、计划审批、子 Agent、工具命名、写进回复的传输错误等，都按需声明。Cursor 的 dialect（`agents/cursor/cursor-dialect.ts`）扩展最多，OpenCode 的（`agents/opencode/opencode-dialect.ts`）几乎只用标准协议，都可以作参照。`agents/acp/acp-driver.test.ts` 用一个什么扩展都不带的 dialect 跑完一整个回合，新 dialect 可以从它开始。说自有协议的 Agent 要写自己的 driver，Pi 的 `agents/pi/pi-rpc.ts` 是最小的一份：一切从 `apply()` 来，流式增量不进日志，由完整消息补齐，所以从日志重放和实时得到同样的条目（`pi-rpc.test.ts` 逐份 fixture 对比两者）。
 
 `agents/agent-registry.test.ts` 检查每个 adapter 提供的权限模式和 descriptor 里写的完全一致，并检查声明的 hooks 都有对应实现。
 
@@ -362,13 +377,13 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 设置 → 任务 → 技能 管理 Agent Skills（`SKILL.md` 目录）。core 从 https 地址 `git clone` 到 `~/.antumi/skills/repos/<id>/`，固定在安装时的提交（detached HEAD），把扫描到的技能写进 `skills.json`；「检查更新」只 fetch 并从 git 对象里读新版本的技能列表，用户确认后才移动 pin，并记住上一个提交供回退。不改用户自己的 `~/.claude`、`~/.codex`。
 
-交给 Agent 的是**bundle**（`bundles/<key>/`）：按需要的技能从各仓库复制出来（只复制 `skills/<名字>/`，跳过软链接，限 32 MiB），同时写成 Claude Code 插件（`.claude-plugin/plugin.json` + `skills/`）和 `.agents/skills/` 两种布局；`key` 是技能及其提交的哈希，同样的选择得到同一个目录，提示词缓存得以保温，更新或回退后自然换新目录。descriptor 的 `capabilities.skills` 说明这个 Agent 能否接收 bundle，adapter 决定怎么交（`AgentLaunch.skills`）：Claude Code 用 `--plugin-dir`，Cursor 用 `--add-dir`，OpenCode 写进 `OPENCODE_CONFIG_CONTENT` 的 `skills`；Codex 只读固定目录，暂不支持。第一版的选择是全局的：Obsidian 知识库允许写入时，交出推荐仓库 kepano/obsidian-skills 里的 `obsidian-markdown`（见 `skills-recommended.ts`）；Markdown 文件夹不自动加载该技能。bundle 建不出来只记进 wire log，不阻止 Agent 启动。
+交给 Agent 的是**bundle**（`bundles/<key>/`）：按需要的技能从各仓库复制出来（只复制 `skills/<名字>/`，跳过软链接，限 32 MiB），同时写成 Claude Code 插件（`.claude-plugin/plugin.json` + `skills/`）和 `.agents/skills/` 两种布局；`key` 是技能及其提交的哈希，同样的选择得到同一个目录，提示词缓存得以保温，更新或回退后自然换新目录。descriptor 的 `capabilities.skills` 说明这个 Agent 能否接收 bundle，adapter 决定怎么交（`AgentLaunch.skills`）：Claude Code 用 `--plugin-dir`，Cursor 用 `--add-dir`，OpenCode 写进 `OPENCODE_CONFIG_CONTENT` 的 `skills`，Pi 用 `--skill`；Codex 只读固定目录，暂不支持。第一版的选择是全局的：Obsidian 知识库允许写入时，交出推荐仓库 kepano/obsidian-skills 里的 `obsidian-markdown`（见 `skills-recommended.ts`）；Markdown 文件夹不自动加载该技能。bundle 建不出来只记进 wire log，不阻止 Agent 启动。
 
 ### 用户的 MCP 服务器
 
 设置 → 任务 → MCP 维护一份全局的 MCP 服务器列表（`mcp-servers.ts`）：本地命令（stdio）或远程地址（streamable HTTP，远程只接受 https），每个选好交给哪些 Agent，可以单独停用。设置存在 `mcp-servers.json`；环境变量和请求头的值都当密钥，存进 `credentials.json`（`mcp/<名字>`），客户端只看得到键名。名字 `antumi` 留给 Antumi 自己的服务器（工具名靠它识别）。
 
-和技能库一样，**每次启动时注入，不改 Agent 自己的配置**：descriptor 的 `capabilities.userMcp` 说明能不能接，adapter 用交 Antumi MCP 的同一条路交出去（`AgentLaunch.userMcp`）——Claude Code 合进 `--mcp-config`（仍不加 `--strict-mcp-config`，用户自己配的照常加载），Codex 是整条 `-c mcp_servers.<名字>={...}`（同名时盖过 config.toml 里的那条），Cursor 和 OpenCode 进 ACP `session/new` 的 `mcpServers`。有密钥的服务器交出去的是 Antumi 的启动器（`mcp-main --run <名字>`，`user-mcp-launch.ts`）：它启动时才从 Antumi 的文件读出密钥，命令带上环境变量直接接管 stdio，远程地址则由它在 stdio 和 HTTP 之间转发（`mcp-http.ts`），所以密钥不进 Agent 的命令行、配置和 Antumi 的日志；没有密钥的远程地址直接交给 Agent。改动从下次启动 Agent 起生效。
+和技能库一样，**每次启动时注入，不改 Agent 自己的配置**：descriptor 的 `capabilities.userMcp` 说明能不能接，adapter 用交 Antumi MCP 的同一条路交出去（`AgentLaunch.userMcp`）——Claude Code 合进 `--mcp-config`（仍不加 `--strict-mcp-config`，用户自己配的照常加载），Codex 是整条 `-c mcp_servers.<名字>={...}`（同名时盖过 config.toml 里的那条），Cursor 和 OpenCode 进 ACP `session/new` 的 `mcpServers`，Pi 由 Antumi 的扩展 `registerMcpServer`（用户自己 `~/.pi/agent/mcp.json` 里的照常加载）。有密钥的服务器交出去的是 Antumi 的启动器（`mcp-main --run <名字>`，`user-mcp-launch.ts`）：它启动时才从 Antumi 的文件读出密钥，命令带上环境变量直接接管 stdio，远程地址则由它在 stdio 和 HTTP 之间转发（`mcp-http.ts`），所以密钥不进 Agent 的命令行、配置和 Antumi 的日志；没有密钥的远程地址直接交给 Agent。改动从下次启动 Agent 起生效。
 
 - **测试连接**（`mcpServers.probe`，`mcp-probe.ts`）：像 Agent 一样连上去 `initialize` → `tools/list`，命令在独立进程组里跑、结束即杀，60 秒超时，失败时带上 stderr。
 - **没连上**：Claude 的 init 里 `source: dynamic` 且失败的、Codex 的 `mcpServer/startupStatus/updated` 里失败的用户服务器，聊天里各出一行提示；记进日志的帧带着这个判断，重放结果一致。
@@ -378,7 +393,7 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 ### 服务商
 
-服务商（model provider）是第三方编程套餐的接口和 Key，比如火山方舟 Agent Plan、智谱 GLM Coding Plan。设置 → Agent → 服务商（`model-providers.ts`）维护列表：预设（火山 Agent Plan / Coding Plan、智谱、Z.ai、Kimi Code、MiniMax 国内和海外，`protocol/src/model-provider-presets.ts`）或自定义。预设的地址不存，每次用时从预设表取，发版修了地址就自动生效；自定义的地址只接受 https（http 只能连本机），不许带账号密码、`?` 和 `#`。Key 存进 `credentials.json`（`model-provider/<id>.<revision>`），每次换 Key 都是新记录：先写新 Key，再写列表，最后删旧 Key，启动时清掉没人引用的。客户端只看得到 `hasKey`。
+服务商（model provider）是第三方编程套餐的接口和 Key，比如火山方舟 Agent Plan、智谱 GLM Coding Plan。设置 → Agent → 服务商（`model-providers.ts`）维护列表：预设（火山 Agent Plan / Coding Plan、智谱、Z.ai、Kimi Code、MiniMax 国内和海外、阿里云百炼 Token Plan，`protocol/src/model-provider-presets.ts`）或自定义。预设的地址不存，每次用时从预设表取，发版修了地址就自动生效；模型列表也一样：保存时和预设的列表（按名字和顺序）一样就不存，默认模型、小模型和预设相同的也不存，用时从预设表取，发版加了或下线了模型，已有的服务商跟着变；改过的列表照存，设置里可以一键恢复成预设的（`ModelProvider.modelsFromPreset` 告诉客户端是不是在跟随）。跟随的列表里没了用户选的默认或小模型时，改用预设的。自定义的地址只接受 https（http 只能连本机），不许带账号密码、`?` 和 `#`。Key 存进 `credentials.json`（`model-provider/<id>.<revision>`），每次换 Key 都是新记录：先写新 Key，再写列表，最后删旧 Key，启动时清掉没人引用的。客户端只看得到 `hasKey`。
 
 和技能库、MCP 一样，**每次启动 Agent 时注入，不改 Agent 自己的配置**，Key 只进子进程的环境变量：
 
@@ -387,17 +402,18 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 | Claude Code | Anthropic | 全走 env：`ANTHROPIC_BASE_URL`、`ANTHROPIC_AUTH_TOKEN`（Kimi 用 `ANTHROPIC_API_KEY`，另一个置空），加 `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST=1`，否则用户 settings.json 里的 `env` 会盖过进程环境（2.1.288 实测）。Bedrock/Vertex 等路由开关、`CLAUDE_CODE_OAUTH_TOKEN`、`ANTHROPIC_MODEL` 置空（daemon 删不掉继承的变量）。opus/sonnet/haiku 别名映射到服务商的模型；≥1M 上下文的模型 id 加 `[1m]`，其余用 `CLAUDE_CODE_MAX_CONTEXT_TOKENS`。不设 `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB`：它会把权限模式强制改回 default，而 Bash 工具本来就拿不到这两个 Key。 |
 | Codex | Responses | `-c model_providers.antumi-<id>={…, env_key="ANTUMI_MODEL_PROVIDER_KEY"}` 加 `model_provider`、`model`、`model_context_window`；名字固定，恢复 thread 时找得到。Codex 的 shell 会继承整个环境，所以再加 `shell_environment_policy.set.ANTUMI_MODEL_PROVIDER_KEY=""`。 |
 | OpenCode | Chat（优先）/ Responses / Anthropic | `OPENCODE_CONFIG_CONTENT` 里加一个 `provider`，`apiKey: "{env:ANTUMI_MODEL_PROVIDER_KEY}"`，配置文本里没有 Key；`small_model` 是服务商的小模型。它的 shell 能读到这个变量，没有配置能挡。 |
+| Pi | Chat（优先）/ Responses / Anthropic | Antumi 的扩展用 `pi.registerProvider` 注册 `antumi-<id>`（`ANTUMI_PI` 里的配置不含 Key），Key 从 `ANTUMI_MODEL_PROVIDER_KEY` 读出后立刻从环境里删掉，所以 Pi 的 bash 和它启动的 MCP 服务都读不到（百炼实测）。Anthropic 去掉地址末尾的 `/v1`（Pi 自己加 `/v1/messages`），要 Bearer 的服务商另加 `authorization` 头。服务商没给的上下文长度和输出上限按 128K / 16K 填，推理强度只保留 Pi 有的档位。握手后用 `set_model` 切到服务商的模型，切不过去就拒绝启动。 |
 | Cursor | — | 不支持，只用自己的账号。 |
 
-谁能用什么协议写在描述符的 `capabilities.modelProviders` 里，适配器的 `providerModels` 给出这个 Agent 叫服务商模型的名字（OpenCode 是 `antumi-<id>/<model>`）。驱动在服务商上只列服务商的模型、只许切到它们，CLI 报的费用（按官方价）丢掉、token 照记。
+谁能用什么协议写在描述符的 `capabilities.modelProviders` 里，适配器的 `providerModels` 给出这个 Agent 叫服务商模型的名字（OpenCode 和 Pi 都是 `antumi-<id>/<model>`）。驱动在服务商上只列服务商的模型、只许切到它们，CLI 报的费用（按官方价）丢掉、token 照记。
 
-**路由**（`conversation-route.ts`）：会话创建时定下服务商（`conversations.model_provider`），之后不改；fork 和小助手跟着来源。每个阶段记一份不含 Key 的路由快照（`conversation_stages.provider_route`：服务商、协议、地址、模型列表），重放和重启后接回运行中的进程只读快照。下一阶段怎么走只在 `decideRoute` 一处算：服务商服务这个 Agent 就用它；不服务就用 Agent 自己的账号（移交到 Cursor 时就是这样）；这个 Agent 在会话里跑过的，按跑过的方式继续——服务商被删、没 Key 或不再服务它时拒绝启动（`model-provider-unavailable`），不悄悄回到官方账号。原生 session 只在同一条路由（服务商 + 协议 + 地址，`providerRouteKey`）上恢复或 fork，换了就按移交重开。`Conversation.route` 告诉客户端下一阶段走哪：标题栏、每轮开头、输入框里的小标，移交菜单里每个 Agent 是沿用还是用自己的账号。任务用 `TaskLaunchOptions.modelProvider`（不传沿用，`null` 是官方账号），任务一有会话就以会话为准（`model-provider-fixed`）。
+**路由**（`conversation-route.ts`）：会话创建时定下服务商（`conversations.model_provider`），之后不改；fork 和小助手跟着来源。每个阶段记一份不含 Key 的路由快照（`conversation_stages.provider_route`：服务商、协议、地址、模型列表），重放和重启后接回运行中的进程只读快照。下一阶段怎么走只在 `decideRoute` 一处算：服务商服务这个 Agent 就用它；不服务就用 Agent 自己的账号（移交到 Cursor 时就是这样）；这个 Agent 在会话里跑过的，按跑过的方式继续——服务商被删、没 Key 或不再服务它时拒绝启动（`model-provider-unavailable`），不悄悄回到官方账号。会话上次用的模型服务商不再提供时（列表改了或预设下线了它），阶段改用服务商的默认模型启动，并在聊天里提示一句（`rememberedOnProvider`）；推理强度只在默认模型也有时保留。仍然只在这个服务商的模型里换，不换到别处。原生 session 只在同一条路由（服务商 + 协议 + 地址，`providerRouteKey`）上恢复或 fork，换了就按移交重开。`Conversation.route` 告诉客户端下一阶段走哪：标题栏、每轮开头、输入框里的小标，移交菜单里每个 Agent 是沿用还是用自己的账号。任务用 `TaskLaunchOptions.modelProvider`（不传沿用，`null` 是官方账号），任务一有会话就以会话为准（`model-provider-fixed`）。
 
 **周边**：标题、翻译、提交说明、分支名在服务商会话里直接对服务商发一个请求（`provider-request.ts`，和测试连接共用），用它的小模型，不走 Agent 的 CLI；记成「未计价」，只记 token，不算费用和节省。服务商阶段的用量上报不算 Agent 官方账号的，定时任务和用量上限后的自动续跑也不看官方额度。用户 MCP 服务器经启动器启动时，进程带 `ANTUMI_MODEL_PROVIDER` 标记就去掉 Key 变量。
 
 - **测试连接**（`modelProviders.probe`，`model-provider-probe.ts`）：每个接口、默认模型和小模型各发一个最短的请求，30 秒超时，不跟随重定向，返回服务端原话（截断、去掉 Key）。
-- **预设是否「已验证」**：用真 Key 在 Antumi 里把三个 Agent 都跑过才标，记下 CLI 版本；现在都还是未验证。额度不在 Antumi 里显示，只给控制台链接。
-- **mock 端到端**：Claude Code、Codex、OpenCode 的注入都用一个本地模拟服务（三种协议、记录请求）实跑过，包括 settings.json 里指向别处的地址和工具能否读到 Key。改了注入方式或升级 CLI 后要重跑。
+- **预设是否「已验证」**：用真 Key 在 Antumi 里把支持它的 Agent 都跑过才标，记下 CLI 版本；现在都还是未验证。额度不在 Antumi 里显示，只给控制台链接。
+- **mock 端到端**：Claude Code、Codex、OpenCode 的注入都用一个本地模拟服务（三种协议、记录请求）实跑过，包括 settings.json 里指向别处的地址和工具能否读到 Key。改了注入方式或升级 CLI 后要重跑。Pi 没走模拟服务，而是用百炼的真实接口（OpenAI 兼容和 Anthropic 两种，后者走 Bearer）当自定义服务商跑过：模型切到服务商的、bash 和 MCP 服务读不到 Key、命令行和日志里没有 Key、花费不计。
 
 ### 账号
 

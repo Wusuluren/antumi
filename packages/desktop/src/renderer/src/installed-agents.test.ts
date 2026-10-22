@@ -7,7 +7,7 @@ const environment = (...checks: EnvironmentCheck[]): Environment => ({ checks, s
 
 describe('installedAgents', () => {
   it('offers every agent until core has looked', () => {
-    expect(installedAgents(null)).toEqual(['claude', 'codex', 'cursor', 'opencode'])
+    expect(installedAgents(null)).toEqual(['claude', 'codex', 'cursor', 'opencode', 'pi'])
   })
 
   it('offers what core found, a shim it could not ask included', () => {
@@ -16,13 +16,13 @@ describe('installedAgents', () => {
   })
 
   it('offers every agent when none is found, so there is something to install', () => {
-    expect(installedAgents(environment(check('git', 'ok'), check('claude', 'missing'), check('codex', 'missing')))).toEqual(['claude', 'codex', 'cursor', 'opencode'])
+    expect(installedAgents(environment(check('git', 'ok'), check('claude', 'missing'), check('codex', 'missing')))).toEqual(['claude', 'codex', 'cursor', 'opencode', 'pi'])
   })
 
   it('leaves out the agents the user turned off', () => {
     const both = environment(check('claude', 'ok'), check('codex', 'ok'))
     expect(installedAgents(both, ['claude'])).toEqual(['codex'])
-    expect(installedAgents(null, ['codex'])).toEqual(['claude', 'cursor', 'opencode'])
+    expect(installedAgents(null, ['codex'])).toEqual(['claude', 'cursor', 'opencode', 'pi'])
   })
 
   it('keeps the agents found when every one is off, so there is always a choice', () => {

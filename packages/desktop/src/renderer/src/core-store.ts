@@ -1070,6 +1070,10 @@ export function useModelProvidersSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('model-providers') ?? false)
 }
 
+export function useSessionImportSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('session-import') ?? false)
+}
+
 export function useMcpServersSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('mcp-servers') ?? false)
 }

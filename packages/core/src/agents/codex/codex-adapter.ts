@@ -4,6 +4,7 @@ import { CODEX_MODES, CodexAppServer } from './codex-app-server'
 import { codexAccounts } from './codex-account'
 import { codexCommand } from './codex-command'
 import { codexProviderModels } from './codex-provider'
+import { codexTranscripts } from './codex-transcripts'
 import { hasCodexCredentials, readCodexUsage, useCodexResetCredit } from './codex-usage'
 
 export const codex: AgentAdapter = {
@@ -21,6 +22,7 @@ export const codex: AgentAdapter = {
   usage: readCodexUsage,
   useResetCredit: useCodexResetCredit,
   accounts: codexAccounts,
+  transcripts: codexTranscripts(),
   // At low effort, read-only, and not kept in its history. Its progress goes to stdout too, so the
   // answer comes from a file.
   quick: {

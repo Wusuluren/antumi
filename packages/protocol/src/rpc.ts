@@ -33,9 +33,10 @@ import { TodoList, TodoOwner, TodoText, TodoTitle } from './todos'
 import { McpImportCandidate, McpImportItem, McpProbe, McpServer, McpServerInput, McpServerName } from './mcp'
 import { ModelProvider, ModelProviderId, ModelProviderInput, ModelProviderProbe } from './model-provider'
 import { AgentAccount, AgentAccountId, AgentAccounts } from './agent-account'
+import { ExternalSession, ExternalSessionRef } from './session-import'
 
 // Bump only for breaking changes; additive optional fields keep the version.
-export const PROTOCOL_VERSION = 14
+export const PROTOCOL_VERSION = 15
 
 const TaskRef = z.object({ id: z.string().min(1) })
 const TaskTitle = z.string().trim().min(1).max(200)
@@ -90,7 +91,8 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // project's .antumi/project.json, once the user trusts its commands (projects.config, projects.trustConfig).
 // project-config-edit: core writes that file as the user filled it in (projects.writeConfig), and
 // suggests what to fill it with (projects.suggestConfig).
-export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-configuration', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'handoff-mode', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit', 'model-providers', 'git-update', 'git-push-target', 'agent-accounts'] as const
+export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-configuration', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'handoff-mode', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit', 'model-providers', 'git-update', 'git-push-target', 'task-auto-run', 'session-import', 'agent-accounts'] as const
+// session-import: core lists the sessions agents ran outside Antumi and imports them as conversations (sessionImports.*).
 // agent-accounts: Claude and Codex sign in to several accounts, one active each, and a usage limit
 // moves the agent to the next with quota (accounts.*); usage readings name their account.
 // model-providers: core keeps the user's model providers (modelProviders.*) and starts a conversation or task's agent on one.
@@ -100,6 +102,7 @@ export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-st
 // mcp-servers: core keeps the user's MCP servers and hands them to the agents picked at each start (mcpServers.*).
 // task-launch-options: tasks.start accepts the first stage's mode, model and reasoning effort.
 // task-launch: a task keeps them (Task.launch, set by tasks.update and by each start by hand).
+// task-auto-run: tasks.update arms a task for one unattended start after its dependencies finish.
 // discussion-members: members join and leave a group chat midway; discussion-projects: its projects but the first change.
 // discussion-topics: the user moves a group chat on to a new topic (discussions.newTopic, Discussion.topicStart, DiscussionPost.topic).
 // discussion-requirements: discussions.create accepts shared requirements, applied to every turn.
@@ -204,6 +207,10 @@ export const rpcMethods = {
   // The servers Claude, Codex and Cursor have in their own configuration, and taking some in.
   'mcpServers.importable': { params: z.object({}), result: z.array(McpImportCandidate) },
   'mcpServers.import': { params: z.object({ items: z.array(McpImportItem).min(1).max(64), agents: z.array(AgentKind) }), result: z.array(McpServer) },
+  // Sessions Claude Code and Codex ran outside Antumi, newest first; importing one again brings in
+  // what it added since.
+  'sessionImports.list': { params: z.object({}), result: z.object({ sessions: z.array(ExternalSession) }) },
+  'sessionImports.import': { params: z.object({ sessions: z.array(ExternalSessionRef).min(1).max(100) }), result: z.object({ conversations: z.array(Conversation) }) },
   'modelProviders.list': { params: z.object({}), result: z.array(ModelProvider) },
   // Adds a provider (id null) or replaces one, from the next start of each agent on it.
   'modelProviders.save': { params: ModelProviderInput, result: ModelProvider },
@@ -246,6 +253,7 @@ export const rpcMethods = {
     params: TaskFields.extend({
       id: TaskRef.shape.id,
       title: TaskTitle.optional(),
+      autoRun: z.boolean().optional(),
       // Replaces the task's launch (see Task.launch); core clears it when the agent changes.
       launch: TaskLaunchOptions.optional(),
       // Where each named repo's branch is to start (see TaskRepo.startRef); others keep theirs.

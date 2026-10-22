@@ -1262,6 +1262,19 @@ describe('ConversationService', () => {
       await expect(service.continue(created.id)).rejects.toMatchObject({ reason: 'model-provider-unavailable' })
     })
 
+    it('starts on the provider\'s default model, saying so, once the model it last ran is no longer served', async () => {
+      const saved = await providers.save(gateway())
+      const created = await service.create('claude', [root], undefined, { modelProvider: saved.id, model: 'gw-small' })
+      expect(lastSpawn().args).toEqual(expect.arrayContaining(['--model', 'gw-small']))
+      await service.stop(created.id)
+      await providers.save(gateway({ id: saved.id, apiKey: null, models: [{ id: 'gw-big', label: 'GW Big', contextWindow: null, maxOutput: null, efforts: [] }], smallModel: 'gw-big' }))
+      await service.continue(created.id)
+      expect(lastSpawn().args).toEqual(expect.arrayContaining(['--model', 'gw-big']))
+      expect(lastSpawn().args).not.toContain('gw-small')
+      const notices = service.chatPage(created.id).items.flatMap((item) => (item.kind === 'notice' ? [item.text] : []))
+      expect(notices).toContain('服务商不再提供上次用的模型 gw-small，这次改用它的默认模型 GW Big')
+    })
+
     it('refuses a provider that does not serve the agent, and offers each agent the provider\'s models', async () => {
       const { id: providerId } = await providers.save(gateway())
       await expect(service.create('codex', [root], undefined, { modelProvider: providerId })).rejects.toMatchObject({ reason: 'model-provider-agent-unsupported' })

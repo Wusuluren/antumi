@@ -20,6 +20,7 @@ import { TaskAlerts } from './TaskAlerts'
 import { openQuickAdd, TaskQuickAdd } from './TaskQuickAdd'
 import { TitleEditor } from './TitleEditor'
 import { TaskActivity } from './TaskActivity'
+import { TaskDependencies } from './TaskDependencies'
 import { useTaskActivity } from '../work-activity'
 
 // The way back from a task to the board, at the start of its header; Esc goes there too.
@@ -95,25 +96,27 @@ export function TaskBoard() {
         <SortButton value={sort} />
         <button type="button" className="button primary task-board-new" onClick={() => setNewTaskOpen(true)}>{tr('TaskBoard.newTask', { value1: <span className="task-board-key">{PRIMARY_KEY_LABEL}N</span> })}</button>
       </header>
-      <div className="task-board-columns">
-        {columns.map((column) => (
-          <Column key={column.status} column={column} narrowed={narrowed} top={column.status === 'pending' && <TaskQuickAdd onCreated={setFreshId} />}>
-            {column.tasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                tasks={tasks}
-                now={now}
-                fresh={freshId === task.id}
-                renaming={renamingId === task.id}
-                menuOpen={menu?.id === task.id}
-                onRenamed={() => setRenamingId(null)}
-                onMenu={(at) => setMenu({ id: task.id, at })}
-              />
-            ))}
-          </Column>
-        ))}
-      </div>
+      <TaskDependencies columns={columns}>
+        <div className="task-board-columns">
+          {columns.map((column) => (
+            <Column key={column.status} column={column} narrowed={narrowed} top={column.status === 'pending' && <TaskQuickAdd onCreated={setFreshId} />}>
+              {column.tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  tasks={tasks}
+                  now={now}
+                  fresh={freshId === task.id}
+                  renaming={renamingId === task.id}
+                  menuOpen={menu?.id === task.id}
+                  onRenamed={() => setRenamingId(null)}
+                  onMenu={(at) => setMenu({ id: task.id, at })}
+                />
+              ))}
+            </Column>
+          ))}
+        </div>
+      </TaskDependencies>
       {menu && menuTask && (
         <TaskContextMenu task={menuTask} at={menu.at} onClose={closeMenu} onRename={() => setRenamingId(menuTask.id)} />
       )}
@@ -159,6 +162,7 @@ function TaskCard({ task, tasks, now, fresh, renaming, menuOpen, onRenamed, onMe
   return (
     <article
       className="task-card"
+      data-task-id={task.id}
       data-menu-open={menuOpen || undefined}
       data-fresh={fresh || undefined}
       data-abandoned={task.status === 'abandoned' || undefined}
@@ -173,7 +177,10 @@ function TaskCard({ task, tasks, now, fresh, renaming, menuOpen, onRenamed, onMe
       {renaming ? (
         <TitleEditor title={task.title} label={t('NewTaskDialog.taskTitle')} onSave={(title) => saveTaskText(task.id, 'title', title)} onDone={onRenamed} />
       ) : (
-        <button type="button" className="task-card-title" title={task.title}>{task.title}</button>
+        <button type="button" className="task-card-title" title={task.title}>
+          {task.title}
+          {dependencies.length > 0 && <span className="visually-hidden">{t('TaskBoard.dependencies', { titles: dependencies.map((dependency) => dependency.title).join(getLocale() === 'en' ? ', ' : '、') })}</span>}
+        </button>
       )}
       {(planning || task.source || waitingOn(task, tasks) > 0) && (
         <span className="task-card-tags">
@@ -258,4 +265,3 @@ function SortButton({ value }: { value: TaskSort }) {
     />
   )
 }
-

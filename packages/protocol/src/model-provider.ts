@@ -14,7 +14,7 @@ export type ProviderWire = z.infer<typeof ProviderWire>
 export { ModelProviderId }
 
 export const MODEL_PROVIDER_PRESET_IDS = [
-  'volcengine-agent-plan', 'volcengine-coding-plan', 'zhipu-glm-coding', 'zai-glm-coding', 'kimi-code', 'minimax-cn', 'minimax'
+  'volcengine-agent-plan', 'volcengine-coding-plan', 'zhipu-glm-coding', 'zai-glm-coding', 'kimi-code', 'minimax-cn', 'minimax', 'bailian-token-plan'
 ] as const
 export const ModelProviderPresetId = z.enum(MODEL_PROVIDER_PRESET_IDS)
 export type ModelProviderPresetId = z.infer<typeof ModelProviderPresetId>
@@ -87,6 +87,9 @@ export const ModelProvider = z.object({
   defaultModel: z.string(),
   smallModel: z.string(),
   agents: z.array(AgentKind),
+  // A preset's provider whose models are the preset's own, which follow it from release to release.
+  // Older cores leave it out.
+  modelsFromPreset: z.boolean().optional(),
   hasKey: z.boolean(),
   revision: z.number().int().nonnegative(),
   createdAt: z.number(),

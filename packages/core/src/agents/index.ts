@@ -5,6 +5,7 @@ import { claude } from './claude/claude-adapter'
 import { codex } from './codex/codex-adapter'
 import { cursor } from './cursor/cursor-adapter'
 import { opencode } from './opencode/opencode-adapter'
+import { pi } from './pi/pi-adapter'
 
 // Hooks that only work together: a stalled turn is stopped and offered for retry. An adapter
 // declaring one without the other fails as core starts rather than mid-turn.
@@ -17,7 +18,7 @@ export function checkAdapter(adapter: AgentAdapter): AgentAdapter {
 }
 
 // One adapter per agent kind: one left out fails to compile.
-export const AGENT_ADAPTERS = { claude: checkAdapter(claude), codex: checkAdapter(codex), cursor: checkAdapter(cursor), opencode: checkAdapter(opencode) } satisfies Record<AgentKind, AgentAdapter>
+export const AGENT_ADAPTERS = { claude: checkAdapter(claude), codex: checkAdapter(codex), cursor: checkAdapter(cursor), opencode: checkAdapter(opencode), pi: checkAdapter(pi) } satisfies Record<AgentKind, AgentAdapter>
 
 export function adapterOf(kind: AgentKind): AgentAdapter {
   return AGENT_ADAPTERS[kind]

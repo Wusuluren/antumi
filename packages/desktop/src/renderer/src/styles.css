@@ -1433,9 +1433,10 @@ button.task-tag:hover {
   color: #d97757;
 }
 
-/* OpenAI's terms allow its blossom only in black or white. */
+/* OpenAI's terms allow its blossom only in black or white; OpenCode and Pi draw theirs in one colour. */
 .agent-mark-codex,
-.agent-mark-opencode {
+.agent-mark-opencode,
+.agent-mark-pi {
   color: var(--mark-mono);
 }
 
@@ -1732,6 +1733,12 @@ button.task-tag:hover {
   font-size: 12px;
   color: var(--text-muted);
 }
+
+.task-auto-run { margin-top: 16px; }
+.task-auto-run-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; color: var(--text); cursor: pointer; }
+.task-auto-run-row .switch { flex-shrink: 0; }
+.task-auto-run-row:has(input:disabled) { cursor: default; }
+.task-auto-run p { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
 
 @container (max-width: 760px) {
   .task-detail-layout {
@@ -4853,6 +4860,32 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .mcp-tools { margin: 0; padding: 0 0 0 16px; font-size: 12px; line-height: 1.7; }
 .mcp-candidate { flex-wrap: wrap; }
 .mcp-candidate-name { width: 160px; }
+
+/* Sessions run in a terminal, to import (Settings → 导入会话): by folder, newest first. */
+.session-import-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-bottom: 12px; }
+.session-import-search { flex: 1; min-width: 160px; }
+.session-import-hide { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.session-import-list-actions { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; background: var(--surface); border-bottom: 1px solid var(--border); }
+.session-import-summary { flex: 1; min-width: 0; font-size: 12px; color: var(--text-muted); }
+.session-import-group { padding-top: 8px; }
+.session-import-group + .session-import-group { border-top: 1px solid var(--border); }
+.session-import-folder { display: flex; align-items: center; gap: 8px; padding: 0; }
+.session-import-folder-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px 4px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.session-import-folder-toggle:hover { background: var(--fill); }
+.session-import-folder-toggle > svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted); }
+.session-import-folder-toggle[aria-expanded='true'] > svg { transform: rotate(90deg); }
+.session-import-folder-toggle .settings-project-name { flex-shrink: 0; max-width: 32%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-import-count, .session-import-selected { flex-shrink: 0; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.session-import-selected { color: var(--accent); }
+.session-import-folder input, .session-import-row > input[type='checkbox'] { accent-color: var(--accent); }
+.session-import-row { gap: 8px; padding: 8px 0 8px 24px; }
+.session-import-agent { display: inline-flex; flex-shrink: 0; }
+.session-import-agent .agent-mark { width: 14px; height: 14px; }
+.session-import-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-import-time { flex-shrink: 0; font-size: 12px; white-space: nowrap; }
+.session-import-badge { flex-shrink: 0; padding: 0 6px; border-radius: var(--radius-xs); background: var(--fill-2); color: var(--text-muted); font-size: 11px; line-height: 18px; white-space: nowrap; }
+.session-import-badge.updated { background: var(--accent-bg); color: var(--accent); }
+.session-import-actions { position: sticky; bottom: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding: 12px 0; border-top: 1px solid var(--border); background: var(--surface); }
 
 .provider-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 .provider-preset { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); text-align: left; cursor: pointer; }
@@ -9123,15 +9156,20 @@ div.inspector-empty > p { margin: 0 0 8px; }
    past which the board scrolls sideways, and a card's, past which more room is left over rather
    than stretching the cards. Each scrolls down by itself, so a long done column does not push the
    others out of view. */
-.task-board-columns { flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 400px); gap: 12px; padding: 4px 20px 20px; overflow-x: auto; overflow-y: hidden; }
+.task-board-viewport { position: relative; flex: 1; min-height: 0; display: flex; overflow: hidden; isolation: isolate; }
+.task-board-columns { flex: 1; min-width: 0; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 400px); gap: 12px; padding: 4px 20px 32px; overflow-x: auto; overflow-y: hidden; }
+.task-dependencies { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+.task-dependency-line { fill: none; stroke: var(--text-3); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.6; }
+.task-dependencies[data-active] .task-dependency-line { opacity: 0.15; }
+.task-dependencies .task-dependency-line[data-related] { stroke: var(--text-muted); stroke-width: 2; opacity: 1; }
 /* Each column a wash of its status colour, as Multica's board has, the cards sitting on it. The
    sticky title lays the same wash over the surface, so it stays opaque over cards scrolling under. */
-.task-board-column { --column-tint: color-mix(in srgb, var(--status-pending) 7%, transparent); min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 8px 8px; border-radius: var(--radius-lg); background: var(--column-tint); }
+.task-board-column { --column-tint: color-mix(in srgb, var(--status-pending) 7%, transparent); min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 20px 8px; border-radius: var(--radius-lg); background: var(--column-tint); }
 .task-board-column[data-status='running'] { --column-tint: color-mix(in srgb, var(--status-running) 6%, transparent); }
 .task-board-column[data-status='review'] { --column-tint: color-mix(in srgb, var(--status-review) 8%, transparent); }
 .task-board-column[data-status='done'] { --column-tint: color-mix(in srgb, var(--status-done) 6%, transparent); }
 .task-board-column[data-status='abandoned'] { --column-tint: color-mix(in srgb, var(--status-abandoned) 8%, transparent); }
-.task-board-column-title { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin: 0 -8px; height: 40px; padding: 0 12px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: linear-gradient(var(--column-tint), var(--column-tint)), var(--surface); font-size: 12px; font-weight: 600; }
+.task-board-column-title { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin: 0 -20px; height: 40px; padding: 0 12px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: linear-gradient(var(--column-tint), var(--column-tint)), var(--surface); font-size: 12px; font-weight: 600; }
 .task-board-column-title .count { font-weight: 400; color: var(--text-3); }
 .task-board-column-empty { display: grid; place-items: center; height: 64px; margin: 0; border: 1px dashed var(--border-2); border-radius: var(--radius-lg); font-size: 12px; color: var(--text-3); }
 .task-board-more { height: 32px; border: 1px dashed var(--border-2); border-radius: var(--radius); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }

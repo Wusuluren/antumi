@@ -47,6 +47,7 @@ import type { SkillsLibrary } from './skills-library'
 import type { McpServerStore } from './mcp-servers'
 import type { ModelProviderStore } from './model-providers'
 import type { AgentAccountStore } from './agent-accounts'
+import type { SessionImports } from './session-imports'
 
 const OK = { ok: true } as const
 
@@ -82,6 +83,7 @@ export function createRpcHandlers(
   smallModels?: SmallModelStore,
   projectConfigs?: ProjectConfigStore,
   modelProviders?: ModelProviderStore,
+  sessionImports?: SessionImports,
   accounts?: AgentAccountStore
 ): RpcHandlers {
   const git = new GitService(service, conversations, gitChanged)
@@ -143,6 +145,10 @@ export function createRpcHandlers(
   const accountStore = () => {
     if (!accounts) throw new Rejection('accounts-unavailable')
     return accounts
+  }
+  const imports = () => {
+    if (!sessionImports) throw new Rejection('session-import-unavailable')
+    return sessionImports
   }
   const modelProviderStore = () => {
     if (!modelProviders) throw new Rejection('model-providers-unavailable')
@@ -221,6 +227,8 @@ export function createRpcHandlers(
     'mcpServers.probe': ({ name }) => mcpServerStore().probe(name),
     'mcpServers.importable': () => mcpServerStore().importable(),
     'mcpServers.import': ({ items, agents }) => mcpServerStore().import(items, agents),
+    'sessionImports.list': async () => ({ sessions: await imports().list() }),
+    'sessionImports.import': async ({ sessions }) => ({ conversations: await imports().import(sessions) }),
     'modelProviders.list': () => modelProviderStore().list(),
     'modelProviders.save': (input) => modelProviderStore().save(input),
     'modelProviders.remove': async ({ id }) => { await modelProviderStore().remove(id); return OK },

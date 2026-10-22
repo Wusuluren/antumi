@@ -330,6 +330,7 @@ function StartButton({ task, dependencies, labelled }: { task: Task; dependencie
 function ScheduleButton({ task, dependencies, labelled }: { task: Task; dependencies: readonly Task[]; labelled: boolean }) {
   const supported = useSchedulesSupported() && (task.agent === null || agentDescriptor(task.agent).capabilities.unattended)
   const scheduled = useCore((s) => openRunForTask(s.schedules, task.id))
+  const tasks = useCore((s) => s.tasks)
   const [open, setOpen] = useState(false)
   const close = useCallback(() => setOpen(false), [])
   // A scheduled run takes the task's model and effort (its mode is the unattended one).
@@ -341,7 +342,7 @@ function ScheduleButton({ task, dependencies, labelled }: { task: Task; dependen
   const runsIn = model ? t('TaskActions.use', { value1: model.label, value2: effort ? ` · ${effortLabel(effort)}` : '' }) : ''
   if (!supported) return null
   if (scheduled) {
-    const state = scheduleState(scheduled, Date.now())
+    const state = scheduleState(scheduled, Date.now(), tasks)
     return labelled ? (
       <button type="button" className="button task-scheduled" data-tooltip={t('TaskActions.viewScheduledExecution')} data-tooltip-align="start" onClick={() => setSchedulesOpen(true)}>{tr('TaskActions.scheduled', { value1: <ClockIcon />, state: state })}</button>
     ) : (

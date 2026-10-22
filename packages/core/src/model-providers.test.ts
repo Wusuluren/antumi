@@ -1,9 +1,9 @@
 import { mkdtempSync, rmSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { ModelProviderInput } from '@antumi/protocol'
+import { MODEL_PROVIDER_PRESETS, type ModelProviderInput } from '@antumi/protocol'
 import { CredentialStore } from './credential-store'
 import { ModelProviderStore } from './model-providers'
 
@@ -43,6 +43,26 @@ describe('ModelProviderStore', () => {
     expect(JSON.parse(text).providers[0]).toMatchObject({ anthropic: null, openai: null })
     expect(store.resolve(saved.id)?.apiKey).toBe(KEY)
     expect(JSON.stringify(store.list())).not.toContain(KEY)
+  })
+
+  it('keeps a preset\'s own models as the preset\'s, so they follow it, and an edited list as given', async () => {
+    const own = MODEL_PROVIDER_PRESETS['volcengine-agent-plan']
+    const followed = await store.save(preset({ models: [...own.models], defaultModel: own.defaultModel, smallModel: own.smallModel }))
+    expect(followed).toMatchObject({ modelsFromPreset: true, defaultModel: own.defaultModel })
+    expect(followed.models.map((model) => model.id)).toEqual(own.models.map((model) => model.id))
+    expect(JSON.parse(await readFile(file, 'utf8')).providers[0]).toMatchObject({ models: null, defaultModel: null, smallModel: null })
+    const edited = await store.save(preset({ id: followed.id, apiKey: null }))
+    expect(edited).toMatchObject({ modelsFromPreset: false, models, defaultModel: 'ark-code-latest' })
+  })
+
+  it('gives a model the preset no longer lists way to the preset\'s default', async () => {
+    const own = MODEL_PROVIDER_PRESETS['zhipu-glm-coding']
+    await writeFile(file, JSON.stringify({ version: 1, providers: [{
+      id: 'zhipu-glm-coding-9', name: '智谱', preset: 'zhipu-glm-coding', anthropic: null, openai: null,
+      models: null, defaultModel: 'glm-4.5-retired', smallModel: null, agents: ['claude'], keyRef: null, revision: 1, createdAt: 1, updatedAt: 1
+    }] }))
+    await store.load()
+    expect(store.get('zhipu-glm-coding-9')).toMatchObject({ modelsFromPreset: true, defaultModel: own.defaultModel, smallModel: own.smallModel })
   })
 
   it('ignores endpoints given for a preset', async () => {

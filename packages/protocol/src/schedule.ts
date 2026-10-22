@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { AttachmentId, MAX_CHAT_IMAGES } from './attachments'
 import { AgentKind, checkStart, startKind, type StartBlocker, type Task } from './task'
+import { agentDescriptor } from './agents'
 
 // The usageLimit chat item a run answers: the one whose turn the limit stopped.
 export const LimitRef = z.object({ stageId: z.string(), itemId: z.string() })
@@ -13,6 +14,7 @@ export type LimitRef = z.infer<typeof LimitRef>
 // A conversation run made where a resume waited, or hit by the limit while it waited, takes the
 // limit over (`resumes`): it continues the stopped turn instead of starting on the plan.
 const TaskTarget = z.object({ kind: z.literal('task'), taskId: z.string().min(1) })
+const AutoTaskTarget = TaskTarget.extend({ afterDependencies: z.boolean().optional() })
 // images: the message's pictures, by their names in core's attachment store, which keeps them;
 // older cores leave them out.
 const ConversationTarget = z.object({
@@ -28,7 +30,7 @@ const ResumeTarget = z.object({ kind: z.literal('resume'), conversationId: z.str
 // when it starts, so a routine edited meanwhile is carried out as it reads now. Core makes
 // these; a client never asks for one.
 const RoutineRunTarget = z.object({ kind: z.literal('routine'), routineId: z.string().uuid() })
-export const ScheduledTarget = z.discriminatedUnion('kind', [TaskTarget, ConversationTarget, ResumeTarget, RoutineRunTarget])
+export const ScheduledTarget = z.discriminatedUnion('kind', [AutoTaskTarget, ConversationTarget, ResumeTarget, RoutineRunTarget])
 export type ScheduledTarget = z.infer<typeof ScheduledTarget>
 // What a client may schedule; core makes the resume runs itself.
 export const RequestedTarget = z.discriminatedUnion('kind', [TaskTarget, ConversationTarget])
@@ -101,6 +103,16 @@ export function checkScheduleTask(task: Task, dependencies: readonly Pick<Task, 
   const blocker = checkStart(task, dependencies)
   if (blocker) return blocker
   return startKind(dependencies) === 'plan' ? 'dependencies-unfinished' : null
+}
+
+export type AutoRunBlocker = ScheduleTaskBlocker | 'missing-dependencies' | 'agent-unattended-unsupported'
+
+// Arming waits for unfinished dependencies; it must never turn a task with no dependencies loose.
+export function checkAutoRun(task: Task): AutoRunBlocker | null {
+  if (task.dependsOn.length === 0) return 'missing-dependencies'
+  const blocker = checkScheduleTask(task, [])
+  if (blocker) return blocker
+  return task.agent && !agentDescriptor(task.agent).capabilities.unattended ? 'agent-unattended-unsupported' : null
 }
 
 export function isScheduleOpen(run: Pick<ScheduledRun, 'status'>): boolean {

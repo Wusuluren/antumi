@@ -29,6 +29,11 @@ const ChatOptions = z.object({
 }).and(z.partialRecord(AgentKind, AgentChoice)).catch({})
 export type ChatOptions = z.infer<typeof ChatOptions>
 
+// A session an agent ran outside Antumi, as it was imported: through its record of this time, from
+// its file as it stood at the other.
+const SessionImport = z.object({ agent: AgentKind, sessionId: z.string(), conversationId: z.string(), importedThrough: z.number(), sourceModifiedAt: z.number() })
+export type SessionImport = z.infer<typeof SessionImport>
+
 // An unreadable source is dropped rather than losing the conversation with it.
 function source(raw: unknown): TaskSource | null {
   return parsedJson(raw, TaskSource)
@@ -353,5 +358,23 @@ export class ConversationStore {
 
   delete(id: string): void {
     this.db.prepare('DELETE FROM conversations WHERE id = ?').run(id)
+  }
+
+  // Every agent session a stage here ran or resumed, by agent: imported ones among them.
+  providerSessions(): Set<string> {
+    return new Set(this.db.prepare('SELECT DISTINCT agent, provider_session_id AS id FROM conversation_stages WHERE provider_session_id IS NOT NULL')
+      .all().map((row) => `${String(row.agent)}:${String(row.id)}`))
+  }
+
+  sessionImports(): SessionImport[] {
+    return this.db.prepare(`SELECT agent, provider_session_id AS sessionId, conversation_id AS conversationId,
+      imported_through AS importedThrough, source_modified_at AS sourceModifiedAt FROM session_imports`).all().map((row) => SessionImport.parse(row))
+  }
+
+  recordSessionImport(value: SessionImport): void {
+    this.db.prepare(`INSERT INTO session_imports (agent, provider_session_id, conversation_id, imported_through, source_modified_at)
+      VALUES (?, ?, ?, ?, ?) ON CONFLICT (agent, provider_session_id) DO UPDATE SET conversation_id = excluded.conversation_id,
+      imported_through = excluded.imported_through, source_modified_at = excluded.source_modified_at`)
+      .run(value.agent, value.sessionId, value.conversationId, value.importedThrough, value.sourceModifiedAt)
   }
 }

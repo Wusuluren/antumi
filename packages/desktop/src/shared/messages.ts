@@ -8152,6 +8152,34 @@ export const MESSAGES = {
     "zh": "等待依赖",
     "en": "Waiting for dependencies"
   },
+  "TaskBoard.dependencies": {
+    "zh": "，依赖：{titles}",
+    "en": ", depends on: {titles}"
+  },
+  "TaskDetail.autoRun": {
+    "zh": "自动执行",
+    "en": "Auto-run"
+  },
+  "TaskDetail.autoRunHint": {
+    "zh": "全部依赖完成后，自动开始此任务。",
+    "en": "Start this task automatically once all dependencies are complete."
+  },
+  "TaskDetail.autoRunNeedsDependencies": {
+    "zh": "添加依赖后可开启自动执行。",
+    "en": "Add a dependency to enable auto-run."
+  },
+  "TaskDetail.autoRunUnsupportedAgent": {
+    "zh": "此 Agent 暂不支持自动执行。",
+    "en": "This Agent does not support unattended execution."
+  },
+  "TaskDetail.autoRunCancelled": {
+    "zh": "自动执行已关闭",
+    "en": "Auto-run turned off"
+  },
+  "schedules.executeAfterDependencies": {
+    "zh": "依赖完成后自动执行",
+    "en": "Run automatically after dependencies complete"
+  },
   "TaskBoard.cannotYet": {
     "zh": "还不能{value1}：{value2}",
     "en": "Cannot {value1} yet: {value2}"
@@ -10910,6 +10938,8 @@ export const MESSAGES = {
   "ModelProviderSettings.getKey": { "zh": "去控制台获取 ↗", "en": "Get one in the console ↗" },
   "ModelProviderSettings.models": { "zh": "模型", "en": "Models" },
   "ModelProviderSettings.modelsHint": { "zh": "一行一个，用服务商给的模型名。新建会话时可以在这些里面换。", "en": "One per line, named as the provider names them. A new conversation can switch among these." },
+  "ModelProviderSettings.modelsFollowPreset": { "zh": "这是预设的列表，Antumi 更新预设时会跟着更新；改了就以你的为准。", "en": "This is the preset's list, updated with Antumi's presets; once edited, yours stands." },
+  "ModelProviderSettings.restorePresetModels": { "zh": "恢复预设的模型列表", "en": "Restore the preset's models" },
   "ModelProviderSettings.defaultModel": { "zh": "默认模型", "en": "Default model" },
   "ModelProviderSettings.smallModel": { "zh": "小模型", "en": "Small model" },
   "ModelProviderSettings.smallModelHint": { "zh": "标题、翻译、提交说明这类小任务用它。", "en": "Used for small jobs such as titles, translations and commit messages." },
@@ -11157,6 +11187,114 @@ export const MESSAGES = {
   "GitInspector.untrack": {
     "zh": "取消跟踪",
     "en": "Track none"
+  },
+  "SettingsPage.sessionImport": {
+    "zh": "导入会话",
+    "en": "Import sessions"
+  },
+  "SettingsPage.sessionImportDescription": {
+    "zh": "导入在终端里跑过的 Claude Code、Codex 会话，在 Antumi 里接着聊",
+    "en": "Bring in Claude Code and Codex sessions you ran in a terminal, and continue them in Antumi"
+  },
+  "SessionImportSettings.note": {
+    "zh": "导入后保留之前的对话；之后发消息时，Agent 在原目录里恢复同一个会话接着聊。在终端里又聊过的会话会标为「有更新」，再导入一次只补上新的部分。",
+    "en": "Imported sessions keep their history. Your next message resumes the same session in its original folder. Sessions you continued in a terminal show as Updated; importing again adds only what is new."
+  },
+  "SessionImportSettings.agentFilter": {
+    "zh": "Agent",
+    "en": "Agent"
+  },
+  "SessionImportSettings.allAgents": {
+    "zh": "全部",
+    "en": "All"
+  },
+  "SessionImportSettings.search": {
+    "zh": "搜索标题、内容或目录",
+    "en": "Search titles, prompts or folders"
+  },
+  "SessionImportSettings.hideImported": {
+    "zh": "隐藏已导入",
+    "en": "Hide imported"
+  },
+  "SessionImportSettings.rescan": {
+    "zh": "重新扫描",
+    "en": "Scan again"
+  },
+  "SessionImportSettings.expandAll": {
+    "zh": "全部展开",
+    "en": "Expand all"
+  },
+  "SessionImportSettings.collapseAll": {
+    "zh": "全部折叠",
+    "en": "Collapse all"
+  },
+  "SessionImportSettings.summary": {
+    "zh": "{folders} 个目录 · {count} 个会话",
+    "en": "{folders} {folders, plural, one {folder} other {folders}} · {count} {count, plural, one {session} other {sessions}}"
+  },
+  "SessionImportSettings.sessionCount": {
+    "zh": "{count} 个会话",
+    "en": "{count} {count, plural, one {session} other {sessions}}"
+  },
+  "SessionImportSettings.selectedCount": {
+    "zh": "已选 {count}",
+    "en": "{count} selected"
+  },
+  "SessionImportSettings.hiddenSelected": {
+    "zh": "其中 {count} 个不在当前筛选中",
+    "en": "{count} outside current filters"
+  },
+  "SessionImportSettings.clearSelection": {
+    "zh": "清空选择",
+    "en": "Clear selection"
+  },
+  "SessionImportSettings.scanning": {
+    "zh": "正在读取会话…",
+    "en": "Reading sessions…"
+  },
+  "SessionImportSettings.none": {
+    "zh": "没有找到在 Antumi 之外跑过的会话",
+    "en": "No sessions run outside Antumi were found"
+  },
+  "SessionImportSettings.noneMatch": {
+    "zh": "没有符合条件的会话",
+    "en": "No sessions match"
+  },
+  "SessionImportSettings.selectFolder": {
+    "zh": "选择 {value1} 里的全部会话",
+    "en": "Select every session in {value1}"
+  },
+  "SessionImportSettings.select": {
+    "zh": "选择 {value1}",
+    "en": "Select {value1}"
+  },
+  "SessionImportSettings.missingFolder": {
+    "zh": "目录已不存在",
+    "en": "Folder is gone"
+  },
+  "SessionImportSettings.statusImported": {
+    "zh": "已导入",
+    "en": "Imported"
+  },
+  "SessionImportSettings.statusUpdated": {
+    "zh": "有更新",
+    "en": "Updated"
+  },
+  "SessionImportSettings.open": {
+    "zh": "打开",
+    "en": "Open"
+  },
+  "SessionImportSettings.importing": {
+    "zh": "正在导入…",
+    "en": "Importing…"
+  },
+  "SessionImportSettings.importSelected": {
+    "zh": "导入所选（{count}）",
+    "en": "Import selected ({count})"
+  },
+  "SessionImportSettings.imported": {
+    "zh": "已导入 {count} 个会话",
+    "en": "Imported {count} {count, plural, one {session} other {sessions}}"
   },
   "labels.notPushed": {
     "zh": "没有推送",

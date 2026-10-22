@@ -24,6 +24,8 @@ export type ChatRecord =
   // that one, or with release lets a held one go; text null alone drops them all.
   | { dir: 'queue'; at: number; text: string | null; ref?: string; images?: ChatImage[]; release?: boolean; held?: boolean }
   | { dir: 'exit'; at: number; code: number | null; stderr: string }
+  // An item as another record showed it: a session run outside Antumi, imported.
+  | { dir: 'item'; at: number; item: ChatItem }
   // Antumi asked the user something mid-chat (the site its browser may open), and what they answered.
   | { dir: 'ask'; at: number; requestId: string; ask: { kind: 'browser-host'; host: string; url: string } | { kind: 'terminal-run'; command: string; cwd: string } }
   | { dir: 'answer'; at: number; requestId: string; resolution: 'allowed' | 'allowedForSession' | 'denied' | 'cancelled'; message?: string }

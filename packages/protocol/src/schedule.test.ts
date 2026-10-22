@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { limitOf, ScheduledRunList } from './schedule'
+import { checkAutoRun, limitOf, ScheduledRunList } from './schedule'
+import { Task } from './task'
 
 const run = {
   id: '00000000-0000-4000-8000-000000000001',
@@ -15,6 +16,32 @@ const run = {
   createdAt: 0,
   settledAt: null
 }
+
+describe('checkAutoRun', () => {
+  const ready = () => Task.parse({ id: 'next', title: 'Next', details: '', status: 'pending', repos: [{ path: '/code/app', worktreePath: null, branch: null }], agent: 'claude', dependsOn: ['first'], createdAt: 0, updatedAt: 0 })
+
+  it('can arm a pending task, including one with a saved planning conversation', () => {
+    expect(checkAutoRun(ready())).toBeNull()
+    expect(checkAutoRun({ ...ready(), conversationId: 'planning' })).toBeNull()
+  })
+
+  it('requires dependencies, a project, and an unattended Agent', () => {
+    expect(checkAutoRun({ ...ready(), dependsOn: [] })).toBe('missing-dependencies')
+    expect(checkAutoRun({ ...ready(), repos: [] })).toBe('missing-repo')
+    expect(checkAutoRun({ ...ready(), agent: null })).toBe('missing-agent')
+    expect(checkAutoRun({ ...ready(), agent: 'cursor' })).toBe('agent-unattended-unsupported')
+    expect(checkAutoRun({ ...ready(), squadId: 'squad' })).toBe('squad-schedule-unsupported')
+  })
+
+  it.each(['running', 'review', 'done', 'abandoned'] as const)('does not arm a %s task', (status) => {
+    expect(checkAutoRun({ ...ready(), status })).toBe('not-pending')
+  })
+
+  it('keeps the automatic trigger when reading queue rows from core', () => {
+    expect(ScheduledRunList.parse([{ ...run, target: { kind: 'task', taskId: 'next', afterDependencies: true } }])[0]?.target)
+      .toEqual({ kind: 'task', taskId: 'next', afterDependencies: true })
+  })
+})
 
 describe('ScheduledRunList', () => {
   it('drops a run with a target this client does not know, and keeps the rest', () => {

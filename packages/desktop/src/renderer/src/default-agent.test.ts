@@ -36,7 +36,7 @@ describe('defaultAgent', () => {
   it('never picks an agent turned off here, and leaves the choice open when more than one is on', () => {
     usePreferences.setState({ disabledAgents: ['codex'] })
     expect(defaultAgent({}, { [id(1)]: chat(1, 'codex', 1) })).toBeNull()
-    usePreferences.setState({ disabledAgents: ['codex', 'cursor', 'opencode'] })
+    usePreferences.setState({ disabledAgents: ['codex', 'cursor', 'opencode', 'pi'] })
     expect(defaultAgent({}, { [id(1)]: chat(1, 'codex', 1) })).toBe('claude')
   })
 })

@@ -3,6 +3,7 @@ import path from 'node:path'
 import {
   agentDescriptor,
   checkCancel,
+  checkAutoRun,
   checkChatResume,
   checkChangePrimary,
   checkDependencies,
@@ -238,13 +239,14 @@ export class TaskService {
     return this.changed(this.store.update(task.id, { sourceSnapshot: snapshot }))
   }
 
-  update({ id, title, details, repos, dependsOn, agent, squadId, starts, launch }: RpcParsedParams<'tasks.update'>): Task {
+  update({ id, title, details, repos, dependsOn, agent, squadId, starts, launch, autoRun }: RpcParsedParams<'tasks.update'>): Task {
     const task = this.get(id)
     if (squadId !== undefined && squadId !== task.squadId) {
       if (this.isLaunching(task.id) || task.status !== 'pending' || this.squads?.busy(task.id)) throw new Rejection('squad-busy', '开发开始后不能更换小队')
     }
     if (task.squadId && squadId !== null && agent !== undefined && agent !== task.agent) throw new Rejection('squad-managed')
-    const patch: TaskPatch = { title, details, agent, launch, squadId }
+    if ((autoRun !== undefined || dependsOn !== undefined) && this.isLaunching(task.id)) throw new Rejection('run-in-progress')
+    const patch: TaskPatch = { title, details, agent, launch, squadId, autoRun }
     if (squadId) { patch.agent = this.requireSquads().agent(squadId); patch.launch = { permissionMode: 'ask' } }
     // Words for an old title would name the branch after what the task no longer is.
     if (title !== undefined && title !== task.title) patch.slug = null
@@ -274,6 +276,15 @@ export class TaskService {
       }
       patch.dependsOn = ids
     }
+    const blocker = checkAutoRun({
+      ...task,
+      repos: patch.repos ?? task.repos,
+      dependsOn: patch.dependsOn ?? task.dependsOn,
+      agent: patch.agent === undefined ? task.agent : patch.agent,
+      squadId: patch.squadId === undefined ? task.squadId : patch.squadId
+    })
+    if (autoRun && blocker) throw new Rejection(blocker)
+    if (blocker) patch.autoRun = false
     return this.named(this.changed(this.store.update(task.id, patch)))
   }
 
@@ -471,8 +482,16 @@ export class TaskService {
         return this.changed(this.get(task.id))
       }
       const setups = await this.trustedSetups(task)
+      const checkDependenciesNow = () => {
+        if (!unattended) return
+        const current = this.get(task.id)
+        const blocker = checkScheduleTask(current, this.dependenciesOf(current))
+        if (blocker) throw new Rejection(blocker)
+      }
+      checkDependenciesNow()
       // The worktrees are kept before the agent starts, so a failed start is retried in the same trees.
       const workspace = await prepareWorkspace(await this.withSlug(task), dependencies, this.worktreesRoot)
+      checkDependenciesNow()
       this.store.update(task.id, { repos: workspace.repos })
       const conversation = await chats.startForTask({ id: task.id, title: task.title, agent }, {
         cwd: workspace.cwd, extraDirs: workspace.extraDirs, planOnly: false, session: coordinator && resume ? 'resume' : 'new', readable: images.readable,
@@ -783,7 +802,7 @@ export class TaskService {
     dependents.forEach((dependent) => {
       const updated = this.store.get(dependent.id)
       if (updated) {
-        this.changed(updated)
+        this.changed(updated.autoRun ? this.store.update(updated.id, { autoRun: false }) : updated)
       }
     })
   }
@@ -822,7 +841,7 @@ export class TaskService {
   // the record is secondary: failing to never fails the move itself.
   private save(id: string, patch: TaskPatch): Task {
     const before = this.store.get(id)
-    const after = this.store.update(id, patch)
+    const after = this.store.update(id, patch.status && patch.status !== 'pending' ? { ...patch, autoRun: false } : patch)
     if (this.runs && before) {
       try {
         this.runs.transition(before, after, (run, endedAt) =>

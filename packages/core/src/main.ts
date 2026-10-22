@@ -19,6 +19,7 @@ import { PluginService } from './plugin-service'
 import { bundledGitHub } from './bundled-plugin'
 import { jiraProvider } from './jira-provider'
 import { createRpcHandlers } from './rpc-handlers'
+import { SessionImports } from './session-imports'
 import { SquadService } from './squad-service'
 import { SquadStore } from './squad-store'
 import { TodoStore } from './todo-store'
@@ -253,6 +254,8 @@ const standingUsage = {
 const schedules = new ScheduleService(paths.database, {
   tasks: {
     get: (id) => store.get(id),
+    autoRuns: () => store.list('pending').filter((task) => task.autoRun),
+    disableAutoRun: (id) => { service.update({ id, autoRun: false }) },
     scheduleBlocker: (id) => service.scheduleBlocker(id),
     start: (id, allowBypass, unattended) => service.start(id, allowBypass, unattended),
     resumeChat: (id, allowBypass) => service.resumeChat(id, allowBypass)
@@ -423,7 +426,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, accounts)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()
@@ -454,7 +457,7 @@ async function shutdown(): Promise<void> {
   shuttingDown = true
   usage.stop()
   announcements.stop()
-  schedules.stop()
+  await schedules.stop()
   routines.stop()
   autoArchive.stop()
   await squads.close()

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { canHaveHelper, helperAllowsMode, isHelper, agentDescriptor, modelPrice, providerEndpoint, type CostBaseline, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isAntumiRequest , PROCESS_OWNER_ENV, processOwner } from '@antumi/protocol'
+import { canHaveHelper, helperAllowsMode, isHelper, agentDescriptor, modelPrice, providerEndpoint, type CostBaseline, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isAntumiRequest , PROCESS_OWNER_ENV, processOwner } from '@antumi/protocol'
 import type { DaemonEvent, SessionInfo } from '@antumi/protocol/node'
 import { canReuseConversation, DEFAULT_ACCOUNT, type ConversationConfiguration, type TaskLaunchOptions } from '@antumi/protocol'
 import type { RunMeasure } from './agent-run-store'
@@ -9,7 +9,8 @@ import type { AttachmentStore } from './attachment-store'
 import { WHOLE_SESSION_FORK, type ChatAnswer, type StageMessage } from './chat-driver'
 import { catalogOf, probeChatCatalog } from './chat-catalog'
 import { ChatHost, type ChatStage } from './chat-host'
-import { ChatLog } from './chat-log'
+import { ChatLog, type LoggedRecord } from './chat-log'
+import type { Transcript } from './agent-transcripts'
 import type { SessionHost } from './daemon-client'
 import { ConversationStore } from './conversation-store'
 import { folderChanges, folderDiff, folderHead } from './conversation-changes'
@@ -927,6 +928,24 @@ export class ConversationService {
     return this.withChat(this.store.get(id)!)
   }
 
+  // A session the agent ran outside Antumi, taken in as a stage that has ended, on that session: the
+  // next start resumes it, as it would a stage of Antumi's own. title: what the session was called.
+  importStage(id: string, agent: AgentKind, providerSessionId: string, transcript: Transcript, title: { text: string; locked: boolean } | null = null): Conversation {
+    const current = this.get(id)
+    if (current.sessionId || this.launching.has(id)) throw new Rejection('conversation-running')
+    const stageId = randomUUID()
+    this.store.startStage(id, agent, providerSessionId, this.store.maxSequence(id), stageId)
+    // No exit record: no process ran here, and the driver would read one as a start that failed.
+    ChatLog.of(this.sessionsRoot, id, stageId).append(transcript.entries.map((entry): LoggedRecord => ({ dir: 'item', at: entry.at, item: { ...entry.item, stageId, revision: 1, at: entry.at } })))
+    for (const message of transcript.messages) {
+      this.store.addMessage({ conversationId: id, stageId, role: message.role, agent, text: message.text, eventKey: `chat:${message.ref}:${message.role}`, complete: true })
+    }
+    this.store.endStage(stageId, null)
+    if (title) this.store.update(id, { title: title.text, titleLocked: title.locked })
+    else this.store.touch(id)
+    return this.changed(this.get(id))
+  }
+
   private async start(id: string, agent: AgentKind, note: string, handoff: boolean, launch: StageLaunch = {}): Promise<Conversation> {
     this.squadGuard?.(this.get(id))
     if (this.launching.has(id)) throw new Rejection('conversation-running')
@@ -1073,6 +1092,7 @@ export class ConversationService {
       if (launch) {
         const prepared = await launch.prepare(agentStage, options.mcp)
         if (prepared.command) command.command = prepared.command
+        if (prepared.args) command.args = [...command.args, ...prepared.args]
       }
       this.wire?.record(id, stage.id, [{ dir: 'spawn', text: JSON.stringify({ command: command.command, args: command.args, cwd: current.workspacePath }) }])
       const spawned = await this.daemon.request('spawnPipe', { command: command.command, args: command.args, cwd: current.workspacePath, env: { ...command.env, [PROCESS_OWNER_ENV]: processOwner({ kind: 'conversation', id }) } })
@@ -1092,7 +1112,10 @@ export class ConversationService {
     this.store.attachStage(stage.id, sessionId)
     this.changed(this.store.update(id, { agent, sessionId }))
     try {
-      await this.chats.open(this.chatStage(current, stage, forkAt, knowledgeBase, userMcp), sessionId, 0, true)
+      const opened = this.chatStage(current, stage, forkAt, knowledgeBase, userMcp)
+      await this.chats.open(opened, sessionId, 0, true)
+      const retired = this.rememberedOnProvider(this.store.chatOptions(id)[agent], opened.options.providerModels)
+      if (retired.dropped) this.chats.updateNotice(opened, { dir: 'note', at: Date.now(), level: 'info', id: `provider-model:${stage.id}`, text: `服务商不再提供上次用的模型 ${retired.dropped}，这次改用它的默认模型 ${retired.instead ?? ''}`.trim() })
       await launch?.ready(agentStage)
       if (handoff) await this.chats.send(id, handoffMessage(handoff.path, handoff.note))
     } catch (error) {
@@ -1129,6 +1152,7 @@ export class ConversationService {
     const { fallbackMode, permissionModes, launch, providerModels } = adapterOf(stage.agent)
     if (fallbackMode && (!permissionMode || !permissionModes.includes(permissionMode))) permissionMode = fallbackMode
     const onProvider = stage.route ? providerModels?.(stage.route) ?? [] : undefined
+    const remembered = this.rememberedOnProvider(chosen[stage.agent], onProvider)
     return {
       conversationId: conversation.id,
       stageId: stage.id,
@@ -1145,7 +1169,7 @@ export class ConversationService {
         readOnly: !stage.planOnly && Boolean(conversation.workspaceReadOnly),
         allowBypass: !stage.planOnly && !conversation.workspaceReadOnly && (chosen.allowBypass ?? false),
         promptSuggestions: this.promptSuggestions,
-        preferred: { permissionMode, ...chosen[stage.agent] },
+        preferred: { permissionMode, ...remembered.preferred },
         keepImage: (data) => this.keepImage(data),
         todos: this.userTodos && !conversation.discussionId,
         ...(knowledgeBase ? { knowledgeBase } : {}),
@@ -1153,6 +1177,18 @@ export class ConversationService {
         ...(onProvider ? { providerModels: onProvider } : {})
       }
     }
+  }
+
+  // The model and effort the conversation last ran with, as a stage on a provider can take them: one
+  // the provider no longer serves is dropped, so the stage starts on its default model rather than
+  // fail, and its effort goes too unless that model takes it. Never another provider's or the
+  // agent's own account: the stage stays on its provider's models.
+  private rememberedOnProvider(remembered: { model?: string; effort?: string } | undefined, offered: readonly ChatModel[] | undefined): { preferred: { model?: string; effort?: string }; dropped: string | null; instead: string | null } {
+    const preferred = remembered ?? {}
+    if (!offered || !preferred.model || offered.some((model) => model.id === preferred.model)) return { preferred, dropped: null, instead: null }
+    const fallback = offered.find((model) => model.isDefault) ?? offered[0]
+    const effort = preferred.effort && fallback?.efforts.includes(preferred.effort) ? { effort: preferred.effort } : {}
+    return { preferred: effort, dropped: preferred.model, instead: fallback ? fallback.label : null }
   }
 
   private agentStage(conversationId: string, stage: ConversationStage): AgentStage {
