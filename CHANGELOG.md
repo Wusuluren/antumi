@@ -4,6 +4,8 @@
 
 ## 未发布
 
+## 0.20.0-beta.2 — 2026-10-22
+
 ### 新功能
 
 - 支持 Google Antigravity：在 设置 → 本机 Agent 一键下载，用 Google 账号聊天、恢复会话、切换 Gemini 模型和思考强度。
