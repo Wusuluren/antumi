@@ -10938,6 +10938,8 @@ export const MESSAGES = {
   "ModelProviderSettings.getKey": { "zh": "去控制台获取 ↗", "en": "Get one in the console ↗" },
   "ModelProviderSettings.models": { "zh": "模型", "en": "Models" },
   "ModelProviderSettings.modelsHint": { "zh": "一行一个，用服务商给的模型名。新建会话时可以在这些里面换。", "en": "One per line, named as the provider names them. A new conversation can switch among these." },
+  "ModelProviderSettings.modelsFollowPreset": { "zh": "这是预设的列表，Antumi 更新预设时会跟着更新；改了就以你的为准。", "en": "This is the preset's list, updated with Antumi's presets; once edited, yours stands." },
+  "ModelProviderSettings.restorePresetModels": { "zh": "恢复预设的模型列表", "en": "Restore the preset's models" },
   "ModelProviderSettings.defaultModel": { "zh": "默认模型", "en": "Default model" },
   "ModelProviderSettings.smallModel": { "zh": "小模型", "en": "Small model" },
   "ModelProviderSettings.smallModelHint": { "zh": "标题、翻译、提交说明这类小任务用它。", "en": "Used for small jobs such as titles, translations and commit messages." },

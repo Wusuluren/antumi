@@ -10,7 +10,9 @@ import { probeModelProvider } from './model-provider-probe'
 import { Rejection } from './rejection'
 
 // A provider as the file keeps it. A preset's endpoints aren't kept: they come from the preset
-// table at each use, so a release that fixes one fixes every provider made from it. keyRef names
+// table at each use, so a release that fixes one fixes every provider made from it. Nor are its
+// models while the user keeps the preset's list (null): a release that adds or retires one reaches
+// those providers too, and their default and small model follow the preset's unless chosen. keyRef names
 // the credential holding its key, a new one per key: an edit writes the new key, then the list
 // naming it, then drops the old, so a failure midway never pairs one address with another's key.
 const Saved = z.object({
@@ -19,9 +21,9 @@ const Saved = z.object({
   preset: ModelProviderPreset,
   anthropic: AnthropicEndpoint.nullable(),
   openai: OpenAiEndpoint.nullable(),
-  models: z.array(ProviderModel),
-  defaultModel: z.string(),
-  smallModel: z.string(),
+  models: z.array(ProviderModel).nullable(),
+  defaultModel: z.string().nullable(),
+  smallModel: z.string().nullable(),
   agents: z.array(AgentKind),
   keyRef: z.string().nullable(),
   revision: z.number().int(),
@@ -120,11 +122,17 @@ export class ModelProviderStore {
       if (input.apiKey !== null && keyRef !== null) {
         await this.credentials.set(CREDENTIALS, keyRef, { kind: 'model-provider', payload: { apiKey: input.apiKey }, account: null, updatedAt: now })
       }
+      // The preset's own list, kept as the preset's so it follows the table; the user's, as given.
+      const preset = input.preset === 'custom' ? null : MODEL_PROVIDER_PRESETS[input.preset]
+      const follows = preset !== null && sameIds(input.models, preset.models)
       const saved: Saved = {
         id, name: input.name, preset: input.preset,
         anthropic: input.preset === 'custom' ? endpoints.anthropic : null,
         openai: input.preset === 'custom' ? endpoints.openai : null,
-        models: input.models, defaultModel: input.defaultModel, smallModel: input.smallModel, agents,
+        models: follows ? null : input.models,
+        defaultModel: follows && input.defaultModel === preset.defaultModel ? null : input.defaultModel,
+        smallModel: follows && input.smallModel === preset.smallModel ? null : input.smallModel,
+        agents,
         keyRef, revision, createdAt: previous?.createdAt ?? now, updatedAt: now
       }
       await this.write(previous ? this.providers.map((each) => (each.id === id ? saved : each)) : [...this.providers, saved])
@@ -144,7 +152,20 @@ export class ModelProviderStore {
   private shown(saved: Saved): ModelProvider {
     const { keyRef: _keyRef, ...rest } = saved
     const preset = saved.preset === 'custom' ? null : MODEL_PROVIDER_PRESETS[saved.preset]
-    return { ...rest, anthropic: preset ? preset.anthropic : saved.anthropic, openai: preset ? preset.openai : saved.openai, hasKey: this.keyOf(saved) !== null }
+    const models = saved.models ?? (preset ? [...preset.models] : [])
+    const ids = models.map((model) => model.id)
+    // A model chosen from the preset's list that a release retired gives way to the preset's own.
+    const pick = (chosen: string | null, presets: string | undefined) => (chosen !== null && ids.includes(chosen) ? chosen : presets !== undefined && ids.includes(presets) ? presets : ids[0] ?? '')
+    return {
+      ...rest,
+      anthropic: preset ? preset.anthropic : saved.anthropic,
+      openai: preset ? preset.openai : saved.openai,
+      models,
+      defaultModel: pick(saved.defaultModel, preset?.defaultModel),
+      smallModel: pick(saved.smallModel, preset?.smallModel),
+      modelsFromPreset: saved.models === null,
+      hasKey: this.keyOf(saved) !== null
+    }
   }
 
   private keyOf(saved: Saved): string | null {
@@ -177,4 +198,9 @@ function checkEndpoints(endpoints: Pick<ModelProvider, 'anthropic' | 'openai'>):
     const problem = providerUrlProblem(url)
     if (problem) throw new Rejection('model-provider-insecure-url', URL_PROBLEM[problem])
   }
+}
+
+// The same models in the same order, by name: what the preset's list looks like once edited back.
+function sameIds(models: readonly ProviderModel[], others: readonly ProviderModel[]): boolean {
+  return models.length === others.length && models.every((model, index) => model.id === others[index]?.id)
 }

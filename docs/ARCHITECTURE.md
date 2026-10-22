@@ -393,7 +393,7 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 ### 服务商
 
-服务商（model provider）是第三方编程套餐的接口和 Key，比如火山方舟 Agent Plan、智谱 GLM Coding Plan。设置 → Agent → 服务商（`model-providers.ts`）维护列表：预设（火山 Agent Plan / Coding Plan、智谱、Z.ai、Kimi Code、MiniMax 国内和海外、阿里云百炼 Token Plan，`protocol/src/model-provider-presets.ts`）或自定义。预设的地址不存，每次用时从预设表取，发版修了地址就自动生效；自定义的地址只接受 https（http 只能连本机），不许带账号密码、`?` 和 `#`。Key 存进 `credentials.json`（`model-provider/<id>.<revision>`），每次换 Key 都是新记录：先写新 Key，再写列表，最后删旧 Key，启动时清掉没人引用的。客户端只看得到 `hasKey`。
+服务商（model provider）是第三方编程套餐的接口和 Key，比如火山方舟 Agent Plan、智谱 GLM Coding Plan。设置 → Agent → 服务商（`model-providers.ts`）维护列表：预设（火山 Agent Plan / Coding Plan、智谱、Z.ai、Kimi Code、MiniMax 国内和海外、阿里云百炼 Token Plan，`protocol/src/model-provider-presets.ts`）或自定义。预设的地址不存，每次用时从预设表取，发版修了地址就自动生效；模型列表也一样：保存时和预设的列表（按名字和顺序）一样就不存，默认模型、小模型和预设相同的也不存，用时从预设表取，发版加了或下线了模型，已有的服务商跟着变；改过的列表照存，设置里可以一键恢复成预设的（`ModelProvider.modelsFromPreset` 告诉客户端是不是在跟随）。跟随的列表里没了用户选的默认或小模型时，改用预设的。自定义的地址只接受 https（http 只能连本机），不许带账号密码、`?` 和 `#`。Key 存进 `credentials.json`（`model-provider/<id>.<revision>`），每次换 Key 都是新记录：先写新 Key，再写列表，最后删旧 Key，启动时清掉没人引用的。客户端只看得到 `hasKey`。
 
 和技能库、MCP 一样，**每次启动 Agent 时注入，不改 Agent 自己的配置**，Key 只进子进程的环境变量：
 

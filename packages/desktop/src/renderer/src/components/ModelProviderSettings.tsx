@@ -123,6 +123,8 @@ function ProviderForm({ initial, onDone }: { initial: Draft; onDone: (saved: str
   const badUrls = urlProblems(draft)
   const presetId = draft.preset === 'custom' ? null : draft.preset
   const preset = presetId ? MODEL_PROVIDER_PRESETS[presetId] : null
+  // Saved as the preset's own list, core keeps it following the preset (model-providers.ts).
+  const followsPreset = preset !== null && ids.length === preset.models.length && preset.models.every((model, index) => ids[index] === model.id)
   const ready = draft.name.trim() && (draft.apiKey.trim() || draft.hasKey) && ids.includes(draft.defaultModel) && ids.includes(draft.smallModel)
     && draft.agents.some((agent) => servable.includes(agent)) && badUrls.length === 0 && (endpoints.anthropic || endpoints.openai)
 
@@ -166,7 +168,12 @@ function ProviderForm({ initial, onDone }: { initial: Draft; onDone: (saved: str
       <label className="chat-command-field">
         <span>{t('ModelProviderSettings.models')}</span>
         <textarea className="input mono mcp-args" rows={4} value={draft.models} onChange={(event) => setModels(event.target.value)} spellCheck={false} placeholder="glm-5.3" />
-        <span className="chat-command-hint">{t('ModelProviderSettings.modelsHint')}</span>
+        <span className="chat-command-hint">
+          {t('ModelProviderSettings.modelsHint')}
+          {preset && (followsPreset
+            ? <> {t('ModelProviderSettings.modelsFollowPreset')}</>
+            : <button type="button" className="link-button" onClick={() => setModels(preset.models.map((model) => model.id).join('\n'))}>{t('ModelProviderSettings.restorePresetModels')}</button>)}
+        </span>
       </label>
       <div className="provider-model-pickers">
         <label className="chat-command-field">
