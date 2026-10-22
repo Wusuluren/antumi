@@ -1,9 +1,10 @@
 import { z } from 'zod'
-import { browserToolKind, CONTEXT_COMPACTED, takeImageMarkers, type ChatDiff, type ChatImage, type ChatItem, type ChatOption, type ChatTurnActivity, type ChatTurnState, type ModelTokens } from '@antumi/protocol'
+import { browserToolKind, CONTEXT_COMPACTED, takeImageMarkers, type ChatDiff, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatTurnActivity, type ChatTurnState, type ModelTokens } from '@antumi/protocol'
 import { offeredCommand } from '../../agent-commands'
 import { AntumiRequests } from '../../antumi-requests'
 import { describeBrowserTool, showBrowserInput } from '../../browser-tools'
 import { addedPatch, editPatch } from '../../chat-diff'
+import { withoutCost } from '../../model-metering'
 import { messageText, type ChatAnswer, type ChatDriver, type ChatImageFile, type ChatOutgoing, type ChatRecord, type ChatStageOptions, type StageMessage } from '../../chat-driver'
 import { ChatItems, clip } from '../../chat-items'
 import { ChatQueue } from '../../chat-queue'
@@ -193,6 +194,7 @@ export class PiRpc implements ChatDriver {
       ...(record.id !== undefined ? { id: record.id } : {}),
       ...(record.action !== undefined ? { action: record.action } : {})
     })
+    else if (record.dir === 'item') this.items.put(record.item, record.at)
     else if (record.dir === 'ask') this.antumi.apply(record)
     else if (record.dir === 'answer') {
       // A plan put aside (see waitingPlans); any other answer is to Antumi's own question.
@@ -279,12 +281,11 @@ export class PiRpc implements ChatDriver {
       return { id, type: 'prompt', message: `/${PI_MODE_COMMAND} ${value}` }
     }
     if (option === 'model') {
-      const model = this.models.find((each) => piModelId(each) === value)
       const parsed = parsePiModelId(value)
-      if (!model || !parsed) throw new Rejection('chat-option-invalid', `Pi 没有提供模型 ${value}`)
+      if (!parsed || !this.offered().some((model) => model.id === value)) throw new Rejection('chat-option-invalid', `Pi 没有提供模型 ${value}`)
       return { id, type: 'set_model', provider: parsed.provider, modelId: parsed.modelId }
     }
-    const current = piModels(this.models, null).find((model) => model.id === (this.model ? piModelId(this.model) : null))
+    const current = this.offered().find((model) => model.id === (this.model ? piModelId(this.model) : null))
     if (!current?.efforts.includes(value)) throw new Rejection('chat-option-invalid', `当前模型不支持 effort: ${value}`)
     return { id, type: 'set_thinking_level', level: value }
   }
@@ -478,6 +479,7 @@ export class PiRpc implements ChatDriver {
       const error = response.error ?? `Pi 拒绝了 ${response.command}`
       if (id === HANDSHAKE.state || id === HANDSHAKE.models) { this.startError = `Pi ${response.command}: ${error}`; return }
       if (id === HANDSHAKE.commands) return
+      if (initial && request.type === 'set_model' && this.onProviderModel('model')) { this.startError = `Pi 没能切到服务商的模型：${error}`; return }
       if (initial) { this.items.notice('warning', `Pi 未采用保存的${request.type === 'set_model' ? '模型' : ' effort'}：${error}`, at); this.nextInitial(at); return }
       const mode = modeCommand(request)
       if (mode) {
@@ -573,8 +575,10 @@ export class PiRpc implements ChatDriver {
       return
     }
     const preferred = this.options.preferred ?? {}
+    // On a model provider it starts on one of the provider's models, whatever Pi's own default is.
+    const model = preferred.model ?? this.options.providerModels?.find((each) => each.isDefault)?.id ?? this.options.providerModels?.[0]?.id
     this.initialChoices = [
-      ...(preferred.model ? [{ option: 'model' as const, value: preferred.model }] : []),
+      ...(model ? [{ option: 'model' as const, value: model }] : []),
       ...(preferred.effort ? [{ option: 'effort' as const, value: preferred.effort }] : [])
     ]
     this.nextInitial(at)
@@ -592,6 +596,7 @@ export class PiRpc implements ChatDriver {
         this.initial.set(id, this.change(choice.option, choice.value, id))
         return
       } catch {
+        if (this.onProviderModel(choice.option)) { this.startError = `Pi 没有提供服务商的模型 ${choice.value}`; return }
         this.items.notice('warning', `Pi 未采用保存的 ${choice.option === 'model' ? '模型' : 'effort'}: ${choice.value}`, at)
       }
     }
@@ -603,14 +608,23 @@ export class PiRpc implements ChatDriver {
     return ['ask', 'acceptEdits', 'plan', 'readOnly', ...(this.options.allowBypass ? ['bypass'] : [])]
   }
 
+  // The models it offers: a model provider's in place of Pi's own list, which has the user's too.
+  private offered(): ChatModel[] {
+    return this.options.providerModels ? [...this.options.providerModels] : piModels(this.models, this.model ? piModelId(this.model) : null)
+  }
+
+  // A stage on a model provider never runs on another model: one it cannot take fails the start.
+  private onProviderModel(option: 'model' | 'effort'): boolean {
+    return option === 'model' && this.options.providerModels !== undefined
+  }
+
   private publishOptions(): void {
     if (this.catalogOnly) return
-    const current = this.model ? piModelId(this.model) : null
     this.state.set({
       permissionMode: this.mode,
       permissionModes: this.permissionModes(),
-      model: current,
-      models: piModels(this.models, current),
+      model: this.model ? piModelId(this.model) : null,
+      models: this.offered(),
       effort: this.effort
     })
   }
@@ -714,7 +728,8 @@ export class PiRpc implements ChatDriver {
     const cost = Math.round(models.reduce((sum, model) => sum + (model.costUsd ?? 0), 0) * 1e6) / 1e6
     return {
       usage: { input: models.reduce((sum, model) => sum + model.input, 0), output: models.reduce((sum, model) => sum + model.output, 0) },
-      metering: { models, calls: turn.calls, callsEstimated: false, reportedCostUsd: cost }
+      // On a model provider, Pi's price is the model's list price, not what the provider charges.
+      metering: this.options.providerModels ? withoutCost({ models, calls: turn.calls, callsEstimated: false, reportedCostUsd: cost }) : { models, calls: turn.calls, callsEstimated: false, reportedCostUsd: cost }
     }
   }
 

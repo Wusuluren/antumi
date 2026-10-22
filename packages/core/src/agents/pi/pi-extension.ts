@@ -1,8 +1,10 @@
 import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { PROVIDER_KEY_ENV } from '../../provider-launch'
 import type { AgentStage } from '../agent-adapter'
 import { clearMcpReadyFile } from '../mcp-ready-file'
 import { PI_FENCED_MODES, PI_MODE_COMMAND, PI_MODES, type PiMode } from './pi-modes'
+import type { PiProviderModel } from './pi-models'
 
 // An MCP server as Pi's registerMcpServer takes one: the shape of its mcp.json.
 export type PiMcpServer = { command: string; args: string[]; env?: Record<string, string> } | { url: string }
@@ -18,7 +20,13 @@ export type PiExtensionConfig = {
   workDirs: string[]
   // MCP tools, as Pi names them, that plan and readOnly still allow.
   readTools: string[]
+  // A model provider to run on, without its key, which comes in PROVIDER_KEY_ENV.
+  provider?: PiProvider
 }
+
+// A model provider as registerProvider takes one, but the key. bearer: the provider takes the key
+// as a bearer token over Anthropic's API, which sends it as x-api-key.
+export type PiProvider = { name: string; baseUrl: string; api: 'openai-completions' | 'openai-responses' | 'anthropic-messages'; bearer: boolean; models: PiProviderModel[] }
 
 export const PI_CONFIG_ENV = 'ANTUMI_PI'
 
@@ -72,7 +80,26 @@ function refusal(name, input) {
   return where + '下不能运行' + what + '：只读代码、搜索文件，不要修改任何东西（Antumi）'
 }
 
+// The provider's key goes to Pi's provider as it is, and out of the environment, so Pi's bash and
+// the MCP servers it starts never see it. A key Pi would read as a command (!) is left to it to
+// read from the environment. A leading $ is escaped as $$.
+function registerProvider(pi, provider) {
+  const key = process.env[${JSON.stringify(PROVIDER_KEY_ENV)}] || ''
+  const command = key.startsWith('!')
+  if (!command) delete process.env[${JSON.stringify(PROVIDER_KEY_ENV)}]
+  const apiKey = command ? '$' + ${JSON.stringify(PROVIDER_KEY_ENV)} : key.startsWith('$') ? '$' + key : key
+  pi.registerProvider(provider.name, {
+    name: provider.name,
+    baseUrl: provider.baseUrl,
+    api: provider.api,
+    apiKey,
+    ...(provider.bearer ? { headers: { authorization: 'Bearer ' + key } } : {}),
+    models: provider.models
+  })
+}
+
 export default function antumi(pi) {
+  if (config.provider) registerProvider(pi, config.provider)
   for (const [name, server] of Object.entries(config.servers || {})) {
     try {
       pi.registerMcpServer(name, { ...server, exposure: 'direct' })

@@ -4,6 +4,7 @@ import { clearMcpReadyFile, mcpReadyFile, mcpReadyWithin, mcpServerReporting } f
 import { detectPi, piCatalog, piInstallation, requirePi } from './pi-cli'
 import { piCommand } from './pi-command'
 import { writePiExtension } from './pi-extension'
+import { piProviderModels } from './pi-models'
 import { PI_MODES } from './pi-modes'
 import { PiRpc } from './pi-rpc'
 
@@ -15,6 +16,7 @@ export const pi: AgentAdapter = {
   kind: 'pi',
   createDriver: (stageId, options) => new PiRpc(stageId, options),
   command: piCommand,
+  providerModels: piProviderModels,
   permissionModes: PI_MODES,
   fallbackMode: 'ask',
   // A session is a file under the folder it ran in, and goes back there when resumed: moved

@@ -1,12 +1,37 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentLaunch } from '../agent-adapter'
+import type { ProviderLaunch } from '../../provider-launch'
 import { piCommand, piStartMode } from './pi-command'
 import { PI_CONFIG_ENV } from './pi-extension'
 
 const LAUNCH: AgentLaunch = { providerSessionId: null, resume: false, handoffPath: null, extraProjects: [] }
 const config = (launch: AgentLaunch) => JSON.parse(piCommand(launch).env?.[PI_CONFIG_ENV] ?? '{}')
 
+const PROVIDER: ProviderLaunch = {
+  providerId: 'glm', apiKey: 'sk-secret',
+  endpoint: { wire: 'openai-chat', baseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4/', anthropic: null },
+  models: [{ id: 'glm-5', label: 'GLM 5', contextWindow: 200_000, maxOutput: null, efforts: ['low', 'high', 'turbo'] }],
+  defaultModel: 'glm-5', smallModel: 'glm-5'
+}
+
 describe('Pi command', () => {
+  it('hands a model provider to the extension, its key only in the environment', () => {
+    const command = piCommand({ ...LAUNCH, provider: PROVIDER })
+    expect(config({ ...LAUNCH, provider: PROVIDER }).provider).toEqual({
+      name: 'antumi-glm', baseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4', api: 'openai-completions', bearer: false,
+      models: [{ id: 'glm-5', name: 'GLM 5', reasoning: true, input: ['text'], contextWindow: 200_000, maxTokens: 16_384, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, thinkingLevelMap: { off: null, minimal: null, low: 'low', medium: null, high: 'high', xhigh: null, max: null } }]
+    })
+    expect(command.env).toMatchObject({ ANTUMI_MODEL_PROVIDER_KEY: 'sk-secret', ANTUMI_MODEL_PROVIDER: 'glm' })
+    expect([...command.args, command.env?.[PI_CONFIG_ENV] ?? ''].some((value) => value.includes('sk-secret'))).toBe(false)
+  })
+
+  it('reaches a provider over the API its wire names, Anthropic without its /v1 and with a bearer token where it takes one', () => {
+    const anthropic = { wire: 'anthropic' as const, baseUrl: 'https://open.bigmodel.cn/api/anthropic/v1', anthropic: { baseUrl: 'https://open.bigmodel.cn/api/anthropic/v1', auth: 'auth_token' as const, env: {} } }
+    expect(config({ ...LAUNCH, provider: { ...PROVIDER, endpoint: anthropic } }).provider).toMatchObject({ baseUrl: 'https://open.bigmodel.cn/api/anthropic', api: 'anthropic-messages', bearer: true })
+    expect(config({ ...LAUNCH, provider: { ...PROVIDER, endpoint: { ...anthropic, anthropic: { ...anthropic.anthropic, auth: 'api_key' } } } }).provider).toMatchObject({ bearer: false })
+    expect(config({ ...LAUNCH, provider: { ...PROVIDER, endpoint: { wire: 'openai-responses', baseUrl: 'https://api.example/v1', anthropic: null } } }).provider).toMatchObject({ api: 'openai-responses' })
+  })
+
   it('runs Pi in RPC mode, resuming its session file or forking it whole', () => {
     expect(piCommand(LAUNCH).args).toEqual(['--mode', 'rpc'])
     expect(piCommand({ ...LAUNCH, providerSessionId: '/s/a.jsonl', resume: true }).args).toEqual(['--mode', 'rpc', '--session', '/s/a.jsonl'])

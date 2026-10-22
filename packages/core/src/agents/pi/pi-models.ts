@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import type { ChatModel } from '@antumi/protocol'
+import type { ChatModel, ProviderModel } from '@antumi/protocol'
+import { providerChatModels, type ProviderLaunch } from '../../provider-launch'
 
 // A model as Pi lists it (get_available_models, get_state, set_model): its provider and id name it.
 export const PiModel = z.looseObject({
@@ -39,4 +40,47 @@ export function piModels(models: readonly PiModel[], current: string | null): Ch
     const id = piModelId(model)
     return { id, label: model.name || id, description: model.provider, efforts: piEfforts(model), isDefault: id === current }
   })
+}
+
+// A model provider as Pi registers one (registerProvider): named for Antumi, so it never clashes
+// with one the user configured, and its models as Pi takes them.
+export const piProviderName = (provider: Pick<ProviderLaunch, 'providerId'>) => `antumi-${provider.providerId}`
+
+// A provider's effort levels that Pi has; Pi offers a model exactly these, mapped to themselves.
+const piLevels = (model: ProviderModel) => model.efforts.filter((effort) => THINKING_LEVELS.some((level) => level === effort))
+
+export function piProviderModels(provider: Pick<ProviderLaunch, 'providerId' | 'models' | 'defaultModel'>): ChatModel[] {
+  return providerChatModels(provider, (model) => `${piProviderName(provider)}/${model.id}`).map((model, index) => {
+    const source = provider.models[index]
+    return { ...model, efforts: source ? piLevels(source) : [] }
+  })
+}
+
+// The models as registerProvider takes them. Pi needs a context window and an output limit; where
+// the provider gives none, ones every coding model takes. It reports no prices: Antumi keeps none.
+export function piProviderEntries(provider: Pick<ProviderLaunch, 'models'>): PiProviderModel[] {
+  return provider.models.map((model) => {
+    const levels = piLevels(model)
+    return {
+      id: model.id,
+      name: model.label ?? model.id,
+      reasoning: levels.length > 0,
+      input: ['text'],
+      contextWindow: model.contextWindow ?? 128_000,
+      maxTokens: model.maxOutput ?? 16_384,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      ...(levels.length ? { thinkingLevelMap: Object.fromEntries(THINKING_LEVELS.map((level) => [level, levels.includes(level) ? level : null])) } : {})
+    }
+  })
+}
+
+export type PiProviderModel = {
+  id: string
+  name: string
+  reasoning: boolean
+  input: string[]
+  contextWindow: number
+  maxTokens: number
+  cost: { input: number; output: number; cacheRead: number; cacheWrite: number }
+  thinkingLevelMap?: Record<string, string | null>
 }
