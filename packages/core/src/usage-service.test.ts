@@ -156,7 +156,7 @@ describe('UsageService.report', () => {
     events.length = 0
     advance(60_000)
     // As a stage replayed from its log would report the limit it hit an hour ago.
-    service.report('claude', { at: 1_000_000 - 3_600_000, windows: [{ ...window, usedPercent: 100 }], refresh: true })
+    service.report('claude', 'default', { at: 1_000_000 - 3_600_000, windows: [{ ...window, usedPercent: 100 }], refresh: true })
     expect(events).toEqual([])
     expect(service.list().find((u) => u.agent === 'claude')?.windows).toEqual([window])
     expect(reads).toBe(1)
@@ -171,7 +171,7 @@ describe('UsageService.report', () => {
     events.length = 0
     advance(5_000)
     const session = { ...window, usedPercent: 55 }
-    service.report('claude', { at: 1_004_000, windows: [session] })
+    service.report('claude', 'default', { at: 1_004_000, windows: [session] })
     // Stamped with when the agent said so, not when core passed it on.
     expect(events).toEqual([expect.objectContaining({ agent: 'claude', status: 'ok', plan: 'max', updatedAt: 1_004_000 })])
     expect(service.list().find((u) => u.agent === 'claude')?.windows).toEqual([weekly, opus, session])
@@ -179,7 +179,7 @@ describe('UsageService.report', () => {
 
   it('shows a report from an agent no poll has read yet', () => {
     const { service, events } = setup(async () => ({ signedIn: false }))
-    service.report('codex', { at: 1_000_000, windows: [weekly], plan: 'plus' })
+    service.report('codex', 'default', { at: 1_000_000, windows: [weekly], plan: 'plus' })
     expect(events).toEqual([expect.objectContaining({ agent: 'codex', status: 'ok', windows: [weekly], plan: 'plus', resetCredits: null })])
   })
 
@@ -189,11 +189,31 @@ describe('UsageService.report', () => {
       reads++
       return { signedIn: true, windows: [window], plan: null }
     })
-    service.report('claude', { at: 1_000_000, windows: [], refresh: true })
+    service.report('claude', 'default', { at: 1_000_000, windows: [], refresh: true })
     // Joins the refresh the report started rather than reading again.
     await service.refresh()
     expect(reads).toBe(1)
     expect(events.filter((e) => e.agent === 'claude')).toHaveLength(1)
+  })
+})
+
+describe('UsageService accounts', () => {
+  it('reads each account in its own folder, tells them apart, and reports to the one a stage ran on', async () => {
+    const homes: Array<string | undefined> = []
+    const service = new UsageService(
+      { claude: async (home) => { homes.push(home); return { signedIn: true, windows: [{ ...window, usedPercent: home ? 90 : 10 }], plan: null } } },
+      () => {},
+      () => 1_000_000,
+      {},
+      () => [{ agent: 'claude', id: 'default', home: undefined }, { agent: 'claude', id: 'work', home: '/accounts/claude/work' }]
+    )
+    await service.refresh()
+    expect(homes).toEqual([undefined, '/accounts/claude/work'])
+    expect(service.list().map((usage) => [usage.account, usage.windows[0]?.usedPercent])).toEqual([['default', 10], ['work', 90]])
+    service.report('claude', 'work', { at: 1_000_000, windows: [{ ...window, usedPercent: 100 }] })
+    expect(service.list().map((usage) => [usage.account, usage.windows[0]?.usedPercent])).toEqual([['default', 10], ['work', 100]])
+    service.forget('claude', 'work')
+    expect(service.list().map((usage) => usage.account)).toEqual(['default'])
   })
 })
 

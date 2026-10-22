@@ -117,7 +117,9 @@ export const ConversationStage = z.object({
   // A stage that may only plan (see Conversation.planOnly).
   planOnly: z.boolean().optional(),
   // The model provider it ran on; null on the agent's own account. Older cores leave it out.
-  route: ProviderRoute.nullable().optional()
+  route: ProviderRoute.nullable().optional(),
+  // The agent account it ran on (AgentAccount.id); null on a provider. Older cores leave it out.
+  account: z.string().nullable().optional()
 })
 export type ConversationStage = z.infer<typeof ConversationStage>
 

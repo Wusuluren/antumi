@@ -41,6 +41,8 @@ export type AgentDescriptor = {
     // The wires it can reach a third-party model provider over, the one it prefers first; none, and
     // it only runs on its own account.
     modelProviders: readonly ProviderWire[]
+    // Signs in to more than one account, each in a config folder of its own (agent-account.ts).
+    accounts: boolean
   }
   // A plan it approves runs on in one of its own modes, named as the agent names them, rather than
   // in Antumi's run modes.

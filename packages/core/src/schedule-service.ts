@@ -88,7 +88,7 @@ export type ScheduleDeps = {
     autoRuns?(): Task[]
     disableAutoRun?(id: string): void
   }
-  conversations: Pick<ConversationService, 'get' | 'create' | 'continue' | 'send' | 'runScheduled' | 'sentRef' | 'capacityAvailable'>
+  conversations: Pick<ConversationService, 'get' | 'create' | 'continue' | 'send' | 'runScheduled' | 'sentRef' | 'capacityAvailable'> & Partial<Pick<ConversationService, 'leaveSpentAccount'>>
   usage: { list(): AgentUsage[]; refresh(): Promise<AgentUsage[]> }
   // The mode runs start in, as the user last set it.
   mode: () => UnattendedMode
@@ -193,9 +193,10 @@ export class ScheduleService {
   // Core's own plan for a turn the usage limit stopped: resume it once the limit lifts, ahead of
   // whatever else the agent has lined up, since it is work the user was at. Where a conversation
   // run already waits, that run takes the limit over instead. resetsAt is when the agent said the
-  // limit lifts; without it the next pass asks the usage reading.
-  createResume(conversationId: string, limit: LimitRef, resetsAt: number | null): ScheduledRun {
-    const target: ScheduledTarget = { kind: 'resume', conversationId, ...limit }
+  // limit lifts; without it the next pass asks the usage reading. switchedTo: the account the agent
+  // was moved to, which has quota, so the run goes on at once.
+  createResume(conversationId: string, limit: LimitRef, resetsAt: number | null, switchedTo?: string): ScheduledRun {
+    const target: ScheduledTarget = { kind: 'resume', conversationId, ...limit, ...(switchedTo ? { switchedTo } : {}) }
     const { title, agent } = this.describe(target)
     checkUnattended(agent)
     const open = this.openFor(conversationId)
@@ -210,7 +211,7 @@ export class ScheduleService {
     // The limit may land before the resume that ran into it has even been marked started.
     const relimited = this.rows("WHERE status = 'starting' OR (status = 'started' AND settled_at > ?)", this.now() - RELIMIT_MS)
       .some((run) => run.target.kind === 'resume' && run.target.conversationId === conversationId)
-    const notBefore = relimited ? this.now() + UNKNOWN_RESET_MS : resetsAt === null ? null : resetsAt + GRACE_MS
+    const notBefore = switchedTo ? null : relimited ? this.now() + UNKNOWN_RESET_MS : resetsAt === null ? null : resetsAt + GRACE_MS
     const first = this.db.prepare(`SELECT MIN(position) AS position FROM scheduled_runs WHERE ${OPEN}`).get()
     const id = this.insert(target, title, agent, notBefore, Number(first?.position ?? 1) - 1, resetsAt)
     void this.tick()
@@ -543,7 +544,9 @@ export class ScheduleService {
     const conversation = this.deps.conversations.get(target.conversationId)
     const { taskId } = conversation
     if (target.kind === 'resume') {
-      // As the user would: the agent readied as it was, then told to go on.
+      // As the user would: the agent readied as it was, then told to go on, on the account its
+      // agent is on now where the limit moved it.
+      await this.deps.conversations.leaveSpentAccount?.(conversation.id)
       if (taskId) await this.deps.tasks.resumeChat(taskId)
       else await this.deps.conversations.continue(conversation.id)
       await this.deps.conversations.send(conversation.id, CONTINUE_TEXT, [], false, false, scheduleRef(run))

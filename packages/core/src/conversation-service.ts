@@ -3,7 +3,7 @@ import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { canHaveHelper, helperAllowsMode, isHelper, agentDescriptor, modelPrice, providerEndpoint, type CostBaseline, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isAntumiRequest , PROCESS_OWNER_ENV, processOwner } from '@antumi/protocol'
 import type { DaemonEvent, SessionInfo } from '@antumi/protocol/node'
-import { canReuseConversation, type ConversationConfiguration, type TaskLaunchOptions } from '@antumi/protocol'
+import { canReuseConversation, DEFAULT_ACCOUNT, type ConversationConfiguration, type TaskLaunchOptions } from '@antumi/protocol'
 import type { RunMeasure } from './agent-run-store'
 import type { AttachmentStore } from './attachment-store'
 import { WHOLE_SESSION_FORK, type ChatAnswer, type StageMessage } from './chat-driver'
@@ -35,6 +35,7 @@ import { WireLog } from './wire-log'
 import { ConversationTitles, type TitleGenerator } from './conversation-titles'
 import { conversationRoute, decideRoute, providerLaunch, sameRoute, type RouteDecision } from './conversation-route'
 import type { ModelProviderStore } from './model-providers'
+import type { AccountLaunch, AgentAccountStore } from './agent-accounts'
 import type { ProviderLaunch } from './provider-launch'
 import type { QuickProvider } from './quick-request'
 
@@ -47,7 +48,7 @@ export type ConversationEvent =
   // A plan approved in a task's chat, for the task to keep as the one it carries out.
   | { type: 'planApproved'; taskId: string; plan: { markdown: string; agent: AgentKind; stageId: string; requestId: string } }
   // A running chat agent reported its account's limits.
-  | { type: 'usage'; agent: AgentKind; report: UsageReport }
+  | { type: 'usage'; agent: AgentKind; account: string; report: UsageReport }
 
 export type ChatStageRef = { conversationId: string; taskId: string | null; stageId: string; agent: AgentKind; ended: boolean }
 
@@ -213,8 +214,11 @@ export class ConversationService {
         if (current) this.changed(current)
       },
       offset: (stageId, end) => this.store.setChatOffset(stageId, end),
-      // A stage on a provider reports the provider's limits, not the agent's account's.
-      usage: (stage, report) => { if (!stage.options.providerModels) this.emit({ type: 'usage', agent: stage.agent, report }) },
+      // A stage on a provider reports the provider's limits, not the agent's account's; any other,
+      // the limits of the account it runs on.
+      usage: (stage, report) => {
+        if (!stage.options.providerModels) this.emit({ type: 'usage', agent: stage.agent, account: this.store.stage(stage.stageId)?.account ?? DEFAULT_ACCOUNT, report })
+      },
       turnStalled: (conversationId, sessionId) => {
         const agent = this.store.get(conversationId)?.agent
         const grace = agent ? adapterOf(agent).turns?.stopAfterCancel : undefined
@@ -269,7 +273,9 @@ export class ConversationService {
 
   // The user's model providers, for a conversation started on one; without them none can be.
   private providers: ModelProviderStore | null = null
+  private accounts: Pick<AgentAccountStore, 'launch' | 'activeOf'> | null = null
   setModelProviders(providers: ModelProviderStore): void { this.providers = providers }
+  setAccounts(accounts: Pick<AgentAccountStore, 'launch' | 'activeOf'>): void { this.accounts = accounts }
 
   // What the agent's next stage here runs on (see decideRoute).
   private routeFor(conversation: Pick<Conversation, 'id' | 'modelProvider'>, agent: AgentKind): RouteDecision {
@@ -764,6 +770,17 @@ export class ConversationService {
     return this.start(id, current.agent, '', false, { readable })
   }
 
+  // Stops an agent left idle on another account than its agent's active one, so the next start
+  // resumes its session there: how a usage limit's resume moves to the account switched to. One
+  // at work, or waiting on the user, is left as it is.
+  async leaveSpentAccount(id: string): Promise<void> {
+    const current = this.get(id)
+    const stage = this.store.latestStage(id, current.agent)
+    if (!this.accounts || !stage?.account || stage.route || stage.account === this.accounts.activeOf(current.agent)) return
+    if (!current.sessionId || this.launching.has(id) || !this.chats.idle(id)) return
+    await this.stop(id)
+  }
+
   async handoff(id: string, agent: AgentKind, note: string, stopRunning: boolean, allowBypass?: boolean, choice: HandoffChoice = {}): Promise<Conversation> {
     this.writable(id)
     const current = this.free(id)
@@ -889,7 +906,7 @@ export class ConversationService {
     // of the new conversation that has ended, with the messages those turns recorded.
     for (const stage of stages.slice(0, index + 1)) {
       const copyId = randomUUID()
-      this.store.startStage(id, stage.agent, null, 0, copyId, stage.planOnly ?? false, stage.route ?? null)
+      this.store.startStage(id, stage.agent, null, 0, copyId, stage.planOnly ?? false, stage.route ?? null, stage.account ?? null)
       const { records } = ChatLog.of(this.sessionsRoot, sourceId, stage.id).read()
       const last = stage.id === cutStage.id ? kept.at(-1) : undefined
       const cutAt = stage.id === cutStage.id ? (before ? before.at : last?.at ?? 0) : Infinity
@@ -989,10 +1006,11 @@ export class ConversationService {
       await writeFile(handoffPath, buildHandoff(current, messages, note, current.agent, agent), { mode: 0o600 })
     }
     if (launch.brief) handoffPath = launch.brief
+    const account = route ? null : await this.accounts?.launch(agent) ?? null
     const stageId = randomUUID()
-    const stage = this.store.startStage(id, agent, providerSessionId, this.store.maxSequence(id), stageId, launch.planOnly ?? false, route)
+    const stage = this.store.startStage(id, agent, providerSessionId, this.store.maxSequence(id), stageId, launch.planOnly ?? false, route, account?.id ?? null)
     const provider = decision.kind === 'provider' ? providerLaunch(decision.route, decision.apiKey) : undefined
-    return { ...await this.startChat(current, stage, saved !== null, handoffPath === null ? null : { path: handoffPath, note }, launch.readable ?? [], null, provider), starting: false }
+    return { ...await this.startChat(current, stage, saved !== null, handoffPath === null ? null : { path: handoffPath, note }, launch.readable ?? [], null, provider, account), starting: false }
   }
 
   // The first stage of a fork: the source's session taken over through the fork point, where the
@@ -1016,9 +1034,10 @@ export class ConversationService {
       handoffPath = path.join(directory, `${randomUUID()}.md`)
       await writeFile(handoffPath, buildHandoff(current, messages, '', agent, agent), { mode: 0o600 })
     }
-    const stage = this.store.startStage(current.id, agent, providerSessionId, this.store.maxSequence(current.id), randomUUID(), false, route)
+    const account = route ? null : await this.accounts?.launch(agent) ?? null
+    const stage = this.store.startStage(current.id, agent, providerSessionId, this.store.maxSequence(current.id), randomUUID(), false, route, account?.id ?? null)
     const provider = decision.kind === 'provider' ? providerLaunch(decision.route, decision.apiKey) : undefined
-    return this.startChat(current, stage, native, handoffPath === null ? null : { path: handoffPath, note: '' }, [], whole ? WHOLE_SESSION_FORK : native ? fork.at : null, provider)
+    return this.startChat(current, stage, native, handoffPath === null ? null : { path: handoffPath, note: '' }, [], whole ? WHOLE_SESSION_FORK : native ? fork.at : null, provider, account)
   }
 
   // Runs the stage's agent over stdio, driven by the chat host, and waits until it can take a message.
@@ -1031,7 +1050,9 @@ export class ConversationService {
     readable: readonly string[],
     forkAt: string | null = null,
     // The model provider the stage runs on, with its key; the stage's route says which.
-    provider?: ProviderLaunch
+    provider?: ProviderLaunch,
+    // The agent account it runs on otherwise; the stage's account says which.
+    account?: AccountLaunch | null
   ): Promise<Conversation> {
     const { id } = current
     const { agent } = stage
@@ -1063,7 +1084,8 @@ export class ConversationService {
       todos: this.userTodos && !current.discussionId,
       ...(knowledgeBase ? { knowledgeBase } : {}),
       ...(skills ? { skills } : {}),
-      ...(provider ? { provider } : {})
+      ...(provider ? { provider } : {}),
+      ...(account?.env ? { account: { id: account.id, env: account.env } } : {})
     })
     let sessionId: string
     try {
@@ -1252,17 +1274,23 @@ export class ConversationService {
     if (known) return known
     const found = this.catalogFromStages(agent)
     const adapter = adapterOf(agent)
-    const catalog = found ? Promise.resolve(found) : adapter.catalog ? adapter.catalog(this.sessionsRoot).catch(() => null) : probeChatCatalog(
-      adapter.createDriver('catalog', { cwd: this.sessionsRoot, extraDirs: [], resume: null }),
-      chatCommand(agent, null, false, null),
-      this.sessionsRoot
-    )
+    const catalog = found ? Promise.resolve(found) : adapter.catalog ? adapter.catalog(this.sessionsRoot).catch(() => null) : this.probeCatalog(agent)
     this.catalogs.set(agent, catalog)
     // A probe that failed is tried again next time rather than remembered.
     void catalog.then((result) => {
       if (!result && this.catalogs.get(agent) === catalog) this.catalogs.delete(agent)
     })
     return catalog
+  }
+
+  // On the agent's active account: the user's own may not be signed in.
+  private async probeCatalog(agent: AgentKind): Promise<ChatCatalog | null> {
+    const account = await this.accounts?.launch(agent).catch(() => null)
+    return probeChatCatalog(
+      adapterOf(agent).createDriver('catalog', { cwd: this.sessionsRoot, extraDirs: [], resume: null }),
+      chatCommand(agent, null, false, null, [], account?.env ? { account: { id: account.id, env: account.env } } : {}),
+      this.sessionsRoot
+    )
   }
 
   private catalogFromStages(agent: AgentKind): ChatCatalog | null {

@@ -7,6 +7,7 @@ import { z } from 'zod'
 import type { ResetCredit, ResetCredits, UsageWindow } from '@antumi/protocol'
 import { planLaunch } from '@antumi/protocol/node'
 import { fetchUsageJson, parseJson, type UsageReading, type UsageReport } from '../../usage-source'
+import { claudeDefaultHome, claudeKeychainService } from './claude-account'
 
 // The same endpoint Claude Code's /usage reads; it only accepts the OAuth token of a Claude subscription.
 // `cedar_ember` is Claude Code's name for the usage-limit resets promotion; asking adds its state.
@@ -16,7 +17,6 @@ const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage?cedar_ember=1'
 const FALLBACK_CLI_VERSION = '2.1.0'
 const VERSION_TIMEOUT_MS = 5_000
 const VERSION_TTL_MS = 60 * 60_000
-const KEYCHAIN_SERVICE = 'Claude Code-credentials'
 const KEYCHAIN_TIMEOUT_MS = 5_000
 const SESSION_MINUTES = 300
 const WEEK_MINUTES = 10_080
@@ -62,22 +62,29 @@ const CLEARS: Record<string, UsageWindow['kind']> = { five_hour: 'session', seve
 
 const execFileAsync = promisify(execFile)
 
-// macOS keeps Claude Code's OAuth credentials in the login keychain; other platforms use a file.
-async function readCredentials(): Promise<string | null> {
-  if (process.platform === 'darwin') {
-    try {
-      const { stdout } = await execFileAsync('security', ['find-generic-password', '-s', KEYCHAIN_SERVICE, '-w'], {
-        timeout: KEYCHAIN_TIMEOUT_MS
-      })
-      if (stdout.trim()) {
-        return stdout.trim()
-      }
-    } catch {
-      // No keychain item: fall back to the file, which Claude Code also honors on macOS.
-    }
+async function keychainItem(service: string, account: string | null): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('security', ['find-generic-password', ...(account ? ['-a', account] : []), '-s', service, '-w'], { timeout: KEYCHAIN_TIMEOUT_MS })
+    return stdout.trim() || null
+  } catch {
+    return null
   }
-  const configDir = process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), '.claude')
-  return readFile(path.join(configDir, '.credentials.json'), 'utf8').catch(() => null)
+}
+
+// macOS keeps Claude Code's OAuth credentials in the login keychain; other platforms use a file.
+// home: an account's own folder; without one, the user's. An account's item is asked for under the
+// user's name first, as Claude Code writes it, since another item of that service may hold
+// something else.
+async function readCredentials(home?: string): Promise<string | null> {
+  if (process.platform === 'darwin') {
+    // The user's own folder named by CLAUDE_CONFIG_DIR is keyed by that text too.
+    const named = home ?? (process.env.CLAUDE_CONFIG_DIR || undefined)
+    const service = claudeKeychainService(named)
+    const found = (named ? await keychainItem(service, os.userInfo().username) : null) ?? await keychainItem(service, null)
+    // None: the file, which Claude Code also honors on macOS.
+    if (found) return found
+  }
+  return readFile(path.join(home ?? claudeDefaultHome(), '.credentials.json'), 'utf8').catch(() => null)
 }
 
 // Seconds or milliseconds since the epoch, or an ISO string.
@@ -262,12 +269,12 @@ async function claudeCliVersion(): Promise<string> {
 }
 
 // Whether Claude Code has an account here, without asking the service anything.
-export async function hasClaudeCredentials(): Promise<boolean> {
-  return Credentials.safeParse(parseJson(await readCredentials())).success
+export async function hasClaudeCredentials(home?: string): Promise<boolean> {
+  return Credentials.safeParse(parseJson(await readCredentials(home))).success
 }
 
-export async function readClaudeUsage(): Promise<UsageReading> {
-  const credentials = Credentials.safeParse(parseJson(await readCredentials()))
+export async function readClaudeUsage(home?: string): Promise<UsageReading> {
+  const credentials = Credentials.safeParse(parseJson(await readCredentials(home)))
   if (!credentials.success) {
     return { signedIn: false }
   }

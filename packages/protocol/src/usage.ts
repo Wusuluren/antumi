@@ -75,6 +75,8 @@ export type GlobalResets = z.infer<typeof GlobalResets>
 
 export const AgentUsage = z.object({
   agent: AgentKind,
+  // The account it is of (AgentAccount.id); older cores leave it out, for the default account.
+  account: z.string().optional(),
   status: UsageStatus,
   windows: z.array(UsageWindow),
   plan: z.string().nullable(),

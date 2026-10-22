@@ -660,6 +660,15 @@ export function PlugIcon() {
   )
 }
 
+export function PersonIcon() {
+  return (
+    <svg {...stroked}>
+      <circle cx="10" cy="6.8" r="3" />
+      <path d="M4.5 16.5a5.5 5.5 0 0 1 11 0" />
+    </svg>
+  )
+}
+
 export function LockIcon() {
   return (
     <svg {...stroked}>

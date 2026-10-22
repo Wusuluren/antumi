@@ -1,9 +1,9 @@
-import os from 'node:os'
 import path from 'node:path'
 import { CODEX_IMAGE_VIEW, CONTEXT_COMPACTED } from '@antumi/protocol'
 import { z } from 'zod'
 import { clip, type ChatItemBody } from '../../chat-items'
 import { findFiles, parseLine, readHead, readLines, SummaryCache, timeOf, titleOf, type Transcript, type TranscriptEntry, type TranscriptMessage, type TranscriptSource, type TranscriptSummary } from '../../agent-transcripts'
+import { codexDefaultHome } from './codex-account'
 import { CODEX_CLIENT_NAME, commandDescription, diffOf, unwrapShell } from './codex-app-server'
 
 // Codex keeps each thread in sessions/YYYY/MM/DD/rollout-<time>-<thread id>.jsonl, older ones
@@ -266,10 +266,6 @@ export function codexTranscript(texts: readonly string[]): Transcript {
   return { entries: entries.sort((a, b) => a.at - b.at), messages: messages.sort((a, b) => a.at - b.at) }
 }
 
-export function codexHome(env: NodeJS.ProcessEnv = process.env): string {
-  return env.CODEX_HOME || path.join(os.homedir(), '.codex')
-}
-
 // The names Codex gave its threads, kept apart from the rollouts and written once it has one.
 async function threadNames(home: string): Promise<Map<string, string>> {
   const names = new Map<string, string>()
@@ -282,7 +278,7 @@ async function threadNames(home: string): Promise<Map<string, string>> {
   return names
 }
 
-export function codexTranscripts(home: () => string = () => codexHome()): TranscriptSource {
+export function codexTranscripts(home: () => string = () => codexDefaultHome()): TranscriptSource {
   const cache = new SummaryCache()
   return {
     scan: async () => {

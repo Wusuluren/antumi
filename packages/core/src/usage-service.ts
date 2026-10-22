@@ -1,4 +1,4 @@
-import { AGENT_KINDS, agentDescriptor, usageReadable, type AgentKind, type AgentUsage, type GlobalResets, type ResetCreditOutcome, type UsageWindow } from '@antumi/protocol'
+import { AGENT_KINDS, DEFAULT_ACCOUNT, agentDescriptor, usageAccount, usageReadable, type AgentKind, type AgentUsage, type GlobalResets, type ResetCreditOutcome, type UsageWindow } from '@antumi/protocol'
 import { UsageFetchError, type ResetCreditUse, type UsageReport, type UsageSource } from './usage-source'
 
 const POLL_MS = 15 * 60_000
@@ -15,8 +15,17 @@ export function readableUsage(kinds: Set<string>, named: readonly string[] | und
   return list.filter((entry) => usageReadable(kinds, entry))
 }
 
+// An account whose usage is read: its folder, or undefined for the user's own.
+export type UsageAccount = { agent: AgentKind; id: string; home: string | undefined }
+
+const keyOf = (agent: AgentKind, account: string) => `${agent}/${account}`
+
+// The user's own account of each agent read: what there is without accounts.
+const ownAccounts = (): UsageAccount[] => AGENT_KINDS.map((agent) => ({ agent, id: DEFAULT_ACCOUNT, home: undefined }))
+
+// Each account's usage, by agent and account.
 export class UsageService {
-  private readonly usage = new Map<AgentKind, AgentUsage>()
+  private readonly usage = new Map<string, AgentUsage>()
   // What the reset tracker says, kept apart: it arrives on its own schedule, and rides each reading.
   private readonly globals = new Map<AgentKind, GlobalResets>()
   private manualRefresh: () => void = () => {}
@@ -28,7 +37,8 @@ export class UsageService {
     private readonly sources: Partial<Record<AgentKind, UsageSource>>,
     private readonly emit: (usage: AgentUsage) => void,
     private readonly now: () => number = Date.now,
-    private readonly resets: Partial<Record<AgentKind, ResetCreditUse>> = {}
+    private readonly resets: Partial<Record<AgentKind, ResetCreditUse>> = {},
+    private readonly accounts: () => UsageAccount[] = ownAccounts
   ) {}
 
   list(): AgentUsage[] {
@@ -59,11 +69,11 @@ export class UsageService {
   setGlobalResets(agent: AgentKind, resets: GlobalResets | null): void {
     if (resets) this.globals.set(agent, resets)
     else if (!this.globals.delete(agent)) return
-    const current = this.usage.get(agent)
-    if (!current) return
-    const next = { ...current, globalResets: resets }
-    this.usage.set(agent, next)
-    this.emit(next)
+    for (const current of this.list().filter((usage) => usage.agent === agent)) {
+      const next = { ...current, globalResets: resets }
+      this.usage.set(keyOf(agent, usageAccount(current)), next)
+      this.emit(next)
+    }
   }
 
   // A call within MIN_REFRESH_MS of the previous one answers with the numbers already held.
@@ -75,7 +85,11 @@ export class UsageService {
       return Promise.resolve(this.list())
     }
     this.lastRefresh = this.now()
-    this.inFlight = Promise.all(AGENT_KINDS.filter((agent) => this.sources[agent]).map((agent) => this.refreshAgent(agent))).finally(() => {
+    const accounts = this.accounts().filter((account) => this.sources[account.agent])
+    // An account no longer kept is no longer shown.
+    const kept = new Set(accounts.map((account) => keyOf(account.agent, account.id)))
+    for (const key of [...this.usage.keys()]) if (!kept.has(key)) this.usage.delete(key)
+    this.inFlight = Promise.all(accounts.map((account) => this.refreshAccount(account))).finally(() => {
       this.inFlight = null
     })
     return this.inFlight
@@ -83,13 +97,15 @@ export class UsageService {
 
   // Spends one of the agent's resets, then reads its usage again at once, rate limit or not: what
   // was cleared and what is left are the point. A refresh already under way read from before.
-  async useResetCredit(agent: AgentKind, requestId: string, creditId?: string): Promise<ResetCreditOutcome> {
+  async useResetCredit(agent: AgentKind, requestId: string, creditId?: string, account = DEFAULT_ACCOUNT): Promise<ResetCreditOutcome> {
     const use = this.resets[agent]
+    const target = this.accounts().find((each) => each.agent === agent && each.id === account)
+    if (!target) throw new Error('没有这个账号')
     if (!use) {
       throw new Error(`${agentDescriptor(agent).label} 的重置卡只能在它自己的应用里使用`)
     }
     try {
-      return await use(requestId, creditId)
+      return await use(requestId, creditId, target.home)
     } catch (error) {
       if (error instanceof UsageFetchError) {
         throw new Error(
@@ -101,15 +117,25 @@ export class UsageService {
       throw error
     } finally {
       await this.inFlight
-      await this.refreshAgent(agent)
+      await this.refreshAccount(target)
     }
+  }
+
+  // Reads one account now, whatever was read lately: it was just signed in.
+  async readAccount(agent: AgentKind, id: string): Promise<void> {
+    const account = this.accounts().find((each) => each.agent === agent && each.id === id)
+    if (account && this.sources[agent]) await this.refreshAccount(account)
+  }
+
+  forget(agent: AgentKind, id: string): void {
+    this.usage.delete(keyOf(agent, id))
   }
 
   // A running agent's own word on its limits. Only the windows it names change; until a poll has
   // signed the agent in, the report is all there is to show. One older than the reading held, as a
   // stage replayed from its log reports what was true then, changes nothing and asks for nothing.
-  report(agent: AgentKind, report: UsageReport): void {
-    const previous = this.usage.get(agent)
+  report(agent: AgentKind, account: string, report: UsageReport): void {
+    const previous = this.usage.get(keyOf(agent, account))
     if (previous && report.at < previous.updatedAt) {
       return
     }
@@ -117,6 +143,7 @@ export class UsageService {
       const named = (window: UsageWindow) => report.windows.some((each) => each.kind === window.kind && each.model === window.model)
       const next: AgentUsage = {
         agent,
+        account,
         status: 'ok',
         windows: [...(previous?.windows ?? []).filter((window) => !named(window)), ...report.windows],
         plan: report.plan ?? previous?.plan ?? null,
@@ -125,7 +152,7 @@ export class UsageService {
         resetCredits: previous?.resetCredits ?? null,
         globalResets: this.globals.get(agent) ?? null
       }
-      this.usage.set(agent, next)
+      this.usage.set(keyOf(agent, account), next)
       this.emit(next)
     }
     if (report.refresh) {
@@ -133,21 +160,22 @@ export class UsageService {
     }
   }
 
-  private async refreshAgent(agent: AgentKind): Promise<AgentUsage> {
-    const next = { ...(await this.read(agent)), globalResets: this.globals.get(agent) ?? null }
-    this.usage.set(agent, next)
+  private async refreshAccount(account: UsageAccount): Promise<AgentUsage> {
+    const next = { ...(await this.read(account)), globalResets: this.globals.get(account.agent) ?? null }
+    this.usage.set(keyOf(account.agent, account.id), next)
     this.emit(next)
     return next
   }
 
-  private async read(agent: AgentKind): Promise<AgentUsage> {
+  private async read({ agent, id: account, home }: UsageAccount): Promise<AgentUsage> {
     try {
       const source = this.sources[agent]
       if (!source) throw new Error(`no usage source for ${agent}`)
-      const reading = await source()
+      const reading = await source(home)
       return reading.signedIn
         ? {
             agent,
+            account,
             status: 'ok',
             windows: reading.windows,
             plan: reading.plan,
@@ -155,12 +183,13 @@ export class UsageService {
             updatedAt: this.now(),
             resetCredits: reading.resetCredits ? { ...reading.resetCredits, usable: this.resets[agent] !== undefined } : null
           }
-        : { agent, status: 'signed-out', windows: [], plan: null, error: null, updatedAt: this.now(), resetCredits: null }
+        : { agent, account, status: 'signed-out', windows: [], plan: null, error: null, updatedAt: this.now(), resetCredits: null }
     } catch (error) {
       console.error(`[antumi-core] ${agent} usage refresh failed:`, error instanceof Error ? error.message : error)
-      const previous = this.usage.get(agent)
+      const previous = this.usage.get(keyOf(agent, account))
       return {
         agent,
+        account,
         status: 'error',
         windows: previous?.windows ?? [],
         plan: previous?.plan ?? null,

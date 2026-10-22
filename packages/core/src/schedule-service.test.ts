@@ -425,6 +425,36 @@ describe('ScheduleService', () => {
       expect(continues(id)).toHaveLength(1)
     })
 
+    it('moves to another account with quota and goes on at once there, resuming the same session', async () => {
+      let active = 'default'
+      conversations.setAccounts({
+        activeOf: () => active,
+        launch: async () => ({ id: active, env: active === 'default' ? null : { CLAUDE_CONFIG_DIR: `/accounts/${active}` } })
+      })
+      limits = new UsageLimitResumes(schedules, conversations, { list: () => usage }, (_conversationId, items) => emitted.push(...items), () => clock,
+        (_agent, spent) => (spent === active ? (active = 'work') : active))
+      const { id, item } = await limitedChat(clock + HOUR)
+      const session = conversations.stages(id).at(-1)?.providerSessionId
+      expect(schedules.list()[0]).toMatchObject({ target: { kind: 'resume', switchedTo: 'work' }, notBefore: null })
+      expect(statusOf(item)).toMatchObject({ switchedTo: 'work' })
+      await due()
+      expect(continues(id)).toHaveLength(1)
+      const stage = conversations.stages(id).at(-1)
+      expect(stage).toMatchObject({ account: 'work', providerSessionId: session })
+      expect(daemon.spawns.at(-1)?.env).toMatchObject({ CLAUDE_CONFIG_DIR: '/accounts/work' })
+      expect(daemon.spawns.at(-1)?.args).toEqual(expect.arrayContaining(['--resume', session]))
+      expect(statusOf(item)?.status).toBe('continued')
+    })
+
+    it('waits for the reset as before when no other account has quota', async () => {
+      conversations.setAccounts({ activeOf: () => 'default', launch: async () => ({ id: 'default', env: null }) })
+      limits = new UsageLimitResumes(schedules, conversations, { list: () => usage }, (_conversationId, items) => emitted.push(...items), () => clock, () => null)
+      const resetsAt = clock + HOUR
+      await limitedChat(resetsAt)
+      expect(schedules.list()[0]).toMatchObject({ target: { kind: 'resume' }, notBefore: resetsAt + 5_000 })
+      expect(schedules.list()[0]?.target).not.toHaveProperty('switchedTo')
+    })
+
     it('goes on in a new stage when the agent was released meanwhile, resuming its session', async () => {
       const { id, item } = await limitedChat()
       await conversations.releaseIdle(Date.now() + 31 * 60_000)

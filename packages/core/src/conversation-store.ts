@@ -16,7 +16,7 @@ const SELECT = `SELECT id, title, title_locked AS titleLocked, agent, workspace_
   FROM conversations`
 const STAGE_SELECT = `SELECT id, conversation_id AS conversationId, agent, provider_session_id AS providerSessionId,
   session_id AS sessionId, received_sequence AS receivedSequence, started_at AS startedAt,
-  ended_at AS endedAt, exit_code AS exitCode, plan_only AS planOnly, provider_route AS route FROM conversation_stages`
+  ended_at AS endedAt, exit_code AS exitCode, plan_only AS planOnly, provider_route AS route, account FROM conversation_stages`
 const MESSAGE_SELECT = `SELECT sequence, conversation_id AS conversationId, stage_id AS stageId,
   role, agent, text, event_key AS eventKey, complete, created_at AS createdAt FROM conversation_messages`
 
@@ -268,10 +268,10 @@ export class ConversationStore {
     return row ? stage(row) : null
   }
 
-  startStage(conversationId: string, agent: AgentKind, providerSessionId: string | null, receivedSequence: number, id = randomUUID(), planOnly = false, route: ProviderRoute | null = null): ConversationStage {
+  startStage(conversationId: string, agent: AgentKind, providerSessionId: string | null, receivedSequence: number, id = randomUUID(), planOnly = false, route: ProviderRoute | null = null, account: string | null = null): ConversationStage {
     this.db.prepare(`INSERT INTO conversation_stages
-      (id, conversation_id, agent, provider_session_id, received_sequence, started_at, plan_only, provider_route)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(id, conversationId, agent, providerSessionId, receivedSequence, this.now(), Number(planOnly), route ? JSON.stringify(route) : null)
+      (id, conversation_id, agent, provider_session_id, received_sequence, started_at, plan_only, provider_route, account)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, conversationId, agent, providerSessionId, receivedSequence, this.now(), Number(planOnly), route ? JSON.stringify(route) : null, account)
     return this.stage(id)!
   }
 

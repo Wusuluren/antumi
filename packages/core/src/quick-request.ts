@@ -31,6 +31,8 @@ export type QuickDeps = {
   // How a request reaches a model provider.
   fetch?: typeof fetch
   accounting?: SmallModelStore
+  // The variables pointing the agent at its active account, where that is not the user's own.
+  accountEnv?(agent: AgentKind): Promise<Record<string, string> | null>
 }
 
 // Small jobs for an agent, such as translating a reply or writing a commit message: one request with
@@ -77,7 +79,8 @@ export class QuickRequests {
     let job: string | undefined
     try {
       const outputFile = path.join(dir, 'answer.md')
-      const command = await quick.command(prompt, model, outputFile)
+      const env = await this.deps.accountEnv?.(agent)
+      const command = { ...await quick.command(prompt, model, outputFile), ...(env ? { env } : {}) }
       if (tracking && accounting) job = accounting.begin({ kind: tracking.kind, agent, model, conversationId: tracking.conversationId, baseline: tracking.baseline() })
       const output = await (this.deps.run ?? runQuick)(command, dir)
       const printed = typeof output === 'string' ? output : output.stdout
@@ -113,7 +116,7 @@ function runQuick(command: QuickCommand, cwd: string): Promise<QuickOutput> {
   return new Promise((resolve, reject) => {
     let launch
     try {
-      launch = planLaunch(command.command, command.args, cwd, process.env)
+      launch = planLaunch(command.command, command.args, cwd, { ...process.env, ...command.env })
     } catch (error) {
       return reject(new Rejection('quick-failed', error instanceof Error ? error.message : String(error)))
     }

@@ -332,7 +332,9 @@ export const MIGRATIONS = [
      conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
      imported_through INTEGER NOT NULL, source_modified_at INTEGER NOT NULL,
      PRIMARY KEY (agent, provider_session_id)
-   );`
+   );`,
+  // The agent account a stage ran on (AgentAccount.id); null on a provider, or for an agent without accounts.
+  `ALTER TABLE conversation_stages ADD COLUMN account TEXT;`
 ]
 
 

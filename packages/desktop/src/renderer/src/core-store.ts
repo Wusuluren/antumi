@@ -1,5 +1,5 @@
 import { getLocale, t } from './i18n'
-import { isHelper } from '@antumi/protocol'
+import { accountsSupported, activeAccount, isHelper, usageAccount, type AgentAccounts } from '@antumi/protocol'
 import { useEffect, useMemo, useState } from 'react'
 import { create } from 'zustand'
 import {
@@ -168,8 +168,12 @@ export type CoreState = {
   // What is scheduled to start later, open ones first in the order they go; empty from a core without.
   schedules: ScheduledRun[]
   error: string | null
-  // null until core answers usage.list; an older core without it leaves it null.
+  // null until core answers usage.list; an older core without it leaves it null. Each agent's
+  // active account's reading; accountUsage holds every account's.
   usage: Partial<Record<AgentKind, AgentUsage>> | null
+  accountUsage: AgentUsage[]
+  // The agents' accounts (Settings → 账号), on a core that keeps them.
+  accounts: AgentAccounts | null
   // The agent whose usage card to open, asked from outside the status bar (a quota notification);
   // the status bar clears it once open.
   usageCardAgent: AgentKind | null
@@ -262,6 +266,8 @@ export const useCore = create<CoreState>()(() => ({
   routines: [],
   error: null,
   usage: null,
+  accountUsage: [],
+  accounts: null,
   usageCardAgent: null,
   sources: null,
   inboxes: {},
@@ -865,25 +871,67 @@ export async function refreshAttentionSummaries(): Promise<void> {
   }
 }
 
-function byAgent(usage: AgentUsage[]): Partial<Record<AgentKind, AgentUsage>> {
-  return Object.fromEntries(usage.map((entry) => [entry.agent, entry]))
+// Each agent's reading as what runs next spends it: its active account's.
+function byAgent(usage: AgentUsage[], accounts: AgentAccounts | null): Partial<Record<AgentKind, AgentUsage>> {
+  return Object.fromEntries(usage.filter((entry) => usageAccount(entry) === activeAccount(accounts, entry.agent)).map((entry) => [entry.agent, entry]))
+}
+
+function withUsage(list: AgentUsage[], accounts: AgentAccounts | null): Pick<CoreState, 'usage' | 'accountUsage'> {
+  return { accountUsage: list, usage: byAgent(list, accounts) }
 }
 
 export async function refreshUsage(): Promise<void> {
   const usage = await perform((rpc) => rpc.call('usage.refresh', { windowKinds: [...USAGE_WINDOW_KINDS] }))
   if (usage) {
-    useCore.setState({ usage: byAgent(usage) })
+    useCore.setState((s) => withUsage(usage, s.accounts))
   }
+}
+
+// Signs in to a new account in the terminal panel, which opens on it.
+export async function addAccount(agent: AgentKind, label: string | null): Promise<void> {
+  const added = await perform((rpc) => rpc.call('accounts.add', { agent, label }))
+  if (added) showTerminalOf(added.terminal)
+}
+
+export async function signInAccount(agent: AgentKind, id: string): Promise<void> {
+  const terminal = await perform((rpc) => rpc.call('accounts.login', { agent, id }))
+  if (terminal) showTerminalOf(terminal)
+}
+
+export async function renameAccount(agent: AgentKind, id: string, label: string | null): Promise<void> {
+  await perform((rpc) => rpc.call('accounts.rename', { agent, id, label }))
+}
+
+export async function removeAccount(agent: AgentKind, id: string): Promise<void> {
+  await perform((rpc) => rpc.call('accounts.remove', { agent, id }))
+}
+
+export async function activateAccount(agent: AgentKind, id: string): Promise<void> {
+  const accounts = await perform((rpc) => rpc.call('accounts.activate', { agent, id }))
+  if (accounts) useCore.setState((s) => ({ accounts, ...withUsage(s.accountUsage, accounts) }))
+}
+
+export async function setAccountAutoSwitch(autoSwitch: boolean): Promise<void> {
+  const accounts = await perform((rpc) => rpc.call('accounts.setAutoSwitch', { autoSwitch }))
+  if (accounts) useCore.setState((s) => ({ accounts, ...withUsage(s.accountUsage, accounts) }))
+}
+
+function showTerminalOf(terminal: Terminal): void {
+  useCore.setState((s) => ({
+    terminals: s.terminals.some((each) => each.id === terminal.id) ? s.terminals : [...s.terminals, terminal],
+    activeTerminalId: terminal.id,
+    ...shownUtilityPanel(s, 'terminal')
+  }))
 }
 
 // Fails with core's own words, for the usage card to show beside the button pressed; the usage it
 // reads again afterwards comes in as usage.changed.
-export async function spendResetCredit(agent: AgentKind, requestId: string, creditId?: string): Promise<ResetCreditOutcome> {
+export async function spendResetCredit(agent: AgentKind, requestId: string, creditId?: string, account?: string): Promise<ResetCreditOutcome> {
   const { rpc } = useCore.getState()
   if (!rpc) {
     throw new Error(t('coreStore.notConnectedToAntumiCore'))
   }
-  return (await rpc.call('usage.useResetCredit', { agent, requestId, creditId })).outcome
+  return (await rpc.call('usage.useResetCredit', { agent, requestId, creditId, ...(account ? { account } : {}) })).outcome
 }
 
 function patchLogin(flowId: string, patch: (login: LoginState) => Partial<LoginState>): void {
@@ -1012,6 +1060,10 @@ export function useProjectConfigEditSupported(): boolean {
 
 export function useSkillsSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('skills-library') ?? false)
+}
+
+export function useAccountsSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('agent-accounts') ?? false)
 }
 
 export function useModelProvidersSupported(): boolean {
@@ -1211,8 +1263,13 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         rpc.on('system.environmentChanged', ({ environment }) => useCore.setState({ environment }))
         rpc.on('browser.tabsChanged', ({ conversationId, tabs }) => receiveBrowserTabs(conversationId, tabs))
         rpc.on('usage.changed', ({ usage }) =>
-          useCore.setState((s) => ({ usage: { ...s.usage, [usage.agent]: usage } }))
+          useCore.setState((s) => withUsage([...s.accountUsage.filter((entry) => entry.agent !== usage.agent || usageAccount(entry) !== usageAccount(usage)), usage], s.accounts))
         )
+        rpc.on('accounts.changed', ({ accounts }) => useCore.setState((s) => ({
+          accounts,
+          // A reading of an account removed goes with it.
+          ...withUsage(s.accountUsage.filter((entry) => !accountsSupported(entry.agent) || accounts.accounts.some((each) => each.agent === entry.agent && each.id === usageAccount(entry))), accounts)
+        })))
         rpc.on('sources.listChanged', ({ sources }) => useCore.setState({ sources }))
         // The last shell exiting puts the panel away, as closing the last tab would.
         rpc.on('terminals.changed', ({ terminals }) =>
@@ -1285,6 +1342,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         if (full && rpc.features.includes('skills-library')) void rpc.call('skills.list', {}).then((skillRepos) => useCore.setState({ skillRepos })).catch(() => {})
         if (full && rpc.features.includes('mcp-servers')) void rpc.call('mcpServers.list', {}).then((mcpServers) => useCore.setState({ mcpServers })).catch(() => {})
         if (full && rpc.features.includes('model-providers')) void rpc.call('modelProviders.list', {}).then((modelProviders) => useCore.setState({ modelProviders })).catch(() => {})
+        const accounts = full && rpc.features.includes('agent-accounts') ? await rpc.call('accounts.list', {}).catch(() => null) : null
         if (full && rpc.features.includes('environment')) void rpc.call('system.environment', {}).then((environment) => useCore.setState({ environment })).catch(() => {})
         useCore.setState((s) => ({
           rpc,
@@ -1299,7 +1357,8 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
           attentionSummaryMode: attentionSummaryMode(rpc),
           attentionSummaryLoading: false,
           attentionSummaryError: summaryError,
-          usage: usage && byAgent(usage),
+          accounts,
+          ...(usage ? withUsage(usage, accounts) : { usage: null, accountUsage: [] }),
           sources,
           inboxes: Object.fromEntries(inboxes.map((inbox) => [inboxKey(inbox), inbox])),
           terminals,

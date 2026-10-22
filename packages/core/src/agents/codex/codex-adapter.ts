@@ -1,6 +1,7 @@
 import { parseCodexQuick } from '../../model-metering'
 import type { AgentAdapter } from '../agent-adapter'
 import { CODEX_MODES, CodexAppServer } from './codex-app-server'
+import { codexAccounts } from './codex-account'
 import { codexCommand } from './codex-command'
 import { codexProviderModels } from './codex-provider'
 import { codexTranscripts } from './codex-transcripts'
@@ -20,6 +21,7 @@ export const codex: AgentAdapter = {
   signedIn: hasCodexCredentials,
   usage: readCodexUsage,
   useResetCredit: useCodexResetCredit,
+  accounts: codexAccounts,
   transcripts: codexTranscripts(),
   // At low effort, read-only, and not kept in its history. Its progress goes to stdout too, so the
   // answer comes from a file.

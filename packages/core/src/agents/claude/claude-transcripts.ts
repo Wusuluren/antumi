@@ -1,9 +1,9 @@
-import os from 'node:os'
 import path from 'node:path'
 import { CONTEXT_COMPACTED } from '@antumi/protocol'
 import { z } from 'zod'
 import { clip, type ChatItemBody } from '../../chat-items'
 import { findFiles, parseLine, readHead, readLines, SummaryCache, timeOf, titleOf, type Transcript, type TranscriptEntry, type TranscriptMessage, type TranscriptSource, type TranscriptSummary } from '../../agent-transcripts'
+import { claudeDefaultHome } from './claude-account'
 import { COMMAND_TOOLS, describeClaudeTool, HAND_BACK, HIDDEN_TOOLS, inputDiffs, inputText, resultDiffs, toolResult } from './claude-stream'
 
 // Claude Code keeps each session in projects/<its folder, dashed>/<session id>.jsonl, one record
@@ -219,7 +219,7 @@ export function claudeTranscript(texts: readonly string[]): Transcript {
 }
 
 export function claudeProjectsRoot(env: NodeJS.ProcessEnv = process.env): string {
-  return path.join(env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'projects')
+  return path.join(claudeDefaultHome(env), 'projects')
 }
 
 export function claudeTranscripts(root: () => string = () => claudeProjectsRoot()): TranscriptSource {

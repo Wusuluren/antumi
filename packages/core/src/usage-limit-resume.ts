@@ -1,4 +1,4 @@
-import { quotaVerdict, type AgentUsage, type ChatItem, type Conversation, type LimitRef } from '@antumi/protocol'
+import { quotaVerdict, type AgentKind, type AgentUsage, type ChatItem, type Conversation, type LimitRef } from '@antumi/protocol'
 import type { ConversationService } from './conversation-service'
 import { Rejection } from './rejection'
 import { GRACE_MS, ScheduleService, type LimitRun } from './schedule-service'
@@ -19,11 +19,13 @@ export const AUTO_CONTINUE_OFF = 'auto-continue-off'
 export class UsageLimitResumes {
   constructor(
     private readonly schedules: ScheduleService,
-    private readonly conversations: Pick<ConversationService, 'get' | 'chatItem'>,
+    private readonly conversations: Pick<ConversationService, 'get' | 'chatItem' | 'stages'>,
     private readonly usage: { list(): AgentUsage[] },
     // Items with core's plan for them, for the clients watching the conversation.
     private readonly emit: (conversationId: string, items: ChatItem[]) => void,
-    private readonly now: () => number = Date.now
+    private readonly now: () => number = Date.now,
+    // Moves an agent off an account that ran out, to one with quota: the account, or null.
+    private readonly switchAccount: (agent: AgentKind, spent: string) => string | null = () => null
   ) {}
 
   // Limit items as a live stage puts them out. A new one is the conversation's limit now; one a
@@ -33,8 +35,16 @@ export class UsageLimitResumes {
       if (item.kind !== 'usageLimit' || this.now() - item.at >= FRESH_MS || this.schedules.runForLimit(refOf(item))) continue
       const conversation = this.conversation(conversationId)
       if (!conversation) continue
-      this.schedules.createResume(conversationId, refOf(item), item.resetsAt ?? this.resetFromUsage(conversation))
+      const switchedTo = this.switchedTo(conversationId, item)
+      this.schedules.createResume(conversationId, refOf(item), item.resetsAt ?? this.resetFromUsage(conversation), switchedTo ?? undefined)
     }
+  }
+
+  // Where the stage that ran out was on one of its agent's accounts, the account it goes on on.
+  private switchedTo(conversationId: string, item: LimitItem): string | null {
+    const stage = this.conversations.stages(conversationId).find((each) => each.id === item.stageId)
+    if (!stage?.account || stage.route) return null
+    return this.switchAccount(stage.agent, stage.account)
   }
 
   // Limit items with core's plan for them; one core never planned for is shown as settled.
@@ -120,7 +130,8 @@ function refOf(item: LimitItem): LimitRef {
 function withRun(item: LimitItem, run: LimitRun | null): LimitItem {
   if (!run) return { ...item, autoContinue: false, status: 'cancelled', continueAt: null, continuedAt: null, error: null, runId: null }
   const resetsAt = run.resetsAt ?? item.resetsAt
-  const base = { ...item, resetsAt, runId: run.id, continuedAt: null, continueAt: null }
+  const switchedTo = run.target.kind === 'resume' ? run.target.switchedTo ?? null : null
+  const base = { ...item, resetsAt, runId: run.id, continuedAt: null, continueAt: null, switchedTo }
   switch (run.status) {
     case 'waiting': {
       const planned = Math.max(run.notBefore ?? 0, run.checkAt ?? 0)

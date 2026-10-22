@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { AGENT_KINDS, agentDescriptor, PROTOCOL_VERSION, usageReadable, type AgentKind, type ChatItem } from '@antumi/protocol'
+import { AGENT_KINDS, agentDescriptor, PROTOCOL_VERSION, quotaVerdict, usageAccount, usageReadable, type AgentKind, type AgentUsage, type ChatItem } from '@antumi/protocol'
 import packageJson from '../package.json' with { type: 'json' }
 import { removeCoreEndpoint, antumiPaths, writeCoreEndpoint } from '@antumi/protocol/node'
 import { adapterOf } from './agents'
@@ -55,6 +55,7 @@ import { ResetAnnouncements } from './reset-announcements'
 import { SkillsLibrary } from './skills-library'
 import { McpServerStore } from './mcp-servers'
 import { ModelProviderStore } from './model-providers'
+import { AgentAccountStore } from './agent-accounts'
 import { knowledgeBaseSkills } from './skills-recommended'
 import { WireLog } from './wire-log'
 import { timestampConsole } from './log-timestamps'
@@ -138,7 +139,7 @@ const conversations = new ConversationService(
     } else if (event.type === 'planApproved') {
       service.recordPlan(event.taskId, event.plan)
     } else if (event.type === 'usage') {
-      usage.report(event.agent, event.report)
+      usage.report(event.agent, event.account, event.report)
     } else {
       const { conversationId, stageId, itemId, append } = event
       watchers(conversationId).forEach((c) => c.notify('conversations.chatDelta', { conversationId, stageId, itemId, append }))
@@ -220,16 +221,35 @@ for (const kind of AGENT_KINDS) {
   const adapter = adapterOf(kind)
   if (adapter.usage) usageSources[kind] = adapter.usage
   if (adapter.useResetCredit) resetCreditUses[kind] = adapter.useResetCredit
-  if (adapter.signedIn) signedIn[kind] = adapter.signedIn
+  const check = adapter.signedIn
+  // The account its next process starts on.
+  if (check) signedIn[kind] = () => check(accounts.home(kind, accounts.activeOf(kind)))
 }
 
-const usage = new UsageService(usageSources, (entry) =>
+const usage = new UsageService(usageSources, (entry) => {
   server?.connections.forEach((connection) => {
     if (usageReadable(connection.usageKinds, entry)) connection.notify('usage.changed', { usage: entry })
-  }),
-  Date.now,
-  resetCreditUses
+  })
+  accounts.notePlan(entry.agent, usageAccount(entry), entry.plan)
+  accounts.observeUsage(usage.list(), Date.now())
+},
+Date.now,
+resetCreditUses,
+() => accounts.homes()
 )
+// Each agent's quota as what runs on it next sees it: its active account's, or, every account
+// being spent, the one that lifts first, which it will move to then.
+const standingUsage = {
+  list: () => AGENT_KINDS.flatMap((agent) => {
+    const readings = usage.list().filter((entry) => entry.agent === agent)
+    const active = readings.find((entry) => usageAccount(entry) === accounts.activeOf(agent))
+    if (!active || !accounts.autoSwitching() || quotaVerdict(active, Date.now()).state !== 'exhausted') return active ? [active] : []
+    const lifts = (entry: AgentUsage) => quotaVerdict(entry, Date.now()).window?.resetsAt ?? Number.POSITIVE_INFINITY
+    const signedIn = new Set(accounts.list().accounts.filter((account) => account.agent === agent && account.signedIn).map((account) => account.id))
+    return [readings.filter((entry) => signedIn.has(usageAccount(entry))).reduce((first, entry) => (lifts(entry) < lifts(first) ? entry : first), active)]
+  }),
+  refresh: async () => { await usage.refresh(); return standingUsage.list() }
+}
 
 const schedules = new ScheduleService(paths.database, {
   tasks: {
@@ -241,7 +261,7 @@ const schedules = new ScheduleService(paths.database, {
     resumeChat: (id, allowBypass) => service.resumeChat(id, allowBypass)
   },
   conversations,
-  usage,
+  usage: standingUsage,
   mode: () => chatSettings.current().unattendedMode,
   emit: (runs) => {
     server?.broadcast('schedules.changed', { runs })
@@ -256,12 +276,12 @@ const schedules = new ScheduleService(paths.database, {
   }
 })
 // Speaks for the scheduler on the usage-limit cards; built after it, called only once runs change.
-const limits = new UsageLimitResumes(schedules, conversations, usage, notifyChatItems)
+const limits = new UsageLimitResumes(schedules, conversations, standingUsage, notifyChatItems, Date.now, (agent, spent) => accounts.switchFrom(agent, spent, usage.list(), Date.now()))
 // Makes the scheduler's runs for what comes due; built after it, called only from its passes.
 const routines = new RoutineService(paths.database, {
   schedules,
   conversations,
-  usage,
+  usage: standingUsage,
   emit: (list) => server?.broadcast('routines.changed', { routines: list })
 })
 
@@ -283,6 +303,18 @@ service.setSquads(squads)
 conversations.setSquadGuard((conversation) => squads.guardMember(conversation))
 
 const terminals = new TerminalService(paths.database, daemon, (list) => server?.broadcast('terminals.changed', { terminals: list }), Date.now, new ShellPrompt(path.join(paths.home, 'shell')))
+const accounts = new AgentAccountStore(paths.agentAccounts, paths.agentAccountHomes, {
+  signIn: (argv, env, title) => terminals.signIn(argv, env, title),
+  waitForExit: (id) => terminals.waitForExit(id),
+  accountChanged: (agent, id, removed) => {
+    if (removed) usage.forget(agent, id)
+    else void usage.readAccount(agent, id)
+    void environment.check(true).catch(() => {})
+  },
+  changed: (list) => server?.broadcast('accounts.changed', { accounts: list })
+})
+await accounts.load()
+conversations.setAccounts(accounts)
 const projectConfigs = new ProjectConfigStore(paths.projectTrust)
 const worktreeSetup = new WorktreeSetup(projectConfigs, terminals)
 service.setWorktreeSetup(worktreeSetup)
@@ -394,7 +426,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home))
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()

@@ -1,5 +1,6 @@
 import { parseClaudeQuick } from '../../model-metering'
 import type { AgentAdapter } from '../agent-adapter'
+import { claudeAccounts } from './claude-account'
 import { claudeCommand } from './claude-command'
 import { claudeProviderModels } from './claude-provider'
 import { CLAUDE_MODE_NAMES, ClaudeStream } from './claude-stream'
@@ -17,6 +18,7 @@ export const claude: AgentAdapter = {
   mcpApproval: 'agent',
   signedIn: hasClaudeCredentials,
   usage: readClaudeUsage,
+  accounts: claudeAccounts,
   transcripts: claudeTranscripts(),
   // Haiku, with no tools, no MCP servers, no skills, and no session left for --resume.
   quick: {
