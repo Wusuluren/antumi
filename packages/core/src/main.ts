@@ -19,6 +19,7 @@ import { PluginService } from './plugin-service'
 import { bundledGitHub } from './bundled-plugin'
 import { jiraProvider } from './jira-provider'
 import { createRpcHandlers } from './rpc-handlers'
+import { SessionImports } from './session-imports'
 import { SquadService } from './squad-service'
 import { SquadStore } from './squad-store'
 import { TodoStore } from './todo-store'
@@ -53,6 +54,7 @@ import { ConversationAutoArchive } from './conversation-auto-archive'
 import { ResetAnnouncements } from './reset-announcements'
 import { SkillsLibrary } from './skills-library'
 import { McpServerStore } from './mcp-servers'
+import { ModelProviderStore } from './model-providers'
 import { knowledgeBaseSkills } from './skills-recommended'
 import { WireLog } from './wire-log'
 import { timestampConsole } from './log-timestamps'
@@ -122,7 +124,8 @@ const conversations = new ConversationService(
       if (helper.helperOf) smallModels.begin({
         id: `${event.stageId}/turn:${event.ref}`, kind: 'helper', agent: helper.agent,
         model: helper.chatOptions?.model ?? null, conversationId: helper.id,
-        baseline: conversations.costBaseline(helper.helperOf)
+        baseline: conversations.costBaseline(helper.helperOf),
+        unpriced: Boolean(conversations.stages(helper.id).find((stage) => stage.id === event.stageId)?.route)
       })
     } else if (event.type === 'chatItems') {
       limits.observe(event.conversationId, event.items)
@@ -231,6 +234,8 @@ const usage = new UsageService(usageSources, (entry) =>
 const schedules = new ScheduleService(paths.database, {
   tasks: {
     get: (id) => store.get(id),
+    autoRuns: () => store.list('pending').filter((task) => task.autoRun),
+    disableAutoRun: (id) => { service.update({ id, autoRun: false }) },
     scheduleBlocker: (id) => service.scheduleBlocker(id),
     start: (id, allowBypass, unattended) => service.start(id, allowBypass, unattended),
     resumeChat: (id, allowBypass) => service.resumeChat(id, allowBypass)
@@ -315,6 +320,9 @@ const skills = new SkillsLibrary(paths.skills, (repos) => server?.broadcast('ski
 await skills.load()
 const mcpServers = new McpServerStore(paths.mcpServers, credentials, (servers) => server?.broadcast('mcpServers.changed', { servers: [...servers] }))
 await mcpServers.load()
+const modelProviders = new ModelProviderStore(paths.modelProviders, credentials, (providers) => server?.broadcast('modelProviders.changed', { providers }))
+await modelProviders.load()
+conversations.setModelProviders(modelProviders)
 // Handed through Antumi's launcher, so no secret is in an agent's command line or Antumi's logs.
 conversations.setUserMcpProvider((agent, readOnly) => agentDescriptor(agent).capabilities.userMcp ? mcpServers.forAgent(agent).map((server) => userMcpServer(paths.home, server, readOnly)) : [])
 // An agent that loads skills gets Obsidian's, where the user turned writing on and has
@@ -386,7 +394,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home))
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()
@@ -417,7 +425,7 @@ async function shutdown(): Promise<void> {
   shuttingDown = true
   usage.stop()
   announcements.stop()
-  schedules.stop()
+  await schedules.stop()
   routines.stop()
   autoArchive.stop()
   await squads.close()

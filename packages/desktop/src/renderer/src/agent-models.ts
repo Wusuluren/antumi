@@ -1,25 +1,27 @@
 import { useEffect, useState } from 'react'
-import type { AgentKind, ChatCatalog, ChatModel } from '@antumi/protocol'
+import type { AgentKind, ChatCatalog, ChatModel, ModelProvider } from '@antumi/protocol'
 import { useCore } from './core-store'
+import { catalogKey } from './model-provider-choice'
 
 // A model and effort picked for an agent to start in; absent is its default.
 export type ModelChoice = { model?: string; effort?: string }
 
-// The models an agent offers, asked of core once per agent while the caller is shown: undefined
-// while the answer is on its way, null when there is none.
-export function useAgentCatalog(agent: AgentKind | null, enabled: boolean): ChatCatalog | null | undefined {
+// The models an agent offers, or a model provider offers it, asked of core once each while the caller
+// is shown: undefined while the answer is on its way, null when there is none.
+export function useAgentCatalog(agent: AgentKind | null, enabled: boolean, provider: ModelProvider | null = null): ChatCatalog | null | undefined {
   const rpc = useCore((s) => s.rpc)
-  const [catalogs, setCatalogs] = useState<Partial<Record<AgentKind, ChatCatalog | null>>>({})
+  const [catalogs, setCatalogs] = useState<Record<string, ChatCatalog | null>>({})
+  const key = agent ? catalogKey(agent, provider) : null
   useEffect(() => {
-    if (!agent || !rpc || !enabled || agent in catalogs) return
+    if (!agent || !key || !rpc || !enabled || key in catalogs) return
     let current = true
     const settle = (catalog: ChatCatalog | null) => {
-      if (current) setCatalogs((known) => ({ ...known, [agent]: catalog }))
+      if (current) setCatalogs((known) => ({ ...known, [key]: catalog }))
     }
-    rpc.call('conversations.chatCatalog', { agent }).then(settle, () => settle(null))
+    rpc.call('conversations.chatCatalog', { agent, ...(provider ? { modelProvider: provider.id } : {}) }).then(settle, () => settle(null))
     return () => { current = false }
-  }, [agent, rpc, enabled, catalogs])
-  return agent ? catalogs[agent] : null
+  }, [agent, key, provider, rpc, enabled, catalogs])
+  return key ? catalogs[key] : null
 }
 
 export type ResolvedModel = {

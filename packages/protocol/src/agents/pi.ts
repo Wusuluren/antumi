@@ -28,7 +28,7 @@ export const pi: AgentDescriptor = {
   defaultStartMode: 'ask',
   discussionMode: 'readOnly',
   readOnlyMode: 'readOnly',
-  capabilities: { unattended: true, bypass: true, autoMode: false, pathMentions: false, optionsWhileBusy: false, skills: true, userMcp: true },
+  capabilities: { unattended: true, bypass: true, autoMode: false, pathMentions: false, optionsWhileBusy: false, skills: true, userMcp: true, modelProviders: [] },
   environment: {
     role: '聊天界面以 `pi --mode rpc` 运行它；没装也可以使用其他 Agent。',
     install: 'npm install -g @earendil-works/pi-coding-agent',

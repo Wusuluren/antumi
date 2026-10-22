@@ -24,6 +24,7 @@ import {
   type SavedChatCommand,
   type SkillRepo,
   type McpServer,
+  type ModelProvider,
   type Conversation,
   type ConversationConfiguration,
   type ComputerAwakeStatus,
@@ -155,6 +156,8 @@ export type CoreState = {
   // empty on a core without them.
   routines: Routine[]
   overviewOpen: boolean
+  // The getting-started guide stands in the overview's place until anything else is opened.
+  guideOpen: boolean
   // What the overview shows: the work now, or the stats of the days before.
   overviewView: OverviewPane
   overviewFilter: OverviewFilter
@@ -193,6 +196,8 @@ export type CoreState = {
   skillRepos: SkillRepo[]
   // The user's MCP servers (Settings → MCP), on a core that keeps them.
   mcpServers: McpServer[]
+  // The user's model providers (Settings → 服务商), on a core that keeps them.
+  modelProviders: ModelProvider[]
   login: LoginState | null
 }
 
@@ -246,6 +251,7 @@ export const useCore = create<CoreState>()(() => ({
   routinesOpen: false,
   routinesTab: 'routines',
   overviewOpen: true,
+  guideOpen: false,
   overviewView: 'now',
   overviewFilter: null,
   overviewScroll: 0,
@@ -272,6 +278,7 @@ export const useCore = create<CoreState>()(() => ({
   chatCommands: [],
   skillRepos: [],
   mcpServers: [],
+  modelProviders: [],
   login: null
 }))
 
@@ -776,12 +783,16 @@ export function useSchedulesOpen(): boolean {
 // The overview has no close of its own: it is what every other page leaves behind when it closes,
 // but a task, which goes back to the task board.
 const OVERVIEW = {
-  overviewOpen: true, section: 'tasks', selectedId: null, selectedConversationId: null, conversationDraft: false, discussionDraft: false,
+  overviewOpen: true, guideOpen: false, section: 'tasks', selectedId: null, selectedConversationId: null, conversationDraft: false, discussionDraft: false,
   squadDraft: false, inboxOpen: false, worktreesOpen: false, routinesOpen: false, settingsOpen: false
 } as const
 
 export function openOverview(): void {
   useCore.setState(OVERVIEW)
+}
+
+export function openGuide(): void {
+  useCore.setState({ ...OVERVIEW, guideOpen: true })
 }
 
 export function useActionableItems(): ActionableItem[] {
@@ -1003,6 +1014,14 @@ export function useSkillsSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('skills-library') ?? false)
 }
 
+export function useModelProvidersSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('model-providers') ?? false)
+}
+
+export function useSessionImportSupported(): boolean {
+  return useCore((s) => s.rpc?.features.includes('session-import') ?? false)
+}
+
 export function useMcpServersSupported(): boolean {
   return useCore((s) => s.rpc?.features.includes('mcp-servers') ?? false)
 }
@@ -1207,6 +1226,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         rpc.on('chatCommands.changed', ({ commands }) => useCore.setState({ chatCommands: commands }))
         rpc.on('skills.changed', ({ repos }) => useCore.setState({ skillRepos: repos }))
         rpc.on('mcpServers.changed', ({ servers }) => useCore.setState({ mcpServers: servers }))
+        rpc.on('modelProviders.changed', ({ providers }) => useCore.setState({ modelProviders: providers }))
         rpc.on('schedules.changed', ({ runs }) => {
           if (!initialized) changedSchedules = runs
           useCore.setState({ schedules: runs })
@@ -1264,6 +1284,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         if (full && rpc.features.includes('chat-commands')) void rpc.call('chatCommands.list', {}).then((chatCommands) => useCore.setState({ chatCommands })).catch(() => {})
         if (full && rpc.features.includes('skills-library')) void rpc.call('skills.list', {}).then((skillRepos) => useCore.setState({ skillRepos })).catch(() => {})
         if (full && rpc.features.includes('mcp-servers')) void rpc.call('mcpServers.list', {}).then((mcpServers) => useCore.setState({ mcpServers })).catch(() => {})
+        if (full && rpc.features.includes('model-providers')) void rpc.call('modelProviders.list', {}).then((modelProviders) => useCore.setState({ modelProviders })).catch(() => {})
         if (full && rpc.features.includes('environment')) void rpc.call('system.environment', {}).then((environment) => useCore.setState({ environment })).catch(() => {})
         useCore.setState((s) => ({
           rpc,

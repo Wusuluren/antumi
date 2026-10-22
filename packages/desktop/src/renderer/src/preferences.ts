@@ -63,6 +63,9 @@ const Preferences = z.object({
   // On, the browser panel appears with the agent's first tab; off, the page's card in the chat
   // offers to open it and the browser works in the background.
   openBrowserOnTab: z.boolean().catch(false),
+  // Set once Antumi has decided whether to show the guide at first launch, so it never comes up
+  // unasked again.
+  guideSeen: z.boolean().catch(false),
   // On, the sidebar is put away and the panes take the whole window.
   sidebarHidden: z.boolean().catch(false),
   // As the user dragged it, before the cap a small window puts on it.
@@ -81,7 +84,9 @@ const Preferences = z.object({
   showAbandonedTasks: z.boolean().catch(false),
   // Creation order preserves the task list's original behavior.
   taskSort: z.enum(TASK_SORTS).catch('created'),
-  conversationGroup: z.enum(CONVERSATION_GROUPS).catch('none'),
+  // How the Git page takes in a remote that rejected a push before pushing again; ask leaves it to the user.
+  gitPushRejectedUpdate: z.enum(['ask', 'merge', 'rebase']).catch('ask'),
+  conversationGroup: z.enum(CONVERSATION_GROUPS).catch('project'),
   // Conversation groups folded in the sidebar, by grouping and group ("project:group:antumi").
   foldedConversationGroups: z.array(z.string()).catch([]),
   conversationSort: z.enum(CONVERSATION_SORTS).catch('recent'),

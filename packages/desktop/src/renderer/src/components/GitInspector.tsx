@@ -1,7 +1,7 @@
 import { getLocale, localized, t, tr } from '../i18n'
 import { useEffect, useRef, useState, type ReactNode, type MouseEvent } from 'react'
-import type { GitAction, GitBranch, GitCommit, GitComparison, GitDetail, GitHistory, GitStatus, GitTarget, ProjectHead } from '@antumi/protocol'
-import { checkGitOperation } from '@antumi/protocol'
+import type { GitAction, GitBranch, GitCommit, GitComparison, GitDetail, GitHistory, GitResult, GitStatus, GitTarget, ProjectHead } from '@antumi/protocol'
+import { checkGitOperation, RpcError, trackedBranch } from '@antumi/protocol'
 import { perform, openTerminal, useCore } from '../core-store'
 import { gitGraph } from '../git-graph'
 import { commitRefs } from '../git-refs'
@@ -11,10 +11,12 @@ import { BranchStatusDetails, type BranchTarget } from './BranchStatus'
 import { CommitMessageButton } from './CommitMessageButton'
 import { commitSubject, commitWithWrittenMessage, useCanWriteCommitMessage, useWritingCommit } from '../written-commits'
 import { GitRefLabel, GitRefName } from './GitRefLabel'
-import { ContextMenu, MenuItem, menuPoint, type MenuPoint } from './ContextMenu'
+import { ContextMenu, MenuItem, menuPoint, MenuRadioItem, MenuSubmenu, type MenuPoint } from './ContextMenu'
 import { FileDiffView, FileList, useFocusCount } from './Inspector'
-import { BranchIcon, MoreIcon, MaximizeIcon, RestoreIcon, CheckIcon, ClockIcon, CommitIcon, CompareIcon, CopyIcon, DocumentIcon, FolderIcon, MergeIcon, PencilIcon, TagIcon, TrashIcon } from './icons'
+import { BranchIcon, LinkIcon, RefreshIcon, MoreIcon, MaximizeIcon, RestoreIcon, CheckIcon, ClockIcon, CommitIcon, CompareIcon, CopyIcon, DocumentIcon, FolderIcon, MergeIcon, PencilIcon, TagIcon, TrashIcon } from './icons'
 import { ChatPicker } from './ChatPicker'
+import { GitPushDialog, GitPushRejectedDialog } from './GitPushDialog'
+import { setPreference, usePreferences } from '../preferences'
 import { CopyButton } from './CopyButton'
 import { projectName } from './ProjectPicker'
 
@@ -59,7 +61,7 @@ export function GitInspector({ target, heads, updatedAt, refresh, maximized, onM
   </div>
 }
 
-type DialogKind = 'create' | 'tag' | 'detach' | 'rename' | 'delete' | 'push' | 'commit' | 'merge' | 'abort'
+type DialogKind = 'create' | 'tag' | 'detach' | 'rename' | 'delete' | 'push' | 'commit' | 'merge' | 'abort' | 'update'
 // What the dialog acts on: a branch from the tree, or a commit from the history.
 type DialogChoice = { kind: DialogKind; branch?: GitBranch; commit?: GitCommit }
 
@@ -91,30 +93,91 @@ function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; upda
   const ref = selected === 'all' || selected === 'HEAD' || branch ? selected : 'HEAD'
   const writing = useWritingCommit(target)
   const disabled = busy || writing || Boolean(status?.blocker) || !status?.git
-  const run = async (action: GitAction) => {
-    if (busy) return false
+  // intercept: true when it took the error over (opened a dialog for it), so it goes unreported.
+  const execute = async (action: GitAction, intercept?: (error: unknown) => boolean): Promise<GitResult | null> => {
+    if (busy) return null
     setBusy(true)
     setNote(null)
     try {
-      const result = await perform((rpc) => rpc.call('git.execute', { ...target, action }))
-      if (!result) return false
-      setNote(result.state === 'conflicts' ? t('GitInspector.mergeConflictsFoundResolveTheFilesListedBelow') : t('GitInspector.gitOperationCompleted'))
+      const result = await perform(async (rpc) => {
+        try {
+          return await rpc.call('git.execute', { ...target, action })
+        } catch (error) {
+          if (intercept?.(error)) return null
+          throw error
+        }
+      })
+      if (!result) return null
+      setNote(resultNote(action, result, status?.rebase === true))
       if (action.kind === 'switch' || action.kind === 'detach' || (action.kind === 'create' && action.checkout) || action.kind === 'rename') {
         setSelected('HEAD'); setSelectedCommit(null); setComparison(null)
       }
-      return true
+      return result
     } finally { setBusy(false); retry() }
   }
+  const run = async (action: GitAction) => Boolean(await execute(action, (error) => {
+    // The fetch can find the branch checked out diverged after all: ask how to take it in.
+    const diverged = action.kind === 'update' && !action.method && error instanceof RpcError && error.reason === 'git-update-diverged'
+    const entry = diverged ? status?.branches.find((branch) => branch.ref === action.ref) : undefined
+    if (!entry || entry.ref !== `refs/heads/${status?.branch}`) return false
+    setDialog({ kind: 'update', branch: entry })
+    return true
+  }))
   // The dialog is gone by then: the agent writes the message, and the commit follows behind it.
   const commitWritten = async (push: boolean) => {
     const done = await commitWithWrittenMessage(target, async (message) => (await run({ kind: 'commit', message, push })) || null)
     if (done) setNote(t('GitInspector.committed', { value1: commitSubject(done.message), value2: push ? t('GitInspector.andPushed') : '' }))
   }
+  const updateSupported = rpc?.features.includes('git-update') ?? false
+  // As IntelliJ's Update: the branch checked out asks how once it has diverged; any other just fast-forwards.
+  const update = (entry: GitBranch) => {
+    if (entry.ref === `refs/heads/${status?.branch}` && (entry.ahead ?? 0) > 0 && (entry.behind ?? 0) > 0) setDialog({ kind: 'update', branch: entry })
+    else void run({ kind: 'update', ref: entry.ref })
+  }
+  const currentBranch = status?.branches.find((entry) => entry.ref === `refs/heads/${status.branch}`)
+  const pushTargetSupported = rpc?.features.includes('git-push-target') ?? false
+  const [rejected, setRejected] = useState<{ remote: string; name: string } | null>(null)
+  // A push its own upstream rejected can take the upstream in and go again; one to another branch
+  // cannot, as updating takes in the upstream, not the target.
+  const pushTo = async (remote: string, name: string): Promise<void> => {
+    const tracked = trackedBranch(currentBranch)
+    const retriable = updateSupported && tracked?.remote === remote && tracked.name === name
+    const pushed = await execute({ kind: 'push', remote, name, from: status?.branch ?? undefined }, (error) => {
+      if (!retriable || !(error instanceof RpcError) || error.reason !== 'git-push-rejected') return false
+      setDialog(null)
+      const method = usePreferences.getState().gitPushRejectedUpdate
+      if (method === 'ask') setRejected({ remote, name })
+      else void updateAndPush(method, remote, name)
+      return true
+    })
+    if (!pushed) return
+    setDialog(null)
+    setNote(t('GitPush.pushed', { target: `${remote}/${name}` }))
+  }
+  const updateAndPush = async (method: 'merge' | 'rebase', remote: string, name: string) => {
+    setRejected(null)
+    if (!currentBranch) return
+    const updated = await execute({ kind: 'update', ref: currentBranch.ref, method })
+    if (!updated) return
+    if (updated.state === 'conflicts') setNote(t('GitPush.updateStopped'))
+    else await pushTo(remote, name)
+  }
+  // Opened on the state as it is now, not as the page last read it: a branch switched elsewhere
+  // would otherwise push from the wrong one.
+  const openPush = () => { retry(); setDialog({ kind: 'push' }) }
   const pick = (ref: string) => { setSelected(ref); setSelectedCommit(null); setComparison(null); setDetailView(false) }
   const can = (action: GitAction) => !disabled && checkGitOperation(target.kind, action, false, status) === null
+  const [trackOpen, setTrackOpen] = useState(false)
+  const track = (entry: GitBranch, upstream: string | null, close: () => void) => { setTrackOpen(false); close(); void run({ kind: 'track', ref: entry.ref, upstream }) }
   const branchActions = (entry: GitBranch, close: () => void) => <>
     <MenuItem label={t('GitInspector.viewHistory')} icon={<ClockIcon />} onSelect={() => { pick(entry.ref); close() }} />
     <MenuItem label={t('GitInspector.switchToThisBranch')} icon={<CheckIcon />} disabled={!can({ kind: 'switch', ref: entry.ref }) || entry.ref === `refs/heads/${status?.branch}` || Boolean(entry.worktree && entry.worktree !== status?.directory)} onSelect={() => { close(); void run({ kind: 'switch', ref: entry.ref }) }} />
+    {updateSupported && !entry.remote && entry.upstream && <MenuItem label={t('GitInspector.updateFromRemote')} icon={<RefreshIcon />} disabled={!can({ kind: 'update', ref: entry.ref })} onSelect={() => { close(); update(entry) }} />}
+    {pushTargetSupported && !entry.remote && <MenuSubmenu label={t('GitInspector.trackedBranch')} icon={<LinkIcon />} value={entry.upstream?.replace(/^refs\/remotes\//, '') ?? t('GitInspector.noTrackedBranch')} open={trackOpen} onOpen={() => setTrackOpen(true)} onClose={() => setTrackOpen(false)}>
+      <MenuItem label={t('GitInspector.untrack')} disabled={!entry.upstream || !can({ kind: 'track', ref: entry.ref, upstream: null })} onSelect={() => track(entry, null, close)} />
+      <div className="menu-separator" role="separator" />
+      {status?.branches.filter((remote) => remote.remote).map((remote) => <MenuRadioItem key={remote.ref} label={`${remote.remote}/${remote.name}`} checked={entry.upstream === remote.ref} onSelect={() => track(entry, remote.ref, close)} />)}
+    </MenuSubmenu>}
     <MenuItem label={t('GitInspector.newBranchFromHere')} icon={<BranchIcon />} disabled={!can({ kind: 'create', ref: entry.ref, name: 'new', checkout: false })} onSelect={() => { setDialog({ kind: 'create', branch: entry }); close() }} />
     <MenuItem label={t('GitInspector.compareWithCurrentBranch')} icon={<CompareIcon />} disabled={!status?.head} onSelect={() => { pick(entry.ref); setComparison(entry.ref); setDetailView(true); close() }} />
     <MenuItem label={t('GitInspector.mergeIntoCurrentBranch')} icon={<MergeIcon />} disabled={!can({ kind: 'merge', ref: entry.ref }) || entry.ref === `refs/heads/${status?.branch}`} onSelect={() => { setDialog({ kind: 'merge', branch: entry }); close() }} />
@@ -147,26 +210,28 @@ function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; upda
       <div className="git-toolbar">
         <button className="button" disabled={!can({ kind: 'create', ref: 'HEAD', name: 'new', checkout: false }) || !status.head} onClick={() => setDialog({ kind: 'create', branch })}>{t('ConversationChat.new')}</button>
         <button className="button" disabled={disabled || Boolean(status.operation) || !status.remotes.length} onClick={() => void run({ kind: 'fetch' })}>Fetch</button>
-        <button className="button" disabled={!can({ kind: 'pull' }) || !status.branch || !status.upstream || status.changes > 0} onClick={() => void run({ kind: 'pull' })}>Pull</button>
-        <button className="button" disabled={!can({ kind: 'push' }) || !status.branch || !status.remotes.length} onClick={() => setDialog({ kind: 'push' })}>Push</button>
+        {updateSupported
+          ? <button className="button" disabled={!currentBranch?.upstream || !can({ kind: 'update', ref: currentBranch.ref })} onClick={() => { if (currentBranch) update(currentBranch) }}>Update</button>
+          : <button className="button" disabled={!can({ kind: 'pull' }) || !status.branch || !status.upstream || status.changes > 0} onClick={() => void run({ kind: 'pull' })}>Pull</button>}
+        <button className="button" disabled={!can({ kind: 'push' }) || !status.branch || !status.remotes.length} onClick={() => (pushTargetSupported ? openPush() : setDialog({ kind: 'push' }))}>Push</button>
         <button className="button" disabled={!can({ kind: 'commit', message: 'commit', push: false }) || !status.branch || !status.changes} onClick={() => setDialog({ kind: 'commit' })}>Commit</button>
       </div>
       {status.blocker && <p className="git-message muted" role="status">{status.blocker}</p>}
       {writing && <p className="git-message muted" role="status">{t('ConversationBranches.writingCommitMessageThenCommitting')}</p>}
       {note && <p className="git-message" role="status">{note}</p>}
       {status.operation && <div className="git-conflicts">
-        <strong>{status.operation === 'merge' ? t('GitInspector.mergeIsUnfinished') : t('GitInspector.anotherGitOperationIsUnfinishedResolveItIn')}</strong>
+        <strong>{status.operation === 'merge' ? t('GitInspector.mergeIsUnfinished') : status.rebase ? t('GitInspector.rebaseIsUnfinished') : t('GitInspector.anotherGitOperationIsUnfinishedResolveItIn')}</strong>
         {status.conflicts.map((file) => <ConflictRow key={file} target={target} directory={status.directory} file={file} disabled={disabled} resolve={() => void run({ kind: 'resolve', file })} />)}
         <div className="git-toolbar">
           <button className="button" onClick={() => void openTerminal(status.directory)}>{t('GitInspector.openTerminal')}</button>
-          {status.operation === 'merge' && <>
-            <button className="button" disabled={disabled || status.conflicts.length > 0} onClick={() => void run({ kind: 'continue' })}>{t('GitInspector.finishMerge')}</button>
-            <button className="button" disabled={disabled} onClick={() => setDialog({ kind: 'abort' })}>{t('GitInspector.abortMerge')}</button>
+          {(status.operation === 'merge' || status.rebase) && <>
+            <button className="button" disabled={disabled || status.conflicts.length > 0} onClick={() => void run({ kind: 'continue' })}>{status.rebase ? t('GitInspector.continueRebase') : t('GitInspector.finishMerge')}</button>
+            <button className="button" disabled={disabled} onClick={() => setDialog({ kind: 'abort' })}>{status.rebase ? t('GitInspector.abortRebase') : t('GitInspector.abortMerge')}</button>
           </>}
         </div>
       </div>}
       <div className="git-layout" data-detail={detailView || undefined}>
-        <div className="git-branches" data-collapsed={branchesCollapsed || undefined}><button className="git-tree-filter git-branch-toggle" aria-expanded={!branchesCollapsed} onClick={() => setBranchesCollapsed((value) => !value)}>{branchesCollapsed ? t('GitInspector.branches') : t('GitInspector.branches_1024')}</button><div className="git-branch-tree"><BranchTree branches={status.branches} selected={ref} current={status.branch} pick={pick} actions={branchActions} /></div></div>
+        <div className="git-branches" data-collapsed={branchesCollapsed || undefined}><button className="git-tree-filter git-branch-toggle" aria-expanded={!branchesCollapsed} onClick={() => setBranchesCollapsed((value) => !value)}>{branchesCollapsed ? t('GitInspector.branches') : t('GitInspector.branches_1024')}</button><div className="git-branch-tree"><BranchTree branches={status.branches} selected={ref} current={status.branch} pick={pick} actions={branchActions} onMenuClose={() => setTrackOpen(false)} /></div></div>
         <div className="git-history">
           <div className="git-history-tools"><span className="mono" title={ref}>{ref === 'all' ? t('GitInspector.allBranches') : ref === 'HEAD' ? t('GitInspector.currentBranch') : ref.replace(/^refs\/(heads|remotes)\//, '')}</span>
             <input className="input" aria-label={t('GitInspector.searchCommits')} placeholder={t('GitInspector.subjectAuthorOrSha')} value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -179,7 +244,13 @@ function GitRepository({ target, updatedAt, refresh }: { target: GitTarget; upda
             : selectedCommit ? <CommitDetail target={target} sha={selectedCommit} refreshKey={refreshKey} retry={retry} /> : <p className="git-message muted">{t('GitInspector.selectACommitToViewItsMessageFiles')}</p>}
         </div>
       </div>
-      {dialog && <ActionDialog choice={dialog} target={target} status={status} busy={busy} run={run} commitWritten={(push) => void commitWritten(push)} close={() => setDialog(null)} />}
+      {dialog?.kind === 'push' && pushTargetSupported
+        ? status.branch && <GitPushDialog key={status.branch} target={target} status={status} busy={busy} push={(remote, name) => void pushTo(remote, name)} close={() => setDialog(null)} />
+        : dialog && <ActionDialog choice={dialog} target={target} status={status} busy={busy} run={run} commitWritten={(push) => void commitWritten(push)} close={() => setDialog(null)} />}
+      {rejected && <GitPushRejectedDialog target={`${rejected.remote}/${rejected.name}`} busy={busy} close={() => setRejected(null)} choose={(method, remember) => {
+        if (remember) setPreference('gitPushRejectedUpdate', method)
+        void updateAndPush(method, rejected.remote, rejected.name)
+      }} />}
     </>}
   </ReadState>
 }
@@ -194,7 +265,7 @@ function ConflictRow({ target, directory, file, disabled, resolve }: { target: G
   </div>
 }
 
-function BranchTree({ branches, selected, current, pick, actions }: { branches: GitBranch[]; selected: string; current: string | null; pick: (ref: string) => void; actions: (branch: GitBranch, close: () => void) => ReactNode }) {
+function BranchTree({ branches, selected, current, pick, actions, onMenuClose }: { branches: GitBranch[]; selected: string; current: string | null; pick: (ref: string) => void; actions: (branch: GitBranch, close: () => void) => ReactNode; onMenuClose: () => void }) {
   const [query, setQuery] = useState('')
   const [menu, setMenu] = useState<{ branch: GitBranch; at: MenuPoint } | null>(null)
   const filtered = branches.filter((branch) => `${branch.remote ?? ''}/${branch.name}`.toLowerCase().includes(query.toLowerCase()))
@@ -206,6 +277,7 @@ function BranchTree({ branches, selected, current, pick, actions }: { branches: 
     <button title={`${branch.remote ? `${branch.remote}/` : ''}${branch.name}${branch.upstream ? ` → ${branch.upstream}` : ''}${branch.worktree ? `\nworktree: ${branch.worktree}` : ''}${branch.protected ? t('GitInspector.taskBoundBranch') : ''}`} onClick={() => pick(branch.ref)}>
       <BranchIcon /><span className="mono">{query ? branch.name : branch.name.split('/').at(-1)}</span>
       {!branch.remote && branch.name === current && <CheckIcon />}
+      {((branch.behind ?? 0) > 0 || (branch.ahead ?? 0) > 0) && <span className="git-branch-track" title={t('GitInspector.aheadBehind', { behind: branch.behind ?? 0, ahead: branch.ahead ?? 0 })}>{(branch.behind ?? 0) > 0 && <span data-side="behind">↓{branch.behind}</span>}{(branch.ahead ?? 0) > 0 && <span data-side="ahead">↑{branch.ahead}</span>}</span>}
       {(branch.worktree || branch.protected) && <span className="git-branch-badge">{branch.protected ? t('GitInspector.task') : t('GitInspector.checkedOut')}</span>}
     </button>
     <button className="tool-button" aria-label={t('GitInspector.actionsFor', { value1: branch.name })} onClick={(event) => { const bounds = event.currentTarget.getBoundingClientRect(); setMenu({ branch, at: { x: bounds.left, y: bounds.bottom } }) }}><MoreIcon /></button>
@@ -230,7 +302,7 @@ function BranchTree({ branches, selected, current, pick, actions }: { branches: 
       <details open><summary>{t('GitInspector.remote')}</summary>{[...new Set(filtered.flatMap((branch) => branch.remote ? [branch.remote] : []))].map((remote) => <details key={remote} open><summary>{remote}</summary>{tree(filtered.filter((branch) => branch.remote === remote))}</details>)}</details>
       {!filtered.length && <p className="git-message muted">{t('GitInspector.noMatchingBranches')}</p>}
     </div>
-    {menu && <ContextMenu at={menu.at} label={t('GitInspector.branchActions')} onClose={() => setMenu(null)}>{actions(menu.branch, () => setMenu(null))}</ContextMenu>}
+    {menu && <ContextMenu at={menu.at} label={t('GitInspector.branchActions')} onClose={() => { setMenu(null); onMenuClose() }}>{actions(menu.branch, () => setMenu(null))}</ContextMenu>}
   </>
 }
 
@@ -373,7 +445,15 @@ function Comparison({ target, gitRef, what, direct, setDirect, refreshKey, retry
   </>
 }
 
-const TITLES: Record<DialogKind, string> = localized(() => ({ create: t('ConversationBranches.newBranch'), tag: t('GitInspector.newTag_1064'), detach: t('GitInspector.checkOutCommit'), rename: t('GitInspector.renameLocalBranch'), delete: t('GitInspector.deleteBranch'), push: 'Push', commit: 'Commit', merge: 'Merge', abort: t('GitInspector.abortMerge_1068') }))
+const TITLES: Record<DialogKind, string> = localized(() => ({ create: t('ConversationBranches.newBranch'), tag: t('GitInspector.newTag_1064'), detach: t('GitInspector.checkOutCommit'), rename: t('GitInspector.renameLocalBranch'), delete: t('GitInspector.deleteBranch'), push: 'Push', commit: 'Commit', merge: 'Merge', abort: t('GitInspector.abortMerge_1068'), update: t('GitInspector.updateFromRemote') }))
+
+// What a finished operation leaves to say: how an update went, or that conflicts wait.
+function resultNote(action: GitAction, result: GitResult, rebasing: boolean): string {
+  if (result.state === 'conflicts') return rebasing || (action.kind === 'update' && action.method === 'rebase') ? t('GitInspector.rebaseConflicts') : t('GitInspector.mergeConflictsFoundResolveTheFilesListedBelow')
+  const branch = result.branch ?? ''
+  const done = action.kind === 'update' ? (result.incoming ? t('GitInspector.updated', { branch, count: result.incoming }) : t('GitInspector.upToDate', { branch })) : t('GitInspector.gitOperationCompleted')
+  return result.stash === 'kept' ? `${done} ${t('GitInspector.stashKept', { branch: branch || 'HEAD' })}` : done
+}
 function ActionDialog({ choice, target, status, busy, run, commitWritten, close }: { choice: DialogChoice; target: GitTarget; status: GitStatus; busy: boolean; run: (action: GitAction) => Promise<boolean>; commitWritten: (push: boolean) => void; close: () => void }) {
   useOccludesBrowser()
   const dialog = useRef<HTMLDialogElement>(null)
@@ -384,6 +464,7 @@ function ActionDialog({ choice, target, status, busy, run, commitWritten, close 
   const [message, setMessage] = useState('')
   const writable = useCanWriteCommitMessage(target)
   const [confirm, setConfirm] = useState('')
+  const [method, setMethod] = useState<'merge' | 'rebase'>('merge')
   useEffect(() => { dialog.current?.showModal() }, [])
   const performAction = async (action: GitAction) => { if (await run(action)) close() }
   const submit = (event: MouseEvent, push = false) => {
@@ -401,12 +482,13 @@ function ActionDialog({ choice, target, status, busy, run, commitWritten, close 
         break
       case 'merge': if (choice.branch) void performAction({ kind: 'merge', ref: choice.branch.ref }); break
       case 'abort': void performAction({ kind: 'abort' }); break
+      case 'update': if (choice.branch) void performAction({ kind: 'update', ref: choice.branch.ref, method }); break
     }
   }
   const enabled = !busy && (choice.kind === 'commit' ? Boolean(message.trim()) || writable : ['create', 'tag', 'rename', 'push'].includes(choice.kind) ? Boolean(name.trim()) : choice.kind === 'delete' && choice.branch?.remote ? confirm === `${choice.branch.remote}/${choice.branch.name}` : true)
   return <dialog ref={dialog} className="modal branch-dialog git-dialog" onCancel={(event) => { event.preventDefault(); if (!busy) close() }}>
     <div className="modal-body">
-      <h2>{TITLES[choice.kind]}</h2><p className="muted">{projectName(target.project)} · {status.branch ?? t('GitInspector.detachedHead')}</p>
+      <h2>{choice.kind === 'abort' && status.rebase ? t('GitInspector.abortRebaseTitle') : choice.kind === 'update' && choice.branch ? t('GitInspector.updateBranch', { branch: choice.branch.name }) : TITLES[choice.kind]}</h2><p className="muted">{projectName(target.project)} · {status.branch ?? t('GitInspector.detachedHead')}</p>
       {(choice.kind === 'create' || choice.kind === 'tag' || choice.kind === 'rename' || choice.kind === 'push') && <label>{choice.kind === 'tag' ? t('GitInspector.tagName') : t('GitInspector.branchName')}<input className="input" autoFocus value={name} onChange={(event) => setName(event.target.value)} /></label>}
       {choice.kind === 'create' && <><label>{tr('GitInspector.startingPoint', { value1: <select className="input" value={source} onChange={(event) => setSource(event.target.value)}><option value="HEAD">{t('GitInspector.headCurrentCommit')}</option>{choice.commit && <option value={choice.commit.sha}>{choice.commit.sha.slice(0, 8)} · {choice.commit.subject}</option>}{status.branches.map((branch) => <option key={branch.ref} value={branch.ref}>{branch.remote ? `${branch.remote}/` : ''}{branch.name}</option>)}</select> })}</label>{target.kind === 'conversation' && <label>{tr('GitInspector.switchAfterCreating', { value1: <input type="checkbox" checked={checkout} onChange={(event) => setCheckout(event.target.checked)} /> })}</label>}</>}
       {choice.kind === 'tag' && choice.commit && <p>{tr('GitInspector.createALightweightTagAtTheTagStays', { value1: <span className="mono">{choice.commit.sha.slice(0, 8)}</span>, value2: choice.commit.subject })}</p>}
@@ -415,7 +497,17 @@ function ActionDialog({ choice, target, status, busy, run, commitWritten, close 
       {choice.kind === 'commit' && <><textarea className="input branch-commit-message" aria-label={t('ConversationBranches.commitMessage')} autoFocus maxLength={10000} placeholder={writable ? t('GitInspector.commitTitleBlankLineThenDetailsLeaveEmpty') : t('GitInspector.commitTitleBlankLineThenDetails')} value={message} onChange={(event) => setMessage(event.target.value)} /><p className="muted">{t('GitInspector.commitAllChangesInThisRepositoryLocalCommits')}</p></>}
       {choice.kind === 'delete' && <><p>{tr('GitInspector.repository', { value1: <span className="mono">{status.directory}</span>, value2: <br />, value3: choice.branch?.remote ? t('GitInspector.deleteRemote', { value1: choice.branch.remote, value2: choice.branch.name }) : t('GitInspector.safelyDeleteLocalGitRefusesIfItIs', { value1: choice.branch?.name }) })}</p>{choice.branch?.remote && <label>{tr('GitInspector.typeTheFullRemoteBranchNameToConfirm', { value1: <input className="input" autoFocus placeholder={`${choice.branch.remote}/${choice.branch.name}`} value={confirm} onChange={(event) => setConfirm(event.target.value)} /> })}</label>}</>}
       {choice.kind === 'merge' && <p>{tr('GitInspector.mergeIntoDivergedBranchesCreateAMergeCommit', { value1: <span className="mono">{choice.branch?.ref.replace(/^refs\/(heads|remotes)\//, '')}</span>, value2: <span className="mono">{status.branch}</span> })}</p>}
-      {choice.kind === 'abort' && <p>{t('GitInspector.abortTheCurrentMergeAndDiscardItsConflict')}</p>}
+      {choice.kind === 'abort' && <p>{status.rebase ? t('GitInspector.abortRebaseExplained') : t('GitInspector.abortTheCurrentMergeAndDiscardItsConflict')}</p>}
+      {choice.kind === 'update' && choice.branch && <>
+        <p>{t('GitInspector.updateDiverged', { branch: choice.branch.name, upstream: (choice.branch.upstream ?? '').replace(/^refs\/remotes\//, ''), ahead: choice.branch.ahead ?? 0, behind: choice.branch.behind ?? 0 })}</p>
+        <div className="git-update-methods" role="radiogroup">
+          {(['merge', 'rebase'] as const).map((value) => <label key={value} className="git-update-method">
+            <input type="radio" name="git-update-method" checked={method === value} onChange={() => setMethod(value)} />
+            <span><strong>{value === 'merge' ? t('GitInspector.updateMerge') : t('GitInspector.updateRebase')}</strong><span className="muted">{value === 'merge' ? t('GitInspector.updateMergeDescription') : t('GitInspector.updateRebaseDescription')}</span></span>
+          </label>)}
+        </div>
+        {status.changes > 0 && <p className="muted">{t('GitInspector.updateStashNote')}</p>}
+      </>}
       <div className="branch-commit-buttons">{choice.kind === 'commit' && <CommitMessageButton target={target} disabled={busy} onMessage={setMessage} />}<button className="button" disabled={busy} onClick={close}>{t('ChatCommandSettings.cancel')}</button>{choice.kind === 'commit' && <button className="button" disabled={!enabled} onClick={(event) => submit(event, true)}>Commit &amp; Push</button>}<button className="button primary" disabled={!enabled} onClick={submit}>{busy ? t('GitInspector.processing') : TITLES[choice.kind]}</button></div>
     </div>
   </dialog>

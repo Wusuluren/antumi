@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { canHaveHelper, helperAllowsMode, isHelper, agentDescriptor, modelPrice, type CostBaseline, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isAntumiRequest , PROCESS_OWNER_ENV, processOwner } from '@antumi/protocol'
+import { canHaveHelper, helperAllowsMode, isHelper, agentDescriptor, modelPrice, providerEndpoint, type CostBaseline, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isAntumiRequest , PROCESS_OWNER_ENV, processOwner } from '@antumi/protocol'
 import type { DaemonEvent, SessionInfo } from '@antumi/protocol/node'
 import { canReuseConversation, type ConversationConfiguration, type TaskLaunchOptions } from '@antumi/protocol'
 import type { RunMeasure } from './agent-run-store'
@@ -9,7 +9,8 @@ import type { AttachmentStore } from './attachment-store'
 import { WHOLE_SESSION_FORK, type ChatAnswer, type StageMessage } from './chat-driver'
 import { catalogOf, probeChatCatalog } from './chat-catalog'
 import { ChatHost, type ChatStage } from './chat-host'
-import { ChatLog } from './chat-log'
+import { ChatLog, type LoggedRecord } from './chat-log'
+import type { Transcript } from './agent-transcripts'
 import type { SessionHost } from './daemon-client'
 import { ConversationStore } from './conversation-store'
 import { folderChanges, folderDiff, folderHead } from './conversation-changes'
@@ -32,6 +33,10 @@ import type { NewWorktree, WorktreeSetup } from './worktree-setup'
 import { DEFAULT_AGENT_CONCURRENCY } from './chat-settings'
 import { WireLog } from './wire-log'
 import { ConversationTitles, type TitleGenerator } from './conversation-titles'
+import { conversationRoute, decideRoute, providerLaunch, sameRoute, type RouteDecision } from './conversation-route'
+import type { ModelProviderStore } from './model-providers'
+import type { ProviderLaunch } from './provider-launch'
+import type { QuickProvider } from './quick-request'
 
 export type ConversationEvent =
   | { type: 'changed'; conversation: Conversation }
@@ -77,7 +82,8 @@ type StageLaunch = { fresh?: boolean; moved?: boolean; planOnly?: boolean; reada
 // The provider session another conversation's stage ran, taken over through the turn `at` names;
 // neither null means a session the agent can fork, else the fork starts afresh.
 // latest: the point is the last the agent's session holds, so the session forked whole is the same.
-type ForkPoint = { providerSessionId: string | null; at: string | null; latest: boolean }
+// routeKey: the route that session was opened on (ProviderRoute.key), null on the agent's own account.
+type ForkPoint = { providerSessionId: string | null; at: string | null; latest: boolean; routeKey: string | null }
 
 // A chat page stops adding older stages once it holds this many items.
 const CHAT_PAGE_ITEMS = 1000
@@ -207,7 +213,8 @@ export class ConversationService {
         if (current) this.changed(current)
       },
       offset: (stageId, end) => this.store.setChatOffset(stageId, end),
-      usage: (stage, report) => this.emit({ type: 'usage', agent: stage.agent, report }),
+      // A stage on a provider reports the provider's limits, not the agent's account's.
+      usage: (stage, report) => { if (!stage.options.providerModels) this.emit({ type: 'usage', agent: stage.agent, report }) },
       turnStalled: (conversationId, sessionId) => {
         const agent = this.store.get(conversationId)?.agent
         const grace = agent ? adapterOf(agent).turns?.stopAfterCancel : undefined
@@ -258,6 +265,46 @@ export class ConversationService {
   }
   setSkillsProvider(provider: (agent: AgentKind) => Promise<{ dir: string } | null>): void {
     this.skillsFor = provider
+  }
+
+  // The user's model providers, for a conversation started on one; without them none can be.
+  private providers: ModelProviderStore | null = null
+  setModelProviders(providers: ModelProviderStore): void { this.providers = providers }
+
+  // What the agent's next stage here runs on (see decideRoute).
+  private routeFor(conversation: Pick<Conversation, 'id' | 'modelProvider'>, agent: AgentKind): RouteDecision {
+    const chosen = conversation.modelProvider ?? null
+    const resolved = chosen === null ? null : this.providers?.resolve(chosen) ?? null
+    return decideRoute(chosen, agent, this.store.latestStage(conversation.id, agent), resolved)
+  }
+
+  // The provider whose models an agent picks from here, where it runs on one.
+  private catalogProvider(conversation: Pick<Conversation, 'id' | 'modelProvider'>, agent: AgentKind): string | undefined {
+    const decision = this.routeFor(conversation, agent)
+    return decision.kind === 'provider' ? decision.route.providerId : undefined
+  }
+
+  // Where a small job for the conversation goes (a title, a translation, a commit message): the
+  // provider its agent runs on, else the agent's own account (undefined). A provider gone refuses
+  // the job rather than spend the agent's own account on it.
+  quickProvider(conversationId: string): QuickProvider | undefined {
+    const conversation = this.store.get(conversationId)
+    return conversation?.modelProvider ? quickProviderOf(this.routeFor(conversation, conversation.agent)) : undefined
+  }
+
+  // The same for something that has no conversation yet, such as a task's branch name: as its
+  // first start would run.
+  quickProviderFor(providerId: string, agent: AgentKind): QuickProvider | undefined {
+    return quickProviderOf(decideRoute(providerId, agent, null, this.providers?.resolve(providerId) ?? null))
+  }
+
+  // A provider a new conversation is to start on: one that has a key and serves its agent.
+  private requireProvider(providerId: string, agent: AgentKind): void {
+    const resolved = this.providers?.resolve(providerId)
+    if (!resolved) throw new Rejection('model-provider-unavailable', '服务商不存在或没有 API Key')
+    if (!providerEndpoint(resolved.provider, agent)) {
+      throw new Rejection('model-provider-agent-unsupported', `服务商「${resolved.provider.name}」不服务这个 Agent`)
+    }
   }
 
   // The vault as this stage gets it: writable only where the stage may edit; left out where the
@@ -447,6 +494,7 @@ export class ConversationService {
     return {
       agent: conversation.agent,
       projectPaths: [...conversation.projectPaths],
+      modelProvider: conversation.modelProvider ?? null,
       permissionMode: live ? state.permissionMode : next?.permissionMode ?? state?.permissionMode ?? null,
       model: live ? state.model : next?.model ?? state?.model ?? null,
       effort: live ? state.effort : next?.effort ?? (next?.model && next.model !== state?.model ? null : state?.effort ?? null)
@@ -460,7 +508,7 @@ export class ConversationService {
     agent: AgentKind,
     projectPaths: readonly string[],
     allowBypass?: boolean,
-    start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string; deferStart?: boolean; helperOf?: string } = {},
+    start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string; deferStart?: boolean; helperOf?: string; modelProvider?: string } = {},
     routine: { id: string; title: string } | null = null,
     id: string = randomUUID(),
     discussion: { id: string; title: string } | null = null,
@@ -473,11 +521,16 @@ export class ConversationService {
       if (!helperAllowsMode(permissionMode)) throw new Rejection('chat-option-invalid', '小助手不能只做规划')
       if (this.store.helper(parent.id)) throw new Rejection('invalid-params', '这个会话已有小助手')
       if (!start.deferStart && !this.capacityAvailable(agent)) throw new Rejection('agent-capacity')
-      await this.validateStartOptions(agent, { ...start, permissionMode })
+      // On what its parent runs on now: the provider, unless the parent's agent runs on its own account.
+      const parentStage = this.store.stages(parent.id).at(-1)
+      const modelProvider = parentStage ? parentStage.route?.providerId ?? null : parent.modelProvider ?? null
+      const helperProvider = modelProvider !== null && this.routeFor({ id, modelProvider }, agent).kind === 'provider' ? modelProvider : undefined
+      await this.validateStartOptions(agent, { ...start, permissionMode }, helperProvider)
       // Recheck after catalog discovery: concurrent creates must not open two helpers.
       const currentParent = this.get(parent.id)
       if (this.retiring.has(parent.id) || !canHaveHelper(currentParent) || this.store.helper(parent.id)) throw new Rejection('invalid-params', '不能创建小助手或已有小助手')
       this.store.create(agent, currentParent.workspacePath, currentParent.projectPaths, id, this.store.projectStarts(parent.id), null, null, null, parent.id)
+      this.store.setModelProvider(id, modelProvider)
       this.store.setChatOptions(id, { permissionMode, allowBypass: allowBypass ?? false, [agent]: { model: start.model, effort: start.effort } })
       this.changed(this.get(id))
       return start.deferStart ? this.get(id) : this.start(id, agent, '', false)
@@ -487,7 +540,8 @@ export class ConversationService {
     const worktreesRoot = worktree ? this.worktreesRoot : null
     if (worktree && (!worktreesRoot || projectPaths.length === 0)) throw new Rejection('missing-repo', 'a worktree needs a project to lay out')
     if (!start.deferStart && !this.capacityAvailable(agent)) throw new Rejection('agent-capacity')
-    await this.validateStartOptions(agent, { permissionMode, model, effort })
+    if (start.modelProvider) this.requireProvider(start.modelProvider, agent)
+    await this.validateStartOptions(agent, { permissionMode, model, effort }, start.modelProvider)
     const resolved = await resolveProjects(projectPaths)
     const { picked } = resolved
     const primary = resolved.projects[0]
@@ -520,6 +574,7 @@ export class ConversationService {
       if (head) starts[project] = head
     }
     const created = this.store.create(agent, workspace, projects, id, starts, null, routine, discussion)
+    if (start.modelProvider) this.store.setModelProvider(id, start.modelProvider)
     if (squad) this.store.setSquad(id, squad.runId, squad.readOnly)
     if (allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass })
     if (permissionMode) this.store.setChatOptions(id, { permissionMode })
@@ -568,13 +623,16 @@ export class ConversationService {
   }
 
   // Validate before preparing a workspace or replacing a task's existing stage.
-  async validateStartOptions(agent: AgentKind, options: { permissionMode?: string; model?: string | null; effort?: string | null }): Promise<void> {
+  // providerId: the provider the agent runs on, whose models it picks from.
+  async validateStartOptions(agent: AgentKind, options: { permissionMode?: string; model?: string | null; effort?: string | null }, providerId?: string): Promise<void> {
     const { permissionMode, model, effort } = options
     if (permissionMode && !adapterOf(agent).permissionModes.includes(permissionMode)) {
       throw new Rejection('chat-option-invalid', `${agent} has no permission mode ${permissionMode}`)
     }
     if (model || effort) {
-      const models = (await this.chatCatalog(agent))?.models ?? []
+      // An agent the provider does not serve runs on its own account (decideRoute).
+      const provider = providerId === undefined ? null : this.providers?.get(providerId)
+      const models = (await this.chatCatalog(agent, provider && providerEndpoint(provider, agent) ? providerId : undefined))?.models ?? []
       const picked = models.find((each) => each.id === (model ?? models.find((one) => one.isDefault)?.id))
       if (model && !picked) throw new Rejection('chat-option-invalid', `${agent} lists no model ${model}`)
       if (effort && !picked?.efforts.includes(effort)) throw new Rejection('chat-option-invalid', `the model takes no effort ${effort}`)
@@ -587,8 +645,14 @@ export class ConversationService {
     const cwd = await realpath(launch.cwd)
     const extraDirs = await Promise.all(launch.extraDirs.map((dir) => realpath(dir)))
     const projectPaths = [cwd, ...extraDirs]
-    const conversation = this.store.byTask(task.id)
-      ?? this.store.create(task.agent, cwd, projectPaths, randomUUID(), {}, { id: task.id, title: task.title })
+    const existing = this.store.byTask(task.id)
+    // The provider is settled with the conversation: a later start may only name the same one.
+    if (existing && launch.modelProvider !== undefined && launch.modelProvider !== (existing.modelProvider ?? null)) {
+      throw new Rejection('model-provider-fixed', '任务的服务商在第一次启动时已定下')
+    }
+    if (!existing && launch.modelProvider) this.requireProvider(launch.modelProvider, task.agent)
+    const conversation = existing ?? this.store.create(task.agent, cwd, projectPaths, randomUUID(), {}, { id: task.id, title: task.title })
+    if (!existing && launch.modelProvider) this.store.setModelProvider(conversation.id, launch.modelProvider)
     const { id } = conversation
     if (this.launching.has(id)) throw new Rejection('conversation-running')
     // Another cwd is another place for the agent; only the directories it was given changed, the
@@ -708,7 +772,9 @@ export class ConversationService {
     if (current.squadRunId) throw new Rejection('squad-managed')
     if (current.discussionId) throw new Rejection('discussion-member', 'a group chat member keeps its agent')
     if (agent === current.agent) throw new Rejection('conversation-same-agent')
-    await this.validateStartOptions(agent, choice)
+    const decision = this.routeFor(current, agent)
+    if (decision.kind === 'unavailable') throw new Rejection('model-provider-unavailable', decision.message)
+    await this.validateStartOptions(agent, choice, decision.kind === 'provider' ? decision.route.providerId : undefined)
     if (allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass })
     if (this.launching.has(id)) throw new Rejection('conversation-running')
     if (current.sessionId && !stopRunning && !this.chats.idle(id)) throw new Rejection('conversation-running')
@@ -745,7 +811,7 @@ export class ConversationService {
     agent: AgentKind,
     projectPaths: readonly string[],
     allowBypass: boolean | undefined,
-    start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string },
+    start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string; modelProvider?: string },
     issue: { source: TaskSource; title: string; brief: string; readable: readonly string[] },
     note: string
   ): Promise<Conversation> {
@@ -810,19 +876,20 @@ export class ConversationService {
     const said = (each: readonly ChatItem[]) => each.some((item) => item.kind === 'user')
     const latest = !before && turn !== undefined && providerSessionId !== null && !said(items.slice(kept.length)) &&
       stages.slice(index + 1).every((stage) => stage.providerSessionId !== providerSessionId || !said(this.chats.items(this.chatStage(source, stage))))
-    const fork: ForkPoint = { providerSessionId, at: earlier?.kind === 'turn' ? earlier.providerRef ?? null : null, latest }
+    const fork: ForkPoint = { providerSessionId, at: earlier?.kind === 'turn' ? earlier.providerRef ?? null : null, latest, routeKey: sessionStage?.route?.key ?? null }
     // A fork of a Claude session must run in the folder the session ran in: the same projects, or
     // the source's own managed workspace, shared from now on (remove() leaves a workspace in place).
     const id = randomUUID()
     const created = this.store.create(agent, source.workspacePath, source.projectPaths, id, this.store.projectStarts(sourceId))
     this.store.setForkedFrom(id, sourceId)
+    this.store.setModelProvider(id, source.modelProvider ?? null)
     this.store.setChatOptions(id, this.store.chatOptions(sourceId))
     this.store.update(id, { title: `${source.title} · 分支`, titleLocked: true })
     // The chat so far: every earlier stage whole, the cut stage up to the point, each as a stage
     // of the new conversation that has ended, with the messages those turns recorded.
     for (const stage of stages.slice(0, index + 1)) {
       const copyId = randomUUID()
-      this.store.startStage(id, stage.agent, null, 0, copyId, stage.planOnly ?? false)
+      this.store.startStage(id, stage.agent, null, 0, copyId, stage.planOnly ?? false, stage.route ?? null)
       const { records } = ChatLog.of(this.sessionsRoot, sourceId, stage.id).read()
       const last = stage.id === cutStage.id ? kept.at(-1) : undefined
       const cutAt = stage.id === cutStage.id ? (before ? before.at : last?.at ?? 0) : Infinity
@@ -842,6 +909,24 @@ export class ConversationService {
     this.changed(created)
     await this.start(id, agent, '', false, { fork })
     return this.withChat(this.store.get(id)!)
+  }
+
+  // A session the agent ran outside Antumi, taken in as a stage that has ended, on that session: the
+  // next start resumes it, as it would a stage of Antumi's own. title: what the session was called.
+  importStage(id: string, agent: AgentKind, providerSessionId: string, transcript: Transcript, title: { text: string; locked: boolean } | null = null): Conversation {
+    const current = this.get(id)
+    if (current.sessionId || this.launching.has(id)) throw new Rejection('conversation-running')
+    const stageId = randomUUID()
+    this.store.startStage(id, agent, providerSessionId, this.store.maxSequence(id), stageId)
+    // No exit record: no process ran here, and the driver would read one as a start that failed.
+    ChatLog.of(this.sessionsRoot, id, stageId).append(transcript.entries.map((entry): LoggedRecord => ({ dir: 'item', at: entry.at, item: { ...entry.item, stageId, revision: 1, at: entry.at } })))
+    for (const message of transcript.messages) {
+      this.store.addMessage({ conversationId: id, stageId, role: message.role, agent, text: message.text, eventKey: `chat:${message.ref}:${message.role}`, complete: true })
+    }
+    this.store.endStage(stageId, null)
+    if (title) this.store.update(id, { title: title.text, titleLocked: title.locked })
+    else this.store.touch(id)
+    return this.changed(this.get(id))
   }
 
   private async start(id: string, agent: AgentKind, note: string, handoff: boolean, launch: StageLaunch = {}): Promise<Conversation> {
@@ -875,11 +960,15 @@ export class ConversationService {
   // lost: the provider session that turned out not to be there to resume.
   private async startStage(current: Conversation, agent: AgentKind, note: string, handoff: boolean, launch: StageLaunch, lost: string | null): Promise<Conversation> {
     const { id } = current
+    const decision = this.routeFor(current, agent)
+    if (decision.kind === 'unavailable') throw new Rejection('model-provider-unavailable', decision.message)
+    const route = decision.kind === 'provider' ? decision.route : null
     const previous = launch.fresh ? null : this.store.latestStage(id, agent)
-    // A session named before launch may never have been saved, and one bound to its folder is
-    // left behind by a move: either way the agent starts afresh from a handoff.
+    // A session named before launch may never have been saved, one bound to its folder is left
+    // behind by a move, and one opened on another route would reach another account: in each case
+    // the agent starts afresh from a handoff.
     const { session } = adapterOf(agent)
-    const resumable = !(launch.moved && session.folderBound) && (lost === null || previous?.providerSessionId !== lost)
+    const resumable = !(launch.moved && session.folderBound) && (lost === null || previous?.providerSessionId !== lost) && sameRoute(previous?.route, route)
     const saved = resumable && previous?.providerSessionId && (!session.preassignedId || this.store.hasProviderMessages(id, previous.providerSessionId))
       ? previous.providerSessionId : null
     const providerSessionId = saved ?? (session.preassignedId ? randomUUID() : null)
@@ -901,8 +990,9 @@ export class ConversationService {
     }
     if (launch.brief) handoffPath = launch.brief
     const stageId = randomUUID()
-    const stage = this.store.startStage(id, agent, providerSessionId, this.store.maxSequence(id), stageId, launch.planOnly ?? false)
-    return { ...await this.startChat(current, stage, saved !== null, handoffPath === null ? null : { path: handoffPath, note }, launch.readable ?? []), starting: false }
+    const stage = this.store.startStage(id, agent, providerSessionId, this.store.maxSequence(id), stageId, launch.planOnly ?? false, route)
+    const provider = decision.kind === 'provider' ? providerLaunch(decision.route, decision.apiKey) : undefined
+    return { ...await this.startChat(current, stage, saved !== null, handoffPath === null ? null : { path: handoffPath, note }, launch.readable ?? [], null, provider), starting: false }
   }
 
   // The first stage of a fork: the source's session taken over through the fork point, where the
@@ -911,8 +1001,11 @@ export class ConversationService {
   // is already copied, so no handoff file is written.
   private async startFork(current: Conversation, agent: AgentKind, fork: ForkPoint): Promise<Conversation> {
     const { session } = adapterOf(agent)
+    const decision = this.routeFor(current, agent)
+    if (decision.kind === 'unavailable') throw new Rejection('model-provider-unavailable', decision.message)
+    const route = decision.kind === 'provider' ? decision.route : null
     const whole = session.nativeFork === 'latest' && fork.latest
-    const native = fork.providerSessionId !== null && (whole || (session.nativeFork === 'any' && fork.at !== null))
+    const native = fork.providerSessionId !== null && (whole || (session.nativeFork === 'any' && fork.at !== null)) && fork.routeKey === (route?.key ?? null)
     const providerSessionId = native ? fork.providerSessionId : session.preassignedId ? randomUUID() : null
     // Without a session to fork, the copied chat reaches the agent the way a handoff does.
     let handoffPath: string | null = null
@@ -923,8 +1016,9 @@ export class ConversationService {
       handoffPath = path.join(directory, `${randomUUID()}.md`)
       await writeFile(handoffPath, buildHandoff(current, messages, '', agent, agent), { mode: 0o600 })
     }
-    const stage = this.store.startStage(current.id, agent, providerSessionId, this.store.maxSequence(current.id), randomUUID(), false)
-    return this.startChat(current, stage, native, handoffPath === null ? null : { path: handoffPath, note: '' }, [], whole ? WHOLE_SESSION_FORK : native ? fork.at : null)
+    const stage = this.store.startStage(current.id, agent, providerSessionId, this.store.maxSequence(current.id), randomUUID(), false, route)
+    const provider = decision.kind === 'provider' ? providerLaunch(decision.route, decision.apiKey) : undefined
+    return this.startChat(current, stage, native, handoffPath === null ? null : { path: handoffPath, note: '' }, [], whole ? WHOLE_SESSION_FORK : native ? fork.at : null, provider)
   }
 
   // Runs the stage's agent over stdio, driven by the chat host, and waits until it can take a message.
@@ -935,7 +1029,9 @@ export class ConversationService {
     // The file a new agent reads first, and what the user added for it.
     handoff: { path: string; note: string } | null,
     readable: readonly string[],
-    forkAt: string | null = null
+    forkAt: string | null = null,
+    // The model provider the stage runs on, with its key; the stage's route says which.
+    provider?: ProviderLaunch
   ): Promise<Conversation> {
     const { id } = current
     const { agent } = stage
@@ -966,7 +1062,8 @@ export class ConversationService {
       ...(this.userBrowser === undefined ? {} : { userBrowser: this.userBrowser }),
       todos: this.userTodos && !current.discussionId,
       ...(knowledgeBase ? { knowledgeBase } : {}),
-      ...(skills ? { skills } : {})
+      ...(skills ? { skills } : {}),
+      ...(provider ? { provider } : {})
     })
     let sessionId: string
     try {
@@ -1027,8 +1124,9 @@ export class ConversationService {
     const chosen = this.store.chatOptions(conversation.id)
     const mcp = this.mcp?.(conversation.id)
     let permissionMode = isHelper(conversation) && chosen.permissionMode && !helperAllowsMode(chosen.permissionMode) ? 'ask' : chosen.permissionMode
-    const { fallbackMode, permissionModes, launch } = adapterOf(stage.agent)
+    const { fallbackMode, permissionModes, launch, providerModels } = adapterOf(stage.agent)
     if (fallbackMode && (!permissionMode || !permissionModes.includes(permissionMode))) permissionMode = fallbackMode
+    const onProvider = stage.route ? providerModels?.(stage.route) ?? [] : undefined
     return {
       conversationId: conversation.id,
       stageId: stage.id,
@@ -1049,7 +1147,8 @@ export class ConversationService {
         keepImage: (data) => this.keepImage(data),
         todos: this.userTodos && !conversation.discussionId,
         ...(knowledgeBase ? { knowledgeBase } : {}),
-        ...(userMcp.length ? { userMcp } : {})
+        ...(userMcp.length ? { userMcp } : {}),
+        ...(onProvider ? { providerModels: onProvider } : {})
       }
     }
   }
@@ -1075,7 +1174,7 @@ export class ConversationService {
       }
       const chosen = this.store.chatOptions(id)[conversation.agent] ?? {}
       const choice = option === 'model' ? { model: value } : { ...chosen, effort: value }
-      await this.validateStartOptions(conversation.agent, choice)
+      await this.validateStartOptions(conversation.agent, choice, this.catalogProvider(conversation, conversation.agent))
       this.store.setChatOptions(id, { [conversation.agent]: choice })
       this.changed(this.get(id))
       return
@@ -1125,8 +1224,14 @@ export class ConversationService {
 
   // What a new chat can pick from before its agent starts: the models the agent listed last,
   // kept as each chat stage reports them, read back from the newest stage after a restart, and
-  // asked of the CLI only when it never ran a chat.
-  chatCatalog(agent: AgentKind): Promise<ChatCatalog | null> {
+  // asked of the CLI only when it never ran a chat. On a provider, the provider's models; null
+  // where it does not serve the agent.
+  chatCatalog(agent: AgentKind, providerId?: string): Promise<ChatCatalog | null> {
+    if (providerId !== undefined) {
+      const provider = this.providers?.get(providerId)
+      const offered = provider && providerEndpoint(provider, agent) ? adapterOf(agent).providerModels?.({ ...provider, providerId }) : undefined
+      return Promise.resolve(offered ? { models: offered } : null)
+    }
     const known = this.catalogs.get(agent)
     if (known) return known
     const found = this.catalogFromStages(agent)
@@ -1150,7 +1255,9 @@ export class ConversationService {
     return stage && conversation ? catalogOf(this.chats.items(this.chatStage(this.withChat(conversation), stage))) : null
   }
 
+  // Only the agent's own catalog: one on a provider lists the provider's models.
   private rememberCatalog(conversationId: string, items: readonly ChatItem[]): void {
+    if (this.store.activeStage(conversationId)?.route) return
     const catalog = catalogOf(items)
     const agent = this.store.get(conversationId)?.agent
     if (catalog && agent) this.catalogs.set(agent, Promise.resolve(catalog))
@@ -1282,7 +1389,8 @@ export class ConversationService {
     const state = stage ? this.stageChatItems(conversation.id, stage.id).findLast((item) => item.kind === 'state') : undefined
     const model = state?.kind === 'state' ? state.billingModel ?? state.model : conversation.chatOptions?.model ?? null
     const context = state?.kind === 'state' ? state.context?.used ?? null : null
-    return { model, context, price: modelPrice(agentDescriptor(conversation.agent).prices, model, Date.now()) }
+    // A provider's plan is not priced like the agent's own models, even where a name matches.
+    return { model, context, price: stage?.route ? null : modelPrice(agentDescriptor(conversation.agent).prices, model, Date.now()) }
   }
 
   // Every chat stage of every conversation, task chats included, oldest first.
@@ -1657,7 +1765,9 @@ export class ConversationService {
     const suggestion = turn === 'idle' && this.promptSuggestions ? this.chats.suggestion(conversation.id) : null
     const request = turn ? this.chats.request(conversation.id) : null
     const doing = turn === 'running' ? this.chats.doing(conversation.id) : null
-    return { ...conversation, starting: this.launching.has(conversation.id), chat: turn ? { turn, ...(suggestion ? { suggestion } : {}), ...(request ? { request } : {}), ...(doing ? { doing } : {}) } : null, chatOptions }
+    const providerId = conversation.modelProvider ?? null
+    const route = providerId === null ? null : conversationRoute(providerId, this.routeFor(conversation, conversation.agent), this.providers?.get(providerId)?.name ?? this.store.latestStage(conversation.id, conversation.agent)?.route?.name ?? null)
+    return { ...conversation, starting: this.launching.has(conversation.id), chat: turn ? { turn, ...(suggestion ? { suggestion } : {}), ...(request ? { request } : {}), ...(doing ? { doing } : {}) } : null, chatOptions, route }
   }
 
   private changed(value: Conversation): Conversation {
@@ -1665,6 +1775,13 @@ export class ConversationService {
     this.emit({ type: 'changed', conversation: decorated })
     return decorated
   }
+}
+
+function quickProviderOf(decision: RouteDecision): QuickProvider | undefined {
+  if (decision.kind === 'unavailable') throw new Rejection('model-provider-unavailable', decision.message)
+  if (decision.kind === 'own') return undefined
+  const { route, apiKey } = decision
+  return { endpoint: { wire: route.wire, baseUrl: route.baseUrl, anthropic: route.anthropic }, apiKey, model: route.smallModel, routeKey: route.key }
 }
 
 // What was said in a lost provider session that never got an answer is left out of the handoff:

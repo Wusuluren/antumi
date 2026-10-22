@@ -1,4 +1,4 @@
-import { ClaudeTokenUsage, claudeMetering } from '../../model-metering'
+import { ClaudeTokenUsage, claudeMetering, withoutCost } from '../../model-metering'
 import type { ModelMetering } from '@antumi/protocol'
 import { z } from 'zod'
 import { browserToolKind, ChatPermissionMode, CONTEXT_COMPACTED, RESERVED_MCP_SERVER_NAME, takeImageMarkers, toolImagePath, type ChatCommand, type ChatDiff, type ChatImage, type ChatModel, type ChatOption, type ChatTurnActivity, type ChatTurnState } from '@antumi/protocol'
@@ -36,7 +36,7 @@ const PLAN_SAVED = 'The plan is saved to the task for later: the tasks it builds
 const KEEP_PLANNING = 'Keep planning. '
 const REVISE_PLAN = 'Keep planning: revise the plan and present it again.'
 const DECLINED_CALL = 'The user declined this tool call.'
-const HIDDEN_TOOLS: ReadonlySet<string> = new Set(['AskUserQuestion', 'ToolSearch', ...CLAUDE_TASK_TOOLS])
+export const HIDDEN_TOOLS: ReadonlySet<string> = new Set(['AskUserQuestion', 'ToolSearch', ...CLAUDE_TASK_TOOLS])
 const FILE_TOOLS: ReadonlySet<string> = new Set(['Write', 'Edit', 'MultiEdit'])
 // Plan mode drafts its plan in a file of its own (~/.claude/plans/<name>.md) before proposing it.
 const PLAN_FILE = /\/plans\/[^/]+\.md$/
@@ -170,7 +170,7 @@ const SubagentResult = z.looseObject({
 })
 const SUBAGENT_TOOLS: ReadonlySet<string> = new Set(['Agent', 'Task'])
 // The hand-back's report is framed and indented by the CLI; the report itself is what shows.
-const HAND_BACK = /^\[Subagent hand-back\][\s\S]*?The report follows:\n/
+export const HAND_BACK = /^\[Subagent hand-back\][\s\S]*?The report follows:\n/
 const ResultFrame = z.looseObject({
   subtype: z.string().optional(),
   is_error: z.boolean().optional(),
@@ -251,6 +251,14 @@ function modelRows(value: unknown): ModelRow[] {
   })
 }
 
+// A provider's models as catalog rows. The API names a model without the [1m] the CLI is told it
+// by, so that is what a turn reports; the provider's default stands for the CLI's own.
+function providerRows(models: readonly ChatModel[]): ModelRow[] {
+  const rows = models.map((model) => ({ value: model.id, resolvedModel: model.id.replace(/\[1m\]$/, ''), displayName: model.label, description: model.description, supportedEffortLevels: [...model.efforts], supportsAutoMode: false }))
+  const fallback = models.find((model) => model.isDefault) ?? models[0]
+  return fallback ? [...rows, { value: 'default', resolvedModel: fallback.id.replace(/\[1m\]$/, '') }] : rows
+}
+
 // Names with a leading __ are the CLI's own plumbing, not for a person to type.
 function commandRows(value: unknown): ChatCommand[] {
   return (Array.isArray(value) ? value : []).flatMap((row) => {
@@ -308,7 +316,7 @@ export function describeClaudeTool(name: string, input: Record<string, unknown>)
 
 // Calls that run a shell command: Bash, and Monitor, which watches one in the background and hands
 // the agent each line it prints.
-const COMMAND_TOOLS = new Set(['Bash', 'Monitor'])
+export const COMMAND_TOOLS: ReadonlySet<string> = new Set(['Bash', 'Monitor'])
 
 // How long a background command may run before the CLI stops it, where the agent set a limit: a
 // Bash call sent to the background, by its timeout; a Monitor, always in the background, by its own.
@@ -318,7 +326,7 @@ function backgroundLimit(name: string, input: Record<string, unknown>): { backgr
 }
 
 // The input worth showing beside the title; file tools show a diff instead.
-function inputText(name: string, input: Record<string, unknown>): string | null {
+export function inputText(name: string, input: Record<string, unknown>): string | null {
   if (COMMAND_TOOLS.has(name)) return str(input.command)
   if (name === 'ExitPlanMode') return str(input.plan)
   if (['Read', 'Write', 'Edit', 'MultiEdit', 'Glob', 'Grep', 'WebFetch', 'WebSearch'].includes(name)) return null
@@ -327,7 +335,7 @@ function inputText(name: string, input: Record<string, unknown>): string | null 
   return Object.keys(input).length ? clip(JSON.stringify(input, null, 2), 4000) : null
 }
 
-function inputDiffs(name: string, input: Record<string, unknown>): ChatDiff[] {
+export function inputDiffs(name: string, input: Record<string, unknown>): ChatDiff[] {
   const path = str(input.file_path)
   if (!path) return []
   if (name === 'Write') {
@@ -347,7 +355,7 @@ function inputDiffs(name: string, input: Record<string, unknown>): ChatDiff[] {
 }
 
 // The hunks Claude Code applied, when the tool result carries them: better than the input's guess.
-function resultDiffs(previous: ChatDiff[], raw: unknown): ChatDiff[] {
+export function resultDiffs(previous: ChatDiff[], raw: unknown): ChatDiff[] {
   const parsed = EditResult.safeParse(raw)
   const hunks = parsed.success ? (parsed.data.structuredPatch ?? []) : []
   const [first] = previous
@@ -360,7 +368,7 @@ function resultDiffs(previous: ChatDiff[], raw: unknown): ChatDiff[] {
 // A result's text, and the images it names (see imageMarker) or that were just kept from its bytes.
 // An image block neither names (a Read of a picture, which the chat shows from its file) shows as a
 // placeholder, since its bytes are not kept.
-function toolResult(content: unknown, kept: readonly ChatImage[] = []): { text: string; images: ChatImage[] } {
+export function toolResult(content: unknown, kept: readonly ChatImage[] = []): { text: string; images: ChatImage[] } {
   if (typeof content === 'string') return takeImageMarkers(content)
   if (!Array.isArray(content)) return { text: '', images: [] }
   const blocks = content.map((block) => Block.safeParse(block)).flatMap((parsed) => (parsed.success ? [parsed.data] : []))
@@ -448,6 +456,7 @@ export class ClaudeStream implements ChatDriver {
     this.antumi = new AntumiRequests(this.items)
     this.state = new StageState(this.items)
     this.sessionId = options.resume
+    if (options.providerModels) this.catalog = providerRows(options.providerModels)
   }
 
   apply(record: ChatRecord): void {
@@ -472,6 +481,9 @@ export class ClaudeStream implements ChatDriver {
         break
       case 'exit':
         this.ended(record.code, record.stderr, record.at)
+        break
+      case 'item':
+        this.items.put(record.item, record.at)
         break
       case 'ask':
       case 'answer':
@@ -1117,7 +1129,8 @@ export class ClaudeStream implements ChatDriver {
     // notification and ends it at once, the report already taken: no request, nothing said. That
     // one is left out, rather than shown as a turn of its own.
     const empty = state === 'completed' && this.turn?.resumed === true && !this.turn.assistant && result.num_turns === 0
-    this.turnMetering = claudeMetering(frame, this.currentModel()?.resolvedModel ?? this.reportedModel, [...this.modelRequests.values()])
+    const metering = claudeMetering(frame, this.currentModel()?.resolvedModel ?? this.reportedModel, [...this.modelRequests.values()])
+    this.turnMetering = metering && this.options.providerModels ? withoutCost(metering) : metering
     this.endTurn(state, error, result.duration_ms ?? null, at, usage, limit, empty)
   }
 
@@ -1274,7 +1287,7 @@ export class ClaudeStream implements ChatDriver {
     this.initialized = true
     const init = InitResponse.safeParse(response)
     if (!init.success) return
-    this.catalog = modelRows(init.data.models)
+    this.catalog = this.options.providerModels ? providerRows(this.options.providerModels) : modelRows(init.data.models)
     this.commands = commandRows(init.data.commands)
     const mode = init.data.current_permission_mode
     if (mode) this.permissionMode = PERMISSION_MODES[mode] ?? mode

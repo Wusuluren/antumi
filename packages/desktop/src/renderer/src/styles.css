@@ -604,6 +604,12 @@ body.stacked-panel-resizing * {
    section's own ＋. */
 .conversation-group-new { margin-right: 4px; opacity: 0; }
 .conversation-group-title:hover .conversation-group-new, .conversation-group-new:focus-visible { opacity: 1; }
+/* Under a group cut short, its text lined up with the rows' titles. */
+.conversation-group-more { width: 100%; display: flex; align-items: center; gap: 6px; padding: 4px 12px 4px 39px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.conversation-group-more:hover { background: var(--surface-muted); color: var(--text); }
+.conversation-group-more:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.conversation-group-more svg { width: 12px; height: 12px; flex-shrink: 0; transition: transform 0.15s; }
+.conversation-group-more[aria-expanded='true'] svg { transform: rotate(180deg); }
 /* Centered in the row's 16px icon column, on the title's first line, like a task's status icon. */
 /* The mark before a conversation's name: a ring when nothing is going on, a spinner while its agent
    works, a dot for what wants the user: amber and pulsing when it waits on them, red when it failed,
@@ -1727,6 +1733,12 @@ button.task-tag:hover {
   font-size: 12px;
   color: var(--text-muted);
 }
+
+.task-auto-run { margin-top: 16px; }
+.task-auto-run-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; color: var(--text); cursor: pointer; }
+.task-auto-run-row .switch { flex-shrink: 0; }
+.task-auto-run-row:has(input:disabled) { cursor: default; }
+.task-auto-run p { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
 
 @container (max-width: 760px) {
   .task-detail-layout {
@@ -4848,6 +4860,50 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .mcp-tools { margin: 0; padding: 0 0 0 16px; font-size: 12px; line-height: 1.7; }
 .mcp-candidate { flex-wrap: wrap; }
 .mcp-candidate-name { width: 160px; }
+
+/* Sessions run in a terminal, to import (Settings → 导入会话): by folder, newest first. */
+.session-import-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-bottom: 12px; }
+.session-import-search { flex: 1; min-width: 160px; }
+.session-import-hide { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.session-import-list-actions { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; background: var(--surface); border-bottom: 1px solid var(--border); }
+.session-import-summary { flex: 1; min-width: 0; font-size: 12px; color: var(--text-muted); }
+.session-import-group { padding-top: 8px; }
+.session-import-group + .session-import-group { border-top: 1px solid var(--border); }
+.session-import-folder { display: flex; align-items: center; gap: 8px; padding: 0; }
+.session-import-folder-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px 4px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.session-import-folder-toggle:hover { background: var(--fill); }
+.session-import-folder-toggle > svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted); }
+.session-import-folder-toggle[aria-expanded='true'] > svg { transform: rotate(90deg); }
+.session-import-folder-toggle .settings-project-name { flex-shrink: 0; max-width: 32%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-import-count, .session-import-selected { flex-shrink: 0; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.session-import-selected { color: var(--accent); }
+.session-import-folder input, .session-import-row > input[type='checkbox'] { accent-color: var(--accent); }
+.session-import-row { gap: 8px; padding: 8px 0 8px 24px; }
+.session-import-agent { display: inline-flex; flex-shrink: 0; }
+.session-import-agent .agent-mark { width: 14px; height: 14px; }
+.session-import-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-import-time { flex-shrink: 0; font-size: 12px; white-space: nowrap; }
+.session-import-badge { flex-shrink: 0; padding: 0 6px; border-radius: var(--radius-xs); background: var(--fill-2); color: var(--text-muted); font-size: 11px; line-height: 18px; white-space: nowrap; }
+.session-import-badge.updated { background: var(--accent-bg); color: var(--accent); }
+.session-import-actions { position: sticky; bottom: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding: 12px 0; border-top: 1px solid var(--border); background: var(--surface); }
+
+.provider-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.provider-preset { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); text-align: left; cursor: pointer; }
+.provider-preset:hover { border-color: var(--border-2); }
+.provider-preset[aria-checked='true'] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.provider-preset-name { display: flex; align-items: center; gap: 6px; font-weight: 500; }
+.provider-preset-host { color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+.provider-badge { flex-shrink: 0; margin-left: 6px; padding: 0 6px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-size: 11px; font-weight: 400; }
+.provider-badge[data-verified='true'] { border-color: var(--status-done); color: var(--status-done); }
+.provider-model-pickers { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.provider-endpoints { margin: 0; padding: 0; list-style: none; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.provider-checks { margin: 0; padding: 4px 0 8px; list-style: none; font-size: 12px; line-height: 1.7; }
+.provider-check { overflow-wrap: anywhere; }
+.provider-link { color: var(--accent); text-decoration: none; }
+.chat-draft-agent-provider { color: var(--text-muted); font-size: 12px; }
+.provider-link:hover { text-decoration: underline; }
+.provider-check[data-ok='true'] > span:first-child { color: var(--status-done); }
+.provider-check[data-ok='false'] > span:first-child { color: var(--danger); }
 
 .chat-command-summary {
   flex: 1;
@@ -8181,6 +8237,12 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .chat-turn-head-effort { flex-shrink: 0; color: var(--text-3); white-space: nowrap; }
 .chat-turn-head-model::before,
 .chat-turn-head-effort::before { content: '·'; margin-right: 8px; }
+.chat-turn-head-provider { flex-shrink: 0; color: var(--text-3); white-space: nowrap; }
+.chat-turn-head-provider::before { content: '·'; margin-right: 8px; }
+.route-badge { display: inline-flex; flex-shrink: 0; align-items: center; gap: 4px; padding: 1px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.route-badge svg { width: 12px; height: 12px; }
+.route-badge[data-reason='agent-unsupported'] { border-style: dashed; color: var(--text-3); }
+.route-badge[data-reason='unavailable'] { border-color: var(--warning); color: var(--warning); }
 .chat-turn-head .chat-message-time { margin-left: 0; }
 .chat-turn-tokens { font-family: var(--mono); }
 
@@ -8961,6 +9023,34 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .git-branch-row svg { width: 12px; height: 12px; flex-shrink: 0; }
 .git-branch-row:hover, .git-tree-filter:hover { background: var(--fill); }
 .git-branch-row[data-selected], .git-tree-filter[aria-pressed='true'] { background: var(--fill-2); }
+/* A push as IntelliJ shows it: branch → remote : target, then what goes. */
+.git-push-dialog { width: min(540px, calc(100vw - 32px)); }
+.git-push-route { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.git-push-route > .mono { overflow-wrap: anywhere; }
+.git-push-route .git-push-remote { width: auto; min-width: 88px; }
+.git-push-route .git-push-target { flex: 1; min-width: 160px; }
+.git-push-route .git-push-target[data-other] { border-color: var(--warning); color: var(--warning); }
+.git-push-tag { flex-shrink: 0; padding: 1px 8px; border-radius: 999px; font-size: 11px; white-space: nowrap; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.git-push-other { margin: -4px 0 0; font-size: 12px; line-height: 1.6; color: var(--warning); }
+.git-push-commits { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.git-push-commits-head { padding: 6px 10px; font-size: 12px; color: var(--text-muted); background: var(--fill); border-bottom: 1px solid var(--border); }
+.git-push-commit { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: baseline; padding: 5px 10px; font-size: 12px; }
+.git-push-commit + .git-push-commit { border-top: 1px solid var(--border); }
+.git-push-subject { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.git-push-more { grid-template-columns: 1fr; }
+.git-push-empty { margin: 0; padding: 10px; font-size: 12px; }
+.git-push-note { margin: 0; font-size: 12px; line-height: 1.6; }
+.git-push-note .link-button { margin-left: 0; font-size: 12px; }
+.git-push-remember { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+/* How far a local branch is from its upstream, as IntelliJ shows it: incoming, then outgoing. */
+.git-branch-track { display: inline-flex; gap: 4px; flex-shrink: 0; font-size: var(--chat-font-small, 12px); font-variant-numeric: tabular-nums; }
+.git-branch-track [data-side='behind'] { color: var(--info); }
+.git-branch-track [data-side='ahead'] { color: var(--status-done); }
+.git-update-methods { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 8px; }
+.git-dialog .git-update-method { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: 8px; cursor: pointer; }
+.git-update-method input { margin-top: 3px; }
+.git-update-method > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.git-update-method .muted { font-size: 12px; line-height: 1.5; }
 .git-branch-badge { color: var(--text-muted); font-size: var(--chat-font-small, 12px); border-radius: var(--radius-xs); background: var(--fill); padding: 0 4px; }
 .git-tree-filter { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--text); font: inherit; font-size: var(--chat-font-small, 12px); padding: 8px; cursor: pointer; border-radius: var(--radius-xs); }
 .git-history { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
@@ -9066,15 +9156,20 @@ div.inspector-empty > p { margin: 0 0 8px; }
    past which the board scrolls sideways, and a card's, past which more room is left over rather
    than stretching the cards. Each scrolls down by itself, so a long done column does not push the
    others out of view. */
-.task-board-columns { flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 400px); gap: 12px; padding: 4px 20px 20px; overflow-x: auto; overflow-y: hidden; }
+.task-board-viewport { position: relative; flex: 1; min-height: 0; display: flex; overflow: hidden; isolation: isolate; }
+.task-board-columns { flex: 1; min-width: 0; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 400px); gap: 12px; padding: 4px 20px 32px; overflow-x: auto; overflow-y: hidden; }
+.task-dependencies { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+.task-dependency-line { fill: none; stroke: var(--text-3); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.6; }
+.task-dependencies[data-active] .task-dependency-line { opacity: 0.15; }
+.task-dependencies .task-dependency-line[data-related] { stroke: var(--text-muted); stroke-width: 2; opacity: 1; }
 /* Each column a wash of its status colour, as Multica's board has, the cards sitting on it. The
    sticky title lays the same wash over the surface, so it stays opaque over cards scrolling under. */
-.task-board-column { --column-tint: color-mix(in srgb, var(--status-pending) 7%, transparent); min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 8px 8px; border-radius: var(--radius-lg); background: var(--column-tint); }
+.task-board-column { --column-tint: color-mix(in srgb, var(--status-pending) 7%, transparent); min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 20px 8px; border-radius: var(--radius-lg); background: var(--column-tint); }
 .task-board-column[data-status='running'] { --column-tint: color-mix(in srgb, var(--status-running) 6%, transparent); }
 .task-board-column[data-status='review'] { --column-tint: color-mix(in srgb, var(--status-review) 8%, transparent); }
 .task-board-column[data-status='done'] { --column-tint: color-mix(in srgb, var(--status-done) 6%, transparent); }
 .task-board-column[data-status='abandoned'] { --column-tint: color-mix(in srgb, var(--status-abandoned) 8%, transparent); }
-.task-board-column-title { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin: 0 -8px; height: 40px; padding: 0 12px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: linear-gradient(var(--column-tint), var(--column-tint)), var(--surface); font-size: 12px; font-weight: 600; }
+.task-board-column-title { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin: 0 -20px; height: 40px; padding: 0 12px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: linear-gradient(var(--column-tint), var(--column-tint)), var(--surface); font-size: 12px; font-weight: 600; }
 .task-board-column-title .count { font-weight: 400; color: var(--text-3); }
 .task-board-column-empty { display: grid; place-items: center; height: 64px; margin: 0; border: 1px dashed var(--border-2); border-radius: var(--radius-lg); font-size: 12px; color: var(--text-3); }
 .task-board-more { height: 32px; border: 1px dashed var(--border-2); border-radius: var(--radius); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
@@ -9683,3 +9778,11 @@ button.squad-member-main { cursor: pointer; }
   line-height: 18px;
   white-space: nowrap;
 }
+
+/* The getting-started guide reads as a document, at the chat's measure rather than the overview's. */
+.guide-page > * { width: 100%; max-width: 800px; margin-inline: auto; }
+.guide-page .worktrees-header { align-items: center; }
+.guide-markdown img { display: block; max-width: 100%; height: auto; margin: 12px 0; border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.guide-markdown h2 { margin-top: 32px; }
+.guide-markdown table { display: table; width: 100%; }
+.guide-markdown td:first-child { white-space: nowrap; }

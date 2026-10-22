@@ -3,7 +3,8 @@ import type { AgentAdapter, AgentStage } from '../agent-adapter'
 import { clearMcpReadyFile, mcpReadyFile, mcpReadyWithin, mcpServerReporting } from '../mcp-ready-file'
 import { OPENCODE_MODES, OpenCodeAcp } from './opencode-acp'
 import { detectOpenCode, opencodeCatalog, opencodeInstallation, requireOpenCode } from './opencode-cli'
-import { opencodeConfig } from './opencode-config'
+import { PROVIDER_KEY_ENV, PROVIDER_MARK_ENV } from '../../provider-launch'
+import { opencodeConfig, opencodeProviderModels } from './opencode-config'
 
 const readyFile = (stage: AgentStage) => mcpReadyFile(stage, 'opencode')
 // It starts the server with its own, after loading its config and providers.
@@ -18,8 +19,13 @@ export const opencode: AgentAdapter = {
   command: (launch) => ({
     command: 'opencode',
     args: ['acp'],
-    env: { OPENCODE_CONFIG_CONTENT: opencodeConfig(launch), OPENCODE_DISABLE_AUTOUPDATE: '1' }
+    env: {
+      OPENCODE_CONFIG_CONTENT: opencodeConfig(launch),
+      OPENCODE_DISABLE_AUTOUPDATE: '1',
+      ...(launch.provider ? { [PROVIDER_KEY_ENV]: launch.provider.apiKey, [PROVIDER_MARK_ENV]: launch.provider.providerId } : {})
+    }
   }),
+  providerModels: opencodeProviderModels,
   permissionModes: Object.keys(OPENCODE_MODES),
   // Antumi sets the mode over ACP, so a stage always starts in one OpenCode has.
   fallbackMode: 'ask',

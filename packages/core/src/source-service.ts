@@ -56,7 +56,7 @@ export type SourceConversations = {
     agent: AgentKind,
     projectPaths: readonly string[],
     allowBypass: boolean | undefined,
-    start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string },
+    start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string; modelProvider?: string },
     issue: { source: TaskSource; title: string; brief: string; readable: readonly string[] },
     note: string
   ): Promise<Conversation>

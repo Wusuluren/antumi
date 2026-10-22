@@ -1,5 +1,5 @@
 import path from 'node:path'
-import type { AgentKind, GitTarget, GitAction, GitResult, GitStatus, GitHistory, GitDetail, GitComparison, FileDiff } from '@antumi/protocol'
+import type { AgentKind, GitTarget, GitAction, GitResult, GitStatus, GitHistory, GitDetail, GitComparison, GitOutgoing, FileDiff } from '@antumi/protocol'
 import { checkGitOperation } from '@antumi/protocol'
 import type { TaskService } from './task-service'
 import type { ConversationService } from './conversation-service'
@@ -8,6 +8,18 @@ import { projectHead } from './workspace'
 import { commitAll } from './project-commit'
 import { Rejection } from './rejection'
 import { checkoutKey, commitRef, committedDiff, conflictFiles, filesBetween, gitOperation, logCommits, repositoryKey, writeGit } from './git-repository'
+import { abortOperation, continueOperation, parseTrack, rebasing, updateBranch } from './git-update'
+import { outgoingCommits, pushBranch, trackBranch } from './git-push'
+
+// A remote the repository has, never one that reads as an option.
+const remoteIn = (status: GitStatus) => (remote: string) => {
+  if (!status.remotes.includes(remote) || remote.startsWith('-')) throw new Rejection('git-no-remote', '请选择已配置的 remote。')
+  return remote
+}
+
+const validBranchName = (dir: string) => async (name: string) => {
+  if (name.startsWith('-') || !await writeGit(dir, ['check-ref-format', '--branch', name]).then((output) => output === name, () => false)) throw new Rejection('invalid-branch-name')
+}
 
 export class GitService {
   private readonly locked = new Set<string>()
@@ -97,7 +109,7 @@ export class GitService {
     if (!key) return empty
     const [head, sha, listing, worktrees, remotes, protectedRefs, busy, operation, conflicts] = await Promise.all([
       projectHead(dir), gitOrNull(dir, ['rev-parse', 'HEAD']),
-      git(dir, ['for-each-ref', '--sort=-committerdate', '--format=%(refname)%00%(objectname)%00%(upstream)', 'refs/heads', 'refs/remotes']),
+      git(dir, ['for-each-ref', '--sort=-committerdate', '--format=%(refname)%00%(objectname)%00%(upstream)%00%(upstream:track,nobracket)', 'refs/heads', 'refs/remotes']),
       git(dir, ['worktree', 'list', '--porcelain', '-z']), git(dir, ['remote']), this.protectedRefs(key), this.busy(dir), gitOperation(dir), conflictFiles(dir)
     ])
     const holders = new Map<string, string>()
@@ -109,13 +121,13 @@ export class GitService {
     return {
       ...empty, git: true, directory: await gitOrNull(dir, ['rev-parse', '--show-toplevel']) ?? dir, branch: head.detached ? null : head.branch, head: sha,
       upstream: head.upstream ?? null, ahead: head.ahead ?? 0, behind: head.behind ?? 0, changes: head.changes ?? 0,
-      remotes: remotes.trim().split('\n').filter(Boolean), operation, conflicts,
+      remotes: remotes.trim().split('\n').filter(Boolean), operation, conflicts, rebase: operation === 'other' && await rebasing(dir),
       blocker: busy ? 'Agent 正在处理、等待批准或启动，请等这一轮结束。' : this.locked.has(key) ? 'Git 操作进行中。' : null,
       branches: listing.split('\n').filter(Boolean).flatMap((line) => {
-        const [ref = '', sha = '', upstream = ''] = line.split('\0')
+        const [ref = '', sha = '', upstream = '', track = ''] = line.split('\0')
         const remote = /^refs\/remotes\/([^/]+)\/(.+)$/.exec(ref)
         if (remote?.[2] === 'HEAD') return []
-        return [{ ref, name: remote?.[2] ?? ref.slice('refs/heads/'.length), remote: remote?.[1] ?? null, sha, upstream: upstream || null, worktree: holders.get(ref) ?? null, protected: protectedRefs.has(ref) }]
+        return [{ ref, name: remote?.[2] ?? ref.slice('refs/heads/'.length), remote: remote?.[1] ?? null, sha, upstream: upstream || null, worktree: holders.get(ref) ?? null, protected: protectedRefs.has(ref), ...(upstream ? parseTrack(track) : {}) }]
       })
     }
   }
@@ -182,6 +194,12 @@ export class GitService {
     return { base: direct ? base : ancestor ?? base, target: targetSha, ancestor, ahead: counts[0] ?? 0, behind: counts[1] ?? 0, commits, files: await filesBetween(dir, direct ? base : ancestor, targetSha) }
   }
 
+  async outgoing(target: GitTarget, remote: string, name: string): Promise<GitOutgoing> {
+    const dir = this.directory(target)
+    const status = await this.status(target)
+    return outgoingCommits(dir, status, remote, name, { remoteAt: remoteIn(status), validName: validBranchName(dir) })
+  }
+
   async execute(target: GitTarget, action: GitAction): Promise<GitResult> {
     const dir = this.directory(target)
     const key = await repositoryKey(dir)
@@ -196,7 +214,7 @@ export class GitService {
       if (target.kind === 'task' && status.branch !== this.tasks.get(target.id).repos.find((repo) => repo.path === target.project)?.branch) throw new Rejection('git-task-branch', 'worktree 的实际分支与任务绑定不符，请先在终端修复。')
       const result = await this.perform(dir, status, action)
       const after = await projectHead(dir)
-      const moved = ['switch', 'detach', 'merge', 'pull', 'continue', 'abort', 'resolve'].includes(action.kind) || (action.kind === 'create' && action.checkout) || (action.kind === 'rename' && action.ref === `refs/heads/${status.branch}`)
+      const moved = ['switch', 'detach', 'merge', 'pull', 'continue', 'abort', 'resolve'].includes(action.kind) || (action.kind === 'update' && action.ref === `refs/heads/${status.branch}`) || (action.kind === 'create' && action.checkout) || (action.kind === 'rename' && action.ref === `refs/heads/${status.branch}`)
       if (moved) {
         for (const conversation of this.conversations.listAll()) {
           for (const project of conversation.projectPaths) {
@@ -220,27 +238,13 @@ export class GitService {
       if (!branch) throw new Rejection('branch-not-found')
       return branch
     }
-    const validName = async (name: string) => {
-      if (name.startsWith('-') || !await writeGit(dir, ['check-ref-format', '--branch', name]).then((output) => output === name, () => false)) throw new Rejection('invalid-branch-name')
-    }
-    const remoteAt = (remote: string) => {
-      if (!status.remotes.includes(remote) || remote.startsWith('-')) throw new Rejection('git-no-remote', '请选择已配置的 remote。')
-      return remote
-    }
+    const validName = validBranchName(dir)
+    const remoteAt = remoteIn(status)
     const requireBranch = () => {
       if (!status.branch) throw new Rejection('git-no-branch', '请先检出一个本地分支。')
       return status.branch
     }
-    const push = async (remote?: string, name?: string): Promise<GitResult> => {
-      const branch = requireBranch()
-      const tracked = status.branches.find((entry) => entry.ref === `refs/heads/${branch}`)?.upstream
-      const match = tracked ? /^refs\/remotes\/([^/]+)\/(.+)$/.exec(tracked) : null
-      const chosenRemote = remoteAt(remote ?? match?.[1] ?? 'origin')
-      const chosenName = name ?? match?.[2] ?? branch
-      await validName(chosenName)
-      await writeGit(dir, ['push', '--set-upstream', chosenRemote, `refs/heads/${branch}:refs/heads/${chosenName}`])
-      return { state: 'done', branch, upstream: `${chosenRemote}/${chosenName}` }
-    }
+    const push = (change: { remote?: string; name?: string; from?: string } = {}) => pushBranch(dir, status, change, { remoteAt, validName })
     switch (action.kind) {
       case 'create': {
         await validName(action.name)
@@ -298,7 +302,9 @@ export class GitService {
         await writeGit(dir, ['pull', '--ff-only', remoteAt(remote[1]), remote[2]])
         break
       }
-      case 'push': return push(action.remote, action.name)
+      case 'update': return updateBranch(dir, status, action.ref, action.method, remoteAt)
+      case 'push': return push(action)
+      case 'track': return trackBranch(dir, status, action.ref, action.upstream)
       case 'commit': {
         requireBranch()
         const commit = await commitAll(dir, action.message)
@@ -321,11 +327,8 @@ export class GitService {
         await writeGit(dir, ['add', '--', action.file])
         break
       }
-      case 'continue':
-        if (status.conflicts.length) throw new Rejection('git-conflicts', '仍有未解决的冲突文件。')
-        await writeGit(dir, ['commit', '--no-edit'])
-        break
-      case 'abort': await writeGit(dir, ['merge', '--abort']); break
+      case 'continue': return continueOperation(dir, status)
+      case 'abort': return abortOperation(dir, status)
     }
     return { state: 'done' }
   }

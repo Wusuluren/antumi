@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { AttachmentId } from './attachments'
 import { AgentKind } from './agent'
+import { ModelProviderId } from './model-provider-id'
 import { KnowledgeBase } from './knowledge'
 import { RESERVED_MCP_SERVER_NAME } from './mcp'
 import { ModelMetering, SmallModelCost } from './model-cost'
@@ -111,7 +112,10 @@ export const TaskLaunchOptions = z.object({
   permissionMode: ChatPermissionMode.optional(),
   // null resets a previous task stage's choice to the agent/model default.
   model: z.string().trim().min(1).max(200).nullable().optional(),
-  effort: z.string().trim().min(1).max(200).nullable().optional()
+  effort: z.string().trim().min(1).max(200).nullable().optional(),
+  // The model provider the task's conversation starts on; null its agent's own account. Fixed once
+  // the conversation is made: a start may only name the same. Older cores leave it out.
+  modelProvider: ModelProviderId.nullable().optional()
 })
 export type TaskLaunchOptions = z.infer<typeof TaskLaunchOptions>
 

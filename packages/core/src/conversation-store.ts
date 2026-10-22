@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { z } from 'zod'
-import { AgentKind, Conversation, ConversationMessage, ConversationStage, TaskSource } from '@antumi/protocol'
+import { AgentKind, Conversation, ConversationMessage, ConversationStage, ProviderRoute, TaskSource } from '@antumi/protocol'
 
 const lastEnded = (column: string) => `(SELECT ${column} FROM conversation_stages
   WHERE conversation_id = conversations.id AND ended_at IS NOT NULL ORDER BY started_at DESC, rowid DESC LIMIT 1)`
@@ -11,11 +11,12 @@ const SELECT = `SELECT id, title, title_locked AS titleLocked, agent, workspace_
   updated_at AS updatedAt, ${lastEnded('exit_code')} AS lastExitCode, ${lastEnded('ended_at')} AS lastExitAt,
   (SELECT plan_only FROM conversation_stages WHERE conversation_id = conversations.id ORDER BY started_at DESC, rowid DESC LIMIT 1) AS planOnly,
   task_id AS taskId, pinned_at AS pinnedAt, archived_at AS archivedAt, routine_id AS routineId, forked_from_id AS forkedFromId,
-  discussion_id AS discussionId, squad_run_id AS squadRunId, workspace_read_only AS workspaceReadOnly, helper_of AS helperOf, source
+  discussion_id AS discussionId, squad_run_id AS squadRunId, workspace_read_only AS workspaceReadOnly, helper_of AS helperOf, source,
+  model_provider AS modelProvider
   FROM conversations`
 const STAGE_SELECT = `SELECT id, conversation_id AS conversationId, agent, provider_session_id AS providerSessionId,
   session_id AS sessionId, received_sequence AS receivedSequence, started_at AS startedAt,
-  ended_at AS endedAt, exit_code AS exitCode, plan_only AS planOnly FROM conversation_stages`
+  ended_at AS endedAt, exit_code AS exitCode, plan_only AS planOnly, provider_route AS route FROM conversation_stages`
 const MESSAGE_SELECT = `SELECT sequence, conversation_id AS conversationId, stage_id AS stageId,
   role, agent, text, event_key AS eventKey, complete, created_at AS createdAt FROM conversation_messages`
 
@@ -28,11 +29,20 @@ const ChatOptions = z.object({
 }).and(z.partialRecord(AgentKind, AgentChoice)).catch({})
 export type ChatOptions = z.infer<typeof ChatOptions>
 
+// A session an agent ran outside Antumi, as it was imported: through its record of this time, from
+// its file as it stood at the other.
+const SessionImport = z.object({ agent: AgentKind, sessionId: z.string(), conversationId: z.string(), importedThrough: z.number(), sourceModifiedAt: z.number() })
+export type SessionImport = z.infer<typeof SessionImport>
+
 // An unreadable source is dropped rather than losing the conversation with it.
 function source(raw: unknown): TaskSource | null {
+  return parsedJson(raw, TaskSource)
+}
+
+function parsedJson<T>(raw: unknown, schema: z.ZodType<T>): T | null {
   if (typeof raw !== 'string') return null
   try {
-    return TaskSource.safeParse(JSON.parse(raw)).data ?? null
+    return schema.safeParse(JSON.parse(raw)).data ?? null
   } catch {
     return null
   }
@@ -44,8 +54,13 @@ function conversation(row: Record<string, unknown>): Conversation {
     titleLocked: Boolean(row.titleLocked), managedWorkspace: Boolean(row.managedWorkspace), planOnly: Boolean(row.planOnly), workspaceReadOnly: Boolean(row.workspaceReadOnly),
     lastExit: lastExitAt === null ? null : { code: lastExitCode, at: lastExitAt } })
 }
+// An unreadable route is kept as an unknown provider's rather than as the agent's own account, so
+// a session opened on it is never resumed elsewhere.
+const UNREADABLE_ROUTE: ProviderRoute = { providerId: 'unreadable', name: '', wire: 'anthropic', baseUrl: '', anthropic: null, key: 'unreadable', models: [], defaultModel: '', smallModel: '' }
+
 function stage(row: Record<string, unknown>): ConversationStage {
-  return ConversationStage.parse({ ...row, planOnly: Boolean(row.planOnly) })
+  const route = row.route == null ? null : parsedJson(row.route, ProviderRoute) ?? UNREADABLE_ROUTE
+  return ConversationStage.parse({ ...row, planOnly: Boolean(row.planOnly), route })
 }
 function message(row: Record<string, unknown>): ConversationMessage {
   return ConversationMessage.parse({ ...row, complete: Boolean(row.complete) })
@@ -115,6 +130,11 @@ export class ConversationStore {
 
   setSource(id: string, issue: TaskSource): void {
     this.db.prepare('UPDATE conversations SET source = ? WHERE id = ?').run(JSON.stringify(issue), id)
+  }
+
+  // Once, as it is created: a conversation stays on the provider it was started on.
+  setModelProvider(id: string, providerId: string | null): void {
+    this.db.prepare('UPDATE conversations SET model_provider = ? WHERE id = ?').run(providerId, id)
   }
 
   setForkedFrom(id: string, sourceId: string): void {
@@ -237,9 +257,9 @@ export class ConversationStore {
     return row ? stage(row) : null
   }
 
-  // The agent's newest chat stage in any conversation.
+  // The agent's newest chat stage in any conversation on its own account.
   latestChatStage(agent: AgentKind): ConversationStage | null {
-    const row = this.db.prepare(`${STAGE_SELECT} WHERE agent = ? ORDER BY started_at DESC, rowid DESC LIMIT 1`).get(agent)
+    const row = this.db.prepare(`${STAGE_SELECT} WHERE agent = ? AND provider_route IS NULL ORDER BY started_at DESC, rowid DESC LIMIT 1`).get(agent)
     return row ? stage(row) : null
   }
 
@@ -248,10 +268,10 @@ export class ConversationStore {
     return row ? stage(row) : null
   }
 
-  startStage(conversationId: string, agent: AgentKind, providerSessionId: string | null, receivedSequence: number, id = randomUUID(), planOnly = false): ConversationStage {
+  startStage(conversationId: string, agent: AgentKind, providerSessionId: string | null, receivedSequence: number, id = randomUUID(), planOnly = false, route: ProviderRoute | null = null): ConversationStage {
     this.db.prepare(`INSERT INTO conversation_stages
-      (id, conversation_id, agent, provider_session_id, received_sequence, started_at, plan_only)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`).run(id, conversationId, agent, providerSessionId, receivedSequence, this.now(), Number(planOnly))
+      (id, conversation_id, agent, provider_session_id, received_sequence, started_at, plan_only, provider_route)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(id, conversationId, agent, providerSessionId, receivedSequence, this.now(), Number(planOnly), route ? JSON.stringify(route) : null)
     return this.stage(id)!
   }
 
@@ -338,5 +358,23 @@ export class ConversationStore {
 
   delete(id: string): void {
     this.db.prepare('DELETE FROM conversations WHERE id = ?').run(id)
+  }
+
+  // Every agent session a stage here ran or resumed, by agent: imported ones among them.
+  providerSessions(): Set<string> {
+    return new Set(this.db.prepare('SELECT DISTINCT agent, provider_session_id AS id FROM conversation_stages WHERE provider_session_id IS NOT NULL')
+      .all().map((row) => `${String(row.agent)}:${String(row.id)}`))
+  }
+
+  sessionImports(): SessionImport[] {
+    return this.db.prepare(`SELECT agent, provider_session_id AS sessionId, conversation_id AS conversationId,
+      imported_through AS importedThrough, source_modified_at AS sourceModifiedAt FROM session_imports`).all().map((row) => SessionImport.parse(row))
+  }
+
+  recordSessionImport(value: SessionImport): void {
+    this.db.prepare(`INSERT INTO session_imports (agent, provider_session_id, conversation_id, imported_through, source_modified_at)
+      VALUES (?, ?, ?, ?, ?) ON CONFLICT (agent, provider_session_id) DO UPDATE SET conversation_id = excluded.conversation_id,
+      imported_through = excluded.imported_through, source_modified_at = excluded.source_modified_at`)
+      .run(value.agent, value.sessionId, value.conversationId, value.importedThrough, value.sourceModifiedAt)
   }
 }

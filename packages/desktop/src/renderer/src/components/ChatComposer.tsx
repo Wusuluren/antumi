@@ -7,6 +7,7 @@ import { agentEntries, antumiEntries } from '../chat-commands'
 import { composeMessage, parseQuotes, setQuotes, useQuotes, type ChatQuote } from '../chat-quotes'
 import { takeDraft } from '../chat-drafts'
 import { writeMentions } from '../chat-mentions'
+import { usePlans } from '../chat-state'
 import { QuoteCards } from './ChatQuoteCards'
 import { agentLabel } from '../labels'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
@@ -17,6 +18,7 @@ import { useChatCommandMenu } from './ChatCommandMenu'
 import { useChatMentionMenu } from './ChatMentionMenu'
 import { MentionField, useMentionedText } from './ChatMentionField'
 import { ChatOptionsBar } from './ChatOptionsBar'
+import { RouteBadge } from './RouteBadge'
 import { HandoffAgentPicker, HandoffModePicker, HandoffModelPicker, useComposerHandoff } from './ChatHandoff'
 import { ChevronDownIcon, ClockIcon, CloseIcon, EnterIcon, PencilIcon, StopIcon } from './icons'
 import { SchedulePicker } from './SchedulePicker'
@@ -58,7 +60,7 @@ function queuedText(text: string): string {
 }
 
 // Sends what the input holds later, unattended: once its time comes and the agent has quota again.
-// An empty input schedules carrying out the plan the chat has.
+// An empty input schedules carrying out the plan the chat has; with no plan, it schedules nothing.
 function ScheduleSendButton({ conversationId, text, quotes, images, disabledReason, onScheduled }: {
   conversationId: string
   // What the input holds, which the picker starts from and lets the user change there.
@@ -71,6 +73,7 @@ function ScheduleSendButton({ conversationId, text, quotes, images, disabledReas
 }) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
+  const planned = usePlans(conversationId).length > 0
   const close = useCallback(() => setOpen(false), [])
   const toggle = () => {
     if (!open) setDraft(text)
@@ -96,6 +99,7 @@ function ScheduleSendButton({ conversationId, text, quotes, images, disabledReas
         <SchedulePicker
           title={t('ChatComposer.scheduleMessage')}
           align="end"
+          empty={!planned && draft.trim() === '' && quotes.length === 0 && images.length === 0}
           onSchedule={async (notBefore) => {
             const message = composeMessage(quotes, draft)
             const run = await createSchedule({ kind: 'conversation', conversationId, text: message.trim(), ...(images.length ? { images: [...images] } : {}) }, notBefore)
@@ -104,13 +108,13 @@ function ScheduleSendButton({ conversationId, text, quotes, images, disabledReas
           }}
           onClose={close}
         >
-          {/* The message itself, written or changed here; empty, the agent carries out the plan. */}
+          {/* The message itself, written or changed here; empty, the agent carries out the chat's plan. */}
           <textarea
             className="input schedule-message"
             rows={3}
             value={draft}
             aria-label={t('ChatComposer.instructionsToSendToAgentWhenDue')}
-            placeholder={t('ChatComposer.instructionsWhenDueLeaveEmptyToImplementThe')}
+            placeholder={planned ? t('ChatComposer.instructionsWhenDueLeaveEmptyToImplementThe') : t('ChatComposer.messageToSendWhenDue')}
             onChange={(event) => setDraft(event.target.value)}
           />
           {extras.length > 0 && (
@@ -405,6 +409,7 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
       <div className="chat-options">
         {imagesSupported && <ChatAddMenu disabled={starting} onAdd={attached.add} />}
         {!compact && handoff.targets.length > 0 && <HandoffAgentPicker conversationId={id} handoff={handoff} disabled={busy || starting} />}
+        {!compact && !handoff.target && <RouteBadge conversation={conversation} locked />}
         {handingOff ? (
           <>
             <HandoffModePicker conversationId={id} handoff={handoff} />

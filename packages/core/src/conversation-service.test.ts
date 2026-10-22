@@ -11,6 +11,9 @@ import { fakeChatDaemon } from './fake-chat-agent'
 import { pngBytes } from './image-fixtures'
 import { ProjectRegistry } from './project-registry'
 import { TaskStore } from './task-store'
+import { CredentialStore } from './credential-store'
+import { ModelProviderStore } from './model-providers'
+import type { ModelProviderInput } from '@antumi/protocol'
 
 // The store an image a message names is looked up in; made on the way in.
 function attachmentsAt(root: string): AttachmentStore {
@@ -91,7 +94,7 @@ describe('ConversationService', () => {
     const messages = service.messages(source.id)
     const spawns = daemon.spawns.length
     expect(service.configuration(source.id)).toEqual({
-      agent: 'claude', projectPaths: before.projectPaths,
+      agent: 'claude', projectPaths: before.projectPaths, modelProvider: null,
       permissionMode: state.permissionMode, model: state.model, effort: state.effort
     })
     expect(service.configuration(source.id).projectPaths).not.toBe(before.projectPaths)
@@ -107,10 +110,10 @@ describe('ConversationService', () => {
     await service.setOption(source.id, 'model', 'sonnet')
     await service.setOption(source.id, 'effort', 'high')
     await service.setOption(source.id, 'permissionMode', 'plan')
-    expect(service.configuration(source.id)).toEqual({ agent: 'claude', projectPaths: [], permissionMode: 'plan', model: 'sonnet', effort: 'high' })
+    expect(service.configuration(source.id)).toEqual({ agent: 'claude', projectPaths: [], modelProvider: null, permissionMode: 'plan', model: 'sonnet', effort: 'high' })
     await service.setOption(source.id, 'model', 'haiku')
     service = serve()
-    expect(service.configuration(source.id)).toEqual({ agent: 'claude', projectPaths: [], permissionMode: 'plan', model: 'haiku', effort: null })
+    expect(service.configuration(source.id)).toEqual({ agent: 'claude', projectPaths: [], modelProvider: null, permissionMode: 'plan', model: 'haiku', effort: null })
   })
 
   it('copies deferred settings and keeps a new conversation free of history and ownership', async () => {
@@ -118,7 +121,7 @@ describe('ConversationService', () => {
     const source = await service.create('claude', [root], true, { deferStart: true, model: 'sonnet', effort: 'high', permissionMode: 'plan' })
     service.rename(source.id, 'original title')
     const configuration = service.configuration(source.id)
-    expect(configuration).toEqual({ agent: 'claude', projectPaths: [realpathSync(root)], model: 'sonnet', effort: 'high', permissionMode: 'plan' })
+    expect(configuration).toEqual({ agent: 'claude', projectPaths: [realpathSync(root)], modelProvider: null, model: 'sonnet', effort: 'high', permissionMode: 'plan' })
     const created = await service.create(configuration.agent, configuration.projectPaths, true, {
       deferStart: true, model: configuration.model ?? undefined, effort: configuration.effort ?? undefined, permissionMode: configuration.permissionMode ?? undefined
     })
@@ -1189,6 +1192,98 @@ describe('ConversationService', () => {
     expect(daemon.written(created.sessionId!).at(-1)).toMatchObject({ message: { content: [{ type: 'image' }, { type: 'text', text: 'see' }] } })
     expect(service.chatPage(created.id).items.find((item) => item.kind === 'user')).toMatchObject({ images: [{ id: stored.id, width: 4, height: 3 }] })
     expect(service.messages(created.id)[0]?.text).toBe('see\n\n（附了 1 张图片）')
+  })
+
+  describe('on a model provider', () => {
+    const KEY = 'sk-gateway-secret-77'
+    let providers: ModelProviderStore
+    const gateway = (changes: Partial<ModelProviderInput> = {}): ModelProviderInput => ({
+      id: null, name: 'Gateway', preset: 'custom', agents: ['claude'], apiKey: KEY,
+      anthropic: { baseUrl: 'http://127.0.0.1:4000', auth: 'auth_token', env: {} }, openai: null,
+      models: [{ id: 'gw-big', label: 'GW Big', contextWindow: null, maxOutput: null, efforts: [] }, { id: 'gw-small', label: null, contextWindow: null, maxOutput: null, efforts: [] }],
+      defaultModel: 'gw-big', smallModel: 'gw-small', ...changes
+    })
+    beforeEach(async () => {
+      const credentials = new CredentialStore(path.join(root, 'credentials.json'))
+      await credentials.load()
+      providers = new ModelProviderStore(path.join(root, 'model-providers.json'), credentials)
+      await providers.load()
+      service.setModelProviders(providers)
+    })
+    const lastSpawn = () => daemon.spawns.at(-1)!
+
+    it('starts the agent on the provider, keeps the route with the stage, and resumes on the same route', async () => {
+      const { id: providerId } = await providers.save(gateway())
+      const created = await service.create('claude', [root], undefined, { modelProvider: providerId })
+      expect(created).toMatchObject({ modelProvider: providerId, route: { providerId, name: 'Gateway', reason: 'served' } })
+      expect(lastSpawn().env).toMatchObject({ ANTHROPIC_BASE_URL: 'http://127.0.0.1:4000', ANTHROPIC_AUTH_TOKEN: KEY })
+      expect(lastSpawn().args.join(' ')).not.toContain(KEY)
+      expect(lastSpawn().args).toEqual(expect.arrayContaining(['--model', 'gw-big']))
+      const [first] = service.stages(created.id)
+      expect(first?.route).toMatchObject({ providerId, wire: 'anthropic', models: [{ id: 'gw-big' }, { id: 'gw-small' }] })
+      expect(JSON.stringify(first?.route)).not.toContain(KEY)
+      await service.send(created.id, 'hello')
+      await settle()
+      await service.stop(created.id)
+      await service.continue(created.id)
+      expect(lastSpawn().args).toEqual(expect.arrayContaining(['--resume', first!.providerSessionId]))
+      expect(service.configuration(created.id).modelProvider).toBe(providerId)
+    })
+
+    it('hands off to an agent the provider does not serve on its own account, and back onto the provider', async () => {
+      const { id: providerId } = await providers.save(gateway())
+      const created = await service.create('claude', [root], undefined, { modelProvider: providerId })
+      const [first] = service.stages(created.id)
+      await service.send(created.id, 'Build an API')
+      await settle()
+      const codex = await codexOpens(service.handoff(created.id, 'codex', '', true))
+      expect(codex.route).toMatchObject({ providerId, reason: 'agent-unsupported' })
+      expect(service.stages(created.id).at(-1)?.route).toBeNull()
+      expect(Object.values(lastSpawn().env ?? {})).not.toContain(KEY)
+      const back = await service.handoff(created.id, 'claude', '', true)
+      expect(back.route).toMatchObject({ reason: 'served' })
+      expect(lastSpawn().env).toMatchObject({ ANTHROPIC_AUTH_TOKEN: KEY })
+      expect(lastSpawn().args).toEqual(expect.arrayContaining(['--resume', first!.providerSessionId]))
+    })
+
+    it('starts afresh from a handoff once the provider\'s address changed, and not at all once it is gone', async () => {
+      const saved = await providers.save(gateway())
+      const created = await service.create('claude', [root], undefined, { modelProvider: saved.id })
+      await service.send(created.id, 'Fix the build')
+      await settle()
+      await service.stop(created.id)
+      await providers.save(gateway({ id: saved.id, apiKey: null, anthropic: { baseUrl: 'http://127.0.0.1:4001', auth: 'auth_token', env: {} } }))
+      const moved = await service.continue(created.id)
+      expect(lastSpawn().args).not.toContain('--resume')
+      expect(handoffFile(moved.sessionId!)).toContain('Fix the build')
+      await service.stop(created.id)
+      await providers.remove(saved.id)
+      expect(service.get(created.id).route).toMatchObject({ reason: 'unavailable', name: 'Gateway' })
+      await expect(service.continue(created.id)).rejects.toMatchObject({ reason: 'model-provider-unavailable' })
+    })
+
+    it('refuses a provider that does not serve the agent, and offers each agent the provider\'s models', async () => {
+      const { id: providerId } = await providers.save(gateway())
+      await expect(service.create('codex', [root], undefined, { modelProvider: providerId })).rejects.toMatchObject({ reason: 'model-provider-agent-unsupported' })
+      await expect(service.create('claude', [root], undefined, { modelProvider: 'nobody' })).rejects.toMatchObject({ reason: 'model-provider-unavailable' })
+      expect((await service.chatCatalog('claude', providerId))?.models.map((model) => [model.id, model.isDefault])).toEqual([['gw-big', true], ['gw-small', false]])
+      expect(await service.chatCatalog('codex', providerId)).toBeNull()
+      await expect(service.create('claude', [root], undefined, { modelProvider: providerId, model: 'sonnet' })).rejects.toMatchObject({ reason: 'chat-option-invalid' })
+    })
+
+    it('forks onto the same provider, taking the session over only on its route', async () => {
+      const { id: providerId } = await providers.save(gateway())
+      const source = await service.create('claude', [], undefined, { modelProvider: providerId })
+      await service.send(source.id, 'first')
+      await settle()
+      const stage = service.stages(source.id).at(-1)!
+      const reply = service.chatPage(source.id).items.find((item) => item.kind === 'assistant')!
+      const fork = await service.fork(source.id, stage.id, reply.id)
+      expect(fork).toMatchObject({ modelProvider: providerId, route: { reason: 'served' } })
+      expect(lastSpawn().args).toEqual(expect.arrayContaining(['--resume', stage.providerSessionId, '--fork-session']))
+      expect(lastSpawn().env).toMatchObject({ ANTHROPIC_AUTH_TOKEN: KEY })
+      expect(service.stages(fork.id).every((each) => each.route?.providerId === providerId)).toBe(true)
+    })
   })
 
   describe('forking at a message', () => {

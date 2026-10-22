@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { GitTarget, GitStatus, GitHistory, GitDetail, GitComparison, GitAction, GitResult } from './git'
+import { GitTarget, GitStatus, GitHistory, GitDetail, GitComparison, GitAction, GitResult, GitOutgoing } from './git'
 import { AgentKind, MAX_DETAILS_LENGTH, MAX_TASK_REPOS, RepoStartOptions, Task, TaskStatus } from './task'
 import { ATTACHMENT_CHUNK_BYTES, AttachmentId, AttachmentInfo, Base64Chunk, ImageRef, MAX_ATTACHMENT_BYTES, MAX_CHAT_IMAGES, MAX_TASK_IMAGES } from './attachments'
 import { LoginNotice, LoginPrompt, SourceDescriptor, SourceId, SourceInbox, SourceProblem } from './source'
@@ -31,6 +31,8 @@ import { KnowledgeFolder, KnowledgeVault } from './knowledge'
 import { CommitSha, RecommendedSkillRepo, SkillRepo, SkillRepoId, SkillUpdateCheck } from './skills'
 import { TodoList, TodoOwner, TodoText, TodoTitle } from './todos'
 import { McpImportCandidate, McpImportItem, McpProbe, McpServer, McpServerInput, McpServerName } from './mcp'
+import { ModelProvider, ModelProviderId, ModelProviderInput, ModelProviderProbe } from './model-provider'
+import { ExternalSession, ExternalSessionRef } from './session-import'
 
 // Bump only for breaking changes; additive optional fields keep the version.
 export const PROTOCOL_VERSION = 15
@@ -80,17 +82,23 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // todo-overview: core gathers what is left to do across conversations, for the overview (todos.open).
 // terminal-color-prompt: terminals.open takes colorPrompt, a prompt in colour for a zsh whose prompt the user never set.
 // git-commit-actions: git.execute takes tag and detach, for a commit in the history.
+// git-update: git.execute takes update, and status says when a rebase can be carried on.
+// git-push-target: git.outgoing lists what a push sends; push takes from and keeps an upstream it has;
+// git.execute takes track.
 // project-config: core copies files and runs setup in new worktrees and check before review, from a
 // project's .antumi/project.json, once the user trusts its commands (projects.config, projects.trustConfig).
 // project-config-edit: core writes that file as the user filled it in (projects.writeConfig), and
 // suggests what to fill it with (projects.suggestConfig).
-export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-configuration', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'handoff-mode', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit'] as const
+export const CORE_FEATURES = ['plugins', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-configuration', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'handoff-mode', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit', 'model-providers', 'git-update', 'git-push-target', 'task-auto-run', 'session-import'] as const
+// session-import: core lists the sessions agents ran outside Antumi and imports them as conversations (sessionImports.*).
+// model-providers: core keeps the user's model providers (modelProviders.*) and starts a conversation or task's agent on one.
 // knowledge-base: core hands agents the user's local knowledge base and lists the vaults Obsidian knows (knowledge.*).
 // knowledge-base-kind: Markdown folders and Obsidian use their own prompts and skills; missing kind means Obsidian.
 // skills-library: core installs Agent Skills repositories pinned to a commit and hands bundles of them to agents (skills.*).
 // mcp-servers: core keeps the user's MCP servers and hands them to the agents picked at each start (mcpServers.*).
 // task-launch-options: tasks.start accepts the first stage's mode, model and reasoning effort.
 // task-launch: a task keeps them (Task.launch, set by tasks.update and by each start by hand).
+// task-auto-run: tasks.update arms a task for one unattended start after its dependencies finish.
 // discussion-members: members join and leave a group chat midway; discussion-projects: its projects but the first change.
 // discussion-topics: the user moves a group chat on to a new topic (discussions.newTopic, Discussion.topicStart, DiscussionPost.topic).
 // discussion-requirements: discussions.create accepts shared requirements, applied to every turn.
@@ -145,6 +153,8 @@ export const rpcMethods = {
   'git.diff': { params: GitTarget.extend({ base: z.string().nullable(), sha: z.string(), file: z.string() }), result: FileDiff },
   'git.compare': { params: GitTarget.extend({ ref: z.string(), direct: z.boolean().default(false) }), result: GitComparison },
   'git.execute': { params: GitTarget.extend({ action: GitAction }), result: GitResult },
+  // Needs git-push-target.
+  'git.outgoing': { params: GitTarget.extend({ remote: z.string().min(1).max(200), name: z.string().min(1).max(500) }), result: GitOutgoing },
   // A message for committing everything the repo holds, written by the target's agent from the diff,
   // the project's commit rules and its last commits, as a quick request on the model picked (else
   // its cheapest). Needs commit-message.
@@ -193,6 +203,16 @@ export const rpcMethods = {
   // The servers Claude, Codex and Cursor have in their own configuration, and taking some in.
   'mcpServers.importable': { params: z.object({}), result: z.array(McpImportCandidate) },
   'mcpServers.import': { params: z.object({ items: z.array(McpImportItem).min(1).max(64), agents: z.array(AgentKind) }), result: z.array(McpServer) },
+  // Sessions Claude Code and Codex ran outside Antumi, newest first; importing one again brings in
+  // what it added since.
+  'sessionImports.list': { params: z.object({}), result: z.object({ sessions: z.array(ExternalSession) }) },
+  'sessionImports.import': { params: z.object({ sessions: z.array(ExternalSessionRef).min(1).max(100) }), result: z.object({ conversations: z.array(Conversation) }) },
+  'modelProviders.list': { params: z.object({}), result: z.array(ModelProvider) },
+  // Adds a provider (id null) or replaces one, from the next start of each agent on it.
+  'modelProviders.save': { params: ModelProviderInput, result: ModelProvider },
+  'modelProviders.remove': { params: z.object({ id: ModelProviderId }), result: Ok },
+  // One small request per endpoint and model, as an agent would send it.
+  'modelProviders.probe': { params: z.object({ id: ModelProviderId }), result: ModelProviderProbe },
   // What of git and the agent CLIs core finds on its path; the last answer, unless asked to look again.
   'system.environment': { params: z.object({ refresh: z.boolean().optional() }), result: Environment },
   'system.installAgentCli': { params: z.object({ agent: AgentKind }), result: Terminal },
@@ -217,6 +237,7 @@ export const rpcMethods = {
     params: TaskFields.extend({
       id: TaskRef.shape.id,
       title: TaskTitle.optional(),
+      autoRun: z.boolean().optional(),
       // Replaces the task's launch (see Task.launch); core clears it when the agent changes.
       launch: TaskLaunchOptions.optional(),
       // Where each named repo's branch is to start (see TaskRepo.startRef); others keep theirs.
@@ -280,13 +301,17 @@ export const rpcMethods = {
       deferStart: z.boolean().optional(),
       helperOf: z.string().uuid().optional(),
       model: z.string().trim().min(1).max(200).optional(),
-      effort: z.string().trim().min(1).max(200).optional()
+      effort: z.string().trim().min(1).max(200).optional(),
+      // The model provider it runs on (Conversation.modelProvider), which must serve the agent; a
+      // helper runs on its parent's. Needs model-providers.
+      modelProvider: ModelProviderId.optional()
     }),
     result: Conversation
   },
   // What the agent offers a new chat: the models its latest chat stage listed, or, when it never
-  // ran one, what it lists when asked. null when it cannot be asked.
-  'conversations.chatCatalog': { params: z.object({ agent: AgentKind }), result: ChatCatalog.nullable() },
+  // ran one, what it lists when asked; on a model provider, that provider's. null when it cannot
+  // be asked.
+  'conversations.chatCatalog': { params: z.object({ agent: AgentKind, modelProvider: ModelProviderId.optional() }), result: ChatCatalog.nullable() },
   // A reply of the conversation's put into another language by its own agent, on the smallest model
   // it has, in a one-off request with no tools that is kept nowhere. Needs translate.
   // model: the one the user picked for translating with this agent; without it, quickModel's.
@@ -667,7 +692,8 @@ export const rpcMethods = {
       allowBypass: AllowBypass,
       permissionMode: ChatPermissionMode.optional(),
       model: z.string().trim().min(1).max(200).optional(),
-      effort: z.string().trim().min(1).max(200).optional()
+      effort: z.string().trim().min(1).max(200).optional(),
+      modelProvider: ModelProviderId.optional()
     }),
     result: Conversation
   },
@@ -685,6 +711,8 @@ export const rpcNotifications = {
   'skills.changed': z.object({ repos: z.array(SkillRepo) }),
   // Every MCP server (mcpServers.list) after one is added, changed or removed.
   'mcpServers.changed': z.object({ servers: z.array(McpServer) }),
+  // Every model provider (modelProviders.list) after one is added, changed or removed.
+  'modelProviders.changed': z.object({ providers: z.array(ModelProvider) }),
   'system.environmentChanged': z.object({ environment: Environment }),
   // Entries just added to a stage's wire log; only to connections watching the conversation's.
   'debug.wireEntries': z.object({ conversationId: z.string(), stageId: z.string(), entries: z.array(WireEntry) }),

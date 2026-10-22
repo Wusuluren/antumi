@@ -15,6 +15,8 @@ import { Rejection } from './rejection'
 import { ScheduleService } from './schedule-service'
 import { UsageLimitResumes } from './usage-limit-resume'
 import { TaskStore } from './task-store'
+import { CredentialStore } from './credential-store'
+import { ModelProviderStore } from './model-providers'
 
 const HOUR = 3_600_000
 
@@ -40,6 +42,7 @@ describe('ScheduleService', () => {
   let blocker: ScheduleTaskBlocker | null
   let startFails: Error | null
   let starts: Array<{ id: string; unattended: UnattendedMode }>
+  let dependencies: Map<string, Task>
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
   let limits: UsageLimitResumes
@@ -50,7 +53,7 @@ describe('ScheduleService', () => {
   let picked: AgentKind
   let heard: ScheduledRun[]
 
-  function serve(): void {
+  function serve(autoRun = false): void {
     conversations = new ConversationService(store, daemon, path.join(root, 'sessions'),
       (event) => { if (event.type === 'chatItems') limits.observe(event.conversationId, event.items) },
       projects, attachments())
@@ -62,7 +65,9 @@ describe('ScheduleService', () => {
     }
     schedules = new ScheduleService(database, {
       tasks: {
-        get: (id) => (task?.id === id ? task : null),
+        get: (id) => (task?.id === id ? task : dependencies.get(id) ?? null),
+        autoRuns: autoRun ? () => task?.autoRun ? [task] : [] : undefined,
+        disableAutoRun: (id) => { if (task?.id === id) task = { ...task, autoRun: false } },
         scheduleBlocker: () => blocker,
         start: async (id, _allowBypass, unattended) => {
           starts.push({ id, unattended })
@@ -153,6 +158,7 @@ describe('ScheduleService', () => {
     blocker = null
     startFails = null
     starts = []
+    dependencies = new Map()
     routine = null
     picked = 'claude'
     heard = []
@@ -177,6 +183,30 @@ describe('ScheduleService', () => {
     await due()
     expect(run(scheduled.id)).toMatchObject({ status: 'failed', error: 'agent-unattended-unsupported' })
     expect(starts).toEqual([])
+  })
+
+  it('runs a conversation on a model provider whatever the agent\'s own quota says, and waits on no reset of it', async () => {
+    const credentials = new CredentialStore(path.join(root, 'credentials.json'))
+    await credentials.load()
+    const providers = new ModelProviderStore(path.join(root, 'model-providers.json'), credentials)
+    await providers.load()
+    conversations.setModelProviders(providers)
+    const { id: modelProvider } = await providers.save({
+      id: null, name: 'Gateway', preset: 'custom', agents: ['claude'], apiKey: 'k',
+      anthropic: { baseUrl: 'http://127.0.0.1:4000', auth: 'auth_token', env: {} }, openai: null,
+      models: [{ id: 'gw', label: null, contextWindow: null, maxOutput: null, efforts: [] }], defaultModel: 'gw', smallModel: 'gw'
+    })
+    usage = exhausted(clock + 2 * HOUR)
+    const conversation = await conversations.create('claude', [], undefined, { modelProvider })
+    const scheduled = schedules.create({ kind: 'conversation', conversationId: conversation.id, text: 'Implement the plan' }, clock)
+    await due()
+    expect(run(scheduled.id)).toMatchObject({ status: 'started', conversationId: conversation.id })
+    // A limit the provider sets says when it lifts, or nothing: never the agent's own reset.
+    limitTurns(1, null)
+    await conversations.send(conversation.id, 'again')
+    await settle()
+    const item = conversations.chatPage(conversation.id).items.find((each) => each.kind === 'usageLimit')
+    expect(item && statusOf(item)?.resetsAt).toBeNull()
   })
 
   it('sends a conversation\'s message once its time has come and the quota has reset, unattended', async () => {
@@ -683,6 +713,162 @@ describe('ScheduleService', () => {
       expect(conversations.get(made.id).agent).toBe('claude')
       expect(run(made.id)).toBeUndefined()
       expect(heard.find((each) => each.status === 'started')?.agent).toBe('claude')
+    })
+  })
+
+  describe('automatic dependency runs', () => {
+    function arm(): void {
+      schedules.stop()
+      serve(true)
+      task = { ...pendingTask(), autoRun: true, dependsOn: ['first', 'second'] }
+      dependencies.set('first', { ...pendingTask(), id: 'first', status: 'done' })
+      dependencies.set('second', { ...pendingTask(), id: 'second', status: 'review' })
+    }
+
+    function complete(): void {
+      dependencies.set('second', { ...pendingTask(), id: 'second', status: 'done' })
+    }
+
+    it('waits for every dependency to be accepted, then starts exactly once across competing ticks', async () => {
+      arm()
+      await due()
+      const queued = schedules.list()[0]
+      expect(queued).toMatchObject({ target: { kind: 'task', taskId: 'task-1', afterDependencies: true }, status: 'waiting', attempts: 0 })
+      expect(starts).toEqual([])
+      dependencies.set('second', { ...pendingTask(), id: 'second', status: 'abandoned' })
+      await due()
+      expect(starts).toEqual([])
+      complete()
+      schedules.taskChanged(dependencies.get('second') ?? pendingTask())
+      await Promise.all([schedules.tick(), schedules.tick(), schedules.tick()])
+      expect(starts).toEqual([{ id: 'task-1', unattended: 'acceptEdits' }])
+      expect(run(queued?.id ?? '')).toMatchObject({ status: 'started' })
+      expect(task?.autoRun).toBeFalsy()
+      await due()
+      expect(starts).toHaveLength(1)
+      expect(schedules.list()).toHaveLength(1)
+    })
+
+    it('cannot force an automatic run to ignore its unfinished dependencies', async () => {
+      arm()
+      await due()
+      const queued = schedules.list()[0]
+      await expect(schedules.runNow(queued?.id ?? '')).rejects.toMatchObject({ reason: 'dependencies-unfinished' })
+      expect(run(queued?.id ?? '')?.status).toBe('waiting')
+      expect(task?.autoRun).toBe(true)
+      expect(starts).toEqual([])
+    })
+
+    it('cancels when the switch is turned off and permits one fresh run when rearmed', async () => {
+      arm()
+      await due()
+      const first = schedules.list()[0]
+      task = { ...pendingTask(), autoRun: false, dependsOn: ['first', 'second'] }
+      schedules.taskChanged(task)
+      complete()
+      await due()
+      expect(run(first?.id ?? '')?.status).toBe('cancelled')
+      expect(starts).toEqual([])
+      task = { ...task, autoRun: true }
+      await due()
+      expect(starts).toHaveLength(1)
+      expect(schedules.list()).toHaveLength(2)
+    })
+
+    it('turns the switch off when the user cancels the queued run', async () => {
+      arm()
+      await due()
+      schedules.cancel(schedules.list()[0]?.id ?? '')
+      expect(task?.autoRun).toBe(false)
+      complete()
+      await due()
+      expect(starts).toEqual([])
+      expect(schedules.list()).toHaveLength(1)
+    })
+
+    it('restores the same queue row after a restart and recovers a switch disabled before queue cancellation', async () => {
+      arm()
+      await due()
+      const queued = schedules.list()[0]
+      schedules.stop()
+      serve(true)
+      schedules.start()
+      await due()
+      expect(schedules.list()).toHaveLength(1)
+      expect(schedules.list()[0]?.id).toBe(queued?.id)
+      task = { ...pendingTask(), autoRun: false, dependsOn: ['first', 'second'] }
+      schedules.stop()
+      serve(true)
+      await due()
+      expect(run(queued?.id ?? '')?.status).toBe('cancelled')
+      expect(starts).toEqual([])
+    })
+
+    it('finds an armed task without a queue row after a restart and starts once dependencies completed offline', async () => {
+      arm()
+      complete()
+      schedules.stop()
+      serve(true)
+      schedules.start()
+      await due()
+      expect(starts).toHaveLength(1)
+      expect(schedules.list()).toHaveLength(1)
+      expect(schedules.list()[0]?.status).toBe('started')
+    })
+
+    it('keeps waiting for quota after dependencies finish, using the unattended mode', async () => {
+      arm()
+      complete()
+      usage = exhausted(clock + HOUR)
+      mode = 'bypass'
+      await due()
+      expect(starts).toEqual([])
+      expect(task?.autoRun).toBe(true)
+      expect(schedules.list()[0]).toMatchObject({ status: 'waiting', resetsAt: clock + HOUR })
+      clock += HOUR + 5_001
+      usage = []
+      await due()
+      expect(starts).toEqual([{ id: 'task-1', unattended: 'bypass' }])
+    })
+
+    it('leaves a failed start in history and does not create an endless series of retries', async () => {
+      arm()
+      complete()
+      startFails = new Rejection('missing-repo')
+      await due()
+      expect(schedules.list()[0]).toMatchObject({ status: 'failed', error: 'missing-repo' })
+      expect(task?.autoRun).toBe(false)
+      clock += HOUR
+      await due()
+      expect(starts).toHaveLength(1)
+      expect(schedules.list()).toHaveLength(1)
+    })
+
+    it('does not duplicate or cancel a task already scheduled by hand when auto-run is disabled', async () => {
+      arm()
+      complete()
+      task = { ...pendingTask(), dependsOn: ['first', 'second'] }
+      const manual = schedules.create({ kind: 'task', taskId: task.id }, clock + HOUR)
+      task = { ...task, autoRun: true }
+      await due()
+      expect(schedules.list()).toHaveLength(1)
+      task = { ...task, autoRun: false }
+      schedules.taskChanged(task)
+      await due()
+      expect(run(manual.id)?.status).toBe('waiting')
+      schedules.cancel(manual.id)
+    })
+
+    it('does not start if a prerequisite is missing or a task loses all dependencies', async () => {
+      arm()
+      dependencies.delete('second')
+      await due()
+      expect(starts).toEqual([])
+      task = { ...pendingTask(), autoRun: true, dependsOn: [] }
+      schedules.taskChanged(task)
+      await due()
+      expect(task?.autoRun).toBe(false)
+      expect(starts).toEqual([])
     })
   })
 })

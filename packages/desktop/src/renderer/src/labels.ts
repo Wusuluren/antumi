@@ -74,6 +74,9 @@ const REASON_TEXT: Record<string, string> = localized(() => ({
   'not-done': t('labels.onlyTasksAwaitingReviewOrCompletedTasksCan'),
   'missing-repo': t('labels.addAProjectFirst'),
   'missing-agent': t('labels.chooseAnAgentFirst'),
+  'missing-dependencies': t('TaskDetail.autoRunNeedsDependencies'),
+  'agent-unattended-unsupported': t('TaskDetail.autoRunUnsupportedAgent'),
+  'auto-run-cancelled': t('TaskDetail.autoRunCancelled'),
   'repo-not-found': t('labels.projectPathDoesNotExist'),
   'repo-path-not-absolute': t('labels.projectPathMustBeAbsoluteIsSupported'),
   'repo-not-git': t('labels.everyDirectoryMustBeAGitRepositoryWhen'),
@@ -101,6 +104,7 @@ const REASON_TEXT: Record<string, string> = localized(() => ({
   'git-no-changes': t('ConversationBranches.noChangesToCommit'),
   'git-no-branch': t('labels.noLocalBranchIsCheckedOutSwitchTo'),
   'git-no-remote': t('labels.currentBranchHasNoUpstreamAndProjectHas'),
+  'git-update-diverged': t('labels.branchDivergedSwitchToUpdate'),
   'invalid-start': t('labels.startingPointMustBeABranch'),
   'start-not-found': t('labels.selectedStartingBranchNotFoundChooseAnotherIn'),
   blocked: t('labels.dependenciesAreNotCompletedAndAcceptedYet'),
@@ -225,6 +229,10 @@ const REASON_WITH_DETAIL: Record<string, string> = localized(() => ({
   'browser-navigation-failed': t('labels.cannotOpenPage'),
   'git-commit-failed': t('labels.commitFailed'),
   'git-push-failed': t('labels.commitWasKeptLocallyButPushFailed'),
+  // core's own words name the branches involved.
+  'git-push-name-mismatch': t('labels.notPushed'),
+  'git-branch-changed': t('labels.notPushed'),
+  'git-push-rejected': t('labels.pushRejected'),
   'git-operation-failed': t('labels.gitOperationFailed'),
   // Which file and what is wrong with it.
   'project-config-invalid': t('labels.invalidProjectConfigurationAntumiProjectJson')

@@ -1,8 +1,10 @@
-import type { AgentCliInstallation, AgentKind, ChatCatalog, ChatPermissionMode, EnvironmentCheck, KnowledgeBase } from '@antumi/protocol'
+import type { AgentCliInstallation, AgentKind, ChatCatalog, ChatModel, ChatPermissionMode, EnvironmentCheck, KnowledgeBase } from '@antumi/protocol'
 import type { AgentCommand, AgentMcpServer, McpServer } from '../agent-command'
 import type { ChatDriver, ChatPreferences, ChatStageOptions } from '../chat-driver'
 import type { ResetCreditUse, UsageSource } from '../usage-source'
 import type { QuickAnswer } from '../model-metering'
+import type { ProviderLaunch } from '../provider-launch'
+import type { TranscriptSource } from '../agent-transcripts'
 
 // What a chat stage's agent starts with, which its adapter turns into its own command line. The
 // stream carries every message, the handoff prompt included: none goes in argv.
@@ -35,6 +37,9 @@ export type AgentLaunch = {
   // A folder of Agent Skills built for this start (the skills library): its adapter hands it over
   // the way its CLI takes one, and one that cannot ignores it. Not a project: never fenced.
   skills?: { dir: string }
+  // A model provider to run on in place of the agent's own account; preferred.model, if any, is
+  // one of providerModels'.
+  provider?: ProviderLaunch
 }
 
 export type AgentDetection = Omit<EnvironmentCheck, 'tool'>
@@ -74,6 +79,11 @@ export interface AgentAdapter {
   readonly startTimeoutMs?: number
   // Who asks before Antumi's MCP tools run a terminal command: the agent itself, or Antumi in the chat.
   readonly mcpApproval: 'agent' | 'antumi'
+  // A model provider's models under the ids it takes them by, for an agent that can run on one
+  // (its descriptor's capabilities.modelProviders); its command then takes AgentLaunch.provider.
+  providerModels?(provider: Pick<ProviderLaunch, 'providerId' | 'models' | 'defaultModel'>): ChatModel[]
+  // The sessions it kept of its runs outside Antumi, which an imported conversation resumes.
+  readonly transcripts?: TranscriptSource
   // Its models without a chat to read them from; without it, a probe of its chat protocol.
   catalog?(cwd: string): Promise<ChatCatalog | null>
   // How the environment check finds it; without it, its kind on PATH, asked for --version.

@@ -245,4 +245,144 @@ describe('Git management', () => {
     await expect(service.execute(target, { kind: 'commit', message: 'keep me', push: true })).rejects.toMatchObject({ reason: 'git-push-after-commit-failed' })
     expect(git(repo, 'log', '-1', '--format=%s')).toBe('keep me'); expect(git(repo, 'status', '--porcelain')).toBe('')
   })
+
+  describe('update', () => {
+    // Someone else's clone, pushing to the shared remote.
+    const pushElsewhere = (branch: string, name: string, content: string) => {
+      const other = path.join(root, `other-${randomUUID()}`)
+      git(root, 'clone', '-q', '-b', branch, remote, other)
+      git(other, 'config', 'user.name', 'Other'); git(other, 'config', 'user.email', 'other@example.com')
+      writeFileSync(path.join(other, name), content); git(other, 'add', '--', name); git(other, 'commit', '-q', '-m', `remote ${name}`)
+      git(other, 'push', '-q', 'origin', branch)
+    }
+    const main = 'refs/heads/main'
+
+    it('says how far each local branch is from its upstream', async () => {
+      pushElsewhere('main', 'remote.txt', 'remote\n')
+      commit('local.txt', 'local\n')
+      git(repo, 'fetch', '-q')
+      const branch = (await service.status(target)).branches.find((entry) => entry.ref === main)
+      expect(branch).toMatchObject({ ahead: 1, behind: 1 })
+    })
+
+    it('fast-forwards a branch not checked out without switching to it, and refuses one that diverged', async () => {
+      git(repo, 'switch', '-q', '-c', 'feature')
+      pushElsewhere('main', 'remote.txt', 'remote\n')
+      expect(await service.execute(target, { kind: 'update', ref: main })).toMatchObject({ state: 'done', incoming: 1 })
+      expect(git(repo, 'rev-parse', 'main')).toBe(git(repo, 'rev-parse', 'origin/main'))
+      expect(git(repo, 'branch', '--show-current')).toBe('feature')
+      git(repo, 'switch', '-q', 'main'); commit('local.txt', 'local\n'); git(repo, 'switch', '-q', 'feature')
+      pushElsewhere('main', 'more.txt', 'more\n')
+      const before = git(repo, 'rev-parse', 'main')
+      await expect(service.execute(target, { kind: 'update', ref: main })).rejects.toMatchObject({ reason: 'git-update-diverged' })
+      expect(git(repo, 'rev-parse', 'main')).toBe(before)
+    })
+
+    it('fast-forwards the branch checked out, putting uncommitted changes back', async () => {
+      pushElsewhere('main', 'remote.txt', 'remote\n')
+      writeFileSync(path.join(repo, 'file.txt'), 'unsaved\n'); writeFileSync(path.join(repo, 'new.txt'), 'untracked\n')
+      expect(await service.execute(target, { kind: 'update', ref: main })).toMatchObject({ state: 'done', incoming: 1, stash: 'restored' })
+      expect(git(repo, 'rev-parse', 'HEAD')).toBe(git(repo, 'rev-parse', 'origin/main'))
+      expect(git(repo, 'diff', '--name-only')).toBe('file.txt')
+      expect(git(repo, 'ls-files', '--others', '--exclude-standard')).toBe('new.txt')
+      expect(git(repo, 'stash', 'list')).toBe('')
+      expect(await service.execute(target, { kind: 'update', ref: main })).toMatchObject({ state: 'done', incoming: 0 })
+    })
+
+    it('asks how to take in a diverged upstream, then merges or rebases', async () => {
+      pushElsewhere('main', 'remote.txt', 'remote\n')
+      commit('local.txt', 'local\n')
+      await expect(service.execute(target, { kind: 'update', ref: main })).rejects.toMatchObject({ reason: 'git-update-diverged' })
+      git(repo, 'branch', 'saved')
+      expect(await service.execute(target, { kind: 'update', ref: main, method: 'merge' })).toMatchObject({ state: 'done', incoming: 1 })
+      expect(git(repo, 'log', '-1', '--format=%P').split(' ')).toHaveLength(2)
+      expect(git(repo, 'log', '-1', '--format=%s')).toBe("Merge remote-tracking branch 'origin/main'")
+      git(repo, 'reset', '-q', '--hard', 'saved')
+      expect(await service.execute(target, { kind: 'update', ref: main, method: 'rebase' })).toMatchObject({ state: 'done', incoming: 1 })
+      expect(git(repo, 'log', '--format=%s', '-3').split('\n')).toEqual(['local.txt', 'remote remote.txt', 'initial'])
+    })
+
+    it('stops a rebase on conflicts, carries it on once resolved, and only then puts the stash back', async () => {
+      pushElsewhere('main', 'file.txt', 'remote\n')
+      commit('file.txt', 'local\n')
+      writeFileSync(path.join(repo, 'notes.txt'), 'unsaved\n')
+      expect(await service.execute(target, { kind: 'update', ref: main, method: 'rebase' })).toMatchObject({ state: 'conflicts' })
+      const stopped = await service.status(target)
+      expect(stopped).toMatchObject({ operation: 'other', rebase: true, conflicts: ['file.txt'] })
+      await expect(service.execute(target, { kind: 'fetch' })).rejects.toMatchObject({ reason: 'git-in-progress' })
+      writeFileSync(path.join(repo, 'file.txt'), 'both\n')
+      await service.execute(target, { kind: 'resolve', file: 'file.txt' })
+      expect(await service.execute(target, { kind: 'continue' })).toMatchObject({ state: 'done', stash: 'restored' })
+      expect(git(repo, 'branch', '--show-current')).toBe('main')
+      expect(git(repo, 'log', '--format=%s', '-2').split('\n')).toEqual(['file.txt', 'remote file.txt'])
+      expect(git(repo, 'status', '--porcelain')).toBe('?? notes.txt')
+    })
+
+    it('aborts a stopped rebase back to where the branch was, with its changes', async () => {
+      pushElsewhere('main', 'file.txt', 'remote\n')
+      const local = commit('file.txt', 'local\n')
+      writeFileSync(path.join(repo, 'notes.txt'), 'unsaved\n')
+      await service.execute(target, { kind: 'update', ref: main, method: 'rebase' })
+      expect(await service.execute(target, { kind: 'abort' })).toMatchObject({ state: 'done', stash: 'restored' })
+      expect(git(repo, 'rev-parse', 'HEAD')).toBe(local)
+      expect(git(repo, 'status', '--porcelain')).toBe('?? notes.txt')
+    })
+
+    it('refuses a branch with no upstream', async () => {
+      git(repo, 'branch', 'loose')
+      await expect(service.execute(target, { kind: 'update', ref: 'refs/heads/loose' })).rejects.toMatchObject({ reason: 'git-no-upstream' })
+    })
+  })
+
+  describe('push', () => {
+    const upstreamOf = (branch: string) => git(repo, 'rev-parse', '--abbrev-ref', `${branch}@{upstream}`)
+
+    it('lists what a first push sends, and makes the new remote branch its upstream', async () => {
+      git(repo, 'switch', '-q', '-c', 'feature')
+      commit('a.txt', 'a\n', 'first'); commit('b.txt', 'b\n', 'second')
+      const outgoing = await service.outgoing(target, 'origin', 'feature')
+      expect(outgoing).toMatchObject({ total: 2, isNew: true })
+      expect(outgoing.commits.map((entry) => entry.subject)).toEqual(['second', 'first'])
+      expect(await service.execute(target, { kind: 'push', remote: 'origin', name: 'feature', from: 'feature' })).toMatchObject({ state: 'done', upstream: 'origin/feature' })
+      expect(upstreamOf('feature')).toBe('origin/feature')
+      expect(await service.outgoing(target, 'origin', 'feature')).toMatchObject({ total: 0, isNew: false })
+    })
+
+    it('refuses a one-click push when the upstream has another name, and keeps the upstream on a push named elsewhere', async () => {
+      git(repo, 'switch', '-q', '-c', 'feature', '--track', 'origin/main')
+      commit('a.txt', 'a\n', 'feature work')
+      await expect(service.execute(target, { kind: 'push' })).rejects.toMatchObject({ reason: 'git-push-name-mismatch' })
+      writeFileSync(path.join(repo, 'b.txt'), 'b\n')
+      await expect(service.execute(target, { kind: 'commit', message: 'more', push: true })).rejects.toMatchObject({ reason: 'git-push-after-commit-failed' })
+      expect(git(remote, 'log', '-1', '--format=%s', 'main')).toBe('initial')
+      expect((await service.outgoing(target, 'origin', 'main')).total).toBe(2)
+      await service.execute(target, { kind: 'push', remote: 'origin', name: 'shared', from: 'feature' })
+      expect(git(remote, 'log', '-1', '--format=%s', 'shared')).toBe('more')
+      expect(upstreamOf('feature')).toBe('origin/main')
+    })
+
+    it('refuses a push from a dialog that saw another branch', async () => {
+      git(repo, 'switch', '-q', '-c', 'feature')
+      await expect(service.execute(target, { kind: 'push', remote: 'origin', name: 'main', from: 'main' })).rejects.toMatchObject({ reason: 'git-branch-changed' })
+    })
+
+    it('tells a push the remote rejected for commits the branch lacks from other failures', async () => {
+      const other = path.join(root, 'other')
+      git(root, 'clone', '-q', remote, other)
+      git(other, 'config', 'user.name', 'Other'); git(other, 'config', 'user.email', 'other@example.com')
+      writeFileSync(path.join(other, 'remote.txt'), 'remote\n'); git(other, 'add', '--', 'remote.txt'); git(other, 'commit', '-q', '-m', 'remote'); git(other, 'push', '-q', 'origin', 'main')
+      commit('local.txt', 'local\n')
+      await expect(service.execute(target, { kind: 'push', remote: 'origin', name: 'main', from: 'main' })).rejects.toMatchObject({ reason: 'git-push-rejected' })
+    })
+
+    it('sets a branch to track a remote branch, or none', async () => {
+      git(repo, 'switch', '-q', '-c', 'feature')
+      git(repo, 'push', '-q', 'origin', 'feature')
+      await service.execute(target, { kind: 'track', ref: 'refs/heads/feature', upstream: 'refs/remotes/origin/feature' })
+      expect(upstreamOf('feature')).toBe('origin/feature')
+      await service.execute(target, { kind: 'track', ref: 'refs/heads/feature', upstream: null })
+      expect(() => upstreamOf('feature')).toThrow()
+      await expect(service.execute(target, { kind: 'track', ref: 'refs/heads/feature', upstream: 'refs/remotes/origin/missing' })).rejects.toMatchObject({ reason: 'branch-not-found' })
+    })
+  })
 })

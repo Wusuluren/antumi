@@ -157,6 +157,29 @@ describe('ACP without a dialect of its own', () => {
     expect(silent).not.toHaveProperty('metering')
   })
 
+  it('on a provider, offers only its models, keeps no cost, and fails rather than run another model', () => {
+    const providerModels = [{ id: 'antumi-ark/ark-code-latest', label: 'Ark Code', description: null, efforts: [], isDefault: true }]
+    const models = { currentModelId: 'antumi-ark/ark-code-latest', availableModels: [{ modelId: 'opencode/big-pickle', name: 'Big Pickle' }, { modelId: 'antumi-ark/ark-code-latest', name: 'ark-code-latest' }] }
+    const start = (model: string) => {
+      const driver = new AcpDriver(plain, 'stage', { ...OPTIONS, providerModels, preferred: { model } })
+      due(driver)
+      receive(driver, { id: 'plain-init', result: { protocolVersion: 1 } })
+      due(driver)
+      receive(driver, { id: 'plain-session', result: { sessionId: 'session', modes, models } })
+      return driver
+    }
+    const driver = start('antumi-ark/ark-code-latest')
+    expect(driver.failure()).toBeNull()
+    expect(items(driver, 'state').at(-1)?.models).toEqual([{ id: 'antumi-ark/ark-code-latest', label: 'Ark Code', description: null, efforts: [], isDefault: true }])
+    const message = driver.send('hi')
+    driver.apply({ dir: 'out', at: 3, frame: message.logged })
+    receive(driver, { method: 'session/update', params: { sessionId: 'session', update: { sessionUpdate: 'usage_update', used: 1000, size: 200000, cost: { amount: 0.5, currency: 'USD' } } } })
+    receive(driver, { id: 'plain-prompt-1', result: { stopReason: 'end_turn', usage: { inputTokens: 10, outputTokens: 2 } } })
+    expect(items(driver, 'turn').at(-1)).toMatchObject({ usage: { input: 10, output: 2 }, metering: { models: [{ costUsd: null }], reportedCostUsd: null } })
+    expect(() => driver.setOption('model', 'opencode/big-pickle')).toThrow(expect.objectContaining({ reason: 'chat-option-invalid' }))
+    expect(start('opencode/big-pickle').failure()).toContain('opencode/big-pickle')
+  })
+
   it('leaves a resumed session\'s first cost unknown: its running total before the turn is not known', () => {
     const driver = new AcpDriver(plain, 'stage', { ...OPTIONS, resume: 'session' })
     due(driver)

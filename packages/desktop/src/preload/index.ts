@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('antumi', {
     return () => ipcRenderer.removeListener('antumi:full-screen', handler)
   },
   getCoreEndpoint: (): Promise<unknown> => ipcRenderer.invoke('antumi:core-endpoint'),
+  appVersion: (): Promise<unknown> => ipcRenderer.invoke('antumi:app-version'),
   pickPlugin: (kind: 'directory' | 'zip'): Promise<unknown> => ipcRenderer.invoke('antumi:pick-plugin', kind),
   pickFolder: (defaultPath?: string, title?: string): Promise<unknown> => ipcRenderer.invoke('antumi:pick-folder', defaultPath, title),
   setLanguage: (locale: string): Promise<unknown> => ipcRenderer.invoke('antumi:set-language', locale),

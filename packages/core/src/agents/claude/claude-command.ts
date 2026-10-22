@@ -2,6 +2,7 @@ import { RESERVED_MCP_SERVER_NAME } from '@antumi/protocol'
 import { antumiReadTools, type AgentCommand } from '../../agent-command'
 import { startNote } from '../../agent-prompt'
 import type { AgentLaunch } from '../agent-adapter'
+import { claudeModelId, claudeProviderEnv } from './claude-provider'
 import { CLAUDE_MODE_NAMES } from './claude-stream'
 
 // Claude splits these lists on commas, so a path with one in it is left out rather than garbled.
@@ -34,7 +35,7 @@ export const GIT_READ_TOOLS = ['Bash(git log:*)', 'Bash(git diff:*)', 'Bash(git 
 
 // Claude Code in print mode, speaking stream-json both ways.
 export function claudeCommand(launch: AgentLaunch): AgentCommand {
-  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readOnly, readable = [], mcp, userMcp = [], forkAt, userBrowser, knowledgeBase, skills, todos = true } = launch
+  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readOnly, readable = [], mcp, userMcp = [], forkAt, userBrowser, knowledgeBase, skills, todos = true, provider } = launch
   // Folders it may read but never edit: a plan-only stage's, or a read-only worker's.
   const fenced = planOnly ?? readOnly
   const allowBypass = (launch.allowBypass ?? false) && !fenced
@@ -63,13 +64,16 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     ...(mcp ? { [RESERVED_MCP_SERVER_NAME]: { type: 'stdio', command: mcp.command, args: mcp.args, ...(mcp.env ? { env: mcp.env } : {}) } } : {}),
     ...Object.fromEntries(userMcp.map((server) => [server.name, server.type === 'stdio' ? { type: 'stdio', command: server.command, args: server.args, ...(server.env ? { env: server.env } : {}) } : { type: 'http', url: server.url }]))
   }
-  return { command: 'claude', args: [
+  // On a provider its default is named outright: Claude Code's own would be one of Anthropic's.
+  const providerDefault = provider?.models.find((model) => model.id === provider.defaultModel)
+  const model = preferred.model ?? (providerDefault ? claudeModelId(providerDefault) : undefined)
+  return { command: 'claude', ...(provider ? { env: claudeProviderEnv(provider) } : {}), args: [
     '-p', '--verbose', '--output-format', 'stream-json', '--input-format', 'stream-json',
     '--include-partial-messages', '--permission-prompt-tool', 'stdio',
     // Makes bypass a mode the user can switch to, without starting in it.
     ...(allowBypass ? ['--allow-dangerously-skip-permissions'] : []),
     ...(wanted ? ['--permission-mode', wanted] : []),
-    ...(preferred.model ? ['--model', preferred.model] : []),
+    ...(model ? ['--model', model] : []),
     ...(preferred.effort ? ['--effort', preferred.effort] : []),
     ...(resume && providerSessionId ? ['--resume', providerSessionId, ...(forkAt ? ['--resume-session-at', forkAt, '--fork-session'] : [])] : providerSessionId ? ['--session-id', providerSessionId] : []),
     ...extraProjects.flatMap((project) => ['--add-dir', project]),

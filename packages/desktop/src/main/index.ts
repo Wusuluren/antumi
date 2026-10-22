@@ -168,6 +168,9 @@ ipcMain.handle('antumi:browser-occluded', (_event, occluded: unknown) => {
   slot.setOccluded(occluded === true)
 })
 
+// The version that runs, which a build may set apart from the source's package.json (a beta).
+ipcMain.handle('antumi:app-version', () => app.getVersion())
+
 // Re-read on every call: core rewrites the file with a new port/token on restart.
 ipcMain.handle('antumi:core-endpoint', () => readCoreEndpoint())
 

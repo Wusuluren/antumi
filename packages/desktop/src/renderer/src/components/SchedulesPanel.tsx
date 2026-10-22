@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react'
 import type { ScheduledRun } from '@antumi/protocol'
 import { selectConversation, selectTask, setAwakeMode, showView, useCore } from '../core-store'
 import { agentLabel } from '../labels'
-import { cancelSchedule, clearSchedules, openQueueRuns, reorderSchedules, rescheduleRun, runAction, runScheduleNow, scheduleState, TARGET_LABEL, UNATTENDED_LABEL } from '../schedules'
+import { cancelSchedule, clearSchedules, openQueueRuns, reorderSchedules, rescheduleRun, runAction, runScheduleNow, scheduleState, TARGET_LABEL, UNATTENDED_LABEL, waitingForRunDependencies } from '../schedules'
 import { AgentIcon, ArrowDownIcon, ArrowUpIcon, ClockIcon, CloseIcon, PlayIcon } from './icons'
 import { SchedulePicker, SettingsLink } from './SchedulePicker'
 
@@ -55,6 +55,8 @@ function ScheduleAgent({ run }: { run: ScheduledRun }) {
 
 function OpenRow({ run, index, count, now, onMove }: { run: ScheduledRun; index: number; count: number; now: number; onMove: (from: number, to: number) => void }) {
   const waiting = run.status === 'waiting'
+  const tasks = useCore((state) => state.tasks)
+  const waitingDependencies = waitingForRunDependencies(run, tasks)
   return (
     <li className="schedule-row">
       <span className="schedule-index">{index + 1}</span>
@@ -62,17 +64,18 @@ function OpenRow({ run, index, count, now, onMove }: { run: ScheduledRun; index:
         <button type="button" className="schedule-title" onClick={() => openTarget(run)}>{run.title}</button>
         <span className="schedule-meta" title={runAction(run)}><ScheduleAgent run={run} />{TARGET_LABEL[run.target.kind]} · {runAction(run)}</span>
       </span>
-      <span className="schedule-state">{scheduleState(run, now)}</span>
+      <span className="schedule-state">{scheduleState(run, now, tasks)}</span>
       <span className="schedule-actions">
         <button type="button" className="tool-button" aria-label={t('SchedulesPanel.moveEarlier')} data-tooltip={t('SchedulesPanel.moveEarlier')} disabled={index === 0} onClick={() => onMove(index, index - 1)}><ArrowUpIcon /></button>
         <button type="button" className="tool-button" aria-label={t('SchedulesPanel.moveLater')} data-tooltip={t('SchedulesPanel.moveLater')} disabled={index === count - 1} onClick={() => onMove(index, index + 1)}><ArrowDownIcon /></button>
-        {waiting && run.target.kind !== 'resume' && <Reschedule run={run} />}
+        {waiting && run.target.kind !== 'resume' && !(run.target.kind === 'task' && run.target.afterDependencies) && <Reschedule run={run} />}
         {waiting && (
           <button
             type="button"
             className="tool-button"
             aria-label={t('SchedulesPanel.startNow')}
-            data-tooltip={t('SchedulesPanel.startNowIgnoringTimeAndQuota')}
+            data-tooltip={waitingDependencies ? t('TaskBoard.waitingForDependencies') : t('SchedulesPanel.startNowIgnoringTimeAndQuota')}
+            disabled={waitingDependencies}
             onClick={() => void runScheduleNow(run.id)}
           >
             <PlayIcon />

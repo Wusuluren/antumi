@@ -18,7 +18,7 @@ export function SettingsLink() {
 
 // When a run may start: as soon as its agent's quota allows, or not before a time, a night hour
 // by default. It waits for the quota either way, and runs with nobody there, which the note says.
-export function SchedulePicker({ title, note, children, initial, submitLabel = t('OverviewView.schedules'), align = 'start', onSchedule, onClose }: {
+export function SchedulePicker({ title, note, children, initial, submitLabel = t('SchedulePicker.schedule'), align = 'start', empty = false, onSchedule, onClose }: {
   title: string
   // 'end' for a trigger at the end of a row: the picker's right edge on the trigger's.
   align?: 'start' | 'end'
@@ -28,6 +28,8 @@ export function SchedulePicker({ title, note, children, initial, submitLabel = t
   // The time already picked, when changing one; undefined for a new run.
   initial?: number | null
   submitLabel?: string
+  // Nothing written yet where the run needs something to do: it cannot be scheduled.
+  empty?: boolean
   onSchedule: (notBefore: number | null) => Promise<boolean>
   onClose: () => void
 }) {
@@ -37,7 +39,7 @@ export function SchedulePicker({ title, note, children, initial, submitLabel = t
   const [time, setTime] = useState(() => toLocalInput(initial ?? nextNight(Date.now())))
   const [busy, setBusy] = useState(false)
   const notBefore = when === 'time' ? fromLocalInput(time) : null
-  const invalid = when === 'time' && notBefore === null
+  const invalid = empty || (when === 'time' && notBefore === null)
   const submit = async () => {
     if (busy || invalid) return
     setBusy(true)

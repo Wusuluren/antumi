@@ -8,6 +8,7 @@ import { markKeptImages, keepImageBlocks, stripImageBytes } from '../../image-fr
 import { messageText, type ChatAnswer, type ChatDriver, type ChatImageFile, type ChatOutgoing, type ChatRecord, type ChatStageOptions, type StageMessage, type TurnSignal } from '../../chat-driver'
 import { Rejection } from '../../rejection'
 import { startNote } from '../../agent-prompt'
+import { withoutCost } from '../../model-metering'
 import type { AcpDialect } from './acp-dialect'
 import { AcpConfig, valuesOf, type AcpOptionValue } from './acp-schema'
 
@@ -164,6 +165,7 @@ export class AcpDriver implements ChatDriver {
       ...(record.action !== undefined ? { action: record.action } : {})
     })
     else if (record.dir === 'ask' || record.dir === 'answer') this.antumi.apply(record)
+    else if (record.dir === 'item') this.items.put(record.item, record.at)
     else if (record.dir === 'exit') {
       this.exited = true
       this.antumi.cancelAll(record.at)
@@ -279,7 +281,8 @@ export class AcpDriver implements ChatDriver {
     const category = option === 'permissionMode' ? 'mode' : 'model'
     const config = this.config.find((entry) => entry.category === category)
     const wanted = option === 'permissionMode' ? this.nativeMode(value) : value
-    if (!config || !valuesOf(config).some((entry) => entry.value === wanted)) throw new Rejection('chat-option-invalid', `${this.name} 没有提供 ${option}: ${value}`)
+    const offered = config && (category === 'model' ? this.offered(valuesOf(config)) : valuesOf(config))
+    if (!config || !offered?.some((entry) => entry.value === wanted)) throw new Rejection('chat-option-invalid', `${this.name} 没有提供 ${option}: ${value}`)
     if (option === 'permissionMode' && !this.hasMode(value)) throw new Rejection('chat-option-invalid', `${this.name} 不支持 ${value}`)
     if (this.modern.has(category)) return rpc(id, 'session/set_config_option', { sessionId: this.session, configId: config.id, value: wanted })
     return rpc(id, category === 'mode' ? 'session/set_mode' : 'session/set_model', { sessionId: this.session, ...(category === 'mode' ? { modeId: wanted } : { modelId: wanted }) })
@@ -505,7 +508,8 @@ export class AcpDriver implements ChatDriver {
         this.initial.set(keyOf(requestId), this.change(option, value, requestId))
         return
       } catch (error) {
-        if (option === 'permissionMode') this.startError = error instanceof Error ? error.message : `${this.name} 不支持所选模式`
+        // On a provider, any other model would be the agent's own account's.
+        if (option === 'permissionMode' || (option === 'model' && this.options.providerModels)) this.startError = error instanceof Error ? error.message : `${this.name} 不支持所选${option === 'model' ? '模型' : '模式'}`
         else this.items.notice('warning', `${this.name} 未采用保存的 ${option}: ${value}`, at)
       }
     }
@@ -573,10 +577,21 @@ export class AcpDriver implements ChatDriver {
       permissionMode: mode ? this.antumiMode(mode.currentValue) : null,
       permissionModes: mode ? valuesOf(mode).flatMap((entry) => { const mapped = this.antumiMode(entry.value); return mapped && (!this.options.planOnly || mapped === 'plan') && (!this.options.readOnly || mapped === 'readOnly') ? [mapped] : [] }) : [],
       model: model?.currentValue ?? null,
-      models: model ? valuesOf(model).map((entry) => ({ id: entry.value, label: entry.name, description: entry.description ?? null, efforts: this.models.find((one) => one.id === entry.value)?.efforts ?? (entry.value === model.currentValue && effort ? valuesOf(effort).map((one) => one.value) : []), isDefault: entry.value === model.currentValue })) : [],
+      models: model ? this.offered(valuesOf(model)).map((entry) => ({ id: entry.value, label: entry.name, description: entry.description ?? null, efforts: this.models.find((one) => one.id === entry.value)?.efforts ?? (entry.value === model.currentValue && effort ? valuesOf(effort).map((one) => one.value) : []), isDefault: entry.value === model.currentValue })) : [],
       effort: effort?.currentValue ?? null
     })
     if (this.options.planOnly && mode && mode.currentValue !== 'plan' && this.setup && !this.initial.size && !this.initialChoices.length) this.startError = `${this.name} 离开了仅规划模式`
+  }
+
+  // On a provider, only its models: the agent also lists every other one it knows, which would run
+  // on some other account.
+  private offered(values: AcpOptionValue[]): AcpOptionValue[] {
+    const provided = this.options.providerModels
+    if (!provided) return values
+    return values.flatMap((entry) => {
+      const model = provided.find((one) => one.id === entry.value)
+      return model ? [{ ...entry, name: model.label }] : []
+    })
   }
 
   private update(update: z.infer<typeof Update>, frame: Frame, at: number): void {
@@ -770,6 +785,11 @@ export class AcpDriver implements ChatDriver {
   // A turn's tokens and cost, as its answer and the session's running cost tell them; nothing where
   // the agent reports neither (Cursor's CLI so far). The cost needs the total from before the turn.
   private turnMetering(result: unknown): Pick<Extract<ChatItem, { kind: 'turn' }>, 'usage' | 'metering'> {
+    const used = this.reportedMetering(result)
+    return used.metering && this.options.providerModels ? { ...used, metering: withoutCost(used.metering) } : used
+  }
+
+  private reportedMetering(result: unknown): Pick<Extract<ChatItem, { kind: 'turn' }>, 'usage' | 'metering'> {
     const tokens = TurnTokens.safeParse(z.looseObject({ usage: z.unknown() }).safeParse(result).data?.usage).data
     // To the micro-dollar: a difference of two totals leaves float dust (0.15000000000000002).
     const costUsd = this.sessionCost !== null && this.turnCost !== null ? Math.max(0, Math.round((this.sessionCost - this.turnCost) * 1e6) / 1e6) : null

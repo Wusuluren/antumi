@@ -3,6 +3,7 @@ import path from 'node:path'
 import {
   agentDescriptor,
   checkCancel,
+  checkAutoRun,
   checkChatResume,
   checkChangePrimary,
   checkDependencies,
@@ -56,7 +57,8 @@ import { normalizeRepoPath, prepareRefineWorkspace, prepareWorkspace, projectHea
 export type TaskEvent = { type: 'changed'; task: Task } | { type: 'deleted'; id: string }
 
 // English words for a title's branch, from the task's agent; null when it gave none.
-export type BranchNamer = (agent: AgentKind, title: string) => Promise<string | null>
+// modelProvider: the one the task's agent runs on, which names the branch too.
+export type BranchNamer = (agent: AgentKind, title: string, modelProvider: string | null) => Promise<string | null>
 
 // How long a start that makes a branch waits for a slug still on its way, before naming it without.
 const SLUG_WAIT_MS = 10_000
@@ -237,18 +239,21 @@ export class TaskService {
     return this.changed(this.store.update(task.id, { sourceSnapshot: snapshot }))
   }
 
-  update({ id, title, details, repos, dependsOn, agent, squadId, starts, launch }: RpcParsedParams<'tasks.update'>): Task {
+  update({ id, title, details, repos, dependsOn, agent, squadId, starts, launch, autoRun }: RpcParsedParams<'tasks.update'>): Task {
     const task = this.get(id)
     if (squadId !== undefined && squadId !== task.squadId) {
       if (this.isLaunching(task.id) || task.status !== 'pending' || this.squads?.busy(task.id)) throw new Rejection('squad-busy', '开发开始后不能更换小队')
     }
     if (task.squadId && squadId !== null && agent !== undefined && agent !== task.agent) throw new Rejection('squad-managed')
-    const patch: TaskPatch = { title, details, agent, launch, squadId }
+    if ((autoRun !== undefined || dependsOn !== undefined) && this.isLaunching(task.id)) throw new Rejection('run-in-progress')
+    const patch: TaskPatch = { title, details, agent, launch, squadId, autoRun }
     if (squadId) { patch.agent = this.requireSquads().agent(squadId); patch.launch = { permissionMode: 'ask' } }
     // Words for an old title would name the branch after what the task no longer is.
     if (title !== undefined && title !== task.title) patch.slug = null
     // Another agent has models and modes of its own, so what was picked for the last one goes.
     if (agent !== undefined && agent !== task.agent && launch === undefined) patch.launch = {}
+    // Once the task has a conversation, its provider is the conversation's, whatever a launch says.
+    if (patch.launch && task.conversationId) patch.launch = { ...patch.launch, modelProvider: this.requireChats().get(task.conversationId).modelProvider ?? null }
     if (repos !== undefined) {
       const blocker = checkEditProjects(task, this.isLaunching(task.id))
       if (blocker) throw new Rejection(blocker)
@@ -271,6 +276,15 @@ export class TaskService {
       }
       patch.dependsOn = ids
     }
+    const blocker = checkAutoRun({
+      ...task,
+      repos: patch.repos ?? task.repos,
+      dependsOn: patch.dependsOn ?? task.dependsOn,
+      agent: patch.agent === undefined ? task.agent : patch.agent,
+      squadId: patch.squadId === undefined ? task.squadId : patch.squadId
+    })
+    if (autoRun && blocker) throw new Rejection(blocker)
+    if (blocker) patch.autoRun = false
     return this.named(this.changed(this.store.update(task.id, patch)))
   }
 
@@ -281,12 +295,14 @@ export class TaskService {
     return task
   }
 
-  private nameBranch({ id, title, slug, agent }: Task): Promise<void> {
+  private nameBranch(task: Task): Promise<void> {
+    const { id, title, slug, agent } = task
     if (!this.namer || !agent || slug !== null || !needsSlug(title)) return Promise.resolve()
-    const key = `${id}\n${agent}\n${title}`
+    const modelProvider = (task.conversationId ? this.chats?.get(task.conversationId).modelProvider : task.launch.modelProvider) ?? null
+    const key = `${id}\n${agent}\n${title}\n${modelProvider ?? ''}`
     const known = this.naming.get(key)
     if (known) return known
-    const work = this.namer(agent, title)
+    const work = this.namer(agent, title, modelProvider)
       .then((words) => {
         const current = this.store.get(id)
         // The title may have changed meanwhile, and its own words are on their way.
@@ -452,7 +468,7 @@ export class TaskService {
       const modeBlocker = checkStartMode(dependencies, permissionMode)
       if (modeBlocker) throw new Rejection(modeBlocker)
       if (permissionMode === 'bypass' && !allowBypass && unattended !== 'bypass') throw new Rejection('chat-option-invalid', '全部放行需要先在设置中开启')
-      await chats.validateStartOptions(agent, { ...launch, permissionMode })
+      await chats.validateStartOptions(agent, { ...launch, permissionMode }, this.providerOf(task, launch))
       if (!unattended) this.changed(this.store.update(task.id, { launch: { ...launch, permissionMode } }))
       const images = await this.images(task)
       const imageIds = this.chatImageIds(task, images.prompt)
@@ -466,8 +482,16 @@ export class TaskService {
         return this.changed(this.get(task.id))
       }
       const setups = await this.trustedSetups(task)
+      const checkDependenciesNow = () => {
+        if (!unattended) return
+        const current = this.get(task.id)
+        const blocker = checkScheduleTask(current, this.dependenciesOf(current))
+        if (blocker) throw new Rejection(blocker)
+      }
+      checkDependenciesNow()
       // The worktrees are kept before the agent starts, so a failed start is retried in the same trees.
       const workspace = await prepareWorkspace(await this.withSlug(task), dependencies, this.worktreesRoot)
+      checkDependenciesNow()
       this.store.update(task.id, { repos: workspace.repos })
       const conversation = await chats.startForTask({ id: task.id, title: task.title, agent }, {
         cwd: workspace.cwd, extraDirs: workspace.extraDirs, planOnly: false, session: coordinator && resume ? 'resume' : 'new', readable: images.readable,
@@ -535,8 +559,14 @@ export class TaskService {
     if (blocker) throw new Rejection(blocker)
     // A task still being planned only plans, whoever takes it over.
     if (task.status === 'pending' && choice.permissionMode && choice.permissionMode !== 'plan') throw new Rejection('chat-option-invalid', 'a task being planned may only plan')
-    await chats.validateStartOptions(agent, choice)
+    await chats.validateStartOptions(agent, choice, this.providerOf(task, {}))
     return this.goOnChatting(task, dependencies, agent, allowBypass, note, choice)
+  }
+
+  // The provider the task's agent runs on: its conversation's once it has one, else as launched.
+  private providerOf(task: Task, launch: TaskLaunchOptions): string | undefined {
+    const fixed = task.conversationId ? this.requireChats().get(task.conversationId).modelProvider : launch.modelProvider
+    return fixed ?? undefined
   }
 
   // The agent is the task's from here on once it has started.
@@ -772,7 +802,7 @@ export class TaskService {
     dependents.forEach((dependent) => {
       const updated = this.store.get(dependent.id)
       if (updated) {
-        this.changed(updated)
+        this.changed(updated.autoRun ? this.store.update(updated.id, { autoRun: false }) : updated)
       }
     })
   }
@@ -811,7 +841,7 @@ export class TaskService {
   // the record is secondary: failing to never fails the move itself.
   private save(id: string, patch: TaskPatch): Task {
     const before = this.store.get(id)
-    const after = this.store.update(id, patch)
+    const after = this.store.update(id, patch.status && patch.status !== 'pending' ? { ...patch, autoRun: false } : patch)
     if (this.runs && before) {
       try {
         this.runs.transition(before, after, (run, endedAt) =>

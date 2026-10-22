@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { mkdtempSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -190,16 +191,18 @@ describe('conversation titles', () => {
     const index = MIGRATIONS.findIndex((sql) => sql.includes('ADD COLUMN title_sequence'))
     for (const sql of MIGRATIONS.slice(0, index)) db.exec(sql)
     db.exec(`PRAGMA user_version = ${index}`)
-    db.close()
-    const legacy = new ConversationStore(file)
-    const chat = legacy.create('claude', root, [])
-    const stage = legacy.startStage(chat.id, 'claude', null, 0)
-    const add = (role: 'user' | 'assistant', text: string) => legacy.addMessage({ conversationId: chat.id, stageId: stage.id,
-      role, text, agent: 'claude', eventKey: text, complete: true })
+    // Rows as that schema had them: today's store reads columns it did not have yet.
+    const chat = { id: randomUUID() }
+    const stage = { id: randomUUID() }
+    db.prepare(`INSERT INTO conversations (id, title, title_locked, agent, workspace_path, project_paths, project_starts, managed_workspace, created_at, updated_at)
+      VALUES (?, '新会话', 0, 'claude', ?, '[]', '{}', 1, 0, 0)`).run(chat.id, root)
+    db.prepare(`INSERT INTO conversation_stages (id, conversation_id, agent, received_sequence, started_at) VALUES (?, ?, 'claude', 0, 0)`).run(stage.id, chat.id)
+    const add = (role: 'user' | 'assistant', text: string) => ({ sequence: Number(db.prepare(`INSERT INTO conversation_messages
+      (conversation_id, stage_id, role, agent, text, event_key, complete, created_at) VALUES (?, ?, ?, 'claude', ?, ?, 1, 0)`).run(chat.id, stage.id, role, text, text).lastInsertRowid) })
     add('user', 'old question')
     const answer = add('assistant', 'old answer')
     add('user', 'pending question')
-    legacy.close()
+    db.close()
     const upgradedTasks = new TaskStore(file)
     const upgraded = new ConversationStore(file)
     try {

@@ -3,6 +3,8 @@ import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
 import { z } from 'zod'
 import { SourceSnapshot, Task, TaskAttempt, TaskImage, TaskLaunchOptions, TaskPlan, TaskSource, TaskStart, type TaskStatus } from '@antumi/protocol'
 
+const TASK_AUTO_RUN_MIGRATION = 'ALTER TABLE tasks ADD COLUMN auto_run INTEGER NOT NULL DEFAULT 0;'
+
 // Append-only: each entry upgrades PRAGMA user_version by one.
 export const MIGRATIONS = [
   `CREATE TABLE tasks (
@@ -317,13 +319,26 @@ export const MIGRATIONS = [
   // A project's setup or check run in a worktree (Terminal.purpose), rather than an agent's command.
   `ALTER TABLE terminals ADD COLUMN purpose TEXT;`,
   // When the user last took a conversation out of the archive, which auto-archiving counts as activity.
-  `ALTER TABLE conversations ADD COLUMN restored_at INTEGER;`
+  `ALTER TABLE conversations ADD COLUMN restored_at INTEGER;`,
+  // The model provider a conversation was started on, and what each stage ran on (a ProviderRoute
+  // as JSON); null on the agent's own account.
+  `ALTER TABLE conversations ADD COLUMN model_provider TEXT;
+   ALTER TABLE conversation_stages ADD COLUMN provider_route TEXT;`,
+  TASK_AUTO_RUN_MIGRATION,
+  // Sessions an agent ran outside Antumi, imported as conversations: how far each was taken in
+  // (its last record's time) and how its file stood then.
+  `CREATE TABLE session_imports (
+     agent TEXT NOT NULL, provider_session_id TEXT NOT NULL,
+     conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+     imported_through INTEGER NOT NULL, source_modified_at INTEGER NOT NULL,
+     PRIMARY KEY (agent, provider_session_id)
+   );`
 ]
 
 
 const SELECT = `SELECT id, title, slug, details, status, agent, squad_id AS squadId,
   derived_from AS derivedFrom, abandon_reason AS abandonReason, source, source_snapshot AS sourceSnapshot, images,
-  awaiting_input AS awaitingInput, plan, launch, attempts,
+  awaiting_input AS awaitingInput, auto_run AS autoRun, plan, launch, attempts,
   (SELECT id FROM conversations WHERE task_id = tasks.id ORDER BY created_at DESC LIMIT 1) AS conversationId,
   created_at AS createdAt, updated_at AS updatedAt FROM tasks`
 
@@ -335,6 +350,7 @@ const TaskRow = Task.omit({
   sourceSnapshot: true,
   images: true,
   awaitingInput: true,
+  autoRun: true,
   plan: true,
   launch: true,
   attempts: true
@@ -343,6 +359,7 @@ const TaskRow = Task.omit({
   sourceSnapshot: z.string().nullable(),
   images: z.string().nullable(),
   awaitingInput: z.number(),
+  autoRun: z.number(),
   plan: z.string().nullable(),
   launch: z.string().nullable(),
   attempts: z.string().nullable()
@@ -402,6 +419,7 @@ export type TaskPatch = Partial<
     | 'attempts'
     | 'repos'
     | 'dependsOn'
+    | 'autoRun'
   >
 >
 
@@ -448,7 +466,17 @@ export class TaskStore {
   }
 
   private migrate(): void {
-    const version = Number(this.db.prepare('PRAGMA user_version').get()?.user_version ?? 0)
+    let version = Number(this.db.prepare('PRAGMA user_version').get()?.user_version ?? 0)
+    // Parallel development builds used version 50 for either auto-run or session imports.
+    if (version === 50 && this.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'session_imports'").get()) {
+      this.transaction(() => {
+        if (!this.db.prepare("SELECT 1 FROM pragma_table_info('tasks') WHERE name = 'auto_run'").get()) {
+          this.db.exec(TASK_AUTO_RUN_MIGRATION)
+        }
+        this.db.exec('PRAGMA user_version = 51')
+      })
+      version = 51
+    }
     MIGRATIONS.slice(version).forEach((sql, offset) => {
       this.transaction(() => {
         this.db.exec(sql)
@@ -501,6 +529,7 @@ export class TaskStore {
       sourceSnapshot: parseColumn(SourceSnapshot, row.sourceSnapshot, `source snapshot of task ${row.id}`),
       images: parseColumn(TaskImages, row.images, `images of task ${row.id}`) ?? [],
       awaitingInput: row.awaitingInput !== 0,
+      autoRun: row.autoRun !== 0,
       plan: parseColumn(TaskPlan, row.plan, `plan of task ${row.id}`),
       launch: parseColumn(TaskLaunchOptions, row.launch, `launch of task ${row.id}`) ?? {},
       attempts: parseColumn(TaskAttempts, row.attempts, `attempts of task ${row.id}`) ?? [],
@@ -600,6 +629,10 @@ export class TaskStore {
       if (patch.awaitingInput !== undefined) {
         sets.push('awaiting_input = ?')
         values.push(Number(patch.awaitingInput))
+      }
+      if (patch.autoRun !== undefined) {
+        sets.push('auto_run = ?')
+        values.push(Number(patch.autoRun))
       }
       if (patch.plan !== undefined) {
         sets.push('plan = ?')

@@ -284,6 +284,24 @@ describe('ClaudeStream state', () => {
     expect(state?.context?.used).toBeGreaterThan(10_000)
   })
 
+  it('offers only a provider\'s models on a provider, and keeps no cost for its turns', () => {
+    const providerModels = [
+      { id: 'glm-5.3[1m]', label: 'GLM-5.3', description: null, efforts: [], isDefault: true },
+      { id: 'glm-5.3-flash', label: 'GLM-5.3 Flash', description: null, efforts: [], isDefault: false }
+    ]
+    const driver = replay(records.filter((record) => record.dir !== 'exit'), { ...OPTIONS, providerModels })
+    const state = stateOf(driver)
+    expect(state?.models.map((model) => [model.id, model.isDefault, model.autoMode])).toEqual([['glm-5.3[1m]', true, undefined], ['glm-5.3-flash', false, undefined]])
+    expect(() => driver.setOption('model', 'sonnet')).toThrow(expect.objectContaining({ reason: 'chat-option-invalid' }))
+    expect(driver.setOption('model', 'glm-5.3-flash')).toMatchObject([{ request: { subtype: 'set_model', model: 'glm-5.3-flash' } }])
+    const turns = ofKind(driver.items.list(), 'turn').filter((turn) => turn.metering)
+    expect(turns.length).toBeGreaterThan(0)
+    for (const turn of turns) {
+      expect(turn.metering?.reportedCostUsd).toBeNull()
+      expect(turn.metering?.models.every((model) => model.costUsd === null && model.input > 0)).toBe(true)
+    }
+  })
+
   it('empties the context ring to what a compaction left', () => {
     const boundary = (metadata: object) => ({ type: 'system', subtype: 'compact_boundary', compact_metadata: { trigger: 'manual', pre_tokens: 180_000, ...metadata } })
     const compacted = (metadata: object): ChatRecord => ({ dir: 'in', at: 9e12, frame: boundary(metadata) })

@@ -143,8 +143,9 @@ export function MenuItem({ label, icon, hint, danger, disabled, onSelect }: {
 
 // A row that opens a menu of its own beside it: on hover, or on click, Enter or → (which also
 // move the focus in). ← inside it goes back. The parent decides which one is open.
-export function MenuSubmenu({ label, value, open, onOpen, onClose, children }: {
+export function MenuSubmenu({ label, icon, value, open, onOpen, onClose, children }: {
   label: string
+  icon?: ReactNode
   value: string
   open: boolean
   onOpen: () => void
@@ -210,6 +211,7 @@ export function MenuSubmenu({ label, value, open, onOpen, onClose, children }: {
           }
         }}
       >
+        {icon && <span className="menu-item-icon">{icon}</span>}
         <span className="menu-item-title">{label}</span>
         <span className="menu-item-path">{value}</span>
         <ChevronRightIcon />

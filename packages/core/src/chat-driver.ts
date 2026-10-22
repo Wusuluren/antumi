@@ -1,4 +1,4 @@
-import type { ChatDecision, ChatImage, ChatItem, ChatOption, ChatPermissionMode, ChatTurnActivity, KnowledgeBase } from '@antumi/protocol'
+import type { ChatDecision, ChatImage, ChatItem, ChatModel, ChatOption, ChatPermissionMode, ChatTurnActivity, KnowledgeBase } from '@antumi/protocol'
 import type { AttachmentFile } from './attachment-store'
 import type { ChatItems } from './chat-items'
 import type { UsageReport } from './usage-source'
@@ -24,6 +24,8 @@ export type ChatRecord =
   // that one, or with release lets a held one go; text null alone drops them all.
   | { dir: 'queue'; at: number; text: string | null; ref?: string; images?: ChatImage[]; release?: boolean; held?: boolean }
   | { dir: 'exit'; at: number; code: number | null; stderr: string }
+  // An item as another record showed it: a session run outside Antumi, imported.
+  | { dir: 'item'; at: number; item: ChatItem }
   // Antumi asked the user something mid-chat (the site its browser may open), and what they answered.
   | { dir: 'ask'; at: number; requestId: string; ask: { kind: 'browser-host'; host: string; url: string } | { kind: 'terminal-run'; command: string; cwd: string } }
   | { dir: 'answer'; at: number; requestId: string; resolution: 'allowed' | 'allowedForSession' | 'denied' | 'cancelled'; message?: string }
@@ -92,6 +94,10 @@ export type ChatStageOptions = {
   // The user's Obsidian vault, for a driver that gives roots over its protocol: writable only
   // where the stage may edit (write is false otherwise).
   knowledgeBase?: KnowledgeBase
+  // The stage runs on a third-party model provider: its models, named as this agent takes them,
+  // are the ones it offers in place of the agent's own, and what the agent reports it cost (at the
+  // official list price) is not kept.
+  providerModels?: readonly ChatModel[]
 }
 
 export type ChatPreferences = { permissionMode?: string; model?: string; effort?: string }

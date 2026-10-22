@@ -417,6 +417,21 @@ describe('CodexAppServer commands', () => {
     expect(ofKind(driver.items.list(), 'state')[0]?.models.map((model) => [model.id, model.isDefault])).toEqual([['gpt-x', false], ['gpt-y', true]])
   })
 
+  it('offers a provider\'s models in place of what model/list says', () => {
+    const providerModels = [
+      { id: 'ark-code-latest', label: 'Ark Code', description: null, efforts: ['low', 'high'], isDefault: true },
+      { id: 'doubao-seed-code', label: 'Doubao Seed Code', description: null, efforts: [], isDefault: false }
+    ]
+    const driver = new CodexAppServer('stage-1', { ...OPTIONS, providerModels })
+    handshake(driver)
+    driver.apply({ dir: 'in', at, frame: { id: 'antumi-models', result: { data: [{ id: 'gpt-x', isDefault: true }] } } })
+    driver.apply({ dir: 'in', at, frame: { id: 'antumi-config', result: { config: { model: 'ark-code-latest' } } } })
+    const state = ofKind(driver.items.list(), 'state')[0]
+    expect(state?.models.map((model) => [model.id, model.label, model.isDefault])).toEqual([['ark-code-latest', 'Ark Code', true], ['doubao-seed-code', 'Doubao Seed Code', false]])
+    expect(state?.models[0]?.efforts).toEqual(['low', 'high'])
+    expect(() => driver.setOption('model', 'gpt-x')).toThrow(expect.objectContaining({ reason: 'chat-option-invalid' }))
+  })
+
   const skillsReply = {
     id: 'antumi-skills',
     result: {

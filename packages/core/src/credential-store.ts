@@ -16,8 +16,11 @@ const CredentialFile = z.object({ version: z.literal(1), records: z.record(z.str
 const recordKey = (provider: string, instance: string) => `${provider}/${instance}`
 
 // Records per provider instance in one owner-only file. Configuration elsewhere never holds secrets.
+// Writes go one at a time, each from the records as the last one left them: two callers saving at
+// once (a source and a model provider, say) would otherwise each write the file without the other.
 export class CredentialStore {
   private records: Record<string, CredentialRecord> = {}
+  private queue: Promise<unknown> = Promise.resolve()
 
   constructor(private readonly file: string) {}
 
@@ -39,16 +42,28 @@ export class CredentialStore {
     return this.records[recordKey(provider, instance)] ?? null
   }
 
-  // Memory changes only once the file does, so a failed write keeps the credential that worked.
-  async set(provider: string, instance: string, record: CredentialRecord): Promise<void> {
-    const records = { ...this.records, [recordKey(provider, instance)]: record }
-    await writePrivateJson(this.file, { version: 1, records })
-    this.records = records
+  // The instances a provider has records under, to find the ones nothing names any more.
+  instances(provider: string): string[] {
+    const prefix = `${provider}/`
+    return Object.keys(this.records).filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length))
   }
 
-  async delete(provider: string, instance: string): Promise<void> {
-    const { [recordKey(provider, instance)]: _removed, ...records } = this.records
-    await writePrivateJson(this.file, { version: 1, records })
-    this.records = records
+  // Memory changes only once the file does, so a failed write keeps the credential that worked.
+  set(provider: string, instance: string, record: CredentialRecord): Promise<void> {
+    return this.write((records) => ({ ...records, [recordKey(provider, instance)]: record }))
+  }
+
+  delete(provider: string, instance: string): Promise<void> {
+    return this.write(({ [recordKey(provider, instance)]: _removed, ...records }) => records)
+  }
+
+  private write(change: (records: Record<string, CredentialRecord>) => Record<string, CredentialRecord>): Promise<void> {
+    const next = this.queue.then(async () => {
+      const records = change(this.records)
+      await writePrivateJson(this.file, { version: 1, records })
+      this.records = records
+    })
+    this.queue = next.catch(() => {})
+    return next
   }
 }

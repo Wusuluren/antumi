@@ -11,6 +11,7 @@ import { CredentialStore } from './credential-store'
 import { mcpCommand } from './mcp-command'
 import { McpHttpSession } from './mcp-http'
 import { McpServerStore } from './mcp-servers'
+import { serverEnv } from './user-mcp-launch'
 
 let home: string
 let http: Server | null = null

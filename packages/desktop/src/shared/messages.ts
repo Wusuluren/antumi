@@ -1020,6 +1020,10 @@ export const MESSAGES = {
     "zh": "到点后发给 Agent 的指令",
     "en": "Instructions to send to Agent when due"
   },
+  "ChatComposer.messageToSendWhenDue": {
+    "zh": "到点后发给 Agent 的消息",
+    "en": "Message to send to the Agent when due"
+  },
   "ChatComposer.instructionsWhenDueLeaveEmptyToImplementThe": {
     "zh": "到点后发给 Agent 的指令；留空就按定下的计划开始实现",
     "en": "Instructions when due; leave empty to implement the approved plan"
@@ -2903,6 +2907,30 @@ export const MESSAGES = {
   "ConversationList.archived_718": {
     "zh": "{value1}已归档{value2}",
     "en": "{value1}Archived{value2}"
+  },
+  "ConversationList.showMore": {
+    "zh": "显示更多（{hidden}）",
+    "en": "Show {hidden} more"
+  },
+  "ConversationList.showLess": {
+    "zh": "收起",
+    "en": "Show less"
+  },
+  "GuideView.guide": {
+    "zh": "新手指导",
+    "en": "Getting started"
+  },
+  "GuideView.backToOverview": {
+    "zh": "回到总览",
+    "en": "Back to Overview"
+  },
+  "GuideView.startFirstConversation": {
+    "zh": "开始第一条会话",
+    "en": "Start a conversation"
+  },
+  "SettingsPage.openGuide": {
+    "zh": "打开",
+    "en": "Open"
   },
   "ConversationSplit.rightPane": {
     "zh": "右列",
@@ -5143,6 +5171,10 @@ export const MESSAGES = {
   "OverviewView.schedules": {
     "zh": "预约",
     "en": "Schedules"
+  },
+  "SchedulePicker.schedule": {
+    "zh": "预约",
+    "en": "Schedule"
   },
   "OverviewView.respond": {
     "zh": "去处理：{value1}",
@@ -8120,6 +8152,34 @@ export const MESSAGES = {
     "zh": "等待依赖",
     "en": "Waiting for dependencies"
   },
+  "TaskBoard.dependencies": {
+    "zh": "，依赖：{titles}",
+    "en": ", depends on: {titles}"
+  },
+  "TaskDetail.autoRun": {
+    "zh": "自动执行",
+    "en": "Auto-run"
+  },
+  "TaskDetail.autoRunHint": {
+    "zh": "全部依赖完成后，自动开始此任务。",
+    "en": "Start this task automatically once all dependencies are complete."
+  },
+  "TaskDetail.autoRunNeedsDependencies": {
+    "zh": "添加依赖后可开启自动执行。",
+    "en": "Add a dependency to enable auto-run."
+  },
+  "TaskDetail.autoRunUnsupportedAgent": {
+    "zh": "此 Agent 暂不支持自动执行。",
+    "en": "This Agent does not support unattended execution."
+  },
+  "TaskDetail.autoRunCancelled": {
+    "zh": "自动执行已关闭",
+    "en": "Auto-run turned off"
+  },
+  "schedules.executeAfterDependencies": {
+    "zh": "依赖完成后自动执行",
+    "en": "Run automatically after dependencies complete"
+  },
   "TaskBoard.cannotYet": {
     "zh": "还不能{value1}：{value2}",
     "en": "Cannot {value1} yet: {value2}"
@@ -10867,5 +10927,355 @@ export const MESSAGES = {
   "AppUpdate.errorAgentsRunning": {
     "zh": "还有 Agent 或终端在运行，等它们都停下后再重试",
     "en": "agents or terminals are still running; retry once they have stopped"
+  },
+  "ModelProviderSettings.plan": { "zh": "套餐", "en": "Plan" },
+  "ModelProviderSettings.custom": { "zh": "自定义", "en": "Custom" },
+  "ModelProviderSettings.customHint": { "zh": "自己填地址、Key 和模型", "en": "Your own address, key and models" },
+  "ModelProviderSettings.verified": { "zh": "已验证", "en": "Verified" },
+  "ModelProviderSettings.unverified": { "zh": "未验证", "en": "Unverified" },
+  "ModelProviderSettings.unverifiedHint": { "zh": "「未验证」的预设按各家文档填好，还没在 Antumi 里用真 Key 实测过。", "en": "Unverified presets follow each vendor's docs and have not been tried with a real key in Antumi yet." },
+  "ModelProviderSettings.keyHint": { "zh": "只存在本机的 Antumi 里，不进 Agent 的配置、命令行和日志。", "en": "Kept only in Antumi on this machine, never in an agent's configuration, command line or logs." },
+  "ModelProviderSettings.getKey": { "zh": "去控制台获取 ↗", "en": "Get one in the console ↗" },
+  "ModelProviderSettings.models": { "zh": "模型", "en": "Models" },
+  "ModelProviderSettings.modelsHint": { "zh": "一行一个，用服务商给的模型名。新建会话时可以在这些里面换。", "en": "One per line, named as the provider names them. A new conversation can switch among these." },
+  "ModelProviderSettings.defaultModel": { "zh": "默认模型", "en": "Default model" },
+  "ModelProviderSettings.smallModel": { "zh": "小模型", "en": "Small model" },
+  "ModelProviderSettings.smallModelHint": { "zh": "标题、翻译、提交说明这类小任务用它。", "en": "Used for small jobs such as titles, translations and commit messages." },
+  "ModelProviderSettings.agents": { "zh": "给哪些 Agent 用", "en": "Agents that use it" },
+  "ModelProviderSettings.agentsUnservable": { "zh": "{value1} 用不了这个服务商的接口，只能用自己的账号。", "en": "{value1} cannot use this provider's endpoints and keep their own accounts." },
+  "ModelProviderSettings.addresses": { "zh": "地址", "en": "Addresses" },
+  "ModelProviderSettings.anthropicUrl": { "zh": "Anthropic 协议地址", "en": "Anthropic endpoint" },
+  "ModelProviderSettings.anthropicUrlHint": { "zh": "给 Claude Code 用，例如 https://api.example.com/anthropic。不用加 /v1。", "en": "For Claude Code, such as https://api.example.com/anthropic, without /v1." },
+  "ModelProviderSettings.keyHeader": { "zh": "Key 放在", "en": "Key goes in" },
+  "ModelProviderSettings.responsesUrl": { "zh": "OpenAI Responses 地址", "en": "OpenAI Responses endpoint" },
+  "ModelProviderSettings.chatUrl": { "zh": "OpenAI Chat Completions 地址", "en": "OpenAI Chat Completions endpoint" },
+  "ModelProviderSettings.openaiUrlHint": { "zh": "Codex 要 Responses，OpenCode 两种都行。填到 /responses 或 /chat/completions 之前那一级。", "en": "Codex needs Responses; OpenCode takes either. Give the address up to, not including, /responses or /chat/completions." },
+  "ModelProviderSettings.badUrl": { "zh": "地址要用 https://（http:// 只能连本机），不能带账号密码、? 参数或 # 片段。", "en": "Use https:// (http:// only for this machine), with no user name, password, ? query or # fragment." },
+  "ModelProviderSettings.testing": { "zh": "正在测试，每个接口和模型各发一个很短的请求……", "en": "Testing: one short request per endpoint and model…" },
+  "ModelProviderSettings.noResponse": { "zh": "没有回应", "en": "no response" },
+  "ModelProviderSettings.probeFailedHint": { "zh": "可能是 Key、地址或模型名不对，以服务商返回的原话为准。", "en": "The key, address or model name may be wrong; the provider's own words above say which." },
+  "ModelProviderSettings.summary": { "zh": "给 {value1} 用 · 默认模型 {value2}", "en": "For {value1} · default model {value2}" },
+  "ModelProviderSettings.noKey": { "zh": "还没有 API Key", "en": "No API key yet" },
+  "ModelProviderSettings.console": { "zh": "控制台看用量 ↗", "en": "Usage in the console ↗" },
+  "ModelProviderSettings.removeWarning": { "zh": "删除后，用它的会话和任务不能再继续，直到重新添加。", "en": "Conversations and tasks on it cannot go on until it is added again." },
+  "ModelProviderSettings.intro": { "zh": "不改 Agent 自己的配置。没选服务商的会话照常用 Agent 自己登录的账号；选了服务商的会话，用量按服务商算，不占官方账号的额度。", "en": "Agents' own configuration is left as it is. A conversation without a provider uses the agent's own account; one on a provider spends the provider's plan, not the account's quota." },
+  "ModelProviderSettings.none": { "zh": "还没有服务商", "en": "No providers yet" },
+  "ModelProviderSettings.add": { "zh": "添加服务商", "en": "Add provider" },
+  "SettingsPage.modelProviders": { "zh": "服务商", "en": "Model providers" },
+  "SettingsPage.modelProvidersDescription": { "zh": "让 Agent 用第三方编程套餐的模型，比如火山方舟、智谱 GLM。新建会话时选用哪一个。", "en": "Let agents use a third-party coding plan's models, such as Volcengine Ark or Zhipu GLM. Pick one when starting a conversation." },
+  "ProviderPicker.provider": { "zh": "服务商", "en": "Provider" },
+  "ProviderPicker.ownAccount": { "zh": "{value1} 账号", "en": "{value1} account" },
+  "ProviderPicker.ownAccountDescription": { "zh": "用 {value1} 自己登录的账号", "en": "The account {value1} is signed in with" },
+  "ProviderPicker.manage": { "zh": "管理服务商…", "en": "Manage providers…" },
+  "RouteBadge.onProvider": { "zh": "在服务商「{value1}」上运行，这个会话固定用它", "en": "Runs on {value1}, fixed for this conversation" },
+  "RouteBadge.ownAccount": { "zh": "服务商「{value2}」不服务 {value1}，它用自己的账号", "en": "{value2} does not serve {value1}, which uses its own account" },
+  "RouteBadge.ownAccountShort": { "zh": "{value1} 账号", "en": "{value1} account" },
+  "RouteBadge.unavailable": { "zh": "服务商「{value1}」已删除或没有 Key，补上之前 Agent 不能继续", "en": "{value1} is gone or has no key; the agent cannot go on until it is back" },
+  "RouteBadge.removedProvider": { "zh": "已删除的服务商", "en": "Removed provider" },
+  "ChatHandoff.keepsProvider": { "zh": "沿用服务商「{value1}」", "en": "Keeps {value1}" },
+  "ChatHandoff.ownAccountInstead": { "zh": "用自己的账号：「{value1}」不服务它", "en": "Its own account: {value1} does not serve it" },
+  "GitInspector.updateFromRemote": {
+    "zh": "从远端更新",
+    "en": "Update from remote"
+  },
+  "GitInspector.updateBranch": {
+    "zh": "更新 {branch}",
+    "en": "Update {branch}"
+  },
+  "GitInspector.updateDiverged": {
+    "zh": "{branch} 和 {upstream} 已分叉：本地有 {ahead} 个提交还没推送，远端有 {behind} 个新提交。选择怎样把远端的提交并进来：",
+    "en": "{branch} and {upstream} have diverged: {ahead} local commits are not pushed and the remote has {behind} new ones. Choose how to bring the remote commits in:"
+  },
+  "GitInspector.updateMerge": {
+    "zh": "合并（Merge）",
+    "en": "Merge"
+  },
+  "GitInspector.updateMergeDescription": {
+    "zh": "多出一个合并提交，本地提交保持原样。",
+    "en": "Adds a merge commit and leaves your local commits as they are."
+  },
+  "GitInspector.updateRebase": {
+    "zh": "变基（Rebase）",
+    "en": "Rebase"
+  },
+  "GitInspector.updateRebaseDescription": {
+    "zh": "把本地的提交重新接到远端之后，历史是一条直线。已经推送出去的提交不要变基。",
+    "en": "Replays your local commits on top of the remote ones for a straight history. Do not rebase commits you have already pushed."
+  },
+  "GitInspector.updateStashNote": {
+    "zh": "有未提交的改动时，会先暂存起来，更新完再放回。",
+    "en": "Uncommitted changes are stashed first and put back afterwards."
+  },
+  "GitInspector.upToDate": {
+    "zh": "{branch} 已是最新。",
+    "en": "{branch} is up to date."
+  },
+  "GitInspector.updated": {
+    "zh": "{branch} 已更新，拉入 {count} 个提交。",
+    "en": "{branch} updated with {count} incoming commits."
+  },
+  "GitInspector.stashKept": {
+    "zh": "未提交的改动没能自动放回，留在 stash 里（antumi-update:{branch}），请在终端用 git stash pop 处理。",
+    "en": "Your uncommitted changes did not apply cleanly and wait in the stash (antumi-update:{branch}); run git stash pop in a terminal."
+  },
+  "GitInspector.rebaseConflicts": {
+    "zh": "变基出现冲突，请处理下面列出的文件。",
+    "en": "Rebase conflicts found. Resolve the files listed below."
+  },
+  "GitInspector.rebaseIsUnfinished": {
+    "zh": "变基尚未完成",
+    "en": "Rebase is unfinished"
+  },
+  "GitInspector.continueRebase": {
+    "zh": "继续变基",
+    "en": "Continue rebase"
+  },
+  "GitInspector.abortRebase": {
+    "zh": "中止变基…",
+    "en": "Abort rebase…"
+  },
+  "GitInspector.abortRebaseTitle": {
+    "zh": "中止变基",
+    "en": "Abort rebase"
+  },
+  "GitInspector.abortRebaseExplained": {
+    "zh": "中止这次变基，分支回到更新之前的样子。",
+    "en": "Abort this rebase and return the branch to where it was before the update."
+  },
+  "GitInspector.aheadBehind": {
+    "zh": "落后 {behind} 个提交 · 领先 {ahead} 个提交",
+    "en": "{behind} behind · {ahead} ahead"
+  },
+  "labels.branchDivergedSwitchToUpdate": {
+    "zh": "这个分支和远端已分叉，切换到这个分支后再更新。",
+    "en": "This branch has diverged from its remote; switch to it to update it."
+  },
+  "GitPush.pushTo": {
+    "zh": "推送到 {name}",
+    "en": "Push to {name}"
+  },
+  "GitPush.remote": {
+    "zh": "远端",
+    "en": "Remote"
+  },
+  "GitPush.target": {
+    "zh": "远端分支",
+    "en": "Remote branch"
+  },
+  "GitPush.otherName": {
+    "zh": "目标是 {name}，不是同名分支：这个分支的上游是 {upstream}。",
+    "en": "The target is {name}, not a branch of the same name: this branch's upstream is {upstream}."
+  },
+  "GitPush.otherNameNoUpstream": {
+    "zh": "目标是 {name}，不是同名分支。",
+    "en": "The target is {name}, not a branch of the same name."
+  },
+  "GitPush.newAndUpstream": {
+    "zh": "新分支并跟踪",
+    "en": "New, and tracked"
+  },
+  "GitPush.new": {
+    "zh": "新分支",
+    "en": "New"
+  },
+  "GitPush.commits": {
+    "zh": "将推送 {count} 个提交",
+    "en": "{count} {count, plural, one {commit} other {commits}} to push"
+  },
+  "GitPush.loading": {
+    "zh": "正在计算要推送的提交…",
+    "en": "Working out what to push…"
+  },
+  "GitPush.nothing": {
+    "zh": "没有要推送的提交，远端已是最新。",
+    "en": "Nothing to push: the remote is up to date."
+  },
+  "GitPush.more": {
+    "zh": "还有 {count} 个…",
+    "en": "{count} more…"
+  },
+  "GitPush.keepsUpstream": {
+    "zh": "跟踪关系不变（仍是 {upstream}）。",
+    "en": "The upstream stays {upstream}."
+  },
+  "GitPush.setsUpstream": {
+    "zh": "推送后设为这个分支的上游。",
+    "en": "It becomes this branch's upstream."
+  },
+  "GitPush.createsUpstream": {
+    "zh": "远端还没有 {name}：推送后新建，并设为这个分支的上游。",
+    "en": "The remote has no {name} yet: the push creates it and makes it this branch's upstream."
+  },
+  "GitPush.creates": {
+    "zh": "远端还没有 {name}：推送后新建。",
+    "en": "The remote has no {name} yet: the push creates it."
+  },
+  "GitPush.rememberedMerge": {
+    "zh": "推送被拒时会自动合并后重推。",
+    "en": "A rejected push is merged and pushed again automatically."
+  },
+  "GitPush.rememberedRebase": {
+    "zh": "推送被拒时会自动变基后重推。",
+    "en": "A rejected push is rebased and pushed again automatically."
+  },
+  "GitPush.askEachTime": {
+    "zh": "改为每次询问",
+    "en": "Ask each time"
+  },
+  "GitPush.rejectedTitle": {
+    "zh": "推送被拒",
+    "en": "Push rejected"
+  },
+  "GitPush.rejectedExplained": {
+    "zh": "远端 {target} 有本地没有的提交，需要先并进来再推。",
+    "en": "{target} has commits this branch lacks; bring them in before pushing."
+  },
+  "GitPush.rememberChoice": {
+    "zh": "记住这次的选择，以后自动这样更新",
+    "en": "Remember this choice and update this way from now on"
+  },
+  "GitPush.mergeAndPush": {
+    "zh": "合并后重推",
+    "en": "Merge and push"
+  },
+  "GitPush.rebaseAndPush": {
+    "zh": "变基后重推",
+    "en": "Rebase and push"
+  },
+  "GitPush.pushed": {
+    "zh": "已推送到 {target}。",
+    "en": "Pushed to {target}."
+  },
+  "GitPush.updateStopped": {
+    "zh": "更新停在冲突上，没有重推；解决后再推送。",
+    "en": "The update stopped on conflicts and nothing was pushed; push again once they are resolved."
+  },
+  "GitInspector.trackedBranch": {
+    "zh": "跟踪的远端分支",
+    "en": "Tracked branch"
+  },
+  "GitInspector.noTrackedBranch": {
+    "zh": "无",
+    "en": "None"
+  },
+  "GitInspector.untrack": {
+    "zh": "取消跟踪",
+    "en": "Track none"
+  },
+  "SettingsPage.sessionImport": {
+    "zh": "导入会话",
+    "en": "Import sessions"
+  },
+  "SettingsPage.sessionImportDescription": {
+    "zh": "导入在终端里跑过的 Claude Code、Codex 会话，在 Antumi 里接着聊",
+    "en": "Bring in Claude Code and Codex sessions you ran in a terminal, and continue them in Antumi"
+  },
+  "SessionImportSettings.note": {
+    "zh": "导入后保留之前的对话；之后发消息时，Agent 在原目录里恢复同一个会话接着聊。在终端里又聊过的会话会标为「有更新」，再导入一次只补上新的部分。",
+    "en": "Imported sessions keep their history. Your next message resumes the same session in its original folder. Sessions you continued in a terminal show as Updated; importing again adds only what is new."
+  },
+  "SessionImportSettings.agentFilter": {
+    "zh": "Agent",
+    "en": "Agent"
+  },
+  "SessionImportSettings.allAgents": {
+    "zh": "全部",
+    "en": "All"
+  },
+  "SessionImportSettings.search": {
+    "zh": "搜索标题、内容或目录",
+    "en": "Search titles, prompts or folders"
+  },
+  "SessionImportSettings.hideImported": {
+    "zh": "隐藏已导入",
+    "en": "Hide imported"
+  },
+  "SessionImportSettings.rescan": {
+    "zh": "重新扫描",
+    "en": "Scan again"
+  },
+  "SessionImportSettings.expandAll": {
+    "zh": "全部展开",
+    "en": "Expand all"
+  },
+  "SessionImportSettings.collapseAll": {
+    "zh": "全部折叠",
+    "en": "Collapse all"
+  },
+  "SessionImportSettings.summary": {
+    "zh": "{folders} 个目录 · {count} 个会话",
+    "en": "{folders} {folders, plural, one {folder} other {folders}} · {count} {count, plural, one {session} other {sessions}}"
+  },
+  "SessionImportSettings.sessionCount": {
+    "zh": "{count} 个会话",
+    "en": "{count} {count, plural, one {session} other {sessions}}"
+  },
+  "SessionImportSettings.selectedCount": {
+    "zh": "已选 {count}",
+    "en": "{count} selected"
+  },
+  "SessionImportSettings.hiddenSelected": {
+    "zh": "其中 {count} 个不在当前筛选中",
+    "en": "{count} outside current filters"
+  },
+  "SessionImportSettings.clearSelection": {
+    "zh": "清空选择",
+    "en": "Clear selection"
+  },
+  "SessionImportSettings.scanning": {
+    "zh": "正在读取会话…",
+    "en": "Reading sessions…"
+  },
+  "SessionImportSettings.none": {
+    "zh": "没有找到在 Antumi 之外跑过的会话",
+    "en": "No sessions run outside Antumi were found"
+  },
+  "SessionImportSettings.noneMatch": {
+    "zh": "没有符合条件的会话",
+    "en": "No sessions match"
+  },
+  "SessionImportSettings.selectFolder": {
+    "zh": "选择 {value1} 里的全部会话",
+    "en": "Select every session in {value1}"
+  },
+  "SessionImportSettings.select": {
+    "zh": "选择 {value1}",
+    "en": "Select {value1}"
+  },
+  "SessionImportSettings.missingFolder": {
+    "zh": "目录已不存在",
+    "en": "Folder is gone"
+  },
+  "SessionImportSettings.statusImported": {
+    "zh": "已导入",
+    "en": "Imported"
+  },
+  "SessionImportSettings.statusUpdated": {
+    "zh": "有更新",
+    "en": "Updated"
+  },
+  "SessionImportSettings.open": {
+    "zh": "打开",
+    "en": "Open"
+  },
+  "SessionImportSettings.importing": {
+    "zh": "正在导入…",
+    "en": "Importing…"
+  },
+  "SessionImportSettings.importSelected": {
+    "zh": "导入所选（{count}）",
+    "en": "Import selected ({count})"
+  },
+  "SessionImportSettings.imported": {
+    "zh": "已导入 {count} 个会话",
+    "en": "Imported {count} {count, plural, one {session} other {sessions}}"
+  },
+  "labels.notPushed": {
+    "zh": "没有推送",
+    "en": "Not pushed"
+  },
+  "labels.pushRejected": {
+    "zh": "推送被拒",
+    "en": "Push rejected"
   }
 } as const

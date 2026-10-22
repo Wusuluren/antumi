@@ -2,12 +2,15 @@ import { parseCodexQuick } from '../../model-metering'
 import type { AgentAdapter } from '../agent-adapter'
 import { CODEX_MODES, CodexAppServer } from './codex-app-server'
 import { codexCommand } from './codex-command'
+import { codexProviderModels } from './codex-provider'
+import { codexTranscripts } from './codex-transcripts'
 import { hasCodexCredentials, readCodexUsage, useCodexResetCredit } from './codex-usage'
 
 export const codex: AgentAdapter = {
   kind: 'codex',
   createDriver: (stageId, options) => new CodexAppServer(stageId, options),
   command: codexCommand,
+  providerModels: codexProviderModels,
   permissionModes: Object.keys(CODEX_MODES),
   // A thread is Codex's own, wherever the conversation's folder moved.
   session: { preassignedId: false, folderBound: false, nativeFork: 'any' },
@@ -17,6 +20,7 @@ export const codex: AgentAdapter = {
   signedIn: hasCodexCredentials,
   usage: readCodexUsage,
   useResetCredit: useCodexResetCredit,
+  transcripts: codexTranscripts(),
   // At low effort, read-only, and not kept in its history. Its progress goes to stdout too, so the
   // answer comes from a file.
   quick: {

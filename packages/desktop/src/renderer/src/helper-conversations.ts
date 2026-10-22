@@ -4,7 +4,19 @@ import { perform, useCore } from './core-store'
 import { addQuote } from './chat-quotes'
 import { usePreferences } from './preferences'
 
+// The model provider a helper runs on: its parent's, where the parent's agent runs on one.
+export function helperProvider(parent: Pick<Conversation, 'modelProvider' | 'route'>): string | undefined {
+  return parent.route?.reason === 'served' ? parent.modelProvider ?? undefined : undefined
+}
+
+// On a provider, its small model as the agent names it (Claude adds [1m], OpenCode the provider).
 export function helperModel(parent: Conversation, catalog: ChatCatalog | null): string | null {
+  const providerId = helperProvider(parent)
+  const provider = providerId ? useCore.getState().modelProviders.find((each) => each.id === providerId) : undefined
+  if (provider) {
+    const small = provider.smallModel
+    return catalog?.models.find((each) => each.id === small || each.id === `${small}[1m]` || each.id.endsWith(`/${small}`))?.id ?? null
+  }
   return usePreferences.getState().quickModels[parent.agent] || quickModel(agentDescriptor(parent.agent).quickModels, catalog)
 }
 
@@ -66,7 +78,8 @@ export function ensureHelper(parent: Conversation, choice?: { model: string | nu
   const result = perform(async () => {
     const found = await readHelper(rpc, parent.id)
     if (found) return remember(found)
-    const catalog = choice ? null : await rpc.call('conversations.chatCatalog', { agent: parent.agent })
+    const providerId = helperProvider(parent)
+    const catalog = choice ? null : await rpc.call('conversations.chatCatalog', { agent: parent.agent, ...(providerId ? { modelProvider: providerId } : {}) })
     const model = choice ? choice.model : helperModel(parent, catalog)
     const created = await rpc.call('conversations.create', {
       agent: parent.agent, projectPaths: parent.projectPaths, helperOf: parent.id,

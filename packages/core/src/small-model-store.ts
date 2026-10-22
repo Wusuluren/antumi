@@ -86,11 +86,14 @@ export class SmallModelStore {
 
   close(): void { this.db.close() }
 
-  begin(fields: { kind: SmallModelKind; agent: AgentKind; model: string | null; conversationId: string | null; baseline: CostBaseline; id?: string }): string {
+  // unpriced: a job on a model provider's plan, which neither the agent's prices nor the chat's
+  // model as a baseline say anything of; its tokens are kept, never a cost or a saving.
+  begin({ unpriced = false, ...fields }: { kind: SmallModelKind; agent: AgentKind; model: string | null; conversationId: string | null; baseline: CostBaseline; id?: string; unpriced?: boolean }): string {
     const id = fields.id ?? randomUUID()
     const job: SmallModelJob = {
       ...fields, id, startedAt: this.now(), endedAt: null, state: 'running',
-      prices: [...agentDescriptor(fields.agent).prices ?? []], metering: null, totalTokens: null, cost: null
+      ...(unpriced ? { baseline: EMPTY_BASELINE } : {}),
+      prices: unpriced ? [] : [...agentDescriptor(fields.agent).prices ?? []], metering: null, totalTokens: null, cost: null
     }
     this.db.exec('BEGIN')
     try {

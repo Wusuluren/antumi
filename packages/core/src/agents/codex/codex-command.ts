@@ -2,6 +2,7 @@ import { RESERVED_MCP_SERVER_NAME } from '@antumi/protocol'
 import type { AgentCommand, AgentMcpServer } from '../../agent-command'
 import { startNote } from '../../agent-prompt'
 import type { AgentLaunch } from '../agent-adapter'
+import { codexProviderLaunch } from './codex-provider'
 
 // The ChatGPT app's own browser, which its unified-computer-use plugin gives every Codex as the
 // cua_repl MCP server: beside Antumi's browser tools Codex reached for it first, and its policy,
@@ -25,12 +26,14 @@ function codexServer(server: AgentMcpServer): string {
 // writable root of each turn, see CodexAppServer). A JSON string is a TOML basic string. A skills
 // bundle (AgentLaunch.skills) is not given: Codex reads skills from fixed folders only; the places
 // to try are skills.config in its config and the cwds of skills/list (CodexAppServer).
-export function codexCommand({ mcp, userMcp = [], knowledgeBase, todos = true }: AgentLaunch): AgentCommand {
+export function codexCommand({ mcp, userMcp = [], knowledgeBase, todos = true, provider, preferred }: AgentLaunch): AgentCommand {
   const note = startNote({ knowledgeBase, todos: Boolean(mcp) && todos })
-  return { command: 'codex', args: [
+  const onProvider = provider ? codexProviderLaunch(provider, preferred?.model) : null
+  return { command: 'codex', ...(onProvider ? { env: onProvider.env } : {}), args: [
     'app-server',
     ...(mcp ? ['-c', `mcp_servers.${RESERVED_MCP_SERVER_NAME}.command=${JSON.stringify(mcp.command)}`, '-c', `mcp_servers.${RESERVED_MCP_SERVER_NAME}.args=${JSON.stringify(mcp.args)}`, ...(mcp.env ? ['-c', `mcp_servers.${RESERVED_MCP_SERVER_NAME}.env=${tomlTable(mcp.env)}`] : []), ...HIDDEN_CODEX_BROWSERS] : []),
     ...userMcp.flatMap((server) => ['-c', `mcp_servers.${server.name}=${codexServer(server)}`]),
-    ...(note ? ['-c', `developer_instructions=${JSON.stringify(note)}`] : [])
+    ...(note ? ['-c', `developer_instructions=${JSON.stringify(note)}`] : []),
+    ...(onProvider?.args ?? [])
   ] }
 }

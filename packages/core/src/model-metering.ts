@@ -19,6 +19,11 @@ const ClaudeResult = z.looseObject({
   num_turns: count.optional(), total_cost_usd: cost.optional()
 })
 
+// A turn on a provider's plan: its tokens stand, what the agent priced them at does not.
+export function withoutCost(metering: ModelMetering): ModelMetering {
+  return { ...metering, reportedCostUsd: null, models: metering.models.map((model) => ({ ...model, costUsd: null })) }
+}
+
 export type QuickAnswer = { text: string; metering?: ModelMetering; failed?: boolean }
 
 export function claudeTokens(model: string | null, usage: z.infer<typeof ClaudeTokenUsage>, requestInputs?: number[]): ModelTokens | null {

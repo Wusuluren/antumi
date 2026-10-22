@@ -2,21 +2,24 @@ import { t } from '../i18n'
 import { useEffect, useState } from 'react'
 import { helperAllowsMode, type AgentKind, type ChatCatalog, type ChatPermissionMode, type Conversation } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
+import { helperProvider } from '../helper-conversations'
 import { ChatModelPicker, ChatPicker } from './ChatPicker'
 import { effortLabel, modeOptions, modeTone, startModes } from './ChatOptionsBar'
 
-export function useHelperCatalog(agent: AgentKind): ChatCatalog | null | undefined {
+// providerId: the model provider the helper runs on (helperProvider), whose models it picks from.
+export function useHelperCatalog(agent: AgentKind, providerId?: string): ChatCatalog | null | undefined {
   const rpc = useCore((state) => state.rpc)
-  const [result, setResult] = useState<{ agent: AgentKind; catalog: ChatCatalog | null } | null>(null)
+  const key = `${agent}|${providerId ?? ''}`
+  const [result, setResult] = useState<{ key: string; catalog: ChatCatalog | null } | null>(null)
   useEffect(() => {
     if (!rpc) return
     let current = true
-    void rpc.call('conversations.chatCatalog', { agent }).then((catalog) => {
-      if (current) setResult({ agent, catalog })
-    }).catch(() => { if (current) setResult({ agent, catalog: null }) })
+    void rpc.call('conversations.chatCatalog', { agent, ...(providerId ? { modelProvider: providerId } : {}) }).then((catalog) => {
+      if (current) setResult({ key, catalog })
+    }).catch(() => { if (current) setResult({ key, catalog: null }) })
     return () => { current = false }
-  }, [rpc, agent])
-  return result?.agent === agent ? result.catalog : undefined
+  }, [rpc, agent, providerId, key])
+  return result?.key === key ? result.catalog : undefined
 }
 
 export function HelperModelPicker({ catalog, model, effort, disabled = false, onModel, onEffort }: {
@@ -59,7 +62,7 @@ export function HelperModePicker({ agent, offered, mode, disabled = false, onMod
 }
 
 export function HelperStartOptions({ conversation }: { conversation: Conversation }) {
-  const catalog = useHelperCatalog(conversation.agent)
+  const catalog = useHelperCatalog(conversation.agent, helperProvider(conversation))
   const set = (option: 'permissionMode' | 'model' | 'effort', value: string) => void perform((rpc) => rpc.call('conversations.setOption', { id: conversation.id, option, value }))
   const model = conversation.chatOptions?.model ?? null
   const offered = helperModes(conversation.agent, catalog, model)
