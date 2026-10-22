@@ -1433,9 +1433,10 @@ button.task-tag:hover {
   color: #d97757;
 }
 
-/* OpenAI's terms allow its blossom only in black or white. */
+/* OpenAI's terms allow its blossom only in black or white; OpenCode and Pi draw theirs in one colour. */
 .agent-mark-codex,
-.agent-mark-opencode {
+.agent-mark-opencode,
+.agent-mark-pi {
   color: var(--mark-mono);
 }
 

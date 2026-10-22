@@ -35,7 +35,7 @@ import { ModelProvider, ModelProviderId, ModelProviderInput, ModelProviderProbe 
 import { ExternalSession, ExternalSessionRef } from './session-import'
 
 // Bump only for breaking changes; additive optional fields keep the version.
-export const PROTOCOL_VERSION = 14
+export const PROTOCOL_VERSION = 15
 
 const TaskRef = z.object({ id: z.string().min(1) })
 const TaskTitle = z.string().trim().min(1).max(200)

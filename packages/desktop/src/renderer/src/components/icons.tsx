@@ -139,6 +139,18 @@ function OpenCodeMark() {
   )
 }
 
+// Pi's mark, the three paths of pi.dev/favicon.svg unaltered, in one colour as its own two themes
+// draw it (near black, near white).
+function PiMark() {
+  return (
+    <svg className="agent-mark agent-mark-pi" viewBox="0 0 560 560" fill="currentColor" aria-hidden="true">
+      <path d="M420 280H280V140H0V0H420V280Z" />
+      <path d="M560 560H420V280H560V560Z" />
+      <path d="M140 560H0V140H140V280H280V420H140V560Z" />
+    </svg>
+  )
+}
+
 function NoAgentMark() {
   return (
     <svg className="agent-mark agent-mark-none" {...stroked} strokeDasharray="2.4 2.2">
@@ -147,7 +159,7 @@ function NoAgentMark() {
   )
 }
 
-const AGENT_MARKS = { claude: ClaudeMark, codex: CodexMark, cursor: CursorMark, opencode: OpenCodeMark } satisfies Record<AgentKind, () => ReactElement>
+const AGENT_MARKS = { claude: ClaudeMark, codex: CodexMark, cursor: CursorMark, opencode: OpenCodeMark, pi: PiMark } satisfies Record<AgentKind, () => ReactElement>
 
 export function AgentIcon({ agent }: { agent: AgentKind | null }) {
   if (agent === null) return <NoAgentMark />

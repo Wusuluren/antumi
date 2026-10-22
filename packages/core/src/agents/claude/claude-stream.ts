@@ -9,6 +9,7 @@ import { keepImageBlocks, markKeptImages, stripImageBytes } from '../../image-fr
 import { AntumiRequests } from '../../antumi-requests'
 import { messageText, type ChatAnswer, type ChatDriver, type ChatImageFile, type ChatOutgoing, type ChatRecord, type ChatStageOptions, type StageMessage } from '../../chat-driver'
 import { ChatItems, clip, type UsageLimitHit } from '../../chat-items'
+import { addedPatch, editPatch } from '../../chat-diff'
 import { ChatQueue } from '../../chat-queue'
 import { StageState } from '../../chat-stage-state'
 import { CLAUDE_TASK_TOOLS, ClaudeTasks } from './claude-tasks'
@@ -334,17 +335,11 @@ export function inputText(name: string, input: Record<string, unknown>): string 
   return Object.keys(input).length ? clip(JSON.stringify(input, null, 2), 4000) : null
 }
 
-const lines = (text: string) => (text === '' ? [] : text.replace(/\n$/, '').split('\n'))
-
-function editPatch(before: string, after: string): string {
-  return ['@@', ...lines(before).map((line) => `-${line}`), ...lines(after).map((line) => `+${line}`)].join('\n')
-}
-
 export function inputDiffs(name: string, input: Record<string, unknown>): ChatDiff[] {
   const path = str(input.file_path)
   if (!path) return []
   if (name === 'Write') {
-    return [{ path, change: 'add', patch: clip(lines(String(input.content ?? '')).map((line) => `+${line}`).join('\n'), MAX_PATCH) }]
+    return [{ path, change: 'add', patch: clip(addedPatch(String(input.content ?? '')), MAX_PATCH) }]
   }
   if (name === 'Edit') {
     return [{ path, change: 'update', patch: clip(editPatch(String(input.old_string ?? ''), String(input.new_string ?? '')), MAX_PATCH) }]

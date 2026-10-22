@@ -101,8 +101,8 @@ export interface AgentAdapter {
     // Antumi's MCP server as this agent is to start it.
     mcp(server: McpServer, stage: AgentStage): McpServer
     // Before the process starts, given the server it gets: the executable to run in place of the
-    // command's, once that is known to be able to run.
-    prepare(stage: AgentStage, mcp: McpServer | undefined): Promise<{ command?: string }>
+    // command's, once that is known to be able to run, and arguments naming files the step wrote.
+    prepare(stage: AgentStage, mcp: McpServer | undefined): Promise<{ command?: string; args?: readonly string[] }>
     // After its handshake, before its first message.
     ready(stage: AgentStage): Promise<void>
   }
