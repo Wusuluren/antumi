@@ -52,6 +52,16 @@ const GLM_NOTES = [
 
 const MINIMAX_MODELS: readonly ProviderModel[] = [model('MiniMax-M2.7')]
 
+// Alibaba Cloud Model Studio's Token Plan: personal and team plans share these addresses, each with
+// its own key. auto lets the plan pick the model. Only its Beijing region serves the plan.
+const TOKEN_PLAN = 'https://token-plan.cn-beijing.maas.aliyuncs.com'
+const TOKEN_PLAN_MODELS: readonly ProviderModel[] = ['auto', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-max', 'qwen3.7-plus', 'qwen3.6-flash',
+  'deepseek-v4.1-flash', 'deepseek-v4-pro', 'glm-5.3', 'glm-5.2'].map((id) => model(id))
+const TOKEN_PLAN_NOTES = [
+  { zh: '个人版和团队版用同一个地址；团队版的 Key 在百炼控制台的团队成员页生成。', en: 'Personal and team plans share this address; a team plan\'s key is made on the team members page of the Model Studio console.' },
+  { zh: '只用 token-plan 开头的地址：按量付费的地址不扣套餐额度，会另外计费。', en: 'Use the token-plan address only: the pay-as-you-go one is billed apart from the plan.' }
+]
+
 export const MODEL_PROVIDER_PRESETS: Record<ModelProviderPresetId, ModelProviderPresetEntry> = {
   'volcengine-agent-plan': {
     name: '火山方舟 Agent Plan',
@@ -165,5 +175,21 @@ export const MODEL_PROVIDER_PRESETS: Record<ModelProviderPresetId, ModelProvider
     checked: CHECKED,
     verified: null,
     notes: []
+  },
+  'bailian-token-plan': {
+    name: '阿里云百炼 Token Plan',
+    translations: { en: { name: 'Alibaba Cloud Model Studio Token Plan' } },
+    anthropic: { baseUrl: `${TOKEN_PLAN}/apps/anthropic`, auth: 'auth_token', env: {} },
+    openai: { chatUrl: `${TOKEN_PLAN}/compatible-mode/v1`, responsesUrl: `${TOKEN_PLAN}/compatible-mode/v1` },
+    models: TOKEN_PLAN_MODELS,
+    defaultModel: 'qwen3.8-max',
+    smallModel: 'qwen3.6-flash',
+    agents: ['claude', 'codex', 'opencode', 'pi'],
+    keyUrl: 'https://bailian.console.aliyun.com/cn-beijing/subscription/token-plan/personal',
+    consoleUrl: 'https://bailian.console.aliyun.com/cn-beijing/subscription/overview',
+    docsUrl: 'https://help.aliyun.com/zh/model-studio/token-plan-personal-overview',
+    checked: '2026-10-22',
+    verified: null,
+    notes: TOKEN_PLAN_NOTES
   }
 }
