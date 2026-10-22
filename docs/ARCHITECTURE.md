@@ -399,6 +399,18 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 - **预设是否「已验证」**：用真 Key 在 Antumi 里把三个 Agent 都跑过才标，记下 CLI 版本；现在都还是未验证。额度不在 Antumi 里显示，只给控制台链接。
 - **mock 端到端**：Claude Code、Codex、OpenCode 的注入都用一个本地模拟服务（三种协议、记录请求）实跑过，包括 settings.json 里指向别处的地址和工具能否读到 Key。改了注入方式或升级 CLI 后要重跑。
 
+### 账号
+
+Claude Code 和 Codex 可以登录多个账号（描述符的 `capabilities.accounts`，适配器的 `accounts`），设置 → Agent → 账号（`agent-accounts.ts`）维护。和服务商走同一条路：**每次启动注入环境变量，不改 Agent 自己的配置**——每个账号一个配置目录，进程带 `CLAUDE_CONFIG_DIR` / `CODEX_HOME` 指向它。只作用于 Agent 自己的路由；走服务商的阶段不看账号。
+
+- **本机账号**（id `default`）就是用户自己的目录（`$CLAUDE_CONFIG_DIR` 或 `~/.claude`，`$CODEX_HOME` 或 `~/.codex`），不注入任何变量，删不掉。其它账号在 `<ANTUMI_HOME>/agent-accounts/<agent>/<id>/`，路径创建后不变：Claude Code 2.1 起在 macOS 钥匙串里按 `CLAUDE_CONFIG_DIR` 的原文起名（`Claude Code-credentials-<sha256(NFC(路径)) 前 8 位>`），换个写法就找不到登录。列表、当前账号和自动换号开关存在 `agent-accounts.json`；登录凭据由 CLI 自己存（钥匙串或目录里的文件），Antumi 只读、从不刷新 token。
+- **共享**（`agent-account-home.ts`）：账号目录里的条目是指向本机目录的软链（Windows 上目录用 junction），所以会话历史只有一份，换号后原生 session 原样恢复，不走移交。Claude 链 `projects`、`file-history`、`todos`、`plans`、`shell-snapshots`、`session-env`、`paste-cache`、`tasks`、`transcripts`、`history.jsonl`（本机没有就先建）和 `skills`、`plugins`、`agents`、`commands`、`output-styles`（有才链）；不链 `sessions/`（CLI 自己的运行进程登记）。`settings.json` 每次启动前复制一份（CLI 写它是写新文件再改名，软链会被换成普通文件），`CLAUDE.md` 是一行 `@<本机目录>/CLAUDE.md`，`.claude.json` 合进本机的 `mcpServers` 和各项目的 MCP、信任设置，`oauthAccount` 等账号自己的键不动。Codex 除 `auth.json` 和数据库的 `-wal`/`-shm`/`-journal` 外，本机目录顶层每一项都链过去（`sessions`、`archived_sessions`、`history.jsonl` 本机没有就先建）。链之前账号目录里已有的同名目录，里面的东西先挪进本机目录。
+- **登录**：添加账号时 core 在终端面板里跑 `claude auth login` / `codex login`（argv，不经 shell），带该账号的环境变量；终端结束后读登录状态和邮箱（Claude 的 `.claude.json` 里 `oauthAccount.emailAddress`，Codex `auth.json` 里 id token 的 email）。删除账号先用它的环境变量跑 `auth logout` / `logout`，再删软链和目录，不碰链到的本机文件。
+- **启动**：每个阶段启动时取 Agent 的当前账号（`AgentAccountStore.launch`），先补齐目录再注入，账号记进 `conversation_stages.account`。标题、提交说明这类小任务和模型列表探测也用当前账号。状态栏手动切换只影响之后启动的进程，运行中的阶段保持原账号。
+- **额度**：`UsageService` 按 Agent + 账号读，每个账号用自己的凭据请求用量接口；运行中的阶段上报的额度记到它所在的账号（`AgentUsage.account`）。定时任务、自动续跑和例程看的是当前账号的额度；开着自动换号且所有账号都用完时，看最早重置的那个。
+- **自动换号**（默认开）：一轮撞上额度上限时（`UsageLimitResumes.observe`），阶段在账号 X 上、当前账号还是 X，就按 `pickAccount`（有余量的优先、再看用得少的，跳过未登录和已用完的）换当前账号；别的会话已经换走、新账号还有额度，就直接用它。然后建一个立即执行的续跑（`ScheduledTarget.switchedTo`），续跑先把空闲在旧账号上的阶段停掉（`leaveSpentAccount`），再在新账号上恢复同一个 session、发「继续」；卡片显示「已换到账号…继续」。没有可换的账号就和以前一样等重置。轮询发现当前账号已用完时也会换。
+- **待实测**：两个真实订阅账号下，钥匙串命名、跨账号恢复同一个 session（Claude 的思考签名、Codex 的加密推理是否被另一个账号拒绝）、Codex 的 sqlite 经软链读写。若跨账号恢复被拒，就把账号并进 route key，换号改走移交。
+
 ## 5. 内置浏览器
 
 
