@@ -343,7 +343,10 @@ export const MIGRATIONS = [
    CREATE TABLE usage_rebuilt_stages (stage TEXT PRIMARY KEY);
    CREATE TABLE usage_quota_samples (scope TEXT NOT NULL, at INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY(scope,at));
    CREATE TABLE usage_automation_policies (scope TEXT PRIMARY KEY, data TEXT NOT NULL);
-   CREATE TABLE usage_automation_log (id TEXT PRIMARY KEY, at INTEGER NOT NULL, data TEXT NOT NULL);`
+   CREATE TABLE usage_automation_log (id TEXT PRIMARY KEY, at INTEGER NOT NULL, data TEXT NOT NULL);`,
+  // An additional project a task only reads, and the folders its conversation may only read (JSON).
+  `ALTER TABLE task_repos ADD COLUMN is_reference INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE conversations ADD COLUMN reference_paths TEXT NOT NULL DEFAULT '[]';`
 ]
 
 
@@ -406,7 +409,8 @@ const RepoRow = z.object({
   worktreePath: z.string().nullable(),
   branch: z.string().nullable(),
   startRef: z.string().nullable(),
-  start: z.string().nullable()
+  start: z.string().nullable(),
+  reference: z.number()
 })
 const DependencyRow = z.object({ taskId: z.string(), dependsOn: z.string() })
 
@@ -519,7 +523,7 @@ export class TaskStore {
     const repos = groupBy(
       this.db
         .prepare(
-          `SELECT task_id AS taskId, path, worktree_path AS worktreePath, branch, start_ref AS startRef, start FROM task_repos
+          `SELECT task_id AS taskId, path, worktree_path AS worktreePath, branch, start_ref AS startRef, start, is_reference AS reference FROM task_repos
            WHERE task_id IN (SELECT value FROM json_each(?)) ORDER BY position`
         )
         .all(ids)
@@ -544,8 +548,8 @@ export class TaskStore {
       plan: parseColumn(TaskPlan, row.plan, `plan of task ${row.id}`),
       launch: parseColumn(TaskLaunchOptions, row.launch, `launch of task ${row.id}`) ?? {},
       attempts: parseColumn(TaskAttempts, row.attempts, `attempts of task ${row.id}`) ?? [],
-      repos: (repos.get(row.id) ?? []).map(({ path, worktreePath, branch, startRef, start }) => ({
-        path, worktreePath, branch, startRef, start: parseColumn(TaskStart, start, `start of ${path} in task ${row.id}`)
+      repos: (repos.get(row.id) ?? []).map(({ path, worktreePath, branch, startRef, start, reference }) => ({
+        path, worktreePath, branch, startRef, start: parseColumn(TaskStart, start, `start of ${path} in task ${row.id}`), ...(reference ? { reference: true } : {})
       })),
       dependsOn: (dependencies.get(row.id) ?? []).map((edge) => edge.dependsOn)
     }))
@@ -664,10 +668,10 @@ export class TaskStore {
       if (patch.repos) {
         this.db.prepare('DELETE FROM task_repos WHERE task_id = ?').run(id)
         const insert = this.db.prepare(
-          'INSERT INTO task_repos (task_id, position, path, worktree_path, branch, start_ref, start) VALUES (?, ?, ?, ?, ?, ?, ?)'
+          'INSERT INTO task_repos (task_id, position, path, worktree_path, branch, start_ref, start, is_reference) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         )
         patch.repos.forEach((repo, position) =>
-          insert.run(id, position, repo.path, repo.worktreePath, repo.branch, repo.startRef, repo.start && JSON.stringify(repo.start)))
+          insert.run(id, position, repo.path, repo.worktreePath, repo.branch, repo.startRef, repo.start && JSON.stringify(repo.start), repo.reference ? 1 : 0))
       }
       if (patch.dependsOn) {
         this.db.prepare('DELETE FROM task_dependencies WHERE task_id = ?').run(id)

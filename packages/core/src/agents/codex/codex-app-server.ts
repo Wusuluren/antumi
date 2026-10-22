@@ -15,6 +15,7 @@ import { codexCommand, codexCommands, commandRequest, requestText, type CodexSki
 import { offeredCommand } from '../../agent-commands'
 import { windowOf } from './codex-usage'
 import { mergeUsageReports, type UsageReport } from '../../usage-source'
+import { referencePathIn } from '../../reference-paths'
 
 // Codex's app-server protocol (`codex app-server`): JSON-RPC over stdio without the jsonrpc field,
 // as codex-cli 0.156.1 speaks it. `codex app-server generate-ts` prints the full schema; this reads
@@ -476,6 +477,8 @@ export class CodexAppServer implements ChatDriver {
   // them instead (withKeptImages).
   private readonly keptImages = new Map<string, ChatImage[]>()
   private readonly unanswered = new Map<string, string | number>()
+  // Requests to edit a reference project, declined without asking (ChatStageOptions.references).
+  private readonly refused = new Map<string, string | number>()
   // The MCP tool call each server is running, to tie Codex's asking about it to its card.
   private readonly mcpCalls = new Map<string, { itemId: string; tool: string }>()
   private turns = 0
@@ -567,7 +570,10 @@ export class CodexAppServer implements ChatDriver {
 
   due(): unknown[] {
     if (this.exited) return []
-    const frames: unknown[] = [...this.unanswered.values()].map((id) => ({ id, error: { code: -32601, message: 'Antumi does not handle this request' } }))
+    const frames: unknown[] = [
+      ...[...this.unanswered.values()].map((id) => ({ id, error: { code: -32601, message: 'Antumi does not handle this request' } })),
+      ...[...this.refused.values()].map((id) => ({ id, result: { decision: 'decline' } }))
+    ]
     if (!this.initSent) {
       frames.push({
         id: 'antumi-init',
@@ -1340,6 +1346,13 @@ export class CodexAppServer implements ChatDriver {
       const tool = request.itemId ? this.items.get(`t:${request.itemId}`) : undefined
       const title = tool?.kind === 'tool' && tool.title ? tool.title : ((request.itemId && this.childFiles.get(request.itemId)) || '修改文件')
       const files = tool?.kind === 'tool' && tool.diffs.length ? tool.diffs.map((diff) => diff.path) : ((request.itemId && this.childFiles.get(request.itemId)) || '').split(', ').filter(Boolean)
+      // An edit of a reference project is refused here, whoever would have answered it.
+      const fenced = referencePathIn(this.options.references ?? [], files)
+      if (fenced) {
+        this.items.put({ id: `a:${requestId}`, kind: 'approval', requestId, tool: 'fileChange', title, detail: `参考项目只读，Antumi 已拒绝修改 ${fenced}`, toolItemId: request.itemId ? `t:${request.itemId}` : null, decisions: ['allow', 'deny'], resolution: 'denied' }, at)
+        this.refused.set(requestId, rawId)
+        return
+      }
       const choices = codexChoices(null, { kind: 'files', values: files }, 'decline')
       this.approval(requestId, rawId, 'fileChange', title, this.requestDetail(method, params, request.reason ?? null), request.itemId, choices, 'decline', at)
     } else if (method === 'item/tool/requestUserInput') {
@@ -1456,7 +1469,7 @@ export class CodexAppServer implements ChatDriver {
     }
     if (frame.id === undefined) return
     const requestId = String(frame.id)
-    if (this.unanswered.delete(requestId)) return
+    if (this.unanswered.delete(requestId) || this.refused.delete(requestId)) return
     const pending = this.pending.get(requestId)
     const decision = Decision.safeParse(frame.result)
     if (!pending || !decision.success) return

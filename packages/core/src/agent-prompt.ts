@@ -26,10 +26,12 @@ function workspaceSection(workspace: Workspace): string | null {
   if (!workspace.multi) {
     return null
   }
+  const references = workspace.entries.some((entry) => entry.reference)
   return [
-    `本任务涉及多个项目，每个仓库使用独立 worktree。当前工作目录：${workspace.cwd}`,
-    ...workspace.entries.map(
-      (entry, index) => `- ${index === 0 ? '主项目' : '附加项目'}：${where(workspace, entry.dir)}（${entry.dir}） ← ${entry.source}${entry.branch ? `（分支 ${entry.branch}）` : ''}`
+    `本任务涉及多个项目，${references ? '除参考项目外，' : ''}每个仓库使用独立 worktree。当前工作目录：${workspace.cwd}`,
+    ...workspace.entries.map((entry, index) => entry.reference
+      ? `- 参考项目：${entry.dir}（只读，供查阅，不要修改其中任何文件）`
+      : `- ${index === 0 ? '主项目' : '附加项目'}：${where(workspace, entry.dir)}（${entry.dir}） ← ${entry.source}${entry.branch ? `（分支 ${entry.branch}）` : ''}`
     ),
     PROJECT_INSTRUCTIONS
   ].join('\n')
@@ -95,7 +97,8 @@ function codeSection(workspace: RefineWorkspace): string {
     ...workspace.dirs.map((dir, index) => {
       const start = workspace.starts.get(dir)
       const holds = start ? `，是 ${start.ref}（${start.commit.slice(0, 7)}）的只读副本，任务分支将从这里拉出` : ''
-      return `- ${index === 0 ? '主项目' : '附加项目'}：${dir}${dir === workspace.cwd ? '（当前目录）' : ''}${holds}`
+      const kind = workspace.references.has(dir) ? '参考项目' : index === 0 ? '主项目' : '附加项目'
+      return `- ${kind}：${dir}${dir === workspace.cwd ? '（当前目录）' : ''}${holds}${workspace.references.has(dir) ? '，执行时也只读' : ''}`
     }),
     PROJECT_INSTRUCTIONS
   ].join('\n')

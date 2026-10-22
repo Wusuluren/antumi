@@ -64,6 +64,8 @@ export type HandoffChoice = Pick<TaskLaunchOptions, 'permissionMode' | 'model' |
 export type TaskChatLaunch = TaskLaunchOptions & {
   cwd: string
   extraDirs: readonly string[]
+  // The task's reference projects, which the agent may read but never edit.
+  referenceDirs?: readonly string[]
   planOnly: boolean
   workspaceReadOnly?: boolean
   session: 'new' | 'resume'
@@ -520,7 +522,7 @@ export class ConversationService {
     routine: { id: string; title: string } | null = null,
     id: string = randomUUID(),
     discussion: { id: string; title: string } | null = null,
-    squad: { runId: string; readOnly: boolean } | null = null
+    squad: { runId: string; readOnly: boolean; referencePaths?: readonly string[] } | null = null
   ): Promise<Conversation> {
     if (start.helperOf) {
       const parent = this.get(start.helperOf)
@@ -584,6 +586,7 @@ export class ConversationService {
     const created = this.store.create(agent, workspace, projects, id, starts, null, routine, discussion)
     if (start.modelProvider) this.store.setModelProvider(id, start.modelProvider)
     if (squad) this.store.setSquad(id, squad.runId, squad.readOnly)
+    if (squad?.referencePaths?.length) this.store.setReferencePaths(id, squad.referencePaths)
     if (allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass })
     if (permissionMode) this.store.setChatOptions(id, { permissionMode })
     if (model || effort) this.store.setChatOptions(id, { [agent]: { model, effort } })
@@ -653,6 +656,7 @@ export class ConversationService {
     const cwd = await realpath(launch.cwd)
     const extraDirs = await Promise.all(launch.extraDirs.map((dir) => realpath(dir)))
     const projectPaths = [cwd, ...extraDirs]
+    const referencePaths = await Promise.all((launch.referenceDirs ?? []).map((dir) => realpath(dir)))
     const existing = this.store.byTask(task.id)
     // The provider is settled with the conversation: a later start may only name the same one.
     if (existing && launch.modelProvider !== undefined && launch.modelProvider !== (existing.modelProvider ?? null)) {
@@ -666,7 +670,7 @@ export class ConversationService {
     // Another cwd is another place for the agent; only the directories it was given changed, the
     // agent restarts with them but goes on from where it was, as it would take /add-dir.
     const moved = conversation.workspacePath !== cwd
-    const regrouped = moved || conversation.projectPaths.join('\n') !== projectPaths.join('\n')
+    const regrouped = moved || conversation.projectPaths.join('\n') !== projectPaths.join('\n') || (conversation.referencePaths ?? []).join('\n') !== referencePaths.join('\n')
     const live = conversation.sessionId !== null && this.chats.activity(id) !== null
     // Going on with another agent than the chat had, it is handed what was said, as a handoff is.
     const switched = launch.session === 'resume' && conversation.agent !== task.agent
@@ -675,7 +679,7 @@ export class ConversationService {
     if (conversation.sessionId && !this.chats.idle(id)) throw new Rejection('chat-busy', 'the agent is still working')
     if (conversation.sessionId) await this.stop(id)
     this.store.setWorkspaceReadOnly(id, launch.workspaceReadOnly ?? false)
-    if (regrouped) this.store.moveWorkspace(id, cwd, projectPaths)
+    if (regrouped) this.store.moveWorkspace(id, cwd, projectPaths, referencePaths)
     if (conversation.title !== task.title) this.store.update(id, { title: task.title })
     if (launch.allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass: launch.allowBypass })
     // A stage of its own plans first; one going on keeps the mode it was left in, unless it is given
@@ -1078,6 +1082,7 @@ export class ConversationService {
       planOnly: options.planOnly ? { dirs: [options.cwd, ...options.extraDirs] } : undefined,
       readOnly: options.readOnly ? { dirs: [options.cwd, ...options.extraDirs] } : undefined,
       readable,
+      ...(current.referencePaths?.length ? { references: current.referencePaths } : {}),
       forkAt,
       // As its adapter starts it, for an agent that takes it on its command (OpenCode's config).
       ...(this.mcp ? { mcp: launch ? launch.mcp(this.mcp(id), agentStage) : this.mcp(id) } : {}),
@@ -1164,6 +1169,7 @@ export class ConversationService {
         cwd: conversation.workspacePath,
         ...(mcp ? { mcp: launch ? launch.mcp(mcp, this.agentStage(conversation.id, stage)) : mcp } : {}),
         extraDirs: conversation.projectPaths.slice(1),
+        ...(conversation.referencePaths?.length ? { references: conversation.referencePaths } : {}),
         resume: stage.providerSessionId,
         fork: forkAt,
         // Both constraints survive a restart; coordination is not task planning.

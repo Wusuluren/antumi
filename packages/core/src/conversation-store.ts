@@ -6,7 +6,7 @@ import { AgentKind, Conversation, ConversationMessage, ConversationStage, Provid
 const lastEnded = (column: string) => `(SELECT ${column} FROM conversation_stages
   WHERE conversation_id = conversations.id AND ended_at IS NOT NULL ORDER BY started_at DESC, rowid DESC LIMIT 1)`
 const SELECT = `SELECT id, title, title_locked AS titleLocked, agent, workspace_path AS workspacePath,
-  project_paths AS projectPaths,
+  project_paths AS projectPaths, reference_paths AS referencePaths,
   managed_workspace AS managedWorkspace, session_id AS sessionId, created_at AS createdAt,
   updated_at AS updatedAt, ${lastEnded('exit_code')} AS lastExitCode, ${lastEnded('ended_at')} AS lastExitAt,
   (SELECT plan_only FROM conversation_stages WHERE conversation_id = conversations.id ORDER BY started_at DESC, rowid DESC LIMIT 1) AS planOnly,
@@ -50,7 +50,9 @@ function parsedJson<T>(raw: unknown, schema: z.ZodType<T>): T | null {
 
 function conversation(row: Record<string, unknown>): Conversation {
   const { lastExitCode, lastExitAt, ...rest } = row
+  const references: unknown = JSON.parse(String(row.referencePaths ?? '[]'))
   return Conversation.parse({ ...rest, source: source(row.source), projectPaths: JSON.parse(String(row.projectPaths)),
+    referencePaths: Array.isArray(references) && references.length ? references : undefined,
     titleLocked: Boolean(row.titleLocked), managedWorkspace: Boolean(row.managedWorkspace), planOnly: Boolean(row.planOnly), workspaceReadOnly: Boolean(row.workspaceReadOnly),
     lastExit: lastExitAt === null ? null : { code: lastExitCode, at: lastExitAt } })
 }
@@ -151,10 +153,15 @@ export class ConversationStore {
 
   // Where a task's agent works changes between stages: its projects while it only plans, its
   // worktrees once it runs.
-  moveWorkspace(id: string, workspacePath: string, projectPaths: readonly string[]): Conversation {
-    this.db.prepare('UPDATE conversations SET workspace_path = ?, project_paths = ?, managed_workspace = ? WHERE id = ?')
-      .run(workspacePath, JSON.stringify(projectPaths), Number(projectPaths.length === 0), id)
+  moveWorkspace(id: string, workspacePath: string, projectPaths: readonly string[], referencePaths: readonly string[] = []): Conversation {
+    this.db.prepare('UPDATE conversations SET workspace_path = ?, project_paths = ?, managed_workspace = ?, reference_paths = ? WHERE id = ?')
+      .run(workspacePath, JSON.stringify(projectPaths), Number(projectPaths.length === 0), JSON.stringify(referencePaths), id)
     return this.get(id)!
+  }
+
+  // Folders the agent may read but never edit (Conversation.referencePaths).
+  setReferencePaths(id: string, referencePaths: readonly string[]): void {
+    this.db.prepare('UPDATE conversations SET reference_paths = ? WHERE id = ?').run(JSON.stringify(referencePaths), id)
   }
 
   // Empty for a conversation created before these were recorded.

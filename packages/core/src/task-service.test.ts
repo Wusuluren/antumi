@@ -472,6 +472,33 @@ describe('TaskService', () => {
     expect(redone.repos[0]?.start).toMatchObject({ ref: 'release/2.4', commit: release })
   })
 
+  it('gives the agent a reference project to read only, with no worktree, until it is made one to edit', async () => {
+    const repo = initRepo('app')
+    const other = initRepo('web')
+    const task = readyTask('Touch one, read the other', [repo, other])
+    service.update({ id: task.id, starts: [{ path: other, ref: 'HEAD' }] })
+
+    expect(() => service.update({ id: task.id, references: [{ path: repo, reference: true }] })).toThrow(expect.objectContaining({ reason: 'primary-reference' }))
+    // Only read where it is, it drops the start picked for its branch.
+    const picked = service.update({ id: task.id, references: [{ path: other, reference: true }] })
+    expect(picked.repos.map((each) => [Boolean(each.reference), each.startRef])).toEqual([[false, null], [true, null]])
+    expect(service.get(task.id).repos[1]?.reference).toBe(true)
+    expect(() => service.update({ id: task.id, starts: [{ path: other, ref: 'HEAD' }] })).toThrow(expect.objectContaining({ reason: 'repo-reference' }))
+
+    const running = await service.start(task.id)
+    expect(running.repos[1]).toMatchObject({ worktreePath: null, branch: null, reference: true })
+    const chat = conversations.get(running.conversationId!)
+    expect(chat.projectPaths).toEqual([realpathSync(running.repos[0]!.worktreePath!)])
+    expect(chat.referencePaths).toEqual([realpathSync(other)])
+    expect(daemon.spawns.at(-1)?.args.join(' ')).toContain(`Edit(/${realpathSync(other)}/**)`)
+    expect((await service.branches(task.id)).map((head) => head.path)).toEqual([repo])
+    await handIn(task.id)
+
+    // Made one to edit, it gets its worktree on the next start.
+    const edited = service.update({ id: task.id, references: [{ path: other, reference: false }] })
+    expect(edited.repos[1]?.reference).toBeFalsy()
+  })
+
   it('lets a cleaned worktree go, and lays it out again from its branch when the task goes on', async () => {
     const repo = initRepo('app')
     const task = readyTask('Clean me', [repo])

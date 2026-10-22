@@ -599,6 +599,23 @@ describe('CodexAppServer commands', () => {
     expect(reading.send('go').wire).toMatchObject({ params: { sandboxPolicy: { type: 'workspaceWrite', writableRoots: [] } } })
   })
 
+  it('declines an edit of a reference project itself, and leaves other edits to the user', () => {
+    const driver = new CodexAppServer('stage-1', { ...OPTIONS, references: ['/refs/docs'] })
+    handshake(driver)
+    driver.apply({ dir: 'out', at, frame: driver.send('go').wire, ref: 'ref-1' })
+    const edit = (id: number, itemId: string, file: string) => {
+      driver.apply({ dir: 'in', at, frame: { method: 'item/started', params: { item: { type: 'fileChange', id: itemId, status: 'inProgress', changes: [{ path: file, kind: { type: 'update' }, diff: '+b' }] } } } })
+      driver.apply({ dir: 'in', at, frame: { id, method: 'item/fileChange/requestApproval', params: { itemId } } })
+    }
+    edit(0, 'edit-1', '/refs/docs/README.md')
+    edit(1, 'edit-2', '/work/repo/b.txt')
+    expect(driver.due()).toContainEqual({ id: 0, result: { decision: 'decline' } })
+    expect(driver.items.get('a:0')).toMatchObject({ resolution: 'denied', detail: expect.stringContaining('/refs/docs/README.md') })
+    expect(driver.items.get('a:1')).toMatchObject({ resolution: null })
+    driver.apply({ dir: 'out', at, frame: { id: 0, result: { decision: 'decline' } } })
+    expect(driver.due()).not.toContainEqual({ id: 0, result: { decision: 'decline' } })
+  })
+
   it('denies with decline where Codex offers it and with cancel where it does not', () => {
     const driver = new CodexAppServer('stage-1', OPTIONS)
     handshake(driver)

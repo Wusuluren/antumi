@@ -6,8 +6,9 @@ import type { RefineWorkspace, Workspace } from './workspace'
 const workspace: Workspace = {
   cwd: '/wt/app',
   extraDirs: [],
+  referenceDirs: [],
   multi: false,
-  entries: [{ name: 'app', source: '/code/app', dir: '/wt/app', branch: 'antumi/b-use', base: 'antumi/a-add', startRef: null, start: null, topLevel: '/code/app', created: true }],
+  entries: [{ name: 'app', source: '/code/app', dir: '/wt/app', branch: 'antumi/b-use', base: 'antumi/a-add', startRef: null, start: null, topLevel: '/code/app', created: true, reference: false }],
   repos: []
 }
 
@@ -33,7 +34,8 @@ const refining = (landed: string[] = []): RefineWorkspace => ({
   cwd: '/code/app',
   dirs: ['/code/app', '/code/web'],
   landed: new Set(landed),
-  starts: new Map()
+  starts: new Map(),
+  references: new Set()
 })
 
 function dependency(overrides: Partial<Task> = {}): Task {
@@ -121,7 +123,7 @@ describe('agentPrompt', () => {
   it('describes sibling worktrees from the primary repo', () => {
     const multi: Workspace = {
       ...workspace, multi: true, extraDirs: ['/wt/web'],
-      entries: [...workspace.entries, { name: 'web', source: '/code/web', dir: '/wt/web', branch: 'antumi/web', base: null, startRef: null, start: null, topLevel: '/code/web', created: true }]
+      entries: [...workspace.entries, { name: 'web', source: '/code/web', dir: '/wt/web', branch: 'antumi/web', base: null, startRef: null, start: null, topLevel: '/code/web', created: true, reference: false }]
     }
     const task = dependency()
     for (const prompt of [agentPrompt(task, multi, [])]) {

@@ -51,9 +51,15 @@ function opencodeProvider(provider: ProviderLaunch): Record<string, unknown> {
 // What Antumi adds to the user's OpenCode config for one process, through OPENCODE_CONFIG_CONTENT:
 // merged over their own, which stays as it is. The bypass agent exists only where the stage may
 // bypass, so it is never there to switch to otherwise.
-export function opencodeConfig(launch: Pick<AgentLaunch, 'skills' | 'allowBypass' | 'planOnly' | 'readOnly' | 'mcp' | 'provider'>): string {
+export function opencodeConfig(launch: Pick<AgentLaunch, 'skills' | 'allowBypass' | 'planOnly' | 'readOnly' | 'mcp' | 'provider' | 'references'>): string {
   const bypass = Boolean(launch.allowBypass) && !launch.planOnly && !launch.readOnly
   const { mcp, provider } = launch
+  // Reference projects lie outside the project, which Antumi's agents keep out of: they may read
+  // there, never edit, whatever else their rules allow. OpenCode's own Build asks nothing by
+  // default, so it gets the same rules, added only then: OpenCode merges them over the user's.
+  const references = (launch.references ?? []).map((dir) => `${dir}/*`)
+  const readable = references.map((resource) => rule('external_directory', 'allow', resource))
+  const fenced = references.map((resource) => rule('edit', 'deny', resource))
   return JSON.stringify({
     // On a provider, the one model provider it starts on, with its small model for titles.
     ...(provider ? {
@@ -80,24 +86,26 @@ export function opencodeConfig(launch: Pick<AgentLaunch, 'skills' | 'allowBypass
       }
     } : {}),
     agents: {
+      ...(fenced.length ? { build: { permissions: [...readable, ...fenced] } } : {}),
       [OPENCODE_READ_ONLY_AGENT]: {
         description: 'Read-only: reads files and answers; edits nothing (Antumi)',
         mode: 'primary',
-        permissions: [rule('edit', 'deny'), rule('shell', 'ask'), rule('external_directory', 'ask')]
+        permissions: [rule('edit', 'deny'), rule('shell', 'ask'), rule('external_directory', 'ask'), ...readable]
       },
       [OPENCODE_AUTO_AGENT]: {
         description: 'Automatic: edits and runs commands in the project; never reaches outside it (Antumi)',
         mode: 'primary',
         permissions: [
           rule('edit', 'allow'), rule('shell', 'allow'), rule('external_directory', 'deny'),
-          rule('read', 'deny', '*.env'), rule('read', 'deny', '*.env.*'), rule('read', 'allow', '*.env.example')
+          rule('read', 'deny', '*.env'), rule('read', 'deny', '*.env.*'), rule('read', 'allow', '*.env.example'),
+          ...readable, ...fenced
         ]
       },
       ...(bypass ? {
         [OPENCODE_BYPASS_AGENT]: {
           description: 'Allow everything: nothing is asked (Antumi)',
           mode: 'primary',
-          permissions: [rule('*', 'allow')]
+          permissions: [rule('*', 'allow'), ...fenced]
         }
       } : {})
     },

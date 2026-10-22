@@ -38,7 +38,8 @@ export function launchOptions(launch: TaskLaunch): TaskLaunchOptions {
     : { permissionMode: launch.mode }
 }
 
-// Whether one of the task's projects is no git repository, so a start that edits writes there itself.
+// Whether one of the task's projects is no git repository, so a start that edits writes there itself;
+// a reference project is only read.
 export function useEditsInPlace(task: Task, enabled = true): boolean {
   const rpc = useCore((s) => s.rpc)
   const [inPlace, setInPlace] = useState(false)
@@ -46,7 +47,7 @@ export function useEditsInPlace(task: Task, enabled = true): boolean {
     if (!enabled || !rpc?.features.includes('task-start')) return
     let current = true
     rpc.call('tasks.startOptions', { id: task.id }).then((repos) => {
-      if (current) setInPlace(repos.some((repo) => !repo.git))
+      if (current) setInPlace(repos.some((repo) => !repo.git && !task.repos.find((each) => each.path === repo.path)?.reference))
     }, () => {})
     return () => { current = false }
   }, [enabled, rpc, task.id, task.repos])

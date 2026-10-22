@@ -33,7 +33,7 @@ export function piExtensionConfig(launch: AgentLaunch): PiExtensionConfig {
   return {
     mode: piStartMode(launch),
     servers,
-    noEdit: [...(fenced?.dirs ?? []), ...(knowledgeBase && !knowledgeBase.write ? [knowledgeBase.path] : [])],
+    noEdit: [...(fenced?.dirs ?? []), ...(launch.references ?? []), ...(knowledgeBase && !knowledgeBase.write ? [knowledgeBase.path] : [])],
     workDirs: [...launch.extraProjects, ...(knowledgeBase?.write ? [knowledgeBase.path] : [])],
     readTools: mcp ? antumiReadTools(todos).map((tool) => `mcp__${RESERVED_MCP_SERVER_NAME}__${tool}`) : [],
     ...(launch.provider ? { provider: piProvider(launch.provider) } : {})

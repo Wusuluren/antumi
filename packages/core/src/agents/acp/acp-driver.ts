@@ -7,6 +7,7 @@ import { AntumiRequests } from '../../antumi-requests'
 import { markKeptImages, keepImageBlocks, stripImageBytes } from '../../image-frames'
 import { messageText, type ChatAnswer, type ChatDriver, type ChatImageFile, type ChatOutgoing, type ChatRecord, type ChatStageOptions, type StageMessage, type TurnSignal } from '../../chat-driver'
 import { Rejection } from '../../rejection'
+import { referencePathIn } from '../../reference-paths'
 import { startNote } from '../../agent-prompt'
 import { withoutCost } from '../../model-metering'
 import type { AcpDialect } from './acp-dialect'
@@ -49,6 +50,15 @@ const TurnTokens = z.looseObject({
 // The session's cost so far, in a usage_update: a running total, so a turn's is the difference.
 const SessionCost = z.looseObject({ cost: z.looseObject({ amount: z.number().nonnegative(), currency: z.string() }).nullish() })
 const keyOf = (id: string | number) => `${typeof id}:${id}`
+
+// The files a request would write, as ACP names them: its diffs, its locations, its input's path.
+// Only an edit, a delete or a move writes; a command's own effects cannot be told from it.
+function writtenPaths(tool: z.infer<typeof Permission>['toolCall']): string[] {
+  const diffs = z.array(z.looseObject({ type: z.string(), path: z.string().optional() })).safeParse(tool.content).data?.flatMap((entry) => (entry.type === 'diff' && entry.path ? [entry.path] : [])) ?? []
+  if (!['edit', 'delete', 'move'].includes(String(tool.kind)) && diffs.length === 0) return []
+  const input = z.looseObject({ path: z.string().optional(), filePath: z.string().optional(), file_path: z.string().optional() }).safeParse(tool.rawInput).data
+  return [...diffs, ...(tool.locations ?? []).map((location) => location.path), ...[input?.path, input?.filePath, input?.file_path].filter((each) => each !== undefined)]
+}
 // The requests that open the session a stage works in.
 const RESTORING: ReadonlySet<string> = new Set(['session/load', 'session/resume'])
 const OPENING: ReadonlySet<string> = new Set(['session/new', ...RESTORING, 'session/fork'])
@@ -732,14 +742,23 @@ export class AcpDriver implements ChatDriver {
         // from it would run until the turn ends. Its approval stands alone, as Claude's does.
         const announced = tool.toolCallId !== undefined && this.items.get(`tool:${tool.toolCallId}`)?.kind === 'tool'
         if (announced) this.tool({ ...tool, sessionUpdate: 'tool_call' }, null, at)
-        this.pending.set(id, { rawId: frame.id, itemId, kind: 'permission', options: request.data.options })
         const toolItem = tool.toolCallId ? this.items.get(`tool:${tool.toolCallId}`) : null
+        const name = toolItem?.kind === 'tool' ? toolItem.name : this.toolName(tool, undefined)
+        // An edit of a reference project is refused here, whoever would have answered it.
+        const fenced = referencePathIn(this.options.references ?? [], writtenPaths(tool))
+        if (fenced) {
+          const reject = request.data.options.find((option) => option.kind === 'reject_once')
+          this.owed.set(id, result(frame.id, { outcome: reject ? { outcome: 'selected', optionId: reject.optionId } : { outcome: 'cancelled' } }))
+          this.items.put({ id: itemId, kind: 'approval', requestId: id, tool: name, title: tool.title ?? fenced, detail: `参考项目只读，Antumi 已拒绝修改 ${fenced}`, toolItemId: tool.toolCallId ? `tool:${tool.toolCallId}` : null, decisions: ['allow', 'deny'], resolution: 'denied' }, at)
+          return
+        }
+        this.pending.set(id, { rawId: frame.id, itemId, kind: 'permission', options: request.data.options })
         // The agent's reason for asking, as Cursor's "Not in allowlist: rg".
         const reason = z.array(z.looseObject({ content: z.unknown().optional() })).safeParse(tool.content).data?.map((entry) => Content.safeParse(entry.content).data?.text ?? '').find(Boolean)
         const detail = announced ? (tool.rawInput === undefined ? null : clip(JSON.stringify(tool.rawInput))) : reason ? `子 Agent 的请求：${reason}` : '子 Agent 的请求'
         // A command quoted in backticks (as Cursor does); the bare command is what the request line names.
         const title = tool.title?.match(/^`([\s\S]+)`$/)?.[1] ?? tool.title ?? `${this.name} 工具调用`
-        this.items.put({ id: itemId, kind: 'approval', requestId: id, tool: toolItem?.kind === 'tool' ? toolItem.name : this.toolName(tool, undefined), title, detail, toolItemId: tool.toolCallId ? `tool:${tool.toolCallId}` : null, decisions: ['allow', 'deny'], choices: request.data.options.map((option) => ({ id: option.optionId, label: option.name, decision: option.kind === 'allow_once' ? 'allow' : option.kind === 'allow_always' ? 'allowForSession' : 'deny', grants: option.kind.endsWith('_always') ? [{ kind: 'other', values: [option.name], scope: 'agent', behavior: option.kind === 'reject_always' ? 'deny' : 'allow' }] : [] })), resolution: null }, at)
+        this.items.put({ id: itemId, kind: 'approval', requestId: id, tool: name, title, detail, toolItemId: tool.toolCallId ? `tool:${tool.toolCallId}` : null, decisions: ['allow', 'deny'], choices: request.data.options.map((option) => ({ id: option.optionId, label: option.name, decision: option.kind === 'allow_once' ? 'allow' : option.kind === 'allow_always' ? 'allowForSession' : 'deny', grants: option.kind.endsWith('_always') ? [{ kind: 'other', values: [option.name], scope: 'agent', behavior: option.kind === 'reject_always' ? 'deny' : 'allow' }] : [] })), resolution: null }, at)
         return
       }
     } else if (requests?.question !== undefined && frame.method === requests.question) {

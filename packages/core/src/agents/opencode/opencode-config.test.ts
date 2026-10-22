@@ -13,6 +13,18 @@ describe('OpenCode config Antumi adds', () => {
     ] }))
   })
 
+  it('lets every agent of its own read a reference project and none edit it, last so nothing overrides that', () => {
+    const all = agents({ references: ['/refs/docs'], allowBypass: true })
+    const read = { action: 'external_directory', resource: '/refs/docs/*', effect: 'allow' }
+    const fenced = { action: 'edit', resource: '/refs/docs/*', effect: 'deny' }
+    expect(all[OPENCODE_AUTO_AGENT].permissions.slice(-2)).toEqual([read, fenced])
+    expect(all[OPENCODE_READ_ONLY_AGENT].permissions.at(-1)).toEqual(read)
+    expect(all[OPENCODE_BYPASS_AGENT].permissions).toEqual([{ action: '*', resource: '*', effect: 'allow' }, fenced])
+    // OpenCode's own Build, which asks nothing, too; and only when there is a reference.
+    expect(all.build).toEqual({ permissions: [read, fenced] })
+    expect(agents({}).build).toBeUndefined()
+  })
+
   it('adds an automatic agent that works in the project and refuses, never asks, to go outside it', () => {
     const permissions = agents({})[OPENCODE_AUTO_AGENT].permissions
     expect(permissions).toEqual([

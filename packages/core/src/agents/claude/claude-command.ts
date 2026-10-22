@@ -35,7 +35,7 @@ export const GIT_READ_TOOLS = ['Bash(git log:*)', 'Bash(git diff:*)', 'Bash(git 
 
 // Claude Code in print mode, speaking stream-json both ways.
 export function claudeCommand(launch: AgentLaunch): AgentCommand {
-  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readOnly, readable = [], mcp, userMcp = [], forkAt, userBrowser, knowledgeBase, skills, todos = true, provider } = launch
+  const { providerSessionId, resume, handoffPath, extraProjects, preferred = {}, planOnly, readOnly, readable = [], references = [], mcp, userMcp = [], forkAt, userBrowser, knowledgeBase, skills, todos = true, provider } = launch
   // Folders it may read but never edit: a plan-only stage's, or a read-only worker's.
   const fenced = planOnly ?? readOnly
   const allowBypass = (launch.allowBypass ?? false) && !fenced
@@ -52,13 +52,15 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     // The vault it may not write is readable without asking, and without being a working
     // folder: as one, Claude would load the vault's own skills too.
     ...(knowledgeBase && !knowledgeBase.write ? claudeReadRules([`${knowledgeBase.path}/**`]) : []),
+    // Reference projects likewise: read without asking, never a working folder.
+    ...claudeReadRules(references.map((dir) => `${dir}/**`)),
     // Antumi's tools that only read ask nothing; opening and acting on a page go through Claude's
     // own confirmation, and running a terminal command is the agent's to ask about, under the mode
     // the user set. (Codex asks nothing for Antumi's MCP tools, so for it the site gate in core is
     // the only check.)
     ...(mcp ? antumiReadTools(todos).map((tool) => `mcp__${RESERVED_MCP_SERVER_NAME}__${tool}`) : [])
   ]
-  const denials = fenced ? claudeEditDenials(fenced.dirs) : []
+  const denials = claudeEditDenials([...(fenced?.dirs ?? []), ...references])
   const note = startNote({ knowledgeBase, todos: Boolean(mcp) && todos })
   const servers = {
     ...(mcp ? { [RESERVED_MCP_SERVER_NAME]: { type: 'stdio', command: mcp.command, args: mcp.args, ...(mcp.env ? { env: mcp.env } : {}) } } : {}),
