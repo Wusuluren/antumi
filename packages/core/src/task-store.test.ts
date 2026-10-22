@@ -71,6 +71,36 @@ describe('TaskStore migrations', () => {
     reopened.close()
   })
 
+  it.each(['auto-run', 'session-imports'])('upgrades the development version 50 with %s without losing records', (feature) => {
+    const raw = new DatabaseSync(file)
+    MIGRATIONS.slice(0, 49).forEach((sql) => raw.exec(sql))
+    raw.exec(MIGRATIONS[feature === 'auto-run' ? 49 : 50] ?? '')
+    raw.exec('PRAGMA user_version = 50')
+    raw.exec("INSERT INTO tasks (id, title, status, created_at, updated_at) VALUES ('task', 'Kept task', 'pending', 1, 1)")
+    if (feature === 'auto-run') raw.exec("UPDATE tasks SET auto_run = 1 WHERE id = 'task'")
+    raw.exec("INSERT INTO conversations (id, title, title_locked, agent, workspace_path, managed_workspace, created_at, updated_at) VALUES ('conversation', 'Imported conversation', 0, 'claude', '/code/app', 0, 1, 1)")
+    if (feature === 'session-imports') {
+      raw.exec("INSERT INTO session_imports (agent, provider_session_id, conversation_id, imported_through, source_modified_at) VALUES ('claude', 'external-session', 'conversation', 10, 20)")
+    }
+    raw.close()
+
+    const store = new TaskStore(file)
+    expect(store.get('task')).toMatchObject({ title: 'Kept task', autoRun: feature === 'auto-run' })
+    store.close()
+
+    const schema = new DatabaseSync(file)
+    expect(schema.prepare('PRAGMA user_version').get()?.user_version).toBe(MIGRATIONS.length)
+    expect(schema.prepare('SELECT title FROM conversations').get()?.title).toBe('Imported conversation')
+    expect(schema.prepare('SELECT * FROM session_imports').all()).toEqual(feature === 'session-imports' ? [{
+      agent: 'claude', provider_session_id: 'external-session', conversation_id: 'conversation', imported_through: 10, source_modified_at: 20
+    }] : [])
+    schema.close()
+
+    const reopened = new TaskStore(file)
+    expect(reopened.get('task')?.autoRun).toBe(feature === 'auto-run')
+    reopened.close()
+  })
+
   it('round-trips a source and treats an unreadable one as absent', () => {
     const store = new TaskStore(file)
     const task = store.create('A')
