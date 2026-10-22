@@ -310,7 +310,9 @@ export class AcpDriver implements ChatDriver {
     const pending = this.pending.get(requestId)
     if (!pending) throw new Rejection('chat-request-gone', '这个请求已结束')
     if (pending.kind === 'permission') {
-      const selected = pending.options?.find((option) => option.optionId === answer.choice)
+      // A bare decision, as the overview's quick buttons send, takes the agent's option of that kind.
+      const bare = answer.decision === 'allow' ? 'allow_once' : answer.decision === 'allowForSession' ? 'allow_always' : null
+      const selected = pending.options?.find((option) => answer.choice ? option.optionId === answer.choice : option.kind === bare)
       if (answer.choice && !selected) throw new Rejection('chat-option-invalid', `${this.name} 未提供这个审批选项`)
       if (!selected && answer.decision !== 'deny') throw new Rejection('chat-option-invalid', `请选择 ${this.name} 提供的具体审批选项`)
       return [result(pending.rawId, { outcome: selected ? { outcome: 'selected', optionId: selected.optionId } : { outcome: 'cancelled' } })]

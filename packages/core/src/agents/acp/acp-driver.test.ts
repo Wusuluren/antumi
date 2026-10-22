@@ -68,6 +68,19 @@ describe('ACP without a dialect of its own', () => {
     expect(driver.takeMessages().map((each) => each.role)).toEqual(['user', 'assistant'])
   })
 
+  it('answers a bare decision with the option of its kind, and refuses one it offers none of', () => {
+    const driver = opened()
+    driver.apply({ dir: 'out', at: 3, frame: driver.send('hello').logged })
+    receive(driver, { id: 7, method: 'session/request_permission', params: { sessionId: 'session', toolCall: { toolCallId: 'call', title: 'pnpm test', kind: 'execute' }, options: [{ optionId: 'always', name: 'Always', kind: 'allow_always' }, { optionId: 'yes', name: 'Allow', kind: 'allow_once' }, { optionId: 'no', name: 'Reject', kind: 'reject_once' }] } })
+    const [approval] = items(driver, 'approval')
+    expect(driver.respond(approval!.requestId, { decision: 'allow' })).toEqual([{ jsonrpc: '2.0', id: 7, result: { outcome: { outcome: 'selected', optionId: 'yes' } } }])
+    expect(driver.respond(approval!.requestId, { decision: 'allowForSession' })).toEqual([{ jsonrpc: '2.0', id: 7, result: { outcome: { outcome: 'selected', optionId: 'always' } } }])
+
+    receive(driver, { id: 8, method: 'session/request_permission', params: { sessionId: 'session', toolCall: { toolCallId: 'other', title: 'rm', kind: 'execute' }, options: [{ optionId: 'always', name: 'Always', kind: 'allow_always' }, { optionId: 'no', name: 'Reject', kind: 'reject_once' }] } })
+    const second = items(driver, 'approval').find((item) => item.requestId !== approval!.requestId)
+    expect(() => driver.respond(second!.requestId, { decision: 'allow' })).toThrow(expect.objectContaining({ reason: 'chat-option-invalid' }))
+  })
+
   it('shows no input for a call on a file its title names, and the rest of a search\'s', () => {
     const driver = opened()
     driver.apply({ dir: 'out', at: 3, frame: driver.send('look').logged })
