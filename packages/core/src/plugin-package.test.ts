@@ -37,6 +37,16 @@ describe('plugin packages', () => {
     await expect(readManifest(root, '0.15.11')).rejects.toThrow('路径')
   })
 
+  it.each(['0.19.6', '0.19.6-beta.1', '0.19.6-beta.2', '0.20.0-rc.1'])('accepts compatible stable and prerelease hosts: %s', async (version) => {
+    const manifest = await pluginFixture(root)
+    await expect(readManifest(root, version)).resolves.toEqual(manifest)
+  })
+
+  it.each(['0.14.99', '0.14.99-beta.2', '1.0.0', '1.1.0-beta.1', '2.0.0', 'invalid'])('rejects hosts outside the declared range or invalid: %s', async (version) => {
+    await pluginFixture(root)
+    await expect(readManifest(root, version)).rejects.toThrow('不兼容')
+  })
+
   it('downloads only the selected release asset and requires an unambiguous ZIP', async () => {
     const archive = pluginZip({ 'main.mjs': 'export {}' })
     const calls: string[] = []

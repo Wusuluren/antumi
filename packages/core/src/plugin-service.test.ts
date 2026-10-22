@@ -16,7 +16,7 @@ describe('plugin installation and activation', () => {
   let config: SourceConfigStore
   let sources: SourceService
   let plugins: PluginService
-  const createService = () => new PluginService(path.join(root, 'plugins'), '0.15.11', sources, config, [])
+  const createService = (version = '0.15.11') => new PluginService(path.join(root, 'plugins'), version, sources, config, [])
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(os.tmpdir(), 'antumi-plugin-service-'))
@@ -37,6 +37,28 @@ describe('plugin installation and activation', () => {
     await pluginFixture(from, { version, behavior })
     return plugins.install({ kind: 'local', path: from })
   }
+
+  it('loads an installed plugin after upgrading from a stable host to a beta, preserving settings', async () => {
+    await install('1.0.0')
+    await config.save({ provider: 'demo', instance: 'default', enabled: true, settings: { query: 'mine' } })
+    await plugins.close()
+    plugins = createService('0.19.6-beta.2')
+    await plugins.load()
+    expect(plugins.list()[0]).toMatchObject({ id: 'demo.source', enabled: true, problem: null })
+    expect(sources.list()[0]?.instances[0]?.settings.query).toBe('mine')
+    await plugins.setEnabled('demo.source', true)
+    expect(plugins.list()[0]?.problem).toBeNull()
+  })
+
+  it('installs the bundled GitHub plugin on first launch of a beta', async () => {
+    const bundled = path.join(root, 'bundled-github')
+    await pluginFixture(bundled, { id: 'antumi.github', source: 'github' })
+    await plugins.close()
+    plugins = createService('0.19.6-beta.2')
+    await plugins.load(bundled)
+    expect(plugins.list()[0]).toMatchObject({ id: 'antumi.github', enabled: true, problem: null, origin: { kind: 'bundled' } })
+    expect(sources.list()[0]?.provider).toBe('github')
+  })
 
   it('copies local artifacts, switches versions, rolls back and persists disabled state', async () => {
     const first = await install('1.0.0')
