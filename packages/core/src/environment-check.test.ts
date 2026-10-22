@@ -1,7 +1,7 @@
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EnvironmentService, findOnPath, parseVersion } from './environment-check'
 
 describe('environment check', () => {
@@ -17,8 +17,11 @@ describe('environment check', () => {
     root = mkdtempSync(path.join(os.tmpdir(), 'antumi-environment-'))
     bin = path.join(root, 'bin')
     mkdirSync(bin)
+    // Antigravity's server is found in Antumi's own folder, not on the path.
+    vi.stubEnv('ANTUMI_HOME', root)
   })
-  afterEach(() => rmSync(root, { recursive: true, force: true }))
+  afterEach(() => { vi.unstubAllEnvs(); rmSync(root, { recursive: true, force: true }) })
+  const others = (installations: readonly { agent: string }[] = []) => installations.filter((each) => each.agent !== 'antigravity')
 
   it('reads the first dotted triple as the version', () => {
     expect(parseVersion('git version 2.39.3 (Apple Git-145)')).toBe('2.39.3')
@@ -54,10 +57,12 @@ describe('environment check', () => {
         { tool: 'cursor', status: 'missing', version: null, path: null, signedIn: null },
         { tool: 'opencode', status: 'missing', version: null, path: null, signedIn: null },
         { tool: 'pi', status: 'missing', version: null, path: null, signedIn: null },
-        { tool: 'dsh', status: 'missing', version: null, path: null, signedIn: null }
+        { tool: 'dsh', status: 'missing', version: null, path: null, signedIn: null },
+        { tool: 'antigravity', status: 'missing', version: null, path: null, signedIn: null }
       ],
       detectedAgents: [{ id: 'claude', name: 'Claude Code', locations: [{ source: 'cli', path: path.join(bin, 'claude') }] }],
-      cliInstallations: [],
+      // Antumi downloads Antigravity's server itself, so offers it with no application found.
+      cliInstallations: [expect.objectContaining({ agent: 'antigravity' })],
       searchPath: [bin],
       checkedAt: 1000
     })
@@ -110,7 +115,7 @@ describe('environment check', () => {
     expect((await service.check()).detectedAgents).toEqual([
       { id: 'cursor', name: 'Cursor', locations: [{ source: 'application', path: application }] }
     ])
-    expect((await service.check()).cliInstallations).toEqual([{ agent: 'cursor', shell: 'bash', command: 'curl https://cursor.com/install -fsS | bash' }])
+    expect(others((await service.check()).cliInstallations)).toEqual([{ agent: 'cursor', shell: 'bash', command: 'curl https://cursor.com/install -fsS | bash' }])
 
     fakeTool('cursor-agent', 'cursor 1.0.0')
     fakeTool('gemini', 'gemini 1.0.0')
@@ -122,7 +127,7 @@ describe('environment check', () => {
       { id: 'gemini', name: 'Gemini CLI', locations: [{ source: 'cli', path: path.join(bin, 'gemini') }],
         cliCheck: { status: 'responded', version: '1.0.0', reason: null } }
     ])
-    expect((await service.check()).cliInstallations).toEqual([])
+    expect(others((await service.check()).cliInstallations)).toEqual([])
   })
 
   it.each([
@@ -135,12 +140,12 @@ describe('environment check', () => {
     const service = new EnvironmentService({ pathEnv: bin, platform, applicationDirs: [root], signedIn: {} })
     const environment = await service.check()
     expect(environment.detectedAgents).toEqual([{ id: 'cursor', name: 'Cursor', locations: expect.arrayContaining([{ source: 'application', path: file }]) }])
-    expect(environment.cliInstallations).toEqual([expect.objectContaining({ agent: 'cursor', shell })])
+    expect(others(environment.cliInstallations)).toEqual([expect.objectContaining({ agent: 'cursor', shell })])
     if (platform === 'win32') {
       writeFileSync(path.join(bin, 'cursor-agent.cmd'), '@echo off\r\n')
       const installed = await service.check(true)
       expect(installed.checks.find((each) => each.tool === 'cursor')).toMatchObject({ status: 'unknown', path: path.join(bin, 'cursor-agent.cmd') })
-      expect(installed.cliInstallations).toEqual([])
+      expect(others(installed.cliInstallations)).toEqual([])
     }
   })
 

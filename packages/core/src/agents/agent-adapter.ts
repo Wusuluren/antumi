@@ -117,6 +117,9 @@ export interface AgentAdapter {
   readonly useResetCredit?: ResetCreditUse
   // The command that installs its CLI, offered when its application is found without the CLI.
   installation?(platform: NodeJS.Platform): AgentCliInstallation | null
+  // Its installation is offered whenever it is missing, not only beside its application: Antumi
+  // downloads what it runs itself, which no application of its maker's provides.
+  readonly installWithoutApplication?: boolean
   // What discovery looks for besides its CLI: other executable names, and application bundles.
   readonly discovery?: { commands: readonly string[]; applications: Partial<Record<NodeJS.Platform, readonly string[]>> }
   // Steps around starting its process, for an agent its command line alone does not set up.

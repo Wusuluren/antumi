@@ -167,7 +167,15 @@ function DeepSeekMark() {
   )
 }
 
-const AGENT_MARKS = { claude: ClaudeMark, codex: CodexMark, cursor: CursorMark, opencode: OpenCodeMark, pi: PiMark, dsh: DeepSeekMark } satisfies Record<AgentKind, () => ReactElement>
+function AntigravityMark() {
+  return (
+    <svg className="agent-mark" viewBox="-12 -10 460 420" fill="currentColor" aria-hidden="true">
+      <path d="M392.71,390.14c24.17,18.13,60.42,6.04,27.19-27.2C320.21,266.25,341.35.34,217.5.34S114.79,266.25,15.1,362.94c-36.25,36.26,3.02,45.33,27.19,27.2C135.93,326.68,129.89,214.88,217.5,214.88s81.56,111.8,175.21,175.26Z" />
+    </svg>
+  )
+}
+
+const AGENT_MARKS = { claude: ClaudeMark, codex: CodexMark, cursor: CursorMark, opencode: OpenCodeMark, pi: PiMark, dsh: DeepSeekMark, antigravity: AntigravityMark } satisfies Record<AgentKind, () => ReactElement>
 
 export function AgentIcon({ agent }: { agent: AgentKind | null }) {
   if (agent === null) return <NoAgentMark />
