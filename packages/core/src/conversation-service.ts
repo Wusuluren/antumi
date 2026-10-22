@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { canHaveHelper, helperAllowsMode, isHelper, agentDescriptor, modelPrice, providerEndpoint, type CostBaseline, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isAntumiRequest , PROCESS_OWNER_ENV, processOwner } from '@antumi/protocol'
+import { canHaveHelper, helperAllowsMode, isHelper, agentDescriptor, modelPrice, providerEndpoint, type CostBaseline, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isAntumiRequest , PROCESS_OWNER_ENV, processOwner } from '@antumi/protocol'
 import type { DaemonEvent, SessionInfo } from '@antumi/protocol/node'
 import { canReuseConversation, type ConversationConfiguration, type TaskLaunchOptions } from '@antumi/protocol'
 import type { RunMeasure } from './agent-run-store'
@@ -1090,7 +1090,10 @@ export class ConversationService {
     this.store.attachStage(stage.id, sessionId)
     this.changed(this.store.update(id, { agent, sessionId }))
     try {
-      await this.chats.open(this.chatStage(current, stage, forkAt, knowledgeBase, userMcp), sessionId, 0, true)
+      const opened = this.chatStage(current, stage, forkAt, knowledgeBase, userMcp)
+      await this.chats.open(opened, sessionId, 0, true)
+      const retired = this.rememberedOnProvider(this.store.chatOptions(id)[agent], opened.options.providerModels)
+      if (retired.dropped) this.chats.updateNotice(opened, { dir: 'note', at: Date.now(), level: 'info', id: `provider-model:${stage.id}`, text: `服务商不再提供上次用的模型 ${retired.dropped}，这次改用它的默认模型 ${retired.instead ?? ''}`.trim() })
       await launch?.ready(agentStage)
       if (handoff) await this.chats.send(id, handoffMessage(handoff.path, handoff.note))
     } catch (error) {
@@ -1127,6 +1130,7 @@ export class ConversationService {
     const { fallbackMode, permissionModes, launch, providerModels } = adapterOf(stage.agent)
     if (fallbackMode && (!permissionMode || !permissionModes.includes(permissionMode))) permissionMode = fallbackMode
     const onProvider = stage.route ? providerModels?.(stage.route) ?? [] : undefined
+    const remembered = this.rememberedOnProvider(chosen[stage.agent], onProvider)
     return {
       conversationId: conversation.id,
       stageId: stage.id,
@@ -1143,7 +1147,7 @@ export class ConversationService {
         readOnly: !stage.planOnly && Boolean(conversation.workspaceReadOnly),
         allowBypass: !stage.planOnly && !conversation.workspaceReadOnly && (chosen.allowBypass ?? false),
         promptSuggestions: this.promptSuggestions,
-        preferred: { permissionMode, ...chosen[stage.agent] },
+        preferred: { permissionMode, ...remembered.preferred },
         keepImage: (data) => this.keepImage(data),
         todos: this.userTodos && !conversation.discussionId,
         ...(knowledgeBase ? { knowledgeBase } : {}),
@@ -1151,6 +1155,18 @@ export class ConversationService {
         ...(onProvider ? { providerModels: onProvider } : {})
       }
     }
+  }
+
+  // The model and effort the conversation last ran with, as a stage on a provider can take them: one
+  // the provider no longer serves is dropped, so the stage starts on its default model rather than
+  // fail, and its effort goes too unless that model takes it. Never another provider's or the
+  // agent's own account: the stage stays on its provider's models.
+  private rememberedOnProvider(remembered: { model?: string; effort?: string } | undefined, offered: readonly ChatModel[] | undefined): { preferred: { model?: string; effort?: string }; dropped: string | null; instead: string | null } {
+    const preferred = remembered ?? {}
+    if (!offered || !preferred.model || offered.some((model) => model.id === preferred.model)) return { preferred, dropped: null, instead: null }
+    const fallback = offered.find((model) => model.isDefault) ?? offered[0]
+    const effort = preferred.effort && fallback?.efforts.includes(preferred.effort) ? { effort: preferred.effort } : {}
+    return { preferred: effort, dropped: preferred.model, instead: fallback ? fallback.label : null }
   }
 
   private agentStage(conversationId: string, stage: ConversationStage): AgentStage {
