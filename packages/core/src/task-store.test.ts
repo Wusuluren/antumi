@@ -59,6 +59,18 @@ describe('TaskStore migrations', () => {
     store.close()
   })
 
+  it('defaults auto-run off and persists the flag across restarts', () => {
+    const store = new TaskStore(file)
+    const task = store.create('Later')
+    expect(task.autoRun).toBe(false)
+    store.update(task.id, { autoRun: true })
+    store.close()
+    const reopened = new TaskStore(file)
+    expect(reopened.get(task.id)?.autoRun).toBe(true)
+    expect(reopened.update(task.id, { autoRun: false }).autoRun).toBe(false)
+    reopened.close()
+  })
+
   it('round-trips a source and treats an unreadable one as absent', () => {
     const store = new TaskStore(file)
     const task = store.create('A')

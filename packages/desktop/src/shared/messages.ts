@@ -8156,6 +8156,30 @@ export const MESSAGES = {
     "zh": "，依赖：{titles}",
     "en": ", depends on: {titles}"
   },
+  "TaskDetail.autoRun": {
+    "zh": "自动执行",
+    "en": "Auto-run"
+  },
+  "TaskDetail.autoRunHint": {
+    "zh": "全部依赖完成后，自动开始此任务。",
+    "en": "Start this task automatically once all dependencies are complete."
+  },
+  "TaskDetail.autoRunNeedsDependencies": {
+    "zh": "添加依赖后可开启自动执行。",
+    "en": "Add a dependency to enable auto-run."
+  },
+  "TaskDetail.autoRunUnsupportedAgent": {
+    "zh": "此 Agent 暂不支持自动执行。",
+    "en": "This Agent does not support unattended execution."
+  },
+  "TaskDetail.autoRunCancelled": {
+    "zh": "自动执行已关闭",
+    "en": "Auto-run turned off"
+  },
+  "schedules.executeAfterDependencies": {
+    "zh": "依赖完成后自动执行",
+    "en": "Run automatically after dependencies complete"
+  },
   "TaskBoard.cannotYet": {
     "zh": "还不能{value1}：{value2}",
     "en": "Cannot {value1} yet: {value2}"

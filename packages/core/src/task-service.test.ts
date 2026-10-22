@@ -17,6 +17,7 @@ import { CredentialStore } from './credential-store'
 import { ModelProviderStore } from './model-providers'
 import { TaskService, type TaskEvent } from './task-service'
 import { TaskStore } from './task-store'
+import { ScheduleService } from './schedule-service'
 import { ProjectConfigStore } from './project-config'
 import { WorktreeSetup } from './worktree-setup'
 
@@ -47,6 +48,7 @@ describe('TaskService', () => {
   let conversations: ConversationService
   let events: TaskEvent[]
   let service: TaskService
+  let schedules: ScheduleService | null
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
   beforeEach(() => {
@@ -59,6 +61,7 @@ describe('TaskService', () => {
     attachments = new AttachmentStore(dir)
     daemon = fakeChatDaemon()
     events = []
+    schedules = null
     // Wired as main.ts wires them: the conversation service runs each task's chat and reports back.
     conversations = new ConversationService(conversationsStore, daemon, path.join(dir, 'sessions'),
       (event) => {
@@ -72,10 +75,18 @@ describe('TaskService', () => {
       else if (event.event === 'exit') target.handleExit(event.sessionId, event.exitCode)
       else target.handleStderr(event.sessionId, event.data)
     }
-    service = new TaskService(store, projects, path.join(dir, 'worktrees'), (event) => events.push(event), attachments, conversations, runs)
+    service = new TaskService(store, projects, path.join(dir, 'worktrees'), (event) => {
+      events.push(event)
+      if (event.type === 'changed') schedules?.taskChanged(event.task)
+      else schedules?.taskDeleted(event.id)
+    }, attachments, conversations, runs)
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    if (schedules) {
+      await schedules.tick()
+      await schedules.stop()
+    }
     runs.close()
     projects.close()
     conversationsStore.close()
@@ -100,6 +111,96 @@ describe('TaskService', () => {
     const task = service.create({ title })
     return service.update({ id: task.id, details: 'x', repos, agent: 'claude' })
   }
+
+  function automaticQueue(): ScheduleService {
+    schedules = new ScheduleService(path.join(dir, 'antumi.db'), {
+      tasks: {
+        get: (id) => store.get(id),
+        autoRuns: () => store.list('pending').filter((task) => task.autoRun),
+        disableAutoRun: (id) => { service.update({ id, autoRun: false }) },
+        scheduleBlocker: (id) => service.scheduleBlocker(id),
+        start: (id, allowBypass, unattended) => service.start(id, allowBypass, unattended),
+        resumeChat: (id, allowBypass) => service.resumeChat(id, allowBypass)
+      },
+      conversations,
+      usage: { list: () => [], refresh: async () => [] },
+      mode: () => 'acceptEdits',
+      emit: () => {},
+      limitChanged: () => {},
+      routines: { pass: async () => {}, get: () => null, pickAgent: () => 'claude', runChanged: () => {} }
+    })
+    return schedules
+  }
+
+  it('automatically starts in a worktree after the final dependency is accepted, with no client or second start', async () => {
+    const first = service.create({ title: 'First' })
+    const second = service.create({ title: 'Second' })
+    const task = readyTask('Next', [initRepo('automatic-chain')])
+    const queue = automaticQueue()
+    service.update({ id: task.id, dependsOn: [first.id, second.id], autoRun: true })
+    await queue.tick()
+    expect(queue.list()).toHaveLength(1)
+    service.move(first.id, 'done')
+    await queue.tick()
+    expect(service.get(task.id).status).toBe('pending')
+    service.move(second.id, 'done')
+    await queue.tick()
+    expect(service.get(task.id)).toMatchObject({ status: 'running', autoRun: false })
+    expect(service.get(task.id).repos[0]?.worktreePath).toBeTruthy()
+    expect(conversations.get(service.get(task.id).conversationId ?? '').chatOptions?.permissionMode).toBe('acceptEdits')
+    expect(told(task.id)).toContain('Next')
+    expect(queue.list()).toHaveLength(1)
+    expect(queue.list()[0]?.status).toBe('started')
+    await Promise.all([queue.tick(), queue.tick()])
+    expect(conversationsStore.list().filter((conversation) => conversation.taskId === task.id)).toHaveLength(1)
+  })
+
+  it('cancels an automatic queue entry and persists the switch change through the real task service', async () => {
+    const dependency = service.create({ title: 'First' })
+    const task = readyTask('Next', [initRepo('automatic-cancel')])
+    const queue = automaticQueue()
+    service.update({ id: task.id, dependsOn: [dependency.id], autoRun: true })
+    await queue.tick()
+    queue.cancel(queue.list()[0]?.id ?? '')
+    expect(service.get(task.id).autoRun).toBe(false)
+    service.move(dependency.id, 'done')
+    await queue.tick()
+    expect(service.get(task.id).status).toBe('pending')
+    expect(queue.list()).toHaveLength(1)
+    expect(queue.list()[0]?.status).toBe('cancelled')
+  })
+
+  it('arms automatic execution only on a configured pending task and disarms it when dependencies are removed', () => {
+    const dependency = service.create({ title: 'First' })
+    const task = readyTask('Next', [initRepo('auto-run')])
+    expect(() => service.update({ id: task.id, autoRun: true })).toThrow('missing-dependencies')
+    expect(service.update({ id: task.id, dependsOn: [dependency.id], autoRun: true }).autoRun).toBe(true)
+    expect(service.update({ id: task.id, title: 'Renamed' }).autoRun).toBe(true)
+    expect(service.update({ id: task.id, dependsOn: [] }).autoRun).toBe(false)
+    expect(() => service.update({ id: task.id, dependsOn: [dependency.id], agent: 'cursor', autoRun: true })).toThrow('agent-unattended-unsupported')
+    expect(service.get(task.id).agent).toBe('claude')
+  })
+
+  it('disarms automatic execution when configuration becomes invalid or a prerequisite is deleted', async () => {
+    const dependency = service.create({ title: 'First' })
+    const task = readyTask('Next', [initRepo('auto-invalidation')])
+    service.update({ id: task.id, dependsOn: [dependency.id], autoRun: true })
+    expect(service.update({ id: task.id, agent: null }).autoRun).toBe(false)
+    service.update({ id: task.id, agent: 'claude', autoRun: true })
+    await service.delete(dependency.id)
+    expect(service.get(task.id)).toMatchObject({ autoRun: false, dependsOn: [] })
+  })
+
+  it('clears the automatic trigger on a manual start and does not rearm when redone', async () => {
+    const dependency = service.move(service.create({ title: 'First' }).id, 'done')
+    const task = readyTask('Next', [initRepo('auto-start')])
+    service.update({ id: task.id, dependsOn: [dependency.id], autoRun: true })
+    await service.start(task.id)
+    expect(service.get(task.id).autoRun).toBe(false)
+    service.move(task.id, 'done')
+    await service.redo(task.id, undefined)
+    expect(service.get(task.id)).toMatchObject({ status: 'pending', autoRun: false })
+  })
 
   const exitPlanMode = (requestId: string) => ({
     type: 'control_request', request_id: requestId,

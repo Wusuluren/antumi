@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ScheduledRun } from '@antumi/protocol'
+import { Task, type ScheduledRun } from '@antumi/protocol'
 import { fromLocalInput, nextNight, openRunsForConversation, runAction, scheduleNoticesBetween, scheduleState, scheduleTime, toLocalInput } from './schedules'
 
 const at = (year: number, month: number, day: number, hour: number, minute = 0) => new Date(year, month - 1, day, hour, minute).getTime()
@@ -47,6 +47,16 @@ describe('schedule times', () => {
 
 describe('scheduleState', () => {
   const now = at(2026, 10, 3, 15)
+
+  it('distinguishes dependency waits from quota waits and keeps completed history readable', () => {
+    const dependent = Task.parse({ id: 'next', title: 'Next', details: '', repos: [], status: 'pending', agent: 'claude', dependsOn: ['first'], createdAt: 0, updatedAt: 0 })
+    const first = { ...dependent, id: 'first', status: 'review' as const, dependsOn: [] }
+    const automatic = run({ target: { kind: 'task', taskId: 'next', afterDependencies: true }, resetsAt: now + 60_000 })
+    expect(scheduleState(automatic, now, { next: dependent, first })).toBe('等待依赖')
+    expect(scheduleState(automatic, now, { next: dependent, first: { ...first, status: 'done' } })).toMatch(/^等额度恢复/)
+    expect(runAction(automatic)).toBe('依赖完成后自动执行')
+    expect(scheduleState({ ...automatic, status: 'cancelled', error: 'auto-run-cancelled' }, now)).toBe('已取消：自动执行已关闭')
+  })
 
   it('says what a waiting run waits for: its time, the quota, a retry, or its turn', () => {
     expect(scheduleState(run({ notBefore: at(2026, 10, 4, 1) }), now)).toBe('明天 01:00 之后开始')
@@ -102,4 +112,3 @@ describe('runs in a conversation', () => {
     expect(scheduleNoticesBetween([waiting], [failed])[0]?.body).toMatch(/^额度恢复后没能继续：/)
   })
 })
-

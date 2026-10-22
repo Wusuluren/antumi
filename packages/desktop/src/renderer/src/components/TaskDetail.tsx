@@ -15,6 +15,7 @@ import { reopenTask, TaskStatusMenu, TaskSteps, TaskToolbar } from './TaskAction
 import { DependencyPicker, TaskDependents } from './DependencyPicker'
 import { ProjectPicker } from './ProjectPicker'
 import { TaskStarts } from './TaskStarts'
+import { TaskAutoRun } from './TaskAutoRun'
 
 // Drafts are local and saved on blur so a remote update never clobbers typing.
 function useDraft(value: string, save: (next: string) => void) {
@@ -135,6 +136,7 @@ function TaskDetailBody({ task }: { task: Task }) {
                 dependsOn={task.dependsOn}
                 onChange={(dependsOn) => void updateTask(task.id, { dependsOn })}
               />
+              <TaskAutoRun task={task} />
             </dd>
             <dt>{t('FileMarkdown.image')}</dt>
             <dd>

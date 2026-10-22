@@ -1,5 +1,5 @@
 import { localized, t } from './i18n'
-import { isScheduleOpen, type RequestedTarget, type ScheduledRun, type UnattendedMode } from '@antumi/protocol'
+import { isScheduleOpen, type RequestedTarget, type ScheduledRun, type Task, type UnattendedMode } from '@antumi/protocol'
 import type { Notice } from './attention'
 import { perform } from './core-store'
 import { dayAndTime, reasonText } from './labels'
@@ -67,9 +67,10 @@ export function scheduleTime(ms: number, now: number): string {
 }
 
 // Where a run stands, in a few words.
-export function scheduleState(run: ScheduledRun, now: number): string {
+export function scheduleState(run: ScheduledRun, now: number, tasks?: Readonly<Record<string, Task>>): string {
   switch (run.status) {
     case 'waiting':
+      if (waitingForRunDependencies(run, tasks)) return t('TaskBoard.waitingForDependencies')
       if (run.notBefore !== null && run.notBefore > now) return t('schedules.startAfter', { value1: scheduleTime(run.notBefore, now) })
       if (run.resetsAt !== null && run.resetsAt > now) return t('schedules.waitingForQuotaReset', { value1: scheduleTime(run.resetsAt, now) })
       if (run.attempts > 0) return t('schedules.couldNotStartRetryingLater', { value1: reasonText(run.error ?? '', run.error ?? '') })
@@ -83,6 +84,13 @@ export function scheduleState(run: ScheduledRun, now: number): string {
     case 'cancelled':
       return run.error ? t('routines.cancelled', { value1: reasonText(run.error, run.error) }) : t('ChatRequestCards.cancelled')
   }
+}
+
+export function waitingForRunDependencies(run: Pick<ScheduledRun, 'target'>, tasks?: Readonly<Record<string, Task>>): boolean {
+  const { target } = run
+  if (target.kind !== 'task' || !target.afterDependencies) return false
+  const task = tasks?.[target.taskId]
+  return !task || task.dependsOn.some((id) => tasks?.[id]?.status !== 'done')
 }
 
 export function openRuns(runs: readonly ScheduledRun[]): ScheduledRun[] {
@@ -107,7 +115,7 @@ export function openRunsForConversation(runs: readonly ScheduledRun[], conversat
 // What a run does when it starts, in a few words.
 export function runAction(run: Pick<ScheduledRun, 'target'>): string {
   const { target } = run
-  if (target.kind === 'task') return t('schedules.executeTask')
+  if (target.kind === 'task') return target.afterDependencies ? t('schedules.executeAfterDependencies') : t('schedules.executeTask')
   if (target.kind === 'routine') return t('schedules.openAConversationWithInstructions')
   if (target.kind === 'resume') return t('schedules.resumeFromInterruptionAfterQuotaResets')
   const pictures = target.images?.length ? t('ChatComposer.images', { value1: target.images.length }) : ''

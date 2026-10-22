@@ -321,13 +321,14 @@ export const MIGRATIONS = [
   // The model provider a conversation was started on, and what each stage ran on (a ProviderRoute
   // as JSON); null on the agent's own account.
   `ALTER TABLE conversations ADD COLUMN model_provider TEXT;
-   ALTER TABLE conversation_stages ADD COLUMN provider_route TEXT;`
+   ALTER TABLE conversation_stages ADD COLUMN provider_route TEXT;`,
+  `ALTER TABLE tasks ADD COLUMN auto_run INTEGER NOT NULL DEFAULT 0;`
 ]
 
 
 const SELECT = `SELECT id, title, slug, details, status, agent, squad_id AS squadId,
   derived_from AS derivedFrom, abandon_reason AS abandonReason, source, source_snapshot AS sourceSnapshot, images,
-  awaiting_input AS awaitingInput, plan, launch, attempts,
+  awaiting_input AS awaitingInput, auto_run AS autoRun, plan, launch, attempts,
   (SELECT id FROM conversations WHERE task_id = tasks.id ORDER BY created_at DESC LIMIT 1) AS conversationId,
   created_at AS createdAt, updated_at AS updatedAt FROM tasks`
 
@@ -339,6 +340,7 @@ const TaskRow = Task.omit({
   sourceSnapshot: true,
   images: true,
   awaitingInput: true,
+  autoRun: true,
   plan: true,
   launch: true,
   attempts: true
@@ -347,6 +349,7 @@ const TaskRow = Task.omit({
   sourceSnapshot: z.string().nullable(),
   images: z.string().nullable(),
   awaitingInput: z.number(),
+  autoRun: z.number(),
   plan: z.string().nullable(),
   launch: z.string().nullable(),
   attempts: z.string().nullable()
@@ -406,6 +409,7 @@ export type TaskPatch = Partial<
     | 'attempts'
     | 'repos'
     | 'dependsOn'
+    | 'autoRun'
   >
 >
 
@@ -505,6 +509,7 @@ export class TaskStore {
       sourceSnapshot: parseColumn(SourceSnapshot, row.sourceSnapshot, `source snapshot of task ${row.id}`),
       images: parseColumn(TaskImages, row.images, `images of task ${row.id}`) ?? [],
       awaitingInput: row.awaitingInput !== 0,
+      autoRun: row.autoRun !== 0,
       plan: parseColumn(TaskPlan, row.plan, `plan of task ${row.id}`),
       launch: parseColumn(TaskLaunchOptions, row.launch, `launch of task ${row.id}`) ?? {},
       attempts: parseColumn(TaskAttempts, row.attempts, `attempts of task ${row.id}`) ?? [],
@@ -604,6 +609,10 @@ export class TaskStore {
       if (patch.awaitingInput !== undefined) {
         sets.push('awaiting_input = ?')
         values.push(Number(patch.awaitingInput))
+      }
+      if (patch.autoRun !== undefined) {
+        sets.push('auto_run = ?')
+        values.push(Number(patch.autoRun))
       }
       if (patch.plan !== undefined) {
         sets.push('plan = ?')

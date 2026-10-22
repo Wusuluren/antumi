@@ -233,6 +233,8 @@ const usage = new UsageService(usageSources, (entry) =>
 const schedules = new ScheduleService(paths.database, {
   tasks: {
     get: (id) => store.get(id),
+    autoRuns: () => store.list('pending').filter((task) => task.autoRun),
+    disableAutoRun: (id) => { service.update({ id, autoRun: false }) },
     scheduleBlocker: (id) => service.scheduleBlocker(id),
     start: (id, allowBypass, unattended) => service.start(id, allowBypass, unattended),
     resumeChat: (id, allowBypass) => service.resumeChat(id, allowBypass)
@@ -422,7 +424,7 @@ async function shutdown(): Promise<void> {
   shuttingDown = true
   usage.stop()
   announcements.stop()
-  schedules.stop()
+  await schedules.stop()
   routines.stop()
   autoArchive.stop()
   await squads.close()

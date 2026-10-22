@@ -1733,6 +1733,12 @@ button.task-tag:hover {
   color: var(--text-muted);
 }
 
+.task-auto-run { margin-top: 16px; }
+.task-auto-run-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; color: var(--text); cursor: pointer; }
+.task-auto-run-row .switch { flex-shrink: 0; }
+.task-auto-run-row:has(input:disabled) { cursor: default; }
+.task-auto-run p { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+
 @container (max-width: 760px) {
   .task-detail-layout {
     grid-template-columns: minmax(0, 1fr);

@@ -85,6 +85,8 @@ export type ScheduleDeps = {
     scheduleBlocker(id: string): ScheduleTaskBlocker | null
     start(id: string, allowBypass: boolean | undefined, unattended: UnattendedMode): Promise<Task>
     resumeChat(id: string, allowBypass?: boolean): Promise<Task>
+    autoRuns?(): Task[]
+    disableAutoRun?(id: string): void
   }
   conversations: Pick<ConversationService, 'get' | 'create' | 'continue' | 'send' | 'runScheduled' | 'sentRef' | 'capacityAvailable'>
   usage: { list(): AgentUsage[]; refresh(): Promise<AgentUsage[]> }
@@ -113,6 +115,7 @@ export type ScheduleDeps = {
 export class ScheduleService {
   private readonly db: DatabaseSync
   private timer: ReturnType<typeof setInterval> | undefined
+  private stopped = false
   private ticking: Promise<void> | null = null
   private queued: Promise<void> | null = null
 
@@ -136,9 +139,11 @@ export class ScheduleService {
     this.timer.unref()
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
+    this.stopped = true
     clearInterval(this.timer)
-    this.db.close()
+    try { await this.ticking }
+    finally { this.db.close() }
   }
 
   // The open runs in the order they go, then the latest settled. A routine's runs, once settled,
@@ -239,6 +244,7 @@ export class ScheduleService {
   cancel(id: string, reason: string | null = null): ScheduledRun {
     const run = this.waiting(id)
     this.settle(run, { status: 'cancelled', error: reason, settled_at: this.now() })
+    if (run.target.kind === 'task') this.disableAutoRun(run.target.taskId)
     this.limitChanged(run)
     return publicRun(this.found(id))
   }
@@ -257,6 +263,7 @@ export class ScheduleService {
   // may know better. Rejects with why it did not start.
   async runNow(id: string): Promise<ScheduledRun> {
     const run = this.waiting(id)
+    if (this.autoRunBlocked(run)) throw new Rejection('dependencies-unfinished')
     if (!this.claim(run)) throw new Rejection('schedule-busy', 'this run is already starting')
     const failure = await this.attempt(run)
     if (failure) throw failure
@@ -390,11 +397,17 @@ export class ScheduleService {
   // A task started by hand, or deleted, has nothing left for its run to start; its chat resumes
   // only while the task is planned or worked on.
   taskChanged(task: Pick<Task, 'id' | 'status' | 'conversationId'>): void {
+    if (this.stopped) return
     if (task.status !== 'pending') this.cancelFor((run) => run.target.kind === 'task' && run.target.taskId === task.id, 'task-started')
     if (task.conversationId && task.status !== 'pending' && task.status !== 'running') {
       const { conversationId } = task
       this.cancelFor((run) => run.target.kind === 'resume' && run.target.conversationId === conversationId, 'task-finished')
     }
+    const current = this.deps.tasks.get(task.id)
+    if (!current?.autoRun || current.dependsOn.length === 0) {
+      this.cancelFor((run) => run.target.kind === 'task' && run.target.taskId === task.id && Boolean(run.target.afterDependencies), 'auto-run-cancelled')
+    }
+    if (this.deps.tasks.autoRuns) void this.tick()
   }
 
   taskDeleted(id: string): void {
@@ -408,6 +421,7 @@ export class ScheduleService {
   // Tries what is due. One pass at a time: a slow start must not be raced by the next tick. One
   // asked for meanwhile runs once that pass is over, so a run just made or changed is not missed.
   tick(): Promise<void> {
+    if (this.stopped) return Promise.resolve()
     if (this.ticking) {
       this.queued ??= this.ticking.then(() => {
         this.queued = null
@@ -415,23 +429,29 @@ export class ScheduleService {
       })
       return this.queued
     }
-    this.ticking = this.pass().finally(() => {
+    this.ticking = Promise.resolve().then(() => this.pass()).finally(() => {
       this.ticking = null
     })
     return this.ticking
   }
 
   private async pass(): Promise<void> {
+    if (this.stopped) return
+    this.syncAutoRuns()
     // Routines first: what came due is a run by the time runs are looked at.
     await this.deps.routines.pass()
+    if (this.stopped) return
     const now = this.now()
     const due = this.rows("WHERE status = 'waiting' AND (not_before IS NULL OR not_before <= ?) AND (check_at IS NULL OR check_at <= ?) ORDER BY position", now, now)
+      .filter((run) => !this.autoRunBlocked(run))
     if (due.length === 0) return
     // Only a reading taken now tells whether a quota has really reset.
     await this.deps.usage.refresh().catch(() => [])
+    if (this.stopped) return
     // An agent goes on with one run at a time.
     const held = new Set<AgentKind>()
     for (const run of due) {
+      if (this.autoRunBlocked(run)) continue
       const agent = this.agentOf(run)
       if (agent === null) {
         this.settle(run, { status: 'cancelled', error: this.goneReason(run), settled_at: this.now() })
@@ -485,9 +505,13 @@ export class ScheduleService {
     } catch (thrown) {
       const error = thrown instanceof Error ? thrown : new Error(String(thrown))
       const reason = error instanceof Rejection ? error.reason : error.message
-      if (reason === 'agent-capacity') {
+      if (reason === 'agent-capacity' || reason === 'run-in-progress') {
         this.settle(run, { status: 'waiting', error: reason, check_at: this.now() + TICK_MS })
         this.limitChanged(run)
+        return error
+      }
+      if (run.target.kind === 'task' && run.target.afterDependencies && (reason === 'dependencies-unfinished' || reason === 'planning')) {
+        this.settle(run, { status: 'waiting', error: null, check_at: null })
         return error
       }
       const attempts = run.attempts + 1
@@ -507,6 +531,11 @@ export class ScheduleService {
     const bypass = mode === 'bypass' ? true : undefined
     const { target } = run
     if (target.kind === 'task') {
+      if (target.afterDependencies) {
+        const current = this.deps.tasks.get(target.taskId)
+        if (!current?.autoRun || current.dependsOn.length === 0) throw new Rejection('auto-run-cancelled')
+        if (this.autoRunBlocked(run)) throw new Rejection('chat-busy')
+      }
       const task = await this.deps.tasks.start(target.taskId, bypass, mode)
       return task.conversationId
     }
@@ -672,6 +701,11 @@ export class ScheduleService {
   }
 
   private settle(run: Pick<Row, 'id'>, values: Record<string, SQLInputValue>, announce = true): void {
+    const before = this.found(run.id)
+    // Disarm first so a restart cannot recreate a failed or cancelled automatic run.
+    if (before.target.kind === 'task' && before.target.afterDependencies && typeof values.status === 'string' && !['waiting', 'starting'].includes(values.status)) {
+      this.disableAutoRun(before.target.taskId)
+    }
     const keys = Object.keys(values)
     this.db
       .prepare(`UPDATE scheduled_runs SET ${keys.map((key) => `${key} = ?`).join(', ')}, updated_at = ? WHERE id = ?`)
@@ -694,6 +728,37 @@ export class ScheduleService {
 
   private rows(where: string, ...values: SQLInputValue[]): Row[] {
     return this.db.prepare(`${SELECT} ${where}`).all(...values).map(row)
+  }
+
+  private disableAutoRun(id: string): void {
+    if (this.deps.tasks.get(id)?.autoRun) this.deps.tasks.disableAutoRun?.(id)
+  }
+
+  // The task flag and the queue recover one another if core stopped between their writes.
+  private syncAutoRuns(): void {
+    const open = this.rows(`WHERE ${OPEN}`)
+    for (const run of open) {
+      if (run.status !== 'waiting' || run.target.kind !== 'task' || !run.target.afterDependencies) continue
+      const task = this.deps.tasks.get(run.target.taskId)
+      if (!task?.autoRun || task.status !== 'pending' || task.dependsOn.length === 0) {
+        this.cancelFor((other) => other.id === run.id, 'auto-run-cancelled')
+      }
+    }
+    for (const task of this.deps.tasks.autoRuns?.() ?? []) {
+      if (!task.autoRun || task.status !== 'pending' || task.dependsOn.length === 0 || !task.agent) continue
+      if (open.some((run) => run.target.kind === 'task' && run.target.taskId === task.id)) continue
+      this.insert({ kind: 'task', taskId: task.id, afterDependencies: true }, task.title, task.agent, null, this.lastPosition() + 1)
+    }
+  }
+
+  private autoRunBlocked(run: Pick<ScheduledRun, 'target'>): boolean {
+    const { target } = run
+    if (target.kind !== 'task' || !target.afterDependencies) return false
+    const task = this.deps.tasks.get(target.taskId)
+    if (!task) return false
+    if (task.dependsOn.some((id) => this.deps.tasks.get(id)?.status !== 'done')) return true
+    const turn = task.conversationId ? this.conversation(task.conversationId)?.chat?.turn : null
+    return turn === 'running'
   }
 }
 

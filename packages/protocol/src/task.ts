@@ -102,6 +102,8 @@ export const Task = z.object({
   repos: z.array(TaskRepo),
   // Ids of tasks that must be done before this one can run.
   dependsOn: z.array(z.string()),
+  // One automatic start after all dependencies are accepted; absent on older cores.
+  autoRun: z.boolean().optional(),
   agent: AgentKind.nullable(),
   squadId: z.string().uuid().nullable().optional(),
   // The abandoned task this one redoes, from before redoing kept the task.
