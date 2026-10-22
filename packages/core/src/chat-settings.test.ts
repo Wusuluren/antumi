@@ -2,8 +2,10 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { ChatSettings, knowledgeBaseKind } from '@antumi/protocol'
+import { AGENT_KINDS, ChatSettings, knowledgeBaseKind } from '@antumi/protocol'
 import { ChatSettingsStore } from './chat-settings'
+
+const defaultConcurrency = Object.fromEntries(AGENT_KINDS.map((kind) => [kind, 6]))
 
 describe('ChatSettingsStore', () => {
   let root: string
@@ -20,31 +22,31 @@ describe('ChatSettingsStore', () => {
 
   it('suggests the next message and lets scheduled runs edit, unless the user changed that, and keeps it', async () => {
     const store = new ChatSettingsStore(file, (settings) => changes.push(settings))
-    expect(await store.load()).toEqual({ promptSuggestions: true, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6, opencode: 6, pi: 6 }, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
+    expect(await store.load()).toEqual({ promptSuggestions: true, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: defaultConcurrency, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
 
     await store.update({ promptSuggestions: false })
     await store.update({ unattendedMode: 'bypass' })
     expect(changes).toEqual([
-      { promptSuggestions: false, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6, opencode: 6, pi: 6 }, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true },
-      { promptSuggestions: false, titleNaming: 'off', titleModels: {}, unattendedMode: 'bypass', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6, opencode: 6, pi: 6 }, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true }
+      { promptSuggestions: false, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: defaultConcurrency, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true },
+      { promptSuggestions: false, titleNaming: 'off', titleModels: {}, unattendedMode: 'bypass', maxConcurrentAgents: 20, agentConcurrency: defaultConcurrency, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true }
     ])
 
     const reopened = new ChatSettingsStore(file, () => {})
-    expect(await reopened.load()).toEqual({ promptSuggestions: false, titleNaming: 'off', titleModels: {}, unattendedMode: 'bypass', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6, opencode: 6, pi: 6 }, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
+    expect(await reopened.load()).toEqual({ promptSuggestions: false, titleNaming: 'off', titleModels: {}, unattendedMode: 'bypass', maxConcurrentAgents: 20, agentConcurrency: defaultConcurrency, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
   })
 
   it('falls back to the default for a file it cannot read', async () => {
     writeFileSync(file, '{"promptSuggestions": "nope", "unattendedMode": "yolo"}')
-    expect(await new ChatSettingsStore(file, () => {}).load()).toEqual({ promptSuggestions: true, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6, opencode: 6, pi: 6 }, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
+    expect(await new ChatSettingsStore(file, () => {}).load()).toEqual({ promptSuggestions: true, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: defaultConcurrency, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
     writeFileSync(file, 'not json')
-    expect(await new ChatSettingsStore(file, () => {}).load()).toEqual({ promptSuggestions: true, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: { claude: 6, codex: 6, cursor: 6, opencode: 6, pi: 6 }, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
+    expect(await new ChatSettingsStore(file, () => {}).load()).toEqual({ promptSuggestions: true, titleNaming: 'off', titleModels: {}, unattendedMode: 'acceptEdits', maxConcurrentAgents: 20, agentConcurrency: defaultConcurrency, wireLog: false, userBrowser: true, readHistory: true, userTodos: true, knowledgeBase: null, autoArchiveDays: null, resetAnnouncements: true })
   })
 
   it('keeps per-agent limits when another agent changes, and rejects invalid limits', async () => {
     const store = new ChatSettingsStore(file, () => {})
     await store.load()
     await store.update({ agentConcurrency: { claude: 2 } })
-    expect(store.current().agentConcurrency).toEqual({ claude: 2, codex: 6, cursor: 6, opencode: 6, pi: 6 })
+    expect(store.current().agentConcurrency).toEqual({ ...defaultConcurrency, claude: 2 })
     await store.update({ maxConcurrentAgents: 3 })
     expect(store.current().maxConcurrentAgents).toBe(3)
     expect(() => ChatSettings.parse({ promptSuggestions: true, maxConcurrentAgents: 0 })).toThrow()

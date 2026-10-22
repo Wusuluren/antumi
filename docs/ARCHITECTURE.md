@@ -361,6 +361,8 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 `agents/agent-registry.test.ts` 检查每个 adapter 提供的权限模式和 descriptor 里写的完全一致，并检查声明的 hooks 都有对应实现。
 
+DeepSeek Harness 使用同一 ACP driver；`packages/dsh-runtime` 在官方导出的 ACP `apply` 上接入消息 stream，保留官方会话、模型、MCP 和取消实现，补充权限模式、提问及计划审批。服务商和技能作为启动覆盖层，文件与命令提供者按当前模式和项目范围实施限制；恢复会话先重设权限再交给 driver。插件随构建打包成 tarball，首次使用时准备 DSH 的专用 `antumi` profile，按内容摘要更新，不修改其他 profile。安装和兼容边界见 [DeepSeek Harness](DEEPSEEK.md)。ACP 恢复优先使用旧 Agent 已声明的 `loadSession`，仅声明 `resume` 时使用 `session/resume`。
+
 ### 本地知识库
 
 设置 → 集成 → 知识库 支持「Markdown 文件夹」和「Obsidian」两种模式，存在聊天设置的 `knowledgeBase`（路径、是否允许写入和可选的 `kind`）。新选择默认 Markdown 文件夹，用普通 Markdown 和相对路径链接，遵循已有笔记格式；Obsidian 模式用双链和 frontmatter，core 读 Obsidian 自己的注册表列出它打开过的库，也可以选任意文件夹。旧配置缺少 `kind` 时继续按 Obsidian 工作；旧客户端更新同一路径的写入权限时保留已保存的模式。core 用 `knowledge-base-kind` 声明支持两种模式，新客户端连接旧 core 时只显示原来的 Obsidian 入口。切换模式保留路径和写入权限，从下次启动 Agent 生效。

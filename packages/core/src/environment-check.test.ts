@@ -53,7 +53,8 @@ describe('environment check', () => {
         { tool: 'codex', status: 'missing', version: null, path: null, signedIn: null },
         { tool: 'cursor', status: 'missing', version: null, path: null, signedIn: null },
         { tool: 'opencode', status: 'missing', version: null, path: null, signedIn: null },
-        { tool: 'pi', status: 'missing', version: null, path: null, signedIn: null }
+        { tool: 'pi', status: 'missing', version: null, path: null, signedIn: null },
+        { tool: 'dsh', status: 'missing', version: null, path: null, signedIn: null }
       ],
       detectedAgents: [{ id: 'claude', name: 'Claude Code', locations: [{ source: 'cli', path: path.join(bin, 'claude') }] }],
       cliInstallations: [],

@@ -26,7 +26,7 @@ const Opened = Configs.extend({
 })
 const Initialized = z.looseObject({
   protocolVersion: z.union([z.literal(1), z.literal('1')]),
-  agentCapabilities: z.looseObject({ loadSession: z.boolean().optional(), promptCapabilities: z.looseObject({ image: z.boolean().optional() }).optional(), sessionCapabilities: z.looseObject({ additionalDirectories: z.union([z.boolean(), z.looseObject({})]).optional(), fork: z.unknown().optional() }).optional() }).optional(),
+  agentCapabilities: z.looseObject({ loadSession: z.boolean().optional(), promptCapabilities: z.looseObject({ image: z.boolean().optional() }).optional(), sessionCapabilities: z.looseObject({ resume: z.looseObject({}).optional(), additionalDirectories: z.union([z.boolean(), z.looseObject({})]).optional(), fork: z.unknown().optional() }).optional() }).optional(),
   authMethods: z.array(z.looseObject({ id: z.string() })).optional()
 })
 const Content = z.looseObject({ type: z.string(), text: z.string().optional(), data: z.string().optional() })
@@ -50,7 +50,8 @@ const TurnTokens = z.looseObject({
 const SessionCost = z.looseObject({ cost: z.looseObject({ amount: z.number().nonnegative(), currency: z.string() }).nullish() })
 const keyOf = (id: string | number) => `${typeof id}:${id}`
 // The requests that open the session a stage works in.
-const OPENING: ReadonlySet<string> = new Set(['session/new', 'session/load', 'session/fork'])
+const RESTORING: ReadonlySet<string> = new Set(['session/load', 'session/resume'])
+const OPENING: ReadonlySet<string> = new Set(['session/new', ...RESTORING, 'session/fork'])
 const rpc = (id: string | number, method: string, params: unknown) => ({ jsonrpc: '2.0', id, method, params })
 const result = (id: string | number, body: unknown) => ({ jsonrpc: '2.0', id, result: body })
 // A subagent the agent forwards (an extension, AcpDialect.subagentCall): announced on its parent's
@@ -100,6 +101,7 @@ export class AcpDriver implements ChatDriver {
   private setup = false
   private auth = false
   private load = false
+  private resumeMethod = 'session/load'
   private images = false
   private directories = false
   private forks = false
@@ -192,7 +194,7 @@ export class AcpDriver implements ChatDriver {
       if (forking && !this.forks) { this.startError = `此 ${this.name} CLI 不支持分叉会话，请升级`; return frames }
       if (this.options.resume && !forking && !this.load) { this.startError = `此 ${this.name} CLI 不支持恢复会话，请升级`; return frames }
       const mcp = this.options.mcp
-      return [...frames, rpc(this.id('session'), forking ? 'session/fork' : this.options.resume ? 'session/load' : 'session/new', {
+      return [...frames, rpc(this.id('session'), forking ? 'session/fork' : this.options.resume ? this.resumeMethod : 'session/new', {
         cwd: this.options.cwd,
         ...(this.options.resume ? { sessionId: this.options.resume } : {}),
         // Only where the agent says it takes them; one that does not is given them otherwise, as
@@ -220,7 +222,7 @@ export class AcpDriver implements ChatDriver {
     const parsed = Frame.safeParse(frame)
     if (!parsed.success) return null
     const { method, id } = parsed.data
-    if (dir === 'out') return method === 'session/prompt' ? 'prompt' : method === 'session/load' ? 'session-load' : method === 'session/new' || method === 'session/fork' ? 'session-new' : method === 'session/cancel' ? 'cancel' : null
+    if (dir === 'out') return method === 'session/prompt' ? 'prompt' : method && RESTORING.has(method) ? 'session-load' : method === 'session/new' || method === 'session/fork' ? 'session-new' : method === 'session/cancel' ? 'cancel' : null
     // Updates, the agent's own requests, and the answer to the prompt itself.
     return method === 'session/update' || (method !== undefined && id !== undefined) || (id !== undefined && String(id).startsWith(this.id('prompt-'))) ? 'turn' : null
   }
@@ -246,7 +248,7 @@ export class AcpDriver implements ChatDriver {
     const logged = rpc(this.id(`prompt-${this.turns + 1}`), 'session/prompt', base)
     // ACP has no system prompt, so the start note goes ahead of the process's first prompt, and
     // only on the wire: the chat, its search and its handoffs show the message alone.
-    const start = this.turns === 0 ? startNote({ knowledgeBase: this.options.knowledgeBase, todos: Boolean(this.options.mcp) && this.options.todos !== false }) : null
+    const start = this.turns === 0 ? [startNote({ knowledgeBase: this.options.knowledgeBase, todos: Boolean(this.options.mcp) && this.options.todos !== false }), this.dialect.startNote?.(this.options)].filter(Boolean).join('\n\n') : null
     const note = start ? `${start}\n\n` : ''
     const wire = rpc(this.id(`prompt-${this.turns + 1}`), 'session/prompt', { ...base, prompt: [{ type: 'text', text: `${note}${text}` }, ...images.map((image) => ({ type: 'image', mimeType: image.mime, data: Buffer.from(image.read()).toString('base64') }))] })
     return { wire, logged }
@@ -436,7 +438,7 @@ export class AcpDriver implements ChatDriver {
       else if (!this.setup || String(frame.id).startsWith(this.id('initial-')) || OPENING.has(request.method)) {
         const detail = errorDetail(frame.error.data)
         this.startError = `${request.method}: ${detail ?? frame.error.message}`
-        this.lost = request.method === 'session/load' && /not found/i.test(detail ?? frame.error.message)
+        this.lost = RESTORING.has(request.method) && /not found|not resumable/i.test(detail ?? frame.error.message)
       }
       else this.items.notice('error', frame.error.message, at)
       return
@@ -444,8 +446,12 @@ export class AcpDriver implements ChatDriver {
     if (request.method === 'initialize') {
       const init = Initialized.safeParse(frame.result)
       if (!init.success) { this.startError = `${this.name} ACP 协议版本不兼容，请升级 CLI`; return }
+      const extensionError = this.dialect.initializeError?.(frame.result)
+      if (extensionError) { this.startError = extensionError; return }
       this.initialized = true
-      this.load = init.data.agentCapabilities?.loadSession ?? false
+      const resume = Boolean(init.data.agentCapabilities?.sessionCapabilities?.resume)
+      this.load = resume || (init.data.agentCapabilities?.loadSession ?? false)
+      this.resumeMethod = init.data.agentCapabilities?.loadSession ? 'session/load' : 'session/resume'
       this.images = init.data.agentCapabilities?.promptCapabilities?.image ?? false
       // Early agents said true; the protocol now names the capability with an object.
       this.directories = Boolean(init.data.agentCapabilities?.sessionCapabilities?.additionalDirectories)
@@ -459,7 +465,7 @@ export class AcpDriver implements ChatDriver {
       const opened = Opened.safeParse(frame.result ?? {})
       if (!opened.success) { this.startError = `${this.name} 返回了无效的会话信息`; return }
       // A loaded session goes on under its id; a new or forked one is named in the answer.
-      this.session = opened.data.sessionId ?? (request.method === 'session/load' ? this.options.resume : null)
+      this.session = opened.data.sessionId ?? (RESTORING.has(request.method) ? this.options.resume : null)
       if (request.method === 'session/new') this.sessionCost = 0
       if (!this.session) { this.startError = `${this.name} 没有返回会话 ID`; return }
       this.catalog(opened.data)
@@ -747,7 +753,7 @@ export class AcpDriver implements ChatDriver {
       if (request.success) {
         const itemId = `a:${id}`
         this.pending.set(id, { rawId: frame.id, itemId, kind: 'plan' })
-        this.items.put({ id: itemId, kind: 'approval', requestId: id, tool: requests.plan.method, title: request.data.name ?? `${this.name} 计划`, detail: request.data.plan, toolItemId: null, decisions: ['allow', 'deny'], resolution: null }, at)
+        this.items.put({ id: itemId, kind: 'approval', requestId: id, tool: requests.plan.approvalTool ?? requests.plan.method, title: request.data.name ?? `${this.name} 计划`, detail: request.data.plan, toolItemId: null, decisions: ['allow', 'deny'], resolution: null }, at)
         return
       }
     }

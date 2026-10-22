@@ -19,6 +19,7 @@ catalog:
 allowBuilds:
   electron-winstaller: false
   esbuild: true
+  koffi: false
   node-pty: true
 
 # @electron/rebuild names @electron/node-gyp by a git URL, which the supply-chain policy blocks;
