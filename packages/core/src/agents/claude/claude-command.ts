@@ -1,5 +1,5 @@
-import { RESERVED_MCP_SERVER_NAME, SQUAD_TOOL_NAMES, HISTORY_TOOLS, historyToolName, SHOW_PREVIEW_TOOL, terminalToolName, TODO_TOOLS, todoToolName } from '@antumi/protocol'
-import { BROWSER_READ_TOOLS, type AgentCommand } from '../../agent-command'
+import { RESERVED_MCP_SERVER_NAME } from '@antumi/protocol'
+import { antumiReadTools, type AgentCommand } from '../../agent-command'
 import { startNote } from '../../agent-prompt'
 import type { AgentLaunch } from '../agent-adapter'
 import { CLAUDE_MODE_NAMES } from './claude-stream'
@@ -51,13 +51,11 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     // The vault it may not write is readable without asking, and without being a working
     // folder: as one, Claude would load the vault's own skills too.
     ...(knowledgeBase && !knowledgeBase.write ? claudeReadRules([`${knowledgeBase.path}/**`]) : []),
-    // Showing a file the agent wrote asks nothing of the user, nor does reading the browser's
-    // page; opening and acting on a page go through Claude's own confirmation. (Codex asks
-    // nothing for Antumi's MCP tools, so for it the site gate in core is the only check.)
-    // Reading or stopping a terminal the conversation opened itself asks nothing either; running
-    // a command in one is the agent's to ask about, under the mode the user set. Reading the user's
-    // history, which only reads and is there only where the user allows it, asks nothing.
-    ...(mcp ? [...Object.values(SQUAD_TOOL_NAMES), SHOW_PREVIEW_TOOL, ...BROWSER_READ_TOOLS, terminalToolName('read'), terminalToolName('stop'), ...HISTORY_TOOLS.map(historyToolName), ...(todos ? TODO_TOOLS.map(todoToolName) : [])].map((tool) => `mcp__${RESERVED_MCP_SERVER_NAME}__${tool}`) : [])
+    // Antumi's tools that only read ask nothing; opening and acting on a page go through Claude's
+    // own confirmation, and running a terminal command is the agent's to ask about, under the mode
+    // the user set. (Codex asks nothing for Antumi's MCP tools, so for it the site gate in core is
+    // the only check.)
+    ...(mcp ? antumiReadTools(todos).map((tool) => `mcp__${RESERVED_MCP_SERVER_NAME}__${tool}`) : [])
   ]
   const denials = fenced ? claudeEditDenials(fenced.dirs) : []
   const note = startNote({ knowledgeBase, todos: Boolean(mcp) && todos })

@@ -1,4 +1,4 @@
-import { browserToolName } from '@antumi/protocol'
+import { browserToolName, HISTORY_TOOLS, historyToolName, SHOW_PREVIEW_TOOL, SQUAD_TOOL_NAMES, terminalToolName, TODO_TOOLS, todoToolName } from '@antumi/protocol'
 
 // env is added to what the agent runs with, for an agent configured through its environment.
 export type AgentCommand = { command: string; args: string[]; env?: Record<string, string> }
@@ -13,3 +13,11 @@ export type AgentMcpServer = { name: string } & ({ type: 'stdio'; command: strin
 
 // The browser tools that only read: what the page shows, says in its console, or is waited on.
 export const BROWSER_READ_TOOLS: readonly string[] = (['snapshot', 'screenshot', 'scroll', 'wait', 'console', 'tabs'] as const).map(browserToolName)
+
+// Antumi's tools that ask nothing of the user: showing a file the agent wrote, reading the
+// browser's page, reading or stopping a terminal the conversation opened itself, the user's
+// history (there only where the user allows it), and the to-dos where they come along. Running a
+// command in a terminal, or acting on a page, is left out.
+export function antumiReadTools(todos: boolean): string[] {
+  return [...Object.values(SQUAD_TOOL_NAMES), SHOW_PREVIEW_TOOL, ...BROWSER_READ_TOOLS, terminalToolName('read'), terminalToolName('stop'), ...HISTORY_TOOLS.map(historyToolName), ...(todos ? TODO_TOOLS.map(todoToolName) : [])]
+}
