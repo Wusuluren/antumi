@@ -33,6 +33,8 @@ export type QuickDeps = {
   accounting?: SmallModelStore
   // The variables pointing the agent at its active account, where that is not the user's own.
   accountEnv?(agent: AgentKind): Promise<Record<string, string> | null>
+  account?(agent: AgentKind): Promise<{ id: string; env: Record<string, string> | null; identity: string | null } | null>
+  observe?(facts: { id?: string; endedAt?: number; agent: AgentKind; account: string | null; identity: string | null; startedAt: number; metering: ModelMetering; unpriced: boolean }): void
 }
 
 // Small jobs for an agent, such as translating a reply or writing a commit message: one request with
@@ -52,6 +54,7 @@ export class QuickRequests {
   // One request straight to the provider, as testing it does: no agent CLI, which would need the
   // provider set up for it all over again.
   private async requestProvider(agent: AgentKind, prompt: string, provider: QuickProvider, tracking?: QuickTracking): Promise<{ text: string; model: string | null }> {
+    const startedAt = Date.now()
     const accounting = this.deps.accounting
     const job = tracking && accounting ? accounting.begin({ kind: tracking.kind, agent, model: provider.model, conversationId: tracking.conversationId, baseline: tracking.baseline(), unpriced: true }) : undefined
     const reply = await askProvider(provider, prompt, { maxTokens: PROVIDER_MAX_TOKENS, timeoutMs: TIMEOUT_MS, ...(this.deps.fetch ? { fetchImpl: this.deps.fetch } : {}) })
@@ -60,6 +63,7 @@ export class QuickRequests {
       models: [{ model: provider.model, input: reply.usage.input, output: reply.usage.output, cacheRead: null, cacheWrite: null, cacheWrite1h: null, costUsd: null }],
       calls: 1, callsEstimated: false, reportedCostUsd: null
     } : undefined
+    if (metering) this.deps.observe?.({ id: job, agent, account: null, identity: null, startedAt, metering, unpriced: true })
     if (job) accounting?.finish(job, text ? 'completed' : 'failed', metering)
     if (!reply.ok) throw new Rejection('quick-failed', reply.message)
     if (!text) throw new Rejection('quick-failed', 'the provider gave no answer')
@@ -79,12 +83,15 @@ export class QuickRequests {
     let job: string | undefined
     try {
       const outputFile = path.join(dir, 'answer.md')
-      const env = await this.deps.accountEnv?.(agent)
+      const account = await this.deps.account?.(agent)
+      const startedAt = Date.now()
+      const env = account?.env ?? await this.deps.accountEnv?.(agent)
       const command = { ...await quick.command(prompt, model, outputFile), ...(env ? { env } : {}) }
       if (tracking && accounting) job = accounting.begin({ kind: tracking.kind, agent, model, conversationId: tracking.conversationId, baseline: tracking.baseline() })
       const output = await (this.deps.run ?? runQuick)(command, dir)
       const printed = typeof output === 'string' ? output : output.stdout
       const answer = quick.parse(printed, model)
+      if (answer.metering) this.deps.observe?.({ id: job, agent, account: account?.id ?? null, identity: account?.identity ?? null, startedAt, metering: answer.metering, unpriced: false })
       const text = (command.output === 'file' ? await readFile(outputFile, 'utf8').catch(() => '') : answer.text).trim()
       const error = typeof output === 'string' ? null : output.error
       const failed = error || answer.failed || !text

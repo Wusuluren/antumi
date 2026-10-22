@@ -98,6 +98,8 @@ export interface AgentAdapter {
   providerModels?(provider: Pick<ProviderLaunch, 'providerId' | 'models' | 'defaultModel'>): ChatModel[]
   // The sessions it kept of its runs outside Antumi, which an imported conversation resumes.
   readonly transcripts?: TranscriptSource
+  readonly usageTranscripts?: { format: 'claude' | 'codex'; home(home?: string): string }
+  readonly warmup?: { probe: QuickCommand; args(printed: string): string[] }
   // Its models without a chat to read them from; without it, a probe of its chat protocol.
   catalog?(cwd: string): Promise<ChatCatalog | null>
   // How the environment check finds it; without it, its kind on PATH, asked for --version.

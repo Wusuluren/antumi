@@ -3,6 +3,7 @@ import { CODEX_PRICES } from './model-prices'
 
 // Its default mode reads "auto" to Codex users.
 export const codex: AgentDescriptor = {
+  quotaAutomation: { model: 'gpt-6-luna', resetCredits: true },
   translations: { en: {
     modes: {
       ask: { label: 'Ask each time', description: 'Ask before every action' },

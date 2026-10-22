@@ -34,8 +34,9 @@ export function windowPace(window: UsageWindow, now: number): WindowPace | null 
   const elapsed = length - remaining
   const base = { window, projected: null, runsOutAt: null, wastePercent: null }
   if (window.usedPercent >= 100) return { ...base, pace: 'exhausted' }
-  if (elapsed < length * MIN_ELAPSED) return { ...base, pace: 'early' }
-  const rate = window.usedPercent / elapsed
+  const recent = window.recentRate && window.recentRate.measuredAt <= now && now - window.recentRate.measuredAt <= 30 * 60_000 ? window.recentRate : null
+  if (!recent && elapsed < length * MIN_ELAPSED) return { ...base, pace: 'early' }
+  const rate = recent ? recent.percentPerHour / 3600_000 : window.usedPercent / elapsed
   const projected = window.usedPercent + rate * remaining
   if (projected >= OVER_PROJECTED) {
     return { ...base, pace: 'over', projected, runsOutAt: now + (100 - window.usedPercent) / rate }

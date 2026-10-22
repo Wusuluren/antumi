@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
+import os from 'node:os'
 import { AGENT_KINDS, agentDescriptor, PROTOCOL_VERSION, quotaVerdict, usageAccount, usageReadable, type AgentKind, type AgentUsage, type ChatItem } from '@antumi/protocol'
 import packageJson from '../package.json' with { type: 'json' }
 import { removeCoreEndpoint, antumiPaths, writeCoreEndpoint } from '@antumi/protocol/node'
@@ -32,6 +33,11 @@ import { UsageLimitResumes } from './usage-limit-resume'
 import { ScheduleService } from './schedule-service'
 import { RoutineService } from './routine-service'
 import { UsageService } from './usage-service'
+import { UsageAnalytics } from './usage-analytics'
+import type { ScanRoot } from './usage-scan'
+import { UsageAutomation } from './usage-automation'
+import { cursorHistoryReader } from './cursor-usage-history'
+import { warmAccount } from './quota-warmup'
 import type { ResetCreditUse, UsageSource } from './usage-source'
 import { antumiChatMcpServer, userMcpServer } from './antumi-mcp-server'
 import { SourceConfigStore } from './source-config'
@@ -132,6 +138,10 @@ const conversations = new ConversationService(
       limits.observe(event.conversationId, event.items)
       turns.observe(event.conversationId, event.items)
       smallModels.observe(event.items)
+      for (const id of new Set(event.items.map((item) => item.stageId))) {
+        const stage = conversationsStore.stage(id)
+        if (stage) analytics.observe(stage, event.items.filter((item) => item.stageId === id))
+      }
       routines.observe(event.conversationId, event.items)
       discussions.observe(event.conversationId, event.items)
       squads.observe(event.conversationId, event.items)
@@ -219,7 +229,12 @@ const resetCreditUses: Partial<Record<AgentKind, ResetCreditUse>> = {}
 const signedIn: Partial<Record<AgentKind, () => Promise<boolean>>> = {}
 for (const kind of AGENT_KINDS) {
   const adapter = adapterOf(kind)
-  if (adapter.usage) usageSources[kind] = adapter.usage
+  const source = adapter.usage
+  if (source) usageSources[kind] = async (home) => {
+    const account = accounts.homes().find((entry) => entry.agent === kind && entry.home === home)
+    if (account) await accounts.refreshIdentity(kind, account.id)
+    return source(home)
+  }
   if (adapter.useResetCredit) resetCreditUses[kind] = adapter.useResetCredit
   const check = adapter.signedIn
   // The account its next process starts on.
@@ -235,8 +250,19 @@ const usage = new UsageService(usageSources, (entry) => {
 },
 Date.now,
 resetCreditUses,
-() => accounts.homes()
+() => [...accounts.homes(), ...AGENT_KINDS.filter((agent) => usageSources[agent] && !accounts.homes().some((account) => account.agent === agent))
+  .map((agent) => ({ agent, id: 'default', home: undefined }))]
 )
+const analytics = new UsageAnalytics(paths.database, {
+  roots: () => accounts.homes().flatMap((account): ScanRoot[] => {
+    const source = adapterOf(account.agent).usageTranscripts
+    return source ? [{ agent: source.format, home: source.home(account.home) }] : []
+  }),
+  opencode: () => [process.env.OPENCODE_DB || path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'opencode', 'opencode.db')],
+  accounts: () => accounts.list(), stages: (session) => conversationsStore.usageStages(session),
+  changed: () => server?.broadcast('usage.analyticsChanged', {}), cursor: cursorHistoryReader()
+})
+usage.decorateWith((entry) => analytics.withRates(entry))
 // Each agent's quota as what runs on it next sees it: its active account's, or, every account
 // being spent, the one that lifts first, which it will move to then.
 const standingUsage = {
@@ -252,6 +278,7 @@ const standingUsage = {
 }
 
 const schedules = new ScheduleService(paths.database, {
+  beforeQuotaWait: (agent) => automation.ensureQuota(agent),
   tasks: {
     get: (id) => store.get(id),
     autoRuns: () => store.list('pending').filter((task) => task.autoRun),
@@ -274,6 +301,17 @@ const schedules = new ScheduleService(paths.database, {
     pickAgent: (routine) => routines.pickAgent(routine),
     runChanged: (run) => routines.runChanged(run)
   }
+})
+const automation = new UsageAutomation(paths.database, {
+  accounts: () => accounts.list(), usage: () => usage.list(), refresh: (agent, account) => usage.readAccount(agent, account),
+  switchAccount: (agent, account) => accounts.switchFrom(agent, account, usage.list(), Date.now()),
+  consume: (agent, account, request, credit) => usage.useResetCredit(agent, request, credit, account),
+  warmup: async (agent, account) => {
+    const identity = accounts.list().accounts.find((entry) => entry.agent === agent && entry.id === account)?.email ?? null
+    const startedAt = Date.now()
+    await warmAccount(daemon, accounts, agent, account, (metering) => analytics.quick({ agent, account, identity, startedAt, metering, unpriced: false }, 'warmup'))
+  },
+  restored: (agent) => schedules.quotaRestored(agent)
 })
 // Speaks for the scheduler on the usage-limit cards; built after it, called only once runs change.
 const limits = new UsageLimitResumes(schedules, conversations, standingUsage, notifyChatItems, Date.now, (agent, spent) => accounts.switchFrom(agent, spent, usage.list(), Date.now()))
@@ -426,13 +464,15 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts, analytics, automation)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()
 await awake.start()
 refreshAwake()
 usage.start()
+analytics.start()
+automation.start()
 announcements.start()
 routines.start()
 schedules.start()
@@ -441,6 +481,8 @@ environment.start()
 refreshAwake()
 // Stages that ended before turns were kept, counted once in the background.
 void turns.catchUp().catch((error: unknown) => console.error('[antumi-core] counting earlier chat turns failed:', error))
+void analytics.catchUp((stage) => conversations.stageChatItems(stage.conversationId, stage.id), smallModels.endedSince(0))
+  .catch((error: unknown) => console.error('[antumi-core] rebuilding usage history failed:', error))
 sources.start()
 // Idle chat agents are checked for once a minute, so one goes within a minute of its limit.
 setInterval(() => void conversations.releaseIdle(), 60_000).unref()
@@ -455,9 +497,11 @@ async function shutdown(): Promise<void> {
     return
   }
   shuttingDown = true
-  usage.stop()
   announcements.stop()
   await schedules.stop()
+  await automation.close()
+  await usage.stop()
+  await analytics.close()
   routines.stop()
   autoArchive.stop()
   await squads.close()

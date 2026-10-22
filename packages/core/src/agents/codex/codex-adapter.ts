@@ -1,13 +1,16 @@
 import { parseCodexQuick } from '../../model-metering'
+import { codexWarmupArgs } from './codex-warmup'
 import type { AgentAdapter } from '../agent-adapter'
 import { CODEX_MODES, CodexAppServer } from './codex-app-server'
-import { codexAccounts } from './codex-account'
+import { codexAccounts, codexDefaultHome } from './codex-account'
 import { codexCommand } from './codex-command'
 import { codexProviderModels } from './codex-provider'
 import { codexTranscripts } from './codex-transcripts'
 import { hasCodexCredentials, readCodexUsage, useCodexResetCredit } from './codex-usage'
 
 export const codex: AgentAdapter = {
+  warmup: { probe: { command: 'codex', args: ['mcp', 'list', '--json'], stdin: null, output: 'stdout' }, args: codexWarmupArgs },
+  usageTranscripts: { format: 'codex', home: (home) => home ?? codexDefaultHome() },
   kind: 'codex',
   createDriver: (stageId, options) => new CodexAppServer(stageId, options),
   command: codexCommand,

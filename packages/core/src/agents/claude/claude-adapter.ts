@@ -1,6 +1,6 @@
 import { parseClaudeQuick } from '../../model-metering'
 import type { AgentAdapter } from '../agent-adapter'
-import { claudeAccounts } from './claude-account'
+import { claudeAccounts, claudeDefaultHome } from './claude-account'
 import { claudeCommand } from './claude-command'
 import { claudeProviderModels } from './claude-provider'
 import { CLAUDE_MODE_NAMES, ClaudeStream } from './claude-stream'
@@ -8,6 +8,7 @@ import { claudeTranscripts } from './claude-transcripts'
 import { hasClaudeCredentials, readClaudeUsage } from './claude-usage'
 
 export const claude: AgentAdapter = {
+  usageTranscripts: { format: 'claude', home: (home) => home ?? claudeDefaultHome() },
   kind: 'claude',
   createDriver: (stageId, options) => new ClaudeStream(stageId, options),
   command: claudeCommand,

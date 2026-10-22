@@ -334,7 +334,15 @@ export const MIGRATIONS = [
      PRIMARY KEY (agent, provider_session_id)
    );`,
   // The agent account a stage ran on (AgentAccount.id); null on a provider, or for an agent without accounts.
-  `ALTER TABLE conversation_stages ADD COLUMN account TEXT;`
+  `ALTER TABLE conversation_stages ADD COLUMN account TEXT;`,
+  `CREATE TABLE usage_records (file TEXT NOT NULL, id TEXT NOT NULL, at INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY (file,id));
+   CREATE INDEX usage_records_at ON usage_records(at);
+   CREATE TABLE usage_scan_files (file TEXT PRIMARY KEY, data TEXT NOT NULL);
+   CREATE TABLE usage_stage_identities (stage TEXT PRIMARY KEY, identity TEXT);
+   CREATE TABLE usage_rebuilt_stages (stage TEXT PRIMARY KEY);
+   CREATE TABLE usage_quota_samples (scope TEXT NOT NULL, at INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY(scope,at));
+   CREATE TABLE usage_automation_policies (scope TEXT PRIMARY KEY, data TEXT NOT NULL);
+   CREATE TABLE usage_automation_log (id TEXT PRIMARY KEY, at INTEGER NOT NULL, data TEXT NOT NULL);`
 ]
 
 

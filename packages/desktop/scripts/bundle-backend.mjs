@@ -23,6 +23,7 @@ const banner = `import { createRequire as __antumiRequire } from 'node:module';\
 for (const [name, entry] of [
   ['daemon', 'packages/daemon/src/main.ts'],
   ['core', 'packages/core/src/main.ts'],
+  ['usage-scan-worker', 'packages/core/src/usage-scan-worker.ts'],
   ['mcp', 'packages/core/src/mcp-main.ts']
 ]) {
   await build({

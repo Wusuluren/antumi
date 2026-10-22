@@ -108,10 +108,11 @@ export class AgentAccountStore {
   }
 
   // Where the agent's next process runs, its folder readied; null for an agent without accounts.
-  async launch(agent: AgentKind): Promise<AccountLaunch | null> {
+  async launch(agent: AgentKind, picked?: string): Promise<AccountLaunch | null> {
     const accounts = adapterOf(agent).accounts
     if (!accountsSupported(agent) || !accounts) return null
-    const id = this.activeOf(agent)
+    const id = picked ?? this.activeOf(agent)
+    this.require(agent, id)
     const home = this.home(agent, id)
     if (!home) return { id, env: null }
     await accounts.prepare(home)
@@ -121,6 +122,11 @@ export class AgentAccountStore {
   // The account's folder for whatever reads its usage; one no longer kept reads as none.
   homes(): Array<{ agent: AgentKind; id: string; home: string | undefined }> {
     return this.list().accounts.map((account) => ({ agent: account.agent, id: account.id, home: this.home(account.agent, account.id) }))
+  }
+
+  async refreshIdentity(agent: AgentKind, id: string): Promise<void> {
+    this.require(agent, id)
+    await this.check(agent, id)
   }
 
   async add(agent: AgentKind, label: string | null): Promise<{ account: AgentAccount; terminal: Terminal }> {

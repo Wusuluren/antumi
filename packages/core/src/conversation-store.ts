@@ -247,6 +247,11 @@ export class ConversationStore {
     return this.db.prepare(`${STAGE_SELECT} WHERE conversation_id = ? ORDER BY started_at, rowid`).all(id).map((row) => stage(row))
   }
 
+  usageStages(session?: string): ConversationStage[] {
+    const query = this.db.prepare(`${STAGE_SELECT}${session === undefined ? '' : ' WHERE provider_session_id = ?'} ORDER BY started_at, rowid`)
+    return (session === undefined ? query.all() : query.all(session)).map((row) => stage(row))
+  }
+
   activeStage(id: string): ConversationStage | null {
     const row = this.db.prepare(`${STAGE_SELECT} WHERE conversation_id = ? AND ended_at IS NULL ORDER BY rowid DESC LIMIT 1`).get(id)
     return row ? stage(row) : null

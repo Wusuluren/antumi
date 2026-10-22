@@ -32,6 +32,8 @@ export class UsageService {
   private inFlight: Promise<AgentUsage[]> | null = null
   private lastRefresh = Number.NEGATIVE_INFINITY
   private timer: ReturnType<typeof setInterval> | undefined
+  private decorate: (entry: AgentUsage) => AgentUsage = (entry) => entry
+  private stopped = false
 
   constructor(
     private readonly sources: Partial<Record<AgentKind, UsageSource>>,
@@ -45,14 +47,19 @@ export class UsageService {
     return [...this.usage.values()]
   }
 
+  decorateWith(decorate: (entry: AgentUsage) => AgentUsage): void { this.decorate = decorate }
+
   start(): void {
+    this.stopped = false
     void this.refresh()
     this.timer = setInterval(() => void this.refresh(), POLL_MS)
     this.timer.unref()
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
+    this.stopped = true
     clearInterval(this.timer)
+    await this.inFlight
   }
 
   // The user asked to refresh: the usage, and whatever else rides it.
@@ -78,6 +85,7 @@ export class UsageService {
 
   // A call within MIN_REFRESH_MS of the previous one answers with the numbers already held.
   refresh(): Promise<AgentUsage[]> {
+    if (this.stopped) return Promise.resolve(this.list())
     if (this.inFlight) {
       return this.inFlight
     }
@@ -123,6 +131,7 @@ export class UsageService {
 
   // Reads one account now, whatever was read lately: it was just signed in.
   async readAccount(agent: AgentKind, id: string): Promise<void> {
+    if (this.stopped) return
     const account = this.accounts().find((each) => each.agent === agent && each.id === id)
     if (account && this.sources[agent]) await this.refreshAccount(account)
   }
@@ -141,7 +150,7 @@ export class UsageService {
     }
     if (report.windows.length > 0) {
       const named = (window: UsageWindow) => report.windows.some((each) => each.kind === window.kind && each.model === window.model)
-      const next: AgentUsage = {
+      const next: AgentUsage = this.decorate({
         agent,
         account,
         status: 'ok',
@@ -151,7 +160,7 @@ export class UsageService {
         updatedAt: report.at,
         resetCredits: previous?.resetCredits ?? null,
         globalResets: this.globals.get(agent) ?? null
-      }
+      })
       this.usage.set(keyOf(agent, account), next)
       this.emit(next)
     }
@@ -161,7 +170,7 @@ export class UsageService {
   }
 
   private async refreshAccount(account: UsageAccount): Promise<AgentUsage> {
-    const next = { ...(await this.read(account)), globalResets: this.globals.get(account.agent) ?? null }
+    const next = this.decorate({ ...(await this.read(account)), globalResets: this.globals.get(account.agent) ?? null })
     this.usage.set(keyOf(account.agent, account.id), next)
     this.emit(next)
     return next

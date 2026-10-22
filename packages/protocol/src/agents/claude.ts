@@ -2,6 +2,7 @@ import type { AgentDescriptor } from './agent-descriptor'
 import { CLAUDE_PRICES } from './model-prices'
 
 export const claude: AgentDescriptor = {
+  quotaAutomation: { model: 'haiku', resetCredits: false },
   translations: { en: {
     modes: {
       ask: { label: 'Ask each time', description: 'Ask before editing files or running commands' },

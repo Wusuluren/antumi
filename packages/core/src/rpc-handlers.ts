@@ -48,6 +48,8 @@ import type { McpServerStore } from './mcp-servers'
 import type { ModelProviderStore } from './model-providers'
 import type { AgentAccountStore } from './agent-accounts'
 import type { SessionImports } from './session-imports'
+import type { UsageAnalytics } from './usage-analytics'
+import type { UsageAutomation } from './usage-automation'
 
 const OK = { ok: true } as const
 
@@ -84,7 +86,9 @@ export function createRpcHandlers(
   projectConfigs?: ProjectConfigStore,
   modelProviders?: ModelProviderStore,
   sessionImports?: SessionImports,
-  accounts?: AgentAccountStore
+  accounts?: AgentAccountStore,
+  analytics?: UsageAnalytics,
+  automation?: UsageAutomation
 ): RpcHandlers {
   const git = new GitService(service, conversations, gitChanged)
   const requireProjectConfigs = (): ProjectConfigStore => {
@@ -99,7 +103,11 @@ export function createRpcHandlers(
   const quick = new QuickRequests({
     catalog: (agent) => conversations.chatCatalog(agent),
     accounting: smallModels,
-    accountEnv: async (agent) => (await accounts?.launch(agent))?.env ?? null
+    account: async (agent) => {
+      const launch = await accounts?.launch(agent)
+      return launch ? { ...launch, identity: accounts?.list().accounts.find((entry) => entry.agent === agent && entry.id === launch.id)?.email ?? null } : null
+    },
+    observe: (facts) => analytics?.quick(facts)
   })
   const translations = new TranslationService(quick)
   conversations.setTitleGenerator(async (conversation, prompt) => (await quick.ask(conversation.agent, prompt,
@@ -509,7 +517,14 @@ export function createRpcHandlers(
     },
     'usage.list': ({ windowKinds }, connection) => readableUsage(connection.usageKinds, windowKinds, usage.list()),
     'usage.refresh': async ({ windowKinds }, connection) => readableUsage(connection.usageKinds, windowKinds, await usage.requestRefresh()),
-    'usage.useResetCredit': async ({ agent, account, requestId, creditId }) => ({ outcome: await usage.useResetCredit(agent, requestId, creditId, account) }),
+    'usage.history': (filter) => { if (!analytics) throw new Rejection('usage-unavailable'); return analytics.history(filter) },
+    'usage.scan': async () => { if (!analytics) throw new Rejection('usage-unavailable'); await analytics.scan(); return analytics.status() },
+    'usage.forecasts': () => analytics?.forecasts(usage.list()) ?? [],
+    'usage.automation': () => automation?.state() ?? { policies: [], recent: [] },
+    'usage.configureAutomation': (policy) => { if (!automation) throw new Rejection('usage-unavailable'); return automation.configure(policy) },
+    'usage.retryReset': async ({ id }) => { if (!automation) throw new Rejection('usage-unavailable'); return automation.retry(id) },
+    'usage.useResetCredit': async ({ agent, account, requestId, creditId }) => ({ outcome: automation
+      ? await automation.manual(agent, account ?? 'default', requestId, creditId) : await usage.useResetCredit(agent, requestId, creditId, account) }),
     'agents.stats': () => runs.stats(),
     'agents.conversationStats': () => turns.stats(),
     'dashboard.stats': ({ includeSmallModels, ...params }) => {
