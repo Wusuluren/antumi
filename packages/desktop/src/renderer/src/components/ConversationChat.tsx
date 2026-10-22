@@ -12,6 +12,7 @@ import { isCompaction, noticeSummary, readableNotice } from '../chat-notices'
 import { parseQuotes, withoutQuoteMarkers } from '../chat-quotes'
 import { formatTokens, isSubagent, thoughtFor, workedFor } from '../chat-tools'
 import { perform, useCore } from '../core-store'
+import { shownAccountName } from '../agent-accounts'
 import { ChatSurfaceContext, conversationSurface, useChatSurface, type ChatSurface } from './chat-surface'
 import { forkConversation } from './ConversationActions'
 import { agentLabel, chatDayAndTime, dayAndTime, messageTime } from '../labels'
@@ -386,7 +387,8 @@ const ChatAgent = createContext<ChatAgents>({ current: { agent: 'claude', model:
 // on the user holds it still, in the colour of the request.
 function TurnHead({ at, stageId, messageKey, live }: { at: number; stageId: string; messageKey: string; live: 'running' | 'awaiting' | null }) {
   const { current, byStage, latest } = useContext(ChatAgent)
-  const { agent, model, effort, provider } = (stageId !== latest && byStage.get(stageId)) || current
+  const { agent, model, effort, provider, account } = (stageId !== latest && byStage.get(stageId)) || current
+  const accountLabel = useCore((s) => shownAccountName(s.accounts, agent, account))
   return (
     <div className="chat-turn-head" data-relay-for={messageKey}>
       <span className="chat-turn-head-icon" data-live={live ?? undefined} aria-hidden="true"><AgentIcon agent={agent} /></span>
@@ -394,6 +396,7 @@ function TurnHead({ at, stageId, messageKey, live }: { at: number; stageId: stri
       {model && <span className="chat-turn-head-model" title={t('ConversationChat.model', { model: model })}>{model}</span>}
       {model && effort && <span className="chat-turn-head-effort" title={t('ConversationChat.reasoningEffort', { value1: effortLabel(effort) })}>{effortLabel(effort)}</span>}
       {provider && <span className="chat-turn-head-provider" title={t('RouteBadge.onProvider', { value1: provider })}>{provider}</span>}
+      {accountLabel && <span className="chat-turn-head-provider" title={t('AgentAccounts.onAccount', { value1: accountLabel })}>{accountLabel}</span>}
       <MessageTime at={at} />
     </div>
   )
@@ -846,7 +849,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
   // The effort the same way; left out where the agent runs its default without saying which.
   const effort = state?.effort ?? conversation.chatOptions?.effort ?? null
   const agentInfo = useMemo(() => ({
-    current: { agent: conversation.agent, model: modelId ? (state?.models.find((each) => each.id === modelId)?.label ?? modelId) : null, effort, provider: conversation.route?.reason === 'served' ? conversation.route.name : null },
+    current: { agent: conversation.agent, model: modelId ? (state?.models.find((each) => each.id === modelId)?.label ?? modelId) : null, effort, provider: conversation.route?.reason === 'served' ? conversation.route.name : null, account: stages.at(-1)?.agent === conversation.agent ? stages.at(-1)?.account ?? null : null },
     byStage: stageAgents(stages, items),
     latest: stages.at(-1)?.id ?? null
   }), [conversation.agent, conversation.route, modelId, state?.models, effort, stages, items, getLocale()])

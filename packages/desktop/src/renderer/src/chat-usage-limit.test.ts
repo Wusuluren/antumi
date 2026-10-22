@@ -28,3 +28,9 @@ it('collapses a waiting usage-limit card when its reset time arrives', () => {
 it('keeps a card open when the recovery time is unknown', () => {
   expect(usageLimitOpen(item({ resetsAt: null }), NOW)).toBe(true)
 })
+
+it('says which account a limit moved the agent to, going on and once it went on', () => {
+  expect(usageLimitText(item({ switchedTo: 'work', autoContinue: true }), NOW, '工作')).toBe('额度用完，正在换到账号「工作」继续')
+  expect(usageLimitText(item({ switchedTo: 'work', status: 'continued', continuedAt: NOW }), NOW, '工作')).toBe('已换到账号「工作」继续')
+  expect(usageLimitText(item({ resetsAt: NOW }), NOW, null)).toBe('额度已恢复')
+})

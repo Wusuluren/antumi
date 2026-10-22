@@ -153,8 +153,8 @@ export function saidText(text: string): string {
 }
 
 // Who answers in a turn: the agent, and the model (by its label where the agent gives one) and
-// effort it ran, and the model provider it ran on, if any.
-export type TurnAgent = { agent: AgentKind; model: string | null; effort: string | null; provider?: string | null }
+// effort it ran, and the model provider or the agent account it ran on, if any.
+export type TurnAgent = { agent: AgentKind; model: string | null; effort: string | null; provider?: string | null; account?: string | null }
 
 // Each stage's, from the stage and the state it last reported: a conversation handed from one agent
 // to another keeps the earlier turns under the agent and model that wrote them.
@@ -164,7 +164,7 @@ export function stageAgents(stages: readonly ConversationStage[], items: readonl
   return new Map(stages.map((stage) => {
     const state = states.get(stage.id)
     const model = state?.model ? (state.models.find((each) => each.id === state.model)?.label ?? state.model) : null
-    return [stage.id, { agent: stage.agent, model, effort: model ? (state?.effort ?? null) : null, ...(stage.route ? { provider: stage.route.name } : {}) }]
+    return [stage.id, { agent: stage.agent, model, effort: model ? (state?.effort ?? null) : null, ...(stage.route ? { provider: stage.route.name } : {}), ...(stage.account ? { account: stage.account } : {}) }]
   }))
 }
 

@@ -1,6 +1,7 @@
 import { t, tr } from '../i18n'
 import { useState } from 'react'
-import { quotaVerdict, type ChatItem, type Conversation } from '@antumi/protocol'
+import { quotaVerdict, type AgentKind, type ChatItem, type Conversation } from '@antumi/protocol'
+import { accountName, accountsOf } from '../agent-accounts'
 import { otherInstalledAgent, useInstalledAgents } from '../installed-agents'
 import { perform, setSchedulesOpen, useCore, useUsageLimitSupported } from '../core-store'
 import { scheduleTime, UNATTENDED_LABEL } from '../schedules'
@@ -15,9 +16,18 @@ export function usageLimitOpen(item: UsageLimitItem, now: number): boolean {
   return waiting && (item.resetsAt === null || item.resetsAt > now)
 }
 
+// The name of the account core moved the agent to, to go on at once; null where it did not.
+function useSwitchedTo(item: UsageLimitItem, agent: AgentKind | undefined): string | null {
+  const accounts = useCore((s) => s.accounts)
+  const account = agent && item.switchedTo ? accountsOf(accounts, agent).find((each) => each.id === item.switchedTo) : undefined
+  return account ? accountName(account) : null
+}
+
 // What became of a turn the usage limit stopped, in the conversation's flow: one line, as a
-// request's is, saying when it goes on or went on.
-export function usageLimitText(item: UsageLimitItem, now: number): string {
+// request's is, saying when it goes on or went on, and on which account where it moved to one.
+export function usageLimitText(item: UsageLimitItem, now: number, switchedTo: string | null = null): string {
+  if (switchedTo && item.status === 'continued') return t('AgentAccounts.switchedTo', { value1: switchedTo })
+  if (switchedTo && (item.status === 'retrying' || (item.status === 'waiting' && item.autoContinue))) return t('AgentAccounts.switchingTo', { value1: switchedTo })
   switch (item.status) {
     case 'retrying':
       return t('ChatUsageLimit.quotaExhaustedResuming')
@@ -30,12 +40,13 @@ export function usageLimitText(item: UsageLimitItem, now: number): string {
   return item.resetsAt === null ? t('ChatUsageLimit.quotaExhausted') : t('ChatUsageLimit.quotaExhaustedResets', { value1: formatClock(item.resetsAt, now) })
 }
 
-export function ChatUsageLimitLine({ item }: { item: UsageLimitItem }) {
+export function ChatUsageLimitLine({ item, agent }: { item: UsageLimitItem; agent?: AgentKind }) {
   const now = useNow(60_000)
+  const switchedTo = useSwitchedTo(item, agent)
   const waiting = item.status === 'waiting' && item.autoContinue
   return (
     <div className="chat-request-line" data-waiting={waiting || undefined}>
-      {usageLimitText(item, now)}
+      {usageLimitText(item, now, switchedTo)}
     </div>
   )
 }
@@ -57,6 +68,7 @@ export function ChatUsageLimitCard({ conversation, item }: { conversation: Conve
   // user's to manage, so the checkbox (which would only cancel their run) gives way to a link.
   const run = useCore((s) => (item.runId ? s.schedules.find((each) => each.id === item.runId) : undefined))
   const mode = useCore((s) => s.chatSettings?.unattendedMode ?? 'acceptEdits')
+  const switchedTo = useSwitchedTo(item, conversation.agent)
   if (!supported) return null
   const takenOver = run?.target.kind === 'conversation' && item.status === 'waiting' && item.autoContinue ? run : null
   const otherState = quotaVerdict(otherUsage, now).state
@@ -74,7 +86,9 @@ export function ChatUsageLimitCard({ conversation, item }: { conversation: Conve
     await perform((rpc) => rpc.call('conversations.retryUsageLimit', target))
     setBusy(false)
   }
-  const detail = retrying
+  const detail = switchedTo && (retrying || item.status === 'waiting')
+    ? t('AgentAccounts.switchingTo', { value1: switchedTo })
+    : retrying
     ? t('ChatUsageLimit.retrying')
     : takenOver
       ? t('ChatUsageLimit.willResumeAsScheduledUnattendedInMode', { value1: takenOver.notBefore !== null ? t('ChatUsageLimit.at', { value1: scheduleTime(takenOver.notBefore, now) }) : t('ChatUsageLimit.whenQuotaResets'), value2: UNATTENDED_LABEL[mode] })
@@ -115,5 +129,5 @@ export function ChatUsageLimitEntry({ conversationId, item }: { conversationId: 
   const supported = useUsageLimitSupported()
   const now = useNow(30_000)
   const open = usageLimitOpen(item, now)
-  return conversation && supported && open ? <ChatUsageLimitCard conversation={conversation} item={item} /> : <ChatUsageLimitLine item={item} />
+  return conversation && supported && open ? <ChatUsageLimitCard conversation={conversation} item={item} /> : <ChatUsageLimitLine item={item} agent={conversation?.agent} />
 }

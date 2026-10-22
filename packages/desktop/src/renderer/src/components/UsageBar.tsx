@@ -3,11 +3,15 @@ import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 
 import { createPortal } from 'react-dom'
 import {
   AGENT_KINDS,
+  accountUsage,
   agentAdvice,
   agentDescriptor,
+  quotaVerdict,
   tightestWindow,
+  usageAccount,
   windowPace,
   usageLevel,
+  type AgentAccount,
   type AgentKind,
   type AgentUsage,
   type GlobalResets,
@@ -17,14 +21,15 @@ import {
   type ResetCredits,
   type UsageWindow
 } from '@antumi/protocol'
-import { openUsageCard, refreshUsage, spendResetCredit, useCore } from '../core-store'
+import { activateAccount, openUsageCard, refreshUsage, setSettingsOpen, spendResetCredit, useCore } from '../core-store'
+import { accountName, accountsOf } from '../agent-accounts'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
 import { usePreferences } from '../preferences'
 import { adviceText, alternativeAgent, paceText } from '../quota-advice-text'
 import { clearsText, formatClock, formatDuration, globalResetText, percentText, resetText, shownPercent, SPEND_OUTCOME_TEXT, spendNote, useNow, windowLabel } from '../usage-format'
 import { agentNames } from '../environment-text'
-import { AgentIcon } from './icons'
+import { AgentIcon, CheckIcon } from './icons'
 import { Spinner } from './Spinner'
 
 function errorText(usage: AgentUsage): string {
@@ -193,6 +198,52 @@ function AdviceList({ advice, now, alternative }: { advice: readonly QuotaAdvice
   )
 }
 
+// The agent's accounts, each with the window that would stop it first: picking one makes it the
+// account the agent's next process starts on.
+function AccountList({ accounts, active, now }: { accounts: readonly AgentAccount[]; active: string; now: number }) {
+  const readings = useCore((s) => s.accountUsage)
+  const display = usePreferences((s) => s.usageDisplay)
+  return (
+    <div className="usage-card-accounts">
+      <div className="usage-card-credits-title">{t('AgentAccounts.title')}</div>
+      <div role="radiogroup" aria-label={t('AgentAccounts.title')}>
+        {accounts.map((account) => {
+          const usage = accountUsage(readings, account.agent, account.id)
+          const tightest = tightestWindow(usage?.windows.filter((window) => window.model === null) ?? [])
+          const spent = quotaVerdict(usage, now).state === 'exhausted'
+          const chosen = account.id === active
+          return (
+            <button
+              key={account.id}
+              type="button"
+              role="radio"
+              aria-checked={chosen}
+              className="usage-card-account"
+              disabled={!account.signedIn}
+              title={chosen ? undefined : t('AgentAccounts.switchTo', { value1: accountName(account) })}
+              onClick={() => { if (!chosen) void activateAccount(account.agent, account.id) }}
+            >
+              <span className="usage-card-account-check" aria-hidden="true">{chosen && <CheckIcon />}</span>
+              <span className="usage-card-account-name">{accountName(account)}</span>
+              {!account.signedIn ? <span className="usage-card-account-value">{t('InstalledAgentsSettings.notSignedIn')}</span> : tightest ? (
+                <>
+                  <span className="usage-meter" data-level={usageLevel(tightest.usedPercent)} aria-hidden="true">
+                    <span style={{ width: `${shownPercent(tightest, display)}%` }} />
+                  </span>
+                  <span className="usage-card-account-value" data-level={usageLevel(tightest.usedPercent)}>
+                    {spent ? t('AgentAccounts.spent') : `${windowLabel(tightest)} ${percentText(tightest, display)}`}
+                  </span>
+                </>
+              ) : <span className="usage-card-account-value">{t('AgentAccounts.noUsage')}</span>}
+            </button>
+          )
+        })}
+      </div>
+      <button type="button" className="link-button usage-card-accounts-manage" onClick={() => setSettingsOpen(true, 'accounts')}>{t('AgentAccounts.manage')}</button>
+    </div>
+  )
+}
+
 const CARD_WIDTH = 340
 // Hovering past on the way somewhere else should not flash a card.
 const CARD_DELAY_MS = 300
@@ -200,8 +251,11 @@ const CARD_HIDE_DELAY_MS = 200
 
 // Every window in full, above the segment. Rendered into <body> at a fixed position: inside the
 // status bar it would be clipped, and a button may not contain it.
-function UsageCard({ usage, now, advice, alternative, showPace, anchor, id, cardRef, onEnter, onLeave, onRefresh, refreshing, spending, onSpend, onSpendingChange }: {
+function UsageCard({ usage, accounts, accountLabel, now, advice, alternative, showPace, anchor, id, cardRef, onEnter, onLeave, onRefresh, refreshing, spending, onSpend, onSpendingChange }: {
   usage: AgentUsage
+  // The agent's accounts, where it has more than one to switch between; the shown one's name.
+  accounts: readonly AgentAccount[]
+  accountLabel: string | null
   now: number
   // Empty, and no pace beside the windows, while the user has quota advice off.
   advice: readonly QuotaAdvice[]
@@ -239,6 +293,7 @@ function UsageCard({ usage, now, advice, alternative, showPace, anchor, id, card
     >
       <div className="usage-card-title">
         {agentLabel(usage.agent)}
+        {accountLabel && <span className="muted"> · {accountLabel}</span>}
         {usage.plan && <span className="muted"> · {usage.plan}</span>}
       </div>
       {usage.windows.map((window) => {
@@ -265,6 +320,7 @@ function UsageCard({ usage, now, advice, alternative, showPace, anchor, id, card
         <ResetCreditList usage={usage} credits={usage.resetCredits} now={now} spending={spending} onSpend={onSpend} onChange={onSpendingChange} />
       )}
       {usage.globalResets && <GlobalResetList resets={usage.globalResets} now={now} />}
+      {accounts.length > 1 && <AccountList accounts={accounts} active={usageAccount(usage)} now={now} />}
       <div className="usage-card-footer">
         <span>{footer}</span>
         <button type="button" className="link-button usage-card-refresh" disabled={refreshing} onClick={onRefresh}>
@@ -286,6 +342,10 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
   const allUsage = useCore((s) => s.usage)
   const installed = useInstalledAgents()
   const requested = useCore((s) => s.usageCardAgent === usage.agent)
+  const allAccounts = useCore((s) => s.accounts)
+  const accounts = accountsOf(allAccounts, usage.agent)
+  const shownAccount = accounts.length > 1 ? accounts.find((account) => account.id === usageAccount(usage)) : undefined
+  const accountLabel = shownAccount ? accountName(shownAccount) : null
   const advice = adviceOn ? agentAdvice(usage, now) : []
   const usages = AGENT_KINDS.map((agent) => allUsage?.[agent]).filter((entry) => entry !== undefined)
   const alternative = advice.length > 0 ? alternativeAgent(usage.agent, usages, installed, now) : null
@@ -331,7 +391,7 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
   const spend = async (requestId: string, creditId?: string) => {
     setSpending({ phase: 'pending', creditId, requestId })
     try {
-      setSpending({ phase: 'done', outcome: await spendResetCredit(usage.agent, requestId, creditId) })
+      setSpending({ phase: 'done', outcome: await spendResetCredit(usage.agent, requestId, creditId, usageAccount(usage)) })
     } catch (error) {
       setSpending({ phase: 'failed', creditId, requestId, error: error instanceof Error ? error.message : String(error) })
     }
@@ -395,6 +455,7 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
         <span className="usage-agent" role="img" aria-label={agentLabel(usage.agent)}>
           <AgentIcon agent={usage.agent} />
         </span>
+        {accountLabel && <span className="usage-account">{accountLabel}</span>}
         {tightest && (
           <span className="usage-meter" data-level={usageLevel(tightest.usedPercent)} aria-hidden="true">
             <span style={{ width: `${shownPercent(tightest, display)}%` }} />
@@ -420,6 +481,8 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
       {anchor && createPortal(
         <UsageCard
           usage={usage}
+          accounts={accounts}
+          accountLabel={accountLabel}
           now={now}
           advice={advice}
           alternative={alternative}

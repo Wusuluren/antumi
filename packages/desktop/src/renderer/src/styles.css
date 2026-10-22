@@ -9748,3 +9748,74 @@ button.squad-member-main { cursor: pointer; }
 .guide-markdown h2 { margin-top: 32px; }
 .guide-markdown table { display: table; width: 100%; }
 .guide-markdown td:first-child { white-space: nowrap; }
+
+/* The status bar's account, where an agent has several: its name, kept short. */
+.usage-account {
+  max-width: 96px;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-card-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.usage-card-account {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) 44px auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
+}
+
+.usage-card-account:hover:not(:disabled) {
+  background: var(--surface-muted);
+}
+
+.usage-card-account:focus-visible {
+  outline: 2px solid var(--focus);
+}
+
+.usage-card-account:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.usage-card-account-check svg {
+  width: 12px;
+  height: 12px;
+}
+
+.usage-card-account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-card-account-value {
+  grid-column: 4;
+  color: var(--text-muted);
+}
+
+.usage-card-account-value:is([data-level='warning'], [data-level='critical']) {
+  color: var(--level-color);
+}
+
+.usage-card-accounts-manage {
+  align-self: flex-start;
+}
