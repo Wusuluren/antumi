@@ -6,7 +6,7 @@
 
 **一个工作台，和多个 AI Agent 一起工作。**
 
-本地优先的多 Agent 工作台，统一管理 Claude Code、Codex、Cursor、OpenCode 和 Pi 的会话、任务、群聊与定时运行。
+本地优先的多 Agent 工作台，统一管理 Claude Code、Codex、Cursor、OpenCode、Pi 和 DeepSeek Harness 的会话、任务、群聊与定时运行。
 
 [![Version](https://img.shields.io/github/package-json/v/flyhero/antumi?label=version&color=blue)](CHANGELOG.md)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
@@ -105,6 +105,7 @@ Antumi 驱动的是你已经装好、登录好的 Agent CLI。
 | [**Cursor**](https://cursor.com/cli) | `cursor-agent acp` | Agent · Plan · Ask | ✓ | ✓ | — |
 | [**OpenCode**](https://opencode.ai) | `opencode acp` | Build · 自动 · Plan · 只读 | — | ✓ | ✓ |
 | [**Pi**](https://pi.dev) | `pi --mode rpc` | 默认 · 自动 · 规划 · 只读 | ✓ | ✓ | ✓ |
+| [**DeepSeek Harness**](docs/DEEPSEEK.md) | `dsh --profile antumi`（ACP） | 默认 · 自动 · 规划 · 只读 | ✓ | ✓ | ✓ |
 
 「全部放行」不会默认选中。设置 → 本机 Agent 还会列出 Antumi 认识、但尚未接入的 Agent CLI。
 

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { Conversation, Task } from '@antumi/protocol'
+import { AGENT_KINDS, Conversation, Task } from '@antumi/protocol'
 import { useCore } from './core-store'
 import { defaultAgent } from './default-agent'
 import { usePreferences } from './preferences'
@@ -36,7 +36,7 @@ describe('defaultAgent', () => {
   it('never picks an agent turned off here, and leaves the choice open when more than one is on', () => {
     usePreferences.setState({ disabledAgents: ['codex'] })
     expect(defaultAgent({}, { [id(1)]: chat(1, 'codex', 1) })).toBeNull()
-    usePreferences.setState({ disabledAgents: ['codex', 'cursor', 'opencode', 'pi'] })
+    usePreferences.setState({ disabledAgents: AGENT_KINDS.filter((kind) => kind !== 'claude') })
     expect(defaultAgent({}, { [id(1)]: chat(1, 'codex', 1) })).toBe('claude')
   })
 })

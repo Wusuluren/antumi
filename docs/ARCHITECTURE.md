@@ -363,6 +363,8 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 `agents/agent-registry.test.ts` 检查每个 adapter 提供的权限模式和 descriptor 里写的完全一致，并检查声明的 hooks 都有对应实现。
 
+DeepSeek Harness 使用同一 ACP driver；`packages/dsh-runtime` 在官方导出的 ACP `apply` 上接入消息 stream，保留官方会话、模型、MCP 和取消实现，补充权限模式、提问及计划审批。服务商和技能作为启动覆盖层，文件与命令提供者按当前模式和项目范围实施限制；恢复会话先重设权限再交给 driver。插件随构建打包成 tarball，首次使用时准备 DSH 的专用 `antumi` profile，按内容摘要更新，不修改其他 profile。安装和兼容边界见 [DeepSeek Harness](DEEPSEEK.md)。ACP 恢复优先使用旧 Agent 已声明的 `loadSession`，仅声明 `resume` 时使用 `session/resume`。
+
 ### Agent CLI 版本与升级
 
 设置 → 任务 → 已安装的 Agent 打开时调用 `system.agentCliStatus`，按需查询版本；成功缓存一小时，失败五分钟，手动检查绕过缓存。不做启动通知或自动升级。`agent-cli-maintenance` feature 区分新旧 core，daemon 的 `info.features` 单独声明升级能力；旧 daemon 保留版本检查，只禁用升级。

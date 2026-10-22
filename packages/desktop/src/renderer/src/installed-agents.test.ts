@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Environment, EnvironmentCheck } from '@antumi/protocol'
+import { AGENT_KINDS, type Environment, type EnvironmentCheck } from '@antumi/protocol'
 import { detectedAgents, installedAgents, otherInstalledAgent } from './installed-agents'
 
 const check = (tool: EnvironmentCheck['tool'], status: EnvironmentCheck['status']): EnvironmentCheck => ({ tool, status, version: null, path: null, signedIn: null })
@@ -7,7 +7,7 @@ const environment = (...checks: EnvironmentCheck[]): Environment => ({ checks, s
 
 describe('installedAgents', () => {
   it('offers every agent until core has looked', () => {
-    expect(installedAgents(null)).toEqual(['claude', 'codex', 'cursor', 'opencode', 'pi'])
+    expect(installedAgents(null)).toEqual(AGENT_KINDS)
   })
 
   it('offers what core found, a shim it could not ask included', () => {
@@ -16,13 +16,13 @@ describe('installedAgents', () => {
   })
 
   it('offers every agent when none is found, so there is something to install', () => {
-    expect(installedAgents(environment(check('git', 'ok'), check('claude', 'missing'), check('codex', 'missing')))).toEqual(['claude', 'codex', 'cursor', 'opencode', 'pi'])
+    expect(installedAgents(environment(check('git', 'ok'), check('claude', 'missing'), check('codex', 'missing')))).toEqual(AGENT_KINDS)
   })
 
   it('leaves out the agents the user turned off', () => {
     const both = environment(check('claude', 'ok'), check('codex', 'ok'))
     expect(installedAgents(both, ['claude'])).toEqual(['codex'])
-    expect(installedAgents(null, ['codex'])).toEqual(['claude', 'cursor', 'opencode', 'pi'])
+    expect(installedAgents(null, ['codex'])).toEqual(AGENT_KINDS.filter((kind) => kind !== 'codex'))
   })
 
   it('keeps the agents found when every one is off, so there is always a choice', () => {

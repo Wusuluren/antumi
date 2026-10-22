@@ -1,5 +1,6 @@
 import type { ChatPermissionMode } from '@antumi/protocol'
 import type { AcpModel } from './acp-schema'
+import type { ChatStageOptions } from '../../chat-driver'
 
 // What one agent adds to ACP, or names its own way. AcpDriver speaks the standard protocol and
 // asks its dialect for the rest, so an agent that speaks ACP is a dialect, not a driver.
@@ -13,6 +14,9 @@ export interface AcpDialect {
   readonly modes: Partial<Record<ChatPermissionMode, string>>
   // Extensions Antumi asks for in initialize (clientCapabilities._meta).
   readonly clientMeta?: Record<string, unknown>
+  // A runtime extension that must be present before a session is opened.
+  initializeError?(result: unknown): string | null
+  startNote?(options: ChatStageOptions): string | null
   // Antumi's own MCP server reaches the agent on its command rather than in session/new: the agent
   // offers a server's tools as Antumi needs them only where its own config says so.
   readonly ownMcpOnCommand?: boolean
@@ -30,7 +34,7 @@ export interface AcpDialect {
   subagentCall?(update: unknown): string | null
   // Requests of its own: a question asked in passing, a plan to approve (accepted, it runs on in
   // the mode named), and requests Antumi just acknowledges.
-  readonly requests?: { question?: string; plan?: { method: string; runMode: ChatPermissionMode; runModeLabel: string; prompt: string }; acknowledged?: readonly string[] }
+  readonly requests?: { question?: string; plan?: { method: string; approvalTool?: string; runMode: ChatPermissionMode; runModeLabel: string; prompt: string }; acknowledged?: readonly string[] }
   // A transport error the agent wrote as the end of its reply: the reply without it, and what to say.
   providerError?(text: string): { rest: string; summary: string; detail: string } | null
 }
