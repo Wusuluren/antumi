@@ -16,7 +16,7 @@
 
 **简体中文** · [English](README.en.md)
 
-<img src="docs/assets/antumi-macbook-render.png" alt="Antumi 在 MacBook Pro 上的渲染效果：一块任务看板管理 Claude Code、Codex 和 Cursor" width="100%" />
+https://github.com/user-attachments/assets/11386a48-b8b8-4a33-a18f-a6fa4ebc4f3e
 
 </div>
 

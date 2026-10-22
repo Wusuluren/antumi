@@ -17,11 +17,11 @@ A local-first workspace for Claude Code, Codex and Cursor: conversations, tasks,
 
 [简体中文](README.md) · **English**
 
-<img src="docs/assets/antumi-macbook-render.png" alt="A rendering of Antumi on a MacBook Pro: one task board for Claude Code, Codex and Cursor" width="100%" />
+https://github.com/user-attachments/assets/11386a48-b8b8-4a33-a18f-a6fa4ebc4f3e
 
 </div>
 
-> The app's UI is currently in Chinese. The hero image is a product rendering; the feature demos below are recorded from the app's own UI.
+> The app's UI is currently in Chinese. The launch video rebuilds the app's UI with sample data; the feature demos below are recorded from the app's own UI.
 
 ## Features
 
