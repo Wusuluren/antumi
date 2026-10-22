@@ -321,7 +321,9 @@ export const ChatItem = z.discriminatedUnion('kind', [
     // Why the last try did not go through.
     error: z.string().nullable().default(null),
     // The scheduled run that continues it (schedules.list), while core has one. Older cores leave it out.
-    runId: z.string().nullable().optional()
+    runId: z.string().nullable().optional(),
+    // The account core moved the agent to, to go on at once (AgentAccount.id). Older cores leave it out.
+    switchedTo: z.string().nullable().optional()
   }),
   // A turn's checklist as it last stood, where the turn first touched it.
   Base.extend({ kind: z.literal('todos'), todos: z.array(ChatTodo) }),

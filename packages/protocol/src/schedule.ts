@@ -22,7 +22,8 @@ const ConversationTarget = z.object({
   images: z.array(AttachmentId).max(MAX_CHAT_IMAGES).optional(),
   resumes: LimitRef.optional()
 })
-const ResumeTarget = z.object({ kind: z.literal('resume'), conversationId: z.string().uuid(), stageId: z.string(), itemId: z.string() })
+// switchedTo: the account core moved the agent to when the limit came, to go on at once (AgentAccount.id).
+const ResumeTarget = z.object({ kind: z.literal('resume'), conversationId: z.string().uuid(), stageId: z.string(), itemId: z.string(), switchedTo: z.string().optional() })
 // A routine's run: opens a conversation (whose id is the run's own) for what the routine says
 // when it starts, so a routine edited meanwhile is carried out as it reads now. Core makes
 // these; a client never asks for one.

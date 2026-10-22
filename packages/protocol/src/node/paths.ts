@@ -39,6 +39,9 @@ export type AntumiPaths = {
   // The user's MCP servers; their secrets are in credentials.
   mcpServers: string
   modelProviders: string
+  // The agents' accounts, and the config folder of each but the user's own.
+  agentAccounts: string
+  agentAccountHomes: string
   // Which projects' setup and check commands the user allowed, by a hash of them.
   projectTrust: string
 }
@@ -62,6 +65,8 @@ export function antumiPaths(home: string = antumiHome()): AntumiPaths {
     skills: path.join(home, 'skills'),
     mcpServers: path.join(home, 'mcp-servers.json'),
     modelProviders: path.join(home, 'model-providers.json'),
+    agentAccounts: path.join(home, 'agent-accounts.json'),
+    agentAccountHomes: path.join(home, 'agent-accounts'),
     projectTrust: path.join(home, 'project-trust.json')
   }
 }
