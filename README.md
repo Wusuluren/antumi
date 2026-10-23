@@ -12,7 +12,7 @@
 ![Platform](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-lightgrey)
 ![Agents](https://img.shields.io/badge/agents-7%20supported-8A2BE2)
 
-[特色功能](#特色功能) · [快速开始](#快速开始) · [文档](#文档) · [更新日志](CHANGELOG.md) · [反馈](https://github.com/flyhero/antumi/issues)
+[下载](https://github.com/flyhero/antumi/releases) · [特色功能](#特色功能) · [快速开始](#快速开始) · [文档](#文档) · [更新日志](CHANGELOG.md) · [反馈](https://github.com/flyhero/antumi/issues)
 
 **简体中文** · [English](README.en.md)
 

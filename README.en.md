@@ -13,7 +13,7 @@ A local-first workspace for Claude Code, Codex, Cursor, OpenCode, Pi, DeepSeek H
 ![Platform](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-lightgrey)
 ![Agents](https://img.shields.io/badge/agents-7%20supported-8A2BE2)
 
-[Features](#features) · [Supported agents](#supported-agents) · [Getting started](#getting-started) · [Docs](#docs) · [Changelog](CHANGELOG.md) · [Feedback](https://github.com/flyhero/antumi/issues)
+[Download](https://github.com/flyhero/antumi/releases) · [Features](#features) · [Getting started](#getting-started) · [Docs](#docs) · [Changelog](CHANGELOG.md) · [Feedback](https://github.com/flyhero/antumi/issues)
 
 [简体中文](README.md) · **English**
 
