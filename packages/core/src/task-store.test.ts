@@ -4,6 +4,7 @@ import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { MIGRATIONS, TaskStore } from './task-store'
+import { applyLegacyMigrations } from './legacy-database'
 import { ProjectRegistry } from './project-registry'
 import { ConversationStore } from './conversation-store'
 import { AgentRunStore } from './agent-run-store'
@@ -23,8 +24,7 @@ describe('TaskStore migrations', () => {
 
   it('upgrades a version-1 database: the repo moves to its own table', () => {
     const raw = new DatabaseSync(file)
-    raw.exec(MIGRATIONS[0] ?? '')
-    raw.exec('PRAGMA user_version = 1')
+    applyLegacyMigrations(raw, MIGRATIONS.slice(0, 1))
     const insert = raw.prepare(
       `INSERT INTO tasks (id, title, details, status, repo_path, worktree_path, branch, created_at, updated_at)
        VALUES (?, ?, '', ?, ?, ?, ?, 0, 0)`
@@ -73,9 +73,7 @@ describe('TaskStore migrations', () => {
 
   it.each(['auto-run', 'session-imports'])('upgrades the development version 50 with %s without losing records', (feature) => {
     const raw = new DatabaseSync(file)
-    MIGRATIONS.slice(0, 49).forEach((sql) => raw.exec(sql))
-    raw.exec(MIGRATIONS[feature === 'auto-run' ? 49 : 50] ?? '')
-    raw.exec('PRAGMA user_version = 50')
+    applyLegacyMigrations(raw, [...MIGRATIONS.slice(0, 49), MIGRATIONS[feature === 'auto-run' ? 49 : 50] ?? ''])
     raw.exec("INSERT INTO tasks (id, title, status, created_at, updated_at) VALUES ('task', 'Kept task', 'pending', 1, 1)")
     if (feature === 'auto-run') raw.exec("UPDATE tasks SET auto_run = 1 WHERE id = 'task'")
     raw.exec("INSERT INTO conversations (id, title, title_locked, agent, workspace_path, managed_workspace, created_at, updated_at) VALUES ('conversation', 'Imported conversation', 0, 'claude', '/code/app', 0, 1, 1)")
@@ -120,8 +118,7 @@ describe('TaskStore migrations', () => {
     const raw = new DatabaseSync(file)
     raw.exec('PRAGMA foreign_keys = ON')
     const dropTerminal = MIGRATIONS.findIndex((sql) => sql.includes('DROP COLUMN output_offset'))
-    MIGRATIONS.slice(0, dropTerminal).forEach((sql) => raw.exec(sql))
-    raw.exec(`PRAGMA user_version = ${dropTerminal}`)
+    applyLegacyMigrations(raw, MIGRATIONS.slice(0, dropTerminal))
     const task = raw.prepare("INSERT INTO tasks (id, title, status, agent, session_id, created_at, updated_at) VALUES (?, ?, ?, 'claude', ?, 0, 0)")
     task.run('terminal-done', 'Ran in a terminal', 'done', 'pty-1')
     task.run('refined', 'Only refined', 'pending', null)
@@ -170,8 +167,7 @@ describe('TaskStore migrations', () => {
     const raw = new DatabaseSync(file)
     raw.exec('PRAGMA foreign_keys = ON')
     const fold = MIGRATIONS.findIndex((sql) => sql.includes('FROM conversation_usage_limits l'))
-    MIGRATIONS.slice(0, fold).forEach((sql) => raw.exec(sql))
-    raw.exec(`PRAGMA user_version = ${fold}`)
+    applyLegacyMigrations(raw, MIGRATIONS.slice(0, fold))
     raw.prepare(`INSERT INTO conversations (id, title, title_locked, agent, workspace_path, managed_workspace, created_at, updated_at)
       VALUES ('11111111-1111-4111-8111-111111111111', 'Payments', 0, 'claude', '/code/app', 0, 0, 0)`).run()
     raw.prepare(`INSERT INTO scheduled_runs (id, target, title, agent, position, status, created_at, updated_at)
@@ -222,8 +218,7 @@ describe('TaskStore migrations', () => {
 
   it('upgrades a version-7 database: Jira sources gain provider and instance, dismissals follow', () => {
     const raw = new DatabaseSync(file)
-    MIGRATIONS.slice(0, 7).forEach((sql) => raw.exec(sql))
-    raw.exec('PRAGMA user_version = 7')
+    applyLegacyMigrations(raw, MIGRATIONS.slice(0, 7))
     raw
       .prepare(`INSERT INTO tasks (id, title, details, status, source, created_at, updated_at) VALUES (?, ?, ?, 'pending', ?, 0, 0)`)
       .run('t1', 'Bug', '旧的导入内容', JSON.stringify({ kind: 'jira', key: 'PROJ-1', url: 'https://acme.atlassian.net/browse/PROJ-1' }))
@@ -245,8 +240,7 @@ describe('TaskStore migrations', () => {
     const raw = new DatabaseSync(file)
     // Found by content, so migrations added after it keep this test valid.
     const upgrade = MIGRATIONS.findIndex((sql) => sql.includes('ADD COLUMN project_paths'))
-    MIGRATIONS.slice(0, upgrade).forEach((sql) => raw.exec(sql))
-    raw.exec(`PRAGMA user_version = ${upgrade}`)
+    applyLegacyMigrations(raw, MIGRATIONS.slice(0, upgrade))
     raw.prepare(`INSERT INTO conversations
       (id, title, title_locked, agent, workspace_path, managed_workspace, created_at, updated_at)
       VALUES (?, '旧会话', 0, 'claude', ?, 0, 1, 1)`)
@@ -267,8 +261,7 @@ describe('TaskStore migrations', () => {
   it('adds an empty run record to a database from before runs were kept, leaving its tasks as they were', () => {
     const raw = new DatabaseSync(file)
     const upgrade = MIGRATIONS.findIndex((sql) => sql.includes('CREATE TABLE agent_runs'))
-    MIGRATIONS.slice(0, upgrade).forEach((sql) => raw.exec(sql))
-    raw.exec(`PRAGMA user_version = ${upgrade}`)
+    applyLegacyMigrations(raw, MIGRATIONS.slice(0, upgrade))
     raw.prepare("INSERT INTO tasks (id, title, details, status, agent, created_at, updated_at) VALUES ('t1', 'old', '', 'done', 'codex', 1, 1)").run()
     raw.close()
     const tasks = new TaskStore(file)
@@ -283,8 +276,7 @@ describe('TaskStore migrations', () => {
   it('gives runs and conversations their routine columns, empty on what was there before, and keeps one run per occurrence', () => {
     const raw = new DatabaseSync(file)
     const upgrade = MIGRATIONS.findIndex((sql) => sql.includes('CREATE TABLE routines'))
-    MIGRATIONS.slice(0, upgrade).forEach((sql) => raw.exec(sql))
-    raw.exec(`PRAGMA user_version = ${upgrade}`)
+    applyLegacyMigrations(raw, MIGRATIONS.slice(0, upgrade))
     raw.prepare(`INSERT INTO scheduled_runs (id, target, title, agent, position, status, created_at, updated_at)
       VALUES ('aaaaaaaa-0000-4000-8000-000000000001', '{"kind":"task","taskId":"t1"}', 'Night', 'claude', 1, 'waiting', 0, 0)`).run()
     raw.prepare(`INSERT INTO conversations (id, title, title_locked, agent, workspace_path, managed_workspace, created_at, updated_at)
