@@ -18,32 +18,34 @@ export function ActivityHeatmap({ days }: { days: readonly DashboardDay[] }) {
         <span className="dashboard-panel-note">{tr('ActivityHeatmap.activeOnDaysOverThePastYearLongest', { active: active, longest: longest })}</span>
       </header>
       <div className="dashboard-heatmap-scroll">
-        <div className="dashboard-heatmap" style={{ gridTemplateColumns: `auto repeat(${columns.length}, var(--heat-cell))` }}>
-          <span />
-          {months.map((month, index) => <span key={index} className="dashboard-heatmap-month">{month}</span>)}
-          <div className="dashboard-heatmap-weekdays">
-            {WEEKDAYS.map((name, index) => <span key={index}>{name}</span>)}
-          </div>
-          {columns.map((column, index) => (
-            <div key={index} className="dashboard-heatmap-week">
-              {column.map((day, row) =>
-                day ? (
-                  <span
-                    key={day.day}
-                    className="dashboard-heat"
-                    data-level={levels.get(day.day)}
-                    data-tooltip={t('ActivityHeatmap.taskRunsConversationTurnsQuickRequests', { value1: dayLabel(day.day), value2: day.runs, value3: day.turns, value4: day.quickRequests ?? 0 })}
-                    data-tooltip-side={index < columns.length / 2 ? 'top' : 'top-end'}
-                  />
-                ) : (
-                  <span key={`pad-${row}`} />
-                )
-              )}
+        <div className="dashboard-heatmap-body">
+          <div className="dashboard-heatmap" style={{ gridTemplateColumns: `auto repeat(${columns.length}, var(--heat-cell))` }}>
+            <span />
+            {months.map((month, index) => <span key={index} className="dashboard-heatmap-month">{month}</span>)}
+            <div className="dashboard-heatmap-weekdays">
+              {WEEKDAYS.map((name, index) => <span key={index}>{name}</span>)}
             </div>
-          ))}
+            {columns.map((column, index) => (
+              <div key={index} className="dashboard-heatmap-week">
+                {column.map((day, row) =>
+                  day ? (
+                    <span
+                      key={day.day}
+                      className="dashboard-heat"
+                      data-level={levels.get(day.day)}
+                      data-tooltip={t('ActivityHeatmap.taskRunsConversationTurnsQuickRequests', { value1: dayLabel(day.day), value2: day.runs, value3: day.turns, value4: day.quickRequests ?? 0 })}
+                      data-tooltip-side={index < columns.length / 2 ? 'top' : 'top-end'}
+                    />
+                  ) : (
+                    <span key={`pad-${row}`} />
+                  )
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="dashboard-heat-legend" aria-hidden="true">{tr('ActivityHeatmap.lessmore', { value1: [0, 1, 2, 3, 4].map((level) => <span key={level} className="dashboard-heat" data-level={level} />) })}</div>
         </div>
       </div>
-      <div className="dashboard-heat-legend" aria-hidden="true">{tr('ActivityHeatmap.lessmore', { value1: [0, 1, 2, 3, 4].map((level) => <span key={level} className="dashboard-heat" data-level={level} />) })}</div>
     </section>
   )
 }
