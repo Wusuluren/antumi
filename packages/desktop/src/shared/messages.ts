@@ -271,6 +271,10 @@ export const MESSAGES = {
     "zh": "查看图片",
     "en": "View image"
   },
+  "chatTools.generateImage": {
+    "zh": "生成图片",
+    "en": "Generate image"
+  },
   "chatTools.write": {
     "zh": "写入",
     "en": "Write"

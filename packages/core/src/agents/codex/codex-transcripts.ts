@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { CODEX_IMAGE_VIEW, CONTEXT_COMPACTED } from '@antumi/protocol'
+import { CODEX_IMAGE_GENERATION, CODEX_IMAGE_VIEW, CONTEXT_COMPACTED } from '@antumi/protocol'
 import { z } from 'zod'
 import { clip, type ChatItemBody } from '../../chat-items'
 import { findFiles, parseLine, readHead, readLines, SummaryCache, timeOf, titleOf, type Transcript, type TranscriptEntry, type TranscriptMessage, type TranscriptSource, type TranscriptSummary } from '../../agent-transcripts'
@@ -43,7 +43,12 @@ const Item = z.looseObject({
   result: z.looseObject({ content: z.array(Text).catch([]) }).nullish().catch(null),
   error: z.unknown().optional(),
   query: z.string().nullish(),
-  path: z.string().optional()
+  path: z.string().optional(),
+  // An Extension item says what it was: a web search, or a picture drawn and saved.
+  kind: z.string().optional(),
+  revisedPrompt: z.string().nullish(),
+  savedPath: z.string().nullish(),
+  failure: z.union([z.string(), z.looseObject({ message: z.string().optional() })]).nullish().catch(null)
 })
 type Item = z.infer<typeof Item>
 const Args = z.record(z.string(), z.unknown()).catch({})
@@ -175,8 +180,13 @@ function itemBody(item: Item, id: string): ChatItemBody | null {
         diffs: []
       }
     }
-    case 'WebSearch':
     case 'Extension':
+      if (item.kind === 'image_gen.generation') {
+        const failure = typeof item.failure === 'string' ? item.failure : item.failure?.message ?? null
+        return { id: `t:${id}`, kind: 'tool', name: CODEX_IMAGE_GENERATION, title: item.savedPath ?? '', input: item.revisedPrompt ? clip(item.revisedPrompt, 4000) : null, status: item.status === 'failed' || failure !== null ? 'failed' : 'done', output: failure, diffs: [] }
+      }
+      return item.query ? { id: `t:${id}`, kind: 'tool', name: 'webSearch', title: item.query, input: null, status: 'done', output: null, diffs: [] } : null
+    case 'WebSearch':
       return item.query ? { id: `t:${id}`, kind: 'tool', name: 'webSearch', title: item.query, input: null, status: 'done', output: null, diffs: [] } : null
     case 'ImageView':
       return item.path ? { id: `t:${id}`, kind: 'tool', name: CODEX_IMAGE_VIEW, title: item.path.replace(/^file:\/\//, ''), input: null, status: 'done', output: null, diffs: [] } : null

@@ -1,5 +1,5 @@
 import { localized, t } from './i18n'
-import { BROWSER_HOST_TOOL, browserToolKind, historyToolKind, isPreviewTool, isTerminalRunTool, terminalToolKind, todoToolKind, type TodoToolKind, type BrowserToolKind, type ChatDiff, type ChatItem, type ChatToolStatus, type TerminalToolKind } from '@antumi/protocol'
+import { BROWSER_HOST_TOOL, browserToolKind, CODEX_IMAGE_GENERATION, historyToolKind, isPreviewTool, isTerminalRunTool, terminalToolKind, todoToolKind, type TodoToolKind, type BrowserToolKind, type ChatDiff, type ChatItem, type ChatToolStatus, type TerminalToolKind } from '@antumi/protocol'
 import { browserOperation } from './browser-activity'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
@@ -11,6 +11,7 @@ const TOOL_LABEL: Record<string, string> = localized(() => ({
   Monitor: t('chatTools.monitor'),
   Read: t('chatTools.read'),
   imageView: t('chatTools.viewImage'),
+  [CODEX_IMAGE_GENERATION]: t('chatTools.generateImage'),
   Write: t('chatTools.write'),
   Edit: t('chatTools.edit'),
   MultiEdit: t('chatTools.edit'),
@@ -92,7 +93,7 @@ const TOOL_ICONS: Record<string, ToolIconKind> = {
   Read: 'read', Write: 'edit', Edit: 'edit', MultiEdit: 'edit', NotebookEdit: 'edit', fileChange: 'edit',
   Bash: 'terminal', commandExecution: 'terminal', Monitor: 'terminal',
   Grep: 'search', Glob: 'search', WebSearch: 'search', webSearch: 'search',
-  WebFetch: 'browser', [BROWSER_HOST_TOOL]: 'browser', imageView: 'image',
+  WebFetch: 'browser', [BROWSER_HOST_TOOL]: 'browser', imageView: 'image', [CODEX_IMAGE_GENERATION]: 'image',
   Task: 'agent', Agent: 'agent', spawnAgent: 'agent', TodoWrite: 'list', ExitPlanMode: 'list',
   read: 'read', search: 'search', fetch: 'browser', delete: 'edit', move: 'edit'
 }

@@ -1,7 +1,7 @@
 import { stripAnsi } from '../../ansi-text'
 import type { ModelTokens } from '@antumi/protocol'
 import { z } from 'zod'
-import { browserToolKind, ChatPermissionMode, CODEX_IMAGE_VIEW, CONTEXT_COMPACTED, takeImageMarkers, type ChatDecision, type ChatDiff, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatQuestion, type ChatTodo, type ChatToolStatus, type ChatTurnActivity, type ChatTurnState } from '@antumi/protocol'
+import { browserToolKind, ChatPermissionMode, CODEX_IMAGE_GENERATION, CODEX_IMAGE_VIEW, CONTEXT_COMPACTED, takeImageMarkers, type ChatDecision, type ChatDiff, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatQuestion, type ChatTodo, type ChatToolStatus, type ChatTurnActivity, type ChatTurnState } from '@antumi/protocol'
 import { choiceDecisions, codexAnswerAllows, codexChoiceOf, codexChoices, type CodexChoice } from '../../approval-choices'
 import { describeBrowserTool, showBrowserInput } from '../../browser-tools'
 import { keepImageBlocks, markKeptImages, stripImageBytes } from '../../image-frames'
@@ -66,6 +66,10 @@ const Item = z.looseObject({
   error: z.looseObject({ message: z.string().optional() }).nullish(),
   // The picture an imageView item looked at.
   path: z.string().optional(),
+  // What an imageGeneration item drew, where Codex saved it, and why it could not.
+  revisedPrompt: z.string().nullish(),
+  savedPath: z.string().nullish(),
+  failure: z.union([z.string(), z.looseObject({ message: z.string().optional() })]).nullish().catch(null),
   query: z.string().optional(),
   prompt: z.string().nullish(),
   receiverThreadIds: z.array(z.string()).catch([]).optional(),
@@ -73,6 +77,14 @@ const Item = z.looseObject({
 })
 type Item = z.infer<typeof Item>
 const ItemEvent = z.looseObject({ item: Item })
+const DrawnEvent = z.looseObject({ item: z.looseObject({ type: z.literal(CODEX_IMAGE_GENERATION), result: z.string().min(1) }) })
+
+// A picture Codex drew is on disk where it saved it, which the chat shows it from: the log keeps
+// the item without its bytes, megabytes each.
+function withoutDrawnBytes(frame: Frame): Frame {
+  const event = DrawnEvent.safeParse(frame.params)
+  return event.success ? { ...frame, params: { ...event.data, item: { ...event.data.item, result: '' } } } : frame
+}
 const Delta = z.looseObject({ itemId: z.string(), delta: z.string() })
 const TurnEvent = z.looseObject({
   turn: z.looseObject({
@@ -785,7 +797,7 @@ export class CodexAppServer implements ChatDriver {
       return startup.success && this.unreachableUserMcp(startup.data) ? { method, params: { name: startup.data.name, status: startup.data.status, userMcp: true } } : null
     }
     const kept = ['thread/started', 'turn/started', 'turn/completed', 'turn/plan/updated', 'item/started', 'item/completed', 'serverRequest/resolved', 'error']
-    return kept.includes(method) ? stripImageBytes(this.withKeptImages(parsed.data)) : null
+    return kept.includes(method) ? stripImageBytes(this.withKeptImages(withoutDrawnBytes(parsed.data))) : null
   }
 
   // Codex reports every server it starts, its own config's too; only the user's that Antumi handed
@@ -1284,6 +1296,22 @@ export class CodexAppServer implements ChatDriver {
         this.items.put({ id: toolId, kind: 'tool', name: CODEX_IMAGE_VIEW, title: item.path, input: null, status: completed ? 'done' : 'running', output: null, diffs: [] }, at)
         return
       }
+      case CODEX_IMAGE_GENERATION: {
+        // Shown from the file it saved, like an imageView; the bytes it also sends are left out.
+        const failure = typeof item.failure === 'string' ? item.failure : item.failure?.message ?? null
+        const failed = item.status === 'failed' || failure !== null
+        this.items.put({
+          id: toolId,
+          kind: 'tool',
+          name: CODEX_IMAGE_GENERATION,
+          title: item.savedPath ?? '',
+          input: item.revisedPrompt ? clip(item.revisedPrompt, 4000) : null,
+          status: completed ? this.settled(failed ? 'failed' : 'done') : 'running',
+          output: failure,
+          diffs: []
+        }, at)
+        return
+      }
       case 'webSearch': {
         this.items.put({ id: toolId, kind: 'tool', name: 'webSearch', title: item.query ?? '', input: null, status: completed ? 'done' : 'running', output: null, diffs: [] }, at)
         return
@@ -1565,6 +1593,8 @@ export class CodexAppServer implements ChatDriver {
     this.queue.turnEnded(state)
     for (const item of this.items.list()) {
       if (item.kind === 'assistant' && item.streaming) this.items.put({ ...item, streaming: false }, at)
+      // Unlike a command, a picture never outlives its turn: one still drawing was given up on.
+      if (item.kind === 'tool' && item.name === CODEX_IMAGE_GENERATION && item.status === 'running') this.items.put({ ...item, status: 'failed' }, at)
     }
     for (const [requestId, pending] of [...this.pending]) {
       if (pending.kind !== 'plan') this.resolve(requestId, 'cancelled', null, at)

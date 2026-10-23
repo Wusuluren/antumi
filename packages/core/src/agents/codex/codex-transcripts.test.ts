@@ -62,6 +62,22 @@ describe('codexTranscript', () => {
     const lines = [meta(), said('user', '<environment_context>…</environment_context>'), said('user', 'Hello'), said('assistant', 'Hi')].map((line) => JSON.stringify(line))
     expect(codexTranscript(lines).entries.map((entry) => [entry.item.kind, 'text' in entry.item ? entry.item.text : ''])).toEqual([['user', 'Hello'], ['assistant', 'Hi']])
   })
+
+  // codex-cli 0.160: image_gen records its picture as an Extension item, the bytes and where it saved them.
+  it('shows a picture Codex drew from where it saved it, and a web search as one', () => {
+    const lines = [
+      meta(),
+      event(1, { type: 'task_started', turn_id: 't1' }),
+      done(2, 't1', { type: 'Extension', kind: 'image_gen.generation', id: 'exec-1', status: 'completed', revisedPrompt: 'A felt ant', result: 'iVBORw0KGgo', transparentBackground: false, failure: null, savedPath: '/home/me/.codex/generated_images/t/exec-1.png' }),
+      done(3, 't1', { type: 'Extension', kind: 'web.search', id: 'exec-2', query: 'felt ants', action: { type: 'search' } }),
+      event(4, { type: 'task_complete', turn_id: 't1', last_agent_message: null })
+    ].map((line) => JSON.stringify(line))
+    const tools = codexTranscript(lines).entries.flatMap((entry) => entry.item.kind === 'tool' ? [entry.item] : [])
+    expect(tools).toMatchObject([
+      { name: 'imageGeneration', title: '/home/me/.codex/generated_images/t/exec-1.png', input: 'A felt ant', status: 'done', output: null },
+      { name: 'webSearch', title: 'felt ants' }
+    ])
+  })
 })
 
 describe('codexTranscripts', () => {

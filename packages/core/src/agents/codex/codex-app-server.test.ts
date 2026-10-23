@@ -1041,6 +1041,28 @@ describe('CodexAppServer usage limits', () => {
     driver.apply({ dir: 'in', at: 2, frame: { method: 'item/completed', params: { item: { type: 'imageView', id: 'i2', path: '/tmp/shot.png' } } } })
     expect(driver.items.get('t:i2')).toMatchObject({ kind: 'tool', name: 'imageView', title: '/tmp/shot.png', status: 'done' })
   })
+
+  // codex-cli 0.160: image_gen sends the picture's bytes and where it saved them.
+  it('shows a picture Codex drew from where it saved it', () => {
+    const driver = new CodexAppServer('stage-1', OPTIONS)
+    const started = { type: 'imageGeneration', id: 'g1', status: 'in_progress', result: '', transparentBackground: null, failure: null }
+    driver.apply({ dir: 'in', at: 1, frame: { method: 'item/started', params: { item: started } } })
+    expect(driver.items.get('t:g1')).toMatchObject({ kind: 'tool', name: 'imageGeneration', title: '', status: 'running' })
+
+    const saved = { ...started, status: 'completed', revisedPrompt: 'A felt ant', result: 'iVBORw0KGgo', transparentBackground: false, savedPath: '/tmp/generated/g1.png' }
+    const completed = { method: 'item/completed', params: { item: saved } }
+    driver.apply({ dir: 'in', at: 2, frame: completed })
+    expect(driver.items.get('t:g1')).toMatchObject({ title: '/tmp/generated/g1.png', input: 'A felt ant', status: 'done', output: null })
+    expect(driver.logged(completed)).toEqual({ method: 'item/completed', params: { item: { ...saved, result: '' } } })
+
+    driver.apply({ dir: 'in', at: 3, frame: { method: 'item/completed', params: { item: { ...started, id: 'g2', status: 'failed', failure: 'moderation_blocked' } } } })
+    expect(driver.items.get('t:g2')).toMatchObject({ status: 'failed', output: 'moderation_blocked' })
+
+    // Codex gave up on one that never came back, and drew it again.
+    driver.apply({ dir: 'in', at: 4, frame: { method: 'item/started', params: { item: { ...started, id: 'g3' } } } })
+    driver.apply({ dir: 'in', at: 5, frame: { method: 'turn/completed', params: { turn: { id: 'turn-1', status: 'completed' } } } })
+    expect(driver.items.get('t:g3')).toMatchObject({ status: 'failed' })
+  })
 })
 
 describe('CodexAppServer commands that outlive their turn', () => {

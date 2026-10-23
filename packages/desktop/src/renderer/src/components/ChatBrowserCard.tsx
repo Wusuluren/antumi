@@ -1,6 +1,6 @@
 import { t, tr } from '../i18n'
 import { useContext, useEffect, useRef, useState, type RefObject } from 'react'
-import { browserToolKind, toolImagePath, type ChatItem } from '@antumi/protocol'
+import { browserToolKind, CODEX_IMAGE_GENERATION, toolImagePath, type ChatItem } from '@antumi/protocol'
 import { useImageUrl } from '../attachment-images'
 import { useNearView } from '../near-view'
 import { ChatFindExpansion, useDisclosure } from '../chat-disclosure'
@@ -89,7 +89,7 @@ export function ChatBrowserCard({ item }: { item: ToolItem }) {
 // A call that brought back pictures, or looked at one on disk. Pictures it brought back are the
 // point, so they show whole under the call's line: a browser screenshot, an MCP one. A picture it
 // read is mostly the agent checking its own work, often shown again as a preview, so it waits
-// behind a click and is only loaded once opened.
+// behind a click and is only loaded once opened. One it drew is the point again, and shows whole.
 export function ChatShotCard({ item }: { item: ToolItem }) {
   const searching = useContext(ChatFindExpansion)
   const [open, setOpen] = useDisclosure(`card:${itemKey(item)}`)
@@ -97,8 +97,9 @@ export function ChatShotCard({ item }: { item: ToolItem }) {
   const shorten = useContext(ChatPaths)
   const images = item.images ?? []
   const path = item.status === 'failed' || item.status === 'denied' ? null : toolImagePath(item)
+  const drawn = item.name === CODEX_IMAGE_GENERATION
   const output = outputBeside(item.output, images.length > 0 || path !== null)
-  const details = Boolean(item.input || output || path)
+  const details = Boolean(item.input || output || (path && !drawn))
   return (
     <div className="chat-tool chat-browser" data-status={item.status}>
       <button type="button" className="chat-tool-header" aria-expanded={details ? open : undefined} disabled={!details} onClick={() => setOpen(!open)}>
@@ -110,7 +111,7 @@ export function ChatShotCard({ item }: { item: ToolItem }) {
       </button>
       {item.status === 'running' && <ChatBrowserWindow tools={[item]} />}
       {images.map((image, index) => <BrowserShot key={image.id} image={image} onOpen={() => setViewing(index)} />)}
-      {open && path && <FileShot path={path} />}
+      {path && (open || drawn) && <FileShot path={path} />}
       {open && item.input && <ChatToolInput name={item.name} input={item.input} />}
       {open && output && <pre className="chat-tool-io">{searching ? output : clipped(output)}</pre>}
       {viewing !== null && images.length > 0 && (

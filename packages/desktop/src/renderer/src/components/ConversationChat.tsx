@@ -3,7 +3,7 @@ import { HelperTurnCost } from './HelperTurnCost'
 import { addQuote } from '../chat-quotes'
 import { focusChatInput } from '../helper-conversations'
 import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { cursorProviderError, isBrowserTool, isPlanApproval, isPreviewTool, parseHandoffMessage, toolImagePath, type AgentKind, type ChatItem, type Conversation, type ConversationStage } from '@antumi/protocol'
+import { CODEX_IMAGE_GENERATION, cursorProviderError, isBrowserTool, isPlanApproval, isPreviewTool, parseHandoffMessage, toolImagePath, type AgentKind, type ChatItem, type Conversation, type ConversationStage } from '@antumi/protocol'
 import { firstBrowserCall, shouldOpenBrowser } from '../browser-state'
 import { ChatBrowserCard, ChatBrowserRun, ChatShotCard } from './ChatBrowserCard'
 import { chatBlocks, dropChat, finalReplies, foldsOfTools, itemKey, pathShortener, prependChatPage, previousTodos, saidText, setChatPage, stageAgents, thoughtDurations, timeline, useChat, type ChatBlock, type TimelineEntry, type TurnAgent, type TurnFile } from '../chat-state'
@@ -358,7 +358,7 @@ function Item({ conversationId, item, completedAt, blockKey }: { conversationId:
     case 'tool':
       if (isPreviewTool(item.name)) return <ChatPreviewCard conversationId={conversationId} item={item} />
       if (isBrowserTool(item.name)) return <ChatBrowserCard item={item} />
-      return item.images?.length || toolImagePath(item) ? <ChatShotCard item={item} /> : <ChatToolCard item={item} />
+      return item.images?.length || toolImagePath(item) || item.name === CODEX_IMAGE_GENERATION ? <ChatShotCard item={item} /> : <ChatToolCard item={item} />
     case 'approval':
       return isPlanApproval(item) ? <ChatPlanLine item={item} /> : <ChatRequestLine item={item} />
     case 'question':
