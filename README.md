@@ -201,7 +201,8 @@ codesign --force --deep --sign - /Applications/Antumi.app
 | 管理 worktree、分支、合并冲突 | [技术架构 · Worktree 与 Git](docs/ARCHITECTURE.md#3-worktree-与-git) |
 | 了解各 Agent 怎么接入、权限模式对应什么 | [技术架构 · Agent 接入与聊天](docs/ARCHITECTURE.md#4-agent-接入与聊天) |
 | 让 Agent 用浏览器验证页面 | [技术架构 · 内置浏览器](docs/ARCHITECTURE.md#5-内置浏览器) |
-| 写一个任务来源插件 | [插件](docs/PLUGINS.md) |
+| 安装任务或 Bug 来源 | [新手指导 · 来源安装](docs/GETTING-STARTED.md#第四步安装任务或-bug-来源) |
+| 写一个任务来源插件 | [插件开发指南](docs/PLUGINS.md#开发一个任务来源插件) |
 | 打包、安装、卸载 | [技术架构 · 打包与安装](docs/ARCHITECTURE.md#8-打包与安装) |
 | 发布新版本 | [技术架构 · 自动发布](docs/ARCHITECTURE.md#自动发布) |
 | 看每个版本改了什么 | [CHANGELOG.md](CHANGELOG.md) |

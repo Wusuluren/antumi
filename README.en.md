@@ -180,7 +180,8 @@ The documentation is in Chinese for now.
 | Manage worktrees, branches and merge conflicts | [Architecture · Worktrees and Git](docs/ARCHITECTURE.md#3-worktree-与-git) |
 | See how each agent is integrated and what the permission modes map to | [Architecture · Agents and chat](docs/ARCHITECTURE.md#4-agent-接入与聊天) |
 | Let agents verify pages in the browser | [Architecture · Built-in browser](docs/ARCHITECTURE.md#5-内置浏览器) |
-| Write a task-source plugin | [Plugins](docs/PLUGINS.md) |
+| Install a task or bug source | [Getting started · Source plugins](docs/GETTING-STARTED.en.md#step-4-install-a-task-or-bug-source) |
+| Write a task-source plugin | [Plugin development](docs/PLUGINS.md#开发一个任务来源插件) |
 | Package, install, uninstall | [Architecture · Packaging](docs/ARCHITECTURE.md#8-打包与安装) |
 | Publish a release | [Architecture · Automated releases](docs/ARCHITECTURE.md#自动发布) |
 | See what changed in each release | [CHANGELOG.md](CHANGELOG.md) |

@@ -40,6 +40,31 @@ When you start a conversation or a task, pick this plan in the **Provider** cont
 
 Conversation history stays put, so the same conversation carries on after a switch.
 
+## Step 4: Install a task or bug source
+
+**Optional.** To bring tasks, bugs or stories from GitHub, Jira, Linear or ZenTao into Antumi, install that platform's source plugin first. You can create tasks by hand and chat without one.
+
+1. Open **Settings → Plugins → Recommended plugins**, find your platform and click **Install plugin**. Antumi downloads its ZIP from the plugin's own GitHub Release at this point; task sources are installed separately from the app.
+2. Once installed, open **Settings → Integrations → the source's name**. Fill in the site and filters, then click **Save settings**.
+3. Click **Sign in** and enter the platform's API key or token when prompted; Jira also needs your sign-in email. Turn on **Sync to inbox**.
+4. Open **Inbox** in the sidebar and click **Sync now**. Matching issues are synced periodically after that.
+5. Pick an issue and click **Import task**, then choose the task's projects and agent. You can also **Investigate in chat** first.
+
+| Source | Main settings |
+|---|---|
+| GitHub | Personal access token and a search query. To focus on bugs, add `is:issue label:bug` to your query, using the repository's actual label name |
+| Jira | Site, sign-in email, API token and JQL; filter bugs using the issue type configured in your Jira |
+| Linear | Personal API key, with team, project, assignee and state filters |
+| ZenTao | Full RESTful API v1 URL, such as `https://zentao.company.com/zentao/api.php/v1`, plus a token, item type and execution / product ID. For bugs, choose **Bug** and enter the product ID |
+
+ZenTao supports your own domain, port and deployment subdirectory. This computer must be able to reach an internal site. Changing the site requires signing in again.
+
+For a source outside the recommendations, use **Install from another source**, select **GitHub Release** and enter `owner/repository`, or choose a local ZIP supplied by the developer. Confirm that you trust a third-party plugin before installing it. Its developer needs to publish a Release with a plugin ZIP; a repository with only source code or no published package cannot be installed this way yet.
+
+If nothing appears, check sign-in and **Sync to inbox**, then check whether the filters are too narrow or the account lacks project access. **Settings → Plugins** lets you check for updates, disable or uninstall a plugin. Source settings, credentials and tasks already imported are kept.
+
+To develop a source of your own, see the [plugin development guide](https://github.com/flyhero/antumi/blob/main/docs/PLUGINS.md).
+
 ## Using it
 
 None of the following has to be set up before you start.
