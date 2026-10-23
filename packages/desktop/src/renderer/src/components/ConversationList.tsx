@@ -31,11 +31,11 @@ const COMPARE: Record<SortBy, (a: Conversation, b: Conversation) => number> = {
   title: (a, b) => a.title.localeCompare(b.title, getLocale())
 }
 
-// A group shows its first few rows until asked for the rest; the open conversation stays in sight
-// wherever it falls.
+// A group shows its first few rows, and a few more each time it is asked; the open conversation
+// stays in sight wherever it falls.
 export const GROUP_LIMIT = 6
-export function shownRows(items: Conversation[], selected: string | null): Conversation[] {
-  return items.filter((conversation, index) => index < GROUP_LIMIT || conversation.id === selected)
+export function shownRows(items: Conversation[], selected: string | null, limit = GROUP_LIMIT): Conversation[] {
+  return items.filter((conversation, index) => index < limit || conversation.id === selected)
 }
 
 // Groups keep a fixed order where there is one (running first, agents as listed);
@@ -243,13 +243,11 @@ export function ConversationList() {
     const id = foldKey(key)
     setPreference('foldedConversationGroups', folded.includes(id) ? folded.filter((each) => each !== id) : [...folded, id])
   }
-  // Groups showing all their rows; a search shows every row anyway.
-  const [expanded, setExpanded] = useState<string[]>([])
-  const isExpanded = (key: string) => searching || expanded.includes(foldKey(key))
-  const toggleExpanded = (key: string) => {
-    const id = foldKey(key)
-    setExpanded((current) => (current.includes(id) ? current.filter((each) => each !== id) : [...current, id]))
-  }
+  // How many rows each group shows beyond the first few; a search shows every row anyway.
+  const [limits, setLimits] = useState<Record<string, number>>({})
+  const limitOf = (key: string) => searching ? Infinity : limits[foldKey(key)] ?? GROUP_LIMIT
+  const showMore = (key: string) => setLimits((current) => ({ ...current, [foldKey(key)]: limitOf(key) + GROUP_LIMIT }))
+  const showLess = (key: string) => setLimits(({ [foldKey(key)]: _gone, ...rest }) => rest)
   const [menu, setMenu] = useState<{ id: string; at: MenuPoint } | null>(null)
   const closeMenu = useCallback(() => setMenu(null), [])
   const [viewAt, setViewAt] = useState<MenuPoint | null>(null)
@@ -352,15 +350,27 @@ export function ConversationList() {
               )}
             </h3>
             {!isFolded(group.key) && <ul>
-              {(isExpanded(group.key) ? group.items : shownRows(group.items, selected)).map((conversation) => row(conversation, group.key === 'pinned' ? 'none' : groupBy))}
-              {!searching && group.items.length > GROUP_LIMIT && (
-                <li>
-                  <button type="button" className="conversation-group-more" aria-expanded={isExpanded(group.key)} onClick={() => toggleExpanded(group.key)}>
-                    {isExpanded(group.key) ? t('ConversationList.showLess') : t('ConversationList.showMore', { hidden: group.items.length - shownRows(group.items, selected).length })}
-                    <ChevronDownIcon />
-                  </button>
-                </li>
-              )}
+              {shownRows(group.items, selected, limitOf(group.key)).map((conversation) => row(conversation, group.key === 'pinned' ? 'none' : groupBy))}
+              {!searching && group.items.length > GROUP_LIMIT && (() => {
+                const hidden = group.items.length - shownRows(group.items, selected, limitOf(group.key)).length
+                const more = limitOf(group.key) > GROUP_LIMIT
+                return (
+                  <li className="conversation-group-more-row">
+                    {hidden > 0 && (
+                      <button type="button" className="conversation-group-more" onClick={() => showMore(group.key)}>
+                        {t('ConversationList.showMore', { hidden })}
+                        <ChevronDownIcon />
+                      </button>
+                    )}
+                    {more && (
+                      <button type="button" className="conversation-group-more" data-beside={hidden > 0 || undefined} aria-expanded onClick={() => showLess(group.key)}>
+                        {t('ConversationList.showLess')}
+                        {hidden === 0 && <ChevronDownIcon />}
+                      </button>
+                    )}
+                  </li>
+                )
+              })()}
             </ul>}
           </section>)}
       {archived.length > 0 && (

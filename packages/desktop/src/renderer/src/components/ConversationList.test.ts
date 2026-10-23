@@ -33,4 +33,9 @@ describe('shownRows', () => {
     expect(shownRows(items, 'c8').map((each) => each.id)).toEqual([...items.slice(0, GROUP_LIMIT).map((each) => each.id), 'c8'])
     expect(shownRows(items.slice(0, 3), 'c1')).toHaveLength(3)
   })
+
+  it('shows a few more rows each time the group is asked for them', () => {
+    expect(shownRows(items, null, GROUP_LIMIT + 2).map((each) => each.id)).toEqual(items.slice(0, GROUP_LIMIT + 2).map((each) => each.id))
+    expect(shownRows(items, null, GROUP_LIMIT * 2)).toHaveLength(9)
+  })
 })

@@ -610,6 +610,9 @@ body.stacked-panel-resizing * {
 .conversation-group-more:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .conversation-group-more svg { width: 12px; height: 12px; flex-shrink: 0; transition: transform 0.15s; }
 .conversation-group-more[aria-expanded='true'] svg { transform: rotate(180deg); }
+.conversation-group-more-row { display: flex; }
+/* Show less beside show more: only as wide as its word. */
+.conversation-group-more[data-beside] { width: auto; flex-shrink: 0; padding-left: 12px; }
 /* Centered in the row's 16px icon column, on the title's first line, like a task's status icon. */
 /* The mark before a conversation's name: a ring when nothing is going on, a spinner while its agent
    works, a dot for what wants the user: amber and pulsing when it waits on them, red when it failed,
