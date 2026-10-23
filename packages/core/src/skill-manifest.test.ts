@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { fileSource, parseSkillFrontmatter, readPluginManifest, scanSkills, skillEntry } from './skill-manifest'
+import { fileSource, parseSkillFrontmatter, readPluginManifest, rootSkillEntry, scanSkills, skillEntry } from './skill-manifest'
 
 describe('parseSkillFrontmatter', () => {
   it('reads bare, quoted and block scalars, and leaves the rest', () => {
@@ -27,6 +27,16 @@ describe('skillEntry', () => {
     expect(skillEntry('notes', 'skills/notes', '---\nname: notes\n---\n').problem).toBe('缺少 description')
     expect(skillEntry('notes', 'skills/notes', `---\nname: notes\ndescription: ${'x'.repeat(1025)}\n---\n`).problem).toMatch(/超过/)
     expect(skillEntry('My Skill', 'skills/My Skill', valid)).toMatchObject({ name: 'my-skill', problem: '目录名只能用小写字母、数字和连字符' })
+  })
+})
+
+describe('rootSkillEntry', () => {
+  it('names a repository-wide skill by its frontmatter, and tells what is wrong with it', () => {
+    expect(rootSkillEntry('---\nname: ip-as-logo\ndescription: Draws.\n---\n')).toEqual({ name: 'ip-as-logo', description: 'Draws.', dir: '.', problem: null })
+    expect(rootSkillEntry('# no frontmatter').problem).toBe('SKILL.md 没有 frontmatter')
+    expect(rootSkillEntry('---\ndescription: Draws.\n---\n')).toMatchObject({ name: 'skill', problem: '缺少 name' })
+    expect(rootSkillEntry('---\nname: IP Logo\ndescription: Draws.\n---\n')).toMatchObject({ name: 'ip-logo', problem: 'name 只能用小写字母、数字和连字符' })
+    expect(rootSkillEntry('---\nname: logo\n---\n').problem).toBe('缺少 description')
   })
 })
 
@@ -55,6 +65,18 @@ describe('scanSkills', () => {
     mkdirSync(path.join(repo, 'docs'))
     mkdirSync(path.join(repo, '.git'))
     expect(await scanSkills(fileSource(repo))).toEqual([{ name: 'notes', description: 'Does notes.', dir: 'notes', problem: null }])
+  })
+
+  it('takes a SKILL.md at the root as the one skill the repository is, its subfolders as its files', async () => {
+    writeFileSync(path.join(repo, 'SKILL.md'), '---\nname: ip-as-logo\ndescription: Draws a logo.\n---\n')
+    mkdirSync(path.join(repo, 'assets'))
+    expect(await scanSkills(fileSource(repo))).toEqual([{ name: 'ip-as-logo', description: 'Draws a logo.', dir: '.', problem: null }])
+  })
+
+  it('takes skills/ over a SKILL.md at the root, which then only tells of the repository', async () => {
+    writeFileSync(path.join(repo, 'SKILL.md'), '---\nname: overview\ndescription: All of them.\n---\n')
+    skill('skills', 'notes')
+    expect((await scanSkills(fileSource(repo))).map((entry) => entry.name)).toEqual(['notes'])
   })
 
   it('reads the plugin manifest where there is one', async () => {

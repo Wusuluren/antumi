@@ -112,4 +112,23 @@ describe('SkillsLibrary', () => {
     expect(existsSync(path.join(root, 'home', 'skills', 'repos', 'root-upstream'))).toBe(false)
     expect(JSON.parse(readFileSync(path.join(root, 'home', 'skills', 'skills.json'), 'utf8'))).toEqual({ version: 1, repos: [] })
   })
+
+  // As s1dashu/ip-as-logo-skill publishes one: the repository is the skill, named apart from it.
+  it('installs a repository that is one skill, and bundles it without its git folder', async () => {
+    rmSync(path.join(upstream, 'skills'), { recursive: true })
+    writeFileSync(path.join(upstream, 'SKILL.md'), '---\nname: ip-as-logo\ndescription: Draws a logo.\n---\n')
+    mkdirSync(path.join(upstream, 'assets'))
+    writeFileSync(path.join(upstream, 'assets', 'sample.txt'), 'sample')
+    commit('one skill')
+    const repo = await library.install(url())
+    expect(repo.skills).toEqual([{ name: 'ip-as-logo', description: 'Draws a logo.', dir: '.', problem: null }])
+    const bundle = await library.bundleFor([{ repo: repo.id, skill: 'ip-as-logo' }])
+    const skillDir = path.join(bundle?.dir ?? '', 'skills', 'ip-as-logo')
+    expect(readFileSync(path.join(skillDir, 'SKILL.md'), 'utf8')).toContain('name: ip-as-logo')
+    expect(readFileSync(path.join(skillDir, 'assets', 'sample.txt'), 'utf8')).toBe('sample')
+    expect(existsSync(path.join(skillDir, '.git'))).toBe(false)
+    writeFileSync(path.join(upstream, 'SKILL.md'), '---\nname: ip-as-logo\ndescription: Draws a smaller logo.\n---\n')
+    commit('shorter')
+    expect((await library.checkUpdate(repo.id)).skills).toEqual([{ name: 'ip-as-logo', description: 'Draws a smaller logo.', dir: '.', problem: null }])
+  })
 })

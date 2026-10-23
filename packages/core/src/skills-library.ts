@@ -99,7 +99,7 @@ export class SkillsLibrary {
         await writeGit(tmp, ['checkout', '--detach', '--quiet', commit])
         const source = fileSource(tmp)
         const skills = await scanSkills(source)
-        if (!skills.some((skill) => skill.problem === null)) throw new Rejection('skills-none-found', '仓库里没有可用的技能（skills/<名字>/SKILL.md）')
+        if (!skills.some((skill) => skill.problem === null)) throw new Rejection('skills-none-found', '仓库里没有可用的技能（根目录的 SKILL.md，或 skills/<名字>/SKILL.md）')
         const plugin = await readPluginManifest(source)
         await rm(this.repoDir(id), { recursive: true, force: true })
         await rename(tmp, this.repoDir(id))

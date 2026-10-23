@@ -28,10 +28,12 @@ export function bundleKey(entries: readonly Entry[]): string {
   return createHash('sha256').update(`${BUNDLE_PLUGIN.name}\n${pinned}`).digest('hex').slice(0, 16)
 }
 
-// Files and folders only: a link in a repository could point a bundle anywhere on the machine.
+// Files and folders only: a link in a repository could point a bundle anywhere on the machine. Git's
+// own folder stays out, there whenever a skill is the whole repository.
 async function copyTree(from: string, to: string, budget: { left: number }): Promise<void> {
   await mkdir(to, { recursive: true })
   for (const entry of await readdir(from, { withFileTypes: true })) {
+    if (entry.name === '.git') continue
     const source = path.join(from, entry.name)
     const target = path.join(to, entry.name)
     if (entry.isDirectory()) await copyTree(source, target, budget)

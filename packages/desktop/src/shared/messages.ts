@@ -7224,8 +7224,8 @@ export const MESSAGES = {
     "en": "Repository URL"
   },
   "SkillsSettingsSection.onlyHttpsUrlsTheRepositoryMustContainSkills": {
-    "zh": "只接受 https:// 地址，仓库里要有 skills/<名字>/SKILL.md。",
-    "en": "Only https:// URLs. The repository must contain skills/<name>/SKILL.md."
+    "zh": "只接受 https:// 地址，仓库根目录要有 SKILL.md，或有 skills/<名字>/SKILL.md。",
+    "en": "Only https:// URLs. The repository needs a SKILL.md at its root, or skills/<name>/SKILL.md."
   },
   "SmallModelStats.smallModelUsage": {
     "zh": "小模型用量",
@@ -9784,8 +9784,8 @@ export const MESSAGES = {
     "en": "This repository is already installed"
   },
   "labels.noUsableSkillsFoundSkillsNameSkillMd": {
-    "zh": "仓库里没有可用的技能（skills/<名字>/SKILL.md）",
-    "en": "No usable skills found (skills/<name>/SKILL.md)"
+    "zh": "仓库里没有可用的技能（根目录的 SKILL.md，或 skills/<名字>/SKILL.md）",
+    "en": "No usable skills found (a SKILL.md at the root, or skills/<name>/SKILL.md)"
   },
   "labels.skillRepositoryNotFound": {
     "zh": "没有这个技能仓库",

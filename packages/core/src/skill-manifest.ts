@@ -2,7 +2,8 @@ import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { SkillName, type SkillEntry } from '@antumi/protocol'
 
-// Where a repository keeps its skills: the Agent Skills layout, else each top-level folder.
+// Where a repository keeps its skills: the Agent Skills layout, else the repository as one skill
+// with SKILL.md at its root, else each top-level folder.
 const SKILLS_DIR = 'skills'
 const MAX_DESCRIPTION = 1024
 
@@ -70,11 +71,29 @@ export function skillEntry(folder: string, dir: string, text: string | null): Sk
   return { ...entry, problem: null }
 }
 
-// Every skill a repository holds, as its SKILL.md files describe them, in name order.
+// A repository that is one skill: its folder is named after the repository, not the skill, so the
+// name comes from the frontmatter alone.
+export function rootSkillEntry(text: string): SkillEntry {
+  const fields = parseSkillFrontmatter(text)
+  const name = fields?.name ?? ''
+  const valid = SkillName.safeParse(name).success
+  const entry = { name: valid ? name : name.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'skill', description: fields?.description ?? '', dir: '.' }
+  if (!fields) return { ...entry, problem: 'SKILL.md 没有 frontmatter' }
+  if (!name) return { ...entry, problem: '缺少 name' }
+  if (!valid) return { ...entry, problem: 'name 只能用小写字母、数字和连字符' }
+  if (!entry.description) return { ...entry, problem: '缺少 description' }
+  if (entry.description.length > MAX_DESCRIPTION) return { ...entry, problem: `description 超过 ${MAX_DESCRIPTION} 字符` }
+  return { ...entry, problem: null }
+}
+
+// Every skill a repository holds, as its SKILL.md files describe them, in name order. A skills/
+// folder wins over a SKILL.md at the root, which is then the repository's overview.
 export async function scanSkills(source: SkillSource): Promise<SkillEntry[]> {
   let parent = SKILLS_DIR
   let folders = await source.folders(parent)
   if (folders.length === 0) {
+    const root = await source.read('SKILL.md')
+    if (root !== null) return [rootSkillEntry(root)]
     parent = '.'
     folders = (await source.folders(parent)).filter((folder) => !folder.startsWith('.') && folder !== 'node_modules')
   }
