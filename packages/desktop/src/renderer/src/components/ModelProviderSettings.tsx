@@ -7,6 +7,7 @@ import {
 import { perform, useCore } from '../core-store'
 import { agentLabel } from '../labels'
 import { Segmented } from './SettingsControls'
+import { PRESET_VENDOR } from '../provider-vendors'
 
 type Draft = {
   id: string | null
@@ -85,6 +86,7 @@ function PresetGrid({ value, onPick }: { value: ModelProviderPreset; onPick: (pr
       {[...MODEL_PROVIDER_PRESET_IDS, 'custom' as const].map((preset) => (
         <button key={preset} type="button" role="radio" aria-checked={preset === value} className="provider-preset" onClick={() => onPick(preset)}>
           <span className="provider-preset-name">
+            <span className="provider-mark" data-vendor={preset === 'custom' ? 'custom' : PRESET_VENDOR[preset].vendor} aria-hidden="true">{preset === 'custom' ? '+' : PRESET_VENDOR[preset].mark}</span>
             {preset === 'custom' ? t('ModelProviderSettings.custom') : presetName(preset)}
             {preset !== 'custom' && <VerifiedBadge preset={preset} />}
           </span>
