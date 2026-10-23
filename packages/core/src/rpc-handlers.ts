@@ -360,6 +360,7 @@ export function createRpcHandlers(
       else await conversations.interrupt(id)
       return OK
     },
+    'conversations.stopBackground': async ({ id, itemId }) => { await conversations.stopBackground(id, itemId); return OK },
     'conversations.respond': async ({ id, requestId, ...answer }) => { squads?.guardUser(id); conversations.attend(id); await conversations.respond(id, requestId, answer); return OK },
     // Read after subscribing, so an item that changes in between reaches the client either way.
     'conversations.watchChat': ({ id }, connection) => {

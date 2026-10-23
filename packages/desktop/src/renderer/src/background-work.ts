@@ -1,3 +1,4 @@
+import { createContext } from 'react'
 import type { ChatItem } from '@antumi/protocol'
 import { t } from './i18n'
 import { timeOfDay } from './labels'
@@ -18,6 +19,15 @@ export function isBackgroundCommand(tool: ToolItem): boolean {
 export function keepsInView(tool: ToolItem): boolean {
   return isBackgroundCommand(tool) && (tool.status === 'running' || tool.stopReason === 'timeLimit')
 }
+
+// Background work the chat can stop on its own, apart from the turn, while it still runs.
+export function canStop(tool: ToolItem): boolean {
+  return Boolean(tool.stoppable) && tool.status === 'running'
+}
+
+// Stops one piece of the conversation's background work; true once core has passed it on. Unset
+// where nothing can be stopped from (a chat shown read-only).
+export const StopBackground = createContext<((tool: ToolItem) => Promise<boolean>) | null>(null)
 
 // What the agent said the work is (a command's description, a subagent's task), else its title.
 export function backgroundLabel(tool: ToolItem): string {

@@ -743,7 +743,7 @@ describe('ConversationService', () => {
       daemon.emit(sessionId, { type: 'prompt_suggestion', suggestion: 'run the tests', uuid: 'u-1', session_id: 's-1' })
     }
     const created = await service.create('claude', [])
-    expect(daemon.writes.map((write) => write.frame)).toContainEqual(expect.objectContaining({ request: { subtype: 'initialize', promptSuggestions: true } }))
+    expect(daemon.writes.map((write) => write.frame)).toContainEqual(expect.objectContaining({ request: { subtype: 'initialize', perTaskStopAffordance: true, promptSuggestions: true } }))
 
     await service.send(created.id, 'Fix the parser')
     await settle()

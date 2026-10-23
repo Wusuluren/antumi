@@ -1575,6 +1575,11 @@ export class ConversationService {
     }
   }
 
+  async stopBackground(id: string, itemId: string): Promise<void> {
+    this.get(id)
+    await this.chats.stopBackground(id, itemId)
+  }
+
   async retryTurn(id: string, stageId: string, itemId: string): Promise<void> {
     await this.serially(id, async () => {
       const conversation = this.get(id)

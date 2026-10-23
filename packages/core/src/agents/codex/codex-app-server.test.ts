@@ -1065,6 +1065,42 @@ describe('CodexAppServer usage limits', () => {
   })
 })
 
+describe('CodexAppServer stopping a background command', () => {
+  // codex-cli 0.160.1: a command left running in its session as the turn completes, then
+  // thread/backgroundTerminals/terminate for its process: the call returns, and the command's item
+  // completes failed with exit code -1.
+  const records = fixture('codex-background-stop.jsonl')
+  const asked = records.findIndex((record) => record.dir === 'out' && JSON.stringify(record.frame).includes('backgroundTerminals/terminate'))
+
+  it('marks a command left in the background as one the chat can stop, and stops it by its process', () => {
+    const driver = replay(records.slice(0, asked))
+    const [command] = ofKind(driver.items.list(), 'tool')
+    expect(command).toMatchObject({ name: 'commandExecution', status: 'running', background: true, stoppable: true })
+    expect(driver.stopBackground(command!.id)).toEqual([{
+      id: 'antumi-stop-1',
+      method: 'thread/backgroundTerminals/terminate',
+      params: { threadId: expect.any(String), processId: '9016' }
+    }])
+    expect(() => driver.stopBackground('t:nothing')).toThrow('not running in the background')
+  })
+
+  it('says the user stopped it rather than that it failed, and lets the stage go idle', () => {
+    const driver = replay(records)
+    const [command] = ofKind(driver.items.list(), 'tool')
+    expect(command).toMatchObject({ status: 'interrupted', stopReason: 'user', background: true })
+    expect(command?.execution).toBeUndefined()
+    expect(driver.activity()).toBe('idle')
+  })
+
+  it('says when Codex could not stop it', () => {
+    // The recording asked as request 22.
+    const driver = replay(records.slice(0, asked + 1))
+    driver.apply({ dir: 'in', at: 1790000020000, frame: { id: 22, result: { terminated: false } } })
+    expect(ofKind(driver.items.list(), 'notice').map((notice) => notice.text)).toEqual(['没能停止后台命令：它已经结束了'])
+    expect(driver.stopBackground(ofKind(driver.items.list(), 'tool')[0]!.id)).toMatchObject([{ id: 'antumi-stop-2' }])
+  })
+})
+
 describe('CodexAppServer commands that outlive their turn', () => {
   // codex-cli 0.160.1, unified exec: a command started with a short yield keeps running in its
   // session after the turn completes, the agent looks at it in a second turn, and it exits later.

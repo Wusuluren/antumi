@@ -7095,6 +7095,22 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .background-row-time,
 .background-row-limit { color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .background-row-command { grid-column: 2; overflow: hidden; color: var(--text-3); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+/* A row of the list and the button that stops its work, side by side: the button cannot sit in the row. */
+.background-item { display: flex; align-items: flex-start; gap: 4px; }
+.background-item > .background-row { flex: 1; min-width: 0; }
+.background-item > .chat-background-stop { margin-top: 5px; margin-right: 4px; }
+/* Stops one piece of background work: quiet until it is wanted, like the row it stands by. */
+.chat-background-stop { flex-shrink: 0; height: 22px; padding: 0 8px; border: 1px solid var(--border-2); border-radius: var(--radius-xs); background: var(--surface); color: var(--text-muted); font: inherit; font-size: var(--chat-font-small); line-height: 20px; white-space: nowrap; cursor: pointer; }
+.chat-background-stop:hover:not(:disabled) { background: var(--fill); color: var(--text); }
+.chat-background-stop:disabled { cursor: default; opacity: 0.6; }
+.chat-working > .chat-background-stop { margin-left: 8px; }
+/* On a call's own line it follows the row's timer, the row taking only its width; what the row
+   opens onto still runs full width below. */
+.chat-tool-line[data-stoppable] { display: flex; flex-wrap: wrap; align-items: center; column-gap: 4px; }
+.chat-tool-line[data-stoppable] > * { flex-basis: 100%; }
+.chat-entry > .chat-tool-line[data-stoppable] > .chat-tool-row,
+.chat-tool-line[data-stoppable] > .chat-tool-row { flex: 0 1 auto; width: auto; }
+.chat-tool-line[data-stoppable] > .chat-background-stop { flex: 0 0 auto; }
 .background-row-limit { grid-column: 3; justify-self: end; }
 .background-row-limit[data-soon] { color: var(--warning); }
 .background-list-hint { margin-top: 4px; padding: 6px 8px 2px; border-top: 1px solid var(--border); color: var(--text-3); font-size: 12px; }

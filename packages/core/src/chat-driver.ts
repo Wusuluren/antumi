@@ -141,6 +141,9 @@ export interface ChatDriver {
   // Those questions still open, oldest first.
   asking?(): Array<Extract<ChatItem, { kind: 'question' }>>
   interrupt(): unknown[]
+  // Frames that stop one piece of background work (an item it marked stoppable), for an agent
+  // that stops one on request; a Rejection when the item is not one it can stop now.
+  stopBackground?(itemId: string): unknown[]
   // Plans waiting with no turn running, for an agent whose plan outlasts its turn (Codex).
   waitingPlans?(): string[]
   // Frames that switch an option, after checking the stage offers the value (a Rejection if not).

@@ -165,6 +165,8 @@ const REASON_TEXT: Record<string, string> = localized(() => ({
   'chat-option-invalid': t('labels.thisOptionIsUnavailableHere'),
   'chat-nothing-queued': t('labels.noQueuedMessages'),
   'chat-no-steer': t('labels.thisAgentCannotAcceptInstructionsDuringATurn'),
+  'chat-no-stop': t('labels.thisAgentCannotStopBackgroundWork'),
+  'chat-not-stoppable': t('labels.noLongerRunningInBackground'),
   planning: t('labels.dependenciesAreUnfinishedContinuePlanningInChatOr'),
   'plan-only': t('labels.dependenciesAreUnfinishedYouCanPlanButCannot'),
   'not-planning': t('labels.onlyReadOnlyPlansNeedSavingApprovedExecution'),

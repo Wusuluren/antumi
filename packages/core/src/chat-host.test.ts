@@ -86,7 +86,7 @@ describe('ChatHost', () => {
     const recorded = recordingSink()
     const { host, sessionId } = await started(recorded.sink)
     expect(daemon.written(sessionId)).toEqual([
-      { type: 'control_request', request_id: 'antumi-init', request: { subtype: 'initialize' } },
+      { type: 'control_request', request_id: 'antumi-init', request: { subtype: 'initialize', perTaskStopAffordance: true } },
       { type: 'control_request', request_id: 'antumi-settings', request: { subtype: 'get_settings' } }
     ])
 
@@ -232,6 +232,20 @@ describe('ChatHost', () => {
     ])
     expect(stateOf(host)).toMatchObject({ queued: null })
     expect(host.items(STAGE).filter((item) => item.kind === 'user').map((item) => item.kind === 'user' && item.text)).toEqual(['first', 'second'])
+  })
+
+  it('stops a background task on its own, and refuses what is not running in the background', async () => {
+    const { host, sessionId } = await started()
+    daemon.reply = (id) => {
+      daemon.emit(id, { type: 'assistant', uuid: 'uuid-1', message: { id: 'msg-1', content: [{ type: 'tool_use', id: 'toolu_bg', name: 'Bash', input: { command: 'sleep 300', run_in_background: true } }] }, parent_tool_use_id: null })
+      daemon.emit(id, { type: 'system', subtype: 'task_started', task_id: 'task-1', tool_use_id: 'toolu_bg', task_type: 'local_bash', is_backgrounded: true })
+      daemon.emit(id, { type: 'result', subtype: 'success', is_error: false, result: 'started', terminal_reason: 'completed', duration_ms: 5 })
+    }
+    await host.send(STAGE.conversationId, 'run it')
+    await flushMicrotasks()
+    await expect(host.stopBackground(STAGE.conversationId, 't:nothing')).rejects.toMatchObject({ reason: 'chat-not-stoppable' })
+    await host.stopBackground(STAGE.conversationId, 't:toolu_bg')
+    expect(daemon.written(sessionId).at(-1)).toEqual({ type: 'control_request', request_id: 'antumi-stop-1', request: { subtype: 'stop_task', task_id: 'task-1' } })
   })
 
   it('holds a queued message after an interrupted turn until the user sends or drops it', async () => {

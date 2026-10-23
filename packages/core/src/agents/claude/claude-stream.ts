@@ -26,6 +26,7 @@ const SETTINGS_ID = 'antumi-settings'
 const INTERRUPT_PREFIX = 'antumi-interrupt-'
 const SUGGESTIONS_PREFIX = 'antumi-suggestions-'
 const OPTION_PREFIX = 'antumi-option-'
+const STOP_PREFIX = 'antumi-stop-'
 const MAX_PATCH = 50_000
 // The API's limit for one image; the store takes twice that.
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -399,6 +400,10 @@ export class ClaudeStream implements ChatDriver {
   private resumes = 0
   // The CLI's background tasks still out, by task id: the call that started each, and its kind.
   private readonly backgroundTasks = new Map<string, { toolUseId: string | null; kind: BackgroundKind }>()
+  // Background tasks the user asked to stop, by the request that asked: one that then reports
+  // stopped was stopped by them.
+  private readonly stopsAsked = new Map<string, string>()
+  private stops = 0
   // What reported back, in order, each opening a turn of the CLI's own.
   private reported: BackgroundKind[] = []
   // Output tokens of the running turn's messages so far, for the working line.
@@ -500,7 +505,9 @@ export class ClaudeStream implements ChatDriver {
       // Asked for here rather than with --prompt-suggestions: a CLI that predates it ignores the
       // field, where it would refuse the flag and the stage would not start.
       const suggestions = this.options.promptSuggestions ? { promptSuggestions: true } : {}
-      frames.push({ type: 'control_request', request_id: INIT_ID, request: { subtype: 'initialize', ...suggestions } })
+      // The chat stops each background task on its own (stopBackground), so stopping the turn
+      // leaves the subagents it sent off at work, as the CLI does for a client that says so.
+      frames.push({ type: 'control_request', request_id: INIT_ID, request: { subtype: 'initialize', perTaskStopAffordance: true, ...suggestions } })
     }
     for (const requestId of this.unanswered) {
       frames.push({ type: 'control_response', response: { subtype: 'error', request_id: requestId, error: 'Antumi does not handle this request' } })
@@ -599,6 +606,14 @@ export class ClaudeStream implements ChatDriver {
     return [...denials, request]
   }
 
+  stopBackground(itemId: string): unknown[] {
+    if (!this.ready()) throw new Rejection('chat-starting', 'the agent is still starting')
+    const tool = this.items.get(itemId)
+    const task = [...this.backgroundTasks].find(([, each]) => each.toolUseId !== null && `t:${each.toolUseId}` === itemId)
+    if (!task || tool?.kind !== 'tool' || tool.status !== 'running') throw new Rejection('chat-not-stoppable', 'that work is not running in the background')
+    return [{ type: 'control_request', request_id: `${STOP_PREFIX}${this.stops + 1}`, request: { subtype: 'stop_task', task_id: task[0] } }]
+  }
+
   queuedToSend(): { text: string; images: ChatImage[]; ref: string } | null {
     return this.ready() && !this.turn ? this.queue.next() : null
   }
@@ -692,7 +707,7 @@ export class ClaudeStream implements ChatDriver {
   }
 
   private ownRequest(requestId: string): boolean {
-    return requestId === INIT_ID || requestId === SETTINGS_ID || [INTERRUPT_PREFIX, OPTION_PREFIX, SUGGESTIONS_PREFIX].some((prefix) => requestId.startsWith(prefix))
+    return requestId === INIT_ID || requestId === SETTINGS_ID || [INTERRUPT_PREFIX, OPTION_PREFIX, SUGGESTIONS_PREFIX, STOP_PREFIX].some((prefix) => requestId.startsWith(prefix))
   }
 
   suggestion(): string | null {
@@ -1077,12 +1092,15 @@ export class ClaudeStream implements ChatDriver {
       if (!is_backgrounded) return
       this.backgroundTasks.set(task_id, { toolUseId: tool_use_id ?? null, kind: task_type === 'local_agent' ? 'subagent' : 'command' })
       const tool = tool_use_id ? this.items.get(`t:${tool_use_id}`) : undefined
-      if (tool?.kind === 'tool' && tool.status !== 'failed' && tool.status !== 'denied') this.items.put({ ...tool, status: 'running', background: true }, at)
+      if (tool?.kind === 'tool' && tool.status !== 'failed' && tool.status !== 'denied') this.items.put({ ...tool, status: 'running', background: true, stoppable: true }, at)
       return
     }
     const known = this.backgroundTasks.get(task_id)
     if (!known) return
     this.backgroundTasks.delete(task_id)
+    const asked = [...this.stopsAsked].filter(([, task]) => task === task_id).map(([requestId]) => requestId)
+    asked.forEach((requestId) => this.stopsAsked.delete(requestId))
+    const byUser = asked.length > 0 && status === 'stopped'
     this.reported.push(known.kind)
     const tool = this.items.get(`t:${tool_use_id ?? known.toolUseId ?? ''}`)
     if (tool?.kind !== 'tool' || tool.status !== 'running') return
@@ -1096,7 +1114,8 @@ export class ClaudeStream implements ChatDriver {
       ...(known.kind === 'command' && (status === 'completed' || status === 'failed') ? {
         execution: { status, exitCode: null }
       } : {}),
-      ...(known.kind === 'command' && status === 'stopped' && TIME_LIMIT.test(summary ?? '') ? { stopReason: 'timeLimit' as const } : {})
+      ...(known.kind === 'command' && status === 'stopped' && TIME_LIMIT.test(summary ?? '') ? { stopReason: 'timeLimit' as const } : {}),
+      ...(byUser ? { stopReason: 'user' as const } : {})
     }, at)
   }
 
@@ -1273,6 +1292,10 @@ export class ClaudeStream implements ChatDriver {
       }
       return
     }
+    if (requestId.startsWith(STOP_PREFIX)) {
+      if (subtype !== 'success' && this.stopsAsked.delete(requestId)) this.items.notice('warning', `没能停止后台任务：${error ?? '未知原因'}`, at)
+      return
+    }
     if (requestId === SETTINGS_ID) {
       const settings = SettingsResponse.safeParse(response)
       // The settings leave out an --effort the stage was started with, which wins over them.
@@ -1330,6 +1353,11 @@ export class ClaudeStream implements ChatDriver {
       if (request.data?.request_id.startsWith(SUGGESTIONS_PREFIX)) {
         this.suggestionPauses++
         if (z.looseObject({ paused: z.literal(true) }).safeParse(request.data.request).success) this.suggested = null
+      }
+      if (request.data?.request_id.startsWith(STOP_PREFIX)) {
+        this.stops++
+        const stop = z.looseObject({ task_id: z.string() }).safeParse(request.data.request)
+        if (stop.success) this.stopsAsked.set(request.data.request_id, stop.data.task_id)
       }
       if (request.data?.request_id.startsWith(INTERRUPT_PREFIX)) {
         this.interrupts++

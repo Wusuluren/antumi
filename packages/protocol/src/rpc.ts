@@ -421,6 +421,8 @@ export const rpcMethods = {
   'conversations.setOption': { params: ConversationRef.extend({ option: ChatOption, value: z.string().trim().min(1).max(200) }), result: Ok },
   // Ends the running turn. Cursor's process goes with it; the next message starts another.
   'conversations.interrupt': { params: ConversationRef, result: Ok },
+  // Stops one piece of background work, apart from the turn: a tool item marked stoppable.
+  'conversations.stopBackground': { params: ConversationRef.extend({ itemId: z.string().min(1).max(200) }), result: Ok },
   // Answers an approval or question item. answers maps a question id to option ids, or labels
   // when the provider supplies none.
   'conversations.respond': {

@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { ChatItem } from '@antumi/protocol'
 import { ChatWorking } from './ChatWorking'
+import { StopBackground } from '../background-work'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 const command = (id: string, changes: Partial<ToolItem> = {}): ToolItem => ({
@@ -19,6 +20,14 @@ describe('the working line\'s background work', () => {
     expect(html).toContain('>Run server</button>')
     expect(html).toContain('title="pnpm dev"')
     expect(html).toContain('已运行 3 分钟')
+  })
+
+  it('offers to stop the one running, where the agent lets the chat stop it', () => {
+    const stoppable = (background: ToolItem[]) => renderToStaticMarkup(createElement(StopBackground.Provider, { value: async () => true },
+      createElement(ChatWorking, { phase: 'waiting', tokens: null, background, since: Date.now(), onReveal: () => {} })))
+    expect(stoppable([command('server', { stoppable: true })])).toContain('aria-label="停止 Run server">停止</button>')
+    expect(stoppable([command('server')])).not.toContain('chat-background-stop')
+    expect(render([command('server', { stoppable: true })])).not.toContain('chat-background-stop')
   })
 
   it('counts several, behind a way to list them', () => {

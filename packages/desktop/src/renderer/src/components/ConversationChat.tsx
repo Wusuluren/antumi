@@ -44,6 +44,7 @@ import { Spinner } from './Spinner'
 import { TranslateButton, useTranslated } from './TranslateButton'
 import { ChatFind, useChatFindState, type ChatHistoryResult } from './ChatFind'
 import { ArrowDownIcon, ChevronDownIcon, ChevronRightIcon, FileChangesIcon, AgentIcon, ForkIcon } from './icons'
+import { StopBackground } from '../background-work'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 const NO_ITEMS: ChatItem[] = []
@@ -859,12 +860,14 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
   const lastUserKey = sent.at(-1)?.key
   const fileScope = useMemo(() => ({ conversationId: id, inspector: shown.inspector, roots }), [id, shown.inspector, roots, getLocale()])
   const contextMenu = useChatContextMenu(list, fileScope)
+  const stopBackground = useCallback(async (tool: { id: string }) => (await perform((rpc) => rpc.call('conversations.stopBackground', { id, itemId: tool.id }))) !== null, [id])
   return (
     <ChatVariant.Provider value={variant}>
     <FoldedTurns.Provider value={foldedTurns}>
     <ChatSurfaceContext.Provider value={shown}>
     <ChatAgent.Provider value={agentInfo}>
     <ChatPaths.Provider value={shorten}>
+    <StopBackground.Provider value={stopBackground}>
     <ChatRoots.Provider value={roots}>
     <ChatFilesContext.Provider value={fileScope}>
     <ChatRunScope.Provider value={runScope}>
@@ -962,6 +965,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
     </ChatRunScope.Provider>
     </ChatFilesContext.Provider>
     </ChatRoots.Provider>
+    </StopBackground.Provider>
     </ChatPaths.Provider>
     </ChatAgent.Provider>
     </ChatSurfaceContext.Provider>

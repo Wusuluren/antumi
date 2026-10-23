@@ -7,6 +7,7 @@ import { itemKey } from '../chat-state'
 import { backgroundLabel, bareCommand, isBackgroundCommand, limitAt, limitText, LIMIT_SOON_MS } from '../background-work'
 import { ChatToolIcon } from './ChatToolIcon'
 import { Popover } from './Popover'
+import { BackgroundStopButton } from './BackgroundStopButton'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 
@@ -63,7 +64,8 @@ function PhaseIcon({ phase }: { phase: WorkingPhase }) {
 }
 
 // What runs in the background, a row each: what it is, how long it has run, the command itself, and
-// when its time limit falls where the agent set one. A row leads to the call in the conversation.
+// when its time limit falls where the agent set one. A row leads to the call in the conversation,
+// and stops it where the agent lets the chat do that.
 function BackgroundList({ tools, now, onPick }: { tools: readonly ToolItem[]; now: number; onPick: (tool: ToolItem) => void }) {
   return (
     <div className="background-list">
@@ -73,13 +75,16 @@ function BackgroundList({ tools, now, onPick }: { tools: readonly ToolItem[]; no
         const at = command ? limitAt(tool) : null
         const limit = at === null ? null : limitText(at, now)
         return (
-          <button key={itemKey(tool)} type="button" className="background-row" onClick={() => onPick(tool)}>
-            <ChatToolIcon name={tool.name} display={tool.display} status="running" />
-            <span className="background-row-title">{backgroundLabel(tool)}</span>
-            <span className="background-row-time">{t('backgroundWork.ranFor', { time: workedFor(Math.max(0, now - tool.at)) })}</span>
-            {command && <span className="background-row-command mono">{bareCommand(tool.input ?? tool.title)}</span>}
-            {limit && <span className="background-row-limit" data-soon={limit.soon || undefined}>{limit.text}</span>}
-          </button>
+          <div key={itemKey(tool)} className="background-item">
+            <button type="button" className="background-row" onClick={() => onPick(tool)}>
+              <ChatToolIcon name={tool.name} display={tool.display} status="running" />
+              <span className="background-row-title">{backgroundLabel(tool)}</span>
+              <span className="background-row-time">{t('backgroundWork.ranFor', { time: workedFor(Math.max(0, now - tool.at)) })}</span>
+              {command && <span className="background-row-command mono">{bareCommand(tool.input ?? tool.title)}</span>}
+              {limit && <span className="background-row-limit" data-soon={limit.soon || undefined}>{limit.text}</span>}
+            </button>
+            <BackgroundStopButton tool={tool} />
+          </div>
         )
       })}
       <div className="background-list-hint">{t('backgroundWork.listHint')}</div>
@@ -156,6 +161,7 @@ export function ChatWorking({ phase, tokens, background, since, onReveal }: {
           : <span className={phase === 'asking' ? undefined : 'chat-sheen chat-working-sheen'}>{`${PHASE[phase]}${phase === 'asking' ? '' : t('ChatWorking.inProgressSuffix')}`}</span>}
       </span>
       {waiting && only && <span className="chat-working-part" aria-hidden="true"><span className="chat-working-dot">·</span>{t('backgroundWork.ranFor', { time: workedFor(Math.max(0, now - only.at)) })}</span>}
+      {only && <BackgroundStopButton tool={only} />}
       {soon && <span className="chat-working-part chat-working-soon"><span className="chat-working-dot" aria-hidden="true">·</span>{soon}</span>}
     </div>
   )

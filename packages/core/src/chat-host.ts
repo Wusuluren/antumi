@@ -450,6 +450,14 @@ export class ChatHost {
     await Promise.all(sent)
   }
 
+  async stopBackground(conversationId: string, itemId: string): Promise<void> {
+    const live = this.running(conversationId)
+    if (!live.driver.stopBackground) throw new Rejection('chat-no-stop', 'this agent cannot stop its background work on request')
+    const sent = live.driver.stopBackground(itemId).map((frame) => this.write(live, frame))
+    this.flush(live)
+    await Promise.all(sent)
+  }
+
   async setOption(conversationId: string, option: ChatOption, value: string): Promise<void> {
     const live = this.running(conversationId)
     const frames = live.driver.setOption(option, value)

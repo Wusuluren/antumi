@@ -224,9 +224,12 @@ export const ChatItem = z.discriminatedUnion('kind', [
     // How long a command left in the background may run before its agent stops it, where the agent
     // set that limit itself (Claude's Bash timeout). Older cores leave it out.
     backgroundLimitMs: z.number().int().positive().optional().catch(undefined),
+    // While it runs in the background, Antumi can stop it on its own, apart from the turn
+    // (conversations.stopBackground). Older cores leave it out.
+    stoppable: z.boolean().optional(),
     // Why a call stopped short, where the agent says: a background command that ran out its time
-    // limit. Older cores leave it out.
-    stopReason: z.enum(['timeLimit']).optional().catch(undefined),
+    // limit, or background work the user stopped. Older cores leave it out.
+    stopReason: z.enum(['timeLimit', 'user']).optional().catch(undefined),
     diffs: z.array(ChatDiff).default([]),
     // What a subagent did, once it reports back: its calls, tokens and time. Older cores leave it out.
     metrics: z.object({ tools: z.number(), tokens: z.number(), durationMs: z.number() }).nullable().optional(),

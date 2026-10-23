@@ -899,6 +899,22 @@ export const MESSAGES = {
     "zh": "点一行，跳到它在对话里的位置",
     "en": "Click a row to find it in the conversation"
   },
+  "backgroundWork.stop": {
+    "zh": "停止",
+    "en": "Stop"
+  },
+  "backgroundWork.stopping": {
+    "zh": "正在停止…",
+    "en": "Stopping…"
+  },
+  "backgroundWork.stopNamed": {
+    "zh": "停止 {name}",
+    "en": "Stop {name}"
+  },
+  "backgroundWork.stoppedByYou": {
+    "zh": "已手动停止",
+    "en": "Stopped by you"
+  },
   "ChatBrowserCard.viewFullPageScreenshot": {
     "zh": "查看完整的长截图",
     "en": "View full-page screenshot"
@@ -9898,6 +9914,14 @@ export const MESSAGES = {
   "labels.noQueuedMessages": {
     "zh": "没有排队的消息",
     "en": "No queued messages"
+  },
+  "labels.thisAgentCannotStopBackgroundWork": {
+    "zh": "这个 Agent 不能单独停止后台任务",
+    "en": "This agent cannot stop background work on its own"
+  },
+  "labels.noLongerRunningInBackground": {
+    "zh": "它已经不在后台运行了",
+    "en": "It is no longer running in the background"
   },
   "labels.thisAgentCannotAcceptInstructionsDuringATurn": {
     "zh": "这个 Agent 不接受回合中的追加指令，先排队吧",

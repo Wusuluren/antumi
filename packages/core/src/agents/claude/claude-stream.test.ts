@@ -552,7 +552,7 @@ describe('ClaudeStream commands', () => {
 
   it('initializes before anything else and refuses a message until the agent answers', () => {
     const driver = new ClaudeStream('stage-1', OPTIONS)
-    expect(driver.due()).toEqual([{ type: 'control_request', request_id: 'antumi-init', request: { subtype: 'initialize' } }])
+    expect(driver.due()).toEqual([{ type: 'control_request', request_id: 'antumi-init', request: { subtype: 'initialize', perTaskStopAffordance: true } }])
     driver.apply({ dir: 'out', at, frame: driver.due()[0] })
     expect(driver.due()).toEqual([])
     expect(() => driver.send('hi').wire).toThrow(expect.objectContaining({ reason: 'chat-starting' }))
@@ -667,7 +667,7 @@ describe('ClaudeStream commands', () => {
 
   it('asks for suggestions at initialize when the user has them on', () => {
     const driver = new ClaudeStream('stage-1', { ...OPTIONS, promptSuggestions: true })
-    expect(driver.due()).toEqual([{ type: 'control_request', request_id: 'antumi-init', request: { subtype: 'initialize', promptSuggestions: true } }])
+    expect(driver.due()).toEqual([{ type: 'control_request', request_id: 'antumi-init', request: { subtype: 'initialize', perTaskStopAffordance: true, promptSuggestions: true } }])
   })
 
   it('offers the suggested next message from the end of a turn until the next message', () => {
@@ -835,6 +835,39 @@ describe('ClaudeStream usage limits', () => {
     expect(driver.items.get('t:shot')).toMatchObject({ output: '截图已保存，用户在对话里能看到这张图。', images: [{ id, width: 1400, height: 1100 }] })
     expect(JSON.stringify(logged).split('[antumi-image').length - 1).toBe(1)
     expect(JSON.stringify(logged)).not.toContain('AAAA')
+  })
+})
+
+describe('ClaudeStream stopping background work', () => {
+  // Claude Code 2.1.288: sleep 300 run with run_in_background, the turn over, then stop_task asked
+  // for its task: the task reports stopped, and the CLI starts no turn for it.
+  const records = fixture('claude-background-stop.jsonl')
+  const asked = records.findIndex((record) => record.dir === 'out' && JSON.stringify(record.frame).includes('stop_task'))
+
+  it('marks a task running in the background as one the chat can stop, and stops it by its task', () => {
+    const driver = replay(records.slice(0, asked))
+    const [command] = ofKind(driver.items.list(), 'tool')
+    expect(command).toMatchObject({ name: 'Bash', status: 'running', background: true, stoppable: true })
+    expect(driver.stopBackground(command!.id)).toEqual([{ type: 'control_request', request_id: 'antumi-stop-1', request: { subtype: 'stop_task', task_id: 'b4o6yi9l9' } }])
+    expect(() => driver.stopBackground('t:nothing')).toThrow('not running in the background')
+  })
+
+  it('says the user stopped it, and lets the stage go idle', () => {
+    const driver = replay(records)
+    const [command] = ofKind(driver.items.list(), 'tool')
+    expect(command).toMatchObject({ status: 'interrupted', stopReason: 'user' })
+    expect(driver.activity()).toBe('idle')
+    expect(() => driver.stopBackground(command!.id)).toThrow('not running in the background')
+    expect(ofKind(driver.items.list(), 'turn')).toHaveLength(1)
+  })
+
+  it('numbers its stops past those in the log, and says when the CLI could not stop one', () => {
+    const before = records.slice(0, asked)
+    const driver = replay([...before, records[asked]!])
+    expect(driver.logged({ type: 'control_response', response: { subtype: 'success', request_id: 'antumi-stop-1', response: {} } })).not.toBeNull()
+    driver.apply({ dir: 'in', at: 9_000, frame: { type: 'control_response', response: { subtype: 'error', request_id: 'antumi-stop-1', error: 'stop_task is not supported' } } })
+    expect(ofKind(driver.items.list(), 'notice').map((notice) => notice.text)).toEqual(['没能停止后台任务：stop_task is not supported'])
+    expect(driver.stopBackground(ofKind(driver.items.list(), 'tool')[0]!.id)).toMatchObject([{ request_id: 'antumi-stop-2' }])
   })
 })
 

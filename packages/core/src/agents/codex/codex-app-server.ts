@@ -49,6 +49,8 @@ const Item = z.looseObject({
     query: z.string().nullish()
   })).catch([]).optional(),
   aggregatedOutput: z.string().nullish(),
+  // The session a command runs in, by which a background one is stopped.
+  processId: z.string().nullish(),
   exitCode: z.number().nullish(),
   // An agent message that asks in passing: Codex works on, and takes the answer as a message.
   delivery: z.string().nullish(),
@@ -495,6 +497,10 @@ export class CodexAppServer implements ChatDriver {
   private readonly mcpCalls = new Map<string, { itemId: string; tool: string }>()
   private turns = 0
   private interrupts = 0
+  // The session each command runs in, by its item; and the stops asked for, by request, of items.
+  private readonly processes = new Map<string, string>()
+  private readonly stopsAsked = new Map<string, string>()
+  private stops = 0
   // The user asked the running turn to stop: calls that fail from here on were cut short.
   private stopping = false
   private results = 0
@@ -767,6 +773,15 @@ export class CodexAppServer implements ChatDriver {
     return [...cancels, request]
   }
 
+  stopBackground(itemId: string): unknown[] {
+    const tool = this.items.get(itemId)
+    const processId = this.processes.get(itemId.slice(2))
+    if (!this.threadId || tool?.kind !== 'tool' || !tool.background || tool.status !== 'running' || !processId) {
+      throw new Rejection('chat-not-stoppable', 'that work is not running in the background')
+    }
+    return [{ id: `antumi-stop-${this.stops + 1}`, method: 'thread/backgroundTerminals/terminate', params: { threadId: this.threadId, processId } }]
+  }
+
   logged(frame: unknown): unknown | null {
     const parsed = Frame.safeParse(frame)
     if (!parsed.success) return null
@@ -1013,6 +1028,11 @@ export class CodexAppServer implements ChatDriver {
       }
     } else if (method === 'turn/steer') {
       this.steered(String(frame.id), error, at)
+    } else if (method === 'thread/backgroundTerminals/terminate') {
+      const terminated = z.looseObject({ terminated: z.boolean() }).safeParse(frame.result).data?.terminated
+      if ((error || terminated === false) && this.stopsAsked.delete(String(frame.id))) {
+        this.items.notice('warning', `没能停止后台命令：${error ?? '它已经结束了'}`, at)
+      }
     } else if (method === 'model/list') {
       const list = ModelList.safeParse(frame.result)
       if (list.success && !this.options.providerModels) this.catalog = this.modelEntries(list.data.data)
@@ -1216,6 +1236,10 @@ export class CodexAppServer implements ChatDriver {
       case 'commandExecution': {
         const command = item.command ?? ''
         const earlier = this.items.get(toolId)
+        if (item.processId) this.processes.set(item.id, item.processId)
+        // Ended by the user's stop, Codex reports it failed: it was stopped, not a failure.
+        const stopped = completed && [...this.stopsAsked.values()].includes(toolId)
+        const background = earlier?.kind === 'tool' && earlier.background
         this.items.put({
           id: toolId,
           kind: 'tool',
@@ -1223,13 +1247,14 @@ export class CodexAppServer implements ChatDriver {
           title: unwrapShell(command),
           description: commandDescription(item.commandActions),
           input: unwrapShell(command),
-          status: completed ? this.settled(toolStatus(item.status, item.exitCode)) : 'running',
-          ...(completed && (item.status === 'completed' || item.status === 'failed') ? {
+          status: stopped ? 'interrupted' : completed ? this.settled(toolStatus(item.status, item.exitCode)) : 'running',
+          ...(completed && !stopped && (item.status === 'completed' || item.status === 'failed') ? {
             execution: { status: item.status, exitCode: item.exitCode ?? null }
           } : {}),
           output: item.aggregatedOutput ? clip(item.aggregatedOutput) : null,
           diffs: [],
-          ...(earlier?.kind === 'tool' && earlier.background ? { background: true } : {})
+          ...(background ? { background: true, ...(earlier.stoppable ? { stoppable: true } : {}) } : {}),
+          ...(stopped ? { stopReason: 'user' as const } : {})
         }, at)
         if (completed && !this.turn && earlier?.kind === 'tool' && earlier.background) this.showBackground()
         return
@@ -1484,6 +1509,12 @@ export class CodexAppServer implements ChatDriver {
         this.interrupts++
         if (this.turn) this.stopping = true
       }
+      if (frame.method === 'thread/backgroundTerminals/terminate') {
+        this.stops++
+        const processId = z.looseObject({ processId: z.string() }).safeParse(frame.params).data?.processId
+        const item = [...this.processes].find(([, each]) => each === processId)?.[0]
+        if (item) this.stopsAsked.set(String(frame.id), `t:${item}`)
+      }
       if (TURN_METHODS.has(frame.method)) this.startTurn(frame, at, ref, images)
       if (frame.method === 'turn/steer') {
         this.steers++
@@ -1614,7 +1645,9 @@ export class CodexAppServer implements ChatDriver {
     // exits, which Codex reports then: it is the agent's background work now.
     if (state === 'completed') {
       for (const item of this.items.list()) {
-        if (item.kind === 'tool' && item.name === 'commandExecution' && item.status === 'running') this.items.put({ ...item, background: true }, at)
+        if (item.kind === 'tool' && item.name === 'commandExecution' && item.status === 'running') {
+          this.items.put({ ...item, background: true, ...(this.processes.has(item.id.slice(2)) ? { stoppable: true } : {}) }, at)
+        }
       }
       this.showBackground()
     }

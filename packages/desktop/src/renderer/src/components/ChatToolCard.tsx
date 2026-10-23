@@ -14,7 +14,8 @@ import { useJustFinished } from '../chat-motion'
 import { ChatCopyRegion } from './ChatCopyRegion'
 import { copyTextForItem } from '../message-copy'
 import { fileReference } from '../file-links'
-import { isBackgroundCommand, limitAt, limitText, stoppedAtLimitText } from '../background-work'
+import { canStop, isBackgroundCommand, limitAt, limitText, stoppedAtLimitText } from '../background-work'
+import { BackgroundStopButton } from './BackgroundStopButton'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
 
@@ -165,7 +166,7 @@ function ToolLine({ tool }: { tool: ToolItem }) {
   const limit = status === 'running' ? limitAt(tool) : null
   return (
     <ChatCopyRegion text={copyTextForItem(tool)}>
-    <div className="chat-tool-line" data-status={status} data-finished={finished || undefined} data-tool-key={itemKey(tool)}>
+    <div className="chat-tool-line" data-status={status} data-finished={finished || undefined} data-stoppable={canStop(tool) || undefined} data-tool-key={itemKey(tool)}>
       <button
         type="button"
         className="chat-tool-row"
@@ -187,9 +188,13 @@ function ToolLine({ tool }: { tool: ToolItem }) {
         {background && <span className="chat-tool-badge" data-ended={status !== 'running' || undefined}>{t('backgroundWork.badge')}</span>}
         {tool.stopReason === 'timeLimit'
           ? <span className="chat-tool-status" data-status="limit">{stoppedAtLimitText(tool)}</span>
-          : <ToolStatus status={status} since={tool.at} />}
+          : tool.stopReason === 'user'
+            ? <span className="chat-tool-status" data-status="interrupted">{t('backgroundWork.stoppedByYou')}</span>
+            : <ToolStatus status={status} since={tool.at} />}
         {limit !== null && <BackgroundLimit at={limit} />}
       </button>
+      {/* Beside the row rather than in it: a button cannot hold another. */}
+      <BackgroundStopButton tool={tool} />
       {open && <CommandExit tool={tool} />}
       {open && tool.input && <ChatToolInput name={tool.name} input={tool.input} />}
       {open && tool.output && <ChatCopyRegion text={tool.output}><pre className="chat-tool-io">{searching ? tool.output : clipped(tool.output)}</pre></ChatCopyRegion>}

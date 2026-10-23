@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChatItem } from '@antumi/protocol'
 import { ChatToolCard, ChatToolRun } from './ChatToolCard'
 import { ChatFindExpansion } from '../chat-disclosure'
+import { StopBackground } from '../background-work'
 
 const opened = vi.hoisted(() => new Set<string>())
 vi.mock('../chat-disclosure', async (original) => ({ ...await original<typeof import('../chat-disclosure')>(), useDisclosure: (key: string) => [opened.has(key), () => {}] }))
@@ -106,5 +107,19 @@ describe('background commands', () => {
     expect(html).toContain('跑满 30 分钟上限，被停止')
     expect(html).not.toContain('已中断')
     expect(run([background({ status: 'interrupted' })])).toContain('已中断')
+  })
+
+  it('offers to stop one the chat can stop, beside its row, and says when the user stopped it', () => {
+    const stoppable = background({ stoppable: true })
+    const offered = renderToStaticMarkup(createElement(StopBackground.Provider, { value: async () => true }, createElement(ChatToolRun, { tools: [stoppable] })))
+    expect(offered).toContain('data-stoppable="true"')
+    expect(offered).toMatch(/<\/button><button type="button" class="chat-background-stop" aria-label="停止 Run dev server">停止<\/button>/)
+    // Not without a way to stop it, nor once it has ended.
+    expect(run([stoppable])).not.toContain('chat-background-stop')
+    expect(renderToStaticMarkup(createElement(StopBackground.Provider, { value: async () => true }, createElement(ChatToolRun, { tools: [background({ stoppable: true, status: 'interrupted', stopReason: 'user' })] }))))
+      .not.toContain('chat-background-stop')
+    const stopped = run([background({ status: 'interrupted', stopReason: 'user' })])
+    expect(stopped).toContain('已手动停止')
+    expect(stopped).not.toContain('已中断')
   })
 })
