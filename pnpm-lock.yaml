@@ -471,18 +471,18 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
-  packages/plugin-github:
+  packages/plugin-sdk:
     dependencies:
-      '@antumi/protocol':
-        specifier: workspace:*
-        version: link:../protocol
       zod:
-        specifier: 'catalog:'
+        specifier: 4.6.5
         version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.2
+      esbuild:
+        specifier: 0.25.12
+        version: 0.25.12
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

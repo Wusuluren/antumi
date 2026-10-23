@@ -5459,6 +5459,26 @@ export const MESSAGES = {
     "zh": "评论这段计划",
     "en": "Comment on this plan passage"
   },
+  "PluginSettings.installNamedPlugin": {
+    "zh": "安装 {name} 插件",
+    "en": "Install {name} plugin"
+  },
+  "PluginSettings.recommended": {
+    "zh": "推荐插件",
+    "en": "Recommended plugins"
+  },
+  "PluginSettings.installed": {
+    "zh": "已安装",
+    "en": "Installed"
+  },
+  "PluginSettings.installedPlugins": {
+    "zh": "已安装的插件",
+    "en": "Installed plugins"
+  },
+  "PluginSettings.installFromElsewhere": {
+    "zh": "从其他位置安装",
+    "en": "Install from another source"
+  },
   "PluginSettings.pluginInstalled": {
     "zh": "插件已安装",
     "en": "Plugin installed"
@@ -5544,8 +5564,8 @@ export const MESSAGES = {
     "en": "Disabled"
   },
   "PluginSettings.bundledWithAntumi": {
-    "zh": "随 Antumi 提供",
-    "en": "Bundled with Antumi"
+    "zh": "旧版随 Antumi 安装",
+    "en": "Installed by an earlier Antumi version"
   },
   "PluginSettings.pluginEnabled": {
     "zh": "插件已启用",
@@ -7316,8 +7336,12 @@ export const MESSAGES = {
     "en": "Issues synced from task sources: import as tasks or investigate in a conversation first."
   },
   "SourceInboxView.noTaskSourceConnectedConfigureASiteAnd": {
-    "zh": "还没有连接任务来源。在设置里填好地址并登录后，分给你的 issue 会自动出现在这里。",
-    "en": "No task source connected. Configure a site and sign in in settings; issues assigned to you appear automatically."
+    "zh": "还没有连接任务来源。在对应的集成页保存筛选条件、登录并开启「同步到收件箱」，符合条件的事项会出现在这里。",
+    "en": "No task source connected. Save your filters and sign in on the source's integration page, then enable Sync to inbox to see matching issues here."
+  },
+  "SourceInboxView.installASourcePluginFirst": {
+    "zh": "先在「设置 → 插件」安装任务或 Bug 来源，再到对应的集成页配置并登录。",
+    "en": "Install a task or bug source in Settings → Plugins, then configure it and sign in on its integration page."
   },
   "SourceInboxView.goToSettings": {
     "zh": "去设置",

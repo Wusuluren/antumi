@@ -45,7 +45,8 @@ export class PluginProcess {
         cwd: dirname(this.main), env: pluginEnvironment(this.manifest.env, this.env),
         shell: false, windowsHide: true, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe']
       })
-      let buffer = Buffer.alloc(0)
+      let chunks: Buffer[] = []
+      let buffered = 0
       let bytes = 0
       let stderrBytes = 0
       let handshaken = false
@@ -85,13 +86,18 @@ export class PluginProcess {
       child.stdout.on('data', (chunk: Buffer) => {
         if (outcome) return
         bytes += chunk.length
-        if (bytes > MAX_OUTPUT) { fail('插件输出超出大小限制'); return }
-        buffer = Buffer.concat([buffer, chunk])
-        for (;;) {
-          const end = buffer.indexOf(10)
-          if (end < 0 || outcome) break
-          const line = buffer.subarray(0, end).toString('utf8')
-          buffer = buffer.subarray(end + 1)
+        if (bytes > (method === 'fetch' && handshaken ? 72 * 1024 * 1024 : MAX_OUTPUT)) { fail('插件输出超出大小限制'); return }
+        let at = 0
+        while (at < chunk.length && !outcome) {
+          const end = chunk.indexOf(10, at)
+          const part = chunk.subarray(at, end < 0 ? chunk.length : end)
+          chunks.push(part)
+          buffered += part.length
+          if (end < 0) break
+          const line = Buffer.concat(chunks, buffered).toString('utf8')
+          chunks = []
+          buffered = 0
+          at = end + 1
           try {
             const message = PluginMessage.parse(JSON.parse(line))
             if (message.type === 'notify' || message.type === 'prompt') {
@@ -150,7 +156,10 @@ export class PluginProcess {
         normalizeKey: (key) => this.call('normalizeKey', { source: source.id, key }, timed()),
         login: (session, settings, signal) => this.call('login', { source: source.id, settings }, signal, session),
         list: (settings, credential, signal) => this.call('list', { source: source.id, settings, credential }, signal),
-        fetch: (settings, credential, key, signal) => this.call('fetch', { source: source.id, settings, credential, key }, signal)
+        fetch: async (settings, credential, key, signal) => {
+          const detail = await this.call('fetch', { source: source.id, settings, credential, key }, signal)
+          return { ...detail, images: detail.images?.map((image) => ({ name: image.name, bytes: Buffer.from(image.base64, 'base64') })) }
+        }
       })
     }
     return providers

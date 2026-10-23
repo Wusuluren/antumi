@@ -9659,13 +9659,14 @@ button.squad-member-main { cursor: pointer; }
 .tool-button:has(.tool-button-badge) { position: relative; }
 .tool-button-badge { position: absolute; top: 0; right: 0; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-size: 10px; font-weight: 600; line-height: 14px; text-align: center; pointer-events: none; }
 
-.plugin-install { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+.plugin-install { display: flex; flex-direction: column; align-items: stretch; gap: 16px; padding: 14px 0; }
 .plugin-install > .button { align-self: flex-start; }
 .plugin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .plugin-actions > .input { width: auto; }
 .plugin-trust { display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
 .plugin-row { padding: 16px 0; border-top: 1px solid var(--border); }
-.plugin-row .settings-row { border: 0; }
+.plugin-row:first-child { border-top: 0; }
+.plugin-row .settings-row { border: 0; padding: 0 0 12px; }
 .plugin-row .settings-row-description { overflow-wrap: anywhere; }
 
 /* The helper gives the inspector's height to the chat's own list and dock. */

@@ -3,7 +3,7 @@ import path from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { rcompare } from 'semver'
 import { z } from 'zod'
-import { PluginInfo, PluginManifest, PluginVersion, type PluginInstallSource } from '@antumi/protocol'
+import { PluginInfo, PluginManifest, PluginVersion, type PluginInstallSource, RecommendedPlugin } from '@antumi/protocol'
 import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 import { packagePath, readManifest, stagePlugin } from './plugin-package'
 import { PluginProcess } from './plugin-process'
@@ -11,6 +11,7 @@ import { Rejection } from './rejection'
 import type { SourceProvider } from './source-provider'
 import type { SourceService } from './source-service'
 import type { SourceConfigStore } from './source-config'
+import recommended from './plugins-recommended.json' with { type: 'json' }
 
 const Installed = z.object({ manifest: PluginManifest, enabled: z.boolean(), versions: z.array(PluginVersion), origin: PluginInfo.shape.origin })
 type Installed = z.infer<typeof Installed>
@@ -24,6 +25,7 @@ export class PluginService {
   private readonly problems = new Map<string, string>()
   private pending: Promise<unknown> = Promise.resolve()
   private closing = false
+  private readonly catalog = recommended.map((entry) => RecommendedPlugin.parse(entry))
 
   constructor(
     private readonly root: string,
@@ -34,7 +36,7 @@ export class PluginService {
     private readonly changed: (plugins: PluginInfo[]) => void = () => {}
   ) {}
 
-  async load(bundledGitHub?: string): Promise<void> {
+  async load(): Promise<void> {
     await mkdir(this.root, { recursive: true, mode: 0o700 })
     const raw = await readJsonIfExists(this.pointer)
     if (raw !== undefined) this.registry = Registry.parse(raw)
@@ -47,14 +49,24 @@ export class PluginService {
       } catch (error) { this.problems.set(record.manifest.id, this.message(error)) }
     }
     this.publish([])
-    if (raw === undefined && bundledGitHub) {
-      try {
-        await this.installInner({ kind: 'local', path: bundledGitHub }, undefined, { kind: 'bundled' })
-      } catch (error) {
-        // Leave first-run initialization retryable if the packaged artifact is missing or invalid.
-        console.error('[antumi-core] bundled GitHub plugin could not be installed:', this.message(error))
-      }
-    }
+  }
+
+  recommended(): RecommendedPlugin[] {
+    return this.catalog.map((entry) => ({ ...entry }))
+  }
+
+  installRecommended(id: string): Promise<PluginInfo> {
+    return this.serialize(async () => {
+      const entry = this.recommendation(id)
+      if (this.registry.plugins.some((record) => record.manifest.id === id)) return this.info(id)
+      return this.installInner({ kind: 'github', repository: entry.repository }, id)
+    })
+  }
+
+  private recommendation(id: string): RecommendedPlugin {
+    const entry = this.catalog.find((entry) => entry.id === id)
+    if (!entry) throw new Error('这个插件不在推荐列表中')
+    return entry
   }
 
   list(): PluginInfo[] {
@@ -72,8 +84,10 @@ export class PluginService {
   update(id: string): Promise<PluginInfo> {
     return this.serialize(async () => {
       const record = this.record(id)
-      if (record.origin.kind === 'bundled') throw new Error('请从本地包或 GitHub Release 安装新版本')
-      const source = record.origin.kind === 'github' ? { ...record.origin, tag: undefined } : record.origin
+      const origin = record.origin.kind === 'bundled'
+        ? { kind: 'github' as const, repository: this.recommendation(id).repository }
+        : record.origin
+      const source = origin.kind === 'github' ? { ...origin, tag: undefined } : origin
       return this.installInner(source, id)
     })
   }
@@ -187,7 +201,8 @@ export class PluginService {
   private checkOwners(manifest: PluginManifest): void {
     for (const source of manifest.contributes.sources) {
       const owner = this.registry.owners[source.id]
-      if ((owner && owner !== manifest.id) || this.builtins.some((provider) => provider.id === source.id)) throw new Error(`来源 ${source.id} 已被占用`)
+      const migratingJira = source.id === 'jira' && owner === 'builtin' && manifest.id === 'antumi.jira'
+      if ((owner && owner !== manifest.id && !migratingJira) || this.builtins.some((provider) => provider.id === source.id)) throw new Error(`来源 ${source.id} 已被占用`)
     }
     const old = this.registry.plugins.find((record) => record.manifest.id === manifest.id)
     if (old && !isDeepStrictEqual(old.manifest.contributes.sources.map((source) => source.id).sort(), manifest.contributes.sources.map((source) => source.id).sort())) throw new Error('首版不支持更新时增删来源 ID')

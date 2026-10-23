@@ -77,7 +77,7 @@ hdiutil verify dist/Antumi-<版本>-arm64.dmg                                   
 - `packages/desktop/package.json`
 - `packages/protocol/package.json`
 
-`packages/plugin-github/package.json` 是插件，自有版本（`1.0.0`），**不要改**。`pnpm-lock.yaml` 不记录这些版本号，不用改，也不用重新 `pnpm install`。
+`packages/plugin-sdk/package.json` 的 SDK 版本独立，**不要跟随应用版本修改**。四个推荐来源插件在独立的 `antumi-plugin-*` 仓库维护与发布，应用只维护 `packages/core/src/plugins-recommended.json` 中的推荐信息；不要将插件 ZIP 放入应用分发包。`pnpm-lock.yaml` 不记录上述五个应用包的版本号，不用改，也不用重新 `pnpm install`。
 
 一条命令改完（把 `X.Y.Z` 换成新版本），再核对：
 

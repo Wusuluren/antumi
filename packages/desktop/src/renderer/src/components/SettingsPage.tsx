@@ -867,9 +867,10 @@ const PLUGINS_SECTION: Section = localized(() => ({
   group: t('SettingsPage.integrations'),
   title: t('SettingsPage.plugins'),
   description: t('SettingsPage.taskSourcePluginsConfigureSignInAndFilters'),
-  keywords: [t('SettingsPage.plugins'), t('SettingsPage.install'), t('SettingsPage.update'), t('PluginSettings.uninstall'), 'GitHub', 'ZIP'],
+  keywords: [t('SettingsPage.plugins'), t('SettingsPage.install'), t('SettingsPage.update'), t('PluginSettings.uninstall'), 'GitHub', 'Jira', 'Linear', '禅道', 'ZenTao', 'ZIP'],
   Icon: PuzzleIcon,
-  Body: PluginSettings
+  Body: PluginSettings,
+  grouped: true
 }))
 
 // One section per task source, from what its provider declares; they sit before 关于.

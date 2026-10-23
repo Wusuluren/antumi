@@ -39,6 +39,23 @@ const row = (html: string, key: string) => html.split('<li class="inbox-row"').f
 beforeEach(() => useCore.setState(useCore.getInitialState(), true))
 
 describe('source inbox', () => {
+  it('offers source installation only when no provider is installed and the core supports plugins', () => {
+    connect(['plugins'])
+    useCore.setState({ sources: [], inboxes: {} })
+    expect(render()).toContain('>安装插件</button>')
+    expect(render()).toContain('设置 → 插件')
+
+    connect(['plugins'])
+    useCore.setState({ inboxes: {} })
+    expect(render()).toContain('>去设置</button>')
+    expect(render()).not.toContain('>安装插件</button>')
+
+    connect([])
+    useCore.setState({ sources: [], inboxes: {} })
+    expect(render()).toContain('>去设置</button>')
+    expect(render()).not.toContain('>安装插件</button>')
+  })
+
   it('offers to look into an issue, and once one is, the conversation instead', () => {
     connect(['source-investigate'])
     useCore.setState({ conversations: { [conversationId]: Conversation.parse({ id: conversationId, title: 'Bug 2', titleLocked: true, agent: 'claude', workspacePath: '/w', projectPaths: [], managedWorkspace: false, sessionId: null, createdAt: 0, updatedAt: 0 }) } })

@@ -9,11 +9,13 @@ import { LoginFlows } from './source-login-flow'
 import { SourceConfigStore } from './source-config'
 import { SourceService } from './source-service'
 import { PluginService } from './plugin-service'
+import app from '../../../package.json' with { type: 'json' }
 import { pluginFixture, pluginZip } from './plugin-fixtures'
 
 describe('plugin installation and activation', () => {
   let root: string
   let config: SourceConfigStore
+  let credentials: CredentialStore
   let sources: SourceService
   let plugins: PluginService
   const createService = (version = '0.15.11') => new PluginService(path.join(root, 'plugins'), version, sources, config, [])
@@ -22,7 +24,7 @@ describe('plugin installation and activation', () => {
     root = await mkdtemp(path.join(os.tmpdir(), 'antumi-plugin-service-'))
     config = new SourceConfigStore(path.join(root, 'sources.json'))
     await config.load()
-    const credentials = new CredentialStore(path.join(root, 'credentials.json'))
+    credentials = new CredentialStore(path.join(root, 'credentials.json'))
     await credentials.load()
     sources = new SourceService([], config, credentials, new LoginFlows(), {
       importedKeys: () => new Set(), importTask: () => { throw new Error('unused') }, get: () => { throw new Error('unused') }, setSnapshot: () => { throw new Error('unused') }
@@ -30,7 +32,7 @@ describe('plugin installation and activation', () => {
     plugins = createService()
     await plugins.load()
   })
-  afterEach(async () => { vi.restoreAllMocks(); sources.stop(); await plugins.close(); await rm(root, { recursive: true, force: true }) })
+  afterEach(async () => { vi.restoreAllMocks(); vi.unstubAllGlobals(); sources.stop(); await plugins.close(); await rm(root, { recursive: true, force: true }) })
 
   const install = async (version: string, behavior: Record<string, unknown> = {}) => {
     const from = path.join(root, `input-${version}`)
@@ -50,14 +52,116 @@ describe('plugin installation and activation', () => {
     expect(plugins.list()[0]?.problem).toBeNull()
   })
 
-  it('installs the bundled GitHub plugin on first launch of a beta', async () => {
-    const bundled = path.join(root, 'bundled-github')
-    await pluginFixture(bundled, { id: 'antumi.github', source: 'github' })
+  const release = async (id: string, source: string, version = '1.0.0') => {
+    const directory = path.join(root, `release-${id}-${version}`)
+    await pluginFixture(directory, { id, source, version })
+    const files: Record<string, string> = {}
+    for (const name of ['main.mjs', 'manifest.json', 'behavior.json']) files[name] = await readFile(path.join(directory, name), 'utf8')
+    const archive = pluginZip(files)
+    const repository = `flyhero/antumi-plugin-${source}`
+    const url = `https://github.com/${repository}/releases/download/v${version}/plugin.zip`
+    const fetch = vi.fn(async (input: string) => {
+      if (input === `https://api.github.com/repos/${repository}/releases/latest`) return new Response(JSON.stringify({ tag_name: `v${version}`, assets: [{ name: 'plugin.zip', browser_download_url: url }] }))
+      if (input === url) return new Response(new Uint8Array(archive))
+      throw new Error(`Unexpected download: ${input}`)
+    })
+    vi.stubGlobal('fetch', fetch)
+    return fetch
+  }
+
+  it('lists four GitHub recommendations and makes no downloads or installations at startup', async () => {
+    const fetch = vi.fn(() => { throw new Error('No startup downloads') })
+    vi.stubGlobal('fetch', fetch)
     await plugins.close()
-    plugins = createService('0.19.6-beta.2')
-    await plugins.load(bundled)
+    plugins = createService(app.version)
+    await plugins.load()
+    expect(plugins.recommended().map((entry) => entry.repository)).toEqual([
+      'flyhero/antumi-plugin-github', 'flyhero/antumi-plugin-jira',
+      'flyhero/antumi-plugin-linear', 'flyhero/antumi-plugin-zentao'
+    ])
+    expect(plugins.list()).toEqual([])
+    expect(fetch).not.toHaveBeenCalled()
+    expect(JSON.stringify(plugins.recommended())).not.toMatch(/directory|autoInstall|bundled/)
+  })
+
+  it.each(['github', 'jira', 'linear', 'zentao'])('downloads a recommended %s plugin only on installation', async (source) => {
+    const fetch = await release(`antumi.${source}`, source)
+    expect(fetch).not.toHaveBeenCalled()
+    const result = await plugins.installRecommended(`antumi.${source}`)
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(result).toMatchObject({ id: `antumi.${source}`, enabled: true, problem: null, origin: { kind: 'github', repository: `flyhero/antumi-plugin-${source}` } })
+    await plugins.installRecommended(`antumi.${source}`)
+    expect(fetch).toHaveBeenCalledTimes(2)
+    await expect(plugins.installRecommended('other.plugin')).rejects.toThrow('推荐列表')
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps an existing bundled GitHub installation working and updates it from its independent repository', async () => {
+    const installedPath = path.join(root, 'plugins/antumi.github/1.0.0')
+    const manifest = await pluginFixture(installedPath, { id: 'antumi.github', source: 'github' })
+    const saved = { version: 1, plugins: [{ manifest, enabled: true, versions: ['1.0.0'], origin: { kind: 'bundled' } }], owners: { jira: 'builtin', github: 'antumi.github' } }
+    await writeFile(path.join(root, 'plugins/active.json'), JSON.stringify(saved))
+    await config.save({ provider: 'github', instance: 'default', enabled: false, settings: { query: 'org:acme is:issue' } })
+    const record = { kind: 'token', payload: { token: 'existing-token' }, account: 'ann', updatedAt: 1 }
+    await credentials.set('github', 'default', record)
+    const beforeConfig = await readFile(path.join(root, 'sources.json'), 'utf8')
+    const beforeCredentials = await readFile(path.join(root, 'credentials.json'), 'utf8')
+    const fetch = await release('antumi.github', 'github', '1.0.1')
+    await plugins.close()
+    plugins = createService(app.version)
+    await plugins.load()
     expect(plugins.list()[0]).toMatchObject({ id: 'antumi.github', enabled: true, problem: null, origin: { kind: 'bundled' } })
-    expect(sources.list()[0]?.provider).toBe('github')
+    expect(fetch).not.toHaveBeenCalled()
+    const next = await plugins.update('antumi.github')
+    expect(next).toMatchObject({ version: '1.0.1', origin: { kind: 'github', repository: 'flyhero/antumi-plugin-github' } })
+    expect(next.versions).toEqual(['1.0.1', '1.0.0'])
+    expect(await readFile(path.join(root, 'sources.json'), 'utf8')).toBe(beforeConfig)
+    expect(await readFile(path.join(root, 'credentials.json'), 'utf8')).toBe(beforeCredentials)
+  })
+
+  it('keeps old Jira data untouched until an explicit install, then reuses all instances and credentials', async () => {
+    await config.save({ provider: 'jira', instance: 'default', enabled: false, settings: { site: 'https://acme.atlassian.net', jql: 'project = ACME' } })
+    await config.save({ provider: 'jira', instance: 'other', enabled: true, settings: { site: 'https://other.atlassian.net', jql: 'assignee = currentUser()' } })
+    await credentials.set('jira', 'default', { kind: 'basic', payload: { email: 'ann@acme.com', token: 'saved-token' }, account: 'Ann', updatedAt: 1 })
+    const beforeConfig = await readFile(path.join(root, 'sources.json'), 'utf8')
+    const beforeCredentials = await readFile(path.join(root, 'credentials.json'), 'utf8')
+    const pointer = JSON.stringify({ version: 1, plugins: [], owners: { jira: 'builtin', github: 'antumi.github' } })
+    await writeFile(path.join(root, 'plugins/active.json'), pointer)
+    const fetch = await release('antumi.jira', 'jira')
+    await plugins.close()
+    plugins = createService(app.version)
+    await plugins.load()
+    expect(plugins.list()).toEqual([])
+    expect(fetch).not.toHaveBeenCalled()
+    expect(await readFile(path.join(root, 'plugins/active.json'), 'utf8')).toBe(pointer)
+    await plugins.installRecommended('antumi.jira')
+    expect(sources.list().find((entry) => entry.provider === 'jira')?.instances).toHaveLength(2)
+    await plugins.setEnabled('antumi.jira', false)
+    await plugins.close()
+    plugins = createService(app.version)
+    await plugins.load()
+    expect(plugins.list()[0]?.enabled).toBe(false)
+    await plugins.uninstall('antumi.jira')
+    await plugins.close()
+    plugins = createService(app.version)
+    await plugins.load()
+    expect(plugins.list()).toEqual([])
+    expect(fetch).toHaveBeenCalledTimes(2)
+    await plugins.installRecommended('antumi.jira')
+    expect(plugins.list()).toMatchObject([{ id: 'antumi.jira', problem: null }])
+    expect(await readFile(path.join(root, 'sources.json'), 'utf8')).toBe(beforeConfig)
+    expect(await readFile(path.join(root, 'credentials.json'), 'utf8')).toBe(beforeCredentials)
+  })
+
+  it('leaves installation and existing data unchanged when a release is not published or its ID is wrong', async () => {
+    await install('1.0.0')
+    const pointer = await readFile(path.join(root, 'plugins/active.json'), 'utf8')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })))
+    await expect(plugins.installRecommended('antumi.jira')).rejects.toThrow('Release')
+    expect(await readFile(path.join(root, 'plugins/active.json'), 'utf8')).toBe(pointer)
+    await release('other.plugin', 'jira')
+    await expect(plugins.installRecommended('antumi.jira')).rejects.toThrow('ID')
+    expect(await readFile(path.join(root, 'plugins/active.json'), 'utf8')).toBe(pointer)
   })
 
   it('copies local artifacts, switches versions, rolls back and persists disabled state', async () => {
@@ -101,7 +205,7 @@ describe('plugin installation and activation', () => {
     await expect(plugins.install({ kind: 'local', path: from })).rejects.toThrow('已被占用')
     await plugins.close()
     plugins = createService()
-    await plugins.load(path.join(root, 'input-1.0.0'))
+    await plugins.load()
     expect(plugins.list()).toEqual([])
   })
 

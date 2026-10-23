@@ -14,8 +14,9 @@
     "dev:core": "pnpm --filter @antumi/core run dev",
     "dev:desktop": "pnpm --filter @antumi/desktop run dev",
     "build": "pnpm --filter @antumi/desktop run build",
-    "typecheck": "pnpm -r run typecheck",
-    "test": "vitest run",
+    "typecheck": "pnpm --filter @antumi/plugin-sdk build && pnpm -r run typecheck",
+    "test": "pnpm --filter @antumi/plugin-sdk build && vitest run",
+    "verify:plugin-sdk": "node scripts/verify-plugin-sdk.mjs",
     "test:dsh-runtime": "node --import tsx scripts/smoke-dsh-runtime.mjs",
     "dist:mac": "pnpm --filter @antumi/desktop run dist:mac",
     "dist:win": "pnpm --filter @antumi/desktop run dist:win"

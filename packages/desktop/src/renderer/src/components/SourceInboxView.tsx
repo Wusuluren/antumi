@@ -193,6 +193,7 @@ export function SourceInboxView() {
   const sources = useCore((s) => s.sources)
   const inboxes = useCore((s) => s.inboxes)
   const wanted = useCore((s) => s.inboxTab)
+  const pluginsSupported = useCore((s) => s.rpc?.features.includes('plugins') ?? false)
   const [imported, setImported] = useState<Task | null>(null)
   const active = activeInboxes(sources, inboxes)
   const tabbed = active.length > 1
@@ -207,13 +208,14 @@ export function SourceInboxView() {
 
   if (active.length === 0) {
     const first = sources?.[0]
+    const installSource = !first && pluginsSupported
     return (
       <section className="worktrees-page inbox-page" aria-label={t('InboxEntry.inbox_1125')}>
         <InboxHeader />
         <div className="inbox-setup">
           <InboxIcon />
-          <p>{t('SourceInboxView.noTaskSourceConnectedConfigureASiteAnd')}</p>
-          <button type="button" className="button primary" onClick={() => setSettingsOpen(true, first ? settingsSectionOf(first.provider) : null)}>{t('SourceInboxView.goToSettings')}</button>
+          <p>{installSource ? t('SourceInboxView.installASourcePluginFirst') : t('SourceInboxView.noTaskSourceConnectedConfigureASiteAnd')}</p>
+          <button type="button" className="button primary" onClick={() => setSettingsOpen(true, first ? settingsSectionOf(first.provider) : installSource ? 'plugins' : null)}>{installSource ? t('PluginSettings.installPlugin') : t('SourceInboxView.goToSettings')}</button>
         </div>
       </section>
     )

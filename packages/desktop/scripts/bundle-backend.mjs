@@ -15,7 +15,6 @@ await import('../../../scripts/build-plugins.mjs')
 
 rmSync(out, { recursive: true, force: true })
 mkdirSync(out, { recursive: true })
-cpSync(path.join(repo, 'packages/plugin-github/dist'), path.join(out, 'plugins/github'), { recursive: true })
 mkdirSync(path.join(out, 'plugins/dsh'), { recursive: true })
 cpSync(path.join(repo, 'packages/dsh-runtime/dist/runtime.tgz'), path.join(out, 'plugins/dsh/runtime.tgz'))
 

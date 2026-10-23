@@ -18,8 +18,6 @@ import { BrowserService, WATCH_ALL } from './browser-service'
 import { CredentialStore } from './credential-store'
 import { DaemonClient } from './daemon-client'
 import { PluginService } from './plugin-service'
-import { bundledGitHub } from './bundled-plugin'
-import { jiraProvider } from './jira-provider'
 import { createRpcHandlers } from './rpc-handlers'
 import { SessionImports } from './session-imports'
 import { SquadService } from './squad-service'
@@ -214,16 +212,15 @@ await credentials.load()
 await migrateLegacyJira(paths.legacyJiraConfig, sourceConfig, credentials).catch((error: unknown) =>
   console.error('[antumi-core] migrating jira.json failed; it stays in place:', error)
 )
-const builtinSources = [jiraProvider()]
-const sources = new SourceService(builtinSources, sourceConfig, credentials, new LoginFlows(), service, store, attachments, {
+const sources = new SourceService([], sourceConfig, credentials, new LoginFlows(), service, store, attachments, {
   inboxChanged: (inbox) => server?.broadcast('sources.inboxChanged', { inbox }),
   listChanged: (list) => server?.broadcast('sources.listChanged', { sources: list })
 })
 sources.setConversations(conversations)
 
-const plugins = new PluginService(path.join(paths.home, 'plugins'), packageJson.version, sources, sourceConfig, builtinSources,
+const plugins = new PluginService(path.join(paths.home, 'plugins'), packageJson.version, sources, sourceConfig, [],
   (plugins) => server?.broadcast('plugins.changed', { plugins }))
-await plugins.load(bundledGitHub())
+await plugins.load()
 
 const usageSources: Partial<Record<AgentKind, UsageSource>> = {}
 const resetCreditUses: Partial<Record<AgentKind, ResetCreditUse>> = {}

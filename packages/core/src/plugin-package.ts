@@ -120,6 +120,7 @@ const Release = z.object({ tag_name: z.string(), assets: z.array(z.object({ name
 
 async function download(url: string): Promise<Buffer> {
   const response = await fetch(url, { headers: { 'User-Agent': 'Antumi', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(60_000) })
+  if (response.status === 404 && url.startsWith('https://api.github.com/repos/')) throw new Error('该仓库还没有可安装的 GitHub Release，请在发布 ZIP 后重试')
   if (!response.ok) throw new Error(`下载插件失败：HTTP ${response.status}`)
   if (Number(response.headers.get('content-length')) > MAX_BYTES) throw new Error('插件下载过大')
   const chunks: Uint8Array[] = []
