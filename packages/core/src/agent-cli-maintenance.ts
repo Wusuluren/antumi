@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { AGENT_KINDS, AgentCliStatus, initialAgentCliStatus, type AgentKind, type AgentCliUpgrade, Environment } from '@antumi/protocol'
 import type { SessionInfo } from '@antumi/protocol/node'
 import { agentCliAccess } from './agent-cli-access'
-import { compareCliVersions, latestCliVersion, resolveCliTarget, type CliTarget } from './agent-cli-target'
+import { cliCommandText, compareCliVersions, latestCliVersion, resolveCliTarget, type CliTarget } from './agent-cli-target'
 import type { SessionHost } from './daemon-client'
 import type { EnvironmentService } from './environment-check'
 import type { TerminalService } from './terminal-service'
@@ -114,7 +114,7 @@ export class AgentCliMaintenance {
           currentVersion: target.version, latestVersion: latest, path: target.path, channel: target.channel,
           canUpgrade: supported && target.command !== null && target.version !== null,
           availability: comparison !== null ? comparison < 0 ? 'available' : 'current' : target.channel === 'native' || target.channel === 'desktop' ? 'managed' : 'unknown',
-          phase: 'idle', error, checkedAt: this.now()
+          phase: 'idle', error, checkedAt: this.now(), upgradeCommand: target.command && cliCommandText(target.command)
         })
       } catch (error) {
         return this.update(agent, { phase: 'error', error: reason(error), checkedAt: this.now() })

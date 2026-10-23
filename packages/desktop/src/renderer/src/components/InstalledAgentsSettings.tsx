@@ -2,7 +2,7 @@ import { getLocale, t, tr } from '../i18n'
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import { AGENT_KINDS, agentDescriptor, type AgentCliInstallation, type AgentKind, type DetectedAgent, type EnvironmentCheck } from '@antumi/protocol'
 import { refreshAgentCli, upgradeAgentCli, cancelAgentCliUpgrade, selectConversation, installAgentCli, refreshEnvironment, showTerminal, useCore } from '../core-store'
-import { cliStatusText, cliErrorText } from '../agent-cli-text'
+import { cliStatusText, cliErrorText, cliBackendOutdated, cliChannelText } from '../agent-cli-text'
 import { checkStatusText } from '../environment-text'
 import { agentLabel } from '../labels'
 import { setPreference, usePreferences } from '../preferences'
@@ -28,8 +28,9 @@ function Fix({ label, command }: { label: string; command: string }) {
   )
 }
 
-function CliMaintenance({ kind }: { kind: AgentKind }) {
-  const status = useCore((s) => s.agentCli[kind])
+function CliMaintenance({ kind, check }: { kind: AgentKind; check: EnvironmentCheck }) {
+  const supported = useCore((s) => s.rpc?.features.includes('agent-cli-maintenance') ?? false)
+  const status = useCore((s) => supported ? s.agentCli[kind] : undefined)
   const conversations = useCore((s) => s.conversations)
   const terminals = useCore((s) => s.terminals)
   const [opening, setOpening] = useState(false)
@@ -40,30 +41,100 @@ function CliMaintenance({ kind }: { kind: AgentKind }) {
     setOpening(true)
     try { await upgradeAgentCli(kind) } finally { setOpening(false) }
   }
-  if (!status) return <p className="settings-row-description">{t('agentCli.checking')}</p>
-  const terminal = terminals.find((each) => each.id === status.terminalId)
-  const blockers = Object.values(conversations).filter((each) => each.sessionId && status.blockers.includes(each.sessionId))
+  const terminal = terminals.find((each) => each.id === status?.terminalId)
+  const blockers = Object.values(conversations).filter((each) => each.sessionId && status?.blockers.includes(each.sessionId))
+  const backendOutdated = cliBackendOutdated(status?.error ?? null)
+  const operationVisible = status && status.phase !== 'idle' && !backendOutdated
+  const updateAvailable = status?.availability === 'available'
+  const error = status?.error && !backendOutdated ? cliErrorText(status.error) : null
+  const path = status?.path ?? check.path
+  const channelText = cliChannelText(status?.channel)
+  // Only core proves how a CLI was installed; a guessed command could install a second copy.
+  const upgradeCommand = status?.upgradeCommand ?? null
+  const settled = status !== undefined && status.checkedAt !== null
+  const canUpgradeInApp = Boolean(status?.canUpgrade && !backendOutdated)
+
+  const upgradeButton = canUpgradeInApp && status?.availability !== 'current' && (
+    <button type="button" className="button" disabled={busy} onClick={() => void upgrade()}>
+      {opening ? t('agentCli.starting') : updateAvailable ? t('agentCli.upgrade') : t('agentCli.checkUpgrade')}
+    </button>
+  )
   return (
     <div className="agent-cli-maintenance">
-      <p className="settings-row-description" role="status">{status.channel !== 'unknown' ? `${status.channel === 'native' ? t('agentCli.native') : status.channel === 'desktop' ? t('agentCli.desktop') : status.channel} · ` : ''}{cliStatusText(status)}{status.latestVersion ? ` · ${t('agentCli.latest', { version: status.latestVersion })}` : ''}</p>
-      {status.path && <p className="settings-row-description mono agent-row-where" title={status.path}>{status.path}</p>}
-      {status.error && <p className="settings-row-description" role="status">{cliErrorText(status.error)}</p>}
-      {blockers.map((conversation) => <button key={conversation.id} type="button" className="button ghost" onClick={() => selectConversation(conversation.id)}>{t('agentCli.openConversation', { title: conversation.title })}</button>)}
-      <div className="agent-install-actions">
-        {running ? <button type="button" className="button" onClick={() => void cancelAgentCliUpgrade(kind)}>{t('agentCli.cancel')}</button> : <>
-          {status.canUpgrade && status.availability !== 'current' && <button type="button" className="button" disabled={busy} onClick={() => void upgrade()}>{opening ? t('agentCli.starting') : status.availability === 'available' ? t('agentCli.upgrade') : t('agentCli.checkUpgrade')}</button>}
-          <button type="button" className="button ghost" disabled={busy} onClick={() => void refreshAgentCli(kind, true)}>{t('agentCli.check')}</button>
-        </>}
-        {terminal && <button type="button" className="button ghost" onClick={() => showTerminal(terminal.id)}>{t('agentCli.output')}</button>}
-        {!status.canUpgrade && status.availability !== 'missing' && status.channel !== 'desktop' && !status.error && <span className="settings-row-description">{t('agentCli.manual')}</span>}
-      </div>
+      {(operationVisible || updateAvailable) && (
+        <div className="agent-cli-summary" role="status">
+          <span className="settings-row-description">
+            {operationVisible ? cliStatusText(status) : status?.latestVersion ? t('agentCli.updateTo', { version: status.latestVersion }) : t('agentCli.available')}
+          </span>
+          {running ? (
+            <button type="button" className="button" onClick={() => void cancelAgentCliUpgrade(kind)}>
+              {t('agentCli.cancel')}
+            </button>
+          ) : (
+            canUpgradeInApp && updateAvailable && upgradeButton
+          )}
+        </div>
+      )}
+      {operationVisible && error && <p className="settings-row-description" role="status">{error}</p>}
+      {blockers.map((conversation) => (
+        <button key={conversation.id} type="button" className="button ghost" onClick={() => selectConversation(conversation.id)}>
+          {t('agentCli.openConversation', { title: conversation.title })}
+        </button>
+      ))}
+      {terminal && (
+        <button type="button" className="button ghost" onClick={() => showTerminal(terminal.id)}>
+          {t('agentCli.output')}
+        </button>
+      )}
+      <details className="agent-cli-details">
+        <summary>{t('InstalledAgentsSettings.details')}</summary>
+        {check.signedIn === null && <p className="settings-row-description">{t('InstalledAgentsSettings.signInUnknown')}</p>}
+        {(channelText || path) && (
+          <p className="settings-row-description mono agent-row-where" title={path ?? undefined}>
+            {channelText ? (path ? `${channelText} · ${path}` : channelText) : path}
+          </p>
+        )}
+        {supported && <p className="settings-row-description">{status ? cliStatusText(status) : t('agentCli.checking')}</p>}
+        {!operationVisible && error && <p className="settings-row-description">{error}</p>}
+        {settled && (canUpgradeInApp ? (
+          <>
+            <div className="agent-install-actions">
+              {!running && !updateAvailable && upgradeButton}
+              <button type="button" className="button ghost" disabled={busy} onClick={() => void refreshAgentCli(kind, true)}>
+                {t('agentCli.check')}
+              </button>
+              {status.availability === 'managed' && (
+                <span className="settings-row-description">{t('agentCli.checkUpgradeHint')}</span>
+              )}
+            </div>
+            {upgradeCommand && <Fix label={t('agentCli.orRunInTerminal')} command={upgradeCommand} />}
+          </>
+        ) : (
+          <>
+            {upgradeCommand ? (
+              <Fix
+                label={backendOutdated ? t('agentCli.backendOutdatedUpgradeHint') : t('agentCli.upgradeUnavailableInApp')}
+                command={upgradeCommand}
+              />
+            ) : status.channel !== 'desktop' && status.phase === 'idle' && status.availability !== 'missing' && status.error !== 'agent-cli-source-unknown' && (
+              <p className="settings-row-description">{t('agentCli.manual')}</p>
+            )}
+            {!backendOutdated && (
+              <div className="agent-install-actions">
+                <button type="button" className="button ghost" disabled={busy} onClick={() => void refreshAgentCli(kind, true)}>
+                  {t('agentCli.check')}
+                </button>
+              </div>
+            )}
+          </>
+        ))}
+      </details>
     </div>
   )
 }
 
 function AgentRow({ kind, check, enabled, last }: { kind: AgentKind; check: EnvironmentCheck; enabled: boolean; last: boolean }) {
   const labelId = useId()
-  const maintenanceSupported = useCore((s) => s.rpc?.features.includes('agent-cli-maintenance') ?? false)
   const currentVersion = useCore((s) => s.agentCli[kind]?.currentVersion)
   const version = currentVersion ?? check.version ?? (check.status === 'unknown' ? t('InstalledAgentsSettings.versionUnknown') : null)
   return (
@@ -74,13 +145,15 @@ function AgentRow({ kind, check, enabled, last }: { kind: AgentKind; check: Envi
           <span id={labelId} className="settings-row-label">{agentLabel(kind)}</span>
           {version && <span className="agent-row-version mono" title={check.path ?? undefined}>{version}</span>}
           {!enabled && <span className="agent-row-pill">{t('InstalledAgentsSettings.disabled')}</span>}
-          {check.signedIn !== null && (
-            <span className="environment-pill" data-level={check.signedIn ? 'ok' : 'warning'}>{check.signedIn ? t('InstalledAgentsSettings.signedIn') : t('InstalledAgentsSettings.notSignedIn')}</span>
+          {(check.signedIn !== null || check.status === 'unknown') && (
+            <span className="environment-pill" data-level={check.signedIn === true && check.status !== 'unknown' ? 'ok' : 'warning'}>
+              {check.signedIn === false ? t('InstalledAgentsSettings.needsSignIn') : check.status === 'unknown' ? t('InstalledAgentsSettings.needsCheck') : t('InstalledAgentsSettings.ready')}
+            </span>
           )}
         </div>
         {check.status === 'unknown' && <p className="settings-row-description">{tr('InstalledAgentsSettings.checkWhetherTheCliCanStart', { value1: checkStatusText(check), value2: agentDescriptor(kind, getLocale()).environment.outdated?.hint ?? '' })}</p>}
-        {maintenanceSupported && <CliMaintenance kind={kind} />}
         {check.signedIn === false && <Fix label={t('InstalledAgentsSettings.signIn')} command={agentDescriptor(kind, getLocale()).environment.signIn} />}
+        <CliMaintenance kind={kind} check={check} />
       </div>
       <div className="settings-row-control">
         <Toggle
@@ -178,6 +251,7 @@ export function InstalledAgentsSettings() {
   const environment = useCore((s) => s.environment)
   const installationSupported = useCore((s) => s.rpc?.features.includes('agent-cli-installation') ?? false)
   const maintenanceSupported = useCore((s) => s.rpc?.features.includes('agent-cli-maintenance') ?? false)
+  const cliStatuses = useCore((s) => s.agentCli)
   useEffect(() => { if (maintenanceSupported) void refreshAgentCli() }, [maintenanceSupported])
   const disabled = usePreferences((s) => s.disabledAgents)
   const [checking, setChecking] = useState(false)
@@ -207,6 +281,15 @@ export function InstalledAgentsSettings() {
         </button>
       </div>
       {!environment && <p className="settings-row-description agent-list-note">{t('InstalledAgentsSettings.notScannedYet')}</p>}
+      {maintenanceSupported && found.some(({ kind }) => cliBackendOutdated(cliStatuses[kind]?.error ?? null)) && (
+        <div className="agent-cli-notice" role="status">
+          <p className="settings-row-description">{t('agentCli.backendNotice')}</p>
+          <details className="agent-cli-details">
+            <summary>{t('InstalledAgentsSettings.details')}</summary>
+            <p className="settings-row-description">{t('agentCli.backendNoticeDetails')}</p>
+          </details>
+        </div>
+      )}
       <Group title={t('InstalledAgentsSettings.installed')} count={found.length}>
         {found.map(({ kind, check }) => (
           <AgentRow key={kind} kind={kind} check={check} enabled={!disabled.includes(kind)} last={enabledCount <= 1} />

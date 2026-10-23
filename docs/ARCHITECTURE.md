@@ -179,7 +179,7 @@ Merge 前先提交或暂存改动。有冲突时，分支页列出文件，可�
 ### 环境检查
 
 
-core 启动后会在自己的 PATH 里找 `git`、`claude`、`codex` 和 Cursor CLI（`cursor-agent` 或确认属于 Cursor 的 `agent`），问一下版本，再检查登录状态。Claude Code 和 Codex 只读本机凭据；Cursor 使用 CLI 的 `about --format json`。找不到 Git、支持的 Agent 一个都没装或都没登录时，左侧列表上方会有一条红色提醒：Agent 的问题点开是 设置 → 本机 Agent，Git 的问题点开是 设置 → 关于。「本机 Agent」里所有 Agent 都在一处，分三组：「已安装」的每个显示版本（悬停看路径）、登没登录和启用开关，没登录的给出登录命令；「可安装」是 Antumi 能运行但这台电脑没装的，变灰并给出安装命令；「暂未支持」见下段。命令都可以直接复制，装好或登录后点「重新检测」。「关于」里的 Git 一行显示版本和路径，没装时给出安装命令。只装一个 Agent 不算问题：新建任务和新会话只列出装了的，默认选最近一次新建任务或会话时选的 Agent（小助手、任务聊天、群聊和小队成员、定时运行不算），它不在时只装一个就用那一个，否则留空；没装的不能移交过去；已有任务选的 Agent 不在时仍然显示，标为「未安装」。「本机 Agent」底部可以展开 core 找命令用的目录：装在别处的，把它所在的目录加进登录 shell 的 PATH，再重启 Antumi（打包的 App 启动 core 时用的就是登录 shell 的 PATH）。Windows 上 npm、pnpm 装的 CLI 是 `.cmd` 垫片，core 读出它要运行的程序再问版本（见下文「Windows」）；认不出的垫片只能看到装没装。
+core 启动后会在自己的 PATH 里找 `git`、`claude`、`codex` 和 Cursor CLI（`cursor-agent` 或确认属于 Cursor 的 `agent`），问一下版本，再检查登录状态。Claude Code 和 Codex 只读本机凭据；Cursor 使用 CLI 的 `about --format json`。找不到 Git、支持的 Agent 一个都没装或都没登录时，左侧列表上方会有一条红色提醒：Agent 的问题点开是 设置 → 本机 Agent，Git 的问题点开是 设置 → 关于。「本机 Agent」里所有 Agent 都在一处，分三组：「已安装」的每个显示版本、状态和启用开关：已登录的是「已就绪」，没登录的是「需登录」并给出登录命令，问不了版本的是「需检查」，登录状态不明的不显示状态；安装来源、路径和更新检查收在「详情」里；「可安装」是 Antumi 能运行但这台电脑没装的，变灰并给出安装命令；「暂未支持」见下段。命令都可以直接复制，装好或登录后点「重新检测」。「关于」里的 Git 一行显示版本和路径，没装时给出安装命令。只装一个 Agent 不算问题：新建任务和新会话只列出装了的，默认选最近一次新建任务或会话时选的 Agent（小助手、任务聊天、群聊和小队成员、定时运行不算），它不在时只装一个就用那一个，否则留空；没装的不能移交过去；已有任务选的 Agent 不在时仍然显示，标为「未安装」。「本机 Agent」底部可以展开 core 找命令用的目录：装在别处的，把它所在的目录加进登录 shell 的 PATH，再重启 Antumi（打包的 App 启动 core 时用的就是登录 shell 的 PATH）。Windows 上 npm、pnpm 装的 CLI 是 `.cmd` 垫片，core 读出它要运行的程序再问版本（见下文「Windows」）；认不出的垫片只能看到装没装。
 
 设置 → 本机 Agent里的「暂未支持」显示 Antumi 认识、但尚未接入聊天的 Agent：从 core 当前的 PATH 查找已知 CLI，并在 macOS 的 `/Applications` 和 `~/Applications` 查找已知应用。Cursor 已支持聊天，应用和 CLI 会合并进「已安装」或「可安装」的一项；只安装编辑器仍需另外安装 CLI。找到 CLI 后会限时执行 `--version`，分别显示命令已响应、版本检测失败或 Windows 命令垫片认不出、无法直接验证；这不检查登录，也不代表 Antumi 已支持该 CLI 的聊天协议。每 5 分钟自动复查，也能手动「重新检测」；新增 PATH 目录仍需重启 Antumi，才能让 core 和 daemon 都用到它。未接入的 Agent 标为「暂未支持」，不能选来运行任务或会话。尚未接入的产品在 `packages/core/src/environment-check.ts` 的发现清单里登记可辨认的命令或应用名；已接入的 Agent 由它的 adapter 声明（见「新增 Agent」）。
 
@@ -372,9 +372,9 @@ Antigravity 也只是一份 dialect（`agents/antigravity/`）：`agy` 本身不
 
 ### Agent CLI 版本与升级
 
-设置 → 任务 → 已安装的 Agent 打开时调用 `system.agentCliStatus`，按需查询版本；成功缓存一小时，失败五分钟，手动检查绕过缓存。不做启动通知或自动升级。`agent-cli-maintenance` feature 区分新旧 core，daemon 的 `info.features` 单独声明升级能力；旧 daemon 保留版本检查，只禁用升级。
+设置 → 任务 → 已安装的 Agent 打开时调用 `system.agentCliStatus`，按需查询版本；成功缓存一小时，失败五分钟，手动检查绕过缓存。不做启动通知或自动升级。`agent-cli-maintenance` feature 区分新旧 core，daemon 的 `info.features` 单独声明升级能力；旧 daemon 保留版本检查，只禁用升级，设置页在列表顶部提示一次，不逐项重复。有新版本时才在 Agent 一行显示「升级」；升级进度、失败原因、挡住升级的会话和输出入口在行内，其余收在「详情」。
 
-安装与更新事实属于各 Agent adapter 的 `maintenance`。core 的 `agent-cli-target.ts` 从环境检测选中的实际路径开始，验证包管理器的全局包名、bin 与真实路径，或 Homebrew 的安装前缀与安装记录；不按路径里出现 `homebrew` 就判断来源。npm/pnpm/bun 使用原管理器，Homebrew 使用原 formula/cask，已确认的原生安装必须在 help 中声明自更新子命令。应用内置、项目本地和归属不明的 CLI 只给手动指引。Cursor 的日期版本保留完整构建标识，同一天不同 hash 不推断先后；没有最新版本接口时显示由 CLI 检查，查询失败不显示「已是最新」。默认查询稳定版本，拒绝降级。
+安装与更新事实属于各 Agent adapter 的 `maintenance`。core 的 `agent-cli-target.ts` 从环境检测选中的实际路径开始，验证包管理器的全局包名、bin 与真实路径，或 Homebrew 的安装前缀与安装记录；不按路径里出现 `homebrew` 就判断来源。npm/pnpm/bun 使用原管理器，Homebrew 使用原 formula/cask，已确认的原生安装必须在 help 中声明自更新子命令。应用内置、项目本地和归属不明的 CLI 只给手动指引。确认了来源的，状态里带上可复制的终端升级命令（`upgradeCommand`，就是应用内升级会运行的那条）；不按 Agent 猜一条通用命令，免得装出第二份、PATH 仍指向旧的。Cursor 的日期版本保留完整构建标识，同一天不同 hash 不推断先后；没有最新版本接口时显示由 CLI 检查，查询失败不显示「已是最新」。默认查询稳定版本，拒绝降级。
 
 `AgentCliMaintenance` 在 core 管理查询、全局串行升级、结果复核和 `agent_cli_operations` 中的操作记录。`AgentCliAccess` 协调 core 内的检测、模型探测、临时调用、登录和退出；daemon 会话附带可选 `agent`，`spawnCliUpgrade` 原子检查目标 Agent 的存活进程（包括空闲驻留会话）并启动升级 PTY。升级会话带 `upgradeId`，其存活期间 daemon 拒绝同种 Agent 启动；其他 Agent 和普通终端照常运行。无法归属的旧 pipe 会话保守阻止升级。不扫描外部终端中的 CLI，不主动结束现有会话。
 
