@@ -4,7 +4,7 @@ Antumi 通过 Google 的 **Antigravity ACP 服务**接入 Antigravity。Zed、Je
 
 ## 安装
 
-设置 → 本机 Agent 里，Antigravity 缺失时提供「在终端中安装」。安装命令会：
+设置 → 本机 Agent 里，Antigravity 缺失时标为「未下载」，提供「在终端安装」，完整命令收在「详情」里。安装命令会：
 
 1. 从 `dl.google.com/agy-extensions/releases` 下载 [ACP registry](https://github.com/agentclientprotocol/registry/blob/main/antigravity-acp/agent.json) 列出的 `1.4.1` 压缩包，大小 110–340 MB；
 2. 核对压缩包的 SHA-256；Google 不发布校验和，这里的值钉在 `core/src/agents/antigravity/antigravity-runtime.ts`；

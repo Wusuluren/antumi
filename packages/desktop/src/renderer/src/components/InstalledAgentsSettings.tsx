@@ -170,6 +170,9 @@ function AgentRow({ kind, check, enabled, last }: { kind: AgentKind; check: Envi
 
 // One Antumi can run but this machine does not have: dimmed, with what to type to install it.
 function MissingAgentRow({ kind, installation }: { kind: AgentKind; installation?: AgentCliInstallation }) {
+  const environment = agentDescriptor(kind, getLocale()).environment
+  // An installation is offered without the application too, for a runtime Antumi downloads itself.
+  const appFound = useCore((s) => s.environment?.detectedAgents?.some((each) => each.id === kind && each.locations.some((location) => location.source === 'application')) ?? false)
   const [opening, setOpening] = useState(false)
   const terminal = useCore((s) => installation ? s.terminals.findLast((each) => !each.conversationId && each.command === installation.command) : undefined)
   const running = terminal && !terminal.exited
@@ -186,10 +189,10 @@ function MissingAgentRow({ kind, installation }: { kind: AgentKind; installation
       <div className="settings-row-text">
         <div className="agent-row-head">
           <span className="settings-row-label">{agentLabel(kind)}</span>
-          <span className="agent-row-pill">{installation ? t('InstalledAgentsSettings.cliNotFound') : t('AgentPicker.notInstalled')}</span>
+          <span className="agent-row-pill">{environment.missing?.status ?? (appFound ? t('InstalledAgentsSettings.cliNotFound') : t('AgentPicker.notInstalled'))}</span>
         </div>
-        <p className="settings-row-description">{installation ? t('InstalledAgentsSettings.appDetectedInstallItsCliToUseIt', { value1: agentLabel(kind) }) : agentDescriptor(kind, getLocale()).environment.role}</p>
-        <Fix label={t('InstalledAgentsSettings.install')} command={installation?.command ?? agentDescriptor(kind, getLocale()).environment.install} />
+        <p className="settings-row-description">{environment.missing?.hint ?? (appFound ? t('InstalledAgentsSettings.appDetectedInstallItsCliToUseIt', { value1: agentLabel(kind) }) : environment.role)}</p>
+        {!installation && <Fix label={t('InstalledAgentsSettings.install')} command={environment.install} />}
         {installation && (
           <div className="agent-install-actions">
             <button type="button" className="button" disabled={opening} onClick={() => void install()}>
@@ -198,6 +201,12 @@ function MissingAgentRow({ kind, installation }: { kind: AgentKind; installation
             {terminal?.exited && <button type="button" className="button ghost" onClick={() => showTerminal(terminal.id)}>{t('InstalledAgentsSettings.viewInstallationOutput')}</button>}
             {terminal?.exited && <span className="settings-row-description">{failed ? t('InstalledAgentsSettings.installationFailedExitCodeReviewOutputAndRetry', { value1: terminal.exitCode ?? t('InstalledAgentsSettings.unknown') }) : t('InstalledAgentsSettings.installationCommandFinishedIfCliIsStillMissing')}</span>}
           </div>
+        )}
+        {installation && (
+          <details className="agent-cli-details">
+            <summary>{t('InstalledAgentsSettings.details')}</summary>
+            <Fix label={t('agentCli.orRunInTerminal')} command={installation.command} />
+          </details>
         )}
       </div>
     </div>

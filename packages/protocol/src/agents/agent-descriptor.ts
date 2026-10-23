@@ -57,6 +57,8 @@ export type AgentDescriptor = {
     signIn: string
     // A CLI found, but too old to speak the protocol Antumi runs it with.
     outdated?: { status: string; hint: string }
+    // Missing, for one whose runtime Antumi downloads itself: without it the row reads as a CLI to install.
+    missing?: { status: string; hint: string }
   }
   // Where a usage reset can be used.
   usageWhere: string

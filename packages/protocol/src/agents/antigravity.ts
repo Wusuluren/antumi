@@ -13,7 +13,8 @@ export const antigravity: AgentDescriptor = {
     environment: {
       role: "Runs Google's Antigravity ACP server (the one behind its Zed and JetBrains extensions), which Antumi downloads into its own folder. Neither agy nor the Antigravity editor is needed.",
       install: 'Download the Antigravity ACP server from Settings → Local agents',
-      signIn: 'Your first chat opens the Google sign-in page in the browser'
+      signIn: 'Your first chat opens the Google sign-in page in the browser',
+      missing: { status: 'Not downloaded', hint: "Antumi runs Antigravity through Google's Antigravity ACP server, which it downloads first (110–340 MB). Neither agy nor the Antigravity editor is needed." }
     },
     usageWhere: 'Send /usage in an Antigravity chat'
   } },
@@ -34,7 +35,8 @@ export const antigravity: AgentDescriptor = {
   environment: {
     role: '聊天界面运行 Google 的 Antigravity ACP 服务（Zed、JetBrains 扩展用的同一个），由 Antumi 下载到自己的目录；不需要 agy 或 Antigravity 编辑器。',
     install: '在 设置 → 本机 Agent 里下载 Antigravity ACP 服务',
-    signIn: '第一次对话时会在浏览器打开 Google 登录页'
+    signIn: '第一次对话时会在浏览器打开 Google 登录页',
+    missing: { status: '未下载', hint: 'Antumi 通过 Google 的 Antigravity ACP 服务运行 Antigravity，需要先下载它（110–340 MB）；不需要 agy 或 Antigravity 编辑器。' }
   },
   usageWhere: '在 Antigravity 会话里发送 /usage 查看'
 }
