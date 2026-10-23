@@ -9,12 +9,22 @@
 本地优先的多 Agent 工作台，统一管理 Claude Code、Codex、Cursor、OpenCode、Pi、DeepSeek Harness 和 Antigravity 的会话、任务、群聊与定时运行。
 
 [![Version](https://img.shields.io/github/package-json/v/flyhero/antumi?label=version&color=blue)](CHANGELOG.md)
-![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
-![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20OpenCode%20%C2%B7%20Pi-8A2BE2)
+![Platform](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-lightgrey)
+![Agents](https://img.shields.io/badge/agents-7%20supported-8A2BE2)
 
-[特色功能](#特色功能) · [支持的 Agent](#支持的-agent) · [快速开始](#快速开始) · [文档](#文档) · [更新日志](CHANGELOG.md) · [反馈](https://github.com/flyhero/antumi/issues)
+[特色功能](#特色功能) · [快速开始](#快速开始) · [文档](#文档) · [更新日志](CHANGELOG.md) · [反馈](https://github.com/flyhero/antumi/issues)
 
 **简体中文** · [English](README.en.md)
+
+<p align="center">
+  <a href="#支持的-agent" title="Claude Code"><img src="docs/assets/agents/claude.svg" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#支持的-agent" title="Codex"><img src="docs/assets/agents/codex.svg" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#支持的-agent" title="Cursor"><img src="docs/assets/agents/cursor.svg" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#支持的-agent" title="OpenCode"><img src="docs/assets/agents/opencode.svg" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#支持的-agent" title="Pi"><img src="docs/assets/agents/pi.svg" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#支持的-agent" title="DeepSeek Harness"><img src="docs/assets/agents/dsh.svg" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#支持的-agent" title="Antigravity"><img src="docs/assets/agents/antigravity.svg" width="32" height="32" /></a>
+</p>
 
 https://github.com/user-attachments/assets/11386a48-b8b8-4a33-a18f-a6fa4ebc4f3e
 
@@ -58,7 +68,7 @@ https://github.com/user-attachments/assets/11386a48-b8b8-4a33-a18f-a6fa4ebc4f3e
 
 ### 定时与预约
 
-在侧栏「定时」里让 Claude Code、Codex、OpenCode 或 Pi 按每天、工作日或每周执行工作；输入框旁的时钟按钮能把这条消息预约到指定时间或额度恢复后，任务和计划批准也能预约。定时任务可自动选择有额度的 Agent；无人值守时 Agent 问的事由 Antumi 按模式代答，不会停下来等你。电脑需保持唤醒，Cursor 暂不支持。
+在侧栏「定时」里让 Claude Code、Codex、OpenCode、Pi 或 DeepSeek Harness 按每天、工作日或每周执行工作；输入框旁的时钟按钮能把这条消息预约到指定时间或额度恢复后，任务和计划批准也能预约。定时任务可自动选择有额度的 Agent；无人值守时 Agent 问的事由 Antumi 按模式代答，不会停下来等你。电脑需保持唤醒，Cursor 与 Antigravity 暂不支持。
 
 <img src="docs/assets/features/schedule.webp" alt="定时与预约演示：打开侧栏「定时」和「预约」，再用输入框旁的时钟预约发送消息" width="100%" />
 
@@ -76,7 +86,7 @@ Agent 在回复里提到要你之后处理的事（上线前要做的、要你�
 
 ### 额度一眼看清
 
-底部状态栏集中显示 Claude Code、Codex 和 Cursor 的用量，悬停就能查看各自的额度窗口和恢复时间。设置里可切换显示已用或剩余比例，Cursor 显示月度用量，服务提供的重置卡和全员重置预告也会显示。
+底部状态栏集中显示 Claude Code、Codex、Cursor、Antigravity 的用量，悬停就能查看各自的额度窗口和恢复时间。设置里可切换显示已用或剩余比例，Cursor 显示月度用量，服务提供的重置卡和全员重置预告也会显示。
 
 Antumi 还会按各窗口的重置时间估算用量节奏：周额度快重置还剩很多时提醒你现在多用、可以放心用 Opus；照这个速度会提前用完时，建议换模型或把轻活交给另一个 Agent。选择 Agent 时会标出现在最该用的那个。
 
@@ -87,9 +97,11 @@ Antumi 还会按各窗口的重置时间估算用量节奏：周额度快重置�
 
 - **总览**：把等你批准、回答和验收的工作汇在一处，在跑和接下来要做的也一眼看清。
 - **任务看板**：支持独立 worktree、多项目任务和前置依赖，验收通过后才解锁后续任务。
-- **验收与 Git**：检查整条任务分支的 diff，运行项目检查，再选择接受、接着改或重做。
+- **验收与 Git**：检查整条任务分支的 diff，运行项目检查，支持从远端更新与变基合并。
 - **文件、终端与浏览器**：在工作台里编辑文件、管理开发服务，让 Agent 验证页面，你也可以接管。
-- **来源与扩展**：接入 Jira、GitHub、Obsidian、Agent Skills 和 MCP。
+- **服务商与多账号**：支持第三方编程套餐与自定义模型接口；Claude Code 与 Codex 支持多账号及额度耗尽自动切号。
+- **用量分析与预测**：深度账本统计 7/30/90 天用量与额度耗尽预测，定时预热与智能用卡自动化。
+- **来源与扩展**：接入 Jira、GitHub、Obsidian、Agent Skills、MCP 服务器与终端会话导入。
 - **本地优先**：记录保存在本机，Agent 由后台进程托管，关窗口不中断工作。
 
 </details>
@@ -112,7 +124,7 @@ Antumi 驱动的是你已经装好、登录好的 Agent CLI。
 
 ## 快速开始
 
-**前提**：至少装好并登录一个上面表格里的 Agent CLI。
+**前提**：准备好至少一个 Agent（Claude Code、Codex、Cursor、OpenCode、Pi、DeepSeek Harness 请先装好 CLI；Antigravity 可在「设置 → 本机 Agent」中一键下载服务并在首聊时登录）。
 
 **从源码运行**，需要 Node ≥ 22.13 和 pnpm 12：
 
@@ -148,12 +160,6 @@ pnpm dist:win     # 产物在 packages/desktop/dist/Antumi-Setup-<版本>-x64.ex
 
    不想敲命令的话，也可以先双击被拦一次，再去「系统设置 → 隐私与安全性」点「仍要打开」。
 3. 打开 Antumi。它第一次发系统通知时（窗口不在前台，Agent 做完了或在等你），macOS 会问是否允许，选「允许」。这个问题只问一次：错过了或没点，之后的通知只会悄悄进通知中心、不弹出来。这时去「系统设置 → 通知 → Antumi」打开「允许通知」，提醒样式选「横幅」或「提示」。
-
-0.18.11 及以前的 dmg 签名是坏的，macOS 不让它发通知。装好后、第一次打开前，先重签一次：
-
-```bash
-codesign --force --deep --sign - /Applications/Antumi.app
-```
 
 收不到通知时怎么排查，见[技术架构 · 打包与安装](docs/ARCHITECTURE.md#8-打包与安装)。
 
@@ -201,7 +207,7 @@ codesign --force --deep --sign - /Applications/Antumi.app
 | 管理 worktree、分支、合并冲突 | [技术架构 · Worktree 与 Git](docs/ARCHITECTURE.md#3-worktree-与-git) |
 | 了解各 Agent 怎么接入、权限模式对应什么 | [技术架构 · Agent 接入与聊天](docs/ARCHITECTURE.md#4-agent-接入与聊天) |
 | 让 Agent 用浏览器验证页面 | [技术架构 · 内置浏览器](docs/ARCHITECTURE.md#5-内置浏览器) |
-| 安装任务或 Bug 来源 | [新手指导 · 来源安装](docs/GETTING-STARTED.md#第四步安装任务或-bug-来源) |
+| 接入任务或 Bug 来源 | [任务来源插件](docs/PLUGINS.md) |
 | 写一个任务来源插件 | [插件开发指南](docs/PLUGINS.md#开发一个任务来源插件) |
 | 打包、安装、卸载 | [技术架构 · 打包与安装](docs/ARCHITECTURE.md#8-打包与安装) |
 | 发布新版本 | [技术架构 · 自动发布](docs/ARCHITECTURE.md#自动发布) |
@@ -223,11 +229,11 @@ ANTUMI_HOME=~/.antumi-demo pnpm dev
 
 ## 现状
 
-Antumi 目前是**开发者预览版**（0.18.x），主要在 macOS 上开发和测试，Windows 可以运行和打包、但还缺实机验证，需要从源码运行或自行打包。接下来按优先级：
+Antumi 目前是**开发版**（0.20.x），主要在 macOS 上开发和测试，Windows 可以运行和打包。接下来按优先级：
 
-- **验收闭环**：在现有提交前检查的基础上，完善检查结果展示以及 PR 与合并流程。
-- **Windows**：已经能从源码运行和打出安装包（Agent CLI 的 `.cmd` 垫片不经 shell 启动，终端用 PowerShell），接下来是实机验证、CI 和签名。
+- **Windows 实机体验**：完善 Windows 上的日常使用、自动更新和 CI。
 - **远程执行**：让 Agent 在 SSH / WSL 里的仓库上干活，看板留在本机。
+- **更多 Agent 与生态**：持续扩展主流 Agent CLI 与 ACP 生态支持。
 
 用下来哪里别扭、想接哪个 Agent，欢迎提 [issue](https://github.com/flyhero/antumi/issues)。
 

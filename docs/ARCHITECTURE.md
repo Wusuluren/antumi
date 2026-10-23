@@ -558,8 +558,6 @@ pnpm dist:win     # 产物在 packages/desktop/dist/Antumi-Setup-<版本>-x64.ex
   codesign --verify --deep --strict --verbose=1 /Applications/Antumi.app
   codesign -dv /Applications/Antumi.app 2>&1 | grep Identifier
   ```
-
-  0.18.11 及以前的 dmg 没有这个钩子，`Identifier` 会是 `Electron`。第一次打开前先 `codesign --force --deep --sign - /Applications/Antumi.app` 重签一次。重签要在 App 没在运行时做：关掉窗口后，daemon 和 core 仍在从这个 App 里运行。
 - **收不到 macOS 通知时**：
   - 先用上面的命令确认签名。
   - 确认是从「应用程序」打开的，不是在 dmg 或「下载」里直接运行的：从这些地方运行的 App 会被系统挪到临时路径去跑，通知照样发不出。

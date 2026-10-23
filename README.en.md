@@ -6,22 +6,32 @@
 
 **One workspace to work with multiple AI agents.**
 
-A local-first workspace for Claude Code, Codex and Cursor: conversations, tasks, group discussions and scheduled runs in one place.
+A local-first workspace for Claude Code, Codex, Cursor, OpenCode, Pi, DeepSeek Harness, and Antigravity: conversations, tasks, group discussions and scheduled runs in one place.
 
 [![Version](https://img.shields.io/github/package-json/v/flyhero/antumi?label=version&color=blue)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
-![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor-8A2BE2)
+![Platform](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-lightgrey)
+![Agents](https://img.shields.io/badge/agents-7%20supported-8A2BE2)
 
 [Features](#features) · [Supported agents](#supported-agents) · [Getting started](#getting-started) · [Docs](#docs) · [Changelog](CHANGELOG.md) · [Feedback](https://github.com/flyhero/antumi/issues)
 
 [简体中文](README.md) · **English**
 
+<p align="center">
+  <a href="#supported-agents" title="Claude Code"><img src="docs/assets/agents/claude.svg" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#supported-agents" title="Codex"><img src="docs/assets/agents/codex.svg" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#supported-agents" title="Cursor"><img src="docs/assets/agents/cursor.svg" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#supported-agents" title="OpenCode"><img src="docs/assets/agents/opencode.svg" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#supported-agents" title="Pi"><img src="docs/assets/agents/pi.svg" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#supported-agents" title="DeepSeek Harness"><img src="docs/assets/agents/dsh.svg" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#supported-agents" title="Antigravity"><img src="docs/assets/agents/antigravity.svg" width="32" height="32" /></a>
+</p>
+
 https://github.com/user-attachments/assets/11386a48-b8b8-4a33-a18f-a6fa4ebc4f3e
 
 </div>
 
-> The app's UI is currently in Chinese. The launch video rebuilds the app's UI with sample data; the feature demos below are recorded from the app's own UI.
+> Antumi supports both English and Simplified Chinese (switch in Settings). The launch video and demos below were recorded with sample project data.
 
 ## Features
 
@@ -31,25 +41,25 @@ https://github.com/user-attachments/assets/11386a48-b8b8-4a33-a18f-a6fa4ebc4f3e
 
 ### Side assistant
 
-Select part of a conversation, right-click and choose 交给小助手 (hand to assistant): the side assistant opens on the right with the passage quoted, ready to explain, follow up, or take on a small task. It defaults to a lightweight model with its own context, so the main conversation stays focused.
+Select part of a conversation, right-click and choose **Ask helper**: the side assistant opens on the right with the passage quoted, ready to explain, follow up, or take on a small task. It defaults to a lightweight model with its own context, so the main conversation stays focused.
 
 <img src="docs/assets/features/assistant.webp" alt="Side assistant: select a term, right-click to hand it to the assistant, and ask about it on the right" width="100%" />
 
 ### Translation
 
-Click 翻译 (translate) under an English reply to read it in Chinese, and click again for the original; or select one sentence and translate it from the right-click menu. A lightweight model does the work outside the main conversation's context.
+Click **Translate** under a reply to read it in your language, and click again for the original; or select one sentence and translate it from the right-click menu. A lightweight model does the work outside the main conversation's context.
 
 <img src="docs/assets/features/translation.webp" alt="Translation: translate a reply, switch back to the original, then translate one selected sentence" width="100%" />
 
 ### Split view
 
-⌘-click another conversation, or choose 在右侧分屏打开 (open on the right) from its menu, to put two conversations side by side: work on an implementation while checking another agent's advice. Each pane has its own input, progress, and approval requests, with a draggable divider to adjust the space.
+⌘-click another conversation, or choose **Open in right split pane** from its menu, to put two conversations side by side: work on an implementation while checking another agent's advice. Each pane has its own input, progress, and approval requests, with a draggable divider to adjust the space.
 
 <img src="docs/assets/features/split.webp" alt="Split view: ⌘-click a second conversation to show Claude Code and Codex side by side, then type on the right" width="100%" />
 
 ### Group chat
 
-Bring 2–5 agents into one conversation to answer independently, then respond to each other's ideas. Jump in or @ a member at any time, steer the pace with 继续 (continue) and 立即总结 (summarize now), and let the chair summarize agreements and disagreements; discussions are read-only and do not change code.
+Bring 2–5 agents into one conversation to answer independently, then respond to each other's ideas. Jump in or @ a member at any time, steer the pace with **Continue** and **Summarize now**, and let the chair summarize agreements and disagreements; discussions are read-only and do not change code.
 
 <img src="docs/assets/features/discussion.webp" alt="Group chat: three agents answer independently, respond after Continue, and the chair summarizes after Summarize now" width="100%" />
 
@@ -61,7 +71,7 @@ Assign agents, models, and roles to a leader, developers, and reviewers (expand 
 
 ### Routines and scheduling
 
-Under 定时 (routines) in the sidebar, schedule Claude Code or Codex to work daily, on weekdays, or weekly; the clock beside the composer reserves a message for a set time or for when quota resets, and tasks and plan approvals can be reserved too. Routines can choose an agent with available quota; the computer must stay awake, and Cursor is not supported yet.
+Under **Routines** in the sidebar, schedule Claude Code, Codex, OpenCode, Pi, or DeepSeek Harness to work daily, on weekdays, or weekly; the clock beside the composer reserves a message for a set time or for when quota resets, and tasks and plan approvals can be reserved too. Routines can choose an agent with available quota; unattended runs answer prompts automatically based on permission modes. The computer must stay awake; Cursor and Antigravity are not supported for routines.
 
 <img src="docs/assets/features/schedule.webp" alt="Scheduling: open routines and reservations from the sidebar, then reserve a message with the composer clock" width="100%" />
 
@@ -73,13 +83,13 @@ When quota runs out or you want another approach, click the agent name at the bo
 
 ### To-dos
 
-When an agent's reply mentions things for you to do later (before release, to verify, to configure), it records them as the conversation's to-dos, and the inspector button in the header shows how many are open. Tick them off in the 待办 (to-dos) tab; 总览 · 待办 (overview) gathers every conversation's to-dos, and items marked 「Agent 可做」 can be handed back to the agent.
+When an agent's reply mentions things for you to do later (before release, to verify, to configure), it records them as the conversation's to-dos, and the inspector button in the header shows how many are open. Tick them off in the **To-dos** tab; **Overview → To-dos** gathers every conversation's to-dos, and items marked "Agent can do" can be handed back to the agent.
 
 <img src="docs/assets/features/todos.webp" alt="To-dos: an agent records to-dos, the header inspector opens the to-dos tab to tick one off, and the overview lists them all" width="100%" />
 
 ### Quota at a glance
 
-The status bar shows Claude Code, Codex, and Cursor usage together; hover for each agent's quota windows and reset times. Settings switch between used and remaining percentages, with monthly usage for Cursor and reset credits or global reset announcements when available.
+The status bar shows Claude Code, Codex, Cursor, and Antigravity usage together; hover for each agent's quota windows and reset times. Settings switch between used and remaining percentages, with monthly usage for Cursor and reset credits or global reset announcements when available.
 
 <img src="docs/assets/features/quota.webp" alt="Quota: zoom into the status bar, hover each agent for usage and reset times, then show remaining percentages" width="100%" />
 
@@ -88,9 +98,11 @@ The status bar shows Claude Code, Codex, and Cursor usage together; hover for ea
 
 - **Overview**: bring approvals, questions, and reviews together, with what is running and what comes next in view.
 - **Task board**: isolated worktrees, multi-project tasks, and dependencies that unlock after acceptance.
-- **Review and Git**: inspect the entire task branch, run project checks, then accept, request changes, or redo.
+- **Review and Git**: inspect the entire task branch, run project checks, and update from remote with fast-forward/rebase.
 - **Files, terminals, and browser**: edit files, manage development servers, and let agents verify pages you can take over.
-- **Sources and extensions**: connect Jira, GitHub, Obsidian, Agent Skills, and MCP.
+- **Model providers & multi-account**: connect third-party coding plans or custom endpoints; Claude Code and Codex support multi-account auto-switching on quota limits.
+- **Usage analytics**: 7/30/90-day ledgers by model, account, and source, with countdowns to quota exhaustion.
+- **Sources and extensions**: connect Jira, GitHub, Obsidian, Agent Skills, MCP servers, and import CLI sessions.
 - **Local-first**: records stay on your machine, and background agents keep working when the window closes.
 
 </details>
@@ -104,6 +116,8 @@ Antumi drives the agent CLIs you already have installed and signed in to.
 | [**Claude Code**](https://github.com/anthropics/claude-code) | `claude -p` (stream-json) | ask · accept edits · plan · auto | ✓ | ✓ | ✓ |
 | [**Codex**](https://github.com/openai/codex) | `codex app-server` | ask · auto · plan · read-only | ✓ | ✓ | ✓ |
 | [**Cursor**](https://cursor.com/cli) | `cursor-agent acp` | Agent · Plan · Ask | ✓ | ✓ | — |
+| [**OpenCode**](https://opencode.ai) | `opencode acp` | Build · auto · Plan · read-only | — | ✓ | ✓ |
+| [**Pi**](https://pi.dev) | `pi --mode rpc` | default · auto · plan · read-only | ✓ | ✓ | ✓ |
 | [**DeepSeek Harness**](docs/DEEPSEEK.md) | `dsh --profile antumi` (ACP) | default · automatic · plan · read-only | ✓ | ✓ | ✓ |
 | [**Antigravity**](docs/ANTIGRAVITY.md) | Google's Antigravity ACP server | Default · Auto Edit | — | ✓ | — |
 
@@ -111,7 +125,7 @@ Antumi drives the agent CLIs you already have installed and signed in to.
 
 ## Getting started
 
-**Prerequisite**: at least one agent CLI from the table above, installed and signed in.
+**Prerequisite**: At least one agent ready (install CLI for Claude Code, Codex, Cursor, OpenCode, Pi, or DeepSeek Harness; Antigravity can be downloaded directly in Settings).
 
 **Run from source**, with Node ≥ 22.13 and pnpm 12:
 
@@ -180,7 +194,7 @@ The documentation is in Chinese for now.
 | Manage worktrees, branches and merge conflicts | [Architecture · Worktrees and Git](docs/ARCHITECTURE.md#3-worktree-与-git) |
 | See how each agent is integrated and what the permission modes map to | [Architecture · Agents and chat](docs/ARCHITECTURE.md#4-agent-接入与聊天) |
 | Let agents verify pages in the browser | [Architecture · Built-in browser](docs/ARCHITECTURE.md#5-内置浏览器) |
-| Install a task or bug source | [Getting started · Source plugins](docs/GETTING-STARTED.en.md#step-4-install-a-task-or-bug-source) |
+| Connect task or bug sources | [Task source plugins](docs/PLUGINS.md) |
 | Write a task-source plugin | [Plugin development](docs/PLUGINS.md#开发一个任务来源插件) |
 | Package, install, uninstall | [Architecture · Packaging](docs/ARCHITECTURE.md#8-打包与安装) |
 | Publish a release | [Architecture · Automated releases](docs/ARCHITECTURE.md#自动发布) |
@@ -202,11 +216,11 @@ ANTUMI_HOME=~/.antumi-demo pnpm dev
 
 ## Status
 
-Antumi is a **developer preview** (0.18.x), developed and tested mainly on macOS (Windows runs and packages but has yet to be tried on real machines), and has to be run from source or packaged yourself. Next, in order:
+Antumi is currently in **development preview** (0.20.x), developed and tested mainly on macOS (Windows runs and packages). Next, in order:
 
-- **Closing the review loop**: build on the existing checks before review with clearer result displays and PR and merge workflows.
-- **Windows**: it runs from source and packages as an installer (the agent CLIs' `.cmd` shims start without a shell, and terminals open in PowerShell); next is testing on real machines, CI and signing.
-- **Remote execution**: let agents work on repositories over SSH / WSL while the board stays local.
+- **Windows testing**: Polishing auto-updates, real-machine installation and CI.
+- **Remote execution**: Let agents work on repositories over SSH / WSL while the board stays local.
+- **More agents and ecosystem**: Expanding support for more agent CLIs and ACP servers.
 
 Something feels off, or you want another agent supported? [Open an issue](https://github.com/flyhero/antumi/issues).
 

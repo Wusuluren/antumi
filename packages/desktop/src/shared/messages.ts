@@ -5463,6 +5463,10 @@ export const MESSAGES = {
     "zh": "安装 {name} 插件",
     "en": "Install {name} plugin"
   },
+  "PluginSettings.openOnGitHub": {
+    "zh": "在 GitHub 上查看",
+    "en": "View on GitHub"
+  },
   "PluginSettings.recommended": {
     "zh": "推荐插件",
     "en": "Recommended plugins"

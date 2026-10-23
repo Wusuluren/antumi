@@ -9684,6 +9684,9 @@ button.squad-member-main { cursor: pointer; }
 .plugin-row:first-child { border-top: 0; }
 .plugin-row .settings-row { border: 0; padding: 0 0 12px; }
 .plugin-row .settings-row-description { overflow-wrap: anywhere; }
+.plugin-repository { color: var(--accent); text-decoration: none; }
+.plugin-repository:hover { text-decoration: underline; }
+.plugin-repository:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
 
 /* The helper gives the inspector's height to the chat's own list and dock. */
 .inspector-body:has(> .helper-panel) { display: flex; overflow: hidden; padding: 0; }
