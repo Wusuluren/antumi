@@ -37,9 +37,12 @@ describe('globalResetText', () => {
 })
 
 describe('GlobalResetList', () => {
-  it('links the post, and credits its sources as not official', () => {
+  it('links the post, and puts unofficial source credits in the source tooltip', () => {
     const html = renderToStaticMarkup(createElement(GlobalResetList, { resets: quiet, now }))
     expect(html).toContain('href="https://x.com/thsottiaux/status/1"')
+    expect(html).toContain('aria-label="数据来源"')
+    expect(html).toContain('role="tooltip"')
+    expect(html).not.toContain('usage-card-credits-hint')
     expect(html).toContain('非官方消息')
     expect(html).toContain('href="https://limitreset.net"')
     expect(html).toContain('href="https://codex-resets.com"')

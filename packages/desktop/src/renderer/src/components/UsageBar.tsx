@@ -29,7 +29,7 @@ import { usePreferences } from '../preferences'
 import { adviceText, alternativeAgent, paceText } from '../quota-advice-text'
 import { clearsText, formatClock, formatDuration, globalResetText, percentText, resetText, shownPercent, SPEND_OUTCOME_TEXT, spendNote, useNow, windowLabel } from '../usage-format'
 import { agentNames } from '../environment-text'
-import { AgentIcon, CheckIcon } from './icons'
+import { AgentIcon, CheckIcon, InfoIcon } from './icons'
 import { Spinner } from './Spinner'
 import { forecastText, useQuotaForecasts } from '../quota-forecast'
 
@@ -161,26 +161,36 @@ const fullDate = (at: number) => new Date(at).toLocaleString(getLocale(), { hour
 // What the service announced for everyone, from a community tracker: a word that it is not official,
 // and the credit the tracker asks for.
 export function GlobalResetList({ resets, now }: { resets: GlobalResets; now: number }) {
+  const sourceId = useId()
   const text = globalResetText(resets, now)
   const source = (url: string | null, label: string) => url && <a className="usage-card-global-source" href={url} target="_blank" rel="noreferrer">{label}</a>
+  const attribution = (
+    <span className="usage-card-global-attribution" title="">
+      <button type="button" className="usage-card-global-info" aria-label={t('UsageBar.dataSources')} aria-describedby={sourceId}><InfoIcon /></button>
+      <span id={sourceId} role="tooltip" className="usage-card-global-tooltip">
+        {tr('UsageBar.basedOnAnnouncementsOnXUnofficialInformationData', { value1: <a href="https://limitreset.net" target="_blank" rel="noreferrer">LimitReset</a>, value2: <a href="https://codex-resets.com" target="_blank" rel="noreferrer">Codex Resets</a> })}
+      </span>
+    </span>
+  )
   return (
     <div className="usage-card-global">
-      <div className="usage-card-credits-title">{t('SettingsPage.serviceWideReset')}</div>
+      <div className="usage-card-credits-title">{t('SettingsPage.serviceWideReset')}{!text.upcoming && !text.latest && !text.chance && attribution}</div>
       {resets.upcoming && text.upcoming && (
         <div className="usage-card-global-upcoming" title={fullDate(resets.upcoming.at)}>
           {text.upcoming}
           {resets.upcoming.text && <q>{resets.upcoming.text}</q>}
-          {source(resets.upcoming.sourceUrl, t('UsageBar.originalPost'))}
+          {source(resets.upcoming.sourceUrl, t('UsageBar.upcomingSource'))}
+          {!text.latest && !text.chance && attribution}
         </div>
       )}
       {resets.latest && text.latest && (
         <div className="usage-card-global-line" title={fullDate(resets.latest.at)}>
           {text.latest}
-          {source(resets.latest.sourceUrl, t('UsageBar.originalPost'))}
+          {source(resets.latest.sourceUrl, t('UsageBar.latestSource'))}
+          {!text.chance && attribution}
         </div>
       )}
-      {text.chance && <div className="usage-card-global-line">{text.chance}</div>}
-      <div className="usage-card-credits-hint">{tr('UsageBar.basedOnAnnouncementsOnXUnofficialInformationData', { value1: <a href="https://limitreset.net" target="_blank" rel="noreferrer">LimitReset</a>, value2: <a href="https://codex-resets.com" target="_blank" rel="noreferrer">Codex Resets</a> })}</div>
+      {text.chance && <div className="usage-card-global-line">{text.chance}{attribution}</div>}
     </div>
   )
 }

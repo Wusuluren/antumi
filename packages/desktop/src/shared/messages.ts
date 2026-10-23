@@ -8879,13 +8879,21 @@ export const MESSAGES = {
     "zh": "使用一张重置卡",
     "en": "Use one reset card"
   },
-  "UsageBar.originalPost": {
-    "zh": "原帖",
-    "en": "Original post"
+  "UsageBar.upcomingSource": {
+    "zh": "预告来源",
+    "en": "Announcement source"
+  },
+  "UsageBar.latestSource": {
+    "zh": "上次来源",
+    "en": "Previous reset source"
   },
   "UsageBar.basedOnAnnouncementsOnXUnofficialInformationData": {
     "zh": "据 X 上的公告，非官方消息。数据来自 {value1} 和 {value2}",
     "en": "Based on announcements on X; unofficial information. Data from {value1} and {value2}"
+  },
+  "UsageBar.dataSources": {
+    "zh": "数据来源",
+    "en": "Data sources"
   },
   "UsageBar.advice": {
     "zh": "建议",

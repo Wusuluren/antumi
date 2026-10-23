@@ -3880,6 +3880,7 @@ div.inspector-empty > p { margin: 0 0 8px; }
 
 /* Resets a service announced for everyone, from a community tracker: one coming leads, in green. */
 .usage-card-global {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -3907,6 +3908,15 @@ div.inspector-empty > p { margin: 0 0 8px; }
   color: var(--accent);
   font-weight: 400;
 }
+
+.usage-card-global-attribution { display: inline-flex; margin-left: 4px; vertical-align: middle; }
+.usage-card-global-info { display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-3); cursor: help; }
+.usage-card-global-info svg { width: 14px; height: 14px; }
+.usage-card-global-info:hover, .usage-card-global-info:focus-visible { background: var(--fill); color: var(--text-muted); }
+.usage-card-global-tooltip { position: absolute; bottom: 24px; left: 0; right: 0; z-index: 1; visibility: hidden; padding: 8px 12px; border: 1px solid var(--border-2); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-float); color: var(--text-muted); font-size: 12px; font-weight: 400; line-height: 1.5; }
+.usage-card-global-tooltip::after { content: ''; position: absolute; top: 100%; left: 0; right: 0; height: 8px; }
+.usage-card-global-attribution:hover .usage-card-global-tooltip, .usage-card-global-attribution:focus-within .usage-card-global-tooltip { visibility: visible; }
+.usage-card-global-tooltip a { color: inherit; text-decoration: underline; }
 
 .usage-card-credits-hint a {
   color: inherit;
@@ -8380,6 +8390,8 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .task-start-project { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
 .task-start-value { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
 .task-start-button { gap: 4px; padding: 2px 8px; cursor: pointer; }
+/* A branch in mono and a word like 只读参考 make chips of one height. */
+.task-start-button > span { font-size: 12px; line-height: 18px; }
 .task-start-button:disabled { cursor: default; opacity: 1; color: var(--text-muted); }
 .task-start-button svg { width: 12px; height: 12px; color: var(--text-muted); }
 .task-start-button:not(:disabled):hover,
@@ -8388,8 +8400,6 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .task-start-button[data-kind='needs-reference'] { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 45%, transparent); }
 .task-start-note { flex-basis: 100%; margin: 0; font-size: 12px; color: var(--text-muted); }
 .task-start-note[data-note] { color: var(--warning); }
-/* A branch in mono and a word like 只读参考 make chips of one height. */
-.task-start-button > span { font-size: 12px; line-height: 18px; }
 .task-start-choice-text { display: flex; flex: 1; flex-direction: column; gap: 1px; min-width: 0; }
 .task-start-choice-description { color: var(--text-muted); font-size: 11px; line-height: 1.4; }
 .task-start-refs { max-height: 220px; overflow-y: auto; }
