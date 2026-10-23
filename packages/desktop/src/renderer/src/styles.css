@@ -6122,9 +6122,12 @@ div.inspector-empty > p { margin: 0 0 8px; }
   cursor: pointer;
 }
 
-/* Images a reply names: bigger than a message's attachments, as they are what the reply is showing. */
+/* Images a reply names: bigger than a message's attachments, as they are what the reply is showing.
+   Whole and never enlarged, unlike an attachment's square crop: a strip, an icon or a texture is
+   only legible as drawn. */
 .chat-reply-images { margin: 8px 0; }
-.chat-reply-images .chat-image-button { height: 160px; max-width: 320px; }
+.chat-reply-images .chat-image-button { height: auto; max-width: min(100%, 480px); }
+.chat-reply-images .chat-image-button img { width: auto; height: auto; max-width: 100%; max-height: 160px; object-fit: contain; }
 .chat-image-missing { font-size: 12px; }
 
 /* A fenced block of code: its language and a copy button above it, coloured by highlight.js's
