@@ -8515,37 +8515,21 @@ export const MESSAGES = {
     "zh": "{value1} 的任务分支从哪里拉出",
     "en": "Where to branch the task for {value1}"
   },
-  "TaskStarts.branch": {
-    "zh": "拉出",
-    "en": "Branch"
-  },
   "TaskStarts.dependencyTaskChangesAreNotIncluded": {
     "zh": "不会带上依赖任务的改动",
     "en": "Dependency task changes are not included"
-  },
-  "TaskStarts.branchedFrom": {
-    "zh": "从 {value1} {value2} 拉出",
-    "en": "Branched from {value1} {value2}"
   },
   "TaskStarts.reference": {
     "zh": "只读参考",
     "en": "Reference only"
   },
-  "TaskStarts.referenceFor": {
-    "zh": "{value1} 只读参考",
-    "en": "{value1} is for reference only"
+  "TaskStarts.referenceDescription": {
+    "zh": "不建 worktree，Agent 只读不改",
+    "en": "No worktree; the agent reads it and changes nothing"
   },
-  "TaskStarts.referenceTooltip": {
-    "zh": "勾选后 Agent 只读这个项目、不会修改，也不为它建 worktree 和分支",
-    "en": "When checked, the agent only reads this project: no edits, no worktree and no branch"
-  },
-  "TaskStarts.readWhereItIs": {
-    "zh": "不建 worktree",
-    "en": "No worktree"
-  },
-  "TaskStarts.notAGitRepository": {
-    "zh": "不是 Git 仓库",
-    "en": "Not a Git repository"
+  "TaskStarts.needsReference": {
+    "zh": "需设为只读参考",
+    "en": "Set as reference"
   },
   "TaskStarts.aFolderThatIsNoGitRepository": {
     "zh": "多项目任务里，非 Git 文件夹只能作为只读参考",

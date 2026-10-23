@@ -8373,20 +8373,23 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .chat-approve-hint { margin-right: auto; color: var(--text-3); font-size: 11px; }
 
 /* Where a task's branch starts, one line per git project on the detail page. */
-.task-start { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 2px 0; }
-.task-start + .task-start { margin-top: 4px; }
-.task-start-project { min-width: 56px; color: var(--text-muted); }
+.task-starts { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 6px; align-items: center; }
+/* Several projects line up as two columns: names, then the one control each has. */
+.task-starts[data-named] { grid-template-columns: minmax(0, max-content) minmax(0, 1fr); column-gap: 12px; }
+.task-start { display: contents; }
+.task-start-project { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
+.task-start-value { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
 .task-start-button { gap: 4px; padding: 2px 8px; cursor: pointer; }
 .task-start-button:disabled { cursor: default; opacity: 1; color: var(--text-muted); }
 .task-start-button svg { width: 12px; height: 12px; color: var(--text-muted); }
 .task-start-button:not(:disabled):hover,
 .task-start-button[aria-expanded='true'] { border-color: var(--text-muted); }
-.task-start-reference { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); cursor: pointer; }
-.task-start-reference input { margin: 0; accent-color: var(--accent); }
-.task-start-reference:has(input:checked) { color: var(--text); }
-.task-start-reference:has(input:disabled) { cursor: default; }
+.task-start-button[data-kind='reference'] { color: var(--text-muted); }
+.task-start-button[data-kind='needs-reference'] { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 45%, transparent); }
 .task-start-note { flex-basis: 100%; margin: 0; font-size: 12px; color: var(--text-muted); }
 .task-start-note[data-note] { color: var(--warning); }
+/* A branch in mono and a word like 只读参考 make chips of one height. */
+.task-start-button > span { font-size: 12px; line-height: 18px; }
 .task-start-choice-text { display: flex; flex: 1; flex-direction: column; gap: 1px; min-width: 0; }
 .task-start-choice-description { color: var(--text-muted); font-size: 11px; line-height: 1.4; }
 .task-start-refs { max-height: 220px; overflow-y: auto; }

@@ -495,7 +495,8 @@ describe('TaskService', () => {
     await handIn(task.id)
 
     // Made one to edit, it gets its worktree on the next start.
-    const edited = service.update({ id: task.id, references: [{ path: other, reference: false }] })
+    const edited = service.update({ id: task.id, references: [{ path: other, reference: false }], starts: [{ path: other, ref: 'HEAD' }] })
+    expect(edited.repos[1]).toMatchObject({ startRef: 'HEAD' })
     expect(edited.repos[1]?.reference).toBeFalsy()
   })
 

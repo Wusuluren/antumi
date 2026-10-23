@@ -267,11 +267,12 @@ export class TaskService {
       const current = new Set(task.repos.map((repo) => repo.path))
       this.projects.remember(patch.repos.map((repo) => repo.path).filter((repoPath) => !current.has(repoPath)))
     }
-    if (starts !== undefined) {
-      patch.repos = this.withStarts(task, patch.repos ?? task.repos, starts)
-    }
+    // References first: a project taken off them may be given a start in the same update.
     if (references !== undefined) {
       patch.repos = this.withReferences(task, patch.repos ?? task.repos, references)
+    }
+    if (starts !== undefined) {
+      patch.repos = this.withStarts(task, patch.repos ?? task.repos, starts)
     }
     if (dependsOn !== undefined) {
       const ids = this.resolveIds(dependsOn)
