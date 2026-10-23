@@ -75,3 +75,11 @@ export function streaks(days: readonly DashboardDay[]): { active: number; longes
 export function dayLabel(day: string): string {
   return t('SourceInboxView.monthAndDay', { value1: Number(day.slice(5, 7)), value2: Number(day.slice(8)) })
 }
+
+// Labels under the first, middle and last days; every day gets one when there are few.
+export function labelledDay(index: number, count: number): boolean {
+  return count <= 14 || index === 0 || index === count - 1 || index === Math.floor((count - 1) / 2)
+}
+
+// Month and day as numbers alone, for an axis with little room under each day.
+export const shortDay = (day: string) => `${Number(day.slice(5, 7))}/${Number(day.slice(8))}`

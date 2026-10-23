@@ -3,11 +3,20 @@ import { ratesAt, type SmallModelCost, type SmallModelKind, type SmallModelTotal
 
 export const SMALL_MODEL_LABELS: Record<SmallModelKind, string> = localized(() => ({ translation: t('ChatContextMenu.translate'), commitMessage: t('modelCostFormat.commitMessage'), helper: t('HelperPanel.helper'), title: t('ConversationList.conversationTitle') }))
 
+const USD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const WHOLE_USD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+
 export function dollars(value: number | null): string {
   if (value === null) return '—'
   if (value > 0 && value < 0.01) return '<$0.01'
-  return `$${value.toFixed(2)}`
+  return USD.format(value)
 }
+
+// A headline amount: the cents go once there are a hundred dollars to read.
+export const headlineDollars = (value: number | null) => value !== null && value >= 100 ? WHOLE_USD.format(value) : dollars(value)
+
+// An axis tick: whole dollars once the scale reaches ten.
+export const tickDollars = (value: number, max: number) => max >= 10 ? WHOLE_USD.format(value) : dollars(value)
 
 const precise = (value: number | null) => value === null ? t('SmallModelStats.unavailable') : `$${value.toFixed(6)}`
 

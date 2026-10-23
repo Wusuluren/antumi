@@ -1,7 +1,7 @@
 import { localized, t, tr } from '../i18n'
 import { useState } from 'react'
 import type { DashboardDay } from '@antumi/protocol'
-import { dayLabel } from '../dashboard-model'
+import { dayLabel, labelledDay } from '../dashboard-model'
 import { compact } from '../stat-format'
 import { Segmented } from './SettingsControls'
 
@@ -13,11 +13,6 @@ const METRICS = localized(() => ([
 
 const parts = (day: DashboardDay, metric: Metric) =>
   metric === 'tokens' ? { runs: day.runTokens, turns: day.turnTokens, quick: day.quickTokens ?? 0 } : { runs: day.runs, turns: day.turns, quick: day.quickRequests ?? 0 }
-
-// Labels under the first, middle and last bars; every bar gets one when there are few.
-function labelled(index: number, count: number): boolean {
-  return count <= 14 || index === 0 || index === count - 1 || index === Math.floor((count - 1) / 2)
-}
 
 // Each day of the range as one bar, task runs stacked under conversation turns.
 export function DailyBars({ days }: { days: readonly DashboardDay[] }) {
@@ -47,7 +42,7 @@ export function DailyBars({ days }: { days: readonly DashboardDay[] }) {
                   <span data-series="turns" style={{ height: `${(turns / max) * 100}%` }} />
                   <span data-series="runs" style={{ height: `${(runs / max) * 100}%` }} />
                 </div>
-                <span className="dashboard-bar-label">{labelled(index, days.length) ? dayLabel(day.day) : ''}</span>
+                <span className="dashboard-bar-label">{labelledDay(index, days.length) ? dayLabel(day.day) : ''}</span>
               </div>
             )
           })}

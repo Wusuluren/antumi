@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DashboardDay } from '@antumi/protocol'
-import { acceptance, change, dayLabel, heatLevels, monthLabels, rateChange, streaks, weeks } from './dashboard-model'
+import { acceptance, change, dayLabel, heatLevels, labelledDay, monthLabels, rateChange, shortDay, streaks, weeks } from './dashboard-model'
 
 const day = (date: string, runs = 0, turns = 0): DashboardDay => ({ day: date, runs, accepted: 0, turns, runTokens: 0, turnTokens: 0 })
 
@@ -51,4 +51,12 @@ describe('streaks', () => {
 
 it('writes a day the way the page does', () => {
   expect(dayLabel('2026-10-04')).toBe('10月4日')
+})
+
+describe('day labels', () => {
+  it('labels every day of a short range, and only the ends and middle of a long one', () => {
+    expect([0, 1, 2].map((index) => labelledDay(index, 7))).toEqual([true, true, true])
+    expect([0, 1, 14, 15, 29].map((index) => labelledDay(index, 30))).toEqual([true, false, true, false, true])
+    expect(shortDay('2026-01-07')).toBe('1/7')
+  })
 })

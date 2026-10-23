@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
 import type { SmallModelCost, SmallModelStats } from '@antumi/protocol'
-import { coverage, dollars, smallModelExplanation } from './model-cost-format'
+import { coverage, dollars, headlineDollars, smallModelExplanation, tickDollars } from './model-cost-format'
 import { SmallModelStats as Breakdown } from './components/SmallModelStats'
 import { dayTokens, activity } from './dashboard-model'
 
@@ -19,6 +19,14 @@ describe('small-model display', () => {
     expect(dollars(0)).toBe('$0.00')
     expect(dollars(0.00001)).toBe('<$0.01')
     expect(dollars(0.01)).toBe('$0.01')
+    expect(dollars(1209.906)).toBe('$1,209.91')
+  })
+
+  it('drops the cents from a headline or an axis once they no longer matter', () => {
+    expect(headlineDollars(1209.906)).toBe('$1,210')
+    expect(headlineDollars(91.8)).toBe('$91.80')
+    expect(tickDollars(85.25, 341)).toBe('$85')
+    expect(tickDollars(2.5, 5)).toBe('$2.50')
   })
 
   it('explains the baseline, both components, flooring and conservative assumptions', () => {
