@@ -235,6 +235,13 @@ describe('chatBlocks', () => {
     expect(blocksOf(items).find((block) => block.kind === 'fold')).toMatchObject({ steps: 2 })
   })
 
+  it('keeps a picture Codex drew with the answer, and folds one that never came', () => {
+    const drawn = { ...tool('drawn', 'imageGeneration'), title: '/tmp/generated/drawn.png', at: 200 }
+    const lost = { ...tool('lost', 'imageGeneration'), status: 'failed' as const, at: 250 }
+    const items = [user('u'), { ...tool('a'), at: 100 }, drawn, lost, { ...reply('answer'), at: 400 }, { ...turn('end'), at: 500 }]
+    expect(shape(blocksOf(items))).toEqual(['u', { fold: ['tools:a', 'lost'] }, 'drawn', 'answer', 'end'])
+  })
+
   it('groups third-party browser calls while keeping commands and returned screenshots separate', () => {
     const shot = { ...tool('shot', 'playwright.browser_take_screenshot'), images: [{ id: `${'a'.repeat(64)}.png`, width: 2, height: 1 }] }
     const display = { server: 'Cursor in Edge', name: 'Click' }

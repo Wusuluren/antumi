@@ -332,12 +332,13 @@ function itemOf(block: ChatBlock): ChatItem | null {
 }
 
 // What the turn made for the user to see, which stays with its answer as Claude keeps an artifact in
-// its reply rather than among its steps: a preview the agent showed, and the browser's page, a way
-// into the browser panel (its history is already folded).
+// its reply rather than among its steps: a preview the agent showed, a picture it drew, and the
+// browser's page, a way into the browser panel (its history is already folded).
 function deliverable(block: ChatBlock): boolean {
   if (block.kind === 'browser') return true
   const item = itemOf(block)
-  return item?.kind === 'tool' && isPreviewTool(item.name)
+  if (item?.kind !== 'tool') return false
+  return isPreviewTool(item.name) || (item.name === CODEX_IMAGE_GENERATION && item.status === 'done' && toolImagePath(item) !== null)
 }
 
 // What a finished turn tucks away: the work on the way to its answer. What it made for the user,
