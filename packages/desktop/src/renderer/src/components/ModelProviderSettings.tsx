@@ -90,7 +90,7 @@ function PresetGrid({ value, onPick }: { value: ModelProviderPreset; onPick: (pr
             {preset === 'custom' ? t('ModelProviderSettings.custom') : presetName(preset)}
             {preset !== 'custom' && <VerifiedBadge preset={preset} />}
           </span>
-          <span className="provider-preset-host">{preset === 'custom' ? t('ModelProviderSettings.customHint') : presetHost(preset)}</span>
+          <span className="provider-preset-host" title={preset === 'custom' ? undefined : presetHost(preset)}>{preset === 'custom' ? t('ModelProviderSettings.customHint') : presetHost(preset)}</span>
         </button>
       ))}
     </div>

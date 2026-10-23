@@ -4925,7 +4925,7 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .session-import-actions { position: sticky; bottom: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding: 12px 0; border-top: 1px solid var(--border); background: var(--surface); }
 
 .provider-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
-.provider-preset { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); text-align: left; cursor: pointer; }
+.provider-preset { display: flex; flex-direction: column; min-width: 0; gap: 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); text-align: left; cursor: pointer; }
 /* A vendor's mark in its own colour, the one colour a preset card carries. */
 .provider-mark { flex-shrink: 0; display: grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-xs); background: var(--vendor); color: var(--vendor-ink, #ffffff); font-size: 11px; font-weight: 600; line-height: 1; }
 .provider-mark[data-vendor='volcengine'] { --vendor: var(--vendor-volcengine); }
@@ -4937,7 +4937,8 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .provider-preset:hover { border-color: var(--border-2); }
 .provider-preset[aria-checked='true'] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .provider-preset-name { display: flex; align-items: center; gap: 6px; font-weight: 500; }
-.provider-preset-host { color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+/* One line: the form under the cards shows the whole address once a card is picked. */
+.provider-preset-host { overflow: hidden; color: var(--text-muted); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
 .provider-badge { flex-shrink: 0; margin-left: 6px; padding: 0 6px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-size: 11px; font-weight: 400; }
 .provider-badge[data-verified='true'] { border-color: var(--status-done); color: var(--status-done); }
 .provider-model-pickers { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
