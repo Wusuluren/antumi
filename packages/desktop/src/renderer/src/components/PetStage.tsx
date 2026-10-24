@@ -5,7 +5,7 @@ import { petBits, type PetBit } from '../pet-bits'
 import { freshMemory, pickBit, remember, restMs, type Context, type Mood, type PetLevel, type Urge } from '../pet-brain'
 import { petGait } from '../pet-gait'
 import { planFlight } from '../pet-flight'
-import { petPointerFacing, petPointerLook } from '../pet-gaze'
+import { petPointerFacing, petPointerLook, petPointerNear } from '../pet-gaze'
 import { distance, overlaps, planPath, standingSpot, type Rect, type Spot } from '../pet-path'
 import { isLedge, isWall, ledgeBelow, perchesOf, type Perch, type PerchSource } from '../pet-perches'
 import { planPeek, visiblePeekHead, type PeekPlan } from '../pet-peek'
@@ -94,17 +94,30 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
     let scriptedLook = { x: 0, y: 0 }
     let gazeFrame = 0
     let gazeAt = 0
+    let trackingPointer = false
     let journeys = 0
     let turning = false
     let pointerBehindSince: number | null = null
     let nextPointerTurnAt = 0
-    const lookAt = (next: Spot) => { scriptedLook = next; if (!pointer) setLook(next) }
+    const lookAt = (next: Spot) => { scriptedLook = next; if (!trackingPointer) setLook(next) }
+    const pointerNearby = (at: Spot) => {
+      const center = surface.kind === 'wall'
+        ? { x: at.x + skin.height / 2 * surface.inward, y: at.y }
+        : { x: at.x, y: at.y - skin.height / 2 + (currentPose === 'sit' || currentPose === 'nap' ? skin.height * .22 : 0) }
+      return pointer !== null && petPointerNear(pointer, center, skin.width, trackingPointer)
+    }
+    const stopGaze = (restore = false) => {
+      cancelAnimationFrame(gazeFrame); gazeFrame = 0; pointerBehindSince = null
+      if (restore && trackingPointer) { trackingPointer = false; setLook(scriptedLook) }
+    }
     const followPointer = (now: number) => {
       gazeFrame = 0
-      if (!alive || !pointer || reduced || still || draggingNow || useBackgroundRest.getState().resting) { pointerBehindSince = null; return }
+      if (!alive || reduced || still || draggingNow || useBackgroundRest.getState().resting) { stopGaze(); return }
+      if (!pointer) { stopGaze(true); return }
       if (now - gazeAt >= 32) {
         gazeAt = now
         const matrix = new DOMMatrix(getComputedStyle(walker).transform)
+        if (!pointerNearby({ x: matrix.e, y: matrix.f })) { stopGaze(true); return }
         const origin = skin.gazeOrigin ?? { x: skin.width / 2, y: skin.height * .35 }
         const shifted = currentPose === 'sit' ? { x: origin.x, y: origin.y + skin.height * .22 } : origin
         const next = petPointerLook(pointer, matrix, shifted, skin.width, skin.height, face)
@@ -113,7 +126,12 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
       }
       gazeFrame = requestAnimationFrame(followPointer)
     }
-    const startGaze = () => { if (!gazeFrame && pointer && !reduced && !still && !draggingNow) gazeFrame = requestAnimationFrame(followPointer) }
+    const startGaze = (at: Spot) => {
+      if (reduced || still || draggingNow || useBackgroundRest.getState().resting) { stopGaze(); return }
+      if (!pointerNearby(at)) { stopGaze(true); return }
+      trackingPointer = true
+      if (!gazeFrame) gazeFrame = requestAnimationFrame(followPointer)
+    }
 
     const bounds = (): Rect => ({ left: 0, top: 0, right: stage.clientWidth, bottom: stage.clientHeight })
     const local = (r: Rect): Rect => {
@@ -425,7 +443,7 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
     }
     const apiFor = (expected: number): StageApi => ({
       spot: () => pos, facing: () => face, surface: () => surface, bounds, perches, home: homeSpot,
-      pointer: () => pointer, random: Math.random,
+      pointer: (options) => options?.nearby && !pointerNearby(live.size ? actualPosition() : pos) ? null : pointer, random: Math.random,
       standingSpot: (anchor) => safe(standingSpot(local(anchor), bounds(), skin.width)) ?? homeSpot(),
       pose: (next) => { guard(expected); changePose(next) },
       look: (x, y) => { guard(expected); lookAt({ x, y }) },
@@ -453,13 +471,13 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
         still = nextStill
         for (const animation of live) { if (still) animation.pause(); else animation.play() }
       }
-      if (!still) startGaze()
       if (peeking && !peekExitRequested && walker.dataset.peeking !== 'leaving' && !still) {
         const before = peeking.plan.wall
         const current = perches().find((p) => p.id === before.id)
         if (!current || distance(current.from, before.from) > 1 || distance(current.to, before.to) > 1) interrupt()
       }
       const at = live.size ? actualPosition() : pos
+      startGaze(at)
       const blocked = !free(at)
       setHidden(reason ?? (blocked && !safe(at) ? 'blocked' : null))
       if (still || draggingNow) return
@@ -497,13 +515,13 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
       pointer = { x: event.clientX - origin.left, y: event.clientY - origin.top }
       activityAt = Date.now()
       const at = live.size ? actualPosition() : pos
-      startGaze()
+      startGaze(at)
       const hit = occupied(at)
       const hovering = hit && pointer.x > hit.left && pointer.x < hit.right && pointer.y > hit.top && pointer.y < hit.bottom
       if (!hovering) hoverSince = 0
       else if (!hoverSince) hoverSince = Date.now()
     }
-    const onLeave = () => { pointer = null; hoverSince = 0; pointerBehindSince = null; setLook(scriptedLook); cancelAnimationFrame(gazeFrame); gazeFrame = 0 }
+    const onLeave = () => { pointer = null; hoverSince = 0; stopGaze(true) }
     const onKey = (event: KeyboardEvent) => {
       activityAt = Date.now()
       if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"], .xterm')) {

@@ -191,7 +191,7 @@ export function petBits(): PetBit[] {
       const direction = towards(at, pointer)
       api.pose('idle')
       await api.walkTo({ x: clamp(pointer.x - direction * 60, api.bounds().left + 20, api.bounds().right - 20), y: at.y }, { sprint: true })
-      const now = api.pointer()
+      const now = api.pointer({ nearby: true })
       if (now) lookAt(api, now)
       await api.wait(between(c.random, 1_000, 2_200))
       api.look(0, 0)
@@ -212,7 +212,7 @@ export function petBits(): PetBit[] {
       api.pose('idle')
       await api.walkTo({ x, y: at.y }, { sprint: true, onto: api.surface() })
       await api.face(away === 1 ? -1 : 1)
-      const now = api.pointer()
+      const now = api.pointer({ nearby: true })
       if (now) lookAt(api, now)
       await api.wait(900)
       api.look(0, 0)
@@ -224,7 +224,7 @@ export function petBits(): PetBit[] {
     cooldownMs: 0,
     score: (c) => (c.urge === 'greet' ? 100 : 0),
     run: async (api, c) => {
-      const pointer = api.pointer()
+      const pointer = api.pointer({ nearby: true })
       if (pointer) lookAt(api, pointer)
       await api.once(c.random() < 0.5 ? 'jumping' : 'waving')
       api.look(0, 0)
@@ -250,7 +250,7 @@ export function petBits(): PetBit[] {
     run: async (api, c) => {
       api.pose(c.mood === 'idle' ? 'idle' : c.mood)
       if (c.mood === 'waiting' && c.random() < 0.4) {
-        const pointer = api.pointer()
+        const pointer = api.pointer({ nearby: true })
         if (pointer) lookAt(api, pointer)
       }
       await api.wait(between(c.random, 2_000, 4_000))
