@@ -2,6 +2,11 @@ import type { Spot } from './pet-path'
 
 type Frame = { a: number; b: number; c: number; d: number; e: number; f: number }
 
+export function petPointerNear(pointer: Spot, center: Spot, width: number, following = false): boolean {
+  const radius = Math.max(160, width * 2) * (following ? 1.2 : 1)
+  return Math.hypot(pointer.x - center.x, pointer.y - center.y) <= radius
+}
+
 function localPointer(pointer: Spot, frame: Frame): Spot | null {
   const determinant = frame.a * frame.d - frame.b * frame.c
   if (Math.abs(determinant) < .001) return null

@@ -1,7 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { petPointerFacing, petPointerLook } from './pet-gaze'
+import { petPointerFacing, petPointerLook, petPointerNear } from './pet-gaze'
 
 describe('pet mouse gaze', () => {
+  it('only senses pointers in a nearby circle scaled to the pet', () => {
+    const center = { x: 400, y: 500 }
+    for (const width of [80, 120, 192]) {
+      const radius = width * 2
+      expect(petPointerNear({ x: center.x + radius - 1, y: center.y }, center, width)).toBe(true)
+      expect(petPointerNear({ x: center.x, y: center.y - radius - 1 }, center, width)).toBe(false)
+      expect(petPointerNear({ x: center.x + radius, y: center.y + radius }, center, width)).toBe(false)
+    }
+  })
+
+  it('uses an outer boundary to avoid restarting gaze around the range edge', () => {
+    const center = { x: 400, y: 500 }, pointer = { x: 660, y: 500 }
+    expect(petPointerNear(pointer, center, 120)).toBe(false)
+    expect(petPointerNear(pointer, center, 120, true)).toBe(true)
+    expect(petPointerNear({ x: 689, y: 500 }, center, 120, true)).toBe(false)
+  })
+
+  it('can notice a stationary pointer when the pet moves into range', () => {
+    const pointer = { x: 800, y: 400 }
+    expect(petPointerNear(pointer, { x: 400, y: 400 }, 120)).toBe(false)
+    expect(petPointerNear(pointer, { x: 600, y: 400 }, 120)).toBe(true)
+    expect(petPointerNear(pointer, { x: 1100, y: 400 }, 120, true)).toBe(false)
+  })
+
   it('follows the same local direction on either wall and facing either way', () => {
     const origin = { x: 70, y: 48 }, width = 120, height = 120
     for (const angle of [0, -90, 90, 45]) {

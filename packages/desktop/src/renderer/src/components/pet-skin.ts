@@ -3,7 +3,7 @@ import type { PetHead } from '../pet-peek'
 import type { Spot } from '../pet-path'
 
 // What the pet can be doing, in the words Codex pets use (hatch-pet's animation rows) plus what a
-// roaming pet adds: a nap, a seat on a ledge, a grip on a wall, a head poked out from behind an
+// roaming pet adds: a nap, a seat on a ledge, being picked up, a head poked out from behind an
 // edge, a sprint. Locomotion is not a pose: the stage says whether it walks and which way it faces.
 export type PetPose =
   | 'idle' | 'running' | 'waiting' | 'review' | 'failed'

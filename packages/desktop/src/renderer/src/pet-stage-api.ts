@@ -32,7 +32,7 @@ export type StageApi = {
   bounds(): Rect
   perches(): Perch[]
   home(): Spot
-  pointer(): Spot | null
+  pointer(options?: { nearby: boolean }): Spot | null
   random(): number
   // Where to stand to talk about something: on its top edge, kept within the stage.
   standingSpot(anchor: Rect): Spot
