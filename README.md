@@ -24,7 +24,7 @@
   <a href="#支持的-agent" title="Antigravity"><img src="docs/assets/agents/antigravity.svg" width="32" height="32" /></a>
 </p>
 
-https://github.com/user-attachments/assets/11386a48-b8b8-4a33-a18f-a6fa4ebc4f3e
+https://github.com/user-attachments/assets/44398279-8f26-441f-ad24-fa1b1e344674
 
 </div>
 
