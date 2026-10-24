@@ -9960,6 +9960,14 @@ button.squad-member-main { cursor: pointer; }
 .guide-page .worktrees-header { align-items: center; }
 .guide-markdown img { display: block; max-width: 100%; height: auto; margin: 12px 0; border: 1px solid var(--border); border-radius: var(--radius-lg); }
 .guide-markdown h2 { margin-top: 32px; }
+/* A step already done: its heading and what stands, the steps folded until clicked. */
+.guide-step-done > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-top: 32px; cursor: pointer; list-style: none; }
+.guide-step-done > summary::-webkit-details-marker { display: none; }
+.guide-step-done > summary h2 { margin: 0; color: var(--text-muted); }
+.guide-step-done[open] > summary { margin-bottom: 12px; }
+.guide-step-done > summary:hover h2 { color: var(--text); }
+.guide-step-done > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: var(--radius-xs); }
+.guide-step-status { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; }
 .guide-markdown table { display: table; width: 100%; }
 .guide-markdown td:first-child { white-space: nowrap; }
 

@@ -3040,6 +3040,18 @@ export const MESSAGES = {
     "zh": "新手指导",
     "en": "Getting started"
   },
+  "GuideView.stepDone": {
+    "zh": "已完成",
+    "en": "Done"
+  },
+  "GuideView.agentsReady": {
+    "zh": "{agents} 已就绪",
+    "en": "{agents} ready"
+  },
+  "GuideView.providersAdded": {
+    "zh": "已添加 {providers}",
+    "en": "{providers} added"
+  },
   "GuideView.backToOverview": {
     "zh": "回到总览",
     "en": "Back to Overview"
