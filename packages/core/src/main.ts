@@ -18,6 +18,7 @@ import { BrowserService, WATCH_ALL } from './browser-service'
 import { CredentialStore } from './credential-store'
 import { DaemonClient } from './daemon-client'
 import { PluginService } from './plugin-service'
+import { PetLibrary } from './pet-library'
 import { bundledGitHub } from './bundled-plugin'
 import { jiraProvider } from './jira-provider'
 import { createRpcHandlers } from './rpc-handlers'
@@ -224,6 +225,11 @@ sources.setConversations(conversations)
 const plugins = new PluginService(path.join(paths.home, 'plugins'), packageJson.version, sources, sourceConfig, builtinSources,
   (plugins) => server?.broadcast('plugins.changed', { plugins }))
 await plugins.load(bundledGitHub())
+const pets = new PetLibrary(path.join(paths.home, 'pets'), {
+  developmentDirectory: process.env.ANTUMI_PET_DIRECTORY,
+  changed: (state) => server?.broadcast('pets.changed', state)
+})
+await pets.load()
 
 const usageSources: Partial<Record<AgentKind, UsageSource>> = {}
 const resetCreditUses: Partial<Record<AgentKind, ResetCreditUse>> = {}
@@ -473,7 +479,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts, cliMaintenance, analytics, automation)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts, cliMaintenance, analytics, automation, pets)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()
@@ -517,6 +523,7 @@ async function shutdown(): Promise<void> {
   discussions.close()
   sources.stop()
   await plugins.close()
+  await pets.close()
   await sources.pause(sources.list().map((source) => source.provider))
   awake?.stop()
   cliMaintenance.close()

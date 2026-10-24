@@ -271,6 +271,7 @@ export function ConversationList() {
         : <button
           type="button"
           className="task-row conversation-row"
+          data-conversation-id={conversation.id}
           data-menu-open={menu?.id === conversation.id || undefined}
           aria-current={section === 'conversations' && selected === conversation.id}
           draggable={canSplit(conversation)}
