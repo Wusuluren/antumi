@@ -60,4 +60,29 @@ describe('plugin packages', () => {
     expect(calls).toEqual(['https://api.github.com/repos/demo/plugin/releases/tags/v1', 'https://github.com/demo/plugin/releases/download/v1/plugin.zip'])
     expect(await readFile(path.join(root, 'main.mjs'), 'utf8')).toBe('export {}')
   })
+
+  it('finds the release on its pages when the API refuses, for a tag and for the latest', async () => {
+    const archive = pluginZip({ 'main.mjs': 'export {}' })
+    const page = '<ul><li><a href="/demo/plugin/releases/download/v2/plugin.zip">plugin.zip</a></li><li><a href="/demo/plugin/archive/refs/tags/v2.zip">Source code</a></li></ul>'
+    const calls: string[] = []
+    vi.stubGlobal('fetch', async (url: string) => {
+      calls.push(url)
+      if (url.startsWith('https://api.github.com/')) return new Response('rate limited', { status: calls.length === 1 ? 403 : 429 })
+      if (url === 'https://github.com/demo/plugin/releases/latest') return new Response(null, { status: 302, headers: { location: 'https://github.com/demo/plugin/releases/tag/v2' } })
+      if (url === 'https://github.com/demo/plugin/releases/expanded_assets/v2') return new Response(page)
+      if (url === 'https://github.com/demo/plugin/releases/download/v2/plugin.zip') return new Response(new Uint8Array(archive))
+      return new Response('', { status: 404 })
+    })
+    await stagePlugin({ kind: 'github', repository: 'demo/plugin', tag: 'v2' }, path.join(root, 'tagged'))
+    expect(calls).toEqual(['https://api.github.com/repos/demo/plugin/releases/tags/v2', 'https://github.com/demo/plugin/releases/expanded_assets/v2', 'https://github.com/demo/plugin/releases/download/v2/plugin.zip'])
+    calls.length = 0
+    await stagePlugin({ kind: 'github', repository: 'demo/plugin' }, path.join(root, 'latest'))
+    expect(calls).toEqual(['https://api.github.com/repos/demo/plugin/releases/latest', 'https://github.com/demo/plugin/releases/latest', 'https://github.com/demo/plugin/releases/expanded_assets/v2', 'https://github.com/demo/plugin/releases/download/v2/plugin.zip'])
+    expect(await readFile(path.join(root, 'latest', 'main.mjs'), 'utf8')).toBe('export {}')
+  })
+
+  it('says which host could not be reached and why, instead of "fetch failed"', async () => {
+    vi.stubGlobal('fetch', async () => { throw new TypeError('fetch failed', { cause: Object.assign(new Error('Connect Timeout Error'), { code: 'UND_ERR_CONNECT_TIMEOUT' }) }) })
+    await expect(stagePlugin({ kind: 'github', repository: 'demo/plugin' }, root)).rejects.toThrow('连不上 api.github.com：连接超时。换个网络或开关 VPN 后重试')
+  })
 })

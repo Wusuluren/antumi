@@ -65,8 +65,10 @@ import { AgentAccountStore } from './agent-accounts'
 import { knowledgeBaseSkills } from './skills-recommended'
 import { WireLog } from './wire-log'
 import { timestampConsole } from './log-timestamps'
+import { useSystemProxy } from './system-proxy'
 
 timestampConsole()
+await useSystemProxy()
 const paths = antumiPaths()
 await mkdir(paths.home, { recursive: true, mode: 0o700 })
 await mkdir(paths.worktrees, { recursive: true })

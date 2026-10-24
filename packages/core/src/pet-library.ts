@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { comparePetVersions, PetCatalog, PetManifest, PetMetadata, PET_FILES, type PetCatalogEntry, type PetLibraryState, type PetResourceData } from '@antumi/protocol'
 import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 import fallback from '../../protocol/src/pet-catalog.json' with { type: 'json' }
+import { networkFailure } from './network-failure'
 import { unpackPet, validatePetFiles, webpSize } from './pet-package'
 import { Rejection } from './rejection'
 
@@ -173,15 +174,27 @@ export class PetLibrary {
     })
   }
   private async download(url: string, limit: number, signal: AbortSignal, progress?: (received: number) => void): Promise<Buffer> {
-    const response = await (this.options.fetch ?? fetch)(url, { signal, headers: { 'User-Agent': 'Antumi' } })
+    // A user's cancel stays a cancel; anything else the network did is said in words.
+    const failed = (error: unknown) => signal.aborted && !(signal.reason instanceof Error && signal.reason.name === 'TimeoutError') ? error : networkFailure(url, error)
+    let response: Response
+    try {
+      response = await (this.options.fetch ?? fetch)(url, { signal, headers: { 'User-Agent': 'Antumi' } })
+    } catch (error) {
+      throw failed(error)
+    }
     if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
     if (Number(response.headers.get('content-length')) > limit) { await response.body.cancel(); throw new Error('Pet download is too large') }
     const chunks: Uint8Array[] = []; let size = 0
-    for await (const chunk of response.body) {
-      signal.throwIfAborted(); size += chunk.length
-      if (size > limit) throw new Error('Pet download is too large')
-      chunks.push(chunk); progress?.(size)
+    try {
+      for await (const chunk of response.body) {
+        signal.throwIfAborted(); size += chunk.length
+        if (size > limit) break
+        chunks.push(chunk); progress?.(size)
+      }
+    } catch (error) {
+      throw failed(error)
     }
+    if (size > limit) throw new Error('Pet download is too large')
     return Buffer.concat(chunks)
   }
 }
