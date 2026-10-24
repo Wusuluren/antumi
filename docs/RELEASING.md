@@ -126,7 +126,7 @@ git push origin vX.Y.Z
 
 1. 校验标签格式，五个 `package.json` 的版本必须等于标签去掉 `v`，`CHANGELOG.md` 里必须有非空的 `## X.Y.Z` 段落；然后跑类型检查和测试。
 2. 分别在 macOS 和 Windows 上执行 `dist:mac` 和 `dist:win`。
-3. 创建 GitHub Release，标题 `Antumi vX.Y.Z`，说明取自 CHANGELOG 的这一段，附上 DMG 和 EXE。
+3. 创建 GitHub Release，标题 `Antumi vX.Y.Z`，说明取自 CHANGELOG 的这一段，附上 DMG、EXE 和它们的 `SHA256SUMS`（App 在 GitHub 接口限流、改读发布订阅时，靠它校验安装包）。
 
 查看进度：`gh run list --workflow=Release --limit 3`，`gh run watch <id>`。
 

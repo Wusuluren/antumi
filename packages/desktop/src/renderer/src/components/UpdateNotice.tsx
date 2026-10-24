@@ -18,6 +18,9 @@ const ERROR_TEXT: Record<string, () => string> = {
 }
 
 export function updateErrorText(error: string): string {
+  // Chromium's own network errors (net::ERR_CONNECTION_TIMED_OUT and the like) all mean GitHub was out of reach.
+  if (error.startsWith('net::')) return t('AppUpdate.errorNetwork')
+  if (error === 'GitHub 403' || error === 'GitHub 429') return t('AppUpdate.errorRateLimited')
   return ERROR_TEXT[error]?.() ?? error
 }
 

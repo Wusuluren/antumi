@@ -575,7 +575,7 @@ pnpm dist:win     # 产物在 packages/desktop/dist/Antumi-Setup-<版本>-x64.ex
 
 ### 应用更新
 
-主进程的 `AppUpdater`（`desktop/src/main/app-update.ts`）在启动 10 秒后、之后每 6 小时，向 GitHub 的 Releases 接口要最近 20 个版本，挑出比当前高的最新正式版（用户在 设置 → 关于 打开「接收测试版」时也算预发布），把结果推给窗口：状态栏出现「新版本」，设置里显示状态、手动检查和跳过。跳过的版本和测试版开关存在 userData 的 `update.json`。只有打包的 App 会去查；`ANTUMI_UPDATE_API` 可以把它指向一个模仿 GitHub 接口的本地服务，用来手动试一次更新。
+主进程的 `AppUpdater`（`desktop/src/main/app-update.ts`）在启动 10 秒后、之后每 6 小时，向 GitHub 的 Releases 接口要最近 20 个版本，挑出比当前高的最新正式版（用户在 设置 → 关于 打开「接收测试版」时也算预发布），把结果推给窗口：状态栏出现「新版本」，设置里显示状态、手动检查和跳过。跳过的版本和测试版开关存在 userData 的 `update.json`。只有打包的 App 会去查；`ANTUMI_UPDATE_API` 可以把它指向一个模仿 GitHub 接口的本地服务，用来手动试一次更新。不登录的接口每个出口 IP 每小时只有 60 次，多人共用的 VPN 很快用完，返回 403 或 429；这时改读 `github.com/<仓库>/releases.atom`（不计入这个额度），按标签挑版本（带 `-` 的算预发布），再从该版本的 `SHA256SUMS` 得到安装包和摘要，照常校验。早于这个文件的版本，或拿不到它时，只给发布页，不运行没校验过的安装包。走订阅时没有更新说明。Chromium 的网络错误（`net::ERR_…`）在界面上统一说成连不上 GitHub。
 
 macOS 上没有 Developer ID，Squirrel 式的自动更新用不了（它要求新旧版本同一张证书），所以 App 自己换自己（`app-bundle-swap.ts`）：用 Chromium 的网络栈（走系统代理）下载 dmg，按 Release 资产的大小和 `sha256` digest 校验，挂载后确认 `CFBundleIdentifier` 和版本号对得上，`ditto` 到 App 旁边的 `.Antumi-update.app`，去掉隔离属性并 `codesign --verify`，再两次 `rename` 把旧版挪成 `.Antumi-previous-<时间>.app`、新版放到原位（第二步失败会把旧版挪回去），然后重启。新版本启动后把这些留下的副本移到废纸篓。下载由 App 自己写入，不带隔离属性，所以新版本和旧版本一样直接打开。daemon 和 core 不随 App 退出，正在跑的 Agent 不受影响，新版启动时按 `backend.ts` 的规则接管 core。从 dmg 里直接运行、被 Gatekeeper 搬到 AppTranslocation、或所在文件夹不可写时不能换，界面改为给出安装包下载链接和手动步骤。
 

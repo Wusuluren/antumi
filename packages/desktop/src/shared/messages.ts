@@ -11091,6 +11091,14 @@ export const MESSAGES = {
     "zh": "下载失败，请检查网络",
     "en": "the download failed; check your connection"
   },
+  "AppUpdate.errorNetwork": {
+    "zh": "连不上 GitHub，换个网络或开关 VPN 后再试",
+    "en": "could not reach GitHub; try another network, or turn your VPN on or off"
+  },
+  "AppUpdate.errorRateLimited": {
+    "zh": "GitHub 暂时拒绝了查询，多半是同一网络查得太频繁，稍后再试或换个网络",
+    "en": "GitHub refused for now, usually because this network asked too often; try later or on another network"
+  },
   "AppUpdate.errorIncomplete": {
     "zh": "安装包没有下载完整",
     "en": "the installer did not download completely"

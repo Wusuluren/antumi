@@ -53,7 +53,9 @@ describe('AppUpdater', () => {
   const dirs: string[] = []
   afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
-  function updater(releases: Release[], installer: Uint8Array, change: { blocked?: string | null; refuse?: number } = {}) {
+  // apiStatus: what the API answers instead of the releases; feed and sums: the site's Atom feed
+  // and a release's SHA256SUMS, absent when not given.
+  function updater(releases: Release[], installer: Uint8Array, change: { blocked?: string | null; refuse?: number; apiStatus?: number; feed?: string; sums?: string } = {}) {
     const dir = mkdtempSync(join(tmpdir(), 'antumi-update-test-'))
     dirs.push(dir)
     const states: UpdateState[] = []
@@ -65,10 +67,13 @@ describe('AppUpdater', () => {
       platform: 'darwin',
       arch: 'arm64',
       api: 'https://api.example.com',
+      site: 'https://site.example.com',
       preferencesFile: join(dir, 'update.json'),
       downloads: join(dir, 'downloads'),
       fetch: async (url) => {
-        if (url.startsWith('https://api.example.com/')) return Response.json(releases)
+        if (url.startsWith('https://api.example.com/')) return change.apiStatus ? new Response('', { status: change.apiStatus }) : Response.json(releases)
+        if (url === 'https://site.example.com/flyhero/antumi/releases.atom') return change.feed === undefined ? new Response('', { status: 404 }) : new Response(change.feed)
+        if (url.endsWith('/SHA256SUMS')) return change.sums === undefined ? new Response('', { status: 404 }) : new Response(change.sums)
         downloads++
         return new Response(installer)
       },
@@ -127,6 +132,47 @@ describe('AppUpdater', () => {
     await instance.skip('0.19.5')
     await instance.setPrerelease(true)
     expect(instance.current()).toMatchObject({ skipped: '0.19.5', prerelease: true, latest: { version: '0.19.6-beta.1' } })
+  })
+
+  const feed = (...tags: string[]) => `<feed><link rel="alternate" href="https://github.com/flyhero/antumi/releases"/>${tags.map((tag) => `<entry><link rel="alternate" type="text/html" href="https://github.com/flyhero/antumi/releases/tag/${tag}"/></entry>`).join('')}</feed>`
+
+  it('reads the feed when the API refuses, and installs what the release checksums vouch for', async () => {
+    const bytes = new Uint8Array([1, 2, 3, 4])
+    const sums = `${createHash('sha256').update(bytes).digest('hex')}  Antumi-0.19.5-arm64.dmg\n${'0'.repeat(64)}  Antumi-Setup-0.19.5-x64.exe\n`
+    const { instance, installed } = updater([], bytes, { apiStatus: 403, feed: feed('v0.19.6-beta.1', 'v0.19.5', 'v0.19.3'), sums })
+    await instance.check()
+    expect(instance.current()).toMatchObject({
+      status: 'available',
+      canInstall: true,
+      error: null,
+      latest: { version: '0.19.5', page: 'https://site.example.com/flyhero/antumi/releases/tag/v0.19.5', download: 'https://site.example.com/flyhero/antumi/releases/download/v0.19.5/Antumi-0.19.5-arm64.dmg' }
+    })
+    await instance.install()
+    expect(installed).toHaveLength(1)
+  })
+
+  it('refuses a feed download its checksum does not match', async () => {
+    const sums = `${'0'.repeat(64)}  Antumi-0.19.5-arm64.dmg\n`
+    const { instance, installed } = updater([], new Uint8Array(4), { apiStatus: 429, feed: feed('v0.19.5'), sums })
+    await instance.check()
+    await instance.install()
+    expect(installed).toEqual([])
+    expect(instance.current()).toMatchObject({ status: 'error', error: 'digest-mismatch' })
+  })
+
+  it('sends the user to the release page for a feed release without checksums', async () => {
+    const { instance } = updater([], new Uint8Array(4), { apiStatus: 403, feed: feed('v0.19.5') })
+    await instance.check()
+    expect(instance.current()).toMatchObject({ status: 'available', canInstall: false, latest: { version: '0.19.5', download: null } })
+  })
+
+  it('reports the API refusal when the feed fails too, and other API errors as they are', async () => {
+    const limited = updater([], new Uint8Array(4), { apiStatus: 403 })
+    await limited.instance.check()
+    expect(limited.instance.current()).toMatchObject({ status: 'error', error: 'GitHub 403' })
+    const broken = updater([], new Uint8Array(4), { apiStatus: 500, feed: feed('v0.19.5') })
+    await broken.instance.check()
+    expect(broken.instance.current()).toMatchObject({ status: 'error', error: 'GitHub 500' })
   })
 
   it('retries an install that was refused without downloading again', async () => {

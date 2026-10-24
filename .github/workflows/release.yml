@@ -144,7 +144,9 @@ jobs:
             gh release create "$RELEASE_TAG" --verify-tag --draft \
               --title "Antumi $RELEASE_TAG" --notes-file release-files/release-notes.md
           fi
-          gh release upload "$RELEASE_TAG" release-files/*.dmg release-files/*.exe --clobber
+          # Lets an app that reads the releases feed (the API refused it) verify the installer.
+          (cd release-files && sha256sum *.dmg *.exe > SHA256SUMS)
+          gh release upload "$RELEASE_TAG" release-files/*.dmg release-files/*.exe release-files/SHA256SUMS --clobber
           latest=true
           if [ "$PRERELEASE" = true ]; then latest=false; fi
           gh release edit "$RELEASE_TAG" --draft=false --prerelease="$PRERELEASE" --latest="$latest" \
