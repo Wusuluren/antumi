@@ -9,6 +9,7 @@ export const MESSAGES = {
   "Pet.cancelDownload": {"zh": "取消下载", "en": "Cancel download"},
   "Pet.remove": {"zh": "移除下载", "en": "Remove download"},
   "Pet.downloadFailed": {"zh": "下载或加载失败，已保留原宠物，请稍后重试。", "en": "Could not download or load this pet. Your current pet is unchanged. Try again later."},
+  "Pet.downloadFailedBecause": {"zh": "下载或加载失败，已保留原宠物：{reason}", "en": "Could not download or load this pet. Your current pet is unchanged: {reason}"},
   "Pet.removeFailed": {"zh": "未能移除宠物，请稍后重试。", "en": "Could not remove this pet. Try again later."},
   "Pet.downloadUnavailable": {"zh": "连接支持宠物下载的工作台后，可下载其他宠物。", "en": "Connect to a workspace that supports pet downloads to install more pets."},
   "Pet.title": { "zh": "Pet · 宠物", "en": "Pet" },

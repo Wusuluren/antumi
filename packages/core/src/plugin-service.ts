@@ -1,10 +1,11 @@
-import { mkdir, mkdtemp, rename, rm, lstat } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, lstat } from 'node:fs/promises'
 import path from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { rcompare } from 'semver'
 import { z } from 'zod'
 import { PluginInfo, PluginManifest, PluginVersion, type PluginInstallSource, RecommendedPlugin } from '@antumi/protocol'
 import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
+import { renameWhenFree } from './patient-rename'
 import { packagePath, readManifest, stagePlugin } from './plugin-package'
 import { PluginProcess } from './plugin-process'
 import { Rejection } from './rejection'
@@ -176,7 +177,7 @@ export class PluginService {
         await rm(destination, { recursive: true })
       }
       catch (error) { if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error }
-      await rename(staging, destination)
+      await renameWhenFree(staging, destination)
       installedPath = destination
       installedVersion = { id: manifest.id, version: manifest.version }
       const candidate = await this.prepare(destination)

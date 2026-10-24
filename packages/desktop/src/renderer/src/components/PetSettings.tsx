@@ -28,7 +28,9 @@ export function PetStylePicker({ labelId }: { labelId: string }) {
       if (id !== 'clay' && (update || !state.installed.some((p) => p.id === id))) await installPet(id)
       if (request === intent.current) setPreference('petStyle', id)
     } catch (error) {
-      if (!(error instanceof RpcError && error.reason === 'pet-cancelled')) setProblem(t('Pet.downloadFailed'))
+      if (error instanceof RpcError && error.reason === 'pet-cancelled') return
+      // Why it failed (which host, through which proxy, timed out or refused) is the part to act on.
+      setProblem(error instanceof RpcError && error.reason === 'pet-download-failed' && error.message ? t('Pet.downloadFailedBecause', { reason: error.message }) : t('Pet.downloadFailed'))
     }
   }
   const remove = async (id: string) => {

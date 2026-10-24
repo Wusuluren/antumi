@@ -1,10 +1,11 @@
-import { mkdir, mkdtemp, readFile, rename, rm, lstat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, lstat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 import { comparePetVersions, PetCatalog, PetManifest, PetMetadata, PET_FILES, type PetCatalogEntry, type PetLibraryState, type PetResourceData } from '@antumi/protocol'
 import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 import fallback from '../../protocol/src/pet-catalog.json' with { type: 'json' }
 import { networkFailure } from './network-failure'
+import { renameWhenFree } from './patient-rename'
 import { unpackPet, validatePetFiles, webpSize } from './pet-package'
 import { Rejection } from './rejection'
 
@@ -165,7 +166,7 @@ export class PetLibrary {
         // An interrupted install may have left an unreferenced version directory.
         if (!this.installed.some((p) => p.id === manifest.id && p.version === manifest.version)) await rm(destination, { recursive: true, force: true })
         signal.throwIfAborted()
-        await rename(staging, destination)
+        await renameWhenFree(staging, destination)
         const next = [...this.installed.filter((p) => p.id !== manifest.id), PetMetadata.parse(manifest)]
         await writePrivateJson(path.join(this.root, 'installed.json'), next)
         this.installed = next; this.publish()
