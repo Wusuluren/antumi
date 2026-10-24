@@ -578,7 +578,7 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
     document.addEventListener('mouseleave', onLeave)
     window.addEventListener('keydown', onKey, true)
     window.addEventListener('resize', layoutChanged)
-    window.addEventListener('scroll', layoutChanged, true)
+    // Scrolling leaves the stage fixed; tick rechecks moved anchors and obstacles.
     const resize = new ResizeObserver(layoutChanged)
     resize.observe(stage)
     const ticker = setInterval(tick, 200)
@@ -622,7 +622,7 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
       clearInterval(ticker); cancelAnimationFrame(gazeFrame); resize.disconnect()
       walker.removeEventListener('pointerdown', onDown); walker.removeEventListener('keydown', onWalkerKey)
       window.removeEventListener('pointermove', onMove); document.removeEventListener('mouseleave', onLeave)
-      window.removeEventListener('keydown', onKey, true); window.removeEventListener('resize', layoutChanged); window.removeEventListener('scroll', layoutChanged, true)
+      window.removeEventListener('keydown', onKey, true); window.removeEventListener('resize', layoutChanged)
     }
   }, [skin, level, reduced])
 
