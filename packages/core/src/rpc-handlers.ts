@@ -382,6 +382,8 @@ export function createRpcHandlers(
     },
     'conversations.unwatchChat': ({ id }, connection) => { connection.watching.delete(id); return OK },
     'conversations.chatItems': ({ id, before }) => page(conversations.chatPage(id, before)),
+    // Any idle time will do: Infinity is past every agent's last activity.
+    'conversations.releaseIdle': async () => ({ released: await conversations.releaseIdle(Infinity) }),
     'conversations.stop': ({ id }) => userActed(id, async () => {
       const run = squads?.roster(id)
       if (run?.leaderConversationId === id && run.state === 'running') await squads?.control(run.id, 'stop')

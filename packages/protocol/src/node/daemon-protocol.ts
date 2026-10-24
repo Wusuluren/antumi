@@ -83,7 +83,8 @@ export const daemonMethods = {
   info: { params: z.object({}), result: z.object({ version: z.string(), pid: z.number().int(), features: z.array(z.string()).optional() }) },
   // Leaves, but only when nothing it hosts still runs (a browser host aside, which core starts
   // again when it needs one): an app updated in place replaces it then. live: what kept it.
-  retire: { params: z.object({}), result: z.object({ retired: z.boolean(), live: z.number().int() }) }
+  // blockers: the sessions still alive when it refuses; older daemons give only the count.
+  retire: { params: z.object({}), result: z.object({ retired: z.boolean(), live: z.number().int(), blockers: z.array(z.object({ sessionId: z.string(), agent: AgentKind.optional() })).optional() }) }
 } as const
 
 export type DaemonMethod = keyof typeof daemonMethods

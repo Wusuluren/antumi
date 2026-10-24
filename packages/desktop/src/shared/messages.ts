@@ -11159,6 +11159,34 @@ export const MESSAGES = {
     "zh": "安装时 Antumi 会关闭，装好后自动重新打开。所有 Agent 和终端都停下后才能安装。",
     "en": "Antumi closes while it installs and reopens when done. It installs only once no agent or terminal is running."
   },
+  "AppUpdate.errorBackendUnresponsive": {
+    "zh": "Antumi 后台没有按时退出，安装程序没有运行；稍后重试",
+    "en": "the Antumi backend did not stop in time, so the installer did not run; try again shortly"
+  },
+  "AppUpdate.blockerTerminal": {
+    "zh": "终端：{title}",
+    "en": "Terminal: {title}"
+  },
+  "AppUpdate.blockerConversation": {
+    "zh": "会话：{title}",
+    "en": "Conversation: {title}"
+  },
+  "AppUpdate.blockerAgent": {
+    "zh": "{agent} 的临时进程（登录、查询等），稍后重试",
+    "en": "A short-lived {agent} process (sign-in, a lookup); try again shortly"
+  },
+  "AppUpdate.blockerUnknown": {
+    "zh": "无法识别的进程",
+    "en": "An unrecognised process"
+  },
+  "AppUpdate.open": {
+    "zh": "打开",
+    "en": "Open"
+  },
+  "AppUpdate.closeTerminal": {
+    "zh": "关闭",
+    "en": "Close"
+  },
   "AppUpdate.errorAgentsRunning": {
     "zh": "还有 Agent 或终端在运行，等它们都停下后再重试",
     "en": "agents or terminals are still running; retry once they have stopped"

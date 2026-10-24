@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { compareVersions, type UpdateState } from '../shared/app-update'
-import { AppUpdater, installerFor, newestRelease, type Release } from './app-update'
+import { AppUpdater, InstallBlocked, installerFor, newestRelease, type Release } from './app-update'
 
 const release = (tag: string, change: Partial<Release> = {}): Release => ({
   tag_name: tag,
@@ -55,7 +55,7 @@ describe('AppUpdater', () => {
 
   // apiStatus: what the API answers instead of the releases; feed and sums: the site's Atom feed
   // and a release's SHA256SUMS, absent when not given.
-  function updater(releases: Release[], installer: Uint8Array, change: { blocked?: string | null; refuse?: number; apiStatus?: number; feed?: string; sums?: string } = {}) {
+  function updater(releases: Release[], installer: Uint8Array, change: { blocked?: string | null; refuse?: number; busy?: UpdateState['blockers']; apiStatus?: number; feed?: string; sums?: string } = {}) {
     const dir = mkdtempSync(join(tmpdir(), 'antumi-update-test-'))
     dirs.push(dir)
     const states: UpdateState[] = []
@@ -79,7 +79,7 @@ describe('AppUpdater', () => {
       },
       installBlocked: async () => change.blocked ?? null,
       install: async (file, version) => {
-        if (refusals-- > 0) throw new Error('agents-running')
+        if (refusals-- > 0) throw change.busy ? new InstallBlocked(change.busy) : new Error('agents-running')
         installed.push({ file, version })
       },
       publish: (state) => states.push(state)
@@ -173,6 +173,15 @@ describe('AppUpdater', () => {
     const broken = updater([], new Uint8Array(4), { apiStatus: 500, feed: feed('v0.19.5') })
     await broken.instance.check()
     expect(broken.instance.current()).toMatchObject({ status: 'error', error: 'GitHub 500' })
+  })
+
+  it('names the sessions that kept an install from running, and forgets them on the retry', async () => {
+    const { instance } = updater([release('v0.19.5')], new Uint8Array(4), { refuse: 1, busy: [{ sessionId: 'shell' }, { sessionId: 'chat', agent: 'codex' }] })
+    await instance.check()
+    await instance.install()
+    expect(instance.current()).toMatchObject({ status: 'error', error: 'agents-running', blockers: [{ sessionId: 'shell' }, { sessionId: 'chat', agent: 'codex' }] })
+    await instance.install()
+    expect(instance.current()).toMatchObject({ status: 'installing', blockers: [] })
   })
 
   it('retries an install that was refused without downloading again', async () => {

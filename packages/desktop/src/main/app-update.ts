@@ -47,6 +47,13 @@ export function versionOf(release: Release): string {
   return release.tag_name.replace(/^v/, '')
 }
 
+// An install refused because the daemon still runs these sessions.
+export class InstallBlocked extends Error {
+  constructor(readonly blockers: UpdateState['blockers']) {
+    super('agents-running')
+  }
+}
+
 const Preferences = z.object({ prerelease: z.boolean().catch(false), skipped: z.string().nullable().catch(null) })
 type Preferences = z.infer<typeof Preferences>
 
@@ -77,7 +84,7 @@ export class AppUpdater {
   private downloaded: string | null = null
 
   constructor(private readonly options: UpdaterOptions) {
-    this.state = { current: options.current, status: 'idle', latest: null, canInstall: false, progress: null, error: null, checkedAt: null, prerelease: false, skipped: null }
+    this.state = { current: options.current, status: 'idle', latest: null, canInstall: false, progress: null, error: null, blockers: [], checkedAt: null, prerelease: false, skipped: null }
   }
 
   async start(): Promise<void> {
@@ -120,7 +127,7 @@ export class AppUpdater {
     const asset = release && installerFor(release, this.options.platform, this.options.arch)
     if (!release || !asset || this.busy() || !this.state.canInstall) return
     const version = versionOf(release)
-    this.set({ status: 'downloading', progress: 0, error: null })
+    this.set({ status: 'downloading', progress: 0, error: null, blockers: [] })
     try {
       const file = join(this.options.downloads, asset.name)
       // A retry after the install itself failed (agents still running on Windows) reuses it.
@@ -129,7 +136,7 @@ export class AppUpdater {
       this.set({ status: 'installing', progress: null })
       await this.options.install(file, version)
     } catch (error) {
-      this.set({ status: 'error', progress: null, error: error instanceof Error ? error.message : String(error) })
+      this.set({ status: 'error', progress: null, error: error instanceof Error ? error.message : String(error), blockers: error instanceof InstallBlocked ? error.blockers : [] })
     }
   }
 

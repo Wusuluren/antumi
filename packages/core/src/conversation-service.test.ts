@@ -983,6 +983,19 @@ describe('ConversationService', () => {
     expect(service.get(busy.id).sessionId).not.toBeNull()
   })
 
+  it('lets every idle chat agent go at once when asked, as before an update, still not one at work', async () => {
+    const idle = await service.create('claude', [])
+    await service.send(idle.id, 'first')
+    await settle()
+    daemon.reply = () => {}
+    const busy = await service.create('claude', [])
+    await service.send(busy.id, 'still going')
+    await settle()
+    expect(await service.releaseIdle(Infinity)).toBe(1)
+    expect(service.get(idle.id).sessionId).toBeNull()
+    expect(service.get(busy.id).sessionId).not.toBeNull()
+  })
+
   it('makes way for a handoff from an idle agent but not a working one, which a continue leaves as it is', async () => {
     const idle = await service.create('claude', [])
     expect((await codexOpens(service.handoff(idle.id, 'codex', '', false))).agent).toBe('codex')

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { UpdateState } from '../../../shared/app-update'
 import { t } from '../i18n'
 import { checkForUpdate, installUpdate, setUpdatePrerelease, skipUpdate, updateOffered, useUpdate } from '../update-state'
+import { closeTerminal, selectConversation, showTerminal, useCore } from '../core-store'
+import { agentLabel } from '../labels'
 import { ArrowUpIcon } from './icons'
 import { ChatMarkdown } from './ChatMarkdown'
 import { Popover } from './Popover'
@@ -14,7 +16,8 @@ const ERROR_TEXT: Record<string, () => string> = {
   'wrong-app': () => t('AppUpdate.errorBadInstaller'),
   'wrong-version': () => t('AppUpdate.errorBadInstaller'),
   'no-app-in-dmg': () => t('AppUpdate.errorBadInstaller'),
-  'agents-running': () => t('AppUpdate.errorAgentsRunning')
+  'agents-running': () => t('AppUpdate.errorAgentsRunning'),
+  'backend-unresponsive': () => t('AppUpdate.errorBackendUnresponsive')
 }
 
 export function updateErrorText(error: string): string {
@@ -25,6 +28,35 @@ export function updateErrorText(error: string): string {
 }
 
 const isMac = () => window.antumi?.platform === 'darwin'
+
+// What kept the update from installing, each named as the app shows it, with what to do about it.
+function InstallBlockers({ blockers }: { blockers: UpdateState['blockers'] }) {
+  const terminals = useCore((s) => s.terminals)
+  const conversations = useCore((s) => s.conversations)
+  if (blockers.length === 0) return null
+  return (
+    <ul className="update-blockers">
+      {blockers.map(({ sessionId, agent }) => {
+        const terminal = terminals.find((each) => each.sessionId === sessionId)
+        if (terminal) return (
+          <li key={sessionId}>
+            <span className="update-blocker-label">{t('AppUpdate.blockerTerminal', { title: terminal.title })}</span>
+            <button type="button" className="button" onClick={() => showTerminal(terminal.id)}>{t('AppUpdate.open')}</button>
+            {!terminal.conversationId && <button type="button" className="button" onClick={() => closeTerminal(terminal.id)}>{t('AppUpdate.closeTerminal')}</button>}
+          </li>
+        )
+        const conversation = Object.values(conversations).find((each) => each.sessionId === sessionId)
+        if (conversation) return (
+          <li key={sessionId}>
+            <span className="update-blocker-label">{t('AppUpdate.blockerConversation', { title: conversation.title })}</span>
+            <button type="button" className="button" onClick={() => selectConversation(conversation.id)}>{t('AppUpdate.open')}</button>
+          </li>
+        )
+        return <li key={sessionId}><span className="update-blocker-label">{agent ? t('AppUpdate.blockerAgent', { agent: agentLabel(agent) }) : t('AppUpdate.blockerUnknown')}</span></li>
+      })}
+    </ul>
+  )
+}
 
 // What can be done about the newer version: install it in place where main can, else fetch the
 // installer; the release page and skipping either way.
@@ -45,6 +77,7 @@ export function UpdateActions({ state, onSkip }: { state: UpdateState; onSkip?: 
   return (
     <>
       {state.error && state.status === 'error' && <p className="update-error">{t('AppUpdate.failed', { reason: updateErrorText(state.error) })}</p>}
+      {state.status === 'error' && <InstallBlockers blockers={state.blockers} />}
       {!state.canInstall && <p className="update-hint">{isMac() ? t('AppUpdate.manualMac') : t('AppUpdate.manualWindows')}</p>}
       <div className="update-actions">
         {state.canInstall ? (
