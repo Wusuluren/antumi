@@ -4,7 +4,7 @@
 
 **一个工作台，和多个 AI Agent 一起工作。**
 
-本地优先的多 Agent 工作台，统一管理 Claude Code、Codex、Cursor、OpenCode、Pi、DeepSeek Harness 和 Antigravity 的会话、任务、群聊与定时运行。
+本地优先的多 Agent 工作台，统一管理各家 Agent 的会话、任务、群聊与定时运行。
 
 [![Version](https://img.shields.io/github/package-json/v/flyhero/antumi?label=version&color=blue)](CHANGELOG.md)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-lightgrey)
@@ -15,13 +15,13 @@
 **简体中文** · [English](README.en.md)
 
 <p align="center">
-  <a href="#支持的-agent" title="Claude Code"><img src="docs/assets/agents/claude.svg" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#支持的-agent" title="Codex"><img src="docs/assets/agents/codex.svg" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#支持的-agent" title="Cursor"><img src="docs/assets/agents/cursor.svg" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#支持的-agent" title="OpenCode"><img src="docs/assets/agents/opencode.svg" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#支持的-agent" title="Pi"><img src="docs/assets/agents/pi.svg" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#支持的-agent" title="DeepSeek Harness"><img src="docs/assets/agents/dsh.svg" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#支持的-agent" title="Antigravity"><img src="docs/assets/agents/antigravity.svg" width="32" height="32" /></a>
+  <a href="#支持的-agent" title="Claude Code"><img src="docs/assets/agents/claude.svg" alt="Claude Code" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#支持的-agent" title="Codex"><img src="docs/assets/agents/codex.svg" alt="Codex" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#支持的-agent" title="Cursor"><img src="docs/assets/agents/cursor.svg" alt="Cursor" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#支持的-agent" title="OpenCode"><img src="docs/assets/agents/opencode.svg" alt="OpenCode" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#支持的-agent" title="Pi"><img src="docs/assets/agents/pi.svg" alt="Pi" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#支持的-agent" title="DeepSeek Harness"><img src="docs/assets/agents/dsh.svg" alt="DeepSeek Harness" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#支持的-agent" title="Antigravity"><img src="docs/assets/agents/antigravity.svg" alt="Antigravity" width="32" height="32" /></a>
 </p>
 
 https://github.com/user-attachments/assets/44398279-8f26-441f-ad24-fa1b1e344674

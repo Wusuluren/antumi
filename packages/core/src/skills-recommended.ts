@@ -9,6 +9,14 @@ export const RECOMMENDED_SKILL_REPOS: readonly RecommendedSkillRepo[] = [
     license: 'MIT',
     homepage: 'https://github.com/kepano/obsidian-skills',
     skills: ['obsidian-markdown', 'obsidian-bases', 'json-canvas', 'obsidian-cli', 'defuddle', 'knap']
+  },
+  {
+    url: 'https://github.com/cathrynlavery/diagram-design',
+    name: 'Diagram Design',
+    description: '生成架构图、流程图、时序图和数据模型图，输出可独立打开的 HTML + SVG，支持按品牌配色与字体定制。',
+    license: 'MIT',
+    homepage: 'https://github.com/cathrynlavery/diagram-design',
+    skills: ['diagram-design']
   }
 ]
 

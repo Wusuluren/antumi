@@ -4,7 +4,7 @@
 
 **One workspace to work with multiple AI agents.**
 
-A local-first workspace for Claude Code, Codex, Cursor, OpenCode, Pi, DeepSeek Harness, and Antigravity: conversations, tasks, group discussions and scheduled runs in one place.
+A local-first workspace for your AI agents: conversations, tasks, group discussions and scheduled runs in one place.
 
 [![Version](https://img.shields.io/github/package-json/v/flyhero/antumi?label=version&color=blue)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
@@ -16,13 +16,13 @@ A local-first workspace for Claude Code, Codex, Cursor, OpenCode, Pi, DeepSeek H
 [简体中文](README.md) · **English**
 
 <p align="center">
-  <a href="#supported-agents" title="Claude Code"><img src="docs/assets/agents/claude.svg" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#supported-agents" title="Codex"><img src="docs/assets/agents/codex.svg" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#supported-agents" title="Cursor"><img src="docs/assets/agents/cursor.svg" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#supported-agents" title="OpenCode"><img src="docs/assets/agents/opencode.svg" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#supported-agents" title="Pi"><img src="docs/assets/agents/pi.svg" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#supported-agents" title="DeepSeek Harness"><img src="docs/assets/agents/dsh.svg" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#supported-agents" title="Antigravity"><img src="docs/assets/agents/antigravity.svg" width="32" height="32" /></a>
+  <a href="#supported-agents" title="Claude Code"><img src="docs/assets/agents/claude.svg" alt="Claude Code" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#supported-agents" title="Codex"><img src="docs/assets/agents/codex.svg" alt="Codex" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#supported-agents" title="Cursor"><img src="docs/assets/agents/cursor.svg" alt="Cursor" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#supported-agents" title="OpenCode"><img src="docs/assets/agents/opencode.svg" alt="OpenCode" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#supported-agents" title="Pi"><img src="docs/assets/agents/pi.svg" alt="Pi" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#supported-agents" title="DeepSeek Harness"><img src="docs/assets/agents/dsh.svg" alt="DeepSeek Harness" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#supported-agents" title="Antigravity"><img src="docs/assets/agents/antigravity.svg" alt="Antigravity" width="32" height="32" /></a>
 </p>
 
 https://github.com/user-attachments/assets/44398279-8f26-441f-ad24-fa1b1e344674
