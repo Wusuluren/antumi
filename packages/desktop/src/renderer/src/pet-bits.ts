@@ -24,6 +24,15 @@ const glance = async (api: StageApi, c: Context, times: number) => {
   }
   api.look(0, 0)
 }
+const restOnWall = async (api: StageApi, c: Context, duration: number) => {
+  // The raised-arm hang frame is for being picked up; keep the feet on the wall at rest.
+  api.pose(c.mood)
+  for (const x of [-.65, .65, 0]) {
+    api.look(x, between(c.random, -.2, .4))
+    await api.wait(duration / 3)
+  }
+  api.look(0, 0)
+}
 const facingInward = async (api: StageApi) => {
   const inward = towards(api.spot(), center(api.bounds()))
   if (api.facing() !== inward) await api.face(inward)
@@ -97,8 +106,7 @@ export function petBits(): PetBit[] {
         await api.wait(between(c.random, 6_000, 18_000))
         await glance(api, c, 1)
       } else {
-        api.pose('hang')
-        await api.wait(between(c.random, 4_000, 12_000))
+        await restOnWall(api, c, between(c.random, 4_000, 12_000))
       }
     }
   }
@@ -137,9 +145,7 @@ export function petBits(): PetBit[] {
     cooldownMs: 30_000,
     score: (c) => (c.mood === 'idle' && c.on === 'wall' ? 0.8 : 0),
     run: async (api, c) => {
-      api.pose('hang')
-      await api.wait(between(c.random, 5_000, 12_000))
-      api.pose('idle')
+      await restOnWall(api, c, between(c.random, 5_000, 12_000))
     }
   }
 
