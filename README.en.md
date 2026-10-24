@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="docs/assets/icon.png" alt="Antumi icon: a little ant holding three agent blocks" width="128" height="128" />
-
 # Antumi
 
 **One workspace to work with multiple AI agents.**

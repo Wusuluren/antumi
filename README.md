@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="docs/assets/icon.png" alt="Antumi 图标：抱着三块 Agent 积木的小蚂蚁" width="128" height="128" />
-
 # Antumi（安图米）
 
 **一个工作台，和多个 AI Agent 一起工作。**
