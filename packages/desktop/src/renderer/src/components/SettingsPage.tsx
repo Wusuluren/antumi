@@ -8,7 +8,7 @@ import { openGuide, perform, setAwakeMode, setChatSettings, setSettingsOpen, use
 import { DEFAULT_PREFERENCES, setPreference, usePreferences } from '../preferences'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { UNATTENDED_LABEL } from '../schedules'
-import { useInstalledAgents } from '../installed-agents'
+import { detectedAgents, useInstalledAgents } from '../installed-agents'
 import { useAgentCatalog } from '../agent-models'
 import { ChatPicker } from './ChatPicker'
 import { PluginSettings } from './PluginSettings'
@@ -393,6 +393,8 @@ function AgentSettings() {
   const awake = useCore((s) => s.awake)
   const chatSettings = useCore((s) => s.chatSettings)
   const installed = useInstalledAgents()
+  // Turned off still counts: its limit holds once it is back on.
+  const found = detectedAgents(useCore((s) => s.environment))
   const running = chatSettings?.maxConcurrentAgents !== undefined || Boolean(chatSettings?.agentConcurrency) || (awakeSupported && Boolean(awake)) || Boolean(chatSettings?.unattendedMode)
   const access = chatSettings?.userBrowser !== undefined || chatSettings?.readHistory !== undefined
   return (
@@ -411,7 +413,7 @@ function AgentSettings() {
               )}
             />
           )}
-          {chatSettings?.agentConcurrency && AGENT_KINDS.map((agent) => (
+          {chatSettings?.agentConcurrency && found.map((agent) => (
             <SettingsRow
               key={agent}
               label={t('SettingsPage.concurrency', { value1: agentLabel(agent) })}
