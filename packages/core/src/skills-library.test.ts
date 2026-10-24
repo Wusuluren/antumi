@@ -113,6 +113,45 @@ describe('SkillsLibrary', () => {
     expect(JSON.parse(readFileSync(path.join(root, 'home', 'skills', 'skills.json'), 'utf8'))).toEqual({ version: 1, repos: [] })
   })
 
+  it('installs nested skills with their files, previews a changed layout, updates and rolls back', async () => {
+    rmSync(path.join(upstream, 'skills'), { recursive: true })
+    const dir = path.join(upstream, 'skills', 'engineering', 'tdd')
+    mkdirSync(path.join(dir, 'references'), { recursive: true })
+    writeFileSync(path.join(dir, 'SKILL.md'), '---\nname: tdd\ndescription: Test-driven development.\n---\n')
+    writeFileSync(path.join(dir, 'references', 'tests.md'), 'Write a failing test first.')
+    const first = commit('nested skills')
+    const repo = await library.install(url())
+    expect(repo.skills).toEqual([{ name: 'tdd', description: 'Test-driven development.', dir: 'skills/engineering/tdd', problem: null }])
+    const bundle = await library.bundleFor([{ repo: repo.id, skill: 'tdd' }])
+    for (const layout of ['skills', '.agents/skills']) {
+      expect(readFileSync(path.join(bundle?.dir ?? '', layout, 'tdd', 'references', 'tests.md'), 'utf8')).toBe('Write a failing test first.')
+    }
+
+    const moved = path.join(upstream, 'plugins', 'testing', 'skills', 'tdd')
+    rmSync(path.join(upstream, 'skills'), { recursive: true })
+    mkdirSync(moved, { recursive: true })
+    writeFileSync(path.join(moved, 'SKILL.md'), '---\nname: tdd\ndescription: Updated testing.\n---\n')
+    const second = commit('move skill into a plugin')
+    const check = await library.checkUpdate(repo.id)
+    expect(check.skills).toEqual([{ name: 'tdd', description: 'Updated testing.', dir: 'plugins/testing/skills/tdd', problem: null }])
+    expect(library.list()[0]?.commit).toBe(first)
+    expect(existsSync(path.join(root, 'home', 'skills', 'repos', repo.id, 'skills', 'engineering', 'tdd', 'SKILL.md'))).toBe(true)
+    expect((await library.update(repo.id, second)).skills).toEqual(check.skills)
+    const updatedBundle = await library.bundleFor([{ repo: repo.id, skill: 'tdd' }])
+    expect(readFileSync(path.join(updatedBundle?.dir ?? '', 'skills', 'tdd', 'SKILL.md'), 'utf8')).toContain('Updated testing.')
+    expect((await library.rollback(repo.id)).skills).toEqual(repo.skills)
+  })
+
+  it('reports malformed skill metadata instead of claiming the layout is unsupported', async () => {
+    rmSync(path.join(upstream, 'skills'), { recursive: true })
+    const dir = path.join(upstream, 'skills', 'engineering', 'tdd')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(path.join(dir, 'SKILL.md'), '---\nname: tdd\n---\n')
+    commit('missing description')
+    await expect(library.install(url())).rejects.toMatchObject({ reason: 'skills-none-found', message: '仓库里没有可用的技能（skills/engineering/tdd：缺少 description）' })
+    expect(library.list()).toEqual([])
+  })
+
   // As s1dashu/ip-as-logo-skill publishes one: the repository is the skill, named apart from it.
   it('installs a repository that is one skill, and bundles it without its git folder', async () => {
     rmSync(path.join(upstream, 'skills'), { recursive: true })

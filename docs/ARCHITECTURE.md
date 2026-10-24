@@ -394,7 +394,7 @@ Antigravity 也只是一份 dialect（`agents/antigravity/`）：`agy` 本身不
 
 ### 技能库
 
-设置 → 任务 → 技能 管理 Agent Skills（`SKILL.md` 目录）。core 从 https 地址 `git clone` 到 `~/.antumi/skills/repos/<id>/`，固定在安装时的提交（detached HEAD），把扫描到的技能写进 `skills.json`。扫描顺序：有 `skills/` 就取其中的 `<名字>/SKILL.md`；没有就看根目录的 `SKILL.md`，整个仓库是一个技能，名字取 frontmatter 的 `name`（目录是仓库名，对不上也不算错）；都没有再看各顶层目录里的 `SKILL.md`；「检查更新」只 fetch 并从 git 对象里读新版本的技能列表，用户确认后才移动 pin，并记住上一个提交供回退。不改用户自己的 `~/.claude`、`~/.codex`。
+设置 → 任务 → 技能 管理 Agent Skills（`SKILL.md` 目录）。core 从 https 地址 `git clone` 到 `~/.antumi/skills/repos/<id>/`，固定在安装时的提交（detached HEAD），把扫描到的技能写进 `skills.json`。依次递归扫描 `skills/`、`.agents/skills/`、`.claude/skills/`、`.codex/skills/`，取第一个包含 `SKILL.md` 的集合，支持 `skills/<分类>/<名字>/SKILL.md` 等多层布局；都没有再看根目录的 `SKILL.md`，整个仓库是一个技能，名字取 frontmatter 的 `name`（目录是仓库名，对不上也不算错）；仍没有就递归扫描仓库的其他子目录，兼容插件里的技能。遇到 `SKILL.md` 后不再扫描该技能内部的示例等文件，跳过隐藏目录、`node_modules`、`vendor` 和目录软链接，普通分类目录不列为缺失技能。同一集合中重名的技能标为不可用；没有可用技能时 core 返回具体的校验错误。「检查更新」只 fetch 并从 git 对象里读新版本的技能列表，使用同一套扫描规则；用户确认后才移动 pin，并记住上一个提交供回退。不改用户自己的 `~/.claude`、`~/.codex`。
 
 推荐列表是 core 里写死的一小份（`skills-recommended.ts`），不是市场。除此之外，「搜索技能市场」查开放索引 [skills.sh](https://skills.sh) 的公开 `/api/search`（feature `skills-search`，由 core 出网，无需密钥；`/api/v1` 的排行榜要 token，不用）。registry 一条记录是某个仓库里的一个技能，core 按仓库（GitHub `owner/repo`）归并成一行并校验是干净的 `owner/repo`（`skills-search.ts`）；安装走的还是上面的 `git clone` 整仓库、固定提交那条路，所以命中的是技能所在的仓库，不是单个技能。已安装始终单独列出；推荐、搜索市场和填地址安装在同一张卡片里用标签切换，一次只展开一种，搜索结果可以清空。
 

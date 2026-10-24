@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -50,13 +50,13 @@ describe('scanSkills', () => {
     writeFileSync(path.join(repo, dir, name, 'SKILL.md'), body)
   }
 
-  it('lists skills/*/SKILL.md in name order, with the faulty ones told', async () => {
+  it('lists skills/*/SKILL.md in name order, with faulty skills told and plain folders ignored', async () => {
     skill('skills', 'zeta')
     skill('skills', 'alpha')
     skill('skills', 'broken', 'nothing')
     mkdirSync(path.join(repo, 'skills', 'empty'))
     expect((await scanSkills(fileSource(repo))).map((entry) => [entry.name, entry.dir, entry.problem])).toEqual([
-      ['alpha', 'skills/alpha', null], ['broken', 'skills/broken', 'SKILL.md 没有 frontmatter'], ['empty', 'skills/empty', '缺少 SKILL.md'], ['zeta', 'skills/zeta', null]
+      ['alpha', 'skills/alpha', null], ['broken', 'skills/broken', 'SKILL.md 没有 frontmatter'], ['zeta', 'skills/zeta', null]
     ])
   })
 
@@ -77,6 +77,65 @@ describe('scanSkills', () => {
     writeFileSync(path.join(repo, 'SKILL.md'), '---\nname: overview\ndescription: All of them.\n---\n')
     skill('skills', 'notes')
     expect((await scanSkills(fileSource(repo))).map((entry) => entry.name)).toEqual(['notes'])
+  })
+
+  it('finds skills in nested categories, as mattpocock/skills publishes them', async () => {
+    skill('skills/engineering', 'tdd')
+    skill('skills/productivity', 'grill-me')
+    skill('skills', 'notes')
+    mkdirSync(path.join(repo, 'skills', 'engineering', 'assets'))
+    expect(await scanSkills(fileSource(repo))).toEqual([
+      { name: 'grill-me', description: 'Does grill-me.', dir: 'skills/productivity/grill-me', problem: null },
+      { name: 'notes', description: 'Does notes.', dir: 'skills/notes', problem: null },
+      { name: 'tdd', description: 'Does tdd.', dir: 'skills/engineering/tdd', problem: null }
+    ])
+  })
+
+  it.each(['.agents/skills', '.claude/skills', '.codex/skills'])('finds skills under %s', async (parent) => {
+    skill(`${parent}/engineering`, 'notes')
+    expect(await scanSkills(fileSource(repo))).toEqual([
+      { name: 'notes', description: 'Does notes.', dir: `${parent}/engineering/notes`, problem: null }
+    ])
+  })
+
+  it('prefers skills/ to hidden copies and ignores empty conventional directories', async () => {
+    skill('skills', 'notes')
+    skill('.agents/skills', 'notes')
+    expect((await scanSkills(fileSource(repo))).map((entry) => entry.dir)).toEqual(['skills/notes'])
+    rmSync(path.join(repo, 'skills', 'notes'), { recursive: true })
+    expect((await scanSkills(fileSource(repo))).map((entry) => entry.dir)).toEqual(['.agents/skills/notes'])
+    rmSync(path.join(repo, '.agents'), { recursive: true })
+    skill('plugins/engineering/skills', 'notes')
+    expect((await scanSkills(fileSource(repo))).map((entry) => entry.dir)).toEqual(['plugins/engineering/skills/notes'])
+  })
+
+  it('stops at a skill boundary and skips hidden folders, dependencies and directory links', async () => {
+    skill('skills', 'notes')
+    skill('skills/notes/examples', 'example')
+    skill('skills/.hidden', 'hidden')
+    skill('skills/node_modules', 'dependency')
+    skill('skills/vendor', 'vendored')
+    symlinkSync(path.join(repo, 'skills'), path.join(repo, 'skills', 'loop'), 'junction')
+    expect((await scanSkills(fileSource(repo))).map((entry) => entry.name)).toEqual(['notes'])
+  })
+
+  it('marks duplicate names as unusable rather than silently choosing a category', async () => {
+    skill('skills/engineering', 'notes')
+    skill('skills/productivity', 'notes')
+    const entries = await scanSkills(fileSource(repo))
+    expect(entries.map((entry) => entry.dir)).toEqual(['skills/engineering/notes', 'skills/productivity/notes'])
+    expect(entries.map((entry) => entry.problem)).toEqual([
+      '技能名重复：skills/engineering/notes、skills/productivity/notes',
+      '技能名重复：skills/engineering/notes、skills/productivity/notes'
+    ])
+  })
+
+  it('does not enter a collection root or its hidden parent through a directory link', async () => {
+    skill('node_modules/payload', 'hidden')
+    skill('node_modules/payload/skills', 'also-hidden')
+    symlinkSync(path.join(repo, 'node_modules', 'payload'), path.join(repo, 'skills'), 'junction')
+    symlinkSync(path.join(repo, 'node_modules', 'payload'), path.join(repo, '.agents'), 'junction')
+    expect(await scanSkills(fileSource(repo))).toEqual([])
   })
 
   it('reads the plugin manifest where there is one', async () => {

@@ -63,7 +63,7 @@ function RepoRow({ repo }: { repo: SkillRepo }) {
       </div>
       <div className="settings-skill-chips">
         {repo.skills.map((skill) => (
-          <span key={skill.name} className={`settings-skill-chip${skill.problem ? ' problem' : ''}`} title={skill.problem ?? skill.description}>{skill.name}</span>
+          <span key={skill.dir} className={`settings-skill-chip${skill.problem ? ' problem' : ''}`} title={skill.problem ?? skill.description}>{skill.name}</span>
         ))}
       </div>
       {check && (
