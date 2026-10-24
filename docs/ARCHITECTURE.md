@@ -396,6 +396,8 @@ Antigravity 也只是一份 dialect（`agents/antigravity/`）：`agy` 本身不
 
 设置 → 任务 → 技能 管理 Agent Skills（`SKILL.md` 目录）。core 从 https 地址 `git clone` 到 `~/.antumi/skills/repos/<id>/`，固定在安装时的提交（detached HEAD），把扫描到的技能写进 `skills.json`。扫描顺序：有 `skills/` 就取其中的 `<名字>/SKILL.md`；没有就看根目录的 `SKILL.md`，整个仓库是一个技能，名字取 frontmatter 的 `name`（目录是仓库名，对不上也不算错）；都没有再看各顶层目录里的 `SKILL.md`；「检查更新」只 fetch 并从 git 对象里读新版本的技能列表，用户确认后才移动 pin，并记住上一个提交供回退。不改用户自己的 `~/.claude`、`~/.codex`。
 
+推荐列表是 core 里写死的一小份（`skills-recommended.ts`），不是市场。除此之外，「搜索技能市场」查开放索引 [skills.sh](https://skills.sh) 的公开 `/api/search`（feature `skills-search`，由 core 出网，无需密钥；`/api/v1` 的排行榜要 token，不用）。registry 一条记录是某个仓库里的一个技能，core 按仓库（GitHub `owner/repo`）归并成一行并校验是干净的 `owner/repo`（`skills-search.ts`）；安装走的还是上面的 `git clone` 整仓库、固定提交那条路，所以命中的是技能所在的仓库，不是单个技能。已安装始终单独列出；推荐、搜索市场和填地址安装在同一张卡片里用标签切换，一次只展开一种，搜索结果可以清空。
+
 交给 Agent 的是**bundle**（`bundles/<key>/`）：按需要的技能从各仓库复制出来（只复制技能自己的目录，仓库本身是技能时就是整个仓库；跳过软链接和 `.git`，限 32 MiB），同时写成 Claude Code 插件（`.claude-plugin/plugin.json` + `skills/`）和 `.agents/skills/` 两种布局；`key` 是技能及其提交的哈希，同样的选择得到同一个目录，提示词缓存得以保温，更新或回退后自然换新目录。descriptor 的 `capabilities.skills` 说明这个 Agent 能否接收 bundle，adapter 决定怎么交（`AgentLaunch.skills`）：Claude Code 用 `--plugin-dir`，Cursor 用 `--add-dir`，OpenCode 写进 `OPENCODE_CONFIG_CONTENT` 的 `skills`，Pi 用 `--skill`；Codex 只读固定目录，暂不支持。第一版的选择是全局的：Obsidian 知识库允许写入时，交出推荐仓库 kepano/obsidian-skills 里的 `obsidian-markdown`（见 `skills-recommended.ts`）；Markdown 文件夹不自动加载该技能。bundle 建不出来只记进 wire log，不阻止 Agent 启动。
 
 ### 用户的 MCP 服务器

@@ -45,6 +45,7 @@ import { QuickRequests } from './quick-request'
 import { TranslationService } from './translation-service'
 import { inspectKnowledgeFolder, readObsidianVaults } from './obsidian-vaults'
 import type { SkillsLibrary } from './skills-library'
+import { searchSkills } from './skills-search'
 import type { McpServerStore } from './mcp-servers'
 import type { ModelProviderStore } from './model-providers'
 import type { AgentAccountStore } from './agent-accounts'
@@ -230,6 +231,7 @@ export function createRpcHandlers(
     'knowledge.inspect': ({ path }) => inspectKnowledgeFolder(path),
     'skills.list': () => [...skillsLibrary().list()],
     'skills.recommended': () => [...skillsLibrary().recommended()],
+    'skills.search': ({ query }) => { skillsLibrary(); return searchSkills(query) },
     'skills.install': ({ url }) => skillsLibrary().install(url),
     'skills.readme': async ({ id }) => ({ text: await skillsLibrary().readme(id) }),
     'skills.checkUpdate': ({ id }) => skillsLibrary().checkUpdate(id),

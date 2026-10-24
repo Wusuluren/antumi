@@ -37,3 +37,9 @@ export type SkillUpdateCheck = z.infer<typeof SkillUpdateCheck>
 // A repository Antumi suggests, with what the user should know before installing third-party code.
 export const RecommendedSkillRepo = z.object({ url: z.string(), name: z.string(), description: z.string(), license: z.string(), homepage: z.string(), skills: z.array(SkillName) })
 export type RecommendedSkillRepo = z.infer<typeof RecommendedSkillRepo>
+
+// One hit from the skills.sh registry, grouped to the GitHub repository it lives in: Antumi still
+// installs the whole repository at url, so several matched skills in one repo are a single row.
+// installs is that registry's popularity, for ordering and for the user to judge a third party by.
+export const SkillSearchResult = z.object({ url: z.string(), source: z.string(), skills: z.array(z.string()), installs: z.number().int().nonnegative() })
+export type SkillSearchResult = z.infer<typeof SkillSearchResult>

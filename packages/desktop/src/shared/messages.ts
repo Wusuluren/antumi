@@ -7235,6 +7235,38 @@ export const MESSAGES = {
     "zh": "从其他仓库安装",
     "en": "Install from another repository"
   },
+  "SkillsSettingsSection.addASkill": {
+    "zh": "添加技能",
+    "en": "Add a skill"
+  },
+  "SkillsSettingsSection.searchTheSkillMarket": {
+    "zh": "搜索技能市场",
+    "en": "Search the skill market"
+  },
+  "SkillsSettingsSection.searchSkillsShPlaceholder": {
+    "zh": "搜 skills.sh 上的技能…",
+    "en": "Search skills on skills.sh…"
+  },
+  "SkillsSettingsSection.search": {
+    "zh": "搜索",
+    "en": "Search"
+  },
+  "SkillsSettingsSection.searching": {
+    "zh": "搜索中…",
+    "en": "Searching…"
+  },
+  "SkillsSettingsSection.noMatchingSkillsFound": {
+    "zh": "没有找到匹配的技能。",
+    "en": "No matching skills found."
+  },
+  "SkillsSettingsSection.installsCount": {
+    "zh": "{value1} 次安装",
+    "en": "{value1} installs"
+  },
+  "SkillsSettingsSection.resultsFromSkillsShInstallsTheWholeRepository": {
+    "zh": "结果来自 skills.sh 的开放索引；安装的是技能所在的整个 GitHub 仓库，和其他安装一样固定在提交。",
+    "en": "Results come from the open skills.sh index. Installing clones the whole GitHub repository the skill lives in, pinned to a commit like every other install."
+  },
   "SkillsSettingsSection.repositoryUrl": {
     "zh": "仓库地址",
     "en": "Repository URL"
@@ -9802,6 +9834,10 @@ export const MESSAGES = {
   "labels.noUsableSkillsFoundSkillsNameSkillMd": {
     "zh": "仓库里没有可用的技能（根目录的 SKILL.md，或 skills/<名字>/SKILL.md）",
     "en": "No usable skills found (a SKILL.md at the root, or skills/<name>/SKILL.md)"
+  },
+  "labels.skillMarketSearchFailed": {
+    "zh": "技能市场搜索失败，稍后重试",
+    "en": "Skill market search failed. Try again later"
   },
   "labels.skillRepositoryNotFound": {
     "zh": "没有这个技能仓库",

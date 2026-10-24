@@ -4879,6 +4879,7 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .settings-skill-chip { padding: 1px 8px; border-radius: 999px; background: var(--fill-2); font-size: 12px; font-family: var(--mono); }
 .settings-skill-chip.problem { color: var(--text-muted); text-decoration: line-through; }
 .settings-skill-readme { margin: 0 0 12px; padding: 12px; max-height: 320px; overflow: auto; border-radius: 6px; background: var(--fill-2); font-size: 12px; white-space: pre-wrap; }
+.settings-skill-tabs { padding: 12px 0 4px; }
 .settings-skill-install { display: flex; gap: 8px; padding: 8px 0 4px; }
 .settings-skill-install .input { flex: 1; min-width: 0; }
 .settings-note .button { margin-left: 8px; }

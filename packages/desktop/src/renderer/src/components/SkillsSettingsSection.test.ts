@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StateCreator } from 'zustand'
 import type { RecommendedSkillRepo, SkillRepo } from '@antumi/protocol'
 import { useCore } from '../core-store'
-import { notInstalled, SkillsSettingsSection } from './SkillsSettingsSection'
+import { activeSkillAddTab, notInstalled, skillAddTabs, SkillsSettingsSection } from './SkillsSettingsSection'
 
 vi.hoisted(() => {
   vi.stubGlobal('window', { antumi: undefined, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }), addEventListener() {}, removeEventListener() {} })
@@ -46,5 +46,23 @@ describe('SkillsSettingsSection', () => {
   it('recommends only what is not installed, by address with or without .git', () => {
     const list = [recommended('https://github.com/a/one'), recommended('https://github.com/a/two'), recommended('https://github.com/a/three')]
     expect(notInstalled(list, [repo('https://github.com/a/one'), repo('https://github.com/a/two.git')]).map((each) => each.url)).toEqual(['https://github.com/a/three'])
+  })
+
+  it('offers a tab per way to add a skill, and only the address when that is the only way', () => {
+    expect(skillAddTabs({ recommended: true, search: true })).toEqual(['recommended', 'search', 'url'])
+    expect(skillAddTabs({ recommended: false, search: true })).toEqual(['search', 'url'])
+    expect(skillAddTabs({ recommended: false, search: false })).toEqual(['url'])
+    expect(activeSkillAddTab(['search', 'url'], 'recommended')).toBe('search')
+    expect(activeSkillAddTab(['recommended', 'search', 'url'], 'url')).toBe('url')
+  })
+
+  it('shows the add-a-skill tabs, opening on search when nothing is recommended', () => {
+    useCore.setState({ rpc: { features: ['skills-search'] } as never })
+    const html = renderToStaticMarkup(createElement(SkillsSettingsSection))
+    expect(html).toContain('role="radiogroup"')
+    expect(html).toContain('搜索技能市场')
+    expect(html).toContain('从其他仓库安装')
+    expect(html).toContain('搜 skills.sh 上的技能')
+    expect(html).not.toContain('placeholder="https://github.com/')
   })
 })

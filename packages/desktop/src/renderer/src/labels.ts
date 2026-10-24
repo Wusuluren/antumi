@@ -132,6 +132,7 @@ const REASON_TEXT: Record<string, string> = localized(() => ({
   'skills-invalid-url': t('labels.onlyHttpsGitRepositoryUrlsAreAccepted'),
   'skills-already-installed': t('labels.thisRepositoryIsAlreadyInstalled'),
   'skills-none-found': t('labels.noUsableSkillsFoundSkillsNameSkillMd'),
+  'skills-search-failed': t('labels.skillMarketSearchFailed'),
   'skills-unknown': t('labels.skillRepositoryNotFound'),
   'skills-nothing-to-rollback': t('labels.noVersionToRollBackTo'),
   'skills-bad-commit': t('labels.commitNotFoundInRepositoryCheckForUpdates'),
