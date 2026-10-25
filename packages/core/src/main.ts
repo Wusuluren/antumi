@@ -18,6 +18,7 @@ import { BrowserService, WATCH_ALL } from './browser-service'
 import { CredentialStore } from './credential-store'
 import { DaemonClient } from './daemon-client'
 import { PluginService } from './plugin-service'
+import { ProjectStar } from './project-star'
 import { PetLibrary } from './pet-library'
 import { createRpcHandlers } from './rpc-handlers'
 import { SessionImports } from './session-imports'
@@ -476,7 +477,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts, cliMaintenance, analytics, automation, pets)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts, cliMaintenance, analytics, automation, pets, new ProjectStar(sources))
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()

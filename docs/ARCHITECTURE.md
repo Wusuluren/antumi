@@ -372,6 +372,14 @@ Antigravity 也只是一份 dialect（`agents/antigravity/`）：`agy` 本身不
 
 ZCode 不说 ACP，有自己的 driver（`agents/zcode/zcode-app-server.ts`），讲它桌面端用的 ZCode Protocol：命令走 `v4/command`，会话内容是订阅来的快照加行增量，审批和提问是 ZCode 发来的请求。协议没有公开的 schema，`zcode-schema.ts` 只宽松地写用到的部分。细节见 [ZCode](ZCODE.md)。
 
+### 项目 Star
+
+设置 → 支持与反馈集中提供项目地址、GitHub Star 和 GitHub Issues 反馈入口，交流尚未开放时显示文字占位；关于页保留版本、更新、连接状态、Git 与快捷键。支持页可查询并为 `flyhero/antumi` 点 Star。desktop 仅调用 `support.starStatus` / `support.star`，通过 `project-star` 能力判断 core 是否支持；旧 core 只提供 GitHub 网页入口。状态不写入本机偏好，进入支持页或返回窗口时自动检查，以 GitHub 的响应为准，不提供手动检测按钮。
+
+`ProjectStar` 优先通过无交互的 `gh auth token --hostname github.com` 取得本机 GitHub CLI 的凭据，不可用时复用已加载 GitHub 来源插件的 token 凭据（含默认实例的环境凭据），插件关闭或卸载后不使用遗留凭据。来源实例是否同步收件箱不影响用户主动 Star。`SourceService.credentialsFor` 是 core 内部接口，凭据不出 RPC；仅 GitHub 集成解释官方插件的 `{kind: 'token', payload: {token}}` 格式，不要求更新插件。
+
+查询先验证 `/user`，再读取固定仓库的 Star 状态；写入前重新核对上次检测的来源、实例与账号，不静默换号。界面平时不展示来源和账号，仅在点击 Star 失败时说明原因。请求固定发往 `api.github.com`，拒绝重定向，总时限 15 秒，gh 子进程上限 5 秒；并发查询合并。只有 GitHub 确认成功才显示感谢，权限或网络失败保留重试和网页入口。接口语义见 [GitHub Starring REST API](https://docs.github.com/en/rest/activity/starring)。
+
 ### 首次使用环境引导
 
 desktop 在首次连接且环境、供应商和任务来源数据到齐后启动检查，不再自动打开整篇指导。引导只检查一个 Agent 的安装和可用条件，再询问是否配置任务来源，不创建会话、不发送模型请求。`agent-readiness.ts`（protocol）统一供引导和本机 Agent 设置页使用：先看启用、安装及兼容性，再看原生登录或兼容且有密钥的供应商。供应商已配置与连接测试成功是两件事，测试结果按配置 revision 保留在 renderer，编辑后旧结果不再使用；已知测试失败会展示原因并留在 Agent 配置步骤，原生账号或其他供应商可用时仍可继续，不强制发起测试。侧栏环境提示也识别供应商配置，避免误报未登录。descriptor 的 `setup` 声明原生账号、原生供应商或首次使用授权，客户端不按 Agent 名称判断。core 在环境检查中可选返回 `problem`，区分 `incompatible-version` 与 `probe-failed`；旧 core 未说明的原因保持未知。

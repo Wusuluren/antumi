@@ -22,6 +22,10 @@ export function HelpIcon() {
   )
 }
 
+export function StarIcon() {
+  return <svg {...stroked}><path d="m10 2.5 2.3 4.7 5.2.8-3.7 3.7.9 5.2-4.7-2.5-4.7 2.5.9-5.2L2.5 8l5.2-.8L10 2.5Z" /></svg>
+}
+
 export function PlayIcon() {
   return (
     <svg {...stroked}>

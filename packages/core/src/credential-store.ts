@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 
-// A secret a provider signed in with. `payload` is opaque to core: only its provider reads it.
+// A secret a provider signed in with. Storage treats its provider-defined payload as opaque.
 export const CredentialRecord = z.object({
   kind: z.string().max(32),
   payload: z.record(z.string(), z.string()),

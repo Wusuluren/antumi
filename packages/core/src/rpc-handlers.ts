@@ -53,6 +53,7 @@ import type { AgentAccountStore } from './agent-accounts'
 import type { SessionImports } from './session-imports'
 import type { UsageAnalytics } from './usage-analytics'
 import type { UsageAutomation } from './usage-automation'
+import type { ProjectStar } from './project-star'
 
 const OK = { ok: true } as const
 
@@ -93,7 +94,8 @@ export function createRpcHandlers(
   cliMaintenance?: AgentCliMaintenance,
   analytics?: UsageAnalytics,
   automation?: UsageAutomation,
-  pets?: PetLibrary
+  pets?: PetLibrary,
+  projectStar?: ProjectStar
 ): RpcHandlers {
   const petLibrary = (): PetLibrary => {
     if (!pets) throw new Rejection('pets-unavailable')
@@ -186,6 +188,8 @@ export function createRpcHandlers(
     return todos
   }
   return {
+    'support.starStatus': () => projectStar?.check() ?? { state: 'unavailable' },
+    'support.star': ({ identity }) => projectStar?.star(identity) ?? { ok: false, problem: 'unavailable' },
     'plugins.recommended': () => pluginService().recommended(),
     'plugins.installRecommended': ({ id }) => pluginService().installRecommended(id),
     'plugins.list': () => pluginService().list(),
@@ -229,7 +233,7 @@ export function createRpcHandlers(
     'pets.cancel': ({ id }) => { petLibrary().cancel(id); return OK },
     'pets.remove': ({ id }) => petLibrary().remove(id),
     'pets.read': ({ id }) => petLibrary().read(id),
-    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'pets' || Boolean(pets)) && (feature !== 'squads' || Boolean(squads)) && (!['plugins', 'plugin-recommendations'].includes(feature) || Boolean(plugins)) && (!['skills-library', 'skills-search', 'skills-activation'].includes(feature) || Boolean(skills)) && (feature !== 'mcp-servers' || Boolean(mcpServers)) && (feature !== 'small-model-stats' || Boolean(smallModels)) && (feature !== 'model-providers' || Boolean(modelProviders)) && (feature !== 'agent-accounts' || Boolean(accounts))) }),
+    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'project-star' || Boolean(projectStar)) && (feature !== 'pets' || Boolean(pets)) && (feature !== 'squads' || Boolean(squads)) && (!['plugins', 'plugin-recommendations'].includes(feature) || Boolean(plugins)) && (!['skills-library', 'skills-search', 'skills-activation'].includes(feature) || Boolean(skills)) && (feature !== 'mcp-servers' || Boolean(mcpServers)) && (feature !== 'small-model-stats' || Boolean(smallModels)) && (feature !== 'model-providers' || Boolean(modelProviders)) && (feature !== 'agent-accounts' || Boolean(accounts))) }),
     'files.resolve': ({ conversationId, path }) => files.resolve(conversationId, path),
     'files.read': ({ conversationId, path }) => files.read(conversationId, path),
     'files.list': ({ conversationId, path }) => files.list(conversationId, path),

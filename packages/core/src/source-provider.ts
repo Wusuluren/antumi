@@ -6,7 +6,7 @@ import type { LoginNotice, LoginPrompt, SettingField, SourceIssue } from '@antum
 
 export type SourceSettings = Readonly<Record<string, string>>
 
-// Opaque to core: whatever the provider needs to authenticate, stored per instance.
+// Provider-defined authentication, stored per instance; interpreted only by that provider's integrations.
 export type SourceCredential = { kind: string; payload: Readonly<Record<string, string>> }
 
 // All a sign-in flow may do with the user. Clients render these, never provider-made UI.

@@ -1,5 +1,23 @@
 // Application-owned text. Values and external content are passed separately.
 export const MESSAGES = {
+  "SupportSettings.title": {"zh": "支持与反馈", "en": "Support & feedback"},
+  "SupportSettings.description": {"zh": "支持 Antumi、查看项目地址、反馈问题与交流。", "en": "Support Antumi, visit the project, share feedback, and connect with the community."},
+  "SupportSettings.feedback": {"zh": "问题反馈", "en": "Feedback"},
+  "SupportSettings.feedbackDescription": {"zh": "报告问题或提出建议，在 GitHub Issues 中跟进。", "en": "Report a problem or suggest an improvement on GitHub Issues."},
+  "SupportSettings.openFeedback": {"zh": "提交反馈", "en": "Submit feedback"},
+  "SupportSettings.community": {"zh": "交流", "en": "Community"},
+  "SupportSettings.communityDescription": {"zh": "交流入口将在开放后显示在这里。", "en": "Community links will appear here when available."},
+  "SupportSettings.comingSoon": {"zh": "即将开放", "en": "Coming soon"},
+  "ProjectStar.title": {"zh": "给个star鼓励下吧", "en": "Give us a star!"},
+  "ProjectStar.thanks": {"zh": "感谢您的支持！", "en": "Thanks for your support!"},
+  "ProjectStar.checking": {"zh": "正在检查 Star 状态…", "en": "Checking star status…"},
+  "ProjectStar.starring": {"zh": "正在 Star…", "en": "Starring…"},
+  "ProjectStar.star": {"zh": "Star", "en": "Star"},
+  "ProjectStar.openGithub": {"zh": "打开 GitHub", "en": "Open GitHub"},
+  "ProjectStar.unavailable": {"zh": "登录已失效，请在 GitHub 网页操作。", "en": "Sign-in is no longer available. Use GitHub in your browser."},
+  "ProjectStar.permissionDenied": {"zh": "当前凭据没有 Star 权限，请在 GitHub 网页操作。", "en": "The current credentials cannot add stars. Use GitHub in your browser."},
+  "ProjectStar.accountChanged": {"zh": "GitHub 账号已变化，请重试。", "en": "The GitHub account changed. Please try again."},
+  "ProjectStar.failed": {"zh": "未能完成 Star，可重试或打开 GitHub 网页。", "en": "Could not add the star. Try again or open GitHub."},
   "Readiness.unknownProvider": { "zh": "已安装，原生服务商配置尚未确认", "en": "Installed; native provider setup is not yet confirmed" },
   "SetupGuide.title": {"zh": "检查使用环境", "en": "Check your setup"},
   "SetupGuide.agentStep": {"zh": "先准备一个 Agent", "en": "Prepare an agent"},
@@ -7068,8 +7086,8 @@ export const MESSAGES = {
     "en": "About"
   },
   "SettingsPage.websiteVersionsConnectionStatusGitAndKeyboardShortcuts": {
-    "zh": "项目地址、版本、连接状态、Git 与快捷键。",
-    "en": "Website, versions, connection status, Git, and keyboard shortcuts."
+    "zh": "版本、更新、连接状态、Git 与快捷键。",
+    "en": "Versions, updates, connection status, Git, and keyboard shortcuts."
   },
   "SettingsPage.protocol": {
     "zh": "协议",

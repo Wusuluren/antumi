@@ -219,6 +219,18 @@ export class SourceService {
     })
   }
 
+  // Internal integrations may reuse a connected source's credentials; never returned by RPC.
+  credentialsFor(id: string): { instance: string; credential: SourceCredential }[] {
+    if (this.paused.has(id)) return []
+    const provider = this.providers.find((entry) => entry.id === id)
+    if (!provider) return []
+    const instances = new Set([DEFAULT_INSTANCE, ...this.config.list().filter((entry) => entry.provider === id).map((entry) => entry.instance)])
+    return [...instances].flatMap((instance) => {
+      const found = this.credential(provider, instance)
+      return found ? [{ instance, credential: { kind: found.credential.kind, payload: { ...found.credential.payload } } }] : []
+    })
+  }
+
   saveSettings(params: RpcParsedParams<'sources.saveSettings'>) {
     return this.track(params.provider, () => this.saveSettingsInner(params))
   }

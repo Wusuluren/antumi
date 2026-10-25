@@ -56,6 +56,7 @@ import { SourceSettingsSection } from './SourceSettingsSection'
 import { projectName } from './ProjectPicker'
 import { Resettable, Segmented, SettingsGroup, SettingsRow, Stepper, Toggle } from './SettingsControls'
 import { CjkFontPicker } from './CjkFontPicker'
+import { SupportSettings } from './SupportSettings'
 import { ProjectConfigDialog, projectConfigSummary } from './ProjectConfigDialog'
 import { PalettePicker } from './PalettePicker'
 import { BackdropPicker } from './BackdropPicker'
@@ -665,14 +666,6 @@ function AboutSettings() {
   ] as const
   return (
     <>
-      <SettingsRow
-        label={t('SettingsPage.projectWebsite')}
-        control={() => (
-          <a className="settings-about-link" href="https://github.com/flyhero/antumi" target="_blank" rel="noreferrer">
-            https://github.com/flyhero/antumi
-          </a>
-        )}
-      />
       <SettingsRow label={t('SettingsPage.desktopVersion')} control={() => <span className="mono">{version}</span>} />
       <UpdateSettings />
       <SettingsRow label={t('SettingsPage.protocolVersion')} control={() => <span className="mono">{PROTOCOL_VERSION}</span>} />
@@ -774,11 +767,20 @@ const SECTIONS: readonly Section[] = localized(() => ([
     Body: ProjectSettings
   },
   {
+    id: 'support',
+    group: t('ChatFontPicker.other'),
+    title: t('SupportSettings.title'),
+    description: t('SupportSettings.description'),
+    keywords: [t('ProjectStar.title'), t('SettingsPage.projectWebsite'), t('SupportSettings.feedback'), t('SupportSettings.community'), 'star', 'GitHub', 'feedback', 'support', 'community', 'issues'],
+    Icon: ChatIcon,
+    Body: SupportSettings
+  },
+  {
     id: 'about',
     group: t('ChatFontPicker.other'),
     title: t('SettingsPage.about'),
     description: t('SettingsPage.websiteVersionsConnectionStatusGitAndKeyboardShortcuts'),
-    keywords: [t('SettingsPage.projectWebsite'), 'GitHub', t('SettingsPage.repository'), t('SettingsPage.version'), t('AppUpdate.updates'), t('AppUpdate.checkNow'), t('SettingsPage.protocol'), t('SettingsPage.connection'), 'core', 'git', t('SettingsPage.environment'), t('SettingsPage.keyboardShortcuts')],
+    keywords: [t('SettingsPage.version'), t('AppUpdate.updates'), t('AppUpdate.checkNow'), t('SettingsPage.protocol'), t('SettingsPage.connection'), 'core', 'git', t('SettingsPage.environment'), t('SettingsPage.keyboardShortcuts')],
     Icon: InfoIcon,
     Body: AboutSettings
   }
@@ -937,10 +939,10 @@ export function SettingsPage() {
   const chatCommands = useChatCommandsSupported()
   const wireLog = useWireLogSupported()
   const sections = useMemo(() => {
-    const about = SECTIONS.filter((section) => section.id === 'about')
-    const own = SECTIONS.filter((section) => section.id !== 'about' && (section.id !== 'notifications' || canNotify() || canShowRequestPopup()))
+    const information = SECTIONS.filter((section) => section.id === 'support' || section.id === 'about')
+    const own = SECTIONS.filter((section) => section.id !== 'about' && section.id !== 'support' && (section.id !== 'notifications' || canNotify() || canShowRequestPopup()))
       .flatMap((section) => (section.id === 'agents' ? [section, ...(accounts ? [ACCOUNTS_SECTION] : []), ...(modelProviders ? [MODEL_PROVIDERS_SECTION] : []), ...(chatCommands ? [CHAT_COMMANDS_SECTION] : []), ...(skills ? [SKILLS_SECTION] : []), ...(mcp ? [MCP_SECTION] : []), ...(sessionImport ? [SESSION_IMPORT_SECTION] : [])] : [section]))
-    return [...own, ...(plugins ? [PLUGINS_SECTION] : []), ...sourceSections(sources ?? []), ...(knowledge ? [KNOWLEDGE_SECTION] : []), ...(browser ? [BROWSER_SECTION] : []), ...(wireLog ? [DEBUG_SECTION] : []), ...about]
+    return [...own, ...(plugins ? [PLUGINS_SECTION] : []), ...sourceSections(sources ?? []), ...(knowledge ? [KNOWLEDGE_SECTION] : []), ...(browser ? [BROWSER_SECTION] : []), ...(wireLog ? [DEBUG_SECTION] : []), ...information]
   }, [sources, browser, knowledge, skills, mcp, sessionImport, accounts, modelProviders, chatCommands, wireLog, plugins, getLocale()])
   const activeId = useCore((state) => state.settingsSection) ?? SECTIONS[0]?.id ?? ''
   const [query, setQuery] = useState('')

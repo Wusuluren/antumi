@@ -145,6 +145,27 @@ describe('SourceService', () => {
     })
   }
 
+  it('reuses credentials internally without exposing their payloads in the source list', async () => {
+    await config.save({ provider: 'demo', instance: 'default', enabled: false, settings: { site: 'https://demo.test' } })
+    await credentials.set('demo', 'default', { kind: 'token', payload: { token: 'stored-secret' }, account: 'Ann', updatedAt: clock })
+    const found = service.credentialsFor('demo')
+    expect(found).toEqual([{ instance: 'default', credential: { kind: 'token', payload: { token: 'stored-secret' } } }])
+    expect(found[0]?.credential.payload).not.toBe(credentials.get('demo', 'default')?.payload)
+    expect(JSON.stringify(service.list())).not.toContain('stored-secret')
+    env.DEMO_TOKEN = 'environment-secret'
+    expect(service.credentialsFor('demo')[0]?.credential.payload.token).toBe('environment-secret')
+  })
+
+  it('does not reuse credentials after the source plugin is paused or removed', async () => {
+    env.DEMO_TOKEN = 'environment-secret'
+    expect(service.credentialsFor('demo')).toHaveLength(1)
+    await service.pause(['demo'])
+    expect(service.credentialsFor('demo')).toEqual([])
+    service.replaceProviders([], ['demo'])
+    expect(service.credentialsFor('demo')).toEqual([])
+    expect(service.credentialsFor('unknown')).toEqual([])
+  })
+
   async function setUp(): Promise<void> {
     await service.saveSettings({ provider: 'demo', instance: 'default', settings: { site: 'https://demo.test' } })
     await signIn()
