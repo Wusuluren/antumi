@@ -1065,6 +1065,39 @@ describe('CodexAppServer usage limits', () => {
   })
 })
 
+describe('CodexAppServer stopping a background command it asked approval for', () => {
+  // Codex 0.160.1, approval on request: the command starts before it is approved, without a process
+  // id, and none follows. Antumi lists the thread's background terminals for it, then stops it.
+  const records = fixture('codex-background-approved-stop.jsonl')
+  const listed = records.findIndex((record) => record.dir === 'out' && JSON.stringify(record.frame).includes('backgroundTerminals/list'))
+  const asked = records.findIndex((record) => record.dir === 'out' && JSON.stringify(record.frame).includes('backgroundTerminals/terminate'))
+
+  it('asks for the process of a background command that started without one, once', () => {
+    const driver = replay(records.slice(0, listed))
+    const [command] = ofKind(driver.items.list(), 'tool')
+    expect(command).toMatchObject({ name: 'commandExecution', status: 'running', background: true })
+    expect(command?.stoppable).toBeUndefined()
+    expect(driver.due()).toContainEqual({ id: 'antumi-terminals-1', method: 'thread/backgroundTerminals/list', params: { threadId: expect.any(String) } })
+    driver.apply(records[listed]!)
+    expect(JSON.stringify(driver.due())).not.toContain('backgroundTerminals/list')
+  })
+
+  it('makes it stoppable once the list names its process, and stops it by that process', () => {
+    const driver = replay(records.slice(0, asked))
+    const [command] = ofKind(driver.items.list(), 'tool')
+    expect(command).toMatchObject({ status: 'running', background: true, stoppable: true })
+    expect(driver.stopBackground(command!.id)).toEqual([{ id: 'antumi-stop-1', method: 'thread/backgroundTerminals/terminate', params: { threadId: expect.any(String), processId: '67014' } }])
+    expect(JSON.stringify(driver.due())).not.toContain('backgroundTerminals/list')
+  })
+
+  it('keeps only the items and processes of the list in the log, and ends the command as stopped', () => {
+    const driver = replay(records)
+    const response = records.flatMap((record) => record.dir === 'in' && JSON.stringify(record.frame).includes('"antumi-terminals-1"') ? [record.frame] : [])[0]
+    expect(driver.logged(response)).toEqual({ id: 'antumi-terminals-1', result: { data: [{ itemId: expect.stringMatching(/^exec-/), processId: '67014' }] } })
+    expect(ofKind(driver.items.list(), 'tool')[0]).toMatchObject({ status: 'interrupted', stopReason: 'user', background: true })
+  })
+})
+
 describe('CodexAppServer stopping a background command', () => {
   // codex-cli 0.160.1: a command left running in its session as the turn completes, then
   // thread/backgroundTerminals/terminate for its process: the call returns, and the command's item

@@ -188,6 +188,8 @@ function inputText(params: unknown): string {
   return input.success ? input.data.input.flatMap((part) => (part.type === 'text' ? [part.text ?? ''] : [])).join('\n') : ''
 }
 // Of the effective config, only the model: the rest may hold secrets and stays out of the log.
+// thread/backgroundTerminals/list (experimental): each running terminal's item and process.
+const TerminalList = z.looseObject({ data: z.array(z.looseObject({ itemId: z.string(), processId: z.string() })) })
 const ConfigRead = z.looseObject({ config: z.looseObject({ model: z.string().nullish() }) })
 const ErrorEvent = z.looseObject({
   error: z.looseObject({ message: z.string().optional(), codexErrorInfo: z.unknown().optional() }).catch({}),
@@ -499,6 +501,11 @@ export class CodexAppServer implements ChatDriver {
   private interrupts = 0
   // The session each command runs in, by its item; and the stops asked for, by request, of items.
   private readonly processes = new Map<string, string>()
+  // A command Codex asked approval for starts without its process id, and Codex never sends one
+  // after: the thread's background terminals are listed for it once, by request id while asked.
+  private readonly terminalsAsked = new Set<string>()
+  private listingTerminals: string | null = null
+  private terminalLists = 0
   private readonly stopsAsked = new Map<string, string>()
   private stops = 0
   // The user asked the running turn to stop: calls that fail from here on were cut short.
@@ -606,7 +613,18 @@ export class CodexAppServer implements ChatDriver {
     if (!this.modelsRequested) frames.push({ id: 'antumi-models', method: 'model/list', params: {} })
     if (!this.configRequested) frames.push({ id: 'antumi-config', method: 'config/read', params: { cwd: this.options.cwd } })
     if (!this.skillsRequested) frames.push({ id: 'antumi-skills', method: 'skills/list', params: { cwds: [this.options.cwd] } })
+    if (this.threadId && !this.listingTerminals && this.unlistedBackground().length > 0) {
+      frames.push({ id: `antumi-terminals-${this.terminalLists + 1}`, method: 'thread/backgroundTerminals/list', params: { threadId: this.threadId } })
+    }
     return frames
+  }
+
+  // Background commands not yet tied to a process, and not yet looked up.
+  private unlistedBackground(): string[] {
+    return this.items.list().flatMap((item) => {
+      const id = item.id.slice(2)
+      return item.kind === 'tool' && item.name === 'commandExecution' && item.background && item.status === 'running' && !this.processes.has(id) && !this.terminalsAsked.has(id) ? [id] : []
+    })
   }
 
   ready(): boolean {
@@ -870,6 +888,9 @@ export class CodexAppServer implements ChatDriver {
     }
     if (method === 'config/read') return { id: frame.id, result: { config: { model: ConfigRead.safeParse(frame.result).data?.config.model ?? null } } }
     if (method === 'skills/list') return { id: frame.id, result: { data: [{ skills: this.skillEntries(frame.result) }] } }
+    if (method === 'thread/backgroundTerminals/list') {
+      return { id: frame.id, result: { data: (TerminalList.safeParse(frame.result).data?.data ?? []).map(({ itemId, processId }) => ({ itemId, processId })) } }
+    }
     const turn = TurnEvent.safeParse(frame.result)
     if (method && TURN_METHODS.has(method)) return { id: frame.id, result: turn.success ? { turn: { id: turn.data.turn.id } } : {} }
     return method === 'initialize' ? { id: frame.id, result: {} } : frame
@@ -1028,6 +1049,13 @@ export class CodexAppServer implements ChatDriver {
       }
     } else if (method === 'turn/steer') {
       this.steered(String(frame.id), error, at)
+    } else if (method === 'thread/backgroundTerminals/list') {
+      if (this.listingTerminals === String(frame.id)) this.listingTerminals = null
+      for (const terminal of TerminalList.safeParse(frame.result).data?.data ?? []) {
+        this.processes.set(terminal.itemId, terminal.processId)
+        const tool = this.items.get(`t:${terminal.itemId}`)
+        if (tool?.kind === 'tool' && tool.background && tool.status === 'running' && !tool.stoppable) this.items.put({ ...tool, stoppable: true }, at)
+      }
     } else if (method === 'thread/backgroundTerminals/terminate') {
       const terminated = z.looseObject({ terminated: z.boolean() }).safeParse(frame.result).data?.terminated
       if ((error || terminated === false) && this.stopsAsked.delete(String(frame.id))) {
@@ -1508,6 +1536,11 @@ export class CodexAppServer implements ChatDriver {
       if (frame.method === 'turn/interrupt') {
         this.interrupts++
         if (this.turn) this.stopping = true
+      }
+      if (frame.method === 'thread/backgroundTerminals/list') {
+        this.terminalLists++
+        this.listingTerminals = String(frame.id)
+        for (const id of this.unlistedBackground()) this.terminalsAsked.add(id)
       }
       if (frame.method === 'thread/backgroundTerminals/terminate') {
         this.stops++
