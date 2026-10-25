@@ -6,7 +6,8 @@ import type { McpServer } from './agent-command'
 // plain Node. The server's env states the flag outright because an agent's environment lacks it,
 // and an env wrapper (/usr/bin/env) is not there on Windows.
 export function mcpCommand(...args: string[]): McpServer {
-  const bundled = process.env.ANTUMI_MCP_JS
+  // An installed app's agent can pass its bundle path into a source checkout it starts.
+  const bundled = import.meta.url.endsWith('.ts') ? undefined : process.env.ANTUMI_MCP_JS
   if (bundled) {
     return { command: process.execPath, args: [bundled, ...args], env: { ELECTRON_RUN_AS_NODE: '1' } }
   }

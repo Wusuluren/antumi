@@ -18,8 +18,8 @@ let http: Server | null = null
 
 beforeEach(() => {
   home = mkdtempSync(path.join(os.tmpdir(), 'antumi-mcp-launch-'))
-  // The launcher from source, even where these tests run inside an installed Antumi.
-  vi.stubEnv('ANTUMI_MCP_JS', '')
+  // Source checkouts must ignore a bundle inherited from the installed app that starts them.
+  vi.stubEnv('ANTUMI_MCP_JS', path.join(home, 'installed', 'mcp.mjs'))
 })
 afterEach(() => {
   vi.unstubAllEnvs()
