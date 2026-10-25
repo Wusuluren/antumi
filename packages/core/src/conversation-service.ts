@@ -16,9 +16,10 @@ import type { SessionHost } from './daemon-client'
 import { ConversationStore } from './conversation-store'
 import { folderChanges, folderDiff, folderHead } from './conversation-changes'
 import { adapterOf, checkUnattended } from './agents'
-import type { AgentStage, CancelGrace } from './agents/agent-adapter'
+import type { AgentLaunch, AgentStage, CancelGrace } from './agents/agent-adapter'
 import type { AgentMcpServer, McpServer } from './agent-command'
 import { chatCommand } from './conversation-command'
+import { foldersInUse, launchDir, launchLeftovers, launchRoot, removeLaunch, type StageRef } from './stage-launch'
 import { searchSnippet } from './conversation-search'
 import { buildHandoff } from './conversation-handoff'
 import { SCHEDULED_GO_TEXT, UNATTENDED_NOTE } from './agent-prompt'
@@ -93,6 +94,9 @@ type ForkPoint = { providerSessionId: string | null; at: string | null; latest: 
 const CHAT_PAGE_ITEMS = 1000
 const STOP_GRACE_MS = 5000
 const KILL_GRACE_MS = 2000
+// How long a stage folder waits before it goes where no process can be seen using it, and how
+// often one still in use is looked at again.
+const LAUNCH_SWEEP_GRACE_MS = 30_000
 // A chat agent left this long with nothing to do is let go (see releaseIdle).
 const CHAT_IDLE_MS = 30 * 60_000
 
@@ -171,6 +175,16 @@ export class ConversationService {
   // Sessions being stopped on purpose: their exit reads as a stop, not a crash.
   private readonly stopping = new Set<string>()
   private readonly exitWaiters = new Map<string, () => void>()
+  // The stage folder each running agent's launch wrote to, by its daemon session (stage-launch.ts),
+  // and the stages whose launch is under way, before the daemon names a session for them.
+  private readonly launches = new Map<string, StageRef & { at: number }>()
+  private readonly preparing = new Set<string>()
+  // Stage folders no session here accounts for, kept until it is shown no process uses them: by
+  // folder, since when it may go (where the platform cannot see who uses one).
+  private readonly doubtful = new Map<string, number>()
+  private doubtTimer: NodeJS.Timeout | null = null
+  // Which folders running processes still name (stage-launch.ts); a test may stand in for the platform.
+  inspectLaunches: (dirs: readonly string[]) => Promise<Set<string> | null> = (dirs) => foldersInUse(dirs)
   // Agents being stopped after a cancel they may not obey (AgentAdapter.turns.stopAfterCancel).
   private readonly cancelStops = new Map<string, Promise<void>>()
   // The tail of each conversation's sends and retries, for an agent that takes them one at a time.
@@ -1076,7 +1090,11 @@ export class ConversationService {
     const { options } = this.chatStage(current, stage, forkAt, knowledgeBase, userMcp)
     const { launch } = adapterOf(agent)
     const agentStage = this.agentStage(id, stage)
-    const command = chatCommand(agent, stage.providerSessionId, resume, handoff?.path ?? null, options.extraDirs, {
+    const agentLaunch: AgentLaunch = {
+      providerSessionId: stage.providerSessionId,
+      resume,
+      handoffPath: handoff?.path ?? null,
+      extraProjects: options.extraDirs,
       preferred: options.preferred,
       allowBypass: options.allowBypass,
       planOnly: options.planOnly ? { dirs: [options.cwd, ...options.extraDirs] } : undefined,
@@ -1093,25 +1111,30 @@ export class ConversationService {
       ...(skills ? { skills } : {}),
       ...(provider ? { provider } : {}),
       ...(account?.env ? { account: { id: account.id, env: account.env } } : {})
-    })
+    }
+    const command = adapterOf(agent).command(agentLaunch)
+    const launched: StageRef = { sessionsRoot: this.sessionsRoot, conversationId: id, stageId: stage.id }
     let sessionId: string
+    this.preparing.add(stage.id)
     try {
+      let env = command.env ?? {}
       if (launch) {
-        const prepared = await launch.prepare(agentStage, options.mcp)
+        const prepared = await launch.prepare(agentStage, options.mcp, agentLaunch)
         if (prepared.command) command.command = prepared.command
         if (prepared.args) command.args = [...command.args, ...prepared.args]
+        if (prepared.env) env = { ...env, ...prepared.env }
       }
       this.wire?.record(id, stage.id, [{ dir: 'spawn', text: JSON.stringify({ command: command.command, args: command.args, cwd: current.workspacePath }) }])
-      const spawned = await agentCliAccess.use(agent, () => this.daemon.request('spawnPipe', { agent, command: command.command, args: command.args, cwd: current.workspacePath, env: { ...command.env, [PROCESS_OWNER_ENV]: processOwner({ kind: 'conversation', id }) } }))
+      const spawned = await agentCliAccess.use(agent, () => this.daemon.request('spawnPipe', { agent, command: command.command, args: command.args, cwd: current.workspacePath, env: { ...env, [PROCESS_OWNER_ENV]: processOwner({ kind: 'conversation', id }) } }))
       sessionId = spawned.sessionId
-      if (launch) {
-        this.wire?.record(id, stage.id, [{
-          dir: 'note',
-          text: JSON.stringify({ event: `${agent}-lifecycle`, phase: 'process-spawned', sessionId })
-        }])
-      }
+      this.launches.set(sessionId, { ...launched, at: Date.now() })
+      this.preparing.delete(stage.id)
     } catch (error) {
+      // What the launch wrote goes, unless the daemon may have started the process all the same
+      // (its answer lost with the connection): then the sweep after reconnecting weighs it.
+      if (!(error instanceof Rejection && error.reason === 'daemon-unavailable')) await removeLaunch(launched).catch((failure: unknown) => this.launchStuck(launched, failure))
       this.store.deleteStage(stage.id)
+      this.preparing.delete(stage.id)
       throw error instanceof Rejection && error.reason === 'unknown-method'
         ? new Rejection('daemon-outdated', 'the running daemon predates chat mode; restart it')
         : error
@@ -1119,6 +1142,12 @@ export class ConversationService {
     this.store.attachStage(stage.id, sessionId)
     this.changed(this.store.update(id, { agent, sessionId }))
     try {
+      if (launch) {
+        this.wire?.record(id, stage.id, [{
+          dir: 'note',
+          text: JSON.stringify({ event: `${agent}-lifecycle`, phase: 'process-spawned', sessionId })
+        }])
+      }
       const opened = this.chatStage(current, stage, forkAt, knowledgeBase, userMcp)
       await this.chats.open(opened, sessionId, 0, true)
       const retired = this.rememberedOnProvider(this.store.chatOptions(id)[agent], opened.options.providerModels)
@@ -1721,6 +1750,9 @@ export class ConversationService {
       await rm(path.join(directory, 'handoffs'), { recursive: true, force: true })
       await rm(path.join(directory, 'stages'), { recursive: true, force: true })
       await rm(WireLog.directory(this.sessionsRoot, id), { recursive: true, force: true })
+      // Only folders no process is shown to use; the others stay until one is.
+      await this.settleLaunches().catch((error: unknown) => console.error('[antumi-core] settling launch files failed', error))
+      await rmdir(launchRoot(this.sessionsRoot, id)).catch(() => {})
       // The folder goes too, unless it still holds the workspace Antumi made, which stays.
       await rmdir(directory).catch(() => {})
       this.store.delete(id)
@@ -1765,6 +1797,7 @@ export class ConversationService {
 
   handleExit(sessionId: string, exitCode: number): void {
     this.chats.handleExit(sessionId, exitCode)
+    this.releaseLaunch(sessionId)
     const stopped = this.stopping.has(sessionId)
     const current = this.store.bySession(sessionId)
     if (current) {
@@ -1783,18 +1816,34 @@ export class ConversationService {
 
   // Every session the daemon still knows is drained before it counts as ended, so output from
   // while core was down is kept; only one the daemon never heard of ended unseen.
-  async reconcile(sessions: readonly SessionInfo[]): Promise<void> {
+  // listedAt: when the daemon was asked for its sessions. A stage started since is not in the list,
+  // and is no business of this one.
+  async reconcile(sessions: readonly SessionInfo[], listedAt = Date.now()): Promise<void> {
     const known = new Map(sessions.map((session) => [session.sessionId, session]))
+    // A launch whose process exited while core was away goes now; one the daemon no longer knows
+    // (a daemon that restarted) is the sweep's to weigh, as the process may still be leaving.
+    for (const [sessionId, launched] of [...this.launches]) {
+      const info = known.get(sessionId)
+      if ((info && !info.exited) || launched.at >= listedAt) continue
+      this.launches.delete(sessionId)
+      if (info) await removeLaunch(launched).catch(() => {})
+    }
     for (const conversation of this.store.list()) {
       if (!conversation.sessionId) continue
       const info = known.get(conversation.sessionId)
       try {
         const stage = this.store.activeStage(conversation.id)
+        // Started, or spawned, since the list was taken.
+        if (!info && stage && (stage.startedAt >= listedAt || (this.launches.get(conversation.sessionId)?.at ?? -Infinity) >= listedAt)) continue
         if (!info || !stage) {
           if (stage) this.store.endStage(stage.id, null)
           this.changed(this.store.update(conversation.id, { sessionId: null }))
           this.capacityReleased?.()
         } else {
+          // Still its process's, until it exits; one the daemon says exited goes whatever else fails.
+          const launched = { sessionsRoot: this.sessionsRoot, conversationId: conversation.id, stageId: stage.id }
+          if (info.exited) await removeLaunch(launched).catch((error: unknown) => console.error(`[antumi-core] removing launch files of stage ${stage.id} failed`, error))
+          else this.launches.set(info.sessionId, { ...launched, at: stage.startedAt })
           await this.chats.open(this.chatStage(conversation, stage), info.sessionId, this.store.chatOffset(stage.id), false)
           // A question left open across a restart has no browser navigation waiting on it now.
           if (!info.exited) this.chats.cancelAsks(conversation.id)
@@ -1804,6 +1853,77 @@ export class ConversationService {
         console.error(`[antumi-core] recovering conversation ${conversation.id} failed`, error)
       }
     }
+    await this.settleLaunches(sessions).catch((error: unknown) => console.error('[antumi-core] settling launch files failed', error))
+  }
+
+  // A stage's launch files go with its process.
+  private releaseLaunch(sessionId: string): void {
+    const launched = this.launches.get(sessionId)
+    if (!launched) return
+    this.launches.delete(sessionId)
+    void removeLaunch(launched).catch((error: unknown) => this.launchStuck(launched, error))
+  }
+
+  // One that would not go (a file Windows holds) is tried again with the rest.
+  private launchStuck(launched: StageRef, error: unknown): void {
+    console.error(`[antumi-core] removing launch files of stage ${launched.stageId} failed`, error)
+    if (!this.doubtTimer) void this.settleLaunches().catch((failure: unknown) => console.error('[antumi-core] settling launch files failed', failure))
+  }
+
+  // Every stage folder no session here accounts for (one a stage running or starting here holds is
+  // left alone) goes once it is shown no process uses it: none names it in its environment, where
+  // the platform shows that (macOS, Linux). Where it cannot (Windows), one goes a grace after it was
+  // first found unaccounted for, and not while the daemon runs an agent no conversation claims if no
+  // stage owns the folder (a start whose answer was lost). Looked at again, against the daemon as it
+  // is then, for as long as any is left: a process may take its time to go.
+  private async settleLaunches(known?: readonly SessionInfo[]): Promise<void> {
+    if (this.doubtTimer) clearTimeout(this.doubtTimer)
+    this.doubtTimer = null
+    const kept = new Set<string>()
+    let failed = false
+    try {
+      const left = (await launchLeftovers(this.sessionsRoot)).filter((each) => !this.launchBusy(each.stageId))
+      if (left.length) {
+        const inUse = await this.inspectLaunches(left.map(launchDir))
+        const sessions = inUse === null ? known ?? (await this.daemon.request('list', {})).sessions : []
+        const claimed = new Set(this.store.list().flatMap((conversation) => (conversation.sessionId ? [conversation.sessionId] : [])))
+        const unclaimed = sessions.some((session) => !session.exited && session.io === 'pipe' && !claimed.has(session.sessionId))
+        const now = Date.now()
+        for (const each of left) {
+          const dir = launchDir(each)
+          // A start may have begun on it while this looked.
+          if (this.launchBusy(each.stageId)) continue
+          if (inUse === null) {
+            const since = !this.store.stage(each.stageId) && unclaimed ? now : this.doubtful.get(dir) ?? now
+            if (now - since < LAUNCH_SWEEP_GRACE_MS) { this.doubtful.set(dir, since); kept.add(dir); continue }
+          } else if (inUse.has(dir)) {
+            kept.add(dir)
+            continue
+          }
+          // One that will not go now (a file Windows holds) is tried again with the rest.
+          await removeLaunch(each).catch((error: unknown) => {
+            kept.add(dir)
+            console.error(`[antumi-core] removing launch files of stage ${each.stageId} failed`, error)
+          })
+        }
+      }
+    } catch (error) {
+      failed = true
+      throw error
+    } finally {
+      for (const dir of this.doubtful.keys()) if (!kept.has(dir) && !failed) this.doubtful.delete(dir)
+      if (kept.size || failed) {
+        this.doubtTimer = setTimeout(() => {
+          this.doubtTimer = null
+          void this.settleLaunches().catch((error: unknown) => console.error('[antumi-core] settling launch files failed', error))
+        }, LAUNCH_SWEEP_GRACE_MS)
+        this.doubtTimer.unref()
+      }
+    }
+  }
+
+  private launchBusy(stageId: string): boolean {
+    return this.preparing.has(stageId) || [...this.launches.values()].some((launched) => launched.stageId === stageId)
   }
 
   // What the user said in a message: of a handoff's, only their note, as Antumi's instruction to read

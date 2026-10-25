@@ -115,7 +115,7 @@
 
 
 - **主项目与附加项目**：第一项为主项目，项目选择器里用高亮颜色标出；右键其他项目选「设为主项目」可以把它移到首位，其余项目顺序不变；移除主项目后下一项自动成为主项目。任务执行中、启动准备期间及已废弃时不能调整项目。主项目就是 Agent 会话的工作目录，会话途中不能换：任务的对话开始后主项目就固定了，附加项目仍可增删，下一条消息时 Agent 带上新的目录。
-- **多个仓库隔离执行**：每个 Git 仓库各建一个 worktree，放在 `~/.antumi/worktrees/<任务id>/<项目名>/`，分支名相同。Agent 在主项目的 worktree 中运行，通过 `--add-dir` 访问其他 worktree。Antumi 在 prompt 中列出各项目目录和分支，提醒 Agent 先读取附加项目适用的指令，并在对应仓库执行 Git、构建和测试。更换主项目保留已有 worktree 和分支。普通文件夹（非 Git）只能作为任务唯一的项目目录，原地执行。附加项目可以在任务详情的「起点」里勾选「只读参考」（`TaskRepo.reference`）：Agent 在原目录读它，不建 worktree 和分支，也不作为可写目录交给 Agent（不加 `--add-dir`，不进 Codex 的可写目录或 ACP 的 `additionalDirectories`），prompt 里标明只读。各 Agent 的文件编辑工具都改不了它：Claude Code 加读取放行和编辑禁止规则；Pi 和 DeepSeek 把它列为不可编辑；OpenCode 的 Antumi 模式和它自带的 Build 都加上「可读参考目录、禁止编辑」的规则（Build 默认什么都不问，只有这样才拦得住）；Cursor、Codex 和 Antigravity 要编辑参考目录时发来的审批由 Antumi 直接拒绝，不交给用户（`reference-paths.ts`）；Antigravity 的文件工具本来就只能访问主项目（见 [ANTIGRAVITY.md](ANTIGRAVITY.md)）。shell 命令写文件拦不住，只靠 prompt 约束。参考项目可以不是 Git 仓库，多项目任务里非 Git 文件夹只能这样用。会话把这些目录记在 `referencePaths`，小队成员同样只读。主项目不能设为参考；已经建了 worktree 的项目不能再改成参考，以免丢下 worktree 里的改动，参考项目随时可以改回可写。
+- **多个仓库隔离执行**：每个 Git 仓库各建一个 worktree，放在 `~/.antumi/worktrees/<任务id>/<项目名>/`，分支名相同。Agent 在主项目的 worktree 中运行，通过 `--add-dir` 访问其他 worktree。Antumi 在 prompt 中列出各项目目录和分支，提醒 Agent 先读取附加项目适用的指令，并在对应仓库执行 Git、构建和测试。更换主项目保留已有 worktree 和分支。普通文件夹（非 Git）只能作为任务唯一的项目目录，原地执行。附加项目可以在任务详情的「起点」里勾选「只读参考」（`TaskRepo.reference`）：Agent 在原目录读它，不建 worktree 和分支，也不作为可写目录交给 Agent（不加 `--add-dir`，不进 Codex 的可写目录或 ACP 的 `additionalDirectories`），prompt 里标明只读。各 Agent 的文件编辑工具都改不了它：Claude Code 加读取放行和编辑禁止规则；Pi 和 DeepSeek 把它列为不可编辑；OpenCode 的 Antumi 模式和它自带的 Build 都加上「可读参考目录、禁止编辑」的规则（Build 默认什么都不问，只有这样才拦得住）；Cursor、Codex、Antigravity 和 ZCode 要编辑参考目录时发来的审批由 Antumi 直接拒绝，不交给用户（`reference-paths.ts`）；Antigravity 的文件工具本来就只能访问主项目（见 [ANTIGRAVITY.md](ANTIGRAVITY.md)）。shell 命令写文件拦不住，只靠 prompt 约束。参考项目可以不是 Git 仓库，多项目任务里非 Git 文件夹只能这样用。会话把这些目录记在 `referencePaths`，小队成员同样只读。主项目不能设为参考；已经建了 worktree 的项目不能再改成参考，以免丢下 worktree 里的改动，参考项目随时可以改回可写。
 - **分支名**：`antumi/[<issue key>-]<任务id前8位>-<标题 slug>`，slug 取标题里的英文和数字。标题含中文等非 ASCII 字母时，任务创建、改标题或换 Agent 后，由任务 Agent 的便宜小模型概括出几个英文单词作 slug，存在任务上；开始执行时还没生成好就最多等 10 秒，仍没有就只用任务 id。分支只在第一次建出时命名，之后改标题不改名。
 - **规划与历史任务**：只读规划以主项目起点的只读副本为 cwd（起点是项目当前的分支时用原目录），只读访问其他项目，不建任务分支。开始执行后这些副本会被移除；副本里若有改动或只有它才有的提交，就留着不动。历史数据沿用原列表第一项作为主项目，无需数据库迁移。
 - **依赖**：依赖的任务全部「已完成」（验收通过）后才能执行，「待验收」的不算，不能形成循环。同一个 Git 仓库里恰好有一个依赖留下了分支时，新 worktree 从那个分支拉出，直接用上前置任务的改动；prompt 里也会列出依赖任务和它们的分支。
@@ -370,6 +370,8 @@ DeepSeek Harness 使用同一 ACP driver；`packages/dsh-runtime` 在官方导�
 
 Antigravity 也只是一份 dialect（`agents/antigravity/`）：`agy` 本身不说 ACP，跑的是 Google 发到 ACP registry 的 Antigravity ACP 服务。它没有安装器，Antumi 按版本钉住各平台压缩包的 SHA-256，用 adapter 的 `installation` 下载到 `~/.antumi/runtimes/antigravity-acp/<版本>/`；`installWithoutApplication` 让这条安装命令不必先检测到 Antigravity 应用。细节见 [Antigravity](ANTIGRAVITY.md)。ACP 恢复优先使用旧 Agent 已声明的 `loadSession`，仅声明 `resume` 时使用 `session/resume`。
 
+ZCode 不说 ACP，有自己的 driver（`agents/zcode/zcode-app-server.ts`），讲它桌面端用的 ZCode Protocol：命令走 `v4/command`，会话内容是订阅来的快照加行增量，审批和提问是 ZCode 发来的请求。协议没有公开的 schema，`zcode-schema.ts` 只宽松地写用到的部分。细节见 [ZCode](ZCODE.md)。
+
 ### Agent CLI 版本与升级
 
 设置 → 任务 → 已安装的 Agent 打开时调用 `system.agentCliStatus`，按需查询版本；成功缓存一小时，失败五分钟，手动检查绕过缓存。不做启动通知或自动升级。`agent-cli-maintenance` feature 区分新旧 core，daemon 的 `info.features` 单独声明升级能力；旧 daemon 保留版本检查，只禁用升级。
@@ -414,7 +416,7 @@ Antigravity 也只是一份 dialect（`agents/antigravity/`）：`agy` 本身不
 
 服务商（model provider）是第三方编程套餐的接口和 Key，比如火山方舟 Agent Plan、智谱 GLM Coding Plan。设置 → Agent → 服务商（`model-providers.ts`）维护列表：预设（火山 Agent Plan / Coding Plan、智谱、Z.ai、Kimi Code、MiniMax 国内和海外、阿里云百炼 Token Plan，`protocol/src/model-provider-presets.ts`）或自定义。预设的地址不存，每次用时从预设表取，发版修了地址就自动生效；模型列表也一样：保存时和预设的列表（按名字和顺序）一样就不存，默认模型、小模型和预设相同的也不存，用时从预设表取，发版加了或下线了模型，已有的服务商跟着变；改过的列表照存，设置里可以一键恢复成预设的（`ModelProvider.modelsFromPreset` 告诉客户端是不是在跟随）。跟随的列表里没了用户选的默认或小模型时，改用预设的。自定义的地址只接受 https（http 只能连本机），不许带账号密码、`?` 和 `#`。Key 存进 `credentials.json`（`model-provider/<id>.<revision>`），每次换 Key 都是新记录：先写新 Key，再写列表，最后删旧 Key，启动时清掉没人引用的。客户端只看得到 `hasKey`。
 
-和技能库、MCP 一样，**每次启动 Agent 时注入，不改 Agent 自己的配置**，Key 只进子进程的环境变量：
+和技能库、MCP 一样，**每次启动 Agent 时注入，不改 Agent 自己的配置**，Key 只进子进程的环境变量（唯一的例外是 ZCode，见表里那一行）：
 
 | Agent | 协议 | 怎么注入 |
 |---|---|---|
@@ -422,13 +424,16 @@ Antigravity 也只是一份 dialect（`agents/antigravity/`）：`agy` 本身不
 | Codex | Responses | `-c model_providers.antumi-<id>={…, env_key="ANTUMI_MODEL_PROVIDER_KEY"}` 加 `model_provider`、`model`、`model_context_window`；名字固定，恢复 thread 时找得到。Codex 的 shell 会继承整个环境，所以再加 `shell_environment_policy.set.ANTUMI_MODEL_PROVIDER_KEY=""`。 |
 | OpenCode | Chat（优先）/ Responses / Anthropic | `OPENCODE_CONFIG_CONTENT` 里加一个 `provider`，`apiKey: "{env:ANTUMI_MODEL_PROVIDER_KEY}"`，配置文本里没有 Key；`small_model` 是服务商的小模型。它的 shell 能读到这个变量，没有配置能挡。 |
 | Pi | Chat（优先）/ Responses / Anthropic | Antumi 的扩展用 `pi.registerProvider` 注册 `antumi-<id>`（`ANTUMI_PI` 里的配置不含 Key），Key 从 `ANTUMI_MODEL_PROVIDER_KEY` 读出后立刻从环境里删掉，所以 Pi 的 bash 和它启动的 MCP 服务都读不到（百炼实测）。Anthropic 去掉地址末尾的 `/v1`（Pi 自己加 `/v1/messages`），要 Bearer 的服务商另加 `authorization` 头。服务商没给的上下文长度和输出上限按 128K / 16K 填，推理强度只保留 Pi 有的档位。握手后用 `set_model` 切到服务商的模型，切不过去就拒绝启动。 |
+| ZCode | Anthropic（优先）/ Chat / Responses | ZCode 只从它的服务商文件读 Key：没有变量或参数能交 Key，文件里写 `${VAR}` 会原样发出去（3.16.2 实测）。所以阶段在自己的启动目录（见下）里放一份 ZCode 数据目录，`.zcode/v2/provider_config.json` 只含这一个服务商 `antumi-<id>`，用 `ZCODE_DATA_BASE_DIR`、`ZCODE_PERSONAL_PROVIDER_CONFIG_FILE`、`ZCODE_CLI_CREDENTIALS_FILE` 指过去，同时挡住用户自己的服务商和 Z.ai 登录；会话、设置、日志照旧在用户的 `~/.zcode/cli`。ZCode 监听这个文件，删了就丢模型，所以它留到进程退出。Anthropic 去掉末尾的 `/v1`（ZCode 自己加 `/v1/messages`，Bearer 和 x-api-key 都带）。新建或恢复后不在服务商的模型上，拒绝启动。 |
 | Cursor | — | 不支持，只用自己的账号。 |
 
-谁能用什么协议写在描述符的 `capabilities.modelProviders` 里，适配器的 `providerModels` 给出这个 Agent 叫服务商模型的名字（OpenCode 和 Pi 都是 `antumi-<id>/<model>`）。驱动在服务商上只列服务商的模型、只许切到它们，CLI 报的费用（按官方价）丢掉、token 照记。
+谁能用什么协议写在描述符的 `capabilities.modelProviders` 里，适配器的 `providerModels` 给出这个 Agent 叫服务商模型的名字（OpenCode、Pi 和 ZCode 都是 `antumi-<id>/<model>`）。
+
+**阶段的启动目录**（`stage-launch.ts`）：适配器启动前要写、又不能比进程活得久的文件（ZCode 的服务商文件），放在 `sessions/<会话>/launch/<阶段>/` 里。`launch.prepare` 拿到这次的 `AgentLaunch`，可以返回要加的环境变量。目录只给当前用户：POSIX 上 0700、属于当前用户、不能是链接，文件用 `wx` 新建、0600；Windows 上关掉继承、只给当前用户的 SID 完全控制，再用 icacls 读回核对，做不到就拒绝启动。目录归 core 管，适配器只往里写。有确证时直接删：daemon 报告这个阶段的进程退出了（`handleExit`，或重连时列表里标着已退出），或者 daemon 明确拒绝了启动。其余没有会话认领的目录（正在准备或运行的阶段不算）一律走同一条路（`settleLaunches`）：能看到别的进程环境变量的平台上（macOS 用 `ps -E`，Linux 读 `/proc/*/environ`），没有进程的环境变量指着它才删；Windows 看不到，就从这个目录第一次被发现没人认领时起等 30 秒，找不到阶段记录、且 daemon 还跑着没人认领的 Agent 进程（可能是应答丢失的那次启动）时一直留着。还留着的目录（包括这次没删掉的，比如 Windows 上文件被占用）每 30 秒按 daemon 当时的列表再看一次，直到全部清掉。重连对账只管向 daemon 要列表之前就已启动的阶段，之后才启动的不受这份旧列表影响；daemon 报告已退出的，即使接回聊天失败也照删。重连对账、删会话都走这条路，所以删会话不会从还在跑的进程脚下删掉文件；daemon 重启后旧进程不在新列表里、可能还在退出的，也由它把关。驱动在服务商上只列服务商的模型、只许切到它们，CLI 报的费用（按官方价）丢掉、token 照记。
 
 **路由**（`conversation-route.ts`）：会话创建时定下服务商（`conversations.model_provider`），之后不改；fork 和小助手跟着来源。每个阶段记一份不含 Key 的路由快照（`conversation_stages.provider_route`：服务商、协议、地址、模型列表），重放和重启后接回运行中的进程只读快照。下一阶段怎么走只在 `decideRoute` 一处算：服务商服务这个 Agent 就用它；不服务就用 Agent 自己的账号（移交到 Cursor 时就是这样）；这个 Agent 在会话里跑过的，按跑过的方式继续——服务商被删、没 Key 或不再服务它时拒绝启动（`model-provider-unavailable`），不悄悄回到官方账号。会话上次用的模型服务商不再提供时（列表改了或预设下线了它），阶段改用服务商的默认模型启动，并在聊天里提示一句（`rememberedOnProvider`）；推理强度只在默认模型也有时保留。仍然只在这个服务商的模型里换，不换到别处。原生 session 只在同一条路由（服务商 + 协议 + 地址，`providerRouteKey`）上恢复或 fork，换了就按移交重开。`Conversation.route` 告诉客户端下一阶段走哪：标题栏、每轮开头、输入框里的小标，移交菜单里每个 Agent 是沿用还是用自己的账号。任务用 `TaskLaunchOptions.modelProvider`（不传沿用，`null` 是官方账号），任务一有会话就以会话为准（`model-provider-fixed`）。
 
-**周边**：标题、翻译、提交说明、分支名在服务商会话里直接对服务商发一个请求（`provider-request.ts`，和测试连接共用），用它的小模型，不走 Agent 的 CLI；记成「未计价」，只记 token，不算费用和节省。服务商阶段的用量上报不算 Agent 官方账号的，定时任务和用量上限后的自动续跑也不看官方额度。用户 MCP 服务器经启动器启动时，进程带 `ANTUMI_MODEL_PROVIDER` 标记就去掉 Key 变量。
+**周边**：标题、翻译、提交说明、分支名在服务商会话里直接对服务商发一个请求（`provider-request.ts`，和测试连接共用），用它的小模型，不走 Agent 的 CLI；记成「未计价」，只记 token，不算费用和节省。服务商阶段的用量上报不算 Agent 官方账号的，定时任务和用量上限后的自动续跑也不看官方额度。用户 MCP 服务器经启动器启动时，进程带 `ANTUMI_MODEL_PROVIDER` 标记就去掉 Key 变量，以及指向 ZCode 服务商文件的那几个变量。
 
 - **测试连接**（`modelProviders.probe`，`model-provider-probe.ts`）：每个接口、默认模型和小模型各发一个最短的请求，30 秒超时，不跟随重定向，返回服务端原话（截断、去掉 Key）。
 - **预设是否「已验证」**：用真 Key 在 Antumi 里把支持它的 Agent 都跑过才标，记下 CLI 版本；现在都还是未验证。额度不在 Antumi 里显示，只给控制台链接。

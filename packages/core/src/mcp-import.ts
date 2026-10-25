@@ -46,6 +46,16 @@ async function readJsonServers(source: AgentKind, file: string): Promise<FoundMc
   return Object.entries(parsed.data?.mcpServers ?? {}).filter(([, raw]) => JsonEntry.safeParse(raw).data?.disabled !== true).map(([name, raw]) => fromJson(source, name, raw))
 }
 
+// ZCode's: an mcp.servers object in its CLI settings, each turned off with enabled: false.
+const ZCodeConfig = z.looseObject({ mcp: z.looseObject({ servers: z.record(z.string(), z.unknown()).catch({}).optional() }).optional() })
+
+async function readZCodeServers(file: string): Promise<FoundMcpServer[]> {
+  const parsed = ZCodeConfig.safeParse(await readJsonIfExists(file).catch(() => undefined))
+  return Object.entries(parsed.data?.mcp?.servers ?? {})
+    .filter(([, raw]) => z.looseObject({ enabled: z.boolean().optional() }).safeParse(raw).data?.enabled !== false)
+    .map(([name, raw]) => fromJson('zcode', name, raw))
+}
+
 // Codex's, as its own CLI lists them: config.toml is TOML, and the CLI knows its overrides.
 const CodexEntry = z.looseObject({
   name: z.string(),
@@ -88,7 +98,8 @@ export async function findAgentMcpServers({ env = process.env, homedir = os.home
     return Array.isArray(listed) ? listed.flatMap((entry) => fromCodex(entry, codexHome) ?? []) : []
   }).catch(() => [])
   const found = await Promise.all([readJsonServers('claude', claudeFile), codexServers, readJsonServers('cursor', path.join(homedir, '.cursor', 'mcp.json')),
-    readJsonServers('antigravity', path.join(env.GEMINI_HOME || path.join(homedir, '.gemini'), 'config', 'mcp_config.json'))])
+    readJsonServers('antigravity', path.join(env.GEMINI_HOME || path.join(homedir, '.gemini'), 'config', 'mcp_config.json')),
+    readZCodeServers(env.ZCODE_CLI_SETTINGS_FILE?.trim() || path.join(homedir, '.zcode', 'cli', 'config.json'))])
   return found.flat()
 }
 

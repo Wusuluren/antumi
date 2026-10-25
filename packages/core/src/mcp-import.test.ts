@@ -48,6 +48,19 @@ describe('the agents\' own MCP servers', () => {
     ])
   })
 
+  it('reads ZCode\'s mcp.servers, leaving what the user turned off', async () => {
+    mkdirSync(path.join(home, '.zcode', 'cli'), { recursive: true })
+    writeFileSync(path.join(home, '.zcode', 'cli', 'config.json'), JSON.stringify({ features: { mcp: true }, mcp: { servers: {
+      fs: { type: 'stdio', command: 'node', args: ['/srv/fs.mjs'], env: { ROOT: '/data' }, enabled: true, timeoutMs: 30000 },
+      docs: { type: 'http', url: 'https://mcp.example.com/mcp', headers: { Authorization: 'Bearer z' } },
+      off: { type: 'stdio', command: 'off', enabled: false }
+    } } }))
+    expect(await findAgentMcpServers({ env: {}, homedir: home, codex: async () => '[]' })).toEqual([
+      { source: 'zcode', name: 'fs', transport: { type: 'stdio', command: 'node', args: ['/srv/fs.mjs'], cwd: null, env: { ROOT: '/data' } }, problem: null },
+      { source: 'zcode', name: 'docs', transport: { type: 'http', url: 'https://mcp.example.com/mcp', headers: { Authorization: 'Bearer z' } }, problem: null }
+    ])
+  })
+
   it('finds none where nothing is installed', async () => {
     expect(await findAgentMcpServers({ env: {}, homedir: home, codex: async () => { throw new Error('codex: not found') } })).toEqual([])
   })

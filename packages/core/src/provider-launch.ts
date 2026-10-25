@@ -2,7 +2,8 @@ import type { ChatModel, ProviderEndpoint, ProviderModel } from '@antumi/protoco
 
 // A stage on a model provider, as its agent is started: the endpoint this agent speaks to, the
 // key, and the provider's models by their ids at the provider. The key goes into the process
-// environment only, never argv or a config the agent is handed as text.
+// environment only, never argv or a config the agent is handed as text; ZCode, which reads a key
+// from its provider file alone, gets one in the stage's private launch folder (zcode-provider.ts).
 export type ProviderLaunch = {
   providerId: string
   endpoint: ProviderEndpoint
