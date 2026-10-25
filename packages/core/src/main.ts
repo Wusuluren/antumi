@@ -407,7 +407,7 @@ const autoArchive = new ConversationAutoArchive(
   (id) => conversations.setArchived(id, true)
 )
 // Before the daemon connects: a chat stage it still runs is taken back with these settings.
-const skills = new SkillsLibrary(paths.skills, (repos) => server?.broadcast('skills.changed', { repos: [...repos] }))
+const skills = new SkillsLibrary(paths.skills, (repos) => server?.broadcast('skills.changed', { repos: [...repos] }), { legacySkills: () => knowledgeBaseSkills(chatSettings.current().knowledgeBase ?? null) })
 await skills.load()
 const mcpServers = new McpServerStore(paths.mcpServers, credentials, (servers) => server?.broadcast('mcpServers.changed', { servers: [...servers] }))
 await mcpServers.load()
@@ -416,12 +416,9 @@ await modelProviders.load()
 conversations.setModelProviders(modelProviders)
 // Handed through Antumi's launcher, so no secret is in an agent's command line or Antumi's logs.
 conversations.setUserMcpProvider((agent, readOnly) => agentDescriptor(agent).capabilities.userMcp ? mcpServers.forAgent(agent).map((server) => userMcpServer(paths.home, server, readOnly)) : [])
-// An agent that loads skills gets Obsidian's, where the user turned writing on and has
-// the repository installed; the bundle is the same folder start after start while nothing moved.
+// Explicit activation takes precedence over the legacy, knowledge-base-provided selection.
 conversations.setSkillsProvider(async (agent) => {
-  const selected = knowledgeBaseSkills(chatSettings.current().knowledgeBase ?? null)
-  if (!agentDescriptor(agent).capabilities.skills || selected.length === 0) return null
-  const bundle = await skills.bundleFor(selected)
+  const bundle = await skills.bundleForAgent(agent)
   return bundle ? { dir: bundle.dir } : null
 })
 const initialChatSettings = await chatSettings.load()

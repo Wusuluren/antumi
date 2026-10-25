@@ -12,7 +12,7 @@ describe('searchSkills', () => {
       skills: [
         { source: 'vercel-labs/agent-skills', skillId: 'vercel-react-best-practices', installs: 833435 },
         { source: 'obra/superpowers', skillId: 'test-driven-development', installs: 120 },
-        { source: 'vercel-labs/agent-skills', skillId: 'web-design-guidelines', installs: 775100 }
+        { source: 'Vercel-Labs/Agent-Skills.git', skillId: 'web-design-guidelines', installs: 775100 }
       ]
     }))
     const results = await searchSkills('react')

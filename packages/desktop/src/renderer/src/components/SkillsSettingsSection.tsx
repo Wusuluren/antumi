@@ -1,17 +1,12 @@
 import { t, tr } from '../i18n'
 import { useId, useRef, useState, type FormEvent } from 'react'
-import { AGENT_KINDS, agentDescriptor, type RecommendedSkillRepo, type SkillRepo, type SkillSearchResult, type SkillUpdateCheck } from '@antumi/protocol'
+import { AGENT_KINDS, agentDescriptor, knowledgeBaseSkillRefs, skillRepositoryUrl, type RecommendedSkillRepo, type SkillRepo, type SkillSearchResult } from '@antumi/protocol'
 import { useEffect } from 'react'
 import { perform, useCore } from '../core-store'
 import { agentLabel } from '../labels'
 import { Segmented, SettingsGroup } from './SettingsControls'
-
-const short = (commit: string) => commit.slice(0, 7)
-
-// The recommendations not installed yet, by address with or without .git.
-export function notInstalled(recommended: readonly RecommendedSkillRepo[], repos: readonly SkillRepo[]): RecommendedSkillRepo[] {
-  return recommended.filter((repo) => !repos.some((each) => each.url === repo.url || each.url === `${repo.url}.git`))
-}
+import { SkillActivationDialog } from './SkillActivationDialog'
+import { SkillRepoSettings } from './SkillRepoSettings'
 
 // The ways to add a skill, in tab order. A lone way needs no tab.
 export type SkillAddTab = 'recommended' | 'search' | 'url'
@@ -25,64 +20,11 @@ export function activeSkillAddTab(tabs: readonly SkillAddTab[], tab: SkillAddTab
   return tabs.includes(tab) ? tab : tabs[0] ?? 'url'
 }
 
-// One installed repository: its skills, and the pin the user moves by hand.
-function RepoRow({ repo }: { repo: SkillRepo }) {
-  const [busy, setBusy] = useState(false)
-  const [readme, setReadme] = useState<string | null>(null)
-  const [check, setCheck] = useState<SkillUpdateCheck | null>(null)
-  // A pin that moved makes the check stale.
-  useEffect(() => setCheck(null), [repo.commit])
-
-  const run = async (action: () => Promise<unknown>) => {
-    if (busy) return
-    setBusy(true)
-    try { await action() } finally { setBusy(false) }
-  }
-  const showReadme = () => run(async () => {
-    if (readme !== null) { setReadme(null); return }
-    const found = await perform((rpc) => rpc.call('skills.readme', { id: repo.id }))
-    setReadme(found?.text ?? t('SkillsSettingsSection.noReadme'))
-  })
-  const checkUpdate = () => run(async () => setCheck(await perform((rpc) => rpc.call('skills.checkUpdate', { id: repo.id }))))
-  const update = (commit: string) => run(() => perform((rpc) => rpc.call('skills.update', { id: repo.id, commit })))
-  const rollback = () => run(() => perform((rpc) => rpc.call('skills.rollback', { id: repo.id })))
-  const remove = () => run(async () => {
-    if (window.confirm(t('SkillsSettingsSection.removeAgentsUsingItLoseTheseSkillsAt', { value1: repo.plugin?.name ?? repo.id }))) await perform((rpc) => rpc.call('skills.remove', { id: repo.id }))
-  })
-
-  return (
-    <li className="settings-skill-repo">
-      <div className="settings-project">
-        <span className="settings-project-name">{repo.plugin?.name ?? repo.id}</span>
-        <span className="settings-project-path mono" title={repo.url}>{repo.url}</span>
-        <span className="mono muted" title={repo.commit}>{short(repo.commit)}</span>
-        <button type="button" className="button" disabled={busy} onClick={() => void showReadme()}>{readme === null ? t('ChatCommandSettings.description') : t('ChatPlan.collapse')}</button>
-        <button type="button" className="button" disabled={busy} onClick={() => void checkUpdate()}>{t('SkillsSettingsSection.checkForUpdates')}</button>
-        {repo.previousCommit && <button type="button" className="button" disabled={busy} onClick={() => void rollback()}>{tr('SkillsSettingsSection.rollBackTo', { value1: short(repo.previousCommit) })}</button>}
-        <button type="button" className="button" disabled={busy} onClick={() => void remove()}>{t('ChatQuoteCards.remove')}</button>
-      </div>
-      <div className="settings-skill-chips">
-        {repo.skills.map((skill) => (
-          <span key={skill.dir} className={`settings-skill-chip${skill.problem ? ' problem' : ''}`} title={skill.problem ?? skill.description}>{skill.name}</span>
-        ))}
-      </div>
-      {check && (
-        <p className="settings-note">
-          {check.behind === 0 ? t('SkillsSettingsSection.alreadyUpToDate') : (
-            <>{tr('SkillsSettingsSection.commitsBehindUpdatedSkills', { value1: check.behind, value2: short(check.current), value3: short(check.latest), value4: check.skills.map((skill) => skill.name).join('、'), value5: <button type="button" className="button" disabled={busy} onClick={() => void update(check.latest)}>{t('SettingsPage.update')}</button>, value6: <button type="button" className="button" disabled={busy} onClick={() => setCheck(null)}>{t('ChatCommandSettings.cancel')}</button> })}</>
-          )}
-        </p>
-      )}
-      {readme !== null && <pre className="settings-skill-readme">{readme}</pre>}
-    </li>
-  )
-}
-
-function RecommendedRow({ repo }: { repo: RecommendedSkillRepo }) {
+function RecommendedRow({ repo, installed, canManage, onManage }: { repo: RecommendedSkillRepo; installed: SkillRepo | undefined; canManage: boolean; onManage: (id: string) => void }) {
   const [busy, setBusy] = useState(false)
   const install = async () => {
     setBusy(true)
-    try { await perform((rpc) => rpc.call('skills.install', { url: repo.url })) } finally { setBusy(false) }
+    try { const saved = await perform((rpc) => rpc.call('skills.install', { url: repo.url })); if (saved) onManage(saved.id) } finally { setBusy(false) }
   }
   return (
     <li className="settings-skill-repo">
@@ -90,7 +32,7 @@ function RecommendedRow({ repo }: { repo: RecommendedSkillRepo }) {
         <span className="settings-project-name">{repo.name}</span>
         <span className="settings-project-path mono" title={repo.url}>{repo.url}</span>
         <span className="muted">{repo.license}</span>
-        <button type="button" className="button" disabled={busy} onClick={() => void install()}>{busy ? t('SkillsSettingsSection.installing') : t('SettingsPage.install')}</button>
+        {installed ? <><span className="muted">{t('InstalledAgentsSettings.installed')}</span>{canManage && <button type="button" className="button" onClick={() => onManage(installed.id)}>{t('SkillsSettingsSection.configure')}</button>}</> : <button type="button" className="button" disabled={busy} onClick={() => void install()}>{busy ? t('SkillsSettingsSection.installing') : t('SettingsPage.install')}</button>}
       </div>
       <p className="settings-note">{repo.description}</p>
       <div className="settings-skill-chips">
@@ -101,11 +43,11 @@ function RecommendedRow({ repo }: { repo: RecommendedSkillRepo }) {
 }
 
 // One skills.sh hit: the repository a skill lives in, installed over the same git path as the rest.
-function SearchRow({ result, installed }: { result: SkillSearchResult; installed: boolean }) {
+function SearchRow({ result, installed, canManage, onManage }: { result: SkillSearchResult; installed: SkillRepo | undefined; canManage: boolean; onManage: (id: string) => void }) {
   const [busy, setBusy] = useState(false)
   const install = async () => {
     setBusy(true)
-    try { await perform((rpc) => rpc.call('skills.install', { url: result.url })) } finally { setBusy(false) }
+    try { const saved = await perform((rpc) => rpc.call('skills.install', { url: result.url })); if (saved) onManage(saved.id) } finally { setBusy(false) }
   }
   return (
     <li className="settings-skill-repo">
@@ -114,7 +56,7 @@ function SearchRow({ result, installed }: { result: SkillSearchResult; installed
         <span className="settings-project-path mono" title={result.url}>{result.url}</span>
         {result.installs > 0 && <span className="muted">{t('SkillsSettingsSection.installsCount', { value1: result.installs.toLocaleString() })}</span>}
         {installed
-          ? <span className="muted">{t('InstalledAgentsSettings.installed')}</span>
+          ? <><span className="muted">{t('InstalledAgentsSettings.installed')}</span>{canManage && <button type="button" className="button" onClick={() => onManage(installed.id)}>{t('SkillsSettingsSection.configure')}</button>}</>
           : <button type="button" className="button" disabled={busy} onClick={() => void install()}>{busy ? t('SkillsSettingsSection.installing') : t('SettingsPage.install')}</button>}
       </div>
       {result.skills.length > 0 && (
@@ -129,7 +71,7 @@ function SearchRow({ result, installed }: { result: SkillSearchResult; installed
 // Search skills.sh and install from its hits. The registry finds the repository; installing it
 // clones and pins the whole thing, exactly like a recommendation or a hand-typed URL. Clearing
 // drops the query and the hits, and ignores a search that was already in flight.
-function SearchMarket({ repos }: { repos: readonly SkillRepo[] }) {
+function SearchMarket({ repos, canManage, onManage }: { repos: readonly SkillRepo[]; canManage: boolean; onManage: (id: string) => void }) {
   const [query, setQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [results, setResults] = useState<SkillSearchResult[] | null>(null)
@@ -153,7 +95,7 @@ function SearchMarket({ repos }: { repos: readonly SkillRepo[] }) {
     setResults(null)
     setSearching(false)
   }
-  const isInstalled = (result: SkillSearchResult) => repos.some((each) => each.url === result.url || each.url === `${result.url}.git`)
+  const installedRepo = (result: SkillSearchResult) => repos.find((each) => skillRepositoryUrl(each.url) === skillRepositoryUrl(result.url))
   const canClear = query !== '' || results !== null
 
   return (
@@ -166,7 +108,7 @@ function SearchMarket({ repos }: { repos: readonly SkillRepo[] }) {
       <p className="settings-note">{t('SkillsSettingsSection.resultsFromSkillsShInstallsTheWholeRepository')}</p>
       {results !== null && (results.length === 0
         ? <p className="settings-empty">{t('SkillsSettingsSection.noMatchingSkillsFound')}</p>
-        : <ul className="settings-project-list">{results.map((result) => <SearchRow key={result.url} result={result} installed={isInstalled(result)} />)}</ul>)}
+        : <ul className="settings-project-list">{results.map((result) => <SearchRow key={result.url} result={result} installed={installedRepo(result)} canManage={canManage} onManage={onManage} />)}</ul>)}
     </>
   )
 }
@@ -176,12 +118,18 @@ function SearchMarket({ repos }: { repos: readonly SkillRepo[] }) {
 export function SkillsSettingsSection() {
   const connected = useCore((s) => s.connection === 'connected')
   const searchSupported = useCore((s) => s.rpc?.features.includes('skills-search') ?? false)
+  const managed = useCore((s) => s.rpc?.features.includes('skills-activation') ?? false)
+  const base = useCore((s) => s.chatSettings?.knowledgeBase ?? null)
   const repos = useCore((s) => s.skillRepos)
   const [recommended, setRecommended] = useState<RecommendedSkillRepo[] | null>(null)
   const [url, setUrl] = useState('')
   const [installing, setInstalling] = useState(false)
   const [tab, setTab] = useState<SkillAddTab>('recommended')
+  const [page, setPage] = useState<'installed' | 'discover'>('installed')
+  const [managing, setManaging] = useState<string | null>(null)
   const tabLabelId = useId()
+  const pageLabelId = useId()
+  const onManage = (id: string) => { setPage('installed'); if (managed) setManaging(id) }
 
   useEffect(() => {
     if (connected) void perform((rpc) => rpc.call('skills.recommended', {})).then((found) => setRecommended(found ?? []))
@@ -190,9 +138,12 @@ export function SkillsSettingsSection() {
   const install = async (event: FormEvent) => {
     event.preventDefault()
     if (installing || !url.trim()) return
+    const existing = repos.find((repo) => skillRepositoryUrl(repo.url) === skillRepositoryUrl(url.trim()))
+    if (existing) { onManage(existing.id); setUrl(''); return }
     setInstalling(true)
     try {
-      if (await perform((rpc) => rpc.call('skills.install', { url: url.trim() }))) setUrl('')
+      const saved = await perform((rpc) => rpc.call('skills.install', { url: url.trim() }))
+      if (saved) { setUrl(''); onManage(saved.id) }
     } finally {
       setInstalling(false)
     }
@@ -202,9 +153,11 @@ export function SkillsSettingsSection() {
   // Which agents take a bundle is the descriptors' to say.
   const takers = AGENT_KINDS.filter((kind) => agentDescriptor(kind).capabilities.skills).map(agentLabel)
   const others = AGENT_KINDS.filter((kind) => !agentDescriptor(kind).capabilities.skills).map(agentLabel)
-  const suggested = notInstalled(recommended ?? [], repos)
+  const suggested = recommended ?? []
   const tabs = skillAddTabs({ recommended: suggested.length > 0, search: searchSupported })
   const active = activeSkillAddTab(tabs, tab)
+  const current = repos.find((repo) => repo.id === managing)
+  const fallback = knowledgeBaseSkillRefs(base)
   const tabOptions = tabs.map((value) => ({
     value,
     label: value === 'recommended' ? t('AgentPicker.recommended') : value === 'search' ? t('SkillsSettingsSection.searchTheSkillMarket') : t('SkillsSettingsSection.installFromAnotherRepository')
@@ -212,13 +165,18 @@ export function SkillsSettingsSection() {
   return (
     <>
       <p className="settings-note">{tr('SkillsSettingsSection.pinnedToTheInstalledCommitPreviewChangesBefore', { value1: [takers.length > 0 && t('SkillsSettingsSection.supported', { value1: takers.join('、') }), others.length > 0 && t('SkillsSettingsSection.notSupportedYet', { value1: others.join('、') })].filter(Boolean).join('；') })}</p>
+      {managed && <div className="settings-skill-tabs"><span id={pageLabelId} hidden>{t('SkillsSettingsSection.skills')}</span><Segmented labelId={pageLabelId} value={page} options={[{ value: 'installed', label: t('InstalledAgentsSettings.installed') }, { value: 'discover', label: t('SkillsSettingsSection.discover') }]} onChange={setPage}/></div>}
+      <div hidden={managed && page !== 'installed'}>
       <SettingsGroup title={repos.length > 0 ? t('SkillsSettingsSection.installed', { value1: repos.length }) : t('InstalledAgentsSettings.installed')}>
         {repos.length === 0 ? <p className="settings-empty">{t('SkillsSettingsSection.noSkillsInstalledChooseARecommendationBelowOr')}</p> : (
           <ul className="settings-project-list">
-            {repos.map((repo) => <RepoRow key={repo.id} repo={repo} />)}
+            {repos.map((repo) => <SkillRepoSettings key={repo.id} repo={repo} managed={managed} fallback={fallback} onConfigure={() => onManage(repo.id)} />)}
           </ul>
         )}
       </SettingsGroup>
+      {managed && repos.length === 0 && <button className="button" type="button" onClick={() => setPage('discover')}>{t('SkillsSettingsSection.discover')}</button>}
+      </div>
+      <div hidden={managed && page !== 'discover'}>
       <SettingsGroup title={tabs.length > 1 ? t('SkillsSettingsSection.addASkill') : t('SkillsSettingsSection.installFromAnotherRepository')}>
         {tabs.length > 1 && (
           <div className="settings-skill-tabs">
@@ -228,10 +186,10 @@ export function SkillsSettingsSection() {
         )}
         {active === 'recommended' && (
           <ul className="settings-project-list">
-            {suggested.map((repo) => <RecommendedRow key={repo.url} repo={repo} />)}
+            {suggested.map((repo) => <RecommendedRow key={repo.url} repo={repo} installed={repos.find((each) => skillRepositoryUrl(each.url) === skillRepositoryUrl(repo.url))} canManage={managed} onManage={onManage} />)}
           </ul>
         )}
-        {searchSupported && <div hidden={active !== 'search'}><SearchMarket repos={repos} /></div>}
+        {searchSupported && <div hidden={active !== 'search'}><SearchMarket repos={repos} canManage={managed} onManage={onManage} /></div>}
         {active === 'url' && (
           <>
             <form className="settings-skill-install" onSubmit={(event) => void install(event)}>
@@ -242,6 +200,8 @@ export function SkillsSettingsSection() {
           </>
         )}
       </SettingsGroup>
+      </div>
+      {managed && current && <SkillActivationDialog key={current.id} repo={current} repos={repos} fallback={fallback} onClose={() => setManaging(null)} onManage={setManaging} />}
     </>
   )
 }

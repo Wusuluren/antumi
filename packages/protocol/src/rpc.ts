@@ -31,7 +31,7 @@ import { Discussion, DiscussionAction, DiscussionCreate, DiscussionList, Discuss
 
 import { Squad, SquadFields, SquadRun, SquadWork, SquadPlanRef } from './squad'
 import { KnowledgeFolder, KnowledgeVault } from './knowledge'
-import { CommitSha, RecommendedSkillRepo, SkillRepo, SkillRepoId, SkillSearchResult, SkillUpdateCheck } from './skills'
+import { CommitSha, RecommendedSkillRepo, SkillActivation, SkillRepo, SkillRepoId, SkillSearchResult, SkillUpdateCheck } from './skills'
 import { TodoList, TodoOwner, TodoText, TodoTitle } from './todos'
 import { McpImportCandidate, McpImportItem, McpProbe, McpServer, McpServerInput, McpServerName } from './mcp'
 import { ModelProvider, ModelProviderId, ModelProviderInput, ModelProviderProbe } from './model-provider'
@@ -94,7 +94,7 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // project's .antumi/project.json, once the user trusts its commands (projects.config, projects.trustConfig).
 // project-config-edit: core writes that file as the user filled it in (projects.writeConfig), and
 // suggests what to fill it with (projects.suggestConfig).
-export const CORE_FEATURES = ['pets', 'plugins', 'plugin-recommendations', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-configuration', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'agent-cli-maintenance', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'handoff-mode', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'skills-search', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit', 'model-providers', 'git-update', 'git-push-target', 'task-auto-run', 'session-import', 'agent-accounts', 'usage-analytics', 'task-references', 'release-idle-chats'] as const
+export const CORE_FEATURES = ['pets', 'plugins', 'plugin-recommendations', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-configuration', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'agent-cli-maintenance', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'handoff-mode', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'skills-search', 'skills-activation', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit', 'model-providers', 'git-update', 'git-push-target', 'task-auto-run', 'session-import', 'agent-accounts', 'usage-analytics', 'task-references', 'release-idle-chats'] as const
 // session-import: core lists the sessions agents ran outside Antumi and imports them as conversations (sessionImports.*).
 // agent-accounts: Claude and Codex sign in to several accounts, one active each, and a usage limit
 // moves the agent to the next with quota (accounts.*); usage readings name their account.
@@ -203,12 +203,13 @@ export const rpcMethods = {
   'skills.search': { params: z.object({ query: z.string().trim().min(1).max(200) }), result: z.array(SkillSearchResult) },
   // Clones the repository and pins it at its head; https only.
   'skills.install': { params: z.object({ url: z.string().trim().min(1).max(500) }), result: SkillRepo },
+  'skills.setActivation': { params: z.object({ id: SkillRepoId, activation: SkillActivation }), result: SkillRepo },
   // The README at the pinned commit, for the user to read before relying on third-party skills.
   'skills.readme': { params: z.object({ id: SkillRepoId }), result: z.object({ text: z.string().nullable() }) },
   // Fetches and tells what an update would bring, without moving the pin.
   'skills.checkUpdate': { params: z.object({ id: SkillRepoId }), result: SkillUpdateCheck },
   // Moves the pin to the commit the user saw in the check.
-  'skills.update': { params: z.object({ id: SkillRepoId, commit: CommitSha }), result: SkillRepo },
+  'skills.update': { params: z.object({ id: SkillRepoId, commit: CommitSha, allowUnavailable: z.boolean().optional() }), result: SkillRepo },
   'skills.rollback': { params: z.object({ id: SkillRepoId }), result: SkillRepo },
   'skills.remove': { params: z.object({ id: SkillRepoId }), result: Ok },
   'mcpServers.list': { params: z.object({}), result: z.array(McpServer) },

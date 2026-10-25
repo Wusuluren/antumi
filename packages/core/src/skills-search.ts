@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { SkillSearchResult } from '@antumi/protocol'
+import { skillRepositoryUrl, type SkillSearchResult } from '@antumi/protocol'
 import { Rejection } from './rejection'
 
 // Discovery on top of the open skills.sh registry. Antumi still installs a whole git repository
@@ -44,13 +44,14 @@ function groupBySource(skills: readonly { source: string; skillId?: string; name
   const bySource = new Map<string, SkillSearchResult>()
   for (const skill of skills) {
     if (!SOURCE.test(skill.source)) continue
+    const url = skillRepositoryUrl(`https://github.com/${skill.source}`)
     const name = skill.skillId ?? skill.name
-    const existing = bySource.get(skill.source)
+    const existing = bySource.get(url)
     if (existing) {
       if (name && !existing.skills.includes(name)) existing.skills.push(name)
       existing.installs = Math.max(existing.installs, skill.installs ?? 0)
     } else {
-      bySource.set(skill.source, { url: `https://github.com/${skill.source}`, source: skill.source, skills: name ? [name] : [], installs: skill.installs ?? 0 })
+      bySource.set(url, { url, source: new URL(url).pathname.slice(1), skills: name ? [name] : [], installs: skill.installs ?? 0 })
     }
   }
   return [...bySource.values()]

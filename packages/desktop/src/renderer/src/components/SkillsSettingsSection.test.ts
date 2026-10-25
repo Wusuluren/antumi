@@ -2,9 +2,9 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StateCreator } from 'zustand'
-import type { RecommendedSkillRepo, SkillRepo } from '@antumi/protocol'
+import type { SkillRepo } from '@antumi/protocol'
 import { useCore } from '../core-store'
-import { activeSkillAddTab, notInstalled, skillAddTabs, SkillsSettingsSection } from './SkillsSettingsSection'
+import { activeSkillAddTab, skillAddTabs, SkillsSettingsSection } from './SkillsSettingsSection'
 
 vi.hoisted(() => {
   vi.stubGlobal('window', { antumi: undefined, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }), addEventListener() {}, removeEventListener() {} })
@@ -22,7 +22,6 @@ vi.mock('zustand', async (importOriginal) => {
 
 const commit = 'a'.repeat(40)
 const repo = (url: string): SkillRepo => ({ id: url.split('/').pop() ?? url, url, commit, previousCommit: null, installedAt: 0, updatedAt: 0, plugin: null, skills: [] })
-const recommended = (url: string): RecommendedSkillRepo => ({ url, name: url, description: '', license: 'MIT', homepage: url, skills: [] })
 
 beforeEach(() => {
   useCore.setState({ ...useCore.getInitialState(), connection: 'connected', skillRepos: [] }, true)
@@ -43,11 +42,6 @@ describe('SkillsSettingsSection', () => {
     expect(html).toContain('还没有安装技能')
   })
 
-  it('recommends only what is not installed, by address with or without .git', () => {
-    const list = [recommended('https://github.com/a/one'), recommended('https://github.com/a/two'), recommended('https://github.com/a/three')]
-    expect(notInstalled(list, [repo('https://github.com/a/one'), repo('https://github.com/a/two.git')]).map((each) => each.url)).toEqual(['https://github.com/a/three'])
-  })
-
   it('offers a tab per way to add a skill, and only the address when that is the only way', () => {
     expect(skillAddTabs({ recommended: true, search: true })).toEqual(['recommended', 'search', 'url'])
     expect(skillAddTabs({ recommended: false, search: true })).toEqual(['search', 'url'])
@@ -64,5 +58,14 @@ describe('SkillsSettingsSection', () => {
     expect(html).toContain('从其他仓库安装')
     expect(html).toContain('搜 skills.sh 上的技能')
     expect(html).not.toContain('placeholder="https://github.com/')
+  })
+
+  it('shows repository activation and discovery only when core supports them', () => {
+    useCore.setState({ rpc: { features: ['skills-search', 'skills-activation'] } as never, skillRepos: [{ ...repo('https://github.com/team/skills'), skills: [{ name: 'review', description: 'Reviews code.', dir: 'skills/review', problem: null }], activation: { mode: 'selected', skills: ['review'], agents: null } }] })
+    const html = renderToStaticMarkup(createElement(SkillsSettingsSection))
+    expect(html).toContain('发现技能')
+    expect(html).toContain('启用设置')
+    expect(html).toContain('自选技能 · 全部兼容 Agent')
+    expect(html).toContain('role="switch"')
   })
 })

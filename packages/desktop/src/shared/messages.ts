@@ -1,5 +1,33 @@
 // Application-owned text. Values and external content are passed separately.
 export const MESSAGES = {
+  "SkillsSettingsSection.activationMode": { "zh": "启用方式", "en": "Activation" },
+  "SkillsSettingsSection.enableAll": { "zh": "全部启用", "en": "Enable all" },
+  "SkillsSettingsSection.selectSkills": { "zh": "自选技能", "en": "Choose skills" },
+  "SkillsSettingsSection.agentScope": { "zh": "适用 Agent", "en": "Applies to" },
+  "SkillsSettingsSection.allCompatibleAgents": { "zh": "全部兼容 Agent", "en": "All compatible agents" },
+  "SkillsSettingsSection.specificAgents": { "zh": "指定 Agent", "en": "Selected agents" },
+  "SkillsSettingsSection.selectAll": { "zh": "全选", "en": "Select all" },
+  "SkillsSettingsSection.futureAgents": { "zh": "自动包含当前及以后新增支持技能的 Agent。", "en": "Includes current and future agents that support skills." },
+  "SkillsSettingsSection.unsupported": { "zh": "暂不支持", "en": "Not supported yet" },
+  "SkillsSettingsSection.noAgents": { "zh": "未选择 Agent，这个仓库的技能暂不加载。", "en": "No agents selected. Skills from this repository will not be loaded." },
+  "SkillsSettingsSection.skills": { "zh": "技能", "en": "Skills" },
+  "SkillsSettingsSection.conflicts": { "zh": "同名技能在同一 Agent 中只能保留一个来源。请调整所选技能、适用 Agent，或管理下列来源后再保存。", "en": "An agent can use only one source for a skill name. Adjust the skills or agents, or manage the sources below before saving." },
+  "SkillsSettingsSection.manageSource": { "zh": "管理 {name}", "en": "Manage {name}" },
+  "SkillsSettingsSection.activationTiming": { "zh": "下次启动 Agent 时生效，已运行的会话保留当前技能。", "en": "Applies at the next agent start. Running sessions keep their current skills." },
+  "SkillsSettingsSection.enabledCount": { "zh": "{count}/{total} 已选择", "en": "{count}/{total} selected" },
+  "SkillsSettingsSection.configure": { "zh": "启用设置", "en": "Activation settings" },
+  "SkillsSettingsSection.specificAgentCount": { "zh": "指定 {count} 个 Agent", "en": "{count} selected agents" },
+  "SkillsSettingsSection.legacyActivation": { "zh": "沿用知识库设置；修改启用设置后按此配置加载。", "en": "Uses existing knowledge-base settings until activation is configured here." },
+  "SkillsSettingsSection.updatePreview": { "zh": "更新预览", "en": "Update preview" },
+  "SkillsSettingsSection.added": { "zh": "新增", "en": "Added" },
+  "SkillsSettingsSection.removed": { "zh": "移除", "en": "Removed" },
+  "SkillsSettingsSection.changed": { "zh": "修改", "en": "Changed" },
+  "SkillsSettingsSection.updateAllHint": { "zh": "全部启用：新增的可用技能会在确认更新后启用。更新失败保留原版本，成功后可回退。", "en": "Enable all: new usable skills become active after you confirm the update. Failed updates keep the original version; successful updates can be rolled back." },
+  "SkillsSettingsSection.updateSelectedHint": { "zh": "自选技能：新增技能默认关闭，保留已有选择。更新失败保留原版本，成功后可回退。", "en": "Choose skills: new skills stay off and existing selections are kept. Failed updates keep the original version; successful updates can be rolled back." },
+  "SkillsSettingsSection.confirmUnavailable": { "zh": "确认更新，同时停用已移除或失效的技能：{names}", "en": "Confirm the update and deactivate removed or unusable skills: {names}" },
+  "SkillsSettingsSection.discover": { "zh": "发现技能", "en": "Discover skills" },
+  "labels.skillSelectionInvalid": { "zh": "技能或 Agent 选择无效", "en": "Invalid skill or agent selection" },
+  "labels.skillUpdateConfirmation": { "zh": "更新会停用已启用的技能，请查看更新预览并确认", "en": "This update deactivates enabled skills. Review and confirm the update preview" },
   "Pet.builtin": {"zh": "随应用提供", "en": "Included"},
   "Pet.installed": {"zh": "已下载 · 点击使用", "en": "Downloaded · Use"},
   "Pet.downloadAndUse": {"zh": "下载并使用 · {size} KiB", "en": "Download & use · {size} KiB"},
@@ -7329,8 +7357,8 @@ export const MESSAGES = {
     "en": "Repository URL"
   },
   "SkillsSettingsSection.onlyHttpsUrlsTheRepositoryMustContainSkills": {
-    "zh": "只接受 https:// 地址，仓库根目录要有 SKILL.md，或有 skills/<名字>/SKILL.md。",
-    "en": "Only https:// URLs. The repository needs a SKILL.md at its root, or skills/<name>/SKILL.md."
+    "zh": "只接受 https:// 仓库地址，自动识别根目录、技能目录与分类子目录中的 SKILL.md。安装后选择要启用的技能。",
+    "en": "Only https:// repository URLs. Discovers SKILL.md at the root and inside skill or category directories. Choose which skills to enable after installing."
   },
   "SmallModelStats.smallModelUsage": {
     "zh": "小模型用量",
@@ -9889,8 +9917,8 @@ export const MESSAGES = {
     "en": "This repository is already installed"
   },
   "labels.noUsableSkillsFoundSkillsNameSkillMd": {
-    "zh": "仓库里没有可用的技能（根目录的 SKILL.md，或 skills/<名字>/SKILL.md）",
-    "en": "No usable skills found (a SKILL.md at the root, or skills/<name>/SKILL.md)"
+    "zh": "仓库里没有可用的技能",
+    "en": "No usable skills found in the repository"
   },
   "labels.skillMarketSearchFailed": {
     "zh": "技能市场搜索失败，稍后重试",
