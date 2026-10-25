@@ -178,7 +178,7 @@ export function SkillsSettingsSection() {
       {managed && repos.length === 0 && <button className="button" type="button" onClick={() => setPage('discover')}>{t('SkillsSettingsSection.discover')}</button>}
       </div>
       <div hidden={managed && page !== 'discover'}>
-      <SettingsGroup title={tabs.length > 1 ? t('SkillsSettingsSection.addASkill') : t('SkillsSettingsSection.installFromAnotherRepository')}>
+      <SettingsGroup title={managed ? undefined : tabs.length > 1 ? t('SkillsSettingsSection.addASkill') : t('SkillsSettingsSection.installFromAnotherRepository')}>
         {tabs.length > 1 && (
           <div className="settings-skill-tabs">
             <Segmented<SkillAddTab> labelId={tabLabelId} value={active} options={tabOptions} onChange={setTab} />
