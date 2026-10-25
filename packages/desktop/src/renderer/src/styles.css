@@ -8794,6 +8794,12 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .agent-group { margin-top: 12px; }
 .agent-group-head { display: flex; align-items: center; gap: 8px; padding-bottom: 2px; }
 .agent-group-title { color: var(--text-muted); font-size: 12px; font-weight: 600; }
+summary.agent-group-head { width: fit-content; cursor: pointer; list-style: none; }
+summary.agent-group-head::-webkit-details-marker { display: none; }
+summary.agent-group-head::before { content: '▶'; color: var(--text-muted); font-size: 9px; transition: transform 0.15s; }
+details[open] > summary.agent-group-head::before { transform: rotate(90deg); }
+summary.agent-group-head:hover .agent-group-title { color: var(--text); }
+summary.agent-group-head:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-xs); }
 .agent-row-version { color: var(--text-muted); font-size: 12px; }
 .agent-row[data-off] .agent-row-head .settings-row-label { color: var(--text-muted); }
 /* Settings › 关于: Git's status, and how to install it when it is missing. */

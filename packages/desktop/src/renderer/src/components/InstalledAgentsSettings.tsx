@@ -246,8 +246,18 @@ function DetectedAgentRow({ agent }: { agent: DetectedAgent }) {
   )
 }
 
-function Group({ title, count, children }: { title: string; count: number; children: ReactNode }) {
+// folded: closed until clicked, for a group that is there to browse rather than to act on.
+function Group({ title, count, folded = false, children }: { title: string; count: number; folded?: boolean; children: ReactNode }) {
   if (count === 0) return null
+  if (folded) return (
+    <details className="agent-group">
+      <summary className="agent-group-head">
+        <span className="agent-group-title">{title}</span>
+        <span className="agent-list-count">{count}</span>
+      </summary>
+      {children}
+    </details>
+  )
   return (
     <div className="agent-group">
       <div className="agent-group-head">
@@ -311,7 +321,7 @@ export function InstalledAgentsSettings() {
           <AgentRow key={kind} kind={kind} check={check} enabled={!disabled.includes(kind)} last={enabledCount <= 1} />
         ))}
       </Group>
-      <Group title={t('InstalledAgentsSettings.availableToInstall')} count={missing.length}>
+      <Group title={t('InstalledAgentsSettings.availableToInstall')} count={missing.length} folded={found.length > 0}>
         {missing.map((kind) => <MissingAgentRow key={kind} kind={kind} installation={installationSupported ? environment?.cliInstallations?.find((each) => each.agent === kind) : undefined} />)}
       </Group>
       <Group title={t('InstalledAgentsSettings.notSupportedYet')} count={other.length}>

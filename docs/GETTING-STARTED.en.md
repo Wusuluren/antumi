@@ -9,7 +9,7 @@ Open [**Settings → Local Agents**](antumi:settings/agents) to check installati
 ![Settings → Local Agents: agents installed and signed in show Ready](assets/guide/agents-ready.en.png)
 
 - To use the agent's own account: run the sign-in command on that row in a terminal, then click **Scan again**.
-- Listed under **Available to install**: click **Install in terminal**, or run the install command yourself, then click **Scan again**.
+- Listed under **Available to install** (click to open it): click **Install in terminal**, or run the install command yourself, then click **Scan again**.
 - To use a model provider: configure a compatible provider as described below. If it is already configured in the agent itself, follow the setup check's confirmation prompt.
 
 ## Model providers
