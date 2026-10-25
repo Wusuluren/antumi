@@ -3,7 +3,9 @@ import { z } from 'zod'
 import { create } from 'zustand'
 import { BACKDROPS } from './backdrops'
 import { PALETTES } from './palettes'
+import { PetLevelPreference, PetSizePreference, PetStylePreference } from './pet-preferences'
 import { DEFAULT_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from './sidebar-width'
+import { SetupProgress } from './setup-progress'
 
 export const MIN_FILE_TREE_WIDTH = 120
 export const MAX_FILE_TREE_WIDTH = 600
@@ -21,6 +23,9 @@ const Preferences = z.object({
   palette: z.enum(PALETTES).catch('terracotta'),
   // Experimental: the gradient behind the sidebar and status bar; none keeps the flat canvas.
   backdrop: z.enum(['none', ...BACKDROPS]).catch('none'),
+  petStyle: PetStylePreference,
+  petLevel: PetLevelPreference,
+  petSize: PetSizePreference,
   terminalFontSize: z.number().int().min(10).max(20).catch(12),
   // How far apart the terminal's lines are, as a multiple of the font's own line: Geist Mono's is
   // already a third taller than its size, enough as it is.
@@ -66,6 +71,7 @@ const Preferences = z.object({
   // Set once Antumi has decided whether to show the guide at first launch, so it never comes up
   // unasked again.
   guideSeen: z.boolean().catch(false),
+  setup: SetupProgress,
   // On, the sidebar is put away and the panes take the whole window.
   sidebarHidden: z.boolean().catch(false),
   // As the user dragged it, before the cap a small window puts on it.

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AgentKind } from '@antumi/protocol'
 
 // What main knows of a newer Antumi, as the renderer shows it.
 export const UpdateState = z.object({
@@ -15,6 +16,8 @@ export const UpdateState = z.object({
   canInstall: z.boolean(),
   progress: z.number().min(0).max(1).nullable(),
   error: z.string().nullable(),
+  // With error agents-running: the daemon sessions still running, for the user to deal with.
+  blockers: z.array(z.object({ sessionId: z.string(), agent: AgentKind.optional() })),
   checkedAt: z.number().nullable(),
   prerelease: z.boolean(),
   skipped: z.string().nullable()

@@ -43,6 +43,10 @@ const BrewInfo = z.object({
   casks: z.array(z.object({ version: z.string(), installed: z.union([z.string(), z.array(z.string())]).nullable().optional() })).optional(),
   formulae: z.array(z.object({ versions: z.object({ stable: z.string().nullable() }), installed: z.array(z.unknown()) })).optional()
 })
+// The upgrade a user can paste into their own terminal; a path with spaces stays one argument.
+export function cliCommandText({ command, args }: CliCommand): string {
+  return [command, ...args].map((part) => /[\s"']/.test(part) ? `"${part}"` : part).join(' ')
+}
 export function cliVersion(text: string): string | null {
   return /\b\d{4}\.\d{2}\.\d{2}(?:-[\w.-]+)?\b/.exec(text)?.[0] ?? /\b\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?\b/.exec(text)?.[0] ?? null
 }

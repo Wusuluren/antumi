@@ -17,6 +17,7 @@ export const codex: AgentDescriptor = {
   } },
   label: 'Codex',
   cli: 'codex',
+  setup: 'account',
   modes: {
     ask: { label: '逐项确认', description: '每一步都先问你' },
     acceptEdits: { label: '自动', description: '在项目里自由修改，越界时才问' },

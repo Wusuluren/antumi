@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { agoText, chatDayAndTime, messageTime } from './labels'
+import { agoText, chatDayAndTime, messageTime, reasonText } from './labels'
+
+it('preserves skill validation and conflict details from core', () => {
+  expect(reasonText('skills-name-conflict', 'review · Claude Code：repo-a、repo-b')).toContain('repo-a、repo-b')
+  expect(reasonText('skills-none-found', 'skills/tdd：缺少 description')).toContain('缺少 description')
+})
 
 describe('messageTime', () => {
   const now = new Date(2026, 9, 3, 10, 30).getTime()

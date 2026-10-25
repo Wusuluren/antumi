@@ -12,7 +12,7 @@ import { popupWindowOptions, RequestPopup } from './request-popup'
 import { startBrowserHost, type BrowserHost } from './browser/browser-host'
 import { WindowSlot } from './browser/window-slot'
 import { installedApps, openWith, type InstalledApp } from './open-with'
-import { AppUpdater } from './app-update'
+import { AppUpdater, InstallBlocked } from './app-update'
 import { bundleOf, leftovers, stageFromDmg, swapBlocked, swapInto } from './app-bundle-swap'
 
 // The built-in browser: its tabs live here, in main, so a window closing or its renderer going
@@ -348,7 +348,12 @@ const updater = app.isPackaged || updateApi ? new AppUpdater({
 // the new version when done (--force-run).
 async function installOnWindows(installer: string): Promise<void> {
   const backend = await stopBackendForInstall()
-  if (!backend.stopped) throw new Error('agents-running')
+  if (!backend.stopped) {
+    if (backend.blockers) throw new InstallBlocked(backend.blockers)
+    // Part of it may have gone before the rest would not: bring back what is missing.
+    void ensureBackend()
+    throw new Error('backend-unresponsive')
+  }
   const child = spawn(installer, ['/S', '--updated', '--force-run'], { detached: true, stdio: 'ignore', windowsHide: true })
   try {
     await new Promise<void>((resolve, reject) => {

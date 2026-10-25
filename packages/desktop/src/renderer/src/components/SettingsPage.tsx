@@ -4,11 +4,11 @@ import type { BrowserStatus, WireUsage } from '@antumi/protocol'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { AGENT_KINDS, agentDescriptor, LANGUAGE_NAMES, PROTOCOL_VERSION, quickModel, TRANSLATE_LANGUAGES, UNATTENDED_MODES, type AgentKind, type SourceDescriptor } from '@antumi/protocol'
 import packageJson from '../../../../package.json'
-import { openGuide, perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useMcpServersSupported, useModelProvidersSupported, useSessionImportSupported, useAccountsSupported, useProjectConfigEditSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
+import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useMcpServersSupported, useModelProvidersSupported, useSessionImportSupported, useAccountsSupported, useProjectConfigEditSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
 import { DEFAULT_PREFERENCES, setPreference, usePreferences } from '../preferences'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { UNATTENDED_LABEL } from '../schedules'
-import { useInstalledAgents } from '../installed-agents'
+import { detectedAgents, useInstalledAgents } from '../installed-agents'
 import { useAgentCatalog } from '../agent-models'
 import { ChatPicker } from './ChatPicker'
 import { PluginSettings } from './PluginSettings'
@@ -61,6 +61,7 @@ import { PalettePicker } from './PalettePicker'
 import { BackdropPicker } from './BackdropPicker'
 import { useOccludesBrowser } from '../browser-occlusion'
 import { UpdateSettings } from './UpdateNotice'
+import { PetSettings } from './PetSettings'
 
 function AppearanceSettings() {
   const language = usePreferences((s) => s.language)
@@ -392,6 +393,8 @@ function AgentSettings() {
   const awake = useCore((s) => s.awake)
   const chatSettings = useCore((s) => s.chatSettings)
   const installed = useInstalledAgents()
+  // Turned off still counts: its limit holds once it is back on.
+  const found = detectedAgents(useCore((s) => s.environment))
   const running = chatSettings?.maxConcurrentAgents !== undefined || Boolean(chatSettings?.agentConcurrency) || (awakeSupported && Boolean(awake)) || Boolean(chatSettings?.unattendedMode)
   const access = chatSettings?.userBrowser !== undefined || chatSettings?.readHistory !== undefined
   return (
@@ -410,7 +413,7 @@ function AgentSettings() {
               )}
             />
           )}
-          {chatSettings?.agentConcurrency && AGENT_KINDS.map((agent) => (
+          {chatSettings?.agentConcurrency && found.map((agent) => (
             <SettingsRow
               key={agent}
               label={t('SettingsPage.concurrency', { value1: agentLabel(agent) })}
@@ -673,7 +676,6 @@ function AboutSettings() {
         )}
       />
       <GitRow />
-      <SettingsRow label={t('GuideView.guide')} control={() => <button type="button" className="button" onClick={openGuide}>{t('SettingsPage.openGuide')}</button>} />
       {shortcuts.map(([label, keys]) => (
         <SettingsRow key={label} label={label} control={() => <kbd className="settings-kbd">{keys}</kbd>} />
       ))}
@@ -702,6 +704,16 @@ const SECTIONS: readonly Section[] = localized(() => ([
     keywords: ['language', 'locale', 'English', '简体中文', '语言', t('language.interfaceLanguage'), t('SettingsPage.theme'), t('SettingsPage.light'), t('SettingsPage.dark'), t('SettingsPage.system'), t('SettingsPage.colors'), t('SettingsPage.palette'), t('SettingsPage.terminal'), t('SettingsPage.code'), t('SettingsPage.fontSize'), t('SettingsPage.font'), t('SettingsPage.lineHeight'), t('SettingsPage.prompt'), 'zsh', t('SettingsPage.chat'), t('SettingsPage.width'), t('SettingsPage.fullWidth'), t('FileSource.fold'), t('ModelBreakdown.turns'), t('SettingsPage.worked'), t('SettingsPage.chineseFont'), t('SettingsControls.resetToDefault_1523'), t('CjkFontPicker.default')],
     Icon: ContrastIcon,
     Body: AppearanceSettings,
+    grouped: true
+  },
+  {
+    id: 'pet',
+    group: t('SettingsPage.interface'),
+    title: t('Pet.title'),
+    description: t('Pet.description'),
+    keywords: ['pet', 'pets', 'mascot', 'moss', 'zip', 'clay', '宠物', '蚂蚁', '吉祥物', '毛毡', '软陶', '漫画', t('Pet.size'), t('Pet.activity')],
+    Icon: SparkIcon,
+    Body: PetSettings,
     grouped: true
   },
   {
@@ -920,8 +932,9 @@ export function SettingsPage() {
       .flatMap((section) => (section.id === 'agents' ? [section, ...(accounts ? [ACCOUNTS_SECTION] : []), ...(modelProviders ? [MODEL_PROVIDERS_SECTION] : []), ...(chatCommands ? [CHAT_COMMANDS_SECTION] : []), ...(skills ? [SKILLS_SECTION] : []), ...(mcp ? [MCP_SECTION] : []), ...(sessionImport ? [SESSION_IMPORT_SECTION] : [])] : [section]))
     return [...own, ...(plugins ? [PLUGINS_SECTION] : []), ...sourceSections(sources ?? []), ...(knowledge ? [KNOWLEDGE_SECTION] : []), ...(browser ? [BROWSER_SECTION] : []), ...(wireLog ? [DEBUG_SECTION] : []), ...about]
   }, [sources, browser, knowledge, skills, mcp, sessionImport, accounts, modelProviders, chatCommands, wireLog, plugins, getLocale()])
-  const [activeId, setActiveId] = useState(() => useCore.getState().settingsSection ?? SECTIONS[0]?.id ?? '')
+  const activeId = useCore((state) => state.settingsSection) ?? SECTIONS[0]?.id ?? ''
   const [query, setQuery] = useState('')
+  useEffect(() => { setQuery('') }, [activeId])
   const needle = query.trim().toLowerCase()
   const visible = needle ? sections.filter((section) => matches(section, needle)) : sections
   // While searching, stay on the chosen section if it still matches, else show the first match.
@@ -957,7 +970,7 @@ export function SettingsPage() {
                     type="button"
                     className="settings-nav-item"
                     aria-current={section.id === active?.id ? 'page' : undefined}
-                    onClick={() => setActiveId(section.id)}
+                    onClick={() => { useCore.setState({ settingsSection: section.id }); setQuery('') }}
                   >
                     <section.Icon />
                     {section.title}

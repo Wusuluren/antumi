@@ -18,6 +18,7 @@ export const zcode: AgentDescriptor = {
   } },
   label: 'ZCode',
   cli: 'zcode',
+  setup: 'account',
   modes: {
     ask: { label: '修改前询问', description: '每次修改文件或运行有风险的命令前先问你' },
     acceptEdits: { label: '自由编辑', description: '直接修改项目里的文件，其他操作仍会询问' },

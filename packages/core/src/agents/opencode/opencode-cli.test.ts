@@ -21,7 +21,9 @@ describe('OpenCode CLI', () => {
   it.skipIf(process.platform === 'win32')('finds it on the path and tells an old release from a ready one', async () => {
     expect(await detectOpenCode(root, process.platform)).toEqual({ status: 'missing', version: null, path: null, signedIn: null })
     executable("console.log('1.18.31')")
-    expect(await detectOpenCode(root, process.platform)).toMatchObject({ status: 'unknown', version: '1.18.31', path: path.join(root, 'opencode') })
+    expect(await detectOpenCode(root, process.platform)).toMatchObject({ status: 'unknown', version: '1.18.31', path: path.join(root, 'opencode'), problem: 'incompatible-version' })
+    executable("process.exit(1)")
+    expect(await detectOpenCode(root, process.platform)).toMatchObject({ status: 'unknown', problem: 'probe-failed' })
     executable("console.log('2.1.1')")
     expect(await detectOpenCode(root, process.platform)).toMatchObject({ status: 'ok', version: '2.1.1' })
   })

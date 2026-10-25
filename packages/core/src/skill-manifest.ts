@@ -2,8 +2,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { SkillName, type SkillEntry } from '@antumi/protocol'
 
-// Where a repository keeps its skills: the Agent Skills layout, else each top-level folder.
-const SKILLS_DIR = 'skills'
+const SKILL_ROOTS = ['skills', '.agents/skills', '.claude/skills', '.codex/skills']
 const MAX_DESCRIPTION = 1024
 
 // A repository's files as one commit holds them: on disk at the pinned commit, or out of git for
@@ -70,21 +69,65 @@ export function skillEntry(folder: string, dir: string, text: string | null): Sk
   return { ...entry, problem: null }
 }
 
-// Every skill a repository holds, as its SKILL.md files describe them, in name order.
-export async function scanSkills(source: SkillSource): Promise<SkillEntry[]> {
-  let parent = SKILLS_DIR
-  let folders = await source.folders(parent)
-  if (folders.length === 0) {
-    parent = '.'
-    folders = (await source.folders(parent)).filter((folder) => !folder.startsWith('.') && folder !== 'node_modules')
-  }
-  const entries = await Promise.all(folders.map(async (folder) => {
+// A repository that is one skill: its folder is named after the repository, not the skill, so the
+// name comes from the frontmatter alone.
+export function rootSkillEntry(text: string): SkillEntry {
+  const fields = parseSkillFrontmatter(text)
+  const name = fields?.name ?? ''
+  const valid = SkillName.safeParse(name).success
+  const entry = { name: valid ? name : name.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'skill', description: fields?.description ?? '', dir: '.' }
+  if (!fields) return { ...entry, problem: 'SKILL.md 没有 frontmatter' }
+  if (!name) return { ...entry, problem: '缺少 name' }
+  if (!valid) return { ...entry, problem: 'name 只能用小写字母、数字和连字符' }
+  if (!entry.description) return { ...entry, problem: '缺少 description' }
+  if (entry.description.length > MAX_DESCRIPTION) return { ...entry, problem: `description 超过 ${MAX_DESCRIPTION} 字符` }
+  return { ...entry, problem: null }
+}
+
+// Stop at a skill's boundary: its examples and references belong to it, not to the catalog.
+async function skillsUnder(source: SkillSource, parent: string): Promise<SkillEntry[]> {
+  const entries: SkillEntry[] = []
+  const folders = (await source.folders(parent)).filter((folder) => !folder.startsWith('.') && folder !== 'node_modules' && folder !== 'vendor').sort()
+  for (const folder of folders) {
     const dir = parent === '.' ? folder : `${parent}/${folder}`
     const text = await source.read(`${dir}/SKILL.md`)
-    // A folder without a SKILL.md at the root is not a skill, only a folder.
-    return parent === '.' && text === null ? null : skillEntry(folder, dir, text)
-  }))
-  return entries.filter((entry) => entry !== null).sort((a, b) => a.name.localeCompare(b.name))
+    if (text !== null) entries.push(skillEntry(folder, dir, text))
+    else entries.push(...await skillsUnder(source, dir))
+  }
+  return entries
+}
+
+// Resolve collection roots through directory listings too, so hidden roots cannot follow links.
+async function hasFolder(source: SkillSource, dir: string): Promise<boolean> {
+  const slash = dir.lastIndexOf('/')
+  const parent = slash < 0 ? '.' : dir.slice(0, slash)
+  return (parent === '.' || await hasFolder(source, parent)) && (await source.folders(parent)).includes(dir.slice(slash + 1))
+}
+
+// Prefer a conventional skill collection over a root overview or other repository files.
+export async function scanSkills(source: SkillSource): Promise<SkillEntry[]> {
+  let entries: SkillEntry[] = []
+  for (const parent of SKILL_ROOTS) {
+    if (!await hasFolder(source, parent)) continue
+    entries = await skillsUnder(source, parent)
+    if (entries.length > 0) break
+  }
+  if (entries.length === 0) {
+    const root = await source.read('SKILL.md')
+    if (root !== null) return [rootSkillEntry(root)]
+    entries = await skillsUnder(source, '.')
+  }
+  const pathsByName = new Map<string, string[]>()
+  for (const entry of entries) {
+    if (entry.problem !== null) continue
+    const paths = pathsByName.get(entry.name) ?? []
+    paths.push(entry.dir)
+    pathsByName.set(entry.name, paths)
+  }
+  return entries.map((entry) => {
+    const paths = pathsByName.get(entry.name) ?? []
+    return entry.problem === null && paths.length > 1 ? { ...entry, problem: `技能名重复：${paths.join('、')}` } : entry
+  }).sort((a, b) => a.name.localeCompare(b.name) || a.dir.localeCompare(b.dir))
 }
 
 // What a plugin manifest names the repository, where it has one.

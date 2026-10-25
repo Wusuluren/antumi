@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
 import { UpdateState } from '../../shared/app-update'
+import { releaseIdleChats } from './core-store'
 
 // What main last said of a newer Antumi; null outside Electron, or in a dev build that does not look.
 export const useUpdate = create<{ state: UpdateState | null }>()(() => ({ state: null }))
@@ -25,7 +26,10 @@ export function checkForUpdate(): void {
 }
 
 export function installUpdate(): void {
-  void window.antumi?.installUpdate?.().catch(() => {})
+  void (async () => {
+    if (window.antumi?.platform === 'win32') await releaseIdleChats().catch(() => {})
+    await window.antumi?.installUpdate?.()
+  })().catch(() => {})
 }
 
 export function skipUpdate(version: string | null): void {

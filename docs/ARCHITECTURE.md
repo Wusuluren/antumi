@@ -179,7 +179,7 @@ Merge 前先提交或暂存改动。有冲突时，分支页列出文件，可�
 ### 环境检查
 
 
-core 启动后会在自己的 PATH 里找 `git`、`claude`、`codex` 和 Cursor CLI（`cursor-agent` 或确认属于 Cursor 的 `agent`），问一下版本，再检查登录状态。Claude Code 和 Codex 只读本机凭据；Cursor 使用 CLI 的 `about --format json`。找不到 Git、支持的 Agent 一个都没装或都没登录时，左侧列表上方会有一条红色提醒：Agent 的问题点开是 设置 → 本机 Agent，Git 的问题点开是 设置 → 关于。「本机 Agent」里所有 Agent 都在一处，分三组：「已安装」的每个显示版本（悬停看路径）、登没登录和启用开关，没登录的给出登录命令；「可安装」是 Antumi 能运行但这台电脑没装的，变灰并给出安装命令；「暂未支持」见下段。命令都可以直接复制，装好或登录后点「重新检测」。「关于」里的 Git 一行显示版本和路径，没装时给出安装命令。只装一个 Agent 不算问题：新建任务和新会话只列出装了的，默认选最近一次新建任务或会话时选的 Agent（小助手、任务聊天、群聊和小队成员、定时运行不算），它不在时只装一个就用那一个，否则留空；没装的不能移交过去；已有任务选的 Agent 不在时仍然显示，标为「未安装」。「本机 Agent」底部可以展开 core 找命令用的目录：装在别处的，把它所在的目录加进登录 shell 的 PATH，再重启 Antumi（打包的 App 启动 core 时用的就是登录 shell 的 PATH）。Windows 上 npm、pnpm 装的 CLI 是 `.cmd` 垫片，core 读出它要运行的程序再问版本（见下文「Windows」）；认不出的垫片只能看到装没装。
+core 启动后会在自己的 PATH 里找 `git`、`claude`、`codex` 和 Cursor CLI（`cursor-agent` 或确认属于 Cursor 的 `agent`），问一下版本，再检查登录状态。Claude Code 和 Codex 只读本机凭据；Cursor 使用 CLI 的 `about --format json`。找不到 Git、支持的 Agent 一个都没装或都没登录时，左侧列表上方会有一条红色提醒：Agent 的问题点开是 设置 → 本机 Agent，Git 的问题点开是 设置 → 关于。「本机 Agent」里所有 Agent 都在一处，分三组：「已安装」的每个显示版本、状态和启用开关：已登录的是「已就绪」，没登录的是「需登录」并给出登录命令，问不了版本的是「需检查」，登录状态不明的不显示状态；安装来源、路径和更新检查收在「详情」里；「可安装」是 Antumi 能运行但这台电脑没装的，已经装了某个 Agent 时默认折叠（一个都没装时展开，那正是要做的事），展开后变灰并给出安装命令，能一键「在终端安装」的把命令收进「详情」；Antumi 自己下载运行时的（Antigravity）按 descriptor 的 `environment.missing` 说明要下载什么，不说成装 CLI；「暂未支持」见下段。命令都可以直接复制，装好或登录后点「重新检测」。「关于」里的 Git 一行显示版本和路径，没装时给出安装命令。只装一个 Agent 不算问题：新建任务和新会话只列出装了的，默认选最近一次新建任务或会话时选的 Agent（小助手、任务聊天、群聊和小队成员、定时运行不算），它不在时只装一个就用那一个，否则留空；没装的不能移交过去；已有任务选的 Agent 不在时仍然显示，标为「未安装」。「本机 Agent」底部可以展开 core 找命令用的目录：装在别处的，把它所在的目录加进登录 shell 的 PATH，再重启 Antumi（打包的 App 启动 core 时用的就是登录 shell 的 PATH）。Windows 上 npm、pnpm 装的 CLI 是 `.cmd` 垫片，core 读出它要运行的程序再问版本（见下文「Windows」）；认不出的垫片只能看到装没装。
 
 设置 → 本机 Agent里的「暂未支持」显示 Antumi 认识、但尚未接入聊天的 Agent：从 core 当前的 PATH 查找已知 CLI，并在 macOS 的 `/Applications` 和 `~/Applications` 查找已知应用。Cursor 已支持聊天，应用和 CLI 会合并进「已安装」或「可安装」的一项；只安装编辑器仍需另外安装 CLI。找到 CLI 后会限时执行 `--version`，分别显示命令已响应、版本检测失败或 Windows 命令垫片认不出、无法直接验证；这不检查登录，也不代表 Antumi 已支持该 CLI 的聊天协议。每 5 分钟自动复查，也能手动「重新检测」；新增 PATH 目录仍需重启 Antumi，才能让 core 和 daemon 都用到它。未接入的 Agent 标为「暂未支持」，不能选来运行任务或会话。尚未接入的产品在 `packages/core/src/environment-check.ts` 的发现清单里登记可辨认的命令或应用名；已接入的 Agent 由它的 adapter 声明（见「新增 Agent」）。
 
@@ -372,11 +372,19 @@ Antigravity 也只是一份 dialect（`agents/antigravity/`）：`agy` 本身不
 
 ZCode 不说 ACP，有自己的 driver（`agents/zcode/zcode-app-server.ts`），讲它桌面端用的 ZCode Protocol：命令走 `v4/command`，会话内容是订阅来的快照加行增量，审批和提问是 ZCode 发来的请求。协议没有公开的 schema，`zcode-schema.ts` 只宽松地写用到的部分。细节见 [ZCode](ZCODE.md)。
 
+### 首次使用环境引导
+
+desktop 在首次连接且环境、供应商和任务来源数据到齐后启动检查，不再自动打开整篇指导。引导只检查一个 Agent 的安装和可用条件，再询问是否配置任务来源，不创建会话、不发送模型请求。`agent-readiness.ts`（protocol）统一供引导和本机 Agent 设置页使用：先看启用、安装及兼容性，再看原生登录或兼容且有密钥的供应商。供应商已配置与连接测试成功是两件事，测试结果按配置 revision 保留在 renderer，编辑后旧结果不再使用；已知测试失败会展示原因并留在 Agent 配置步骤，原生账号或其他供应商可用时仍可继续，不强制发起测试。侧栏环境提示也识别供应商配置，避免误报未登录。descriptor 的 `setup` 声明原生账号、原生供应商或首次使用授权，客户端不按 Agent 名称判断。core 在环境检查中可选返回 `problem`，区分 `incompatible-version` 与 `probe-failed`；旧 core 未说明的原因保持未知。
+
+`setup-progress.ts` 计算当前步骤，本机偏好保存状态、所选 Agent、原生配置确认和任务来源选择。原生配置未知时用户可自行确认；确认按 Agent、实际路径和版本绑定，不改写检测事实，不能越过已知未登录、检测失败或版本不兼容。首次使用才授权的 Agent 可以明确推迟授权，不为此创建会话。已看过旧指导或已有任务、会话的用户不会自动触发，完成或主动退出后也不会自动重弹，可从左下角帮助 → 检查使用环境手动继续。任务来源凭证及必填设置保存后即可完成，是否启用同步、同步成功和导入任务不属于完成条件。
+
+宠物引导在工作区下方预留固定区域，进入设置仍可见，输入、弹层和终端保持原有交互；开启引导时暂停普通宠物，关闭宠物则只显示文字和按钮。设置页导航读取 store 中的目标，支持引导在设置已打开时切换到正确章节。左下角齿轮旁的帮助菜单提供「使用指南」和「检查使用环境」；关于页只保留版本及产品信息。使用指南是静态配置与功能查阅，不读取完成状态、不创建会话。阅读时暂时隐藏宠物引导并保留进度，离开文档后恢复；从帮助启动环境检查会关闭文档。技巧的场景提示独立于首次引导。
+
 ### Agent CLI 版本与升级
 
-设置 → 任务 → 已安装的 Agent 打开时调用 `system.agentCliStatus`，按需查询版本；成功缓存一小时，失败五分钟，手动检查绕过缓存。不做启动通知或自动升级。`agent-cli-maintenance` feature 区分新旧 core，daemon 的 `info.features` 单独声明升级能力；旧 daemon 保留版本检查，只禁用升级。
+设置 → 任务 → 已安装的 Agent 打开时调用 `system.agentCliStatus`，按需查询版本；成功缓存一小时，失败五分钟，手动检查绕过缓存。不做启动通知或自动升级。`agent-cli-maintenance` feature 区分新旧 core，daemon 的 `info.features` 单独声明升级能力；旧 daemon 保留版本检查，只禁用升级，设置页在列表顶部提示一次，不逐项重复。有新版本时才在 Agent 一行显示「升级」；升级进度、失败原因、挡住升级的会话和输出入口在行内，其余收在「详情」。
 
-安装与更新事实属于各 Agent adapter 的 `maintenance`。core 的 `agent-cli-target.ts` 从环境检测选中的实际路径开始，验证包管理器的全局包名、bin 与真实路径，或 Homebrew 的安装前缀与安装记录；不按路径里出现 `homebrew` 就判断来源。npm/pnpm/bun 使用原管理器，Homebrew 使用原 formula/cask，已确认的原生安装必须在 help 中声明自更新子命令。应用内置、项目本地和归属不明的 CLI 只给手动指引。Cursor 的日期版本保留完整构建标识，同一天不同 hash 不推断先后；没有最新版本接口时显示由 CLI 检查，查询失败不显示「已是最新」。默认查询稳定版本，拒绝降级。
+安装与更新事实属于各 Agent adapter 的 `maintenance`。core 的 `agent-cli-target.ts` 从环境检测选中的实际路径开始，验证包管理器的全局包名、bin 与真实路径，或 Homebrew 的安装前缀与安装记录；不按路径里出现 `homebrew` 就判断来源。npm/pnpm/bun 使用原管理器，Homebrew 使用原 formula/cask，已确认的原生安装必须在 help 中声明自更新子命令。应用内置、项目本地和归属不明的 CLI 只给手动指引。确认了来源的，状态里带上可复制的终端升级命令（`upgradeCommand`，就是应用内升级会运行的那条）；不按 Agent 猜一条通用命令，免得装出第二份、PATH 仍指向旧的。Cursor 的日期版本保留完整构建标识，同一天不同 hash 不推断先后；没有最新版本接口时显示由 CLI 检查，查询失败不显示「已是最新」。默认查询稳定版本，拒绝降级。
 
 `AgentCliMaintenance` 在 core 管理查询、全局串行升级、结果复核和 `agent_cli_operations` 中的操作记录。`AgentCliAccess` 协调 core 内的检测、模型探测、临时调用、登录和退出；daemon 会话附带可选 `agent`，`spawnCliUpgrade` 原子检查目标 Agent 的存活进程（包括空闲驻留会话）并启动升级 PTY。升级会话带 `upgradeId`，其存活期间 daemon 拒绝同种 Agent 启动；其他 Agent 和普通终端照常运行。无法归属的旧 pipe 会话保守阻止升级。不扫描外部终端中的 CLI，不主动结束现有会话。
 
@@ -396,9 +404,15 @@ ZCode 不说 ACP，有自己的 driver（`agents/zcode/zcode-app-server.ts`）�
 
 ### 技能库
 
-设置 → 任务 → 技能 管理 Agent Skills（`SKILL.md` 目录）。core 从 https 地址 `git clone` 到 `~/.antumi/skills/repos/<id>/`，固定在安装时的提交（detached HEAD），把扫描到的技能写进 `skills.json`；「检查更新」只 fetch 并从 git 对象里读新版本的技能列表，用户确认后才移动 pin，并记住上一个提交供回退。不改用户自己的 `~/.claude`、`~/.codex`。
+设置 → 任务 → 技能 管理 Agent Skills（`SKILL.md` 目录）。core 从 https 地址 `git clone` 到 `~/.antumi/skills/repos/<id>/`，固定在安装时的提交（detached HEAD），把扫描到的技能写进 `skills.json`。依次递归扫描 `skills/`、`.agents/skills/`、`.claude/skills/`、`.codex/skills/`，取第一个包含 `SKILL.md` 的集合，支持 `skills/<分类>/<名字>/SKILL.md` 等多层布局；都没有再看根目录的 `SKILL.md`，整个仓库是一个技能，名字取 frontmatter 的 `name`（目录是仓库名，对不上也不算错）；仍没有就递归扫描仓库的其他子目录，兼容插件里的技能。遇到 `SKILL.md` 后不再扫描该技能内部的示例等文件，跳过隐藏目录、`node_modules`、`vendor` 和目录软链接，普通分类目录不列为缺失技能。同一集合中重名的技能标为不可用；没有可用技能时 core 返回具体的校验错误。「检查更新」只 fetch 并从 git 对象里读新版本的技能列表，使用同一套扫描规则；用户确认后才移动 pin，并记住上一个提交供回退。不改用户自己的 `~/.claude`、`~/.codex`。
 
-交给 Agent 的是**bundle**（`bundles/<key>/`）：按需要的技能从各仓库复制出来（只复制 `skills/<名字>/`，跳过软链接，限 32 MiB），同时写成 Claude Code 插件（`.claude-plugin/plugin.json` + `skills/`）和 `.agents/skills/` 两种布局；`key` 是技能及其提交的哈希，同样的选择得到同一个目录，提示词缓存得以保温，更新或回退后自然换新目录。descriptor 的 `capabilities.skills` 说明这个 Agent 能否接收 bundle，adapter 决定怎么交（`AgentLaunch.skills`）：Claude Code 用 `--plugin-dir`，Cursor 用 `--add-dir`，OpenCode 写进 `OPENCODE_CONFIG_CONTENT` 的 `skills`，Pi 用 `--skill`；Codex 只读固定目录，暂不支持。第一版的选择是全局的：Obsidian 知识库允许写入时，交出推荐仓库 kepano/obsidian-skills 里的 `obsidian-markdown`（见 `skills-recommended.ts`）；Markdown 文件夹不自动加载该技能。bundle 建不出来只记进 wire log，不阻止 Agent 启动。
+推荐列表是 core 里写死的一小份（`skills-recommended.ts`），不是市场。除此之外，「搜索技能市场」查开放索引 [skills.sh](https://skills.sh) 的公开 `/api/search`（feature `skills-search`，由 core 出网，无需密钥；`/api/v1` 的排行榜要 token，不用）。registry 一条记录是某个仓库里的一个技能，core 按仓库（GitHub `owner/repo`）归并成一行并校验是干净的 `owner/repo`（`skills-search.ts`）；安装走的还是上面的 `git clone` 整仓库、固定提交那条路，所以命中的是技能所在的仓库，不是单个技能。GitHub 仓库的大小写、`.git` 后缀和尾斜杠统一成同一个身份，其他 Git 服务器保留原地址语义；core 安装去重、推荐和搜索的已安装状态共用 `skillRepositoryUrl`。页面分为「已安装」和「发现技能」，发现页里的推荐、搜索和填地址安装用标签切换；推荐中的已安装仓库保留并显示管理入口。
+
+启用策略（feature `skills-activation`）存在每个仓库可选的 `activation` 字段，由 `skills.setActivation` 修改：`mode: all | selected` 决定全部启用还是自选 `skills`；`agents: null` 表示全部兼容 Agent，自动覆盖以后新增的技能兼容 Agent，数组则只包含指定的 Agent。新安装默认自选空列表、适用全部兼容 Agent，安装后打开启用设置；自选与指定 Agent 都有全选和清空。支持情况来自 descriptor。保存前 core 与界面都检查技能名和 Agent 范围的交集，同一 Agent 中重名的来源不能同时启用，界面可跳转管理冲突来源。旧锁缺少 `activation` 时继续由可写 Obsidian 知识库选择 `obsidian-markdown`；一旦显式保存就以用户设置为准，清空选择可关闭这一旧行为。
+
+检查更新跟随远端当前的默认 HEAD，从提交对象读新列表，预览新增、移除和修改（包含技能目录里的脚本、参考文件变化）。更新先检查目标版本是否可用以及是否引入重名；已启用技能被移除或失效时需要显式确认。自选模式保留仍可用的选择，新增默认关闭；全部启用模式在用户确认更新后包含新增技能。切换或保存失败会恢复原 checkout，重启时以锁文件里的提交恢复，回退时也恢复上一次启用策略。运行中的 Agent 保留原 bundle，配置变化在下次启动生效。
+
+交给 Agent 的是**bundle**（`bundles/<key>/`）：`SkillsLibrary.bundleForAgent` 按仓库策略、兼容能力和目标 Agent 选技能，再复制技能自己的目录（仓库本身是技能时就是整个仓库；跳过软链接和 `.git`，限 32 MiB），同时写成 Claude Code 插件（`.claude-plugin/plugin.json` + `skills/`）和 `.agents/skills/` 两种布局；`key` 是技能及其提交的哈希，同样的选择得到同一个目录，提示词缓存得以保温，更新或回退后自然换新目录。descriptor 的 `capabilities.skills` 说明这个 Agent 能否接收 bundle，adapter 决定怎么交（`AgentLaunch.skills`）：Claude Code 用 `--plugin-dir`，Cursor 用 `--add-dir`，OpenCode 写进 `OPENCODE_CONFIG_CONTENT` 的 `skills`，Pi 用 `--skill`，DeepSeek Harness 写入运行配置；Codex、Antigravity 暂不支持。损坏或手动修改的锁若含重名，启动时跳过冲突名并记日志，仍加载其他技能；bundle 建不出来只记进 wire log，不阻止 Agent 启动。
 
 ### 用户的 MCP 服务器
 
@@ -578,11 +592,13 @@ pnpm dist:win     # 产物在 packages/desktop/dist/Antumi-Setup-<版本>-x64.ex
 
 ### 应用更新
 
-主进程的 `AppUpdater`（`desktop/src/main/app-update.ts`）在启动 10 秒后、之后每 6 小时，向 GitHub 的 Releases 接口要最近 20 个版本，挑出比当前高的最新正式版（用户在 设置 → 关于 打开「接收测试版」时也算预发布），把结果推给窗口：状态栏出现「新版本」，设置里显示状态、手动检查和跳过。跳过的版本和测试版开关存在 userData 的 `update.json`。只有打包的 App 会去查；`ANTUMI_UPDATE_API` 可以把它指向一个模仿 GitHub 接口的本地服务，用来手动试一次更新。
+core 是 Node 进程，Node 的 `fetch` 不读系统代理：VPN 以系统代理方式工作时，浏览器和 App 更新（Chromium 网络栈）能连上 GitHub，core 直连却超时。所以 core 启动时装一个全局 undici dispatcher（`system-proxy.ts`）：有 `HTTPS_PROXY`/`HTTP_PROXY`（含 `NO_PROXY`）就用它们，否则 Windows 读注册表里的 Internet Settings（`ProxyEnable`、`ProxyServer`、`ProxyOverride`），macOS 读 `scutil --proxy`；每 30 秒重读一次，开关 VPN 不用重启。回环地址和系统列出的例外直连，只有 SOCKS 或 PAC 脚本的设置不支持，按直连处理。这只影响 core 自己的请求（插件、宠物、版本查询、服务商、MCP over HTTP 等），不改 Agent 的环境变量。请求失败时（`network-failure.ts`）不再只报 Node 的「fetch failed」，而是说出地址、是否经代理、原因（超时、被中断、证书校验失败等）和可以试什么；宠物下载失败时设置页把这句原样显示出来。插件和宠物解压到临时目录后改名到位，Windows 上杀毒软件扫描刚写入的文件时会让改名短暂报 EPERM/EBUSY，所以那里最多重试 10 秒（`patient-rename.ts`），别的平台不重试。
+
+主进程的 `AppUpdater`（`desktop/src/main/app-update.ts`）在启动 10 秒后、之后每 6 小时，向 GitHub 的 Releases 接口要最近 20 个版本，挑出比当前高的最新正式版（用户在 设置 → 关于 打开「接收测试版」时也算预发布），把结果推给窗口：状态栏出现「新版本」，设置里显示状态、手动检查和跳过。跳过的版本和测试版开关存在 userData 的 `update.json`。只有打包的 App 会去查；`ANTUMI_UPDATE_API` 可以把它指向一个模仿 GitHub 接口的本地服务，用来手动试一次更新。不登录的接口每个出口 IP 每小时只有 60 次，多人共用的 VPN 很快用完，返回 403 或 429；这时改读 `github.com/<仓库>/releases.atom`（不计入这个额度），按标签挑版本（带 `-` 的算预发布），再从该版本的 `SHA256SUMS` 得到安装包和摘要，照常校验。早于这个文件的版本，或拿不到它时，只给发布页，不运行没校验过的安装包。走订阅时没有更新说明。Chromium 的网络错误（`net::ERR_…`）在界面上统一说成连不上 GitHub。
 
 macOS 上没有 Developer ID，Squirrel 式的自动更新用不了（它要求新旧版本同一张证书），所以 App 自己换自己（`app-bundle-swap.ts`）：用 Chromium 的网络栈（走系统代理）下载 dmg，按 Release 资产的大小和 `sha256` digest 校验，挂载后确认 `CFBundleIdentifier` 和版本号对得上，`ditto` 到 App 旁边的 `.Antumi-update.app`，去掉隔离属性并 `codesign --verify`，再两次 `rename` 把旧版挪成 `.Antumi-previous-<时间>.app`、新版放到原位（第二步失败会把旧版挪回去），然后重启。新版本启动后把这些留下的副本移到废纸篓。下载由 App 自己写入，不带隔离属性，所以新版本和旧版本一样直接打开。daemon 和 core 不随 App 退出，正在跑的 Agent 不受影响，新版启动时按 `backend.ts` 的规则接管 core。从 dmg 里直接运行、被 Gatekeeper 搬到 AppTranslocation、或所在文件夹不可写时不能换，界面改为给出安装包下载链接和手动步骤。
 
-Windows 不让覆盖正在运行的 exe，而 daemon 和 core 就是安装目录里的 `Antumi.exe`（`ELECTRON_RUN_AS_NODE`），NSIS 安装程序还会 `taskkill` 掉当前用户所有的 `Antumi.exe`。所以安装前先请 daemon 退出（`retire`，它只在没有 Agent 和终端在跑时才同意），再让 core 退出（`stopBackendForInstall`）；有东西在跑就不装，报「还有 Agent 或终端在运行」，下载好的安装包留着，重试不再下载。之后用 `/S --updated --force-run` 静默运行安装程序：装进注册表里记下的原安装位置，跳过向导，装完启动新版本。只有 NSIS 装的 App（旁边有 `Uninstall Antumi.exe`）才这样更新，别的情况给下载链接。
+Windows 不让覆盖正在运行的 exe，而 daemon 和 core 就是安装目录里的 `Antumi.exe`（`ELECTRON_RUN_AS_NODE`），NSIS 安装程序还会 `taskkill` 掉当前用户所有的 `Antumi.exe`。所以安装前，界面先请 core 立刻收掉空闲待命的聊天 Agent（`conversations.releaseIdle`，和空闲 30 分钟后收掉一样，下一条消息在同一会话上接上；回合中、等用户回答、后台还有命令或子 Agent 的不算空闲），再请 daemon 退出（`retire`），然后让 core 退出（`stopBackendForInstall`）。daemon 只在没有活着的会话时同意，同意后立即拒绝新的启动（`daemon-retiring`），不会在回答和退出之间起新进程；不同意时返回仍活着的会话，界面按终端标签和会话列出来，可以打开，终端标签可以直接关掉，认不出的写成 Agent 的临时进程或无法识别的进程。开着的终端标签即使没在跑命令也算活着：shell 内部也能跑工作（如 PowerShell 的 cmdlet、线程任务），进程树证明不了它空闲，所以由用户关，不自动结束。有东西在跑就不装，下载好的安装包留着，重试不再下载。daemon 和 core 都要看到进程确实退出（daemon 的 pid 来自 `info`，用 `process.kill(pid, 0)` 得到 ESRCH 为准）才运行安装程序；连接超时之类说明不了什么，算作没停，报「后台没有按时退出」，并把已停掉的部分重新拉起。之后用 `/S --updated --force-run` 静默运行安装程序：装进注册表里记下的原安装位置，跳过向导，装完启动新版本。只有 NSIS 装的 App（旁边有 `Uninstall Antumi.exe`）才这样更新，别的情况给下载链接。
 
 ### 自动发布
 

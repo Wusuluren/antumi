@@ -1348,12 +1348,20 @@ export class ConversationService {
   }
 
   // An idle chat agent goes after a while, so the ones open all day do not pile up; the next
-  // message starts it again on the same session.
-  async releaseIdle(now = Date.now()): Promise<void> {
+  // message starts it again on the same session. Idle means the agent says so: a turn, a question
+  // for the user or a command left running in the background keeps it.
+  async releaseIdle(now = Date.now()): Promise<number> {
+    let released = 0
     for (const id of this.chats.idleSince(now - CHAT_IDLE_MS)) {
       if (this.launching.has(id)) continue
-      await this.stop(id).catch((error: unknown) => console.error('[antumi-core] releasing an idle chat agent failed', error))
+      try {
+        await this.stop(id)
+        released++
+      } catch (error) {
+        console.error('[antumi-core] releasing an idle chat agent failed', error)
+      }
     }
+    return released
   }
 
   // The mode the stage runs in, however it got there: a plan approved to carry out with edits

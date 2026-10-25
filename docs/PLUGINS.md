@@ -6,7 +6,7 @@
 
 ## 使用
 
-「设置 → 插件」的推荐列表包含 GitHub、Jira、Linear 和禅道，只保存独立 GitHub 仓库的信息。点击安装时，core 下载对应仓库最新正式 Release 的 ZIP；启动、查看列表和构建应用都不会下载或安装来源插件。也可以安装本地目录、ZIP 或 GitHub Release。目录和 ZIP 的根目录必须有 `manifest.json`；目录安装会复制文件，后续修改开发目录不会改变已安装版本。GitHub 输入 `owner/repository`，可指定 Release 标签和 ZIP 附件名；未指定标签时使用最新正式 Release，多个 ZIP 时必须指定附件。
+「设置 → 插件」的推荐列表包含 GitHub、Jira、Linear 和禅道，只保存独立 GitHub 仓库的信息。点击安装时，core 下载对应仓库最新正式 Release 的 ZIP；启动、查看列表和构建应用都不会下载或安装来源插件。也可以安装本地目录、ZIP 或 GitHub Release。目录和 ZIP 的根目录必须有 `manifest.json`；目录安装会复制文件，后续修改开发目录不会改变已安装版本。GitHub 输入 `owner/repository`，可指定 Release 标签和 ZIP 附件名；未指定标签时使用最新正式 Release，多个 ZIP 时必须指定附件。查 Release 先用 GitHub 接口；接口因同一出口 IP 请求过多拒绝（403、429，多人共用的 VPN 常见）时，改从仓库的发布页读标签（`releases/latest` 的跳转）和附件列表（`releases/expanded_assets/<标签>`），下载地址同样只接受该仓库的 `releases/download/`。
 
 安装文件放在 `ANTUMI_HOME/plugins/<id>/<version>/`（默认 `~/.antumi/plugins/`）。`active.json` 原子记录启用状态、当前版本、安装来源和来源 ID 归属。版本目录不覆盖；重新开发需要增加版本号。手动更新使用原安装来源，GitHub 更新检查最新正式 Release；不兼容版本拒绝安装。界面可以切换到保留的旧版。
 

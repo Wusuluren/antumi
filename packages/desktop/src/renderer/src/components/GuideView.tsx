@@ -1,23 +1,8 @@
-import { useEffect } from 'react'
-import Markdown, { type Components } from 'react-markdown'
-import { openGuide, openOverview, useCore } from '../core-store'
-import { guideFor, guideImage } from '../guide-page'
+import Markdown, { defaultUrlTransform, type Components } from 'react-markdown'
+import { openOverview, setSettingsOpen } from '../core-store'
+import { guideFor, guideImage, guideSettingsSection } from '../guide-page'
 import { t, useLocale } from '../i18n'
 import { remarkPlugins } from '../markdown-syntax'
-import { setPreference, usePreferences } from '../preferences'
-import { newConversation } from './ConversationActions'
-
-// Shown once, over the overview, to someone who has nothing in Antumi yet. Whoever already has
-// work there is taken to know their way, and is never shown it unasked.
-export function useFirstRunGuide(): void {
-  const connected = useCore((s) => s.connection === 'connected')
-  useEffect(() => {
-    if (!connected || usePreferences.getState().guideSeen) return
-    setPreference('guideSeen', true)
-    const s = useCore.getState()
-    if (s.overviewOpen && Object.keys(s.tasks).length === 0 && Object.keys(s.conversations).length === 0) openGuide()
-  }, [connected])
-}
 
 // The guide is the app's own text: its images are bundled with it, its links go to the web.
 const components: Components = {
@@ -26,7 +11,16 @@ const components: Components = {
     // Taken at twice their size: shown at half their pixels, they read as the app does.
     return url ? <img src={url} alt={alt ?? ''} onLoad={(event) => { event.currentTarget.style.width = `${event.currentTarget.naturalWidth / 2}px` }} /> : null
   },
-  a: ({ node: _node, href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>
+  a: ({ node: _node, href, children }) => {
+    const section = href ? guideSettingsSection(href) : null
+    if (section) return <a href={href} onClick={(event) => { event.preventDefault(); setSettingsOpen(true, section) }}>{children}</a>
+    return <a href={href} target="_blank" rel="noreferrer">{children}</a>
+  }
+}
+
+// Markdown drops a link it does not know the scheme of; the guide's own settings links stay.
+function urlTransform(url: string): string {
+  return guideSettingsSection(url) ? url : defaultUrlTransform(url)
 }
 
 export function GuideView() {
@@ -39,9 +33,10 @@ export function GuideView() {
           <h2>{title}</h2>
         </div>
         <button type="button" className="button" onClick={openOverview}>{t('GuideView.backToOverview')}</button>
-        <button type="button" className="button primary" onClick={() => newConversation()}>{t('GuideView.startFirstConversation')}</button>
       </header>
-      <div className="chat-markdown guide-markdown"><Markdown remarkPlugins={remarkPlugins} components={components}>{body}</Markdown></div>
+      <div className="chat-markdown guide-markdown">
+        <Markdown remarkPlugins={remarkPlugins} components={components} urlTransform={urlTransform}>{body}</Markdown>
+      </div>
     </section>
   )
 }

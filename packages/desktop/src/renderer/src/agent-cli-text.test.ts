@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { initialAgentCliStatus } from '@antumi/protocol'
-import { cliErrorText, cliStatusText } from './agent-cli-text'
+import { cliChannelText, cliErrorText, cliStatusText } from './agent-cli-text'
 import { setLocale } from './i18n'
 
 afterEach(() => setLocale('zh-CN'))
@@ -20,5 +20,14 @@ describe('CLI maintenance copy', () => {
       expect(cliStatusText(initial)).not.toBe(cliStatusText({ ...initial, availability: 'current' }))
       expect(cliErrorText('agent-cli-active')).not.toBe(cliErrorText('agent-cli-network'))
     }
+  })
+
+  it('names installation channels and leaves an unproven one unnamed', () => {
+    expect(cliChannelText('native')).toBe('官方安装')
+    expect(cliChannelText('npm')).toBe('npm 全局安装')
+    expect(cliChannelText('desktop')).toBe('桌面应用内置')
+    expect(cliChannelText('unknown')).toBeNull()
+    setLocale('en')
+    expect(cliChannelText('native')).toBe('Official installer')
   })
 })

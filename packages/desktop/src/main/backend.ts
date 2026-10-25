@@ -5,8 +5,8 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { app } from 'electron'
 import { z } from 'zod'
-import { AGENT_KINDS, agentDescriptor, type CoreEndpoint } from '@antumi/protocol'
-import { antumiPaths, readCoreEndpoint } from '@antumi/protocol/node'
+import { AGENT_KINDS, agentDescriptor, type AgentKind, type CoreEndpoint } from '@antumi/protocol'
+import { antumiPaths, daemonSchemas, readCoreEndpoint } from '@antumi/protocol/node'
 
 // Where CLIs land that a Finder-launched app's minimal PATH misses.
 const EXTRA_PATH_DIRS = ['/opt/homebrew/bin', '/usr/local/bin', join(homedir(), '.local/bin')]
@@ -121,32 +121,82 @@ async function retireOldDaemon(): Promise<boolean> {
 
 // Asks an older core to leave, and waits for it to: it closes its server and removes its endpoint
 // file on SIGTERM. Sessions live in the daemon, so the agents it served run on; the new core takes
-// them up again.
-async function retireCore(endpoint: CoreEndpoint): Promise<void> {
+// them up again. True once its process is gone.
+async function retireCore(endpoint: CoreEndpoint): Promise<boolean> {
   console.log(`[antumi] core ${endpoint.version ?? '(unversioned)'} is older than this app (${app.getVersion()}); replacing it`)
   try {
     process.kill(endpoint.pid, 'SIGTERM')
   } catch {
-    return
+    return !alive(endpoint.pid)
   }
-  const until = Date.now() + 10_000
-  while (Date.now() < until && (await reachable(endpoint.port))) await sleep(200)
+  return exited(endpoint.pid)
 }
 
+// Whether a process still exists: only ESRCH says it does not (EPERM is one of someone else's).
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return !(error instanceof Error && 'code' in error && error.code === 'ESRCH')
+  }
+}
+
+async function exited(pid: number, ms = 10_000): Promise<boolean> {
+  const until = Date.now() + ms
+  while (Date.now() < until && alive(pid)) await sleep(200)
+  return !alive(pid)
+}
+
+// Whether a daemon serves the socket. Only a refused connection or no socket at all proves none
+// does; a timeout or any other error proves nothing.
+function daemonPresence(): Promise<'there' | 'gone' | 'unknown'> {
+  return new Promise((resolve) => {
+    const socket = net.connect(antumiPaths().daemonSocket)
+    const settle = (presence: 'there' | 'gone' | 'unknown') => {
+      socket.destroy()
+      resolve(presence)
+    }
+    socket.setTimeout(2000, () => settle('unknown'))
+    socket.once('connect', () => settle('there'))
+    socket.once('error', (error) => settle('code' in error && (error.code === 'ECONNREFUSED' || error.code === 'ENOENT') ? 'gone' : 'unknown'))
+  })
+}
+
+export type InstallBlocker = { sessionId: string; agent?: AgentKind }
+// stopped false: blockers are the sessions the daemon still runs, or null when daemon or core
+// could not be shown to have stopped (no answer, or still there after the wait).
+export type BackendStop = { stopped: true } | { stopped: false; blockers: InstallBlocker[] | null }
+
 // Before an installer replaces the app's files, which Windows will not do while daemon and core
-// run from them: the daemon leaves only if it runs nothing (it decides, as for retireOldDaemon),
-// then core goes. Running agents are never stopped for an update; how many there are comes back
-// instead. A daemon that answers but cannot say counts as busy.
-export async function stopBackendForInstall(): Promise<{ stopped: true } | { stopped: false; live: number | null }> {
-  if (await daemonReachable()) {
-    const answer = await daemonCall('retire')
-    if (answer?.retired !== true) return { stopped: false, live: typeof answer?.live === 'number' ? answer.live : null }
-    const until = Date.now() + 10_000
-    while (Date.now() < until && (await daemonReachable())) await sleep(200)
+// run from them (and the NSIS installer ends every Antumi.exe it finds): the daemon leaves only if
+// it runs nothing (it decides, as for retireOldDaemon), then core goes. Running agents are never
+// stopped for an update; which sessions run comes back instead. Nothing counts as stopped until
+// its process is seen gone.
+export async function stopBackendForInstall(): Promise<BackendStop> {
+  const presence = await daemonPresence()
+  if (presence === 'unknown') return { stopped: false, blockers: null }
+  if (presence === 'there') {
+    const info = await daemonCall('info')
+    const answer = daemonSchemas.retire.result.safeParse(await daemonCall('retire'))
+    if (!answer.success) return { stopped: false, blockers: null }
+    if (!answer.data.retired) return { stopped: false, blockers: answer.data.blockers ?? [] }
+    const pid = typeof info?.pid === 'number' ? info.pid : null
+    const gone = pid === null ? await daemonGone() : await exited(pid)
+    if (!gone) return { stopped: false, blockers: null }
   }
   const core = await runningCore()
-  if (core) await retireCore(core)
+  if (core && !(await retireCore(core))) return { stopped: false, blockers: null }
   return { stopped: true }
+}
+
+async function daemonGone(): Promise<boolean> {
+  const until = Date.now() + 10_000
+  while (Date.now() < until) {
+    if ((await daemonPresence()) === 'gone') return true
+    await sleep(200)
+  }
+  return false
 }
 
 // Starts daemon and core from the app's bundled copies when none serve this home yet, or when

@@ -16,9 +16,26 @@ export function cliStatusText(status: AgentCliStatus): string {
     case 'available': return t('agentCli.available')
     case 'managed': return status.channel === 'desktop' ? t('agentCli.appManaged') : t('agentCli.selfManaged')
     case 'missing': return t('agentCli.missing')
-    case 'unknown': return t('agentCli.unknown')
+    case 'unknown': return status.latestVersion ? t('agentCli.latestUncompared', { version: status.latestVersion }) : t('agentCli.unknown')
   }
 }
+
+export function cliChannelText(channel?: AgentCliStatus['channel']): string | null {
+  switch (channel) {
+    case 'native': return t('agentCli.channelNative')
+    case 'npm': return t('agentCli.channelNpm')
+    case 'pnpm': return t('agentCli.channelPnpm')
+    case 'bun': return t('agentCli.channelBun')
+    case 'homebrew': return t('agentCli.channelHomebrew')
+    case 'desktop': return t('agentCli.channelDesktop')
+    default: return null
+  }
+}
+
+export function cliBackendOutdated(error: string | null): boolean {
+  return error === 'agent-cli-daemon-outdated' || error === 'unknown-method'
+}
+
 export function cliErrorText(error: string): string {
   switch (error) {
     case 'agent-cli-active': return t('agentCli.active')

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Environment } from '@antumi/protocol'
-import { cliVersion, compareCliVersions, desktopCli, inside, latestCliVersion, resolveCliTarget, type CliTargetHost } from './agent-cli-target'
+import { cliCommandText, cliVersion, compareCliVersions, desktopCli, inside, latestCliVersion, resolveCliTarget, type CliTargetHost } from './agent-cli-target'
 
 const environment: Environment = { checks: [{ tool: 'codex', status: 'ok', version: '1.0.0', path: '/bin/codex', signedIn: true }], searchPath: [], checkedAt: 0 }
 function host(overrides: Partial<CliTargetHost> = {}): CliTargetHost {
@@ -19,6 +19,11 @@ describe('CLI install identity and release versions', () => {
     expect(compareCliVersions('2026.10.19-aaa', '2026.10.19-bbb')).toBeNull()
     expect(compareCliVersions('2026.10.19-aaa', '2026.10.20-bbb')).toBe(-1)
     expect(compareCliVersions('unrecognized', '1.0.0')).toBeNull()
+  })
+
+  it('writes an upgrade a user can paste, keeping a path with spaces whole', () => {
+    expect(cliCommandText({ command: 'npm', args: ['install', '-g', '@openai/codex@latest'] })).toBe('npm install -g @openai/codex@latest')
+    expect(cliCommandText({ command: 'C:\\Users\\Jo Doe\\AppData\\Local\\pi\\pi.exe', args: ['update', '--self'] })).toBe('"C:\\Users\\Jo Doe\\AppData\\Local\\pi\\pi.exe" update --self')
   })
 
   it('uses path boundaries and recognizes app-owned binaries on both platforms', () => {

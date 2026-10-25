@@ -17,6 +17,7 @@ export const pi: AgentDescriptor = {
   } },
   label: 'Pi',
   cli: 'pi',
+  setup: 'provider',
   modes: {
     ask: { label: '默认', description: 'Pi 原本的工作方式：所有工具直接运行，不会停下来问' },
     acceptEdits: { label: '自动', description: '在项目里自由修改、运行命令；改项目外的文件直接拒绝，不会停下来问' },

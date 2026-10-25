@@ -146,14 +146,17 @@ describe('retiring for an update', () => {
     const agent = host.handlers.spawnPipe({ command: process.execPath, args: ['-e', keep], cwd: process.cwd(), env: { ANTUMI_OWNER: owner } }).sessionId
     // Whose it is, for a core that lost track of it.
     expect(host.handlers.list({}).sessions.find((session) => session.sessionId === agent)?.owner).toBe(owner)
-    expect(host.handlers.retire({})).toEqual({ retired: false, live: 1 })
+    expect(host.handlers.retire({})).toEqual({ retired: false, live: 1, blockers: [{ sessionId: agent }] })
     host.handlers.kill({ sessionId: agent })
     const deadline = Date.now() + 5000
     while (!events.some((event) => event.event === 'exit' && event.sessionId === agent)) {
       if (Date.now() > deadline) throw new Error('timed out waiting for the agent to exit')
       await new Promise((resolve) => setTimeout(resolve, 20))
     }
-    expect(host.handlers.retire({})).toEqual({ retired: true, live: 0 })
+    expect(host.handlers.retire({})).toEqual({ retired: true, live: 0, blockers: [] })
+    expect(() => host.handlers.spawnPipe({ command: process.execPath, args: ['-e', keep], cwd: process.cwd(), env: {} })).toThrow('daemon-retiring')
+    expect(() => host.handlers.spawn({ command: process.execPath, args: [], cwd: process.cwd(), env: {}, cols: 80, rows: 24 })).toThrow('daemon-retiring')
+    expect(host.handlers.retire({})).toEqual({ retired: true, live: 0, blockers: [] })
     await new Promise((resolve) => setTimeout(resolve, 100))
     expect(leave).toHaveBeenCalledOnce()
   })

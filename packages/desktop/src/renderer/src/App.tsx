@@ -30,13 +30,16 @@ import { DiscussionView } from './components/DiscussionView'
 import { DiscussionDraft } from './components/DiscussionDraft'
 import { OverviewEntry } from './components/OverviewEntry'
 import { OverviewView } from './components/OverviewView'
-import { GuideView, useFirstRunGuide } from './components/GuideView'
+import { GuideView } from './components/GuideView'
+import { SetupGuide } from './components/SetupGuide'
+import { useFirstRunSetup } from './setup-controller'
 import { WindowBrand } from './components/WindowBrand'
 import { ErrorToast } from './components/ErrorToast'
 import { TaskLaunchDialog } from './components/TaskLaunchDialog'
 import { usePreferences } from './preferences'
 import { usePortPolling } from './port-state'
 import { useUpdateFeed } from './update-state'
+import { AppPet } from './components/AppPet'
 
 // Esc goes from a task back to the board, unless it is meant for what has the focus:
 // typing (the composer interrupts the agent with it), a terminal, or a menu or dialog, which close first.
@@ -70,7 +73,7 @@ export function App() {
   const routinesOpen = useCore((s) => s.routinesOpen)
   const overviewOpen = useCore((s) => s.overviewOpen)
   const guideOpen = useCore((s) => s.guideOpen)
-  useFirstRunGuide()
+  useFirstRunSetup()
   const inboxOpen = useCore((s) => s.inboxOpen)
   const loginOpen = useCore((s) => s.login !== null)
   const terminalPanelOpen = useCore((s) => s.terminalPanelOpen)
@@ -207,6 +210,7 @@ export function App() {
           />
         )}
       </main>
+      <SetupGuide />
       {/* After the workspace: where drag regions overlap, the later one wins, and the sidebar and
           pane headers under it are drag regions. */}
       {!settingsOpen && !maximizedUtility && <WindowBrand />}
@@ -216,6 +220,7 @@ export function App() {
       {loginOpen && <SourceLoginDialog />}
       <ProjectTrustDialog />
       {error && !newTaskOpen && !taskLaunchId && <ErrorToast message={error} />}
+      <AppPet />
     </div>
   )
 }

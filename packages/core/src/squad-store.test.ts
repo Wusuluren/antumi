@@ -5,6 +5,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { SquadStore } from './squad-store'
 import { MIGRATIONS, TaskStore } from './task-store'
+import { applyLegacyMigrations } from './legacy-database'
 
 describe('squad persistence', () => {
   let root: string
@@ -13,8 +14,7 @@ describe('squad persistence', () => {
   it('upgrades existing tasks without changing their agent, projects or status', () => {
     const file = path.join(root, 'db')
     const legacy = new DatabaseSync(file)
-    for (const migration of MIGRATIONS.slice(0, -1)) legacy.exec(migration)
-    legacy.exec(`PRAGMA user_version = ${MIGRATIONS.length - 1}`)
+    applyLegacyMigrations(legacy, MIGRATIONS.slice(0, -1))
     legacy.prepare("INSERT INTO tasks (id, title, slug, status, agent, created_at, updated_at) VALUES ('old', 'Legacy task', 'legacy-task', 'pending', 'claude', 1, 1)").run()
     legacy.prepare("INSERT INTO task_repos (task_id, position, path) VALUES ('old', 0, '/project')").run()
     legacy.close()

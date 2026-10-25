@@ -65,7 +65,7 @@ describe('CLI maintenance lifecycle', () => {
     const { service, deps, time } = setup()
     await Promise.all([service.list('codex'), service.list('codex')])
     expect(deps.latest).toHaveBeenCalledTimes(1)
-    expect((await service.list('codex'))[0]?.availability).toBe('available')
+    expect((await service.list('codex'))[0]).toMatchObject({ availability: 'available', upgradeCommand: 'npm install -g @openai/codex@latest' })
     time(60 * 60_000 + 2)
     await service.list('codex')
     await service.list('codex', true)

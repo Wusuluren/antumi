@@ -132,6 +132,7 @@ const REASON_TEXT: Record<string, string> = localized(() => ({
   'skills-invalid-url': t('labels.onlyHttpsGitRepositoryUrlsAreAccepted'),
   'skills-already-installed': t('labels.thisRepositoryIsAlreadyInstalled'),
   'skills-none-found': t('labels.noUsableSkillsFoundSkillsNameSkillMd'),
+  'skills-search-failed': t('labels.skillMarketSearchFailed'),
   'skills-unknown': t('labels.skillRepositoryNotFound'),
   'skills-nothing-to-rollback': t('labels.noVersionToRollBackTo'),
   'skills-bad-commit': t('labels.commitNotFoundInRepositoryCheckForUpdates'),
@@ -228,6 +229,10 @@ const REASON_TEXT: Record<string, string> = localized(() => ({
 
 // Reasons whose message says what went wrong in the agent's own words, kept after the summary.
 const REASON_WITH_DETAIL: Record<string, string> = localized(() => ({
+  'skills-none-found': t('labels.noUsableSkillsFoundSkillsNameSkillMd'),
+  'skills-name-conflict': t('labels.twoRepositoriesContainSkillsWithTheSameName'),
+  'skills-invalid-selection': t('labels.skillSelectionInvalid'),
+  'skills-update-confirmation': t('labels.skillUpdateConfirmation'),
   'chat-start-failed': t('labels.agentCouldNotStartInChatMode'),
   'chat-session-lost': t('labels.agentSOriginalSessionNoLongerExists'),
   // Chromium's own word on it (net::ERR_NAME_NOT_RESOLVED, a certificate), which says what to fix.

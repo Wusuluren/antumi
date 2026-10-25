@@ -3,6 +3,7 @@ import type { AgentDescriptor } from './agent-descriptor'
 export const dsh: AgentDescriptor = {
   label: 'DeepSeek Harness',
   cli: 'dsh',
+  setup: 'provider',
   modes: {
     ask: { label: '默认', description: '在项目沙箱内编辑和运行命令；扩大权限前先问你' },
     acceptEdits: { label: '自动', description: '在项目里编辑和运行命令；越界操作直接拒绝，不会停下来问' },

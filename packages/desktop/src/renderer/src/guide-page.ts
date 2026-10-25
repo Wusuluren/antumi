@@ -20,3 +20,9 @@ export function guidePage(text: string): { title: string; body: string } {
 export function guideFor(locale: UiLocale): { title: string; body: string } {
   return guidePage(locale === 'en' ? en : zh)
 }
+
+// `antumi:settings/<section>`: a place in Settings the guide names, opened by a click in the app.
+// GitHub drops a link of an unknown scheme and shows its text, so the guide still reads there.
+export function guideSettingsSection(href: string): string | null {
+  return /^antumi:settings\/([a-z-]+)$/.exec(href)?.[1] ?? null
+}

@@ -73,6 +73,8 @@ export function createSessionHost(emit: (event: DaemonEvent) => void, awake: Awa
   killAll(): void
 } {
   const sessions = new Map<string, Session>()
+  // Set once it has agreed to leave: nothing may start between that answer and its going.
+  let retiring = false
   const ports = new SessionPorts(() => [...sessions.values()].flatMap((session) => session.exitCode === null && session.process.pid !== undefined
     ? [{ sessionId: session.id, pid: session.process.pid, canStopRoot: session.io === 'pty' }]
     : []))
@@ -139,6 +141,7 @@ export function createSessionHost(emit: (event: DaemonEvent) => void, awake: Awa
   }
 
   function guard(agent?: AgentKind): void {
+    if (retiring) throw new Error('daemon-retiring')
     if (agent && [...sessions.values()].some((session) => session.exitCode === null && session.upgradeId && session.agent === agent)) throw new Error('agent-cli-maintenance-running')
   }
 
@@ -149,6 +152,7 @@ export function createSessionHost(emit: (event: DaemonEvent) => void, awake: Awa
       return { ok: true }
     },
     spawnCliUpgrade({ agent, upgradeId, cols, rows, ...launch }) {
+      if (retiring) throw new Error('daemon-retiring')
       if ([...sessions.values()].some((session) => session.exitCode === null && session.upgradeId)) throw new Error('agent-cli-maintenance-running')
       if ([...sessions.values()].some((session) => session.exitCode === null && (session.agent === agent || (session.io === 'pipe' && !session.agent)))) throw new Error('agent-cli-active')
       return track('pty', (events) => startPty(launch, cols, rows, events), agent, upgradeId)
@@ -213,10 +217,13 @@ export function createSessionHost(emit: (event: DaemonEvent) => void, awake: Awa
       return { version: lifecycle.version, pid: process.pid, features: ['agent-cli-maintenance'] }
     },
     retire() {
-      const live = [...sessions.values()].filter((session) => session.exitCode === null).length
+      if (retiring) return { retired: true, live: 0, blockers: [] }
+      const live = [...sessions.values()].filter((session) => session.exitCode === null)
+      if (live.length > 0) return { retired: false, live: live.length, blockers: live.map((session) => ({ sessionId: session.id, ...(session.agent ? { agent: session.agent } : {}) })) }
+      retiring = true
       // After the answer has gone out.
-      if (live === 0) setTimeout(() => lifecycle.leave(), 50)
-      return { retired: live === 0, live }
+      setTimeout(() => lifecycle.leave(), 50)
+      return { retired: true, live: 0, blockers: [] }
     }
   }
 

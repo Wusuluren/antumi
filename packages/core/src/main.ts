@@ -18,6 +18,7 @@ import { BrowserService, WATCH_ALL } from './browser-service'
 import { CredentialStore } from './credential-store'
 import { DaemonClient } from './daemon-client'
 import { PluginService } from './plugin-service'
+import { PetLibrary } from './pet-library'
 import { createRpcHandlers } from './rpc-handlers'
 import { SessionImports } from './session-imports'
 import { SquadService } from './squad-service'
@@ -64,8 +65,10 @@ import { AgentAccountStore } from './agent-accounts'
 import { knowledgeBaseSkills } from './skills-recommended'
 import { WireLog } from './wire-log'
 import { timestampConsole } from './log-timestamps'
+import { useSystemProxy } from './system-proxy'
 
 timestampConsole()
+await useSystemProxy()
 const paths = antumiPaths()
 await mkdir(paths.home, { recursive: true, mode: 0o700 })
 await mkdir(paths.worktrees, { recursive: true })
@@ -221,6 +224,11 @@ sources.setConversations(conversations)
 const plugins = new PluginService(path.join(paths.home, 'plugins'), packageJson.version, sources, sourceConfig, [],
   (plugins) => server?.broadcast('plugins.changed', { plugins }))
 await plugins.load()
+const pets = new PetLibrary(path.join(paths.home, 'pets'), {
+  developmentDirectory: process.env.ANTUMI_PET_DIRECTORY,
+  changed: (state) => server?.broadcast('pets.changed', state)
+})
+await pets.load()
 
 const usageSources: Partial<Record<AgentKind, UsageSource>> = {}
 const resetCreditUses: Partial<Record<AgentKind, ResetCreditUse>> = {}
@@ -399,7 +407,7 @@ const autoArchive = new ConversationAutoArchive(
   (id) => conversations.setArchived(id, true)
 )
 // Before the daemon connects: a chat stage it still runs is taken back with these settings.
-const skills = new SkillsLibrary(paths.skills, (repos) => server?.broadcast('skills.changed', { repos: [...repos] }))
+const skills = new SkillsLibrary(paths.skills, (repos) => server?.broadcast('skills.changed', { repos: [...repos] }), { legacySkills: () => knowledgeBaseSkills(chatSettings.current().knowledgeBase ?? null) })
 await skills.load()
 const mcpServers = new McpServerStore(paths.mcpServers, credentials, (servers) => server?.broadcast('mcpServers.changed', { servers: [...servers] }))
 await mcpServers.load()
@@ -408,12 +416,9 @@ await modelProviders.load()
 conversations.setModelProviders(modelProviders)
 // Handed through Antumi's launcher, so no secret is in an agent's command line or Antumi's logs.
 conversations.setUserMcpProvider((agent, readOnly) => agentDescriptor(agent).capabilities.userMcp ? mcpServers.forAgent(agent).map((server) => userMcpServer(paths.home, server, readOnly)) : [])
-// An agent that loads skills gets Obsidian's, where the user turned writing on and has
-// the repository installed; the bundle is the same folder start after start while nothing moved.
+// Explicit activation takes precedence over the legacy, knowledge-base-provided selection.
 conversations.setSkillsProvider(async (agent) => {
-  const selected = knowledgeBaseSkills(chatSettings.current().knowledgeBase ?? null)
-  if (!agentDescriptor(agent).capabilities.skills || selected.length === 0) return null
-  const bundle = await skills.bundleFor(selected)
+  const bundle = await skills.bundleForAgent(agent)
   return bundle ? { dir: bundle.dir } : null
 })
 const initialChatSettings = await chatSettings.load()
@@ -471,7 +476,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts, cliMaintenance, analytics, automation)
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts, cliMaintenance, analytics, automation, pets)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()
@@ -515,6 +520,7 @@ async function shutdown(): Promise<void> {
   discussions.close()
   sources.stop()
   await plugins.close()
+  await pets.close()
   await sources.pause(sources.list().map((source) => source.provider))
   awake?.stop()
   cliMaintenance.close()

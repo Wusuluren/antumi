@@ -4,6 +4,7 @@ import { AgentKind, MAX_DETAILS_LENGTH, MAX_TASK_REPOS, RepoStartOptions, Task, 
 import { ATTACHMENT_CHUNK_BYTES, AttachmentId, AttachmentInfo, Base64Chunk, ImageRef, MAX_ATTACHMENT_BYTES, MAX_CHAT_IMAGES, MAX_TASK_IMAGES } from './attachments'
 import { LoginNotice, LoginPrompt, SourceDescriptor, SourceId, SourceInbox, SourceProblem } from './source'
 import { PluginId, PluginInfo, PluginInstallSource, PluginVersion, RecommendedPlugin } from './plugin'
+import { PetId, PetLibraryState, PetResourceData } from './pet'
 import { AgentUsage, ResetCreditOutcome } from './usage'
 import { UsageFilter, UsageHistory, UsageScanStatus, UsageForecast, UsageAutomationPolicy, UsageAutomationState } from './usage-analytics'
 import { AgentStats, ConversationStats } from './agent-stats'
@@ -30,7 +31,7 @@ import { Discussion, DiscussionAction, DiscussionCreate, DiscussionList, Discuss
 
 import { Squad, SquadFields, SquadRun, SquadWork, SquadPlanRef } from './squad'
 import { KnowledgeFolder, KnowledgeVault } from './knowledge'
-import { CommitSha, RecommendedSkillRepo, SkillRepo, SkillRepoId, SkillUpdateCheck } from './skills'
+import { CommitSha, RecommendedSkillRepo, SkillActivation, SkillRepo, SkillRepoId, SkillSearchResult, SkillUpdateCheck } from './skills'
 import { TodoList, TodoOwner, TodoText, TodoTitle } from './todos'
 import { McpImportCandidate, McpImportItem, McpProbe, McpServer, McpServerInput, McpServerName } from './mcp'
 import { ModelProvider, ModelProviderId, ModelProviderInput, ModelProviderProbe } from './model-provider'
@@ -93,7 +94,7 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // project's .antumi/project.json, once the user trusts its commands (projects.config, projects.trustConfig).
 // project-config-edit: core writes that file as the user filled it in (projects.writeConfig), and
 // suggests what to fill it with (projects.suggestConfig).
-export const CORE_FEATURES = ['plugins', 'plugin-recommendations', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-configuration', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'agent-cli-maintenance', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'handoff-mode', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit', 'model-providers', 'git-update', 'git-push-target', 'task-auto-run', 'session-import', 'agent-accounts', 'usage-analytics', 'task-references'] as const
+export const CORE_FEATURES = ['pets', 'plugins', 'plugin-recommendations', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-configuration', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'agent-cli-maintenance', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'handoff-mode', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'skills-search', 'skills-activation', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit', 'model-providers', 'git-update', 'git-push-target', 'task-auto-run', 'session-import', 'agent-accounts', 'usage-analytics', 'task-references', 'release-idle-chats'] as const
 // session-import: core lists the sessions agents ran outside Antumi and imports them as conversations (sessionImports.*).
 // agent-accounts: Claude and Codex sign in to several accounts, one active each, and a usage limit
 // moves the agent to the next with quota (accounts.*); usage readings name their account.
@@ -101,6 +102,7 @@ export const CORE_FEATURES = ['plugins', 'plugin-recommendations', 'chat-options
 // knowledge-base: core hands agents the user's local knowledge base and lists the vaults Obsidian knows (knowledge.*).
 // knowledge-base-kind: Markdown folders and Obsidian use their own prompts and skills; missing kind means Obsidian.
 // skills-library: core installs Agent Skills repositories pinned to a commit and hands bundles of them to agents (skills.*).
+// skills-search: core searches the open skills.sh registry (skills.search) so users find repositories to install.
 // mcp-servers: core keeps the user's MCP servers and hands them to the agents picked at each start (mcpServers.*).
 // task-launch-options: tasks.start accepts the first stage's mode, model and reasoning effort.
 // task-launch: a task keeps them (Task.launch, set by tasks.update and by each start by hand).
@@ -130,6 +132,11 @@ const BrowserConversationRef = z.object({ conversationId: z.string().uuid() })
 const BrowserTabRef = BrowserConversationRef.extend({ tabId: BrowserTabId })
 
 export const rpcMethods = {
+  'pets.list': { params: z.object({ refresh: z.boolean().optional() }), result: PetLibraryState },
+  'pets.install': { params: z.object({ id: PetId }), result: PetLibraryState },
+  'pets.cancel': { params: z.object({ id: PetId }), result: Ok },
+  'pets.remove': { params: z.object({ id: PetId }), result: PetLibraryState },
+  'pets.read': { params: z.object({ id: PetId }), result: PetResourceData },
   'plugins.recommended': { params: z.object({}), result: z.array(RecommendedPlugin) },
   'plugins.installRecommended': { params: z.object({ id: PluginId }), result: PluginInfo },
   'plugins.list': { params: z.object({}), result: z.array(PluginInfo) },
@@ -191,14 +198,18 @@ export const rpcMethods = {
   'knowledge.inspect': { params: z.object({ path: z.string().min(1).max(32_768) }), result: KnowledgeFolder },
   'skills.list': { params: z.object({}), result: z.array(SkillRepo) },
   'skills.recommended': { params: z.object({}), result: z.array(RecommendedSkillRepo) },
+  // Searches the open skills.sh registry (feature skills-search); results install over the same
+  // git path as the rest, so a hit is the repository the skill lives in, not the skill alone.
+  'skills.search': { params: z.object({ query: z.string().trim().min(1).max(200) }), result: z.array(SkillSearchResult) },
   // Clones the repository and pins it at its head; https only.
   'skills.install': { params: z.object({ url: z.string().trim().min(1).max(500) }), result: SkillRepo },
+  'skills.setActivation': { params: z.object({ id: SkillRepoId, activation: SkillActivation }), result: SkillRepo },
   // The README at the pinned commit, for the user to read before relying on third-party skills.
   'skills.readme': { params: z.object({ id: SkillRepoId }), result: z.object({ text: z.string().nullable() }) },
   // Fetches and tells what an update would bring, without moving the pin.
   'skills.checkUpdate': { params: z.object({ id: SkillRepoId }), result: SkillUpdateCheck },
   // Moves the pin to the commit the user saw in the check.
-  'skills.update': { params: z.object({ id: SkillRepoId, commit: CommitSha }), result: SkillRepo },
+  'skills.update': { params: z.object({ id: SkillRepoId, commit: CommitSha, allowUnavailable: z.boolean().optional() }), result: SkillRepo },
   'skills.rollback': { params: z.object({ id: SkillRepoId }), result: SkillRepo },
   'skills.remove': { params: z.object({ id: SkillRepoId }), result: Ok },
   'mcpServers.list': { params: z.object({}), result: z.array(McpServer) },
@@ -445,6 +456,9 @@ export const rpcMethods = {
   'conversations.unwatchChat': { params: ConversationRef, result: Ok },
   'conversations.chatItems': { params: ConversationRef.extend({ before: z.string().uuid() }), result: ChatPage },
   'conversations.stop': { params: ConversationRef, result: Conversation },
+  // Lets every chat agent with nothing to do go now rather than after its idle wait, as before an
+  // app update; the next message starts each again on the same session.
+  'conversations.releaseIdle': { params: z.object({}), result: z.object({ released: z.number().int() }) },
   'conversations.delete': { params: ConversationRef, result: Ok },
   'conversations.messages': { params: ConversationRef, result: z.array(ConversationMessage) },
   'conversations.stages': { params: ConversationRef, result: z.array(ConversationStage) },
@@ -788,6 +802,7 @@ export const rpcNotifications = {
   // Worktrees were cleaned, or their sizes counted: list them again.
   'worktrees.changed': z.object({}),
   'plugins.changed': z.object({ plugins: z.array(PluginInfo) }),
+  'pets.changed': PetLibraryState,
   'sources.listChanged': z.object({ sources: z.array(SourceDescriptor) }),
   'sources.inboxChanged': z.object({ inbox: SourceInbox }),
   // Sent only to the connection that started the flow.

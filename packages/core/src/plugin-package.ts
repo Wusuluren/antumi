@@ -4,6 +4,7 @@ import { fromBuffer } from 'yauzl'
 import { satisfies, valid, validRange } from 'semver'
 import { PluginManifest, type PluginInstallSource } from '@antumi/protocol'
 import { z } from 'zod'
+import { networkFailure } from './network-failure'
 import { pluginEnvironment } from './plugin-process'
 
 const MAX_BYTES = 32 * 1024 * 1024
@@ -117,20 +118,65 @@ export async function extractPlugin(data: Buffer, root: string): Promise<void> {
 }
 
 const Release = z.object({ tag_name: z.string(), assets: z.array(z.object({ name: z.string(), browser_download_url: z.string().url() })) })
+type Release = z.infer<typeof Release>
+type GitHubSource = Extract<PluginInstallSource, { kind: 'github' }>
+const NO_RELEASE = '该仓库还没有可安装的 GitHub Release，请在发布 ZIP 后重试'
 
-async function download(url: string): Promise<Buffer> {
-  const response = await fetch(url, { headers: { 'User-Agent': 'Antumi', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(60_000) })
-  if (response.status === 404 && url.startsWith('https://api.github.com/repos/')) throw new Error('该仓库还没有可安装的 GitHub Release，请在发布 ZIP 后重试')
+async function request(url: string, init: RequestInit = {}): Promise<Response> {
+  try {
+    return await fetch(url, { ...init, headers: { 'User-Agent': 'Antumi', ...init.headers }, signal: AbortSignal.timeout(60_000) })
+  } catch (error) {
+    throw networkFailure(url, error)
+  }
+}
+
+async function read(url: string, response: Response): Promise<Buffer> {
   if (!response.ok) throw new Error(`下载插件失败：HTTP ${response.status}`)
   if (Number(response.headers.get('content-length')) > MAX_BYTES) throw new Error('插件下载过大')
   const chunks: Uint8Array[] = []
   let size = 0
-  for await (const chunk of response.body ?? []) {
-    size += chunk.length
-    if (size > MAX_BYTES) throw new Error('插件下载过大')
-    chunks.push(chunk)
+  try {
+    for await (const chunk of response.body ?? []) {
+      size += chunk.length
+      if (size > MAX_BYTES) break
+      chunks.push(chunk)
+    }
+  } catch (error) {
+    throw networkFailure(url, error)
   }
+  if (size > MAX_BYTES) throw new Error('插件下载过大')
   return Buffer.concat(chunks)
+}
+
+async function releaseOf(source: GitHubSource): Promise<Release> {
+  const endpoint = source.tag ? `tags/${encodeURIComponent(source.tag)}` : 'latest'
+  const url = `https://api.github.com/repos/${source.repository}/releases/${endpoint}`
+  const response = await request(url, { headers: { Accept: 'application/vnd.github+json' } })
+  // The API allows 60 requests an hour per address, which a VPN shared by many soon spends; the
+  // site's release pages are not counted against it.
+  if (response.status === 403 || response.status === 429) return releaseFromSite(source)
+  if (response.status === 404) throw new Error(NO_RELEASE)
+  return Release.parse(JSON.parse((await read(url, response)).toString('utf8')))
+}
+
+// The release as its pages show it: latest answers with a redirect to its tag, and the tag's asset
+// list links each download.
+async function releaseFromSite(source: GitHubSource): Promise<Release> {
+  let tag = source.tag
+  if (!tag) {
+    const latest = await request(`https://github.com/${source.repository}/releases/latest`, { redirect: 'manual' })
+    await latest.body?.cancel()
+    const location = latest.headers.get('location')
+    const named = location ? /\/releases\/tag\/([^/?#]+)$/.exec(new URL(location, 'https://github.com').pathname)?.[1] : undefined
+    if (!named) throw new Error(NO_RELEASE)
+    tag = decodeURIComponent(named)
+  }
+  const url = `https://github.com/${source.repository}/releases/expanded_assets/${encodeURIComponent(tag)}`
+  const response = await request(url)
+  if (response.status === 404) throw new Error(NO_RELEASE)
+  const prefix = `/${source.repository}/releases/download/`.toLowerCase()
+  const links = new Set([...(await read(url, response)).toString('utf8').matchAll(/href="([^"]+)"/g)].flatMap((match) => match[1]?.toLowerCase().startsWith(prefix) ? [match[1]] : []))
+  return { tag_name: tag, assets: [...links].map((href) => ({ name: decodeURIComponent(href.slice(href.lastIndexOf('/') + 1)), browser_download_url: `https://github.com${href}` })) }
 }
 
 export async function stagePlugin(source: PluginInstallSource, target: string): Promise<void> {
@@ -141,12 +187,11 @@ export async function stagePlugin(source: PluginInstallSource, target: string): 
     else throw new Error('请选择插件目录或 ZIP 文件')
     return
   }
-  const endpoint = source.tag ? `tags/${encodeURIComponent(source.tag)}` : 'latest'
-  const release = Release.parse(JSON.parse((await download(`https://api.github.com/repos/${source.repository}/releases/${endpoint}`)).toString('utf8')))
+  const release = await releaseOf(source)
   const assets = release.assets.filter((asset) => source.asset ? asset.name === source.asset : /\.zip$/i.test(asset.name))
   if (assets.length !== 1 || !assets[0]) throw new Error('Release 必须有一个插件 ZIP，或指定附件名称')
   const asset = assets[0]
   const url = new URL(asset.browser_download_url)
-  if (url.protocol !== 'https:' || url.host !== 'github.com' || !url.pathname.startsWith(`/${source.repository}/releases/download/`)) throw new Error('Release 下载地址不属于指定仓库')
-  await extractPlugin(await download(url.href), target)
+  if (url.protocol !== 'https:' || url.host !== 'github.com' || !url.pathname.toLowerCase().startsWith(`/${source.repository}/releases/download/`.toLowerCase())) throw new Error('Release 下载地址不属于指定仓库')
+  await extractPlugin(await read(url.href, await request(url.href)), target)
 }

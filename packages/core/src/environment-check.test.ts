@@ -105,7 +105,7 @@ describe('environment check', () => {
     writeFileSync(file, '#!/bin/sh\nexit 1\n')
     chmodSync(file, 0o755)
     const service = new EnvironmentService({ pathEnv: bin, platform: process.platform, applicationDirs: [root], signedIn: { codex: async () => { throw new Error('no') } } })
-    expect((await service.check()).checks[2]).toEqual({ tool: 'codex', status: 'unknown', version: null, path: file, signedIn: null })
+    expect((await service.check()).checks[2]).toEqual({ tool: 'codex', status: 'unknown', version: null, path: file, signedIn: null, problem: 'probe-failed' })
   })
 
   it.skipIf(process.platform === 'win32')('finds an application without its CLI, then groups both installations', async () => {

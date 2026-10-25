@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChatItem, Conversation, TitleNaming } from '@antumi/protocol'
 import { ConversationStore } from './conversation-store'
 import { MIGRATIONS, TaskStore } from './task-store'
+import { applyLegacyMigrations } from './legacy-database'
 import { cleanConversationTitle, conversationTitlePrompt, ConversationTitles, type TitleGenerator } from './conversation-titles'
 
 describe('conversation titles', () => {
@@ -189,8 +190,7 @@ describe('conversation titles', () => {
     const file = path.join(root, 'legacy.db')
     const db = new DatabaseSync(file)
     const index = MIGRATIONS.findIndex((sql) => sql.includes('ADD COLUMN title_sequence'))
-    for (const sql of MIGRATIONS.slice(0, index)) db.exec(sql)
-    db.exec(`PRAGMA user_version = ${index}`)
+    applyLegacyMigrations(db, MIGRATIONS.slice(0, index))
     // Rows as that schema had them: today's store reads columns it did not have yet.
     const chat = { id: randomUUID() }
     const stage = { id: randomUUID() }

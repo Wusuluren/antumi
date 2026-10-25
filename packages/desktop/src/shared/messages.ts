@@ -1,18 +1,141 @@
 // Application-owned text. Values and external content are passed separately.
 export const MESSAGES = {
+  "Readiness.unknownProvider": { "zh": "已安装，原生服务商配置尚未确认", "en": "Installed; native provider setup is not yet confirmed" },
+  "SetupGuide.title": {"zh": "检查使用环境", "en": "Check your setup"},
+  "SetupGuide.agentStep": {"zh": "先准备一个 Agent", "en": "Prepare an agent"},
+  "SetupGuide.sourceStep": {"zh": "要接入任务来源吗？", "en": "Connect a task source?"},
+  "SetupGuide.done": {"zh": "准备好了。", "en": "You’re all set."},
+  "SetupGuide.waiting": {"zh": "正在读取环境和配置…", "en": "Reading your environment and configuration…"},
+  "SetupGuide.disconnected": {"zh": "连接工作台后继续检查，已有进度会保留。", "en": "Reconnect to the workspace to continue. Your progress is saved."},
+  "SetupGuide.chooseAgent": {"zh": "选择要使用的 Agent", "en": "Choose an agent"},
+  "SetupGuide.pause": {"zh": "退出引导", "en": "Exit guide"},
+  "SetupGuide.resumeHint": {"zh": "可在左下角「帮助 → 检查使用环境」继续。", "en": "Resume from Help → Check your setup at the bottom left."},
+  "SetupGuide.agents": {"zh": "打开本机 Agent", "en": "Open local agents"},
+  "SetupGuide.enable": {"zh": "启用这个 Agent", "en": "Enable this agent"},
+  "SetupGuide.providers": {"zh": "配置服务商", "en": "Configure a provider"},
+  "SetupGuide.refresh": {"zh": "重新检测", "en": "Check again"},
+  "SetupGuide.checking": {"zh": "正在检查…", "en": "Checking…"},
+  "SetupGuide.confirm": {"zh": "已在 Agent 中配置", "en": "Already configured in the agent"},
+  "SetupGuide.deferAuth": {"zh": "知道了，稍后授权", "en": "Got it, authorize on first use"},
+  "SetupGuide.confirmed": {"zh": "原生配置由你确认，尚未进行连接验证。", "en": "You confirmed the native setup; its connection has not been verified."},
+  "SetupGuide.deferredAuth": {"zh": "已了解首次使用时需授权，当前尚未登录。", "en": "Authorization is deferred to first use; you are not signed in yet."},
+  "SetupGuide.providerConfigured": {"zh": "已配置服务商「{name}」，连接状态以测试结果为准。", "en": "Provider “{name}” is configured. Connection status is shown by its test result."},
+  "SetupGuide.providerUntested": {"zh": "尚未执行连接测试；可在服务商设置中手动测试。", "en": "Connection not tested yet. You can run a test in provider settings."},
+  "SetupGuide.providerPassed": {"zh": "服务商连接测试已通过。", "en": "Provider connection test passed."},
+  "SetupGuide.providerFailed": {"zh": "服务商连接测试未通过，请到服务商设置查看原因。", "en": "Provider connection test failed. Open provider settings for details."},
+  "SetupGuide.providerTesting": {"zh": "服务商正在测试连接…", "en": "Testing the provider connection…"},
+  "SetupGuide.sourceQuestion": {"zh": "Agent 已准备好。可以接入 GitHub、Jira 等任务来源，也可以暂时跳过。", "en": "Your agent is prepared. Connect a task source such as GitHub or Jira, or skip for now."},
+  "SetupGuide.configureSources": {"zh": "配置任务来源", "en": "Configure a task source"},
+  "SetupGuide.skipSources": {"zh": "暂时不需要", "en": "Not now"},
+  "SetupGuide.installSources": {"zh": "安装任务来源插件", "en": "Install a task-source plugin"},
+  "SetupGuide.sourceConfiguration": {"zh": "选择一个来源，保存必填设置并登录。没有需要的来源，可先安装插件。", "en": "Choose a source, save its required settings, and sign in. Install a plugin if your source is not listed."},
+  "SetupGuide.selectSource": {"zh": "选择任务来源", "en": "Choose a task source"},
+  "SetupGuide.sourceConfigured": {"zh": "已配置任务来源：{names}。", "en": "Task sources configured: {names}."},
+  "SetupGuide.sourceSkipped": {"zh": "已跳过任务来源，以后可在设置中配置。", "en": "Task sources skipped. You can configure them later in Settings."},
+  "SetupGuide.sourceProblem": {"zh": "任务来源同步仍有问题：{reason}", "en": "Task-source sync still has a problem: {reason}"},
+  "SetupGuide.finish": {"zh": "完成检查", "en": "Finish setup"},
+  "SetupGuide.noSupportedAgent": {"zh": "当前工作台未提供可检测的 Agent，请检查连接或更新工作台。", "en": "This workspace provides no detectable agents. Check the connection or update the workspace."},
+  "Readiness.checking": {"zh": "正在读取 Agent 状态", "en": "Reading agent status"},
+  "Readiness.unsupported": {"zh": "当前工作台尚未提供这个 Agent 的检测结果", "en": "This workspace has not reported this agent’s status"},
+  "Readiness.disabled": {"zh": "Agent 已停用，请先启用", "en": "Agent disabled; enable it first"},
+  "Readiness.missing": {"zh": "尚未安装 Agent", "en": "Agent not installed"},
+  "Readiness.cli-missing": {"zh": "已发现桌面应用，还需要安装 Agent CLI", "en": "Desktop app found; the agent CLI is still required"},
+  "Readiness.incompatible-version": {"zh": "当前版本与 Antumi 不兼容，需要更新", "en": "This version is incompatible with Antumi; update it"},
+  "Readiness.probe-failed": {"zh": "已找到 Agent，但未能完成启动或版本检测", "en": "Agent found, but its launch or version check failed"},
+  "Readiness.needs-check": {"zh": "已找到 Agent，启动和兼容性尚未确认", "en": "Agent found; launch and compatibility are not yet confirmed"},
+  "Readiness.needs-account": {"zh": "需要登录账号", "en": "Sign in to an account"},
+  "Readiness.needs-provider": {"zh": "需要配置模型服务商", "en": "Configure a model provider"},
+  "Readiness.unknown-auth": {"zh": "已安装，原生账号或服务商配置尚未确认", "en": "Installed; native account or provider setup is not yet confirmed"},
+  "Readiness.authorize-on-use": {"zh": "已安装，首次使用时会在浏览器请求授权", "en": "Installed; browser authorization is requested on first use"},
+  "Readiness.accountReady": {"zh": "环境已就绪", "en": "Environment ready"},
+  "Readiness.providerReady": {"zh": "服务商已配置", "en": "Provider configured"},
+  "SkillsSettingsSection.activationMode": { "zh": "启用方式", "en": "Activation" },
+  "SkillsSettingsSection.enableAll": { "zh": "全部启用", "en": "Enable all" },
+  "SkillsSettingsSection.selectSkills": { "zh": "自选技能", "en": "Choose skills" },
+  "SkillsSettingsSection.agentScope": { "zh": "适用 Agent", "en": "Applies to" },
+  "SkillsSettingsSection.allCompatibleAgents": { "zh": "全部兼容 Agent", "en": "All compatible agents" },
+  "SkillsSettingsSection.specificAgents": { "zh": "指定 Agent", "en": "Selected agents" },
+  "SkillsSettingsSection.selectAll": { "zh": "全选", "en": "Select all" },
+  "SkillsSettingsSection.futureAgents": { "zh": "自动包含当前及以后新增支持技能的 Agent。", "en": "Includes current and future agents that support skills." },
+  "SkillsSettingsSection.unsupported": { "zh": "暂不支持", "en": "Not supported yet" },
+  "SkillsSettingsSection.noAgents": { "zh": "未选择 Agent，这个仓库的技能暂不加载。", "en": "No agents selected. Skills from this repository will not be loaded." },
+  "SkillsSettingsSection.skills": { "zh": "技能", "en": "Skills" },
+  "SkillsSettingsSection.conflicts": { "zh": "同名技能在同一 Agent 中只能保留一个来源。请调整所选技能、适用 Agent，或管理下列来源后再保存。", "en": "An agent can use only one source for a skill name. Adjust the skills or agents, or manage the sources below before saving." },
+  "SkillsSettingsSection.manageSource": { "zh": "管理 {name}", "en": "Manage {name}" },
+  "SkillsSettingsSection.activationTiming": { "zh": "下次启动 Agent 时生效，已运行的会话保留当前技能。", "en": "Applies at the next agent start. Running sessions keep their current skills." },
+  "SkillsSettingsSection.enabledCount": { "zh": "{count}/{total} 已选择", "en": "{count}/{total} selected" },
+  "SkillsSettingsSection.configure": { "zh": "启用设置", "en": "Activation settings" },
+  "SkillsSettingsSection.specificAgentCount": { "zh": "指定 {count} 个 Agent", "en": "{count} selected agents" },
+  "SkillsSettingsSection.legacyActivation": { "zh": "沿用知识库设置；修改启用设置后按此配置加载。", "en": "Uses existing knowledge-base settings until activation is configured here." },
+  "SkillsSettingsSection.updatePreview": { "zh": "更新预览", "en": "Update preview" },
+  "SkillsSettingsSection.added": { "zh": "新增", "en": "Added" },
+  "SkillsSettingsSection.removed": { "zh": "移除", "en": "Removed" },
+  "SkillsSettingsSection.changed": { "zh": "修改", "en": "Changed" },
+  "SkillsSettingsSection.updateAllHint": { "zh": "全部启用：新增的可用技能会在确认更新后启用。更新失败保留原版本，成功后可回退。", "en": "Enable all: new usable skills become active after you confirm the update. Failed updates keep the original version; successful updates can be rolled back." },
+  "SkillsSettingsSection.updateSelectedHint": { "zh": "自选技能：新增技能默认关闭，保留已有选择。更新失败保留原版本，成功后可回退。", "en": "Choose skills: new skills stay off and existing selections are kept. Failed updates keep the original version; successful updates can be rolled back." },
+  "SkillsSettingsSection.confirmUnavailable": { "zh": "确认更新，同时停用已移除或失效的技能：{names}", "en": "Confirm the update and deactivate removed or unusable skills: {names}" },
+  "SkillsSettingsSection.discover": { "zh": "发现技能", "en": "Discover skills" },
+  "labels.skillSelectionInvalid": { "zh": "技能或 Agent 选择无效", "en": "Invalid skill or agent selection" },
+  "labels.skillUpdateConfirmation": { "zh": "更新会停用已启用的技能，请查看更新预览并确认", "en": "This update deactivates enabled skills. Review and confirm the update preview" },
+  "Pet.builtin": {"zh": "随应用提供", "en": "Included"},
+  "Pet.installed": {"zh": "已下载 · 点击使用", "en": "Downloaded · Use"},
+  "Pet.downloadAndUse": {"zh": "下载并使用 · {size} KiB", "en": "Download & use · {size} KiB"},
+  "Pet.updateAndUse": {"zh": "更新并使用", "en": "Update & use"},
+  "Pet.downloading": {"zh": "正在下载 {percent}%", "en": "Downloading {percent}%"},
+  "Pet.downloadProgress": {"zh": "宠物下载进度", "en": "Pet download progress"},
+  "Pet.cancelDownload": {"zh": "取消下载", "en": "Cancel download"},
+  "Pet.remove": {"zh": "移除下载", "en": "Remove download"},
+  "Pet.downloadFailed": {"zh": "下载或加载失败，已保留原宠物，请稍后重试。", "en": "Could not download or load this pet. Your current pet is unchanged. Try again later."},
+  "Pet.downloadFailedBecause": {"zh": "下载或加载失败，已保留原宠物：{reason}", "en": "Could not download or load this pet. Your current pet is unchanged: {reason}"},
+  "Pet.removeFailed": {"zh": "未能移除宠物，请稍后重试。", "en": "Could not remove this pet. Try again later."},
+  "Pet.downloadUnavailable": {"zh": "连接支持宠物下载的工作台后，可下载其他宠物。", "en": "Connect to a workspace that supports pet downloads to install more pets."},
+  "Pet.title": { "zh": "Pet · 宠物", "en": "Pet" },
+  "Pet.description": { "zh": "选择陪你工作的小伙伴，调整风格、大小和活跃程度。", "en": "Choose a companion and adjust its style, size, and activity." },
+  "Pet.style": { "zh": "宠物风格", "en": "Pet style" },
+  "Pet.clay": { "zh": "Antumi · 软陶", "en": "Antumi · Clay" },
+  "Pet.clayDescription": { "zh": "圆润、好奇的橙色小探险家", "en": "A round, curious orange explorer" },
+  "Pet.moss": { "zh": "MOSS · 毛毡", "en": "MOSS · Felt" },
+  "Pet.mossDescription": { "zh": "柔软、安静的薄荷绿小伙伴", "en": "A soft, quiet mint-green companion" },
+  "Pet.zip": { "zh": "ZIP · 漫画", "en": "ZIP · Comic" },
+  "Pet.zipDescription": { "zh": "机灵、调皮的多彩漫画小蚁", "en": "A clever, playful, colorful cartoon ant" },
+  "Pet.activity": { "zh": "活跃程度", "en": "Activity" },
+  "Pet.activityDescription": { "zh": "关闭后隐藏宠物；安静时以休息为主，活泼时更常探索界面。", "en": "Off hides the pet. Quiet favors resting; lively explores more often." },
+  "Pet.off": { "zh": "关闭", "en": "Off" },
+  "Pet.quiet": { "zh": "安静", "en": "Quiet" },
+  "Pet.medium": { "zh": "适中", "en": "Balanced" },
+  "Pet.lively": { "zh": "活泼", "en": "Lively" },
+  "Pet.size": { "zh": "宠物大小", "en": "Pet size" },
+  "Pet.sizeDescription": { "zh": "立即应用到窗口里的宠物。", "en": "Applies immediately to the companion in your window." },
+  "Pet.running": { "zh": "工作", "en": "Work" },
+  "Pet.waiting": { "zh": "等你", "en": "Waiting" },
+  "Pet.review": { "zh": "查看", "en": "Review" },
+  "Pet.failed": { "zh": "失落", "en": "Sad" },
+  "Pet.peek": { "zh": "探头", "en": "Peek" },
+  "Pet.waving": { "zh": "挥手", "en": "Wave" },
+  "Pet.ariaName": { "zh": "宠物，点击互动或拖动更换位置", "en": "Pet: click to interact or drag to move" },
+  "Pet.dismiss": { "zh": "关闭提示", "en": "Dismiss message" },
+  "Pet.awaiting": { "zh": "「{title}」在等你回答", "en": "“{title}” needs your input" },
+  "Pet.crashed": { "zh": "「{title}」需要你看看", "en": "“{title}” needs a look" },
   "UsageAnalytics.identityPaused": { "zh": "账号身份已改变或尚未识别，自动化已暂停；登录并重新保存配置后生效。", "en": "The account identity changed or is unknown. Automation is paused; sign in and save the policy again." },
   "UsageAnalytics.retryReset": { "zh": "核实并重试上次用卡", "en": "Check and retry the same reset" },
   "UsageAnalytics.unallocated": { "zh": "{count} 个会话只有累计用量（{tokens} token），未计入范围汇总与每日趋势。", "en": "{count} sessions have cumulative usage only ({tokens} tokens), excluded from range totals and daily trends." },
   "agentCli.targetNotReached": { "zh": "检测到版本变化，但未达到目标版本；请查看输出并重新检查。", "en": "The version changed but did not reach the target. Review output and check again." },
   "agentCli.checking": {"zh": "正在检查 CLI 版本…", "en": "Checking CLI version…"},
-  "agentCli.native": {"zh": "原生安装", "en": "Native"},
-  "agentCli.desktop": {"zh": "桌面应用", "en": "Desktop app"},
-  "agentCli.latest": {"zh": "最新版本 {version}", "en": "Latest {version}"},
+  "agentCli.channelNative": {"zh": "官方安装", "en": "Official installer"},
+  "agentCli.channelNpm": {"zh": "npm 全局安装", "en": "npm global"},
+  "agentCli.channelPnpm": {"zh": "pnpm 全局安装", "en": "pnpm global"},
+  "agentCli.channelBun": {"zh": "bun 全局安装", "en": "bun global"},
+  "agentCli.channelHomebrew": {"zh": "Homebrew 安装", "en": "Homebrew"},
+  "agentCli.channelDesktop": {"zh": "桌面应用内置", "en": "Desktop app"},
   "agentCli.openConversation": {"zh": "打开会话：{title}", "en": "Open conversation: {title}"},
   "agentCli.cancel": {"zh": "停止升级", "en": "Stop upgrade"},
   "agentCli.starting": {"zh": "准备升级…", "en": "Preparing upgrade…"},
   "agentCli.upgrade": {"zh": "升级", "en": "Upgrade"},
   "agentCli.checkUpgrade": {"zh": "检查并升级", "en": "Check and upgrade"},
+  "agentCli.checkUpgradeHint": {"zh": "检查新版本，有更新时自动安装", "en": "Checks for new versions and installs automatically"},
+  "agentCli.orRunInTerminal": {"zh": "也可在终端运行：", "en": "Or run in a terminal:"},
+  "agentCli.upgradeUnavailableInApp": {"zh": "当前无法在 Antumi 内升级，可在终端运行：", "en": "Upgrades are unavailable in Antumi. Run in a terminal:"},
+  "agentCli.backendOutdatedUpgradeHint": {"zh": "当前后台暂不支持在应用内升级，可在终端运行：", "en": "This backend does not support in-app upgrades. Run in a terminal:"},
   "agentCli.check": {"zh": "检查更新", "en": "Check for updates"},
   "agentCli.output": {"zh": "查看升级输出", "en": "View upgrade output"},
   "agentCli.manual": {"zh": "无法确认可自动升级的安装来源，请按原安装方式手动升级。", "en": "The installation source could not be verified for automatic upgrades. Upgrade using the original installation method."},
@@ -24,9 +147,18 @@ export const MESSAGES = {
   "agentCli.current": {"zh": "已是最新稳定版本或更新版本", "en": "At or above the latest stable version"},
   "agentCli.available": {"zh": "有新版本可用", "en": "Update available"},
   "agentCli.appManaged": {"zh": "随所属桌面应用更新，请更新该应用", "en": "Managed by its desktop app; update that app"},
-  "agentCli.selfManaged": {"zh": "由 CLI 自行检查更新", "en": "Updates checked by the CLI itself"},
+  "agentCli.selfManaged": {"zh": "由工具检查最新版本并升级", "en": "Updates checked and installed by the tool"},
   "agentCli.missing": {"zh": "未找到 CLI", "en": "CLI not found"},
   "agentCli.unknown": {"zh": "暂时无法确认最新版本", "en": "Latest version could not be confirmed"},
+  "agentCli.latestUncompared": {"zh": "已查到最新版本 {version}，尚未完成版本比较", "en": "Latest version {version} found; version comparison is incomplete"},
+  "agentCli.updateTo": {"zh": "可更新至 {version}", "en": "Update available: {version}"},
+  "agentCli.backendNotice": {"zh": "当前暂时无法在这里升级智能体，不影响已安装智能体的使用。", "en": "Agent upgrades are currently unavailable here. Installed agents can still be used."},
+  "agentCli.backendNoticeDetails": {"zh": "正在运行的 Antumi 后台尚不支持升级。重启后台会中断智能体进程，需要等运行中的工作结束后再处理；只关闭窗口不会重启后台。", "en": "The running Antumi backend does not support upgrades yet. Restarting it interrupts agent processes, so ongoing work must finish first. Closing the window does not restart the backend."},
+  "InstalledAgentsSettings.details": {"zh": "详情", "en": "Details"},
+  "InstalledAgentsSettings.ready": {"zh": "已就绪", "en": "Ready"},
+  "InstalledAgentsSettings.needsSignIn": {"zh": "需登录", "en": "Sign-in required"},
+  "InstalledAgentsSettings.needsCheck": {"zh": "需检查", "en": "Needs checking"},
+  "InstalledAgentsSettings.signInUnknown": {"zh": "尚未确认登录状态", "en": "Sign-in status has not been confirmed"},
   "agentCli.active": {"zh": "该 Agent 仍有进程在运行（包括空闲会话、登录或临时调用），退出后再升级。", "en": "This agent still has a running process, including idle chats, sign-in, or temporary calls. Exit it before upgrading."},
   "agentCli.busy": {"zh": "另一个 CLI 升级正在进行，请稍后重试。", "en": "Another CLI upgrade is in progress. Try again later."},
   "agentCli.daemonOutdated": {"zh": "当前后台版本不支持升级；待运行中的工作结束后重启 Antumi 后台。", "en": "This backend does not support upgrades. Restart the Antumi backend after running work has finished."},
@@ -2976,20 +3108,12 @@ export const MESSAGES = {
     "en": "Show less"
   },
   "GuideView.guide": {
-    "zh": "新手指导",
-    "en": "Getting started"
+    "zh": "使用指南",
+    "en": "User guide"
   },
   "GuideView.backToOverview": {
     "zh": "回到总览",
     "en": "Back to Overview"
-  },
-  "GuideView.startFirstConversation": {
-    "zh": "开始第一条会话",
-    "en": "Start a conversation"
-  },
-  "SettingsPage.openGuide": {
-    "zh": "打开",
-    "en": "Open"
   },
   "ConversationSplit.rightPane": {
     "zh": "右列",
@@ -3104,8 +3228,8 @@ export const MESSAGES = {
     "en": "Count"
   },
   "DailyBars.dailyTrends": {
-    "zh": "每日趋势",
-    "en": "Daily trends"
+    "zh": "Antumi 里的工作",
+    "en": "Work in Antumi"
   },
   "DailyBars.tasksconversationsquickRequests": {
     "zh": "{value1}任务{value2}对话{value3}轻量请求",
@@ -7219,13 +7343,45 @@ export const MESSAGES = {
     "zh": "从其他仓库安装",
     "en": "Install from another repository"
   },
+  "SkillsSettingsSection.addASkill": {
+    "zh": "添加技能",
+    "en": "Add a skill"
+  },
+  "SkillsSettingsSection.searchTheSkillMarket": {
+    "zh": "搜索技能市场",
+    "en": "Search the skill market"
+  },
+  "SkillsSettingsSection.searchSkillsShPlaceholder": {
+    "zh": "搜 skills.sh 上的技能…",
+    "en": "Search skills on skills.sh…"
+  },
+  "SkillsSettingsSection.search": {
+    "zh": "搜索",
+    "en": "Search"
+  },
+  "SkillsSettingsSection.searching": {
+    "zh": "搜索中…",
+    "en": "Searching…"
+  },
+  "SkillsSettingsSection.noMatchingSkillsFound": {
+    "zh": "没有找到匹配的技能。",
+    "en": "No matching skills found."
+  },
+  "SkillsSettingsSection.installsCount": {
+    "zh": "{value1} 次安装",
+    "en": "{value1} installs"
+  },
+  "SkillsSettingsSection.resultsFromSkillsShInstallsTheWholeRepository": {
+    "zh": "结果来自 skills.sh 的开放索引；安装的是技能所在的整个 GitHub 仓库，和其他安装一样固定在提交。",
+    "en": "Results come from the open skills.sh index. Installing clones the whole GitHub repository the skill lives in, pinned to a commit like every other install."
+  },
   "SkillsSettingsSection.repositoryUrl": {
     "zh": "仓库地址",
     "en": "Repository URL"
   },
   "SkillsSettingsSection.onlyHttpsUrlsTheRepositoryMustContainSkills": {
-    "zh": "只接受 https:// 地址，仓库里要有 skills/<名字>/SKILL.md。",
-    "en": "Only https:// URLs. The repository must contain skills/<name>/SKILL.md."
+    "zh": "只接受 https:// 仓库地址，自动识别根目录、技能目录与分类子目录中的 SKILL.md。安装后选择要启用的技能。",
+    "en": "Only https:// repository URLs. Discovers SKILL.md at the root and inside skill or category directories. Choose which skills to enable after installing."
   },
   "SmallModelStats.smallModelUsage": {
     "zh": "小模型用量",
@@ -7870,6 +8026,10 @@ export const MESSAGES = {
   "StatusBar.noRunningAntumiCoreFoundStartPnpmDev": {
     "zh": "没有找到正在运行的 Antumi core，先启动 pnpm dev:core",
     "en": "No running Antumi core found. Start pnpm dev:core first"
+  },
+  "StatusBar.help": {
+    "zh": "帮助",
+    "en": "Help"
   },
   "StatusBar.settings": {
     "zh": "设置",
@@ -9784,8 +9944,12 @@ export const MESSAGES = {
     "en": "This repository is already installed"
   },
   "labels.noUsableSkillsFoundSkillsNameSkillMd": {
-    "zh": "仓库里没有可用的技能（skills/<名字>/SKILL.md）",
-    "en": "No usable skills found (skills/<name>/SKILL.md)"
+    "zh": "仓库里没有可用的技能",
+    "en": "No usable skills found in the repository"
+  },
+  "labels.skillMarketSearchFailed": {
+    "zh": "技能市场搜索失败，稍后重试",
+    "en": "Skill market search failed. Try again later"
   },
   "labels.skillRepositoryNotFound": {
     "zh": "没有这个技能仓库",
@@ -10995,6 +11159,14 @@ export const MESSAGES = {
     "zh": "下载失败，请检查网络",
     "en": "the download failed; check your connection"
   },
+  "AppUpdate.errorNetwork": {
+    "zh": "连不上 GitHub，换个网络或开关 VPN 后再试",
+    "en": "could not reach GitHub; try another network, or turn your VPN on or off"
+  },
+  "AppUpdate.errorRateLimited": {
+    "zh": "GitHub 暂时拒绝了查询，多半是同一网络查得太频繁，稍后再试或换个网络",
+    "en": "GitHub refused for now, usually because this network asked too often; try later or on another network"
+  },
   "AppUpdate.errorIncomplete": {
     "zh": "安装包没有下载完整",
     "en": "the installer did not download completely"
@@ -11054,6 +11226,34 @@ export const MESSAGES = {
   "AppUpdate.restartNoteWindows": {
     "zh": "安装时 Antumi 会关闭，装好后自动重新打开。所有 Agent 和终端都停下后才能安装。",
     "en": "Antumi closes while it installs and reopens when done. It installs only once no agent or terminal is running."
+  },
+  "AppUpdate.errorBackendUnresponsive": {
+    "zh": "Antumi 后台没有按时退出，安装程序没有运行；稍后重试",
+    "en": "the Antumi backend did not stop in time, so the installer did not run; try again shortly"
+  },
+  "AppUpdate.blockerTerminal": {
+    "zh": "终端：{title}",
+    "en": "Terminal: {title}"
+  },
+  "AppUpdate.blockerConversation": {
+    "zh": "会话：{title}",
+    "en": "Conversation: {title}"
+  },
+  "AppUpdate.blockerAgent": {
+    "zh": "{agent} 的临时进程（登录、查询等），稍后重试",
+    "en": "A short-lived {agent} process (sign-in, a lookup); try again shortly"
+  },
+  "AppUpdate.blockerUnknown": {
+    "zh": "无法识别的进程",
+    "en": "An unrecognised process"
+  },
+  "AppUpdate.open": {
+    "zh": "打开",
+    "en": "Open"
+  },
+  "AppUpdate.closeTerminal": {
+    "zh": "关闭",
+    "en": "Close"
   },
   "AppUpdate.errorAgentsRunning": {
     "zh": "还有 Agent 或终端在运行，等它们都停下后再重试",
@@ -11435,9 +11635,30 @@ export const MESSAGES = {
     "zh": "推送被拒",
     "en": "Push rejected"
   },
-  "UsageAnalytics.title": {"zh": "用量分析", "en": "Usage analysis"},
-  "UsageAnalytics.scanning": {"zh": "扫描中…", "en": "Scanning…"},
-  "UsageAnalytics.refresh": {"zh": "扫描并刷新", "en": "Scan and refresh"},
+  "UsageRings.tokenMix": {"zh": "token 构成", "en": "Token mix"},
+  "UsageRings.requests": {"zh": "{count} 次请求", "en": "{count} {count, plural, one {request} other {requests}}"},
+  "UsageRings.total": {"zh": "合计", "en": "Total"},
+  "UsageRings.cacheRead": {"zh": "缓存读取", "en": "Cache reads"},
+  "UsageRings.cacheWrite": {"zh": "缓存写入", "en": "Cache writes"},
+  "UsageRings.uncachedInput": {"zh": "未缓存输入", "en": "Uncached input"},
+  "UsageRings.output": {"zh": "输出", "en": "Output"},
+  "UsageRings.outputDetail": {"zh": "{tokens} · 含推理", "en": "{tokens} \u00b7 incl. reasoning"},
+  "UsageRings.byAgent": {"zh": "按 Agent", "en": "By agent"},
+  "UsageRings.pickToNarrow": {"zh": "点一项只看它", "en": "Pick one to see it alone"},
+  "UsageRings.cost": {"zh": "金额", "en": "Cost"},
+  "UsageDays.title": {"zh": "近 {range} 天用量", "en": "Usage, last {range} {range, plural, one {day} other {days}}"},
+  "UsageDays.dayTooltip": {"zh": "{day} · {tokens} token · {cost}", "en": "{day} \u00b7 {tokens} tokens \u00b7 {cost}"},
+  "UsageDays.pricedCost": {"zh": "金额（已计价的请求）", "en": "Cost (priced requests)"},
+  "UsageTables.byTokens": {"zh": "所有来源 · 按 token 排", "en": "All sources \u00b7 by tokens"},
+  "UsageTables.requests": {"zh": "请求", "en": "Requests"},
+  "UsageTables.allModels": {"zh": "显示全部 {count} 个模型", "en": "Show all {count} models"},
+  "UsageTables.fewerModels": {"zh": "收起", "en": "Show fewer"},
+  "DashboardKpis.tokensTheAgentsReadAndWrote": {"zh": "各 Agent 日志里记下的读写 token，含 Antumi 之外的使用", "en": "Tokens read and written as the agents' own logs record them, including use outside Antumi"},
+  "DashboardKpis.pricedRequests": {"zh": "已计价 {share} 的请求", "en": "{share} of requests priced"},
+  "DashboardKpis.cacheHit": {"zh": "缓存命中", "en": "Cache hits"},
+  "DashboardKpis.shareOfInputReadFromTheCache": {"zh": "输入 token 里从缓存读取的比例", "en": "Share of input tokens read from the cache"},
+  "DashboardKpis.cacheRead": {"zh": "读取 {tokens}", "en": "{tokens} read"},
+  "DashboardPanel.scanAndRefresh": {"zh": "扫描日志并刷新", "en": "Scan logs and refresh"},
   "UsageAnalytics.all": {"zh": "全部", "en": "All"},
   "UsageAnalytics.external": {"zh": "外部", "en": "External"},
   "UsageAnalytics.source": {"zh": "用量来源", "en": "Usage source"},
@@ -11445,10 +11666,6 @@ export const MESSAGES = {
   "UsageAnalytics.unknownAccount": {"zh": "未知账号", "en": "Unknown account"},
   "UsageAnalytics.unknownModel": {"zh": "未知模型", "en": "Unknown model"},
   "UsageAnalytics.failed": {"zh": "读取用量失败，可刷新重试", "en": "Could not load usage. Refresh to retry."},
-  "UsageAnalytics.tokens": {"zh": "总 token", "en": "Total tokens"},
-  "UsageAnalytics.inputOutput": {"zh": "输入 / 输出", "en": "Input / output"},
-  "UsageAnalytics.cache": {"zh": "缓存读取 / 写入", "en": "Cache read / write"},
-  "UsageAnalytics.amount": {"zh": "已知金额", "en": "Known cost"},
   "UsageAnalytics.costNote": {"zh": "已计价 {priced}/{total} 条记录；折算金额不代表订阅扣款", "en": "{priced}/{total} records priced; estimates are not subscription charges"},
   "UsageAnalytics.reportedEstimated": {"zh": "报告 {reported} · 折算 {estimated}", "en": "Reported {reported} · Estimated {estimated}"},
   "UsageAnalytics.dailyTokens": {"zh": "每日 token 消耗", "en": "Daily token usage"},

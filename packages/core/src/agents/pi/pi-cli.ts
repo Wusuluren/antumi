@@ -31,7 +31,11 @@ export async function detectPi(pathEnv: string, platform: NodeJS.Platform): Prom
   const path = await findOnPath('pi', pathEnv, platform)
   if (!path) return { status: 'missing', version: null, path: null, signedIn: null }
   const version = await piVersion(path)
-  return { status: piCompatible(version) ? 'ok' : 'unknown', version, path, signedIn: null }
+  const compatible = piCompatible(version)
+  return {
+    status: compatible ? 'ok' : 'unknown', version, path, signedIn: null,
+    ...(!compatible ? { problem: version === null ? 'probe-failed' as const : 'incompatible-version' as const } : {})
+  }
 }
 
 export async function requirePi(): Promise<string> {

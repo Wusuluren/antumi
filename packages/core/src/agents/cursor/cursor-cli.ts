@@ -103,5 +103,8 @@ export async function detectCursorCli(pathEnv: string, platform: NodeJS.Platform
   const command = await findCursorCli(pathEnv, platform)
   if (!command) return { status: 'missing', version: null, path: null, signedIn: null }
   const info = await cursorCliInfo(command).catch(() => null)
-  return { status: info?.compatible ? 'ok' : 'unknown', version: info?.version ?? null, path: command, signedIn: await cursorSignedIn(command) }
+  return {
+    status: info?.compatible ? 'ok' : 'unknown', version: info?.version ?? null, path: command, signedIn: await cursorSignedIn(command),
+    ...(!info?.compatible ? { problem: info ? 'incompatible-version' as const : 'probe-failed' as const } : {})
+  }
 }
