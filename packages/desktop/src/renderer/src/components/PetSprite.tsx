@@ -6,6 +6,7 @@ import { petGait } from '../pet-gait'
 import { petFace } from '../pet-face'
 import type { PetPose, PetSkin, PetSkinProps } from './pet-skin'
 import { PetEyes } from './PetEyes'
+import { PetWorkstation } from './PetWorkstation'
 import './pet-sprite.css'
 
 type RegisteredFrames = CSSProperties & { [name: `--pet-step-${number}`]: string }
@@ -31,6 +32,7 @@ export function PetSprite({ resource = BUILTIN_PET, pose, walking, lookX, lookY,
     return result
   }, [rig])
   const frame = FRAME[pose]
+  const work = pose === 'running' && !walking && rig.typing && resource.typing ? <PetWorkstation images={resource.typing} rig={rig.typing} /> : null
   const face = petFace(rig, pose, walking)
   const neck = face?.neck ?? rig.layout.idleNeck
   const lean = Math.max(-2.5, Math.min(2.5, lookX - lookY * 2))
@@ -48,13 +50,14 @@ export function PetSprite({ resource = BUILTIN_PET, pose, walking, lookX, lookY,
     '--pet-neck': `${neck.y / PET_FRAME_SIZE * 100}%`,
     '--pet-neck-x': `${neck.x / PET_FRAME_SIZE * 100}%`
   }
+  const head = face && <span className="pet-head" style={look}>
+    <span className="pet-head-frame" style={{ backgroundImage: `url(${atlas})`, backgroundPosition: walking ? '0% 0%' : sprite.backgroundPosition }} />
+    {face.eyes && <PetEyes rig={rig} texture={resource.texture} eyes={face.eyes} tones={face.tones} atlas={atlas} frame={walking ? 0 : frame} lookX={reduced ? 0 : lookX} lookY={reduced ? 0 : lookY} reduced={reduced} />}
+  </span>
+  const body = <span className="pet-art-body"><span className="pet-art-frame" style={sprite} /></span>
   return (
-    <span className="pet-art" style={timing} data-style={style} data-pose={pose} data-walking={walking || undefined} data-rigged={face ? true : undefined} data-reduced={reduced || undefined} aria-hidden="true">
-      <span className="pet-art-body"><span className="pet-art-frame" style={sprite} /></span>
-      {face && <span className="pet-head" style={look}>
-        <span className="pet-head-frame" style={{ backgroundImage: `url(${atlas})`, backgroundPosition: walking ? '0% 0%' : sprite.backgroundPosition }} />
-        {face.eyes && <PetEyes rig={rig} texture={resource.texture} eyes={face.eyes} tones={face.tones} atlas={atlas} frame={walking ? 0 : frame} lookX={reduced ? 0 : lookX} lookY={reduced ? 0 : lookY} reduced={reduced} />}
-      </span>}
+    <span className="pet-art" style={timing} data-style={style} data-pose={pose} data-working={work ? true : undefined} data-walking={walking || undefined} data-rigged={face ? true : undefined} data-reduced={reduced || undefined} aria-hidden="true">
+      {work ?? <>{body}{head}</>}
     </span>
   )
 }

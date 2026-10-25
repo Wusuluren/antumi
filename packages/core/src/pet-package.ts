@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto'
 import { fromBuffer } from 'yauzl'
-import { PET_FILES, PetManifest, type PetCatalogEntry } from '@antumi/protocol'
+import { PET_FILES, PET_TYPING_FILES, petAssetFiles, PetManifest, type PetCatalogEntry } from '@antumi/protocol'
 
 export const MAX_PET_PACKAGE_BYTES = 4 * 1024 * 1024
-const FILES = ['manifest.json', ...PET_FILES]
+const FILES = ['manifest.json', ...PET_FILES, ...PET_TYPING_FILES]
 export const petDigest = (data: Uint8Array): string => createHash('sha256').update(data).digest('hex')
 
 export function webpSize(data: Buffer): { width: number; height: number } {
@@ -23,11 +23,11 @@ export function webpSize(data: Buffer): { width: number; height: number } {
 }
 
 export function validatePetFiles(manifest: PetManifest, files: ReadonlyMap<string, Buffer>): void {
-  for (const name of PET_FILES) {
+  for (const name of petAssetFiles(manifest)) {
     const data = files.get(name), expected = manifest.assets[name]
-    if (!data || data.length !== expected.size || petDigest(data) !== expected.sha256) throw new Error('Pet asset checksum mismatch')
+    if (!data || !expected || data.length !== expected.size || petDigest(data) !== expected.sha256) throw new Error('Pet asset checksum mismatch')
     const { width, height } = webpSize(data)
-    const [w, h] = name === 'poses.webp' ? [1024, 1024] : name === 'walk.webp' ? [1024, 768] : [288, 80]
+    const [w, h] = name === 'poses.webp' ? [1024, 1024] : name === 'walk.webp' ? [1024, 768] : name === 'face.webp' ? [288, 80] : [512, 512]
     if (width !== w || height !== h) throw new Error('Pet atlas dimensions do not match format 1')
   }
 }
@@ -44,7 +44,7 @@ export async function unpackPet(data: Buffer, entry: PetCatalogEntry): Promise<{
       zip.on('entry', (entry) => {
         void (async () => {
           const mode = (entry.externalFileAttributes >>> 16) & 0o170000
-          if (!FILES.some((name) => name === entry.fileName) || files.has(entry.fileName) || (mode && mode !== 0o100000)) throw new Error('Pet packages only accept the manifest and three image files')
+          if (!FILES.some((name) => name === entry.fileName) || files.has(entry.fileName) || (mode && mode !== 0o100000)) throw new Error('Pet packages only accept the manifest and supported image files')
           total += entry.uncompressedSize
           if (total > MAX_PET_PACKAGE_BYTES || entry.uncompressedSize > (entry.fileName === 'manifest.json' ? 64 * 1024 : 2 * 1024 * 1024)) throw new Error('Pet package is too large')
           const contents = await new Promise<Buffer>((done, failed) => {
@@ -66,8 +66,9 @@ export async function unpackPet(data: Buffer, entry: PetCatalogEntry): Promise<{
       zip.readEntry()
     })
   })
-  if (files.size !== FILES.length) throw new Error('Pet package is incomplete')
   const manifest = PetManifest.parse(JSON.parse(files.get('manifest.json')?.toString('utf8') ?? 'null'))
+  const expected = ['manifest.json', ...petAssetFiles(manifest)]
+  if (files.size !== expected.length || [...files.keys()].some((name) => !expected.includes(name))) throw new Error('Pet package is incomplete or contains undeclared images')
   if (manifest.id !== entry.id || manifest.version !== entry.version) throw new Error('Pet package identity mismatch')
   validatePetFiles(manifest, files)
   return { manifest, files }

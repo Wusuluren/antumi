@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, lstat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { comparePetVersions, PetCatalog, PetManifest, PetMetadata, PET_FILES, type PetCatalogEntry, type PetLibraryState, type PetResourceData } from '@antumi/protocol'
+import { comparePetVersions, PetCatalog, PetManifest, PetMetadata, petAssetFiles, type PetCatalogEntry, type PetLibraryState, type PetResourceData } from '@antumi/protocol'
 import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 import fallback from '../../protocol/src/pet-catalog.json' with { type: 'json' }
 import { networkFailure } from './network-failure'
@@ -10,7 +10,8 @@ import { unpackPet, validatePetFiles, webpSize } from './pet-package'
 import { Rejection } from './rejection'
 
 const Installed = z.array(PetMetadata).max(100)
-const CATALOG_URL = 'https://raw.githubusercontent.com/flyhero/antumi-pets/main/catalog.json'
+// Older apps keep their three-image packages through the original catalog.
+const CATALOG_URL = 'https://raw.githubusercontent.com/flyhero/antumi-pets/main/catalog-v2.json'
 type Download = { abort: AbortController; received: number; total: number; done: Promise<PetLibraryState> }
 
 function validateCatalog(value: unknown): PetCatalog {
@@ -102,13 +103,18 @@ export class PetLibrary {
     if (!record) throw new Rejection('pet-not-installed')
     const manifest = await this.manifest(id, record.version), folder = path.join(this.root, id, record.version)
     const files = new Map<string, Buffer>()
-    for (const name of PET_FILES) {
+    for (const name of petAssetFiles(manifest)) {
       const file = path.join(folder, name), info = await lstat(file)
       if (!info.isFile() || info.size > 2 * 1024 * 1024) throw new Rejection('pet-invalid')
       files.set(name, await readFile(file))
     }
     validatePetFiles(manifest, files)
-    return { manifest, assets: { 'poses.webp': files.get('poses.webp')?.toString('base64') ?? '', 'walk.webp': files.get('walk.webp')?.toString('base64') ?? '', 'face.webp': files.get('face.webp')?.toString('base64') ?? '' } }
+    return { manifest, assets: {
+      'poses.webp': files.get('poses.webp')?.toString('base64') ?? '',
+      'walk.webp': files.get('walk.webp')?.toString('base64') ?? '',
+      'face.webp': files.get('face.webp')?.toString('base64') ?? '',
+      ...(manifest.rig.typing ? { 'typing.webp': files.get('typing.webp')?.toString('base64') ?? '', 'typing-base.webp': files.get('typing-base.webp')?.toString('base64') ?? '' } : {})
+    } }
   }
 
   async close(): Promise<void> {

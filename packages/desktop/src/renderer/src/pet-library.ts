@@ -6,11 +6,13 @@ import manifest from './assets/pets/clay-manifest.json'
 import atlas from './assets/pets/clay.webp'
 import walk from './assets/pets/clay-walk.webp'
 import texture from './assets/pets/face-textures.webp'
+import typing from './assets/pets/clay-typing.webp'
+import typingBase from './assets/pets/clay-typing-base.webp'
 import { base64ToBytes } from './base64'
 import { useCore } from './core-store'
 import { PetResourceCache, type PetResource } from './pet-resource-cache'
 
-export const BUILTIN_PET: PetResource = { manifest: PetManifest.parse(manifest), atlas, walk, texture }
+export const BUILTIN_PET: PetResource = { manifest: PetManifest.parse(manifest), atlas, walk, texture, typing: { image: typing, base: typingBase } }
 const initial: PetLibraryState = { catalog: PetCatalog.parse(catalog).pets, installed: [], downloads: [] }
 export const usePetLibraryStore = create<{ state: PetLibraryState; ready: boolean }>(() => ({ state: initial, ready: false }))
 const followers = new WeakMap<RpcConnection, { count: number; stop(): void }>()
@@ -59,8 +61,9 @@ function resources(rpc: RpcConnection): PetResourceCache {
       const id = key.split('@')[0] ?? ''
       const { manifest, assets } = await rpc.call('pets.read', { id })
       const url = (base64: string) => URL.createObjectURL(new Blob([base64ToBytes(base64)], { type: 'image/webp' }))
-      return { manifest, atlas: url(assets['poses.webp']), walk: url(assets['walk.webp']), texture: url(assets['face.webp']) }
-    }, (resource) => { for (const url of [resource.atlas, resource.walk, resource.texture]) URL.revokeObjectURL(url) })
+      return { manifest, atlas: url(assets['poses.webp']), walk: url(assets['walk.webp']), texture: url(assets['face.webp']),
+        ...(manifest.rig.typing && assets['typing.webp'] && assets['typing-base.webp'] ? { typing: { image: url(assets['typing.webp']), base: url(assets['typing-base.webp']) } } : {}) }
+    }, (resource) => { for (const url of [resource.atlas, resource.walk, resource.texture, ...(resource.typing ? [resource.typing.image, resource.typing.base] : [])]) URL.revokeObjectURL(url) })
     caches.set(rpc, cache)
   }
   return cache

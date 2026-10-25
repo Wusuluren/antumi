@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Conversation } from '@antumi/protocol'
+import { Task, type Conversation } from '@antumi/protocol'
 import type { Snapshot } from './attention'
 import { petMood } from './pet-mood'
 
@@ -25,6 +25,18 @@ describe('petMood', () => {
   it('shows review only until finished work has been seen', () => {
     expect(petMood(state([chat('done')], ['done'])).mood).toBe('review')
     expect(petMood(state([chat('done')])).mood).toBe('idle')
+  })
+  it('shows running work ahead of a task left awaiting a reply, then restores its reminder', () => {
+    const task = Task.parse({ id: 'old', title: 'Old task', details: '', status: 'running', repos: [], dependsOn: [], agent: 'claude', awaitingInput: true, createdAt: 1, updatedAt: 1 })
+    const running = chat('running', { chat: { turn: 'running' } })
+    const tasks = { [task.id]: task }
+    expect(petMood({ ...state([running]), tasks })).toEqual({ mood: 'running', attention: null })
+    expect(petMood({ ...state([chat('running')]), tasks })).toMatchObject({ mood: 'waiting', attention: { target: { id: task.id } } })
+  })
+  it('keeps an actual pending question ahead of running work', () => {
+    const request = { requestId: 'question', kind: 'question' as const, tool: null, title: 'Continue?', decisions: [], open: 1, async: true }
+    const waiting = chat('question', { chat: { turn: 'idle', request } })
+    expect(petMood(state([chat('running', { chat: { turn: 'running' } }), waiting]))).toMatchObject({ mood: 'waiting', attention: { target: { id: waiting.id } } })
   })
   it('ignores archived chats and helper jobs', () => {
     const archived = chat('old', { archivedAt: 10, chat: { turn: 'running' } })

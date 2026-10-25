@@ -2,7 +2,7 @@
 .pet-art-body { display: block; width: 100%; height: 100%; }
 .pet-art-frame { display: block; width: 100%; height: 100%; background-size: 400% 400%; background-repeat: no-repeat; }
 .pet-art[data-pose='sit'], .pet-art[data-pose='nap'] { transform: translateY(22%); }
-.pet-art[data-pose='running'] { animation: pet-work 1.2s ease-in-out infinite; }
+.pet-art[data-pose='running']:not([data-working]):not([data-walking]) { transform-origin: 50% 99%; animation: pet-breathe 3.8s ease-in-out infinite; }
 .pet-art[data-pose='waving'] { animation: pet-greeting .45s ease-in-out 2; }
 .pet-art[data-pose='jumping'] { animation: pet-delight .8s ease-out; }
 [data-airborne] .pet-art { animation: none; transform: none; }
@@ -32,7 +32,19 @@
   83.333333% { background-position: 66.666667% 100%; transform: var(--pet-step-10); }
   91.666667% { background-position: 100% 100%; transform: var(--pet-step-11); }
 }
-@keyframes pet-work { 50% { transform: translateY(2%) rotate(-2deg); } }
+.pet-workstation { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pet-workstation-base, .pet-typing-arms { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pet-typing-arm { transform-box: view-box; animation: pet-type-near var(--pet-typing-cycle) ease-in-out infinite; }
+.pet-typing-far { animation-name: pet-type-far; }
+@keyframes pet-breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.008); } }
+@keyframes pet-type-near {
+  0%, 18%, 38%, 62%, 100% { transform: rotate(0); }
+  8%, 28%, 48% { transform: rotate(var(--pet-typing-angle)); }
+}
+@keyframes pet-type-far {
+  0%, 8%, 28%, 48%, 72%, 100% { transform: rotate(0); }
+  18%, 38%, 58% { transform: rotate(var(--pet-typing-angle)); }
+}
 @keyframes pet-greeting { 50% { transform: rotate(-5deg); } }
 @keyframes pet-delight { 20% { transform: scale(1.06, .92); } 50% { transform: translateY(-18%) scale(.96, 1.04); } 80% { transform: scale(1.04, .96); } }
 .pet-art[data-reduced], .pet-art[data-reduced] *, [data-paused] .pet-art, [data-paused] .pet-art *, :root[data-resting] .pet-art, :root[data-resting] .pet-art * { animation-play-state: paused !important; transition: none !important; }

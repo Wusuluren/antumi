@@ -1,6 +1,7 @@
 import type { PetManifest } from '@antumi/protocol'
 
-export type PetResource = { manifest: PetManifest; atlas: string; walk: string; texture: string }
+export type PetTypingImages = { image: string; base: string }
+export type PetResource = { manifest: PetManifest; atlas: string; walk: string; texture: string; typing?: PetTypingImages }
 
 // Only mounted consumers keep full atlases; settings thumbnails never acquire a resource.
 export class PetResourceCache {

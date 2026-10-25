@@ -29,12 +29,12 @@ describe('downloadable pet packages', () => {
   const changes: unknown[] = []
   beforeEach(async () => {
     root = await mkdtemp(path.join(os.tmpdir(), 'antumi-pets-'))
-    const manifest = PetManifest.parse({ ...rawManifest, id: 'moss' })
+    const manifest = PetManifest.parse({ ...rawManifest, id: 'moss', rig: { ...rawManifest.rig, typing: undefined }, assets: { 'poses.webp': rawManifest.assets['poses.webp'], 'walk.webp': rawManifest.assets['walk.webp'], 'face.webp': rawManifest.assets['face.webp'] } })
     files = [['manifest.json', Buffer.from(JSON.stringify(manifest))]]
     for (const [name, source] of [['poses.webp', 'clay.webp'], ['walk.webp', 'clay-walk.webp'], ['face.webp', 'face-textures.webp']] as const) files.push([name, await readFile(new URL(`../../desktop/src/renderer/src/assets/pets/${source}`, import.meta.url))])
     bytes = archive(files)
     entry = { ...manifest, size: bytes.length, sha256: petDigest(bytes), url: 'https://github.com/flyhero/antumi-pets/releases/download/pets-v1.0.0/moss-1.0.0.zip', preview: catalog.pets[0]?.preview ?? '' }
-    fetcher = vi.fn<typeof fetch>(async (url) => String(url).endsWith('catalog.json') ? new Response(JSON.stringify({ format: 1, pets: [entry] })) : new Response(new Uint8Array(bytes)))
+    fetcher = vi.fn<typeof fetch>(async (url) => String(url).endsWith('catalog-v2.json') ? new Response(JSON.stringify({ format: 1, pets: [entry] })) : new Response(new Uint8Array(bytes)))
     changes.length = 0
     library = new PetLibrary(root, { fetch: fetcher, changed: (state) => changes.push(state) }); await library.load(); await library.list(true); fetcher.mockClear()
   })
@@ -58,7 +58,7 @@ describe('downloadable pet packages', () => {
   it('rejects changed packages and preserves the previously installed pet', async () => {
     await library.install('moss')
     const newer = { ...entry, version: '1.0.1' }
-    fetcher.mockImplementation(async (url) => String(url).endsWith('catalog.json') ? new Response(JSON.stringify({ format: 1, pets: [newer] })) : new Response(new Uint8Array(bytes).fill(1)))
+    fetcher.mockImplementation(async (url) => String(url).endsWith('catalog-v2.json') ? new Response(JSON.stringify({ format: 1, pets: [newer] })) : new Response(new Uint8Array(bytes).fill(1)))
     await library.list(true)
     await expect(library.install('moss')).rejects.toMatchObject({ reason: 'pet-download-failed' })
     expect((await library.read('moss')).manifest.version).toBe('1.0.0')
@@ -91,6 +91,47 @@ describe('downloadable pet packages', () => {
       const data = archive(entries)
       await expect(unpackPet(data, { ...entry, size: data.length, sha256: petDigest(data) })).rejects.toThrow()
     }
+  })
+
+  async function typingPackage() {
+    const manifest = PetManifest.parse({ ...rawManifest, id: 'moss', version: '1.1.0' })
+    const entries: [string, Buffer][] = [['manifest.json', Buffer.from(JSON.stringify(manifest))], ...files.slice(1)]
+    for (const [name, source] of [['typing.webp', 'clay-typing.webp'], ['typing-base.webp', 'clay-typing-base.webp']] as const) entries.push([name, await readFile(new URL(`../../desktop/src/renderer/src/assets/pets/${source}`, import.meta.url))])
+    const data = archive(entries)
+    return { manifest, entries, data, metadata: { ...entry, version: manifest.version, size: data.length, sha256: petDigest(data) } }
+  }
+
+  it('upgrades a legacy pet to optional typing assets and restores all textures offline', async () => {
+    await library.install('moss')
+    expect((await library.read('moss')).assets['typing.webp']).toBeUndefined()
+    const next = await typingPackage()
+    fetcher.mockImplementation(async (url) => String(url).endsWith('catalog-v2.json') ? new Response(JSON.stringify({ format: 1, pets: [next.metadata] })) : new Response(new Uint8Array(next.data)))
+    await library.list(true); await library.install('moss')
+    const loaded = await library.read('moss')
+    expect(loaded.manifest.version).toBe('1.1.0')
+    expect(loaded.manifest.rig.typing).toEqual(rawManifest.rig.typing)
+    expect(loaded.assets['typing.webp']).toBe(next.entries[4]?.[1].toString('base64'))
+    expect(loaded.assets['typing-base.webp']).toBe(next.entries[5]?.[1].toString('base64'))
+    const offline = new PetLibrary(root)
+    await offline.load()
+    expect((await offline.read('moss')).assets).toEqual(loaded.assets)
+    await offline.close()
+  })
+
+  it('rejects incomplete, undeclared, tampered and incorrectly sized typing images', async () => {
+    const next = await typingPackage()
+    const badSets = [next.entries.slice(0, -1), [...files, next.entries[4] ?? ['typing.webp', Buffer.alloc(0)]]]
+    for (const entries of badSets) {
+      const data = archive(entries)
+      await expect(unpackPet(data, { ...next.metadata, size: data.length, sha256: petDigest(data) })).rejects.toThrow()
+    }
+    const wrong = files[1]?.[1] ?? Buffer.alloc(0)
+    const manifest = { ...next.manifest, assets: { ...next.manifest.assets, 'typing.webp': { size: wrong.length, sha256: petDigest(wrong) } } }
+    const entries: [string, Buffer][] = next.entries.map(([name, bytes]) => [name, name === 'manifest.json' ? Buffer.from(JSON.stringify(manifest)) : name === 'typing.webp' ? wrong : bytes])
+    const data = archive(entries)
+    await expect(unpackPet(data, { ...next.metadata, size: data.length, sha256: petDigest(data) })).rejects.toThrow('dimensions')
+    const tampered = archive(next.entries.map(([name, bytes]) => [name, name === 'typing-base.webp' ? Buffer.alloc(bytes.length) : bytes]))
+    await expect(unpackPet(tampered, { ...next.metadata, size: tampered.length, sha256: petDigest(tampered) })).rejects.toThrow('checksum')
   })
 
   it('validates metadata and image dimensions before decoding', async () => {
@@ -131,9 +172,9 @@ describe('downloadable pet packages', () => {
   })
 
   it('never downgrades an installed pet when a stale catalog is restored', async () => {
-    const newerFiles: [string, Buffer][] = [['manifest.json', Buffer.from(JSON.stringify({ ...rawManifest, id: 'moss', version: '1.0.1' }))], ...files.slice(1)]
+    const newerFiles: [string, Buffer][] = [['manifest.json', Buffer.from(JSON.stringify({ ...JSON.parse(files[0]?.[1].toString('utf8') ?? '{}'), version: '1.0.1' }))], ...files.slice(1)]
     const newerBytes = archive(newerFiles), newer = { ...entry, version: '1.0.1', size: newerBytes.length, sha256: petDigest(newerBytes) }
-    fetcher.mockImplementation(async (url) => String(url).endsWith('catalog.json') ? new Response(JSON.stringify({ format: 1, pets: [newer] })) : new Response(new Uint8Array(newerBytes)))
+    fetcher.mockImplementation(async (url) => String(url).endsWith('catalog-v2.json') ? new Response(JSON.stringify({ format: 1, pets: [newer] })) : new Response(new Uint8Array(newerBytes)))
     await library.list(true); await library.install('moss')
     fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ format: 1, pets: [entry] })))
     await library.list(true); fetcher.mockClear()
