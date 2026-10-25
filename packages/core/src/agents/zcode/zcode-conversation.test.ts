@@ -283,6 +283,51 @@ describe('ZCode on a model provider', () => {
     expect(readLaunches(conversationId)).toEqual([])
   })
 
+  it('stops, once the daemon is back, an agent no conversation holds, however core lost track of it', async () => {
+    const { id: providerId } = await providers.save(glm())
+    vi.spyOn(Reflect.get(service, 'chats'), 'open').mockRejectedValue(new Rejection('daemon-unavailable', 'daemon disconnected'))
+    const request = daemon.request
+    daemon.request = async (method, params) => {
+      if (method === 'kill') throw new Rejection('daemon-unavailable', 'daemon disconnected')
+      return request(method, params)
+    }
+    await expect(service.create('zcode', [root], undefined, { modelProvider: providerId })).rejects.toThrow('daemon disconnected')
+    daemon.request = request
+    const conversationId = store.list()[0]!.id
+    const owner = `conversation:${conversationId}`
+    service.inspectLaunches = async () => new Set()
+    // A core started afresh knows the process by the owner the daemon reports, nothing else.
+    const fresh = new ConversationService(store, daemon, sessions, () => {}, projects, new AttachmentStore(path.join(root, 'attachments')))
+    fresh.inspectLaunches = async () => new Set()
+    await fresh.reconcile([{ sessionId: 'pipe-1', exited: false, exitCode: null, io: 'pipe', agent: 'zcode', owner }])
+    expect(daemon.killed).toEqual([{ sessionId: 'pipe-1', force: true }])
+    // Not one a conversation holds, nor one whose start is still under way, nor another's.
+    daemon.killed.length = 0
+    vi.restoreAllMocks()
+    const running = await service.create('zcode', [root], undefined, { modelProvider: providerId })
+    Reflect.get(service, 'launching').set(conversationId, 'zcode')
+    await service.reconcile([
+      { sessionId: running.sessionId!, exited: false, exitCode: null, io: 'pipe', agent: 'zcode', owner: `conversation:${running.id}` },
+      { sessionId: 'pipe-starting', exited: false, exitCode: null, io: 'pipe', agent: 'zcode', owner },
+      { sessionId: 'pipe-terminal', exited: false, exitCode: null, io: 'pipe', owner: `terminal:${conversationId}` }
+    ])
+    expect(daemon.killed).toEqual([])
+  })
+
+  it('stops a process whose stage could not be recorded', async () => {
+    const { id: providerId } = await providers.save(glm())
+    vi.spyOn(store, 'attachStage').mockImplementation(() => { throw new Error('SQLITE_FULL') })
+    await expect(service.create('zcode', [root], undefined, { modelProvider: providerId })).rejects.toThrow('SQLITE_FULL')
+    expect(daemon.killed).toEqual([{ sessionId: 'pipe-1', force: true }])
+  })
+
+  it('starts nothing on a conversation being deleted', async () => {
+    const created = await service.create('zcode', [root], undefined, { deferStart: true })
+    Reflect.get(service, 'retiring').add(created.id)
+    await expect(service.continue(created.id)).rejects.toThrow()
+    expect(daemon.spawns).toEqual([])
+  })
+
   it.skipIf(process.platform === 'win32')('tries again the folder of an exited process that would not go', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const { id: providerId } = await providers.save(glm())

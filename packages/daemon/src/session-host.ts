@@ -1,4 +1,4 @@
-import type { AgentKind } from '@antumi/protocol'
+import { PROCESS_OWNER_ENV, type AgentKind } from '@antumi/protocol'
 import { randomUUID } from 'node:crypto'
 import type {
   DaemonEvent,
@@ -43,6 +43,7 @@ type Session = {
   exitCode: number | null
   agent?: AgentKind
   upgradeId?: string
+  owner?: string
   stopReason?: 'cancelled' | 'timed-out'
   timer?: ReturnType<typeof setTimeout>
 }
@@ -92,14 +93,15 @@ export function createSessionHost(emit: (event: DaemonEvent) => void, awake: Awa
       io: session.io,
       ...(session.agent ? { agent: session.agent } : {}),
       ...(session.upgradeId ? { upgradeId: session.upgradeId } : {}),
+      ...(session.owner ? { owner: session.owner } : {}),
       ...(session.stopReason ? { stopReason: session.stopReason } : {})
     }
   }
 
-  function track(io: SessionIo, start: (events: ProcessEvents) => HostedProcess, agent?: AgentKind, upgradeId?: string): { sessionId: string } {
+  function track(io: SessionIo, start: (events: ProcessEvents) => HostedProcess, agent?: AgentKind, upgradeId?: string, owner?: string): { sessionId: string } {
     const output = new OutputBuffer(io === 'pty' ? PTY_SCROLLBACK_CHARS : PIPE_OUTPUT_CHARS)
     const stderr = io === 'pipe' ? new OutputBuffer(PIPE_STDERR_CHARS) : null
-    const session: Session = { id: randomUUID(), io, process: NOT_STARTED, output, stderr, exitCode: null, agent, upgradeId }
+    const session: Session = { id: randomUUID(), io, process: NOT_STARTED, output, stderr, exitCode: null, agent, upgradeId, owner }
     const sessionId = session.id
     sessions.set(sessionId, session)
     try {
@@ -158,7 +160,7 @@ export function createSessionHost(emit: (event: DaemonEvent) => void, awake: Awa
     spawnPipe(launch) {
       if (!launch.agent && [...sessions.values()].some((session) => session.exitCode === null && session.upgradeId)) throw new Error('agent-cli-maintenance-running')
       guard(launch.agent)
-      return track('pipe', (events) => startPipe(launch, events), launch.agent)
+      return track('pipe', (events) => startPipe(launch, events), launch.agent, undefined, launch.env[PROCESS_OWNER_ENV])
     },
     write({ sessionId, data }) {
       const session = getSession(sessionId)

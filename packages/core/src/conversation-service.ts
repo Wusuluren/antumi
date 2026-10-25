@@ -2,7 +2,7 @@ import { agentCliAccess } from './agent-cli-access'
 import { randomUUID } from 'node:crypto'
 import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { canHaveHelper, helperAllowsMode, isHelper, agentDescriptor, modelPrice, providerEndpoint, type CostBaseline, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isAntumiRequest , PROCESS_OWNER_ENV, processOwner } from '@antumi/protocol'
+import { canHaveHelper, helperAllowsMode, isHelper, agentDescriptor, modelPrice, providerEndpoint, type CostBaseline, checkEditAdditionalProjects, checkSwitchBranch, handoffMessage, isPlanApproval, parseHandoffMessage, MAX_TASK_REPOS, type AgentKind, type ChatCatalog, type ChatImage, type ChatItem, type ChatModel, type ChatOption, type ChatSettings, type CommitPushResult, type CommitResult, type PushResult, type Conversation, type ConversationMessage, type ConversationSearchHit, type ConversationStage, type FileDiff, type FolderChanges, type ProjectBranches, type ProjectHead, type ChatDecision, type KnowledgeBase, type TaskSource, type UnattendedMode, isAntumiRequest , PROCESS_OWNER_ENV, processOwner, parseProcessOwner } from '@antumi/protocol'
 import type { DaemonEvent, SessionInfo } from '@antumi/protocol/node'
 import { canReuseConversation, DEFAULT_ACCOUNT, type ConversationConfiguration, type TaskLaunchOptions } from '@antumi/protocol'
 import type { RunMeasure } from './agent-run-store'
@@ -968,7 +968,7 @@ export class ConversationService {
 
   private async start(id: string, agent: AgentKind, note: string, handoff: boolean, launch: StageLaunch = {}): Promise<Conversation> {
     this.squadGuard?.(this.get(id))
-    if (this.launching.has(id)) throw new Rejection('conversation-running')
+    if (this.launching.has(id) || this.retiring.has(id)) throw new Rejection('conversation-running')
     if (!this.capacityAvailable(agent)) throw new Rejection('agent-capacity', 'Agent 运行数量已达到上限，请等待其他会话结束，或预约稍后执行')
     this.launching.set(id, agent)
     try {
@@ -1139,9 +1139,9 @@ export class ConversationService {
         ? new Rejection('daemon-outdated', 'the running daemon predates chat mode; restart it')
         : error
     }
-    this.store.attachStage(stage.id, sessionId)
-    this.changed(this.store.update(id, { agent, sessionId }))
     try {
+      this.store.attachStage(stage.id, sessionId)
+      this.changed(this.store.update(id, { agent, sessionId }))
       if (launch) {
         this.wire?.record(id, stage.id, [{
           dir: 'note',
@@ -1820,6 +1820,14 @@ export class ConversationService {
   // and is no business of this one.
   async reconcile(sessions: readonly SessionInfo[], listedAt = Date.now()): Promise<void> {
     const known = new Map(sessions.map((session) => [session.sessionId, session]))
+    // A chat's process no conversation holds (its start failed, or its answer was lost, with the
+    // daemon away) has no one to stop it but this; one whose start is still under way is left to it.
+    const claimed = new Set(this.store.list().flatMap((conversation) => (conversation.sessionId ? [conversation.sessionId] : [])))
+    for (const info of sessions) {
+      const owner = info.owner ? parseProcessOwner(info.owner) : null
+      if (info.exited || owner?.kind !== 'conversation' || claimed.has(info.sessionId) || this.launching.has(owner.id)) continue
+      await this.daemon.request('kill', { sessionId: info.sessionId, force: true }).catch((error: unknown) => console.error(`[antumi-core] stopping unclaimed agent ${info.sessionId} failed`, error))
+    }
     // A launch whose process exited while core was away goes now; one the daemon no longer knows
     // (a daemon that restarted) is the sweep's to weigh, as the process may still be leaving.
     for (const [sessionId, launched] of [...this.launches]) {
