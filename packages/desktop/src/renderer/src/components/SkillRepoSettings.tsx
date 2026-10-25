@@ -26,7 +26,7 @@ export function SkillRepoSettings({ repo, managed, fallback, onConfigure }: { re
   })
   const toggle = (name: string, enabled: boolean) => run(() => perform((rpc) => rpc.call('skills.setActivation', { id: repo.id, activation: { mode: 'selected', skills: enabled ? [...selected, name] : selected.filter((each) => each !== name), agents: repo.activation?.agents ?? null } })))
   return <li className="settings-skill-repo">
-    <details className="skill-repo-details" open>
+    <details className="skill-repo-details">
       <summary><span>{repo.plugin?.name ?? repo.id}</span>{managed && <span className="skill-repo-count">{t('SkillsSettingsSection.enabledCount', { count: selected.length, total: repo.skills.length })}</span>}</summary>
       <div className="settings-project">
         <span className="settings-project-path mono" title={repo.url}>{repo.url}</span><span className="mono muted" title={repo.commit}>{short(repo.commit)}</span>

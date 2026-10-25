@@ -158,6 +158,7 @@ export function SkillsSettingsSection() {
   const active = activeSkillAddTab(tabs, tab)
   const current = repos.find((repo) => repo.id === managing)
   const fallback = knowledgeBaseSkillRefs(base)
+  const installedLabel = repos.length > 0 ? t('SkillsSettingsSection.installed', { value1: repos.length }) : t('InstalledAgentsSettings.installed')
   const tabOptions = tabs.map((value) => ({
     value,
     label: value === 'recommended' ? t('AgentPicker.recommended') : value === 'search' ? t('SkillsSettingsSection.searchTheSkillMarket') : t('SkillsSettingsSection.installFromAnotherRepository')
@@ -165,9 +166,9 @@ export function SkillsSettingsSection() {
   return (
     <>
       <p className="settings-note">{tr('SkillsSettingsSection.pinnedToTheInstalledCommitPreviewChangesBefore', { value1: [takers.length > 0 && t('SkillsSettingsSection.supported', { value1: takers.join('、') }), others.length > 0 && t('SkillsSettingsSection.notSupportedYet', { value1: others.join('、') })].filter(Boolean).join('；') })}</p>
-      {managed && <div className="settings-skill-tabs"><span id={pageLabelId} hidden>{t('SkillsSettingsSection.skills')}</span><Segmented labelId={pageLabelId} value={page} options={[{ value: 'installed', label: t('InstalledAgentsSettings.installed') }, { value: 'discover', label: t('SkillsSettingsSection.discover') }]} onChange={setPage}/></div>}
+      {managed && <div className="settings-skill-tabs"><span id={pageLabelId} hidden>{t('SkillsSettingsSection.skills')}</span><Segmented labelId={pageLabelId} value={page} options={[{ value: 'installed', label: installedLabel }, { value: 'discover', label: t('SkillsSettingsSection.discover') }]} onChange={setPage}/></div>}
       <div hidden={managed && page !== 'installed'}>
-      <SettingsGroup title={repos.length > 0 ? t('SkillsSettingsSection.installed', { value1: repos.length }) : t('InstalledAgentsSettings.installed')}>
+      <SettingsGroup title={managed ? undefined : installedLabel}>
         {repos.length === 0 ? <p className="settings-empty">{t('SkillsSettingsSection.noSkillsInstalledChooseARecommendationBelowOr')}</p> : (
           <ul className="settings-project-list">
             {repos.map((repo) => <SkillRepoSettings key={repo.id} repo={repo} managed={managed} fallback={fallback} onConfigure={() => onManage(repo.id)} />)}
