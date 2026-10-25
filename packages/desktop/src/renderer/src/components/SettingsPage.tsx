@@ -6,7 +6,6 @@ import { AGENT_KINDS, agentDescriptor, LANGUAGE_NAMES, PROTOCOL_VERSION, quickMo
 import packageJson from '../../../../package.json'
 import { perform, setAwakeMode, setChatSettings, setSettingsOpen, useAwakeSupported, useCore, useBrowserSupported, useChatCommandsSupported, useKnowledgeBaseSupported, useMcpServersSupported, useModelProvidersSupported, useSessionImportSupported, useAccountsSupported, useProjectConfigEditSupported, useSkillsSupported, useTranslateSupported, useWireLogSupported } from '../core-store'
 import { DEFAULT_PREFERENCES, setPreference, usePreferences } from '../preferences'
-import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { UNATTENDED_LABEL } from '../schedules'
 import { detectedAgents, useInstalledAgents } from '../installed-agents'
 import { useAgentCatalog } from '../agent-models'
@@ -31,7 +30,7 @@ import {
   FolderIcon,
   GaugeIcon,
   GlobeIcon,
-  InfoIcon,
+  ArrowUpIcon,
   PlugIcon,
   CloudIcon,
   PersonIcon,
@@ -659,11 +658,6 @@ function AboutSettings() {
   useEffect(() => {
     void appVersion().then((running) => { if (running) setVersion(running) })
   }, [])
-  const shortcuts = [
-    [t('SettingsPage.newTask'), `${PRIMARY_KEY_LABEL}N`],
-    [t('SettingsPage.createTaskInTheNewTaskDialog'), `${PRIMARY_KEY_LABEL}↵`],
-    [t('SettingsPage.toggleSettings'), `${PRIMARY_KEY_LABEL},`]
-  ] as const
   return (
     <>
       <SettingsRow label={t('SettingsPage.desktopVersion')} control={() => <span className="mono">{version}</span>} />
@@ -679,9 +673,6 @@ function AboutSettings() {
         )}
       />
       <GitRow />
-      {shortcuts.map(([label, keys]) => (
-        <SettingsRow key={label} label={label} control={() => <kbd className="settings-kbd">{keys}</kbd>} />
-      ))}
     </>
   )
 }
@@ -778,10 +769,10 @@ const SECTIONS: readonly Section[] = localized(() => ([
   {
     id: 'about',
     group: t('ChatFontPicker.other'),
-    title: t('SettingsPage.about'),
-    description: t('SettingsPage.websiteVersionsConnectionStatusGitAndKeyboardShortcuts'),
-    keywords: [t('SettingsPage.version'), t('AppUpdate.updates'), t('AppUpdate.checkNow'), t('SettingsPage.protocol'), t('SettingsPage.connection'), 'core', 'git', t('SettingsPage.environment'), t('SettingsPage.keyboardShortcuts')],
-    Icon: InfoIcon,
+    title: t('AppUpdate.updates'),
+    description: t('SettingsPage.versionsUpdatesConnectionAndGit'),
+    keywords: ['about', '关于', t('SettingsPage.version'), t('AppUpdate.checkNow'), t('AppUpdate.automatic'), t('AppUpdate.prerelease'), t('SettingsPage.protocol'), t('SettingsPage.connection'), 'core', 'git', t('SettingsPage.environment')],
+    Icon: ArrowUpIcon,
     Body: AboutSettings
   }
 ]))

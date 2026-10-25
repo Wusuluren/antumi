@@ -6797,14 +6797,6 @@ export const MESSAGES = {
     "zh": "新建任务",
     "en": "New task"
   },
-  "SettingsPage.createTaskInTheNewTaskDialog": {
-    "zh": "创建任务（新建任务对话框中）",
-    "en": "Create task (in the new-task dialog)"
-  },
-  "SettingsPage.toggleSettings": {
-    "zh": "打开 / 关闭设置",
-    "en": "Toggle settings"
-  },
   "SettingsPage.projectWebsite": {
     "zh": "项目地址",
     "en": "Project website"
@@ -7081,13 +7073,9 @@ export const MESSAGES = {
     "zh": "验收",
     "en": "Review"
   },
-  "SettingsPage.about": {
-    "zh": "关于",
-    "en": "About"
-  },
-  "SettingsPage.websiteVersionsConnectionStatusGitAndKeyboardShortcuts": {
-    "zh": "版本、更新、连接状态、Git 与快捷键。",
-    "en": "Versions, updates, connection status, Git, and keyboard shortcuts."
+  "SettingsPage.versionsUpdatesConnectionAndGit": {
+    "zh": "版本、更新、连接状态与 Git。",
+    "en": "Versions, updates, connection status and Git."
   },
   "SettingsPage.protocol": {
     "zh": "协议",
@@ -7096,10 +7084,6 @@ export const MESSAGES = {
   "SettingsPage.connection": {
     "zh": "连接",
     "en": "Connection"
-  },
-  "SettingsPage.keyboardShortcuts": {
-    "zh": "快捷键",
-    "en": "Keyboard shortcuts"
   },
   "SettingsPage.chatCommands": {
     "zh": "聊天命令",
