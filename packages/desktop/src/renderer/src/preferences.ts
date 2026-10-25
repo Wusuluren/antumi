@@ -5,6 +5,7 @@ import { BACKDROPS } from './backdrops'
 import { PALETTES } from './palettes'
 import { PetLevelPreference, PetSizePreference, PetStylePreference } from './pet-preferences'
 import { DEFAULT_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from './sidebar-width'
+import { SetupProgress } from './setup-progress'
 
 export const MIN_FILE_TREE_WIDTH = 120
 export const MAX_FILE_TREE_WIDTH = 600
@@ -70,6 +71,7 @@ const Preferences = z.object({
   // Set once Antumi has decided whether to show the guide at first launch, so it never comes up
   // unasked again.
   guideSeen: z.boolean().catch(false),
+  setup: SetupProgress,
   // On, the sidebar is put away and the panes take the whole window.
   sidebarHidden: z.boolean().catch(false),
   // As the user dragged it, before the cap a small window puts on it.

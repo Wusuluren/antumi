@@ -1357,6 +1357,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         }
         const usage = full ? await rpc.call('usage.list', { windowKinds: [...USAGE_WINDOW_KINDS] }).catch(() => null) : null
         const sources = full ? await rpc.call('sources.list', {}) : []
+        const modelProviders = full && rpc.features.includes('model-providers') ? await rpc.call('modelProviders.list', {}) : []
         const inboxes = full ? await rpc.call('sources.inbox', {}) : []
         const terminals = full ? await rpc.call('terminals.list', {}).catch(() => []) : []
         const terminalCommands = full && rpc.features.includes('terminal-commands') ? await rpc.call('terminalCommands.list', {}).catch(() => []) : []
@@ -1374,7 +1375,6 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         if (full && rpc.features.includes('chat-commands')) void rpc.call('chatCommands.list', {}).then((chatCommands) => useCore.setState({ chatCommands })).catch(() => {})
         if (full && rpc.features.includes('skills-library')) void rpc.call('skills.list', {}).then((skillRepos) => useCore.setState({ skillRepos })).catch(() => {})
         if (full && rpc.features.includes('mcp-servers')) void rpc.call('mcpServers.list', {}).then((mcpServers) => useCore.setState({ mcpServers })).catch(() => {})
-        if (full && rpc.features.includes('model-providers')) void rpc.call('modelProviders.list', {}).then((modelProviders) => useCore.setState({ modelProviders })).catch(() => {})
         const accounts = full && rpc.features.includes('agent-accounts') ? await rpc.call('accounts.list', {}).catch(() => null) : null
         if (full && rpc.features.includes('environment')) void rpc.call('system.environment', {}).then((environment) => useCore.setState({ environment })).catch(() => {})
         useCore.setState((s) => ({
@@ -1393,6 +1393,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
           accounts,
           ...(usage ? withUsage(usage, accounts) : { usage: null, accountUsage: [] }),
           sources,
+          modelProviders,
           inboxes: Object.fromEntries(inboxes.map((inbox) => [inboxKey(inbox), inbox])),
           terminals,
           activeTerminalId: activeAmong(s.activeTerminalId, terminals),
@@ -1407,7 +1408,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         // Fall through to retry; the badge already shows we're not connected.
       }
       // A sign-in belongs to the connection that started it; core has dropped it.
-      useCore.setState({ rpc: null, connection: 'connecting', login: null })
+      useCore.setState({ rpc: null, connection: 'connecting', login: null, environment: null })
       await sleep(RETRY_MS)
     }
   })()

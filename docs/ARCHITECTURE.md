@@ -370,6 +370,14 @@ DeepSeek Harness 使用同一 ACP driver；`packages/dsh-runtime` 在官方导�
 
 Antigravity 也只是一份 dialect（`agents/antigravity/`）：`agy` 本身不说 ACP，跑的是 Google 发到 ACP registry 的 Antigravity ACP 服务。它没有安装器，Antumi 按版本钉住各平台压缩包的 SHA-256，用 adapter 的 `installation` 下载到 `~/.antumi/runtimes/antigravity-acp/<版本>/`；`installWithoutApplication` 让这条安装命令不必先检测到 Antigravity 应用。细节见 [Antigravity](ANTIGRAVITY.md)。ACP 恢复优先使用旧 Agent 已声明的 `loadSession`，仅声明 `resume` 时使用 `session/resume`。
 
+### 首次使用环境引导
+
+desktop 在首次连接且环境、供应商和任务来源数据到齐后启动检查，不再自动打开整篇指导。引导只检查一个 Agent 的安装和可用条件，再询问是否配置任务来源，不创建会话、不发送模型请求。`agent-readiness.ts`（protocol）统一供引导和本机 Agent 设置页使用：先看启用、安装及兼容性，再看原生登录或兼容且有密钥的供应商。供应商已配置与连接测试成功是两件事，测试结果按配置 revision 保留在 renderer，编辑后旧结果不再使用；已知测试失败会展示原因并留在 Agent 配置步骤，原生账号或其他供应商可用时仍可继续，不强制发起测试。侧栏环境提示也识别供应商配置，避免误报未登录。descriptor 的 `setup` 声明原生账号、原生供应商或首次使用授权，客户端不按 Agent 名称判断。core 在环境检查中可选返回 `problem`，区分 `incompatible-version` 与 `probe-failed`；旧 core 未说明的原因保持未知。
+
+`setup-progress.ts` 计算当前步骤，本机偏好保存状态、所选 Agent、原生配置确认和任务来源选择。原生配置未知时用户可自行确认；确认按 Agent、实际路径和版本绑定，不改写检测事实，不能越过已知未登录、检测失败或版本不兼容。首次使用才授权的 Agent 可以明确推迟授权，不为此创建会话。已看过旧指导或已有任务、会话的用户不会自动触发，完成或主动退出后也不会自动重弹，可从设置 → 关于手动继续。任务来源凭证及必填设置保存后即可完成，是否启用同步、同步成功和导入任务不属于完成条件。
+
+宠物引导在工作区下方预留固定区域，进入设置仍可见，输入、弹层和终端保持原有交互；开启引导时暂停普通宠物，关闭宠物则只显示文字和按钮。设置页导航读取 store 中的目标，支持引导在设置已打开时切换到正确章节。完整新手指导仍可手动阅读；技巧的场景提示独立于首次引导。
+
 ### Agent CLI 版本与升级
 
 设置 → 任务 → 已安装的 Agent 打开时调用 `system.agentCliStatus`，按需查询版本；成功缓存一小时，失败五分钟，手动检查绕过缓存。不做启动通知或自动升级。`agent-cli-maintenance` feature 区分新旧 core，daemon 的 `info.features` 单独声明升级能力；旧 daemon 保留版本检查，只禁用升级，设置页在列表顶部提示一次，不逐项重复。有新版本时才在 Agent 一行显示「升级」；升级进度、失败原因、挡住升级的会话和输出入口在行内，其余收在「详情」。

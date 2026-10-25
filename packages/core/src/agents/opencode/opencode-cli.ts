@@ -31,7 +31,11 @@ export async function detectOpenCode(pathEnv: string, platform: NodeJS.Platform)
   const path = await findOnPath('opencode', pathEnv, platform)
   if (!path) return { status: 'missing', version: null, path: null, signedIn: null }
   const version = await opencodeVersion(path)
-  return { status: opencodeCompatible(version) ? 'ok' : 'unknown', version, path, signedIn: null }
+  const compatible = opencodeCompatible(version)
+  return {
+    status: compatible ? 'ok' : 'unknown', version, path, signedIn: null,
+    ...(!compatible ? { problem: version === null ? 'probe-failed' as const : 'incompatible-version' as const } : {})
+  }
 }
 
 export async function requireOpenCode(): Promise<string> {

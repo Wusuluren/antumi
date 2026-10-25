@@ -17,6 +17,7 @@ export const opencode: AgentDescriptor = {
   } },
   label: 'OpenCode',
   cli: 'opencode',
+  setup: 'provider',
   modes: {
     ask: { label: 'Build', description: 'OpenCode 的 Build agent，按你的 OpenCode 权限配置执行（默认什么都不问）' },
     acceptEdits: { label: '自动', description: '在项目里自由修改、运行命令；项目外的操作直接拒绝，不会停下来问' },

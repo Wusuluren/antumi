@@ -1,3 +1,4 @@
+import { probeProvider, useProviderProbes } from '../provider-probes'
 import { getLocale, t } from '../i18n'
 import { useId, useState, type FormEvent } from 'react'
 import {
@@ -315,21 +316,15 @@ export function ModelProviderSettings() {
   const connected = useCore((s) => s.connection === 'connected')
   const providers = useCore((s) => s.modelProviders)
   const [draft, setDraft] = useState<Draft | null>(null)
-  const [probes, setProbes] = useState<Record<string, ModelProviderProbe | 'running'>>({})
-
-  const probe = async (id: string) => {
-    setProbes((current) => ({ ...current, [id]: 'running' }))
-    const result = await perform((rpc) => rpc.call('modelProviders.probe', { id }))
-    setProbes(({ [id]: _running, ...rest }) => (result ? { ...rest, [id]: result } : rest))
-  }
+  const probes = useProviderProbes((state) => state.probes)
 
   if (!connected) return <p className="settings-empty">{t('ChatCommandSettings.connectToAntumiCoreToView')}</p>
-  if (draft) return <ProviderForm key={draft.id ?? 'new'} initial={draft} onDone={(saved) => { setDraft(null); if (saved) void probe(saved) }} />
+  if (draft) return <ProviderForm key={draft.id ?? 'new'} initial={draft} onDone={(saved) => { setDraft(null); if (saved) void probeProvider(saved) }} />
   return (
     <>
       <p className="settings-note">{t('ModelProviderSettings.intro')}</p>
       {providers.length === 0 ? <p className="settings-empty">{t('ModelProviderSettings.none')}</p> : providers.map((provider) => (
-        <ProviderRow key={provider.id} provider={provider} probe={probes[provider.id]} onProbe={() => void probe(provider.id)} onEdit={() => setDraft(draftOf(provider))} />
+        <ProviderRow key={provider.id} provider={provider} probe={probes[provider.id]?.revision === provider.revision ? probes[provider.id]?.result : undefined} onProbe={() => void probeProvider(provider.id)} onEdit={() => setDraft(draftOf(provider))} />
       ))}
       <div className="chat-command-actions">
         <button type="button" className="button primary" onClick={() => setDraft(draftOfPreset(MODEL_PROVIDER_PRESET_IDS[0]))}>{t('ModelProviderSettings.add')}</button>

@@ -13,6 +13,7 @@ import { Interrupted, type Say, type StageApi, type Surface } from '../pet-stage
 import { avoidRects, hideReason } from '../pet-yield'
 import { ONE_SHOT_POSES, type PetPose, type PetSkin } from './pet-skin'
 import './pet-stage.css'
+import { PetSpeech } from './PetSpeech'
 
 export type PetStageHandle = {
   play(bitId: string): void
@@ -638,8 +639,7 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
         </div>
       </div>
       {bubble && <div ref={bubbleRef} className="pet-bubble" role="status" style={{ left: bubble.at.x, top: bubble.at.y }} data-below={bubble.below || undefined}>
-        <button type="button" className="pet-bubble-text" onClick={() => { bubble.message.open?.(); bubble.close() }}>{bubble.message.text}</button>
-        <button type="button" className="pet-bubble-dismiss" aria-label={t('Pet.dismiss')} onClick={bubble.close}>×</button>
+        <PetSpeech text={bubble.message.text} open={() => { bubble.message.open?.(); bubble.close() }} dismiss={bubble.close} />
       </div>}
     </div>
   )

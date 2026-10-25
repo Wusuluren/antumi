@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { AGENT_KINDS, AgentKind } from './agent'
+import { agentReadiness } from './agent-readiness'
+import type { ModelProvider } from './model-provider'
 
 // What Antumi needs on the machine to run a task: git for the worktrees, and at least one agent CLI.
 export const ENVIRONMENT_TOOLS = ['git', ...AGENT_KINDS] as const
@@ -18,7 +20,9 @@ export const EnvironmentCheck = z.object({
   // Where it was found, so the user can tell which install Antumi runs.
   path: z.string().nullable(),
   // Whether the tool has an account to run with; null for git, and for a tool that is not there.
-  signedIn: z.boolean().nullable()
+  signedIn: z.boolean().nullable(),
+  // Older cores leave the reason unknown; a version string alone does not prove incompatibility.
+  problem: z.enum(['incompatible-version', 'probe-failed']).optional()
 })
 export type EnvironmentCheck = z.infer<typeof EnvironmentCheck>
 
@@ -69,7 +73,7 @@ const installed = (check: EnvironmentCheck) => check.status !== 'missing'
 
 // What keeps a task from running, most serious first, then what would stop one agent. The UI
 // shows these; it never decides on its own what counts.
-export function environmentProblems(environment: Pick<Environment, 'checks'>): EnvironmentProblem[] {
+export function environmentProblems(environment: Pick<Environment, 'checks'>, configuration?: { disabled: readonly AgentKind[]; providers: readonly ModelProvider[] }): EnvironmentProblem[] {
   const problems: EnvironmentProblem[] = []
   const of = (tool: EnvironmentTool) => environment.checks.find((check) => check.tool === tool)
   const git = of('git')
@@ -80,6 +84,7 @@ export function environmentProblems(environment: Pick<Environment, 'checks'>): E
     problems.push({ code: 'no-agent' })
     return problems
   }
+  if (configuration && AGENT_KINDS.some((agent) => agentReadiness(agent, environment, configuration.disabled, configuration.providers).state === 'ready')) return problems
   // A tool that could not be asked is given the benefit of the doubt.
   if (present.length > 0 && present.every((check) => check.signedIn === false)) problems.push({ code: 'no-signed-in-agent' })
   else present.filter((check) => check.signedIn === false).forEach((check) => problems.push({ code: 'signed-out', tool: check.tool }))

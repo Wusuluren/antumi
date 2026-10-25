@@ -1,24 +1,11 @@
-import { useEffect } from 'react'
 import Markdown, { defaultUrlTransform, type Components } from 'react-markdown'
-import { openGuide, openOverview, setSettingsOpen, useCore } from '../core-store'
+import { openOverview, setSettingsOpen, useCore } from '../core-store'
 import { guideFor, guideImage, guideSections, guideSettingsSection, type GuideSection } from '../guide-page'
 import { guideStepDone } from '../guide-steps'
 import { getLocale, t, useLocale } from '../i18n'
 import { remarkPlugins } from '../markdown-syntax'
-import { setPreference, usePreferences } from '../preferences'
+import { usePreferences } from '../preferences'
 import { newConversation } from './ConversationActions'
-
-// Shown once, over the overview, to someone who has nothing in Antumi yet. Whoever already has
-// work there is taken to know their way, and is never shown it unasked.
-export function useFirstRunGuide(): void {
-  const connected = useCore((s) => s.connection === 'connected')
-  useEffect(() => {
-    if (!connected || usePreferences.getState().guideSeen) return
-    setPreference('guideSeen', true)
-    const s = useCore.getState()
-    if (s.overviewOpen && Object.keys(s.tasks).length === 0 && Object.keys(s.conversations).length === 0) openGuide()
-  }, [connected])
-}
 
 // The guide is the app's own text: its images are bundled with it, its links go to the web.
 const components: Components = {

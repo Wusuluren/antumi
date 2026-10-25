@@ -1,6 +1,6 @@
 import { getLocale, t, tr } from '../i18n'
 import { useEffect, useId, useState, type ReactNode } from 'react'
-import { AGENT_KINDS, agentDescriptor, type AgentCliInstallation, type AgentKind, type DetectedAgent, type EnvironmentCheck } from '@antumi/protocol'
+import { AGENT_KINDS, agentDescriptor, agentReadiness, type AgentCliInstallation, type AgentKind, type DetectedAgent, type EnvironmentCheck } from '@antumi/protocol'
 import { refreshAgentCli, upgradeAgentCli, cancelAgentCliUpgrade, selectConversation, installAgentCli, refreshEnvironment, showTerminal, useCore } from '../core-store'
 import { cliStatusText, cliErrorText, cliBackendOutdated, cliChannelText } from '../agent-cli-text'
 import { checkStatusText } from '../environment-text'
@@ -9,6 +9,8 @@ import { setPreference, usePreferences } from '../preferences'
 import { CopyButton } from './CopyButton'
 import { AgentIcon, RefreshIcon } from './icons'
 import { Toggle } from './SettingsControls'
+import { agentReadinessText } from '../agent-readiness-text'
+import { useProviderProbes } from '../provider-probes'
 
 // Turning one off takes it out of every choice of agent for new work; the last one on stays on.
 function setEnabled(kind: AgentKind, enabled: boolean): void {
@@ -135,6 +137,11 @@ function CliMaintenance({ kind, check }: { kind: AgentKind; check: EnvironmentCh
 
 function AgentRow({ kind, check, enabled, last }: { kind: AgentKind; check: EnvironmentCheck; enabled: boolean; last: boolean }) {
   const labelId = useId()
+  const environment = useCore((s) => s.environment)
+  const providers = useCore((s) => s.modelProviders)
+  const disabled = usePreferences((s) => s.disabledAgents)
+  const probes = useProviderProbes((s) => s.probes)
+  const readiness = agentReadiness(kind, environment, disabled, providers, probes)
   const currentVersion = useCore((s) => s.agentCli[kind]?.currentVersion)
   const version = currentVersion ?? check.version ?? (check.status === 'unknown' ? t('InstalledAgentsSettings.versionUnknown') : null)
   return (
@@ -145,14 +152,14 @@ function AgentRow({ kind, check, enabled, last }: { kind: AgentKind; check: Envi
           <span id={labelId} className="settings-row-label">{agentLabel(kind)}</span>
           {version && <span className="agent-row-version mono" title={check.path ?? undefined}>{version}</span>}
           {!enabled && <span className="agent-row-pill">{t('InstalledAgentsSettings.disabled')}</span>}
-          {(check.signedIn !== null || check.status === 'unknown') && (
-            <span className="environment-pill" data-level={check.signedIn === true && check.status !== 'unknown' ? 'ok' : 'warning'}>
-              {check.signedIn === false ? t('InstalledAgentsSettings.needsSignIn') : check.status === 'unknown' ? t('InstalledAgentsSettings.needsCheck') : t('InstalledAgentsSettings.ready')}
+          {enabled && (
+            <span className="environment-pill" data-level={readiness.state === 'ready' ? 'ok' : 'warning'}>
+              {agentReadinessText(readiness, kind)}
             </span>
           )}
         </div>
         {check.status === 'unknown' && <p className="settings-row-description">{tr('InstalledAgentsSettings.checkWhetherTheCliCanStart', { value1: checkStatusText(check), value2: agentDescriptor(kind, getLocale()).environment.outdated?.hint ?? '' })}</p>}
-        {check.signedIn === false && <Fix label={t('InstalledAgentsSettings.signIn')} command={agentDescriptor(kind, getLocale()).environment.signIn} />}
+        {(readiness.state === 'needs-account' || readiness.state === 'needs-provider' || readiness.state === 'unknown-auth' || readiness.state === 'authorize-on-use') && <Fix label={t('InstalledAgentsSettings.signIn')} command={agentDescriptor(kind, getLocale()).environment.signIn} />}
         <CliMaintenance kind={kind} check={check} />
       </div>
       <div className="settings-row-control">

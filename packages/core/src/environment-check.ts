@@ -210,7 +210,8 @@ export class EnvironmentService {
       status: version === null ? 'unknown' : 'ok',
       version,
       path,
-      signedIn: signedIn[tool] ? await signedIn[tool]().catch(() => null) : null
+      signedIn: signedIn[tool] ? await signedIn[tool]().catch(() => null) : null,
+      ...(version === null ? { problem: 'probe-failed' as const } : {})
     }
   }
 

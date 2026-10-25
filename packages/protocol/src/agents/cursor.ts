@@ -15,6 +15,7 @@ export const cursor: AgentDescriptor = {
   } },
   label: 'Cursor',
   cli: 'agent',
+  setup: 'account',
   modes: {
     ask: { label: 'Agent', description: 'Cursor 原生 Agent 模式，审批按 CLI 提供的选项处理' },
     plan: { label: 'Plan', description: '先探索代码并制定计划，确认后执行' },

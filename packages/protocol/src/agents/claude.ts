@@ -16,6 +16,7 @@ export const claude: AgentDescriptor = {
   } },
   label: 'Claude Code',
   cli: 'claude',
+  setup: 'account',
   modes: {
     ask: { label: '逐项确认', description: '改文件、运行命令前都先问你' },
     acceptEdits: { label: '自动接受编辑', description: '改文件不再问，运行命令仍会问' },

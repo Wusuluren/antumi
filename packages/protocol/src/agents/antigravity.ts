@@ -20,6 +20,7 @@ export const antigravity: AgentDescriptor = {
   } },
   label: 'Antigravity',
   cli: 'agy',
+  setup: 'first-use',
   modes: {
     ask: { label: 'Default', description: 'Antigravity 默认的审批流程：修改文件和运行命令前先问你' },
     acceptEdits: { label: 'Auto Edit', description: '直接修改文件，运行命令前仍先问你' },

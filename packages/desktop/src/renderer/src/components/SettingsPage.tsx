@@ -1,3 +1,4 @@
+import { openSetup } from '../setup-controller'
 import { UsageAutomationSettings } from './UsageAutomationSettings'
 import { getLocale, localized, messageSearchText, t, tr } from '../i18n'
 import type { BrowserStatus, WireUsage } from '@antumi/protocol'
@@ -676,6 +677,7 @@ function AboutSettings() {
         )}
       />
       <GitRow />
+      <SettingsRow label={t('SetupGuide.title')} control={() => <button type="button" className="button" onClick={openSetup}>{t('SetupGuide.open')}</button>} />
       <SettingsRow label={t('GuideView.guide')} control={() => <button type="button" className="button" onClick={openGuide}>{t('SettingsPage.openGuide')}</button>} />
       {shortcuts.map(([label, keys]) => (
         <SettingsRow key={label} label={label} control={() => <kbd className="settings-kbd">{keys}</kbd>} />
@@ -933,8 +935,9 @@ export function SettingsPage() {
       .flatMap((section) => (section.id === 'agents' ? [section, ...(accounts ? [ACCOUNTS_SECTION] : []), ...(modelProviders ? [MODEL_PROVIDERS_SECTION] : []), ...(chatCommands ? [CHAT_COMMANDS_SECTION] : []), ...(skills ? [SKILLS_SECTION] : []), ...(mcp ? [MCP_SECTION] : []), ...(sessionImport ? [SESSION_IMPORT_SECTION] : [])] : [section]))
     return [...own, ...(plugins ? [PLUGINS_SECTION] : []), ...sourceSections(sources ?? []), ...(knowledge ? [KNOWLEDGE_SECTION] : []), ...(browser ? [BROWSER_SECTION] : []), ...(wireLog ? [DEBUG_SECTION] : []), ...about]
   }, [sources, browser, knowledge, skills, mcp, sessionImport, accounts, modelProviders, chatCommands, wireLog, plugins, getLocale()])
-  const [activeId, setActiveId] = useState(() => useCore.getState().settingsSection ?? SECTIONS[0]?.id ?? '')
+  const activeId = useCore((state) => state.settingsSection) ?? SECTIONS[0]?.id ?? ''
   const [query, setQuery] = useState('')
+  useEffect(() => { setQuery('') }, [activeId])
   const needle = query.trim().toLowerCase()
   const visible = needle ? sections.filter((section) => matches(section, needle)) : sections
   // While searching, stay on the chosen section if it still matches, else show the first match.
@@ -970,7 +973,7 @@ export function SettingsPage() {
                     type="button"
                     className="settings-nav-item"
                     aria-current={section.id === active?.id ? 'page' : undefined}
-                    onClick={() => setActiveId(section.id)}
+                    onClick={() => { useCore.setState({ settingsSection: section.id }); setQuery('') }}
                   >
                     <section.Icon />
                     {section.title}

@@ -12,13 +12,14 @@ export function AppPet() {
   const size = usePreferences((s) => s.petSize)
   const level = usePreferences((s) => s.petLevel)
   const settingsOpen = useCore((s) => s.settingsOpen)
+  const guiding = usePreferences((s) => s.setup.status === 'active')
   const tasks = useCore((s) => s.tasks)
   const conversations = useCore((s) => s.conversations)
   const unseen = useCore((s) => s.unseen)
   const squadRuns = useCore((s) => s.squadRuns)
   const locale = useLocale((s) => s.locale)
   const reduced = useReducedMotion()
-  const skin = usePetSkin(style, size, level === 'off' || settingsOpen)
+  const skin = usePetSkin(style, size, level === 'off' || settingsOpen || guiding)
   const status = useMemo(() => petMood({ tasks, conversations, unseen, squadRuns }), [tasks, conversations, unseen, squadRuns])
   const message = useMemo(() => {
     const item = status.attention
@@ -37,6 +38,6 @@ export function AppPet() {
       holdMs: 12_000
     }
   }, [status.attention, locale])
-  if (level === 'off' || settingsOpen) return null
+  if (level === 'off' || settingsOpen || guiding) return null
   return <PetStage skin={skin} level={level} mood={status.mood} message={message} reduced={reduced} />
 }

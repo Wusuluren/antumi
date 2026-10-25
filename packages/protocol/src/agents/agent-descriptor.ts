@@ -11,6 +11,8 @@ export type AgentDescriptor = {
   translations?: { en: Partial<Pick<AgentDescriptor, 'modes' | 'environment' | 'usageWhere' | 'nativePlanRun'>> }
   // The command the user runs themselves, to sign in or refresh its credentials.
   cli: string
+  // Where native credentials come from; separate from Antumi-managed model providers.
+  setup: 'account' | 'provider' | 'first-use'
   // Antumi's permission modes as this agent's users know them; a mode left out is one it lacks.
   modes: Partial<Record<ChatPermissionMode, AgentModeText>>
   // What a new conversation can start in, before the catalog adds auto and the settings bypass.

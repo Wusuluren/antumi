@@ -37,7 +37,11 @@ export async function detectDsh(pathEnv: string, platform: NodeJS.Platform): Pro
   const command = await findOnPath('dsh', pathEnv, platform)
   if (!command) return { status: 'missing', version: null, path: null, signedIn: null }
   const version = await versionOf(command)
-  return { status: dshCompatible(version) ? 'ok' : 'unknown', version, path: command, signedIn: null }
+  const compatible = dshCompatible(version)
+  return {
+    status: compatible ? 'ok' : 'unknown', version, path: command, signedIn: null,
+    ...(!compatible ? { problem: version === null ? 'probe-failed' as const : 'incompatible-version' as const } : {})
+  }
 }
 
 export async function requireDsh(): Promise<string> {
