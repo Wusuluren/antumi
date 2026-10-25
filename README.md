@@ -21,7 +21,8 @@
   <a href="#支持的-agent" title="OpenCode"><img src="docs/assets/agents/opencode.svg" alt="OpenCode" width="32" height="32" /></a>&nbsp;&nbsp;
   <a href="#支持的-agent" title="Pi"><img src="docs/assets/agents/pi.svg" alt="Pi" width="32" height="32" /></a>&nbsp;&nbsp;
   <a href="#支持的-agent" title="DeepSeek Harness"><img src="docs/assets/agents/dsh.svg" alt="DeepSeek Harness" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#支持的-agent" title="Antigravity"><img src="docs/assets/agents/antigravity.svg" alt="Antigravity" width="32" height="32" /></a>
+  <a href="#支持的-agent" title="Antigravity"><img src="docs/assets/agents/antigravity.svg" alt="Antigravity" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#支持的-agent" title="ZCode"><img src="docs/assets/agents/zcode.svg" alt="ZCode" width="32" height="32" /></a>
 </p>
 
 https://github.com/user-attachments/assets/44398279-8f26-441f-ad24-fa1b1e344674
@@ -66,7 +67,7 @@ https://github.com/user-attachments/assets/44398279-8f26-441f-ad24-fa1b1e344674
 
 ### 定时与预约
 
-在侧栏「定时」里让 Claude Code、Codex、OpenCode、Pi 或 DeepSeek Harness 按每天、工作日或每周执行工作；输入框旁的时钟按钮能把这条消息预约到指定时间或额度恢复后，任务和计划批准也能预约。定时任务可自动选择有额度的 Agent；无人值守时 Agent 问的事由 Antumi 按模式代答，不会停下来等你。电脑需保持唤醒，Cursor 与 Antigravity 暂不支持。
+在侧栏「定时」里让 Claude Code、Codex、OpenCode、Pi、DeepSeek Harness 或 ZCode 按每天、工作日或每周执行工作；输入框旁的时钟按钮能把这条消息预约到指定时间或额度恢复后，任务和计划批准也能预约。定时任务可自动选择有额度的 Agent；无人值守时 Agent 问的事由 Antumi 按模式代答，不会停下来等你。电脑需保持唤醒，Cursor 与 Antigravity 暂不支持。
 
 <img src="docs/assets/features/schedule.webp" alt="定时与预约演示：打开侧栏「定时」和「预约」，再用输入框旁的时钟预约发送消息" width="100%" />
 
@@ -84,7 +85,7 @@ Agent 在回复里提到要你之后处理的事（上线前要做的、要你�
 
 ### 额度一眼看清
 
-底部状态栏集中显示 Claude Code、Codex、Cursor、Antigravity 的用量，悬停就能查看各自的额度窗口和恢复时间。设置里可切换显示已用或剩余比例，Cursor 显示月度用量，服务提供的重置卡和全员重置预告也会显示。
+底部状态栏集中显示 Claude Code、Codex、Cursor、Antigravity、ZCode 的用量，悬停就能查看各自的额度窗口和恢复时间。设置里可切换显示已用或剩余比例，Cursor 显示月度用量，服务提供的重置卡和全员重置预告也会显示。
 
 Antumi 还会按各窗口的重置时间估算用量节奏：周额度快重置还剩很多时提醒你现在多用、可以放心用 Opus；照这个速度会提前用完时，建议换模型或把轻活交给另一个 Agent。选择 Agent 时会标出现在最该用的那个。
 
@@ -117,12 +118,13 @@ Antumi 驱动的是你已经装好、登录好的 Agent CLI。
 | [**Pi**](https://pi.dev) | `pi --mode rpc` | 默认 · 自动 · 规划 · 只读 | ✓ | ✓ | ✓ |
 | [**DeepSeek Harness**](docs/DEEPSEEK.md) | `dsh --profile antumi`（ACP） | 默认 · 自动 · 规划 · 只读 | ✓ | ✓ | ✓ |
 | [**Antigravity**](docs/ANTIGRAVITY.md) | Google 的 Antigravity ACP 服务 | Default · Auto Edit | — | ✓ | — |
+| [**ZCode**](docs/ZCODE.md) | `zcode app-server` | 修改前询问 · 自由编辑 · 规划 · 自主 · 只读 | ✓ | ✓ | ✓ |
 
 「全部放行」不会默认选中。设置 → 本机 Agent 还会列出 Antumi 认识、但尚未接入的 Agent CLI。
 
 ## 快速开始
 
-**前提**：准备好至少一个 Agent（Claude Code、Codex、Cursor、OpenCode、Pi、DeepSeek Harness 请先装好 CLI；Antigravity 可在「设置 → 本机 Agent」中一键下载服务并在首聊时登录）。
+**前提**：准备好至少一个 Agent（Claude Code、Codex、Cursor、OpenCode、Pi、DeepSeek Harness 请先装好 CLI，ZCode 装好桌面版或 `zcode-app-cli`；Antigravity 可在「设置 → 本机 Agent」中一键下载服务并在首聊时登录）。
 
 **从源码运行**，需要 Node ≥ 22.13 和 pnpm 12：
 

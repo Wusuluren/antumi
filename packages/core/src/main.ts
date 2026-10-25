@@ -452,11 +452,12 @@ daemon.onEvent((event) => {
 
 daemon.onConnect(() => {
   awake?.reconnect()
+  const listedAt = Date.now()
   daemon
     .request('list', {})
     .then(async ({ sessions }) => {
       await cliMaintenance.reconcile(sessions)
-      await conversations.reconcile(sessions)
+      await conversations.reconcile(sessions, listedAt)
       await smallModels.recoverHelpers({ stages: () => conversations.chatStageRefs(), items: (id, stageId) => conversations.stageChatItems(id, stageId) })
       terminals.reconcile(sessions)
       await discussions.reconcile()

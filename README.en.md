@@ -22,7 +22,8 @@ A local-first workspace for your AI agents: conversations, tasks, group discussi
   <a href="#supported-agents" title="OpenCode"><img src="docs/assets/agents/opencode.svg" alt="OpenCode" width="32" height="32" /></a>&nbsp;&nbsp;
   <a href="#supported-agents" title="Pi"><img src="docs/assets/agents/pi.svg" alt="Pi" width="32" height="32" /></a>&nbsp;&nbsp;
   <a href="#supported-agents" title="DeepSeek Harness"><img src="docs/assets/agents/dsh.svg" alt="DeepSeek Harness" width="32" height="32" /></a>&nbsp;&nbsp;
-  <a href="#supported-agents" title="Antigravity"><img src="docs/assets/agents/antigravity.svg" alt="Antigravity" width="32" height="32" /></a>
+  <a href="#supported-agents" title="Antigravity"><img src="docs/assets/agents/antigravity.svg" alt="Antigravity" width="32" height="32" /></a>&nbsp;&nbsp;
+  <a href="#supported-agents" title="ZCode"><img src="docs/assets/agents/zcode.svg" alt="ZCode" width="32" height="32" /></a>
 </p>
 
 https://github.com/user-attachments/assets/44398279-8f26-441f-ad24-fa1b1e344674
@@ -69,7 +70,7 @@ Assign agents, models, and roles to a leader, developers, and reviewers (expand 
 
 ### Routines and scheduling
 
-Under **Routines** in the sidebar, schedule Claude Code, Codex, OpenCode, Pi, or DeepSeek Harness to work daily, on weekdays, or weekly; the clock beside the composer reserves a message for a set time or for when quota resets, and tasks and plan approvals can be reserved too. Routines can choose an agent with available quota; unattended runs answer prompts automatically based on permission modes. The computer must stay awake; Cursor and Antigravity are not supported for routines.
+Under **Routines** in the sidebar, schedule Claude Code, Codex, OpenCode, Pi, DeepSeek Harness, or ZCode to work daily, on weekdays, or weekly; the clock beside the composer reserves a message for a set time or for when quota resets, and tasks and plan approvals can be reserved too. Routines can choose an agent with available quota; unattended runs answer prompts automatically based on permission modes. The computer must stay awake; Cursor and Antigravity are not supported for routines.
 
 <img src="docs/assets/features/schedule.webp" alt="Scheduling: open routines and reservations from the sidebar, then reserve a message with the composer clock" width="100%" />
 
@@ -87,7 +88,7 @@ When an agent's reply mentions things for you to do later (before release, to ve
 
 ### Quota at a glance
 
-The status bar shows Claude Code, Codex, Cursor, and Antigravity usage together; hover for each agent's quota windows and reset times. Settings switch between used and remaining percentages, with monthly usage for Cursor and reset credits or global reset announcements when available.
+The status bar shows Claude Code, Codex, Cursor, Antigravity, and ZCode usage together; hover for each agent's quota windows and reset times. Settings switch between used and remaining percentages, with monthly usage for Cursor and reset credits or global reset announcements when available.
 
 <img src="docs/assets/features/quota.webp" alt="Quota: zoom into the status bar, hover each agent for usage and reset times, then show remaining percentages" width="100%" />
 
@@ -118,12 +119,13 @@ Antumi drives the agent CLIs you already have installed and signed in to.
 | [**Pi**](https://pi.dev) | `pi --mode rpc` | default · auto · plan · read-only | ✓ | ✓ | ✓ |
 | [**DeepSeek Harness**](docs/DEEPSEEK.md) | `dsh --profile antumi` (ACP) | default · automatic · plan · read-only | ✓ | ✓ | ✓ |
 | [**Antigravity**](docs/ANTIGRAVITY.md) | Google's Antigravity ACP server | Default · Auto Edit | — | ✓ | — |
+| [**ZCode**](docs/ZCODE.md) | `zcode app-server` | ask · edit freely · plan · autonomous · read-only | ✓ | ✓ | ✓ |
 
 "Bypass everything" is never selected by default. Settings → Agents also lists the agent CLIs Antumi recognises but does not drive yet.
 
 ## Getting started
 
-**Prerequisite**: At least one agent ready (install CLI for Claude Code, Codex, Cursor, OpenCode, Pi, or DeepSeek Harness; Antigravity can be downloaded directly in Settings).
+**Prerequisite**: At least one agent ready (install CLI for Claude Code, Codex, Cursor, OpenCode, Pi, or DeepSeek Harness, and the ZCode desktop app or `zcode-app-cli` for ZCode; Antigravity can be downloaded directly in Settings).
 
 **Run from source**, with Node ≥ 22.13 and pnpm 12:
 

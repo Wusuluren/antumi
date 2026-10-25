@@ -129,9 +129,12 @@ export interface AgentAdapter {
   readonly launch?: {
     // Antumi's MCP server as this agent is to start it.
     mcp(server: McpServer, stage: AgentStage): McpServer
-    // Before the process starts, given the server it gets: the executable to run in place of the
-    // command's, once that is known to be able to run, and arguments naming files the step wrote.
-    prepare(stage: AgentStage, mcp: McpServer | undefined): Promise<{ command?: string; args?: readonly string[] }>
+    // Before the process starts, given the server it gets and the launch its command came from:
+    // the executable to run in place of the command's, once that is known to be able to run,
+    // arguments naming files the step wrote, and variables pointing at them. A file that must not
+    // outlive the process goes in the stage's own private folder (stage-launch.ts), which core
+    // removes once the process is gone.
+    prepare(stage: AgentStage, mcp: McpServer | undefined, launch: AgentLaunch): Promise<{ command?: string; args?: readonly string[]; env?: Record<string, string> }>
     // After its handshake, before its first message.
     ready(stage: AgentStage): Promise<void>
   }

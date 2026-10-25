@@ -142,7 +142,10 @@ describe('retiring for an update', () => {
     const host = createSessionHost((event) => events.push(event), undefined, { version: '9.9.9', leave })
     expect(host.handlers.info({})).toEqual({ version: '9.9.9', pid: process.pid, features: ['agent-cli-maintenance'] })
     const keep = `setTimeout(() => {}, 10_000)`
-    const agent = host.handlers.spawnPipe({ command: process.execPath, args: ['-e', keep], cwd: process.cwd(), env: {} }).sessionId
+    const owner = 'conversation:11111111-1111-4111-8111-111111111111'
+    const agent = host.handlers.spawnPipe({ command: process.execPath, args: ['-e', keep], cwd: process.cwd(), env: { ANTUMI_OWNER: owner } }).sessionId
+    // Whose it is, for a core that lost track of it.
+    expect(host.handlers.list({}).sessions.find((session) => session.sessionId === agent)?.owner).toBe(owner)
     expect(host.handlers.retire({})).toEqual({ retired: false, live: 1, blockers: [{ sessionId: agent }] })
     host.handlers.kill({ sessionId: agent })
     const deadline = Date.now() + 5000

@@ -146,3 +146,15 @@ describe('an MCP session over HTTP', () => {
     expect(received).toEqual([{ jsonrpc: '2.0', id: 7, error: { code: -32603, message: 'HTTP 401：unauthorized' } }])
   })
 })
+
+describe('the environment a user server starts with', () => {
+  it('leaves out an agent provider key and where ZCode keeps one', () => {
+    const env = {
+      PATH: '/bin', ANTUMI_MODEL_PROVIDER: 'zhipu-glm-coding', ANTUMI_MODEL_PROVIDER_KEY: 'sk', ANTHROPIC_AUTH_TOKEN: 'sk', ELECTRON_RUN_AS_NODE: '1',
+      ZCODE_DATA_BASE_DIR: '/s/launch/x', ZCODE_PERSONAL_PROVIDER_CONFIG_FILE: '/s/launch/x/.zcode/v2/provider_config.json', ZCODE_CLI_CREDENTIALS_FILE: '/s/launch/x/.zcode/v2/credentials.json'
+    }
+    expect(serverEnv(env)).toEqual({ PATH: '/bin' })
+    // Off a provider, the user's own ZCode settings are theirs to pass on.
+    expect(serverEnv({ PATH: '/bin', ZCODE_DATA_BASE_DIR: '/home/u' })).toEqual({ PATH: '/bin', ZCODE_DATA_BASE_DIR: '/home/u' })
+  })
+})

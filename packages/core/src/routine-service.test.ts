@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { nextOccurrence, type AgentUsage, type Routine, type RoutineFields, type UnattendedMode } from '@antumi/protocol'
+import { nextOccurrence, type AgentKind, type AgentUsage, type Routine, type RoutineFields, type UnattendedMode } from '@antumi/protocol'
 import { UNATTENDED_NOTE } from './agent-prompt'
 import { UNATTENDED_DENIAL } from './unattended-answer'
 import { AttachmentStore } from './attachment-store'
@@ -81,9 +81,13 @@ describe('RoutineService', () => {
     return new AttachmentStore(dir)
   }
 
-  function exhausted(agent: 'claude' | 'codex', resetsAt: number | null): AgentUsage {
+  function exhausted(agent: AgentKind, resetsAt: number | null): AgentUsage {
     return { agent, status: 'ok', plan: null, error: null, updatedAt: clock, resetCredits: null,
       windows: [{ kind: 'session', model: null, usedPercent: 100, windowMinutes: 300, resetsAt }] }
+  }
+
+  function signedOut(agent: AgentKind): AgentUsage {
+    return { agent, status: 'signed-out', plan: null, error: null, updatedAt: clock, resetCredits: null, windows: [] }
   }
 
   function roomy(agent: 'claude' | 'codex', usedPercent: number): AgentUsage {
@@ -301,9 +305,12 @@ describe('RoutineService', () => {
     expect(routines.pickAgent(auto)).toBe('claude')
     usage = [roomy('claude', 90), roomy('codex', 50)]
     expect(routines.pickAgent(auto)).toBe('codex')
-    usage = [exhausted('claude', clock + 2 * HOUR), exhausted('codex', clock + HOUR)]
+    usage = [exhausted('claude', clock + 2 * HOUR), exhausted('codex', clock + HOUR), signedOut('zcode')]
     expect(routines.pickAgent(auto)).toBe('codex')
-    usage = [exhausted('claude', clock + HOUR)]
+    usage = [exhausted('claude', clock + HOUR), signedOut('zcode')]
+    expect(routines.pickAgent(auto)).toBe('codex')
+    // One signed out cannot run it, ahead of one used up or not.
+    usage = [signedOut('claude'), exhausted('codex', clock + HOUR), signedOut('zcode')]
     expect(routines.pickAgent(auto)).toBe('codex')
   })
 

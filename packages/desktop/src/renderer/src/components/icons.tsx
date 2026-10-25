@@ -184,7 +184,20 @@ function AntigravityMark() {
   )
 }
 
-const AGENT_MARKS = { claude: ClaudeMark, codex: CodexMark, cursor: CursorMark, opencode: OpenCodeMark, pi: PiMark, dsh: DeepSeekMark, antigravity: AntigravityMark } satisfies Record<AgentKind, () => ReactElement>
+// ZCode's mark: the three paths of the Z in Z.ai's logo (zai-org/ZCode,
+// packages/ui/src/assets/provider-icons/logo-zai.svg) unaltered, without the tile behind them, in
+// one colour. The viewBox centres the letter in a square.
+function ZCodeMark() {
+  return (
+    <svg className="agent-mark agent-mark-zcode" viewBox="2.45 2.47 12.6 12.6" fill="currentColor" aria-hidden="true">
+      <path d="M9.03854 3.86902L8.2306 5.01755C8.1036 5.19645 7.89598 5.306 7.67092 5.306H3.26767V3.86328C3.26767 3.86902 9.03854 3.86902 9.03854 3.86902Z" />
+      <path d="M14.5209 3.86328L7.59573 13.6741H2.97913L9.90426 3.86328H14.5209Z" />
+      <path d="M8.46146 13.6732L9.27514 12.5189C9.40214 12.34 9.60975 12.2305 9.83482 12.2305H14.2323V13.6732H8.46146Z" />
+    </svg>
+  )
+}
+
+const AGENT_MARKS = { claude: ClaudeMark, codex: CodexMark, cursor: CursorMark, opencode: OpenCodeMark, pi: PiMark, dsh: DeepSeekMark, antigravity: AntigravityMark, zcode: ZCodeMark } satisfies Record<AgentKind, () => ReactElement>
 
 export function AgentIcon({ agent }: { agent: AgentKind | null }) {
   if (agent === null) return <NoAgentMark />

@@ -43,11 +43,16 @@ function agentMessage(line: string): Record<string, unknown> | null {
 
 // What the user's server starts with of this launcher's environment. ELECTRON_RUN_AS_NODE is set
 // where the launcher runs as Antumi's bundled Node, which the server is not. An agent on a model
-// provider passes its environment on, the provider's key with it, which the server is not given.
+// provider passes its environment on, the provider's key with it, which the server is not given;
+// nor where ZCode's file with the key is (zcode-provider.ts).
 export function serverEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const { ELECTRON_RUN_AS_NODE: _ours, ...rest } = env
   if (!rest[PROVIDER_MARK_ENV]) return rest
-  const { [PROVIDER_KEY_ENV]: _key, [PROVIDER_MARK_ENV]: _mark, ANTHROPIC_AUTH_TOKEN: _token, ANTHROPIC_API_KEY: _apiKey, ...clean } = rest
+  const {
+    [PROVIDER_KEY_ENV]: _key, [PROVIDER_MARK_ENV]: _mark, ANTHROPIC_AUTH_TOKEN: _token, ANTHROPIC_API_KEY: _apiKey,
+    ZCODE_DATA_BASE_DIR: _data, ZCODE_PERSONAL_PROVIDER_CONFIG_FILE: _providers, ZCODE_CLI_CREDENTIALS_FILE: _credentials,
+    ...clean
+  } = rest
   return clean
 }
 

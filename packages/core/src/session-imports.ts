@@ -9,7 +9,8 @@ import type { ConversationStore, SessionImport } from './conversation-store'
 import { Rejection } from './rejection'
 
 const MAX_LISTED = 500
-const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// ZCode names its sessions sess_<uuid>.
+const SESSION_ID = /^(?:sess_)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 // A file written just as a stage of Antumi's own ended still counts as that stage's.
 const SETTLE_MS = 2_000
 
@@ -32,7 +33,7 @@ async function isDirectory(dir: string): Promise<boolean> {
   return (await stat(dir).catch(() => null))?.isDirectory() ?? false
 }
 
-// The sessions Claude Code and Codex ran outside Antumi, and their import as conversations that
+// The sessions Claude Code, Codex and ZCode ran outside Antumi, and their import as conversations that
 // go on in the agent's own session. One imported again brings in only what was added since.
 export class SessionImports {
   private queue: Promise<unknown> = Promise.resolve()

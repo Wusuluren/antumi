@@ -11524,8 +11524,8 @@ export const MESSAGES = {
     "en": "Import sessions"
   },
   "SettingsPage.sessionImportDescription": {
-    "zh": "导入在终端里跑过的 Claude Code、Codex 会话，在 Antumi 里接着聊",
-    "en": "Bring in Claude Code and Codex sessions you ran in a terminal, and continue them in Antumi"
+    "zh": "导入在终端或 ZCode 里跑过的 Claude Code、Codex、ZCode 会话，在 Antumi 里接着聊",
+    "en": "Bring in Claude Code, Codex and ZCode sessions you ran in a terminal or in ZCode, and continue them in Antumi"
   },
   "SessionImportSettings.note": {
     "zh": "导入后保留之前的对话；之后发消息时，Agent 在原目录里恢复同一个会话接着聊。在终端里又聊过的会话会标为「有更新」，再导入一次只补上新的部分。",

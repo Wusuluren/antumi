@@ -11,7 +11,7 @@ import { Segmented, Toggle } from './SettingsControls'
 const keyOf = (session: ExternalSession) => `${session.agent}:${session.sessionId}`
 const selectable = (session: ExternalSession) => session.problem === null && session.status !== 'imported'
 
-// Sessions Claude Code and Codex ran in a terminal, listed by the folder they ran in; the ones
+// Sessions Claude Code, Codex and ZCode ran outside Antumi, listed by the folder they ran in; the ones
 // picked come in as conversations that go on in the agent's own session.
 export function SessionImportSettings() {
   const connected = useCore((s) => s.connection === 'connected')

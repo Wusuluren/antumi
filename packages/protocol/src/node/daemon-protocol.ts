@@ -28,7 +28,9 @@ const SessionInfo = z.object({
   io: SessionIo.optional(),
   agent: AgentKind.optional(),
   upgradeId: z.string().uuid().optional(),
-  stopReason: z.enum(['cancelled', 'timed-out']).optional()
+  stopReason: z.enum(['cancelled', 'timed-out']).optional(),
+  // A pipe's PROCESS_OWNER_ENV as it was started; older daemons leave it out.
+  owner: z.string().optional()
 })
 export type SessionInfo = z.infer<typeof SessionInfo>
 const Launch = z.object({

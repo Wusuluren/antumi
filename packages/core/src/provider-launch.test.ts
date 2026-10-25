@@ -25,12 +25,18 @@ describe('starting an agent on a model provider', () => {
     expect(Boolean(adapterOf(kind).providerModels)).toBe(agentDescriptor(kind).capabilities.modelProviders.length > 0)
   })
 
-  it.each(AGENT_KINDS.filter((kind) => agentDescriptor(kind).capabilities.modelProviders.length > 0))('keeps the key out of %s\'s command line and config, and marks its process', (kind) => {
+  // ZCode reads a key from a file only: its stage gets one of its own (zcode-provider.test.ts).
+  it.each(AGENT_KINDS.filter((kind) => agentDescriptor(kind).capabilities.modelProviders.length > 0 && kind !== 'zcode'))('keeps the key out of %s\'s command line and config, and marks its process', (kind) => {
     const command = start(kind, launchOn(kind))
     expect(command.args.join(' ')).not.toContain(KEY)
     expect(command.env?.OPENCODE_CONFIG_CONTENT ?? '').not.toContain(KEY)
     expect(Object.values(command.env ?? {})).toContain(KEY)
     expect(command.env?.[PROVIDER_MARK_ENV]).toBe('glm-1')
+  })
+
+  it('starts ZCode as ever, the key nowhere on its command', () => {
+    const command = start('zcode', launchOn('zcode'))
+    expect(command).toEqual({ command: 'zcode', args: ['app-server', '--stdio'] })
   })
 
   it('points Claude at the provider through its environment, over whatever it would inherit', () => {
