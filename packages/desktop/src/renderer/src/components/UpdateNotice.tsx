@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import type { UpdateState } from '../../../shared/app-update'
 import { t } from '../i18n'
-import { checkForUpdate, installUpdate, setUpdatePrerelease, skipUpdate, updateOffered, useUpdate } from '../update-state'
+import { checkForUpdate, installUpdate, setUpdateAutomatic, setUpdatePrerelease, skipUpdate, updateOffered, useUpdate } from '../update-state'
 import { closeTerminal, selectConversation, showTerminal, useCore } from '../core-store'
 import { agentLabel } from '../labels'
-import { ArrowUpIcon } from './icons'
+import { ArrowUpIcon, ChevronDownIcon } from './icons'
 import { ChatMarkdown } from './ChatMarkdown'
 import { Popover } from './Popover'
 import { SettingsRow, Toggle } from './SettingsControls'
@@ -76,12 +76,13 @@ export function UpdateActions({ state, onSkip }: { state: UpdateState; onSkip?: 
   const failedInstall = state.status === 'error' && state.canInstall
   return (
     <>
+      {state.status === 'ready' && state.automatic && <p className="update-hint" role="status">{t('AppUpdate.installOnNextLaunch')}</p>}
       {state.error && state.status === 'error' && <p className="update-error">{t('AppUpdate.failed', { reason: updateErrorText(state.error) })}</p>}
       {state.status === 'error' && <InstallBlockers blockers={state.blockers} />}
       {!state.canInstall && <p className="update-hint">{isMac() ? t('AppUpdate.manualMac') : t('AppUpdate.manualWindows')}</p>}
       <div className="update-actions">
         {state.canInstall ? (
-          <button type="button" className="button primary" onClick={installUpdate}>{failedInstall ? t('AppUpdate.retry') : t('AppUpdate.installAndRestart')}</button>
+          <button type="button" className="button primary" onClick={installUpdate}>{failedInstall ? t('AppUpdate.retry') : state.status === 'ready' ? t('AppUpdate.installDownloaded') : t('AppUpdate.installAndRestart')}</button>
         ) : (
           latest.download && <a className="button primary" href={latest.download} target="_blank" rel="noreferrer">{t('AppUpdate.downloadInstaller')}</a>
         )}
@@ -100,19 +101,38 @@ export function UpdateButton() {
   if (!state?.latest || !updateOffered(state)) return null
   const { latest } = state
   const busy = state.status === 'downloading' || state.status === 'installing'
+  const ready = state.status === 'ready' && state.canInstall
+  const label = ready ? t('AppUpdate.installDownloaded')
+    : state.status === 'downloading' ? t('AppUpdate.downloading', { percent: Math.round((state.progress ?? 0) * 100) })
+    : state.status === 'installing' ? t('AppUpdate.installing')
+    : t('AppUpdate.newVersion', { version: latest.version })
   return (
     <span className="menu-anchor statusbar-update-anchor">
       <button
         type="button"
         className="tool-button statusbar-update"
-        aria-haspopup="dialog"
-        aria-expanded={open}
+        aria-haspopup={ready ? undefined : "dialog"}
+        aria-expanded={ready ? undefined : open}
+        disabled={state.status === 'installing'}
+        title={ready ? t('AppUpdate.available', { version: latest.version }) : undefined}
         data-busy={busy || undefined}
-        onClick={() => setOpen((value) => !value)}
+        onClick={ready ? installUpdate : () => setOpen((value) => !value)}
       >
         <ArrowUpIcon />
-        <span>{state.status === 'downloading' ? t('AppUpdate.downloading', { percent: Math.round((state.progress ?? 0) * 100) }) : t('AppUpdate.newVersion', { version: latest.version })}</span>
+        <span>{label}</span>
       </button>
+      {ready && (
+        <button
+          type="button"
+          className="tool-button statusbar-update"
+          aria-label={t('AppUpdate.details')}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+        >
+          <ChevronDownIcon />
+        </button>
+      )}
       {open && (
         <Popover label={t('AppUpdate.available', { version: latest.version })} onClose={() => setOpen(false)}>
           <div className="update-card">
@@ -139,6 +159,15 @@ function statusText(state: UpdateState): string {
 // Under 关于: where the app stands against the latest release, a check on demand, and whether
 // pre-releases count.
 export function UpdateSettings() {
+  const [savingAutomatic, setSavingAutomatic] = useState(false)
+  const [automaticError, setAutomaticError] = useState(false)
+  const changeAutomatic = async (value: boolean) => {
+    setSavingAutomatic(true)
+    setAutomaticError(false)
+    try { await setUpdateAutomatic(value) }
+    catch { setAutomaticError(true) }
+    finally { setSavingAutomatic(false) }
+  }
   const state = useUpdate((s) => s.state)
   if (!state) return null
   const skipped = state.latest !== null && state.latest.version === state.skipped
@@ -161,6 +190,12 @@ export function UpdateSettings() {
           <UpdateActions state={state} />
         </div>
       )}
+      <SettingsRow
+        label={t('AppUpdate.automatic')}
+        description={t('AppUpdate.automaticDescription')}
+        control={(labelId) => <Toggle labelId={labelId} checked={state.automatic} disabled={savingAutomatic || state.status === 'installing' || !window.antumi?.setUpdateAutomatic} onChange={(value) => void changeAutomatic(value)} />}
+      />
+      {automaticError && <p className="update-error" role="alert">{t('AppUpdate.automaticSaveFailed')}</p>}
       <SettingsRow
         label={t('AppUpdate.prerelease')}
         description={t('AppUpdate.prereleaseDescription')}

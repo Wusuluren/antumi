@@ -41,6 +41,7 @@ declare global {
       checkForUpdate?(): Promise<unknown>
       installUpdate?(): Promise<unknown>
       skipUpdate?(version: string | null): Promise<unknown>
+      setUpdateAutomatic?(automatic: boolean): Promise<unknown>
       setUpdatePrerelease?(prerelease: boolean): Promise<unknown>
       onUpdate?(listener: (state: unknown) => void): () => void
     }

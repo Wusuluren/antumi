@@ -11133,9 +11133,17 @@ export const MESSAGES = {
     "zh": "下载并安装",
     "en": "Download and install"
   },
+  "AppUpdate.installDownloaded": {
+    "zh": "安装并重启",
+    "en": "Install and restart"
+  },
   "AppUpdate.downloadInstaller": {
     "zh": "下载安装包",
     "en": "Download installer"
+  },
+  "AppUpdate.details": {
+    "zh": "更新详情",
+    "en": "Update details"
   },
   "AppUpdate.releasePage": {
     "zh": "发布页",
@@ -11228,6 +11236,22 @@ export const MESSAGES = {
   "AppUpdate.unskip": {
     "zh": "取消跳过",
     "en": "Undo skip"
+  },
+  "AppUpdate.automatic": {
+    "zh": "后台自动更新",
+    "en": "Automatic background updates"
+  },
+  "AppUpdate.automaticDescription": {
+    "zh": "自动检查并下载新版本，下次启动时安装。下载后也可点击左下角「安装并重启」立即更新。",
+    "en": "Check for updates and download them in the background. Install on the next launch, or click “Install and restart” in the bottom-left corner to update now."
+  },
+  "AppUpdate.installOnNextLaunch": {
+    "zh": "更新已下载，下次启动时自动安装，也可以立即安装并重启。",
+    "en": "Update downloaded. It will install on the next launch, or you can install and restart now."
+  },
+  "AppUpdate.automaticSaveFailed": {
+    "zh": "自动更新设置未能保存，请重试。",
+    "en": "Could not save the automatic update preference. Please try again."
   },
   "AppUpdate.prerelease": {
     "zh": "接收测试版",

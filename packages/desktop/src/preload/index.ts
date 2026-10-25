@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('antumi', {
   checkForUpdate: (): Promise<unknown> => ipcRenderer.invoke('antumi:update-check'),
   installUpdate: (): Promise<unknown> => ipcRenderer.invoke('antumi:update-install'),
   skipUpdate: (version: string | null): Promise<unknown> => ipcRenderer.invoke('antumi:update-skip', version),
+  setUpdateAutomatic: (automatic: boolean): Promise<unknown> => ipcRenderer.invoke('antumi:update-automatic', automatic),
   setUpdatePrerelease: (prerelease: boolean): Promise<unknown> => ipcRenderer.invoke('antumi:update-prerelease', prerelease),
   onUpdate: (listener: (state: unknown) => void): (() => void) => {
     const handler = (_event: IpcRendererEvent, state: unknown) => listener(state)

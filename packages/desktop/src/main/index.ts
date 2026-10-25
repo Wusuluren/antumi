@@ -318,7 +318,7 @@ const updater = app.isPackaged || updateApi ? new AppUpdater({
   arch: process.arch,
   api: updateApi ?? 'https://api.github.com',
   preferencesFile: join(app.getPath('userData'), 'update.json'),
-  downloads: join(app.getPath('temp'), 'antumi-update'),
+  downloads: join(app.getPath('userData'), 'updates'),
   // Chromium's network stack, so the system proxy applies as in the browser.
   fetch: (url, init) => net.fetch(url, init),
   installBlocked: async () => {
@@ -383,6 +383,10 @@ ipcMain.handle('antumi:update-install', (event) => {
   return updater?.install()
 })
 ipcMain.handle('antumi:update-skip', (_event, version: unknown) => updater?.skip(typeof version === 'string' ? version : null))
+ipcMain.handle('antumi:update-automatic', (event, automatic: unknown) => {
+  if (event.sender !== mainWindow?.webContents || typeof automatic !== 'boolean') return
+  return updater?.setAutomatic(automatic)
+})
 ipcMain.handle('antumi:update-prerelease', (_event, prerelease: unknown) => updater?.setPrerelease(prerelease === true))
 
 // Packaged, a second launch would race the first for daemon and core; hand it to the open window.
@@ -398,15 +402,16 @@ app.on('second-instance', () => {
   }
 })
 
-void app.whenReady().then(() => {
+void app.whenReady().then(async () => {
   if (!primary) return
   protocol.handle(PREVIEW_SCHEME, servePreview)
   // Windows names a notification's sender by this id, the installer's shortcut carries the same.
   if (process.platform === 'win32') app.setAppUserModelId('dev.antumi.desktop')
   uiLocale = resolveUiLocale('system', app.getPreferredSystemLanguages())
   Menu.setApplicationMenu(Menu.buildFromTemplate(applicationMenu(uiLocale, process.platform)))
+  // Apply a previously verified download before opening a window or starting the backend.
+  if (await updater?.start()) return
   createWindow()
-  void updater?.start()
   void removeUpdateLeftovers()
   // After the backend: ensureBackend may move the home, and the host file belongs in the one core reads.
   void ensureBackend().finally(() => startBrowserHost(slot, antumiPaths().browserHostFile).then(
@@ -424,6 +429,7 @@ void app.whenReady().then(() => {
 // rather than finding a port nothing answers on.
 let quitting = false
 app.on('before-quit', (event) => {
+  updater?.stop()
   if (quitting || !browserHost) return
   event.preventDefault()
   quitting = true

@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto'
-import { createWriteStream } from 'node:fs'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { createReadStream, createWriteStream } from 'node:fs'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { z } from 'zod'
 import { compareVersions, isVersion, type UpdateState } from '../shared/app-update'
 
 // Releases as GitHub's REST API lists them; only what picking one needs.
-const Asset = z.object({ name: z.string(), browser_download_url: z.string().url(), size: z.number(), digest: z.string().nullish() })
+const Asset = z.object({ name: z.string().regex(/^[^/\\]+$/), browser_download_url: z.string().url(), size: z.number(), digest: z.string().nullish() })
 const Release = z.object({
   tag_name: z.string(),
   body: z.string().nullish(),
@@ -22,6 +22,7 @@ export const RELEASES_REPO = 'flyhero/antumi'
 const NOTES_LIMIT = 20_000
 const CHECK_EVERY = 6 * 60 * 60 * 1000
 const FIRST_CHECK = 10_000
+const RETRY_AFTER = 10 * 60_000
 const FEED_TAG = /<link\b[^>]*\bhref="[^"]*\/releases\/tag\/([^"]+)"/g
 const CHECKSUM_LINE = /^([0-9a-f]{64})\s+\*?(\S+)$/
 
@@ -54,7 +55,7 @@ export class InstallBlocked extends Error {
   }
 }
 
-const Preferences = z.object({ prerelease: z.boolean().catch(false), skipped: z.string().nullable().catch(null) })
+const Preferences = z.object({ automatic: z.boolean().catch(true), prerelease: z.boolean().catch(false), skipped: z.string().nullable().catch(null) })
 type Preferences = z.infer<typeof Preferences>
 
 export type UpdaterOptions = {
@@ -68,34 +69,60 @@ export type UpdaterOptions = {
   preferencesFile: string
   downloads: string
   fetch: (url: string, init?: { headers?: Record<string, string> }) => Promise<Response>
-  // Why the app cannot replace itself here, or null when it can; absent off macOS.
+  // Why the app cannot replace itself here, or null when it can.
   installBlocked: () => Promise<string | null>
   // Puts the app from the downloaded installer in place of this one and restarts into it.
   install: (installer: string, version: string) => Promise<void>
   publish: (state: UpdateState) => void
 }
 
-// Asks GitHub for a newer Antumi now and then, and on macOS downloads and installs it on request.
+// Downloads updates in the background; applies a verified pending download on the next launch.
 export class AppUpdater {
   private state: UpdateState
   private release: Release | null = null
   private timer: ReturnType<typeof setInterval> | null = null
+  private firstCheck: ReturnType<typeof setTimeout> | null = null
+  private retryTimer: ReturnType<typeof setInterval> | null = null
+  private stopped = false
+  private automaticRun: Promise<void> | null = null
+  private retryAt = 0
+  private saving: Promise<void> = Promise.resolve()
   private checking: Promise<void> | null = null
+  private installing: Promise<void> | null = null
   private downloaded: string | null = null
+  private downloadedAsset: string | null = null
 
   constructor(private readonly options: UpdaterOptions) {
-    this.state = { current: options.current, status: 'idle', latest: null, canInstall: false, progress: null, error: null, blockers: [], checkedAt: null, prerelease: false, skipped: null }
+    this.state = { current: options.current, status: 'idle', latest: null, canInstall: false, progress: null, error: null, blockers: [], checkedAt: null, prerelease: false, skipped: null, automatic: true }
   }
 
-  async start(): Promise<void> {
+  // True when installation took over startup and will relaunch the application.
+  async start(): Promise<boolean> {
+    this.stopped = false
     const preferences = await this.preferences()
-    this.set({ prerelease: preferences.prerelease, skipped: preferences.skipped })
-    setTimeout(() => void this.check(), FIRST_CHECK).unref?.()
+    if (this.stopped) return false
+    this.set(preferences)
+    await this.restorePending()
+    if (this.state.status === 'ready' && this.canDownloadAutomatically()) {
+      await this.install()
+      if (this.current().status === 'installing') return true
+    }
+    if (this.stopped) return false
+    this.firstCheck = setTimeout(() => void this.check(), FIRST_CHECK)
+    this.firstCheck.unref?.()
+    this.retryTimer = setInterval(() => void this.runAutomatic(), RETRY_AFTER)
+    this.retryTimer.unref?.()
     this.timer = setInterval(() => void this.check(), CHECK_EVERY)
     this.timer.unref?.()
+    return false
   }
 
   stop(): void {
+    this.stopped = true
+    if (this.firstCheck) clearTimeout(this.firstCheck)
+    if (this.retryTimer) clearInterval(this.retryTimer)
+    this.firstCheck = null
+    this.retryTimer = null
     if (this.timer) clearInterval(this.timer)
     this.timer = null
   }
@@ -105,8 +132,9 @@ export class AppUpdater {
   }
 
   check(): Promise<void> {
+    if (this.automaticRun) return this.automaticRun
     if (this.busy()) return Promise.resolve()
-    this.checking ??= this.fetchNewest().finally(() => { this.checking = null })
+    this.checking ??= this.fetchNewest().then(() => this.runAutomatic()).finally(() => { this.checking = null })
     return this.checking
   }
 
@@ -116,32 +144,130 @@ export class AppUpdater {
     await this.check()
   }
 
+  async setAutomatic(automatic: boolean): Promise<void> {
+    await this.savePreferences({ automatic })
+    this.set({ automatic })
+    if (automatic) void this.check()
+  }
+
   async skip(version: string | null): Promise<void> {
     await this.savePreferences({ skipped: version })
     this.set({ skipped: version })
   }
 
-  // Downloads the installer, checks it against what GitHub says of it, and installs it.
-  async install(): Promise<void> {
+  install(): Promise<void> {
+    this.installing ??= this.installNow().finally(() => { this.installing = null })
+    return this.installing
+  }
+
+  private async installNow(): Promise<void> {
+    if (this.automaticRun) await this.automaticRun
     const release = this.release
     const asset = release && installerFor(release, this.options.platform, this.options.arch)
-    if (!release || !asset || this.busy() || !this.state.canInstall) return
-    const version = versionOf(release)
-    this.set({ status: 'downloading', progress: 0, error: null, blockers: [] })
+    if (!release || !asset || this.busy() || this.state.status === 'checking' || !this.state.canInstall) return
     try {
-      const file = join(this.options.downloads, asset.name)
-      // A retry after the install itself failed (agents still running on Windows) reuses it.
-      if (this.downloaded !== file) await this.download(asset, file)
-      this.downloaded = file
-      this.set({ status: 'installing', progress: null })
-      await this.options.install(file, version)
+      const file = await this.downloadRelease(release, asset)
+      this.set({ status: 'installing', progress: null, error: null, blockers: [] })
+      await this.options.install(file, versionOf(release))
     } catch (error) {
-      this.set({ status: 'error', progress: null, error: error instanceof Error ? error.message : String(error), blockers: error instanceof InstallBlocked ? error.blockers : [] })
+      this.failed(error)
     }
+  }
+
+  private canDownloadAutomatically(): boolean {
+    const release = this.release
+    const asset = release && installerFor(release, this.options.platform, this.options.arch)
+    return !this.stopped && this.state.automatic && this.state.canInstall
+      && Boolean(release && versionOf(release) !== this.state.skipped && (!release.prerelease || this.state.prerelease))
+      && Boolean(asset?.digest?.match(/^sha256:[0-9a-f]{64}$/))
+  }
+
+  private runAutomatic(): Promise<void> {
+    if (this.automaticRun) return this.automaticRun
+    const release = this.release
+    const asset = release && installerFor(release, this.options.platform, this.options.arch)
+    if (!release || !asset || !this.canDownloadAutomatically() || this.hasDownload(asset) || this.busy()
+      || this.state.status === 'checking' || Date.now() < this.retryAt) return Promise.resolve()
+    this.automaticRun = this.downloadRelease(release, asset).then(() => {
+      this.set({ status: 'ready', progress: null, error: null, blockers: [] })
+    }).catch((error: unknown) => {
+      this.retryAt = Date.now() + RETRY_AFTER
+      this.failed(error)
+    }).finally(() => { this.automaticRun = null })
+    return this.automaticRun
+  }
+
+  private async downloadRelease(release: Release, asset: ReleaseAsset): Promise<string> {
+    const file = join(this.options.downloads, asset.name)
+    if (!this.hasDownload(asset)) {
+      this.set({ status: 'downloading', progress: 0, error: null, blockers: [] })
+      await this.download(asset, file)
+      // A complete, verified installer survives quitting; partial files are never marked pending.
+      if (asset.digest?.match(/^sha256:[0-9a-f]{64}$/)) {
+        const temporary = `${this.pendingFile}.tmp`
+        await writeFile(temporary, JSON.stringify(release))
+        await rename(temporary, this.pendingFile)
+      }
+      this.downloaded = file
+      this.downloadedAsset = JSON.stringify(asset)
+    }
+    return file
+  }
+
+  private get pendingFile(): string {
+    return join(this.options.downloads, 'pending.json')
+  }
+
+  private async restorePending(): Promise<void> {
+    const text = await readFile(this.pendingFile, 'utf8').catch(() => null)
+    if (!text) return
+    try {
+      const release = Release.parse(JSON.parse(text))
+      if (!isVersion(release.tag_name) || compareVersions(release.tag_name, this.options.current) <= 0) {
+        await rm(this.pendingFile, { force: true })
+        const applied = installerFor(release, this.options.platform, this.options.arch)
+        if (applied) await rm(join(this.options.downloads, applied.name), { force: true })
+        return
+      }
+      const asset = installerFor(release, this.options.platform, this.options.arch)
+      if (!asset?.digest?.match(/^sha256:[0-9a-f]{64}$/) || release.draft || (release.prerelease && !this.state.prerelease)) return
+      this.offer(release, asset, await this.options.installBlocked() === null)
+      const file = join(this.options.downloads, asset.name)
+      const hash = createHash('sha256')
+      let size = 0
+      try {
+        for await (const chunk of createReadStream(file)) { hash.update(chunk); size += chunk.length }
+      } catch { throw new Error('download-failed') }
+      if (asset.size > 0 && size !== asset.size) throw new Error('incomplete')
+      if (`sha256:${hash.digest('hex')}` !== asset.digest) throw new Error('digest-mismatch')
+      this.downloaded = file
+      this.downloadedAsset = JSON.stringify(asset)
+      this.set({ status: 'ready' })
+    } catch (error) {
+      await rm(this.pendingFile, { force: true }).catch(() => {})
+      if (this.release) this.failed(error)
+    }
+  }
+
+  private failed(error: unknown): void {
+    this.set({ status: 'error', progress: null, error: error instanceof Error ? error.message : String(error), blockers: error instanceof InstallBlocked ? error.blockers : [] })
+  }
+
+  private hasDownload(asset: ReleaseAsset): boolean {
+    return this.downloaded === join(this.options.downloads, asset.name) && this.downloadedAsset === JSON.stringify(asset)
   }
 
   private busy(): boolean {
     return this.state.status === 'downloading' || this.state.status === 'installing'
+  }
+
+  private offer(release: Release, asset: ReleaseAsset | null, canInstall: boolean): void {
+    this.release = release
+    this.set({
+      status: asset && this.hasDownload(asset) ? 'ready' : 'available',
+      canInstall,
+      latest: { version: versionOf(release), notes: (release.body ?? '').slice(0, NOTES_LIMIT), page: release.html_url, download: asset?.browser_download_url ?? null }
+    })
   }
 
   private async fetchNewest(): Promise<void> {
@@ -150,22 +276,18 @@ export class AppUpdater {
       const { releases, feed } = await this.releases()
       const newest = newestRelease(releases, this.options.current, this.state.prerelease)
       const release = newest && feed ? await this.withChecksums(newest) : newest
-      this.release = release
-      const blocked = release && installerFor(release, this.options.platform, this.options.arch) ? await this.options.installBlocked() : 'no installer'
-      this.set({
-        status: release ? 'available' : 'none',
-        checkedAt: Date.now(),
-        canInstall: blocked === null,
-        latest: release && {
-          version: versionOf(release),
-          notes: (release.body ?? '').slice(0, NOTES_LIMIT),
-          page: release.html_url,
-          download: installerFor(release, this.options.platform, this.options.arch)?.browser_download_url ?? null
-        }
-      })
+      if (release) {
+        const asset = installerFor(release, this.options.platform, this.options.arch)
+        this.offer(release, asset, asset !== null && await this.options.installBlocked() === null)
+        this.set({ checkedAt: Date.now() })
+      } else {
+        this.release = null
+        this.set({ status: 'none', latest: null, canInstall: false, checkedAt: Date.now() })
+      }
     } catch (error) {
-      // A release already found stays on offer: a check that failed says nothing against it.
-      this.set({ status: this.release ? 'available' : 'error', checkedAt: Date.now(), error: error instanceof Error ? error.message : String(error) })
+      // A verified pending installer remains usable even when the network is unavailable.
+      const asset = this.release && installerFor(this.release, this.options.platform, this.options.arch)
+      this.set({ status: asset && this.hasDownload(asset) ? 'ready' : this.release ? 'available' : 'error', checkedAt: Date.now(), error: error instanceof Error ? error.message : String(error) })
     }
   }
 
@@ -218,6 +340,7 @@ export class AppUpdater {
 
   private async download(asset: ReleaseAsset, file: string): Promise<void> {
     this.downloaded = null
+    this.downloadedAsset = null
     await mkdir(dirname(file), { recursive: true })
     await rm(file, { force: true })
     const response = await this.options.fetch(asset.browser_download_url, { headers: { 'user-agent': `Antumi/${this.options.current}` } })
@@ -258,13 +381,19 @@ export class AppUpdater {
     try {
       return Preferences.parse(JSON.parse(text))
     } catch {
-      return { prerelease: false, skipped: null }
+      return { prerelease: false, skipped: null, automatic: true }
     }
   }
 
-  private async savePreferences(change: Partial<Preferences>): Promise<void> {
-    const next = { ...(await this.preferences()), ...change }
-    await mkdir(dirname(this.options.preferencesFile), { recursive: true })
-    await writeFile(this.options.preferencesFile, JSON.stringify(next, null, 2))
+  private savePreferences(change: Partial<Preferences>): Promise<void> {
+    const save = this.saving.catch(() => {}).then(async () => {
+      const next = { ...(await this.preferences()), ...change }
+      await mkdir(dirname(this.options.preferencesFile), { recursive: true })
+      const temporary = `${this.options.preferencesFile}.tmp`
+      await writeFile(temporary, JSON.stringify(next, null, 2))
+      await rename(temporary, this.options.preferencesFile)
+    })
+    this.saving = save
+    return save
   }
 }

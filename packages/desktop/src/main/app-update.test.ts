@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { compareVersions, type UpdateState } from '../shared/app-update'
-import { AppUpdater, InstallBlocked, installerFor, newestRelease, type Release } from './app-update'
+import { AppUpdater, InstallBlocked, installerFor, newestRelease, type Release, type UpdaterOptions } from './app-update'
 
 const release = (tag: string, change: Partial<Release> = {}): Release => ({
   tag_name: tag,
@@ -51,18 +51,19 @@ describe('installerFor', () => {
 
 describe('AppUpdater', () => {
   const dirs: string[] = []
-  afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
+  const instances: AppUpdater[] = []
+  afterEach(() => { vi.useRealTimers(); for (const instance of instances.splice(0)) instance.stop(); for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
   // apiStatus: what the API answers instead of the releases; feed and sums: the site's Atom feed
   // and a release's SHA256SUMS, absent when not given.
-  function updater(releases: Release[], installer: Uint8Array, change: { blocked?: string | null; refuse?: number; busy?: UpdateState['blockers']; apiStatus?: number; feed?: string; sums?: string } = {}) {
+  function updater(releases: Release[], installer: Uint8Array, change: { blocked?: string | null; refuse?: number; busy?: UpdateState['blockers']; apiStatus?: number; feed?: string; sums?: string; onDownload?: () => Promise<void>; onInstall?: () => Promise<void> } = {}) {
     const dir = mkdtempSync(join(tmpdir(), 'antumi-update-test-'))
     dirs.push(dir)
     const states: UpdateState[] = []
     const installed: { file: string; version: string }[] = []
     let downloads = 0
     let refusals = change.refuse ?? 0
-    const instance = new AppUpdater({
+    const options: UpdaterOptions = {
       current: '0.19.4',
       platform: 'darwin',
       arch: 'arm64',
@@ -75,16 +76,26 @@ describe('AppUpdater', () => {
         if (url === 'https://site.example.com/flyhero/antumi/releases.atom') return change.feed === undefined ? new Response('', { status: 404 }) : new Response(change.feed)
         if (url.endsWith('/SHA256SUMS')) return change.sums === undefined ? new Response('', { status: 404 }) : new Response(change.sums)
         downloads++
+        await change.onDownload?.()
         return new Response(installer)
       },
       installBlocked: async () => change.blocked ?? null,
       install: async (file, version) => {
         if (refusals-- > 0) throw change.busy ? new InstallBlocked(change.busy) : new Error('agents-running')
+        await change.onInstall?.()
         installed.push({ file, version })
       },
       publish: (state) => states.push(state)
-    })
-    return { instance, states, installed, downloads: () => downloads }
+    }
+    const instance = new AppUpdater(options)
+    instances.push(instance)
+    const restart = (next: Partial<UpdaterOptions> = {}) => {
+      instance.stop()
+      const restarted = new AppUpdater({ ...options, ...next })
+      instances.push(restarted)
+      return restarted
+    }
+    return { instance, restart, dir, states, installed, downloads: () => downloads }
   }
 
   it('says a newer version is there, and that it can install it in place', async () => {
@@ -142,7 +153,7 @@ describe('AppUpdater', () => {
     const { instance, installed } = updater([], bytes, { apiStatus: 403, feed: feed('v0.19.6-beta.1', 'v0.19.5', 'v0.19.3'), sums })
     await instance.check()
     expect(instance.current()).toMatchObject({
-      status: 'available',
+      status: 'ready',
       canInstall: true,
       error: null,
       latest: { version: '0.19.5', page: 'https://site.example.com/flyhero/antumi/releases/tag/v0.19.5', download: 'https://site.example.com/flyhero/antumi/releases/download/v0.19.5/Antumi-0.19.5-arm64.dmg' }
@@ -193,4 +204,204 @@ describe('AppUpdater', () => {
     expect(installed).toHaveLength(1)
     expect(downloads()).toBe(1)
   })
+
+  const bytes = new Uint8Array([1, 2, 3, 4])
+  const verifiedRelease = () => release('v0.19.5', { assets: [{
+    name: 'Antumi-0.19.5-arm64.dmg', browser_download_url: 'https://example.com/a.dmg', size: bytes.length,
+    digest: `sha256:${createHash('sha256').update(bytes).digest('hex')}`
+  }] })
+
+  it('downloads by default and never interrupts the current application to install', async () => {
+    const { instance, installed, downloads } = updater([verifiedRelease()], bytes)
+    vi.useFakeTimers()
+    await instance.start()
+    expect(instance.current().automatic).toBe(true)
+    await instance.check()
+    expect(instance.current()).toMatchObject({ status: 'ready', automatic: true, error: null })
+    await vi.advanceTimersByTimeAsync(6 * 60 * 60_000)
+    expect(downloads()).toBe(1)
+    expect(installed).toHaveLength(0)
+  })
+
+  it('keeps the installer across launches and applies it before any network check', async () => {
+    const { instance, installed, downloads, restart, dir } = updater([verifiedRelease()], bytes)
+    await instance.check()
+    expect(existsSync(join(dir, 'downloads', 'pending.json'))).toBe(true)
+    const offline = vi.fn(async () => { throw new Error('offline') })
+    const next = restart({ fetch: offline })
+    expect(await next.start()).toBe(true)
+    expect(offline).not.toHaveBeenCalled()
+    expect(downloads()).toBe(1)
+    expect(installed).toHaveLength(1)
+    expect(next.current().status).toBe('installing')
+  })
+
+  it('preserves an explicit opt-out and leaves an existing download available for manual installation', async () => {
+    const { instance, installed, restart, dir } = updater([verifiedRelease()], bytes)
+    await instance.check()
+    await instance.setAutomatic(false)
+    const next = restart()
+    expect(await next.start()).toBe(false)
+    expect(next.current()).toMatchObject({ automatic: false, status: 'ready' })
+    expect(JSON.parse(readFileSync(join(dir, 'update.json'), 'utf8')).automatic).toBe(false)
+    expect(installed).toHaveLength(0)
+    await next.install()
+    expect(installed).toHaveLength(1)
+  })
+
+  it('does not download automatically while disabled', async () => {
+    const { instance, installed, downloads, restart } = updater([verifiedRelease()], bytes)
+    await instance.setAutomatic(false)
+    await instance.check()
+    expect(downloads()).toBe(0)
+    const next = restart()
+    expect(await next.start()).toBe(false)
+    expect(next.current().automatic).toBe(false)
+    expect(installed).toHaveLength(0)
+  })
+
+  it('finishes a download without scheduling installation when disabled during download', async () => {
+    let downloaded!: () => void
+    let resume!: () => void
+    const started = new Promise<void>((resolve) => { downloaded = resolve })
+    const wait = new Promise<void>((resolve) => { resume = resolve })
+    const { instance, installed, restart } = updater([verifiedRelease()], bytes, { onDownload: async () => { downloaded(); await wait } })
+    const checking = instance.check()
+    await started
+    await instance.setAutomatic(false)
+    resume()
+    await checking
+    expect(installed).toHaveLength(0)
+    expect(instance.current()).toMatchObject({ automatic: false, status: 'ready' })
+    const next = restart()
+    expect(await next.start()).toBe(false)
+    expect(installed).toHaveLength(0)
+  })
+
+  it('does not apply a skipped downloaded version on the next launch', async () => {
+    const { instance, installed, restart } = updater([verifiedRelease()], bytes)
+    await instance.check()
+    await instance.skip('0.19.5')
+    const next = restart()
+    expect(await next.start()).toBe(false)
+    expect(installed).toHaveLength(0)
+    expect(next.current()).toMatchObject({ status: 'ready', skipped: '0.19.5' })
+  })
+
+  it('does not apply an already downloaded pre-release after pre-releases are disabled', async () => {
+    const beta = { ...verifiedRelease(), tag_name: 'v0.19.6-beta.1', prerelease: true }
+    const { instance, installed, restart } = updater([beta], bytes)
+    await instance.setPrerelease(true)
+    expect(instance.current().status).toBe('ready')
+    await instance.setPrerelease(false)
+    const next = restart()
+    expect(await next.start()).toBe(false)
+    expect(installed).toHaveLength(0)
+  })
+
+  it('never automatically downloads skipped or unverifiable releases, or an app it cannot replace', async () => {
+    for (const mode of ['skipped', 'unverified', 'blocked'] as const) {
+      const { instance, downloads, installed } = updater([mode === 'unverified' ? release('v0.19.5') : verifiedRelease()], bytes, { blocked: mode === 'blocked' ? 'read-only' : null })
+      if (mode === 'skipped') await instance.skip('0.19.5')
+      await instance.check()
+      expect(downloads(), mode).toBe(0)
+      expect(installed, mode).toHaveLength(0)
+    }
+  })
+
+  it.each(['corrupted', 'missing'] as const)('does not install a %s cached installer', async (mode) => {
+    const { instance, installed, restart, dir } = updater([verifiedRelease()], bytes)
+    await instance.check()
+    const file = join(dir, 'downloads', 'Antumi-0.19.5-arm64.dmg')
+    if (mode === 'corrupted') writeFileSync(file, new Uint8Array([9, 9, 9, 9]))
+    else rmSync(file)
+    const next = restart()
+    expect(await next.start()).toBe(false)
+    expect(installed).toHaveLength(0)
+    expect(next.current()).toMatchObject({ status: 'error', error: mode === 'corrupted' ? 'digest-mismatch' : 'download-failed' })
+    expect(existsSync(join(dir, 'downloads', 'pending.json'))).toBe(false)
+    await next.check()
+    expect(next.current().status).toBe('ready')
+  })
+
+  it('ignores an interrupted download without a pending record', async () => {
+    const { installed, restart, dir } = updater([verifiedRelease()], bytes)
+    writeFileSync(join(dir, 'unfinished.dmg'), bytes.slice(0, 1))
+    const next = restart()
+    expect(await next.start()).toBe(false)
+    expect(installed).toHaveLength(0)
+    expect(next.current().latest).toBeNull()
+  })
+
+  it('clears the pending record when the installed version has caught up', async () => {
+    const { instance, installed, restart, dir } = updater([verifiedRelease()], bytes)
+    await instance.check()
+    const next = restart({ current: '0.19.5' })
+    expect(await next.start()).toBe(false)
+    expect(installed).toHaveLength(0)
+    expect(existsSync(join(dir, 'downloads', 'pending.json'))).toBe(false)
+  })
+
+  it('opens the current application with the reason if a pending install is blocked by live sessions', async () => {
+    const { instance, installed, restart, downloads } = updater([verifiedRelease()], bytes, { refuse: 1, busy: [{ sessionId: 'shell' }] })
+    await instance.check()
+    const next = restart()
+    expect(await next.start()).toBe(false)
+    expect(next.current()).toMatchObject({ status: 'error', error: 'agents-running', blockers: [{ sessionId: 'shell' }] })
+    expect(installed).toHaveLength(0)
+    await next.install()
+    expect(installed).toHaveLength(1)
+    expect(downloads()).toBe(1)
+  })
+
+  it('backs off failed automatic downloads but leaves manual retry available', async () => {
+    const { instance, downloads, installed } = updater([verifiedRelease()], new Uint8Array(4))
+    await instance.check()
+    expect(instance.current()).toMatchObject({ status: 'error', error: 'digest-mismatch' })
+    await instance.check()
+    expect(downloads()).toBe(1)
+    await instance.install()
+    expect(downloads()).toBe(2)
+    expect(installed).toHaveLength(0)
+  })
+
+  it('serializes simultaneous preference writes without losing choices', async () => {
+    const { instance, dir } = updater([], bytes)
+    await Promise.all([instance.skip('0.19.5'), instance.setPrerelease(true), instance.setAutomatic(false)])
+    await instance.check()
+    expect(JSON.parse(readFileSync(join(dir, 'update.json'), 'utf8'))).toEqual({ prerelease: true, skipped: '0.19.5', automatic: false })
+  })
+
+  it('cancels startup and repeating checks when stopped', async () => {
+    const { instance, states } = updater([], bytes)
+    vi.useFakeTimers()
+    await instance.start()
+    instance.stop()
+    await vi.advanceTimersByTimeAsync(7 * 60 * 60_000)
+    expect(states.map((state) => state.status)).toEqual(['idle'])
+  })
+
+  it('retains a single downloaded installer when a manual install overlaps background downloading', async () => {
+    let downloaded!: () => void
+    let resume!: () => void
+    const started = new Promise<void>((resolve) => { downloaded = resolve })
+    const wait = new Promise<void>((resolve) => { resume = resolve })
+    const { instance, installed, downloads } = updater([verifiedRelease()], bytes, { onDownload: async () => { downloaded(); await wait } })
+    const checking = instance.check()
+    await started
+    const manual = instance.install()
+    resume()
+    await Promise.all([checking, manual])
+    expect(installed).toHaveLength(1)
+    expect(downloads()).toBe(1)
+  })
+
+  it('coalesces repeated clicks on a downloaded update into one install', async () => {
+    const { instance, installed, downloads } = updater([verifiedRelease()], bytes)
+    await instance.check()
+    await Promise.all([instance.install(), instance.install()])
+    expect(installed).toHaveLength(1)
+    expect(downloads()).toBe(1)
+  })
+
 })
