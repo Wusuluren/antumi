@@ -2,10 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { comparePetVersions, RpcError } from '@antumi/protocol'
 import { getLocale, t, useLocale } from '../i18n'
 import { setPreference, usePreferences } from '../preferences'
-import { useReducedMotion } from '../reduced-motion'
 import { BUILTIN_PET, cancelPet, installPet, refreshPets, removePet, usePetLibrary, usePetLibraryStore } from '../pet-library'
-import { usePetSkin } from './PetSprite'
-import type { PetPose } from './pet-skin'
 import { Segmented, SettingsGroup, SettingsRow } from './SettingsControls'
 import './pet-settings.css'
 
@@ -64,18 +61,9 @@ export function PetStylePicker({ labelId }: { labelId: string }) {
 }
 
 export function PetSettings() {
-  const style = usePreferences((s) => s.petStyle)
   const size = usePreferences((s) => s.petSize)
   const level = usePreferences((s) => s.petLevel)
-  const reduced = useReducedMotion()
-  const skin = usePetSkin(style, size)
-  const [pose, setPose] = useState<PetPose>('sit')
   const styleId = useId()
-  const poseId = useId()
-  const poses = [
-    { value: 'idle', label: t('Pet.idle') }, { value: 'sit', label: t('Pet.sit') },
-    { value: 'nap', label: t('Pet.nap') }, { value: 'sprint', label: t('Pet.sprint') }
-  ] as const
   return (
     <>
       <section className="pet-style-section" aria-labelledby={styleId}>
@@ -96,15 +84,6 @@ export function PetSettings() {
           </span>
         )} />
       </SettingsGroup>
-      <section className="pet-preview-section" aria-labelledby={poseId}>
-        <h3 id={poseId} className="settings-subsection-title">{t('Pet.preview')}</h3>
-        <p className="settings-note">{t('Pet.previewDescription')}</p>
-        <div className="pet-settings-preview">
-          <div key={`${style}:${pose}`} className="pet-settings-preview-art" style={{ width: size, height: size }}>{skin.render({ pose, walking: pose === 'sprint', lookX: 0, lookY: 0, reduced })}</div>
-          <span className="pet-preview-ledge" style={{ top: `calc(50% + ${size / 2}px)` }} />
-        </div>
-        <div className="pet-preview-poses"><Segmented labelId={poseId} value={pose} options={poses} onChange={setPose} /></div>
-      </section>
     </>
   )
 }

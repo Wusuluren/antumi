@@ -12,6 +12,6 @@ describe('pet preferences', () => {
   })
   it('rejects unusable sizes without breaking the other preferences', () => {
     for (const size of [80, 120, 192]) expect(PetSizePreference.parse(size)).toBe(size)
-    for (const size of [0, -1, 300, 80.5, '120', undefined]) expect(PetSizePreference.parse(size)).toBe(120)
+    for (const size of [0, -1, 300, 80.5, '120', undefined]) expect(PetSizePreference.parse(size)).toBe(80)
   })
 })

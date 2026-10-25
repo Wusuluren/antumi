@@ -14,7 +14,7 @@ const FRAME: Record<PetPose, number> = {
   jumping: 6, sit: 7, nap: 8, hang: 9, peek: 0, sprint: 11
 }
 
-export function PetSprite({ resource = BUILTIN_PET, pose, walking, lookX, lookY, reduced, size = 120 }: PetSkinProps & { resource?: PetResource; size?: number }) {
+export function PetSprite({ resource = BUILTIN_PET, pose, walking, lookX, lookY, reduced, size = 80 }: PetSkinProps & { resource?: PetResource; size?: number }) {
   const { manifest, atlas, walk } = resource
   const { rig, id: style } = manifest
   useEffect(() => {

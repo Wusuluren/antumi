@@ -11,10 +11,6 @@
 .pet-size-control { display: flex; align-items: center; gap: 12px; }
 .pet-size-control input { width: 144px; accent-color: var(--accent); }
 .pet-size-control output { min-width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
-.pet-settings-preview { position: relative; display: grid; place-items: center; height: 320px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg); }
-.pet-settings-preview-art { z-index: 1; }
-.pet-preview-ledge { position: absolute; top: calc(50% + 60px); left: 24px; right: 24px; height: 1px; background: var(--border-2); }
-.pet-preview-poses { display: flex; justify-content: center; margin-top: 16px; }
 @media (max-width: 900px) { .pet-style-picker { grid-template-columns: 1fr; } .pet-style-option { display: grid; grid-template-columns: 96px minmax(0, 1fr); column-gap: 16px; } .pet-style-art { grid-row: 1 / 3; width: 96px; height: 96px; margin: 0; } .pet-style-name { align-self: end; } }
 
 .pet-style-card { display: flex; flex-direction: column; min-width: 0; }
