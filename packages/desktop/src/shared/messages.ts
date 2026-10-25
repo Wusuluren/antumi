@@ -2,7 +2,6 @@
 export const MESSAGES = {
   "Readiness.unknownProvider": { "zh": "已安装，原生服务商配置尚未确认", "en": "Installed; native provider setup is not yet confirmed" },
   "SetupGuide.title": {"zh": "检查使用环境", "en": "Check your setup"},
-  "SetupGuide.open": {"zh": "开始 / 继续检查", "en": "Start / resume check"},
   "SetupGuide.agentStep": {"zh": "先准备一个 Agent", "en": "Prepare an agent"},
   "SetupGuide.sourceStep": {"zh": "要接入任务来源吗？", "en": "Connect a task source?"},
   "SetupGuide.done": {"zh": "准备好了。", "en": "You’re all set."},
@@ -10,7 +9,7 @@ export const MESSAGES = {
   "SetupGuide.disconnected": {"zh": "连接工作台后继续检查，已有进度会保留。", "en": "Reconnect to the workspace to continue. Your progress is saved."},
   "SetupGuide.chooseAgent": {"zh": "选择要使用的 Agent", "en": "Choose an agent"},
   "SetupGuide.pause": {"zh": "退出引导", "en": "Exit guide"},
-  "SetupGuide.resumeHint": {"zh": "可在「设置 → 关于 → 检查使用环境」继续。", "en": "Resume from Settings → About → Check your setup."},
+  "SetupGuide.resumeHint": {"zh": "可在左下角「帮助 → 检查使用环境」继续。", "en": "Resume from Help → Check your setup at the bottom left."},
   "SetupGuide.agents": {"zh": "打开本机 Agent", "en": "Open local agents"},
   "SetupGuide.enable": {"zh": "启用这个 Agent", "en": "Enable this agent"},
   "SetupGuide.providers": {"zh": "配置服务商", "en": "Configure a provider"},
@@ -3109,32 +3108,12 @@ export const MESSAGES = {
     "en": "Show less"
   },
   "GuideView.guide": {
-    "zh": "新手指导",
-    "en": "Getting started"
-  },
-  "GuideView.stepDone": {
-    "zh": "已完成",
-    "en": "Done"
-  },
-  "GuideView.agentsReady": {
-    "zh": "{agents} 已就绪",
-    "en": "{agents} ready"
-  },
-  "GuideView.providersAdded": {
-    "zh": "已添加 {providers}",
-    "en": "{providers} added"
+    "zh": "使用指南",
+    "en": "User guide"
   },
   "GuideView.backToOverview": {
     "zh": "回到总览",
     "en": "Back to Overview"
-  },
-  "GuideView.startFirstConversation": {
-    "zh": "开始第一条会话",
-    "en": "Start a conversation"
-  },
-  "SettingsPage.openGuide": {
-    "zh": "打开",
-    "en": "Open"
   },
   "ConversationSplit.rightPane": {
     "zh": "右列",
@@ -8047,6 +8026,10 @@ export const MESSAGES = {
   "StatusBar.noRunningAntumiCoreFoundStartPnpmDev": {
     "zh": "没有找到正在运行的 Antumi core，先启动 pnpm dev:core",
     "en": "No running Antumi core found. Start pnpm dev:core first"
+  },
+  "StatusBar.help": {
+    "zh": "帮助",
+    "en": "Help"
   },
   "StatusBar.settings": {
     "zh": "设置",

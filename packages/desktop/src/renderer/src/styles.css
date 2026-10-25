@@ -3569,18 +3569,18 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .update-settings-status { display: inline-flex; align-items: center; gap: 8px; }
 .update-settings-actions { display: flex; flex-direction: column; gap: 8px; padding: 0 0 12px; }
 
-.statusbar .statusbar-settings {
+.statusbar :is(.statusbar-settings, .statusbar-help) {
   width: 24px;
   height: 24px;
   margin-right: 2px;
 }
 
-.statusbar .statusbar-settings svg {
+.statusbar :is(.statusbar-settings, .statusbar-help) svg {
   width: 15px;
   height: 15px;
 }
 
-.statusbar-settings[aria-pressed='true'] {
+.statusbar-settings[aria-pressed='true'], .statusbar-help[aria-expanded='true'] {
   background: var(--surface-muted);
   color: var(--text);
 }
@@ -9995,19 +9995,11 @@ button.squad-member-main { cursor: pointer; }
   white-space: nowrap;
 }
 
-/* The getting-started guide reads as a document, at the chat's measure rather than the overview's. */
-.guide-page > * { width: 100%; max-width: 800px; margin-inline: auto; }
+/* The user guide reads at the chat's measure rather than the overview's. */
+.guide-page > * { width: 100%; max-width: var(--page-reading); margin-inline: auto; }
 .guide-page .worktrees-header { align-items: center; }
 .guide-markdown img { display: block; max-width: 100%; height: auto; margin: 12px 0; border: 1px solid var(--border); border-radius: var(--radius-lg); }
 .guide-markdown h2 { margin-top: 32px; }
-/* A step already done: its heading and what stands, the steps folded until clicked. */
-.guide-step-done > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-top: 32px; cursor: pointer; list-style: none; }
-.guide-step-done > summary::-webkit-details-marker { display: none; }
-.guide-step-done > summary h2 { margin: 0; color: var(--text-muted); }
-.guide-step-done[open] > summary { margin-bottom: 12px; }
-.guide-step-done > summary:hover h2 { color: var(--text); }
-.guide-step-done > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: var(--radius-xs); }
-.guide-step-status { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; }
 .guide-markdown table { display: table; width: 100%; }
 .guide-markdown td:first-child { white-space: nowrap; }
 

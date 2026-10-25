@@ -13,6 +13,15 @@ const stroked = {
   'aria-hidden': true
 } as const
 
+export function HelpIcon() {
+  return (
+    <svg {...stroked}>
+      <circle cx="10" cy="10" r="7" />
+      <path d="M7.8 7.5a2.2 2.2 0 0 1 4.4 0c0 1.5-2.2 1.7-2.2 3.2M10 13.5v.1" />
+    </svg>
+  )
+}
+
 export function PlayIcon() {
   return (
     <svg {...stroked}>

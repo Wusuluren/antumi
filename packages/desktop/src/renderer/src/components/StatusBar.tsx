@@ -1,16 +1,18 @@
 import { localized, t, tr } from '../i18n'
-import { useState } from 'react'
-import { setAwakeMode, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, toggleBrowserPanel, togglePortsPanel, toggleTerminalPanel, useAwakeSupported, useBrowserSupported, useCore, useSchedulesOpen, useSchedulesSupported, useWorktreesSupported, type ConnectionState } from '../core-store'
+import { useRef, useState } from 'react'
+import { openGuide, setAwakeMode, setSchedulesOpen, setSettingsOpen, setWorktreesOpen, toggleBrowserPanel, togglePortsPanel, toggleTerminalPanel, useAwakeSupported, useBrowserSupported, useCore, useSchedulesOpen, useSchedulesSupported, useWorktreesSupported, type ConnectionState } from '../core-store'
 import { ALL_TABS, useBrowserTabs } from '../browser-state'
 import { formatBytes, worktreeRows, worktreeSummary } from '../worktree-groups'
 import { useWorktrees } from '../worktree-store'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
-import { BranchIcon, CheckIcon, ClockIcon, CoffeeIcon, GearIcon, GlobeIcon, PortsIcon, TerminalIcon } from './icons'
+import { BranchIcon, CheckIcon, ClockIcon, CoffeeIcon, GearIcon, GlobeIcon, HelpIcon, PortsIcon, TerminalIcon } from './icons'
 import { usePorts } from '../port-state'
 import { UsageBar } from './UsageBar'
 import { openRuns } from '../schedules'
 import { Popover } from './Popover'
 import { UpdateButton } from './UpdateNotice'
+import { openSetup } from '../setup-controller'
+import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
 
 type ConnectionIssue = Exclude<ConnectionState, 'connected'>
 
@@ -56,6 +58,36 @@ function SettingsButton() {
     >
       <GearIcon />
     </button>
+  )
+}
+
+function HelpButton() {
+  const trigger = useRef<HTMLButtonElement>(null)
+  const [at, setAt] = useState<MenuPoint | null>(null)
+  const select = (action: () => void) => { setAt(null); action() }
+  return (
+    <>
+      <button
+        ref={trigger}
+        type="button"
+        className="tool-button statusbar-help"
+        aria-label={t('StatusBar.help')}
+        aria-haspopup="menu"
+        aria-expanded={at !== null}
+        data-tooltip={t('StatusBar.help')}
+        data-tooltip-side="top"
+        onClick={(event) => {
+          const box = event.currentTarget.getBoundingClientRect()
+          setAt(at ? null : { x: box.left, y: box.top })
+        }}
+      >
+        <HelpIcon />
+      </button>
+      {at && <ContextMenu at={at} above trigger={trigger.current} label={t('StatusBar.help')} onClose={() => setAt(null)}>
+        <MenuItem label={t('GuideView.guide')} onSelect={() => select(openGuide)} />
+        <MenuItem label={t('SetupGuide.title')} onSelect={() => select(openSetup)} />
+      </ContextMenu>}
+    </>
   )
 }
 
@@ -208,6 +240,7 @@ export function StatusBar() {
   return (
     <footer className="statusbar">
       <SettingsButton />
+      <HelpButton />
       <ConnectionStatus />
       <UpdateButton />
       <UsageBar />

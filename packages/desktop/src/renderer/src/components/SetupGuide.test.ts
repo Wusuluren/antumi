@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StateCreator } from 'zustand'
 import { agentSetupIdentity, ModelProvider, type Environment } from '@antumi/protocol'
-import { useCore } from '../core-store'
+import { openGuide, openOverview, setSettingsOpen, useCore } from '../core-store'
 import { setLocale } from '../i18n'
 import { DEFAULT_PREFERENCES, usePreferences } from '../preferences'
 import { useProviderProbes } from '../provider-probes'
@@ -86,6 +86,29 @@ describe('SetupGuide', () => {
     expect(render()).not.toContain('data-test-pet')
     usePreferences.setState({ petLevel: 'medium' })
     expect(render()).toContain('data-test-pet')
+  })
+
+  it('hides while reading the guide and restores the same progress on leaving it', () => {
+    updateSetup({ agent: 'codex', sourceChoice: 'configure' })
+    const progress = usePreferences.getState().setup
+    openGuide()
+    expect(render()).toBe('')
+    expect(usePreferences.getState().setup).toEqual(progress)
+    openOverview()
+    expect(render()).toContain('检查使用环境')
+    expect(usePreferences.getState().setup).toEqual(progress)
+  })
+
+  it('shows setup when following a settings link from the guide or explicitly resuming', () => {
+    openGuide()
+    setSettingsOpen(true, 'agents')
+    expect(render()).toContain('打开本机 Agent')
+    openGuide()
+    updateSetup({ status: 'paused', agent: 'codex' })
+    openSetup()
+    expect(useCore.getState().guideOpen).toBe(false)
+    expect(usePreferences.getState().setup.agent).toBe('codex')
+    expect(render()).toContain('检查使用环境')
   })
 
   it('shows waiting on disconnection rather than recommending configuration from stale data', () => {

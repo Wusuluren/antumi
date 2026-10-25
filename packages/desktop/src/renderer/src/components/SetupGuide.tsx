@@ -31,14 +31,15 @@ export function SetupGuide() {
   const taskLaunchId = useCore((state) => state.taskLaunchId)
   const newTaskOpen = useCore((state) => state.newTaskOpen)
   const settingsOpen = useCore((state) => state.settingsOpen)
+  const readingGuide = useCore((state) => state.guideOpen && state.overviewOpen && !state.settingsOpen)
   const features = useCore((state) => state.rpc?.features)
   const probes = useProviderProbes((state) => state.probes)
   const reduced = useReducedMotion()
-  const skin = usePetSkin(petStyle, 80, petLevel === 'off' || progress.status !== 'active')
+  const skin = usePetSkin(petStyle, 80, petLevel === 'off' || progress.status !== 'active' || readingGuide)
   const [refreshing, setRefreshing] = useState(false)
   const [sourceId, setSourceId] = useState<string | null>(null)
 
-  if (progress.status !== 'active') return null
+  if (progress.status !== 'active' || readingGuide) return null
   const situation = { environment, disabled, providers, sources, probes }
   const agent = progress.agent ?? preferredSetupAgent(situation)
   const readiness = agent ? agentReadiness(agent, environment, disabled, providers, probes) : null

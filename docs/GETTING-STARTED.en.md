@@ -1,24 +1,18 @@
-# Welcome to Antumi
+# Antumi user guide
 
-Antumi drives the Claude Code, Codex, Cursor, OpenCode, Pi and DeepSeek Harness you already have, all from one window. Chatting, editing code and approving actions work much as in each agent's own desktop app. Do the setup below before a conversation can start; the rest is there when you want it.
+Look up configuration and features here when you need them. On first use, the pet checks whether an agent is installed and usable, then asks whether to configure task sources. To check again, open **Help → Check your setup** at the bottom left.
 
-## Step 1: Install and sign in to an agent
+## Agent installation and sign-in
 
-<!-- guide-step: agents -->
-
-**Required.** Open [**Settings → Local Agents**](antumi:settings/agents). An agent showing **Ready** with its switch on is all it takes.
+Open [**Settings → Local Agents**](antumi:settings/agents) to check installation, enabled state and readiness. Agents can use their own account or a compatible model provider; the setup check shows what your agent needs.
 
 ![Settings → Local Agents: agents installed and signed in show Ready](assets/guide/agents-ready.en.png)
 
-- **Sign-in required**: run the sign-in command on that row in a terminal, then click **Scan again**.
+- To use the agent's own account: run the sign-in command on that row in a terminal, then click **Scan again**.
 - Listed under **Available to install**: click **Install in terminal**, or run the install command yourself, then click **Scan again**.
-- OpenCode, Pi and DeepSeek Harness have no account of their own; once installed, do step 2 as well.
+- To use a model provider: configure a compatible provider as described below. If it is already configured in the agent itself, follow the setup check's confirmation prompt.
 
-Then click **Start a conversation** at the top.
-
-## Step 2: Add a model provider
-
-<!-- guide-step: providers -->
+## Model providers
 
 **Skip this when the agent uses its own account.** Add one for a coding plan such as Volcengine Ark, Zhipu GLM or Kimi, or to let OpenCode, Pi or DeepSeek Harness answer.
 
@@ -28,7 +22,7 @@ In [**Settings → Model providers**](antumi:settings/model-providers), click **
 
 Pick it in the **Provider** control of the input box when starting a conversation. It bills the provider's plan, not the agent's quota, and cannot be changed once the conversation has started.
 
-## Step 3: Sign in to more than one account
+## Multiple accounts
 
 **Optional,** for Claude Code and Codex only.
 
@@ -36,7 +30,7 @@ Pick it in the **Provider** control of the input box when starting a conversatio
 
 In [**Settings → Accounts**](antumi:settings/accounts), click **Add Claude Code account** (or Codex), then **Add and sign in**, finish in the terminal below and click **Make active**. When an account runs out, the conversation moves on to the next one by default.
 
-## Step 4: Install a task or bug source
+## Task sources
 
 **Optional,** to import tasks from GitHub, Jira, Linear or ZenTao.
 
@@ -55,9 +49,9 @@ In [**Settings → Accounts**](antumi:settings/accounts), click **Add Claude Cod
 
 For a platform outside the recommendations, use **Install from another source** with a GitHub repository or a local ZIP. To write your own, see the [plugin development guide](https://github.com/flyhero/antumi/blob/main/docs/PLUGINS.md).
 
-## Using it
+## Features
 
-None of the following has to be set up before you start.
+Look up these features when the relevant situation comes up.
 
 ### Handoff
 
@@ -119,4 +113,4 @@ Select part of a reply and right-click:
 | Conversation groups | **Group and sort** on the sidebar's **Conversations**: by project, agent or run status |
 | Keeps running | Agents run in a background process; closing the window does not stop them |
 
-You can open this guide again any time from **Settings → About**.
+You can open this guide any time from **Help → User guide** at the bottom left.

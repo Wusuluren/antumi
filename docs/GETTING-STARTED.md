@@ -1,24 +1,18 @@
-# 欢迎使用 Antumi
+# Antumi 使用指南
 
-Antumi 在一个窗口里驱动你装好的 Claude Code、Codex、Cursor、OpenCode、Pi 和 DeepSeek Harness。聊天、改代码和批准操作，和各家自己的桌面端差不多。先做完下面的准备，会话才能发出去；后面的用法用到再看。
+这里提供配置说明和常用功能查阅。首次使用时，宠物会检查 Agent 是否安装、能否使用，并询问是否配置任务来源。需要重新检查时，打开左下角 **帮助 → 检查使用环境**。
 
-## 第一步：安装并登录一个 Agent
+## Agent 安装与登录
 
-<!-- guide-step: agents -->
-
-**必要。** 打开 [**设置 → 本机 Agent**](antumi:settings/agents)，要用的 Agent 显示 **已就绪**、开关打开就行。
+打开 [**设置 → 本机 Agent**](antumi:settings/agents)，查看安装、启用和可用状态。Agent 可通过自己的账号或兼容的模型服务商使用；具体需求以环境检查提示为准。
 
 ![设置 → 本机 Agent：装好并登录的 Agent 标着已就绪](assets/guide/agents-ready.png)
 
-- 显示 **需登录**：在终端运行那一行给出的登录命令，再点 **重新检测**。
+- 需要使用 Agent 自己的账号：在终端运行那一行给出的登录命令，再点 **重新检测**。
 - 列在 **可安装** 里：点 **在终端安装**，或复制安装命令自己跑，装完点 **重新检测**。
-- OpenCode、Pi、DeepSeek Harness 没有自己的账号，装好后再做第二步。
+- 使用模型服务商：按下节配置兼容的服务商；已在 Agent 自己的配置中接入的，可按环境检查提示确认。
 
-做完点上方的 **开始第一条会话**。
-
-## 第二步：设置服务商
-
-<!-- guide-step: providers -->
+## 模型服务商
 
 **用 Agent 自己的账号可以跳过。** 想用火山方舟、智谱 GLM、Kimi 这类编程套餐，或让 OpenCode、Pi、DeepSeek Harness 回答时才要。
 
@@ -28,7 +22,7 @@ Antumi 在一个窗口里驱动你装好的 Claude Code、Codex、Cursor、OpenC
 
 新建会话时在输入框的 **服务商** 里选它，按服务商计费，不占官方额度；会话开始后不能再换。
 
-## 第三步：配置多个账号
+## 多个账号
 
 **可选，** 只有 Claude Code 和 Codex 支持。
 
@@ -36,7 +30,7 @@ Antumi 在一个窗口里驱动你装好的 Claude Code、Codex、Cursor、OpenC
 
 在 [**设置 → 账号**](antumi:settings/accounts) 点 **添加 Claude Code 账号**（或 Codex），再点 **添加并登录**，在下方终端登录后点 **设为当前**。额度用完时默认自动换到下一个账号，会话接着跑。
 
-## 第四步：安装任务或 Bug 来源
+## 任务来源
 
 **可选，** 要从 GitHub、Jira、Linear、禅道导入任务时才要。
 
@@ -55,9 +49,9 @@ Antumi 在一个窗口里驱动你装好的 Claude Code、Codex、Cursor、OpenC
 
 推荐里没有的平台，可以在 **从其他位置安装** 填 GitHub 仓库或选本地 ZIP；想自己写一个，见 [插件开发指南](https://github.com/flyhero/antumi/blob/main/docs/PLUGINS.md)。
 
-## 用起来
+## 常用功能
 
-下面都不是开始前要配的。
+遇到相关场景时，可以在这里查阅。
 
 ### 无缝移交
 
@@ -119,4 +113,4 @@ Antumi 在一个窗口里驱动你装好的 Claude Code、Codex、Cursor、OpenC
 | 会话分组 | 侧栏 **会话** 的「分组和排序」，按项目、Agent 或运行状态分组 |
 | 关窗不停 | Agent 在后台进程里运行，关掉窗口也不打断 |
 
-随时可以在 **设置 → 关于** 里再打开这篇指导。
+随时可以在左下角 **帮助 → 使用指南** 打开本文。
