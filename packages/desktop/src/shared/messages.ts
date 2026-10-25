@@ -6564,12 +6564,12 @@ export const MESSAGES = {
     "en": "Uses the conversation's Agent. Choose the model in Local Agents → “Model for quick tasks”. Translation is a separate request and uses no conversation context, but counts toward the Agent's usage. Each reply is translated only once."
   },
   "SettingsPage.showUsageQuotaInStatusBar": {
-    "zh": "在状态栏显示用量额度",
-    "en": "Show usage quota in status bar"
+    "zh": "显示使用情况",
+    "en": "Show usage"
   },
   "SettingsPage.subscriptionQuotaWindowsForEachAgentSuchAs": {
-    "zh": "各 Agent 订阅的额度窗口，如 5 小时、每周或每月。",
-    "en": "Subscription quota windows for each Agent, such as 5-hour, weekly, or monthly limits."
+    "zh": "选择在底部状态栏显示用量的 Agent，关闭总开关可全部隐藏。",
+    "en": "Choose which Agents show usage in the bottom status bar. Turn off the main switch to hide them all."
   },
   "SettingsPage.percentageDisplay": {
     "zh": "百分比显示",

@@ -28,7 +28,6 @@ import { agentLabel } from '../labels'
 import { usePreferences } from '../preferences'
 import { adviceText, alternativeAgent, paceText } from '../quota-advice-text'
 import { clearsText, formatClock, formatDuration, globalResetText, percentText, resetText, shownPercent, SPEND_OUTCOME_TEXT, spendNote, useNow, windowLabel } from '../usage-format'
-import { agentNames } from '../environment-text'
 import { AgentIcon, CheckIcon, InfoIcon } from './icons'
 import { Spinner } from './Spinner'
 import { forecastText, useQuotaForecasts } from '../quota-forecast'
@@ -520,6 +519,7 @@ function UsageSegment({ usage, now }: { usage: AgentUsage; now: number }) {
 export function UsageBar() {
   const usage = useCore((s) => s.usage)
   const visible = usePreferences((s) => s.showUsage)
+  const hidden = usePreferences((s) => s.hiddenUsageAgents)
   const now = useNow(60_000)
 
   // An older core has no usage methods: show nothing rather than a dead segment.
@@ -527,13 +527,15 @@ export function UsageBar() {
     return null
   }
   const known = AGENT_KINDS.map((agent) => usage[agent]).filter((entry) => entry !== undefined)
-  const shown = known.filter((entry) => entry.status !== 'signed-out')
+  const selected = known.filter((entry) => !hidden.includes(entry.agent))
+  if (known.length > 0 && selected.length === 0) return null
+  const shown = selected.filter((entry) => entry.status !== 'signed-out')
 
   return (
     <div className="statusbar-group" aria-label={t('UsageBar.agentUsageQuota')}>
       {known.length === 0 && <span className="statusbar-hint">{t('UsageBar.loadingUsageQuota')}</span>}
       {known.length > 0 && shown.length === 0 && (
-        <span className="statusbar-hint">{tr('UsageBar.noSignInDetectedForUsageQuotaAppears', { value1: agentNames() })}</span>
+        <span className="statusbar-hint">{tr('UsageBar.noSignInDetectedForUsageQuotaAppears', { value1: new Intl.ListFormat(getLocale(), { type: 'disjunction' }).format(selected.map((entry) => agentLabel(entry.agent))) })}</span>
       )}
       {shown.map((entry) => (
         <UsageSegment key={entry.agent} usage={entry} now={now} />

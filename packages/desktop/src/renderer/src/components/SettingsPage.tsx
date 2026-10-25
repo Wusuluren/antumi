@@ -304,6 +304,8 @@ function TranslationSettings() {
 
 function UsageSettings() {
   const showUsage = usePreferences((s) => s.showUsage)
+  const hidden = usePreferences((s) => s.hiddenUsageAgents)
+  const usage = useCore((s) => s.usage)
   const display = usePreferences((s) => s.usageDisplay)
   const advice = usePreferences((s) => s.quotaAdvice)
   const announcements = useCore((s) => s.chatSettings?.resetAnnouncements)
@@ -316,6 +318,14 @@ function UsageSettings() {
           <Toggle labelId={labelId} checked={showUsage} onChange={(next) => setPreference('showUsage', next)} />
         )}
       />
+      {showUsage && AGENT_KINDS.filter((agent) => usage?.[agent] !== undefined).map((agent) => (
+        <SettingsRow key={agent} label={agentLabel(agent)} control={(labelId) => (
+          <Toggle labelId={labelId} checked={!hidden.includes(agent)} onChange={(next) => {
+            const current = usePreferences.getState().hiddenUsageAgents
+            setPreference('hiddenUsageAgents', next ? current.filter((entry) => entry !== agent) : [...current.filter((entry) => entry !== agent), agent])
+          }} />
+        )} />
+      ))}
       <SettingsRow
         label={t('SettingsPage.percentageDisplay')}
         description={t('SettingsPage.changesTheDisplayedNumberOnlyLowQuotaWarning')}

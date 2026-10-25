@@ -50,6 +50,8 @@ const Preferences = z.object({
   // Off, a finished turn's work stays in view rather than behind how long it worked.
   foldTurns: z.boolean().catch(true),
   showUsage: z.boolean().catch(true),
+  // Hidden only from the status bar; quota tracking and agent availability stay unchanged.
+  hiddenUsageAgents: z.array(AgentKind).catch([]),
   // Off, nothing is said when the window is not in front; the dock count stays.
   notifications: z.boolean().catch(true),
   // On, an agent held up on the user while they are in another app comes up on a card at the top
