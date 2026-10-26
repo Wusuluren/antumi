@@ -2,16 +2,16 @@
 
 # Antumi
 
-**One workspace to work with multiple AI agents.**
+**Keep using Claude Code, Codex and your other agents. Antumi adds the three things the terminal lacks most.**
 
-A local-first workspace for your AI agents: conversations, tasks, group discussions and scheduled runs in one place.
+See your quota · Keep working when it runs out · Run tasks in parallel
 
 [![Version](https://img.shields.io/github/package-json/v/flyhero/antumi?label=version&color=blue)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-lightgrey)
-![Agents](https://img.shields.io/badge/agents-7%20supported-8A2BE2)
+![Agents](https://img.shields.io/badge/agents-8%20supported-8A2BE2)
 
-[Download](https://github.com/flyhero/antumi/releases) · [Features](#features) · [Getting started](#getting-started) · [Docs](#docs) · [Changelog](CHANGELOG.md) · [Feedback](https://github.com/flyhero/antumi/issues)
+[Download](https://github.com/flyhero/antumi/releases) · [Why not just the terminal](#why-not-just-the-terminal) · [More features](#more-features) · [Getting started](#getting-started) · [Docs](#docs) · [Changelog](CHANGELOG.md) · [Feedback](https://github.com/flyhero/antumi/issues)
 
 [简体中文](README.md) · **English**
 
@@ -32,9 +32,33 @@ https://github.com/user-attachments/assets/44398279-8f26-441f-ad24-fa1b1e344674
 
 > Antumi supports both English and Simplified Chinese (switch in Settings). The launch video and demos below were recorded with sample project data.
 
-## Features
+## Why not just the terminal
 
-[Side assistant](#side-assistant) · [Translation](#translation) · [Split view](#split-view) · [Group chat](#group-chat) · [Squads](#squads) · [Routines and scheduling](#routines-and-scheduling) · [Seamless handoff](#seamless-handoff) · [To-dos](#to-dos) · [Quota at a glance](#quota-at-a-glance)
+Antumi runs the agent CLIs you have already installed and signed in to, so there is no setup or login to redo, and sessions you started in a terminal can be imported and continued. On top of them, it first fixes the three things that get in the way most often; the rest is under [More features](#more-features):
+
+### See your quota
+
+In a terminal you find out your quota is gone when you hit the limit. Antumi's status bar keeps Claude Code, Codex, Cursor, Antigravity and ZCode usage in view; hover for each agent's quota windows and reset times. It also paces your usage against the next reset: plenty left just before a reset, and it tells you to use it; on track to run out early, and it suggests a lighter model or another agent for the small jobs.
+
+<img src="docs/assets/features/quota.webp" alt="Quota: zoom into the status bar, hover each agent for usage and reset times, then show remaining percentages" width="100%" />
+
+### Keep working when quota runs out
+
+In a terminal, a turn that hits the limit just stops and waits for you. In Antumi, with several Claude Code or Codex accounts it switches account and goes on in the same session; with none to switch to, it continues by itself when the quota resets; or click the agent name at the bottom left of the composer to hand the work to another agent, which picks up the chat history in the same folder.
+
+<img src="docs/assets/features/handoff.webp" alt="Handoff: switch the composer from Claude Code to Codex, add a note, and Codex continues with tests" width="100%" />
+
+### Run agents on tasks in parallel
+
+Five agents in five terminal windows means switching between them to find out which one is waiting for approval and which one is done. In Antumi each task gets its own worktree, so they never touch each other's code; whatever waits for your approval, answer or review is gathered in the overview, and you get a notification when an agent finishes or needs you.
+
+<img src="docs/assets/overview.png" alt="Overview: four tasks by Claude Code, Codex and Cursor waiting for a reply or review, with upcoming reservations on the right" width="100%" />
+
+<sub>I built Antumi after half a year of heavy use of several agents, to fix these pain points of my own.</sub>
+
+## More features
+
+[Side assistant](#side-assistant) · [Translation](#translation) · [Split view](#split-view) · [Group chat](#group-chat) · [Squads](#squads) · [Routines and scheduling](#routines-and-scheduling) · [To-dos](#to-dos)
 
 <sub>Looping demos use real UI components with sample data: the pointer makes real clicks, and small areas are zoomed in. The interface shown is in Chinese.</sub>
 
@@ -74,23 +98,11 @@ Under **Routines** in the sidebar, schedule Claude Code, Codex, OpenCode, Pi, De
 
 <img src="docs/assets/features/schedule.webp" alt="Scheduling: open routines and reservations from the sidebar, then reserve a message with the composer clock" width="100%" />
 
-### Seamless handoff
-
-When quota runs out or you want another approach, click the agent name at the bottom left of the composer, pick another one, and add a note to hand off the work. The next agent receives the visible chat history in the same working directory; switching back resumes the original agent's native session and fills in what happened while it was away.
-
-<img src="docs/assets/features/handoff.webp" alt="Handoff: switch the composer from Claude Code to Codex, add a note, and Codex continues with tests" width="100%" />
-
 ### To-dos
 
 When an agent's reply mentions things for you to do later (before release, to verify, to configure), it records them as the conversation's to-dos, and the inspector button in the header shows how many are open. Tick them off in the **To-dos** tab; **Overview → To-dos** gathers every conversation's to-dos, and items marked "Agent can do" can be handed back to the agent.
 
 <img src="docs/assets/features/todos.webp" alt="To-dos: an agent records to-dos, the header inspector opens the to-dos tab to tick one off, and the overview lists them all" width="100%" />
-
-### Quota at a glance
-
-The status bar shows Claude Code, Codex, Cursor, Antigravity, and ZCode usage together; hover for each agent's quota windows and reset times. Settings switch between used and remaining percentages, with monthly usage for Cursor and reset credits or global reset announcements when available.
-
-<img src="docs/assets/features/quota.webp" alt="Quota: zoom into the status bar, hover each agent for usage and reset times, then show remaining percentages" width="100%" />
 
 <details>
 <summary><b>More: from running tasks to reviewing results</b></summary>
@@ -216,7 +228,7 @@ ANTUMI_HOME=~/.antumi-demo pnpm dev
 
 ## Status
 
-Antumi is currently in **development preview** (0.20.x), developed and tested mainly on macOS (Windows runs and packages). Next, in order:
+Antumi is currently in **development preview** (0.21.x), developed and tested mainly on macOS (Windows runs and packages). Next, in order:
 
 - **Windows testing**: Polishing auto-updates, real-machine installation and CI.
 - **Remote execution**: Let agents work on repositories over SSH / WSL while the board stays local.

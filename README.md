@@ -2,15 +2,15 @@
 
 # Antumi（安图米）
 
-**一个工作台，和多个 AI Agent 一起工作。**
+**Claude Code、Codex 等 Agent 照常用，Antumi 补上终端里最缺的三件事。**
 
-本地优先的多 Agent 工作台，统一管理各家 Agent 的会话、任务、群聊与定时运行。
+额度看得见 · 用完不断档 · 多个任务并行
 
 [![Version](https://img.shields.io/github/package-json/v/flyhero/antumi?label=version&color=blue)](CHANGELOG.md)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-lightgrey)
-![Agents](https://img.shields.io/badge/agents-7%20supported-8A2BE2)
+![Agents](https://img.shields.io/badge/agents-8%20supported-8A2BE2)
 
-[下载](https://github.com/flyhero/antumi/releases) · [特色功能](#特色功能) · [快速开始](#快速开始) · [文档](#文档) · [更新日志](CHANGELOG.md) · [反馈](https://github.com/flyhero/antumi/issues)
+[下载](https://github.com/flyhero/antumi/releases) · [为什么不只用终端](#为什么不只用终端) · [更多功能](#更多功能) · [快速开始](#快速开始) · [文档](#文档) · [更新日志](CHANGELOG.md) · [反馈](https://github.com/flyhero/antumi/issues)
 
 **简体中文** · [English](README.en.md)
 
@@ -29,11 +29,33 @@ https://github.com/user-attachments/assets/44398279-8f26-441f-ad24-fa1b1e344674
 
 </div>
 
-## 特色功能
+## 为什么不只用终端
 
-[小助手](#小助手) · [翻译](#翻译) · [分屏](#分屏) · [群聊](#群聊) · [研发小队](#研发小队) · [定时与预约](#定时与预约) · [无缝移交](#无缝移交) · [待办](#待办) · [额度一眼看清](#额度一眼看清)
+Antumi 驱动的就是你装好、登录好的 Agent CLI，配置和登录都不用重来，终端里聊到一半的会话也能导进来接着聊。在此之上，它先解决终端里最常卡住人的三件事，其余的见[更多功能](#更多功能)：
 
-<sub> 我在重度使用多个Agent半年的情况下，根据我的痛点做了这个Antumi来解决。</sub>
+### 额度看得见
+
+终端里要等撞上限才知道额度没了。Antumi 底部状态栏常驻 Claude Code、Codex、Cursor、Antigravity、ZCode 的用量，悬停就能看各自的额度窗口和恢复时间。它还按重置时间估算节奏：快重置了还剩很多，就提醒你放心多用；照这个速度会提前用完，就建议换模型，或把轻活交给另一个 Agent。
+
+<img src="docs/assets/features/quota.webp" alt="额度演示：放大底部状态栏，依次悬停查看三个 Agent 的用量和恢复时间，再改看剩余额度" width="100%" />
+
+### 额度用完，工作不停
+
+终端里撞上限，这一轮就停在那儿等你。在 Antumi 里，配了多个 Claude Code / Codex 账号就自动换号，在原会话里接着跑；没有可换的号，就等额度恢复后自动继续；也可以点输入框左下角的 Agent 名称，一键移交给另一个 Agent，它带着聊天记录在同一个目录接着做。
+
+<img src="docs/assets/features/handoff.webp" alt="无缝移交演示：在输入框把 Claude Code 换成 Codex，写下补充说明，Codex 接着补测试" width="100%" />
+
+### 多个 Agent 并行做任务
+
+终端里开五个窗口跑五个 Agent，谁在等你批准、谁已经做完，只能挨个切过去看。在 Antumi 里，每个任务一个独立 worktree，代码互不干扰；等你批准、回答、验收的事集中在总览里，Agent 做完或在等你时会发系统通知。
+
+<img src="docs/assets/overview.png" alt="总览：Claude Code、Codex、Cursor 的四个任务在等你回复或验收，右侧是接下来的预约" width="100%" />
+
+<sub>我在重度使用多个 Agent 半年后，为解决自己的这些痛点做了 Antumi。</sub>
+
+## 更多功能
+
+[小助手](#小助手) · [翻译](#翻译) · [分屏](#分屏) · [群聊](#群聊) · [研发小队](#研发小队) · [定时与预约](#定时与预约) · [待办](#待办)
 
 ### 小助手
 
@@ -71,25 +93,11 @@ https://github.com/user-attachments/assets/44398279-8f26-441f-ad24-fa1b1e344674
 
 <img src="docs/assets/features/schedule.webp" alt="定时与预约演示：打开侧栏「定时」和「预约」，再用输入框旁的时钟预约发送消息" width="100%" />
 
-### 无缝移交
-
-额度用完了，或想换个 Agent 接着做，点输入框左下角的 Agent 名称换一个，写句补充说明就能移交。新 Agent 会收到可见的聊天记录，沿用当前工作目录；切回原 Agent 时恢复它的原生会话并补齐期间记录。
-
-<img src="docs/assets/features/handoff.webp" alt="无缝移交演示：在输入框把 Claude Code 换成 Codex，写下补充说明，Codex 接着补测试" width="100%" />
-
 ### 待办
 
 Agent 在回复里提到要你之后处理的事（上线前要做的、要你验证或配置的），会记成这条会话的待办，头部检查器按钮上显示未完成数。点开「待办」页签逐项勾掉；「总览 · 待办」汇总所有会话，标着「Agent 可做」的项还能一键交回给 Agent。
 
 <img src="docs/assets/features/todos.webp" alt="待办演示：Agent 记下待办，点头部检查器按钮打开「待办」页签勾掉一项，再在总览里查看所有会话的待办" width="100%" />
-
-### 额度一眼看清
-
-底部状态栏集中显示 Claude Code、Codex、Cursor、Antigravity、ZCode 的用量，悬停就能查看各自的额度窗口和恢复时间。设置里可切换显示已用或剩余比例，Cursor 显示月度用量，服务提供的重置卡和全员重置预告也会显示。
-
-Antumi 还会按各窗口的重置时间估算用量节奏：周额度快重置还剩很多时提醒你现在多用、可以放心用 Opus；照这个速度会提前用完时，建议换模型或把轻活交给另一个 Agent。选择 Agent 时会标出现在最该用的那个。
-
-<img src="docs/assets/features/quota.webp" alt="额度演示：放大底部状态栏，依次悬停查看三个 Agent 的用量和恢复时间，再改看剩余额度" width="100%" />
 
 <details>
 <summary><b>还有这些：从推进任务到验收成果</b></summary>
@@ -229,7 +237,7 @@ ANTUMI_HOME=~/.antumi-demo pnpm dev
 
 ## 现状
 
-Antumi 目前是**开发版**（0.20.x），主要在 macOS 上开发和测试，Windows 可以运行和打包。接下来按优先级：
+Antumi 目前是**开发版**（0.21.x），主要在 macOS 上开发和测试，Windows 可以运行和打包。接下来按优先级：
 
 - **Windows 实机体验**：完善 Windows 上的日常使用、自动更新和 CI。
 - **远程执行**：让 Agent 在 SSH / WSL 里的仓库上干活，看板留在本机。
