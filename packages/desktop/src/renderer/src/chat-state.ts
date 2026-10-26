@@ -5,7 +5,7 @@ import { isCompaction } from './chat-notices'
 import { diffCounts, isSubagent } from './chat-tools'
 import { isBackgroundCommand, keepsInView } from './background-work'
 import { browserOperation } from './browser-activity'
-import { parseHandoffMessage, type AgentKind, type ChatDiff, type ChatItem, type ChatQuestion, type ChatTodo, type ConversationStage, browserToolKind, isPlanApproval, isPreviewTool, toolImagePath, CODEX_IMAGE_GENERATION, terminalToolKind } from '@antumi/protocol'
+import { parseHandoffMessage, type AgentKind, type ChatDiff, type ChatItem, type ChatQuestion, type ChatTodo, type ConversationStage, browserToolKind, isPlanApproval, isPreviewTool, toolImagePath, CODEX_IMAGE_GENERATION, terminalToolKind, todoToolKind } from '@antumi/protocol'
 
 // A conversation's chat items as this window holds them, in the order core first saw them;
 // `before` pages further back, null when nothing older is left.
@@ -373,11 +373,20 @@ function turnReply(body: readonly ChatBlock[], turn: TurnItem): TurnReply | null
     : null
 }
 
+// Noting the user's to-dos, which agents are asked to do once they have listed them: work after
+// the answer that does not end it.
+function notesTodos(block: ChatBlock | undefined): boolean {
+  const tools = block ? toolsOf(block) : []
+  return block?.kind !== 'fold' && tools.length > 0 && tools.every((tool) => todoToolKind(tool.name) !== null)
+}
+
 function foldTurn(body: ChatBlock[], turn: TurnItem, end: ChatBlock): ChatBlock[] {
-  // The answer is the replies it ends with, after the last of its work.
+  // The answer is the replies it ends with, after the last of its work; to-dos noted between them
+  // stay with the answer rather than fold it away. It starts at a reply.
   const isReply = (block: ChatBlock | undefined) => block !== undefined && itemOf(block)?.kind === 'assistant'
   let answer = body.length
-  while (answer > 0 && isReply(body[answer - 1])) answer--
+  while (answer > 0 && (isReply(body[answer - 1]) || notesTodos(body[answer - 1]))) answer--
+  while (answer < body.length && !isReply(body[answer])) answer++
   const work = body.slice(0, answer)
   const folded = work.filter(foldable)
   if (folded.length === 0) return [...body, end]

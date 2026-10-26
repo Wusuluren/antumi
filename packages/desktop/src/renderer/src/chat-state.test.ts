@@ -287,6 +287,17 @@ describe('chatBlocks', () => {
       .toEqual(['u', { fold: ['looking', 't', 'tools:a+b'] }, 'answer', 'end'])
   })
 
+  it('keeps an answer in view when the agent notes the user\'s to-dos after it', () => {
+    // Claude Code: the summary, user_todo_add, then a line saying the to-dos are noted.
+    expect(shape(blocksOf([user('u'), reply('looking'), tool('a', 'Bash'), reply('summary'), tool('todo', 'mcp__antumi__user_todo_add'), reply('noted'), turn('end')])))
+      .toEqual(['u', { fold: ['looking', 'tools:a'] }, 'summary', 'tools:todo', 'noted', 'end'])
+    // Codex names it antumi.user_todo_list; a to-do call before any answer is still work.
+    expect(shape(blocksOf([user('u'), tool('list', 'antumi.user_todo_list'), tool('a', 'Bash'), reply('answer'), turn('end')])))
+      .toEqual(['u', { fold: ['tools:list+a'] }, 'answer', 'end'])
+    expect(shape(blocksOf([user('u'), tool('a', 'Bash'), tool('todo', 'mcp__antumi__user_todo_add'), reply('noted'), turn('end')])))
+      .toEqual(['u', { fold: ['tools:a+todo'] }, 'noted', 'end'])
+  })
+
   it('measures the fold\'s work from its first call to the answer', () => {
     const at = (item: ChatItem, ms: number): ChatItem => ({ ...item, at: ms })
     const blocks = blocksOf([at(user('u'), 0), at(tool('a'), 1_000), at(tool('b'), 5_000), at(reply('answer'), 99_000), at(turn('end'), 100_000)])
