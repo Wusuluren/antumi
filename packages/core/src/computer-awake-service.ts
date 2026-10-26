@@ -11,7 +11,7 @@ export function shouldKeepComputerAwake(mode: ComputerAwakeMode, workingAgents: 
 }
 
 export class ComputerAwakeService {
-  private mode: ComputerAwakeMode = 'off'
+  private mode: ComputerAwakeMode = 'auto'
   private workingAgents = 0
   private scheduledRuns = 0
   private backend = { active: false, supported: true, problem: null as string | null }

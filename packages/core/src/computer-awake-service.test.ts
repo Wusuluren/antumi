@@ -20,14 +20,14 @@ describe('computer awake policy', () => {
     expect(shouldKeepComputerAwake('off', 2, 1)).toBe(false)
   })
 
-  it('defaults to off and persists the machine setting', async () => {
+  it('defaults to auto and preserves an explicitly disabled machine setting', async () => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'antumi-awake-'))
     roots.push(root)
     const file = path.join(root, 'awake.json')
     const config = new AwakeConfigStore(file)
-    expect(await config.load()).toBe('off')
-    await config.save('auto')
-    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ version: 1, mode: 'auto' })
-    expect(await new AwakeConfigStore(file).load()).toBe('auto')
+    expect(await config.load()).toBe('auto')
+    await config.save('off')
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ version: 1, mode: 'off' })
+    expect(await new AwakeConfigStore(file).load()).toBe('off')
   })
 })

@@ -2,10 +2,10 @@ import { z } from 'zod'
 import { ComputerAwakeMode, type ComputerAwakeMode as ComputerAwakeModeValue } from '@antumi/protocol'
 import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 
-const AwakeConfig = z.object({ version: z.literal(1), mode: ComputerAwakeMode }).catch({ version: 1, mode: 'off' })
+const AwakeConfig = z.object({ version: z.literal(1), mode: ComputerAwakeMode }).catch({ version: 1, mode: 'auto' })
 
 export class AwakeConfigStore {
-  private mode: ComputerAwakeModeValue = 'off'
+  private mode: ComputerAwakeModeValue = 'auto'
 
   constructor(private readonly file: string) {}
 
