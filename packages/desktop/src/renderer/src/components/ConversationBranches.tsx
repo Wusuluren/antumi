@@ -1,6 +1,6 @@
 import { localized, t, tr } from '../i18n'
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { checkSwitchBranch, type CommitPushResult, type CommitResult, type Conversation, type GitTarget, type ProjectBranches, type ProjectHead, type PushResult } from '@antumi/protocol'
+import { checkSwitchBranch, type CommitPushResult, type CommitResult, type Conversation, type GitTarget, type ProjectBranches, type ProjectHead } from '@antumi/protocol'
 import { perform, useCore } from '../core-store'
 import { reasonText } from '../labels'
 import { shortRef } from '../task-starts'
@@ -217,6 +217,7 @@ function ProjectActions({ conversation, head, option, onChanged }: {
   const steps = useCore((s) => s.rpc?.features.includes('conversation-commit-steps') ?? false)
   const [open, setOpen] = useState<BranchAction | null>(null)
   const [busy, setBusy] = useState(false)
+  const [pushing, setPushing] = useState(false)
   const writing = useWritingCommit({ kind: 'conversation', id: conversation.id, project: head.path })
   if (!option?.git) return null
   const blocker = checkSwitchBranch(conversation)
@@ -253,9 +254,13 @@ function ProjectActions({ conversation, head, option, onChanged }: {
       done<CommitResult>((result) => t('ConversationBranches.committedNotPushedYet_609', { value1: result.commit }))(await perform((rpc) => rpc.call('conversations.commit', { ...project, message })))
     }
   }
+  // A push can take a while: the dialog goes at once, and the bar says it is under way.
   const push = async () => {
-    setBusy(true)
-    done<PushResult>((result) => t('ConversationBranches.pushedTo', { value1: result.branch, value2: result.upstream }))(await perform((rpc) => rpc.call('conversations.push', project)))
+    setOpen(null)
+    setPushing(true)
+    const result = await perform((rpc) => rpc.call('conversations.push', project))
+    setPushing(false)
+    if (result) onChanged(t('ConversationBranches.pushedTo', { value1: result.branch, value2: result.upstream }))
   }
   const hint = blocker ? reasonText(blocker, blocker) : undefined
   const commitHint = hint ?? (!head.branch ? t('ConversationBranches.noCurrentBranch') : head.changes === 0 ? t('ConversationBranches.noChangesToCommit') : undefined)
@@ -270,7 +275,7 @@ function ProjectActions({ conversation, head, option, onChanged }: {
       data-primary={primary || undefined}
       aria-haspopup="dialog"
       aria-expanded={open === action}
-      disabled={busy || writing || !enabled}
+      disabled={busy || pushing || writing || !enabled}
       title={title}
       onClick={() => setOpen(action)}
     >
@@ -284,7 +289,8 @@ function ProjectActions({ conversation, head, option, onChanged }: {
         {button('create', blocker === null, hint, <>{tr('ConversationBranches.new', { value1: <PlusIcon /> })}</>)}
         {commitPush && button('commit', canCommit, commitHint, <><CommitIcon />{steps ? 'Commit' : 'Commit & Push'}</>, canCommit)}
         {commitPush && steps && button('push', canPush, pushHint, <><ArrowUpIcon />Push</>, !canCommit && canPush && (head.ahead ?? 0) > 0)}
-        {blocker ? <span className="branch-actions-blocked">{hint}</span> : writing && <span className="branch-actions-blocked">{t('ConversationBranches.writingCommitMessageThenCommitting')}</span>}
+        {blocker ? <span className="branch-actions-blocked">{hint}</span> : writing ? <span className="branch-actions-blocked">{t('ConversationBranches.writingCommitMessageThenCommitting')}</span>
+          : pushing && <span className="branch-actions-blocked" role="status">{t('ConversationBranches.pushing', { value1: head.branch })}</span>}
       </div>
       {open && (
         <BranchActionDialog action={open} head={head} onClose={() => setOpen(null)}>

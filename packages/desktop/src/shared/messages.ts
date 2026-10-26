@@ -2730,6 +2730,10 @@ export const MESSAGES = {
     "zh": "正在写提交信息，写好就提交…",
     "en": "Writing commit message, then committing…"
   },
+  "ConversationBranches.pushing": {
+    "zh": "正在推送 {value1}…",
+    "en": "Pushing {value1}…"
+  },
   "ConversationChat.totalTokens": {
     "zh": " · 总 {value1} tokens",
     "en": " · Total {value1} {value1, plural, one {token} other {tokens}}"
