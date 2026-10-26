@@ -61,6 +61,16 @@ export function perchesOf(sources: readonly PerchSource[], stage: Rect, avoid: r
 export const isLedge = (perch: Perch): boolean => perch.kind === 'ledge' || (perch.kind === 'edge' && perch.from.y === perch.to.y)
 export const isWall = (perch: Perch): boolean => perch.kind === 'wall' || (perch.kind === 'edge' && perch.from.x === perch.to.x)
 
+export function supportingWall(perches: readonly Perch[], spot: Spot, inward: number, tolerance = 2): Perch | null {
+  return perches.find((perch) =>
+    isWall(perch) &&
+    perch.inward === inward &&
+    Math.abs(perch.from.x - spot.x) <= tolerance &&
+    spot.y >= Math.min(perch.from.y, perch.to.y) - tolerance &&
+    spot.y <= Math.max(perch.from.y, perch.to.y) + tolerance
+  ) ?? null
+}
+
 // Which perch to go to next: near ones more than far, ones not lately visited more than those,
 // with enough chance in it that two days never look the same.
 export function pickPerch(perches: readonly Perch[], at: Spot, visited: ReadonlyMap<string, number>, now: number, random: () => number, want: 'ledge' | 'wall' | 'any' = 'any'): Perch | null {

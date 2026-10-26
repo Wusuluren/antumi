@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isLedge, isWall, ledgeBelow, perchesOf, pickPerch } from './pet-perches'
+import { isLedge, isWall, ledgeBelow, perchesOf, pickPerch, supportingWall } from './pet-perches'
 
 const stage = { left: 0, top: 0, right: 1000, bottom: 600 }
 
@@ -84,5 +84,19 @@ describe('ledgeBelow', () => {
     expect(ledgeBelow(perches, { x: 200, y: 50 }).id).toBe('upper')
     expect(ledgeBelow(perches, { x: 200, y: 200 }).id).toBe('lower')
     expect(ledgeBelow(perches, { x: 600, y: 200 }).id).toBe('edge:bottom')
+  })
+})
+
+describe('supportingWall', () => {
+  const wall = { id: 'divider', kind: 'wall' as const, from: { x: 700, y: 10 }, to: { x: 700, y: 590 }, inward: -1 }
+
+  it('finds a wall under a clinging pet', () => {
+    expect(supportingWall([wall], { x: 700, y: 300 }, -1)).toBe(wall)
+  })
+
+  it('rejects a wall that moved, ends before the pet or faces the other way', () => {
+    expect(supportingWall([{ ...wall, from: { x: 680, y: 10 }, to: { x: 680, y: 590 } }], { x: 700, y: 300 }, -1)).toBeNull()
+    expect(supportingWall([wall], { x: 700, y: 700 }, -1)).toBeNull()
+    expect(supportingWall([wall], { x: 700, y: 300 }, 1)).toBeNull()
   })
 })

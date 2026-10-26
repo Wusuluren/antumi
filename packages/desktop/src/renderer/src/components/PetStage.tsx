@@ -7,7 +7,7 @@ import { petGait } from '../pet-gait'
 import { planFlight } from '../pet-flight'
 import { petPointerFacing, petPointerLook, petPointerNear } from '../pet-gaze'
 import { distance, overlaps, planPath, standingSpot, type Rect, type Spot } from '../pet-path'
-import { isLedge, isWall, ledgeBelow, perchesOf, type Perch, type PerchSource } from '../pet-perches'
+import { isLedge, isWall, ledgeBelow, perchesOf, supportingWall, type Perch, type PerchSource } from '../pet-perches'
 import { planPeek, visiblePeekHead, type PeekPlan } from '../pet-peek'
 import { Interrupted, type Say, type StageApi, type Surface } from '../pet-stage-api'
 import { avoidRects, hideReason } from '../pet-yield'
@@ -23,6 +23,7 @@ export type PetStageHandle = {
 }
 type Bubble = { message: Say; at: Spot; below: boolean; close(): void }
 type Waiter = { timer: ReturnType<typeof setTimeout> | null; reject(error: Error): void }
+type Relocation = { to: Spot; kind: 'hop' | 'fall' }
 const clamp = (n: number, lo: number, hi: number) => Math.min(Math.max(n, lo), Math.max(lo, hi))
 const rotation = (surface: Surface) => surface.kind === 'wall' ? surface.inward > 0 ? 90 : -90 : 0
 
@@ -85,7 +86,7 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
     let releaseDrag: (() => void) | null = null
     let peeking: { plan: PeekPlan; approach: Spot; returnTo: Spot } | null = null
     let peekExitRequested = false
-    let relocation: Spot | null = null
+    let relocation: Relocation | null = null
     let previousMood = latest.current.mood
     let previousMessage = latest.current.message?.key
     const bits = petBits()
@@ -233,7 +234,7 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
       else { changePose(latest.current.mood); setClip(null) }
       if (wasAirborne && alive) {
         const ledge = ledgeBelow(perches(), pos)
-        relocation = safe({ x: pos.x, y: ledge.from.y }) ?? homeSpot()
+        relocation = { to: safe({ x: pos.x, y: ledge.from.y }) ?? homeSpot(), kind: 'fall' }
       }
       apply()
     }
@@ -328,6 +329,37 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
         await animate(walker, [{ transform: `${transform()} scale(1,.94)` }, { transform: transform() }], 160, expected, 'ease-out')
         await turnOnto(onto, expected)
         return true
+      } finally {
+        journeys--
+        if (gen === expected) { delete walker.dataset.airborne; changePose(latest.current.mood) }
+      }
+    }
+    const fall = async (to: Spot, expected: number) => {
+      guard(expected)
+      const destination = safe(to)
+      if (!destination) return
+      const from = transform()
+      surface = { kind: 'floor' }
+      if (reduced || distance(pos, destination) < 1) { pos = destination; apply(); return }
+      const start = pos
+      const at = (progress: number): Spot => ({
+        x: start.x + (destination.x - start.x) * progress,
+        y: start.y + (destination.y - start.y) * progress * progress
+      })
+      const duration = clamp(Math.sqrt(Math.max(0, destination.y - start.y)) * 36, 220, 650)
+      journeys++
+      try {
+        setWalking(false); changePose('jumping'); walker.dataset.airborne = ''
+        await animate(walker, [
+          { transform: from, offset: 0 },
+          { transform: transform(at(.35)), offset: .35 },
+          { transform: transform(at(.7)), offset: .7 },
+          { transform: transform(destination), offset: 1 }
+        ], duration, expected, 'linear')
+        pos = destination; apply()
+        delete walker.dataset.airborne
+        changePose(latest.current.mood)
+        await animate(walker, [{ transform: `${transform()} scale(1.08,.9)` }, { transform: transform() }], 180, expected, 'ease-out')
       } finally {
         journeys--
         if (gen === expected) { delete walker.dataset.airborne; changePose(latest.current.mood) }
@@ -477,6 +509,12 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
         const current = perches().find((p) => p.id === before.id)
         if (!current || distance(current.from, before.from) > 1 || distance(current.to, before.to) > 1) interrupt()
       }
+      if (!peeking && !still && !draggingNow && journeys === 0 && live.size === 0 && surface.kind === 'wall' && !supportingWall(perches(), pos, surface.inward)) {
+        interrupt()
+        const ledge = ledgeBelow(perches(), pos)
+        relocation = { to: safe({ x: pos.x, y: ledge.from.y }) ?? homeSpot(), kind: 'fall' }
+        return
+      }
       const at = live.size ? actualPosition() : pos
       startGaze(at)
       const blocked = !free(at)
@@ -507,8 +545,8 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
     const layoutChanged = () => {
       if (draggingNow) return
       if (!saying) interrupt()
-      const destination = relocation ?? safe(pos) ?? homeSpot()
-      if (!peeking && distance(pos, destination) > 1) relocation = destination
+      const destination = relocation?.to ?? safe(pos) ?? homeSpot()
+      if (!peeking && distance(pos, destination) > 1 && !relocation) relocation = { to: destination, kind: 'hop' }
       tick()
     }
     const onMove = (event: PointerEvent) => {
@@ -597,7 +635,13 @@ export function PetStage({ skin, level, mood, message = null, reduced = false, h
             if (returnTo) await travel(returnTo, false, { kind: 'floor' }, expected)
             continue
           }
-          if (relocation) { const to = relocation; relocation = null; await hop(to, { kind: 'floor' }, expected); continue }
+          if (relocation) {
+            const { to, kind } = relocation
+            relocation = null
+            if (kind === 'fall') await fall(to, expected)
+            else await hop(to, { kind: 'floor' }, expected)
+            continue
+          }
           const now = Date.now()
           const c: Context = {
             now, level, mood: latest.current.mood, reduced, typingUntil, idleFor: now - activityAt,
