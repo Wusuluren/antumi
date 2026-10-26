@@ -8172,6 +8172,7 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .chat-draft-agents { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 
 .chat-draft-agent {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -8192,6 +8193,15 @@ div.inspector-empty > p { margin: 0 0 8px; }
   box-shadow: 0 0 0 1px var(--accent);
 }
 .chat-draft-agent:disabled { cursor: default; opacity: 0.7; }
+/* On the card's top edge, so the recommended card is no taller than the rest. Opaque: it covers the border. */
+.chat-draft-agent .agent-recommended {
+  position: absolute;
+  top: -9px;
+  right: 10px;
+  border: 1px solid color-mix(in srgb, var(--status-done) 45%, transparent);
+  background: color-mix(in srgb, var(--status-done) 12%, var(--surface));
+  line-height: 16px;
+}
 .chat-draft-agent .agent-mark { width: 28px; height: 28px; }
 .chat-draft-hint { margin: 0; max-width: 520px; font-size: 12px; }
 /* The issue a new conversation is to look into, above the agents to start it with. */
@@ -10001,7 +10011,7 @@ button.squad-member-main { cursor: pointer; }
   background: var(--warning);
 }
 
-/* Beside the agent best spent now, in a picker. */
+/* On the agent best spent now, in the new conversation's agent cards. */
 .agent-recommended {
   padding: 0 6px;
   border-radius: var(--radius-xs);
