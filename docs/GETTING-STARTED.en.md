@@ -103,7 +103,7 @@ Select part of a reply and right-click:
 | Setting | Where |
 |---|---|
 | Language to translate into, auto-translate | **Settings → Translate** |
-| Model used for translation | **Settings → Local Agents → "Model for quick tasks"** |
+| Model used for translation | [**Settings → Conversations → "Model for quick tasks"**](antumi:settings/conversation) |
 
 ### Also worth knowing
 

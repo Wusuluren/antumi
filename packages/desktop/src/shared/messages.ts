@@ -179,8 +179,8 @@ export const MESSAGES = {
   "agentCli.unknown": {"zh": "暂时无法确认最新版本", "en": "Latest version could not be confirmed"},
   "agentCli.latestUncompared": {"zh": "已查到最新版本 {version}，尚未完成版本比较", "en": "Latest version {version} found; version comparison is incomplete"},
   "agentCli.updateTo": {"zh": "可更新至 {version}", "en": "Update available: {version}"},
-  "agentCli.backendNotice": {"zh": "当前暂时无法在这里升级智能体，不影响已安装智能体的使用。", "en": "Agent upgrades are currently unavailable here. Installed agents can still be used."},
-  "agentCli.backendNoticeDetails": {"zh": "正在运行的 Antumi 后台尚不支持升级。重启后台会中断智能体进程，需要等运行中的工作结束后再处理；只关闭窗口不会重启后台。", "en": "The running Antumi backend does not support upgrades yet. Restarting it interrupts agent processes, so ongoing work must finish first. Closing the window does not restart the backend."},
+  "agentCli.backendNotice": {"zh": "当前暂时无法在这里升级 Agent，不影响已安装 Agent 的使用。", "en": "Agent upgrades are currently unavailable here. Installed agents can still be used."},
+  "agentCli.backendNoticeDetails": {"zh": "正在运行的 Antumi 后台尚不支持升级。重启后台会中断 Agent 进程，需要等运行中的工作结束后再处理；只关闭窗口不会重启后台。", "en": "The running Antumi backend does not support upgrades yet. Restarting it interrupts agent processes, so ongoing work must finish first. Closing the window does not restart the backend."},
   "InstalledAgentsSettings.details": {"zh": "详情", "en": "Details"},
   "InstalledAgentsSettings.ready": {"zh": "已就绪", "en": "Ready"},
   "InstalledAgentsSettings.needsSignIn": {"zh": "需登录", "en": "Sign-in required"},
@@ -3031,7 +3031,7 @@ export const MESSAGES = {
     "en": "No grouping"
   },
   "ConversationList.agent": {
-    "zh": "智能体",
+    "zh": "Agent",
     "en": "Agent"
   },
   "ConversationList.runStatus": {
@@ -4855,7 +4855,7 @@ export const MESSAGES = {
     "en": "Sign in:"
   },
   "InstalledAgentsSettings.keepAtLeastOneAgentEnabled": {
-    "zh": "至少保留一个启用的智能体",
+    "zh": "至少保留一个启用的 Agent",
     "en": "Keep at least one Agent enabled"
   },
   "InstalledAgentsSettings.cliNotFound": {
@@ -4935,7 +4935,7 @@ export const MESSAGES = {
     "en": "App"
   },
   "InstalledAgentsSettings.agentsOnThisComputer": {
-    "zh": "这台电脑上的智能体",
+    "zh": "这台电脑上的 Agent",
     "en": "Agents on this computer"
   },
   "InstalledAgentsSettings.scanAgainAfterInstallingOrSigningIn": {
@@ -6587,8 +6587,8 @@ export const MESSAGES = {
     "en": "Translate only replies visible on screen. Click “Original” to see the source."
   },
   "SettingsPage.usesTheConversationSAgentChooseTheModel": {
-    "zh": "由会话所用的 Agent 翻译，模型在 本机 Agent →「轻量任务用的模型」里选。翻译单独请求，不占会话上下文，但计入该 Agent 的用量；同一条回复只翻一次。",
-    "en": "Uses the conversation's Agent. Choose the model in Local Agents → “Model for quick tasks”. Translation is a separate request and uses no conversation context, but counts toward the Agent's usage. Each reply is translated only once."
+    "zh": "由会话所用的 Agent 翻译，模型在 设置 → 会话 →「轻量任务用的模型」里选。翻译单独请求，不占会话上下文，但计入该 Agent 的用量；同一条回复只翻一次。",
+    "en": "Uses the conversation's Agent. Choose the model in Settings → Conversations → “Model for quick tasks”. Translation is a separate request and uses no conversation context, but counts toward the Agent's usage. Each reply is translated only once."
   },
   "SettingsPage.showUsageQuotaInStatusBar": {
     "zh": "显示使用情况",
@@ -6966,13 +6966,20 @@ export const MESSAGES = {
     "zh": "审批",
     "en": "Approval"
   },
+  "SettingsPage.runDescription": {"zh": "同时运行的 Agent 数量，以及 Agent 工作时是否保持电脑唤醒。", "en": "How many agents run at once, and whether the computer stays awake while they work."},
+  "SettingsPage.perAgentLimits": {"zh": "各 Agent 的上限", "en": "Per-agent limits"},
+  "SettingsPage.adjust": {"zh": "调整", "en": "Adjust"},
+  "SettingsPage.permissions": {"zh": "权限", "en": "Permissions"},
+  "SettingsPage.permissionsDescription": {"zh": "无人值守时 Agent 能做什么，以及能用你的哪些东西。", "en": "What agents may do unattended, and what of yours they can use."},
+  "SettingsPage.conversationDescription": {"zh": "下一步建议、待办、标题、自动归档和轻量任务用的模型。", "en": "Next-step suggestions, to-dos, titles, auto-archive, and the model for quick tasks."},
+  "SettingsPage.extensions": {"zh": "扩展", "en": "Extensions"},
   "SettingsPage.localAgents": {
     "zh": "本机 Agent",
     "en": "Local Agents"
   },
   "SettingsPage.installationSignInAndDefaultsForAgentExecution": {
-    "zh": "本机 Agent 的安装与登录状态，以及运行、会话和访问的默认设置。",
-    "en": "Installation, sign-in, and defaults for Agent execution, conversations, and access."
+    "zh": "本机 Agent 的安装、登录、启用和升级。",
+    "en": "Install, sign in, enable, and upgrade the agents on this computer."
   },
   "SettingsPage.local": {
     "zh": "本机",
@@ -8323,7 +8330,7 @@ export const MESSAGES = {
     "en": "View chat"
   },
   "TaskActions.handOffToAnotherAgent": {
-    "zh": "移交给其他智能体",
+    "zh": "移交给其他 Agent",
     "en": "Hand off to another Agent"
   },
   "TaskActions.cannotHandOffYet": {

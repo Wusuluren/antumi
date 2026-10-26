@@ -39,6 +39,9 @@ import {
   SourceIcon,
   SearchIcon,
   SparkIcon,
+  LockIcon,
+  PulseIcon,
+  TerminalIcon,
   TranslateIcon
 } from './icons'
 import { ChatCommandSettings } from './ChatCommandSettings'
@@ -399,126 +402,163 @@ function BrowserRows() {
 }
 
 function AgentSettings() {
+  return (
+    <SettingsGroup>
+      <InstalledAgentsSettings />
+    </SettingsGroup>
+  )
+}
+
+// What the run rows need from core; with none of them there is no 运行 section.
+function useRunSettingsShown(): boolean {
   const awakeSupported = useAwakeSupported()
   const awake = useCore((s) => s.awake)
   const chatSettings = useCore((s) => s.chatSettings)
-  const installed = useInstalledAgents()
+  return chatSettings?.maxConcurrentAgents !== undefined || Boolean(chatSettings?.agentConcurrency) || (awakeSupported && Boolean(awake))
+}
+
+function usePermissionSettingsShown(): boolean {
+  const chatSettings = useCore((s) => s.chatSettings)
+  return Boolean(chatSettings?.unattendedMode) || chatSettings?.userBrowser !== undefined || chatSettings?.readHistory !== undefined
+}
+
+function RunSettings() {
+  const awakeSupported = useAwakeSupported()
+  const awake = useCore((s) => s.awake)
+  const chatSettings = useCore((s) => s.chatSettings)
   // Turned off still counts: its limit holds once it is back on.
   const found = detectedAgents(useCore((s) => s.environment))
-  const running = chatSettings?.maxConcurrentAgents !== undefined || Boolean(chatSettings?.agentConcurrency) || (awakeSupported && Boolean(awake)) || Boolean(chatSettings?.unattendedMode)
-  const access = chatSettings?.userBrowser !== undefined || chatSettings?.readHistory !== undefined
+  const [perAgentOpen, setPerAgentOpen] = useState(false)
+  const concurrency = chatSettings?.agentConcurrency
   return (
     <>
-      <SettingsGroup>
-        <InstalledAgentsSettings />
-      </SettingsGroup>
-      {running && (
-        <SettingsGroup title={t('ChatCodeRun.run')}>
-          {chatSettings?.maxConcurrentAgents !== undefined && (
-            <SettingsRow
-              label={t('SettingsPage.maximumConcurrentAgents')}
-              description={t('SettingsPage.atTheLimitNewConversationsMustWaitAnd')}
-              control={(labelId) => (
-                <Stepper labelId={labelId} value={chatSettings.maxConcurrentAgents ?? 20} min={1} max={50} unit={t('SettingsPage.items')} onChange={(maxConcurrentAgents) => void setChatSettings({ maxConcurrentAgents })} />
-              )}
-            />
-          )}
-          {chatSettings?.agentConcurrency && found.map((agent) => (
-            <SettingsRow
-              key={agent}
-              label={t('SettingsPage.concurrency', { value1: agentLabel(agent) })}
-              control={(labelId) => (
-                <Stepper labelId={labelId} value={chatSettings.agentConcurrency?.[agent] ?? 6} min={1} max={50} unit={t('SettingsPage.items')} onChange={(count) => void setChatSettings({ agentConcurrency: { [agent]: count } })} />
-              )}
-            />
-          ))}
-          {awakeSupported && awake && (
-            <SettingsRow
-              label={t('SettingsPage.keepComputerAwake')}
-              description={t('SettingsPage.agentsWaitingForYourInputDoNotPrevent')}
-              control={(labelId) => (
-                <Segmented
-                  labelId={labelId}
-                  value={awake.mode}
-                  onChange={(mode) => void setAwakeMode(mode)}
-                  options={[
-                    { value: 'on', label: t('SettingsPage.always') },
-                    { value: 'auto', label: t('SettingsPage.whileAgentsWorkOrSchedulesArePending') },
-                    { value: 'off', label: t('common.off') }
-                  ]}
-                />
-              )}
-            />
-          )}
-          {chatSettings?.unattendedMode && (
-            <SettingsRow
-              label={t('SettingsPage.scheduledRunPermissions')}
-              description={t('SettingsPage.scheduledTasksAndConversationsStartUnattendedInThis')}
-              control={(labelId) => (
-                <Segmented
-                  labelId={labelId}
-                  value={chatSettings.unattendedMode ?? 'acceptEdits'}
-                  onChange={(unattendedMode) => void setChatSettings({ unattendedMode })}
-                  options={UNATTENDED_MODES.map((value) => ({ value, label: UNATTENDED_LABEL[value] }))}
-                />
-              )}
-            />
-          )}
-        </SettingsGroup>
-      )}
-      <SettingsGroup title={t('BrowserPanel.conversation')}>
-        {chatSettings && (
-          <SettingsRow
-            label={t('SettingsPage.suggestNextStepsAfterEachTurn')}
-            description={t('SettingsPage.predictYourNextMessageInGrayAfterEach')}
-            control={(labelId) => (
-              <Toggle labelId={labelId} checked={chatSettings.promptSuggestions} onChange={(next) => void setChatSettings({ promptSuggestions: next })} />
-            )}
-          />
-        )}
-        {chatSettings?.userTodos !== undefined && (
-          <SettingsRow
-            label={t('SettingsPage.trackToDos')}
-            description={t('SettingsPage.agentRecordsThingsYouNeedToDoLater')}
-            control={(labelId) => (
-              <Toggle labelId={labelId} checked={chatSettings.userTodos ?? true} onChange={(next) => void setChatSettings({ userTodos: next })} />
-            )}
-          />
-        )}
-        <TitleNamingSettings />
-        <AutoArchiveSettings />
+      {chatSettings?.maxConcurrentAgents !== undefined && (
         <SettingsRow
-          label={t('SettingsPage.modelForQuickTasks_1609')}
-          description={t('SettingsPage.useThisAgentSModelForTranslationCommit')}
-          control={() => (
-            <span className="quick-models">
-              {installed.map((agent) => <QuickModelPicker key={agent} agent={agent} />)}
-            </span>
+          label={t('SettingsPage.maximumConcurrentAgents')}
+          description={t('SettingsPage.atTheLimitNewConversationsMustWaitAnd')}
+          control={(labelId) => (
+            <Stepper labelId={labelId} value={chatSettings.maxConcurrentAgents ?? 20} min={1} max={50} unit={t('SettingsPage.items')} onChange={(maxConcurrentAgents) => void setChatSettings({ maxConcurrentAgents })} />
           )}
         />
-      </SettingsGroup>
-      {access && (
-        <SettingsGroup title={t('SettingsPage.access')}>
-          {chatSettings?.userBrowser !== undefined && (
-            <SettingsRow
-              label={t('SettingsPage.letClaudeCodeUseYourChrome')}
-              description={t('SettingsPage.useTheClaudeInChromeExtensionToOpen')}
-              control={(labelId) => (
-                <Toggle labelId={labelId} checked={chatSettings.userBrowser ?? true} onChange={(next) => void setChatSettings({ userBrowser: next })} />
-              )}
-            />
-          )}
-          {chatSettings?.readHistory !== undefined && (
-            <SettingsRow
-              label={t('SettingsPage.letAgentsReadYourAntumiRecords')}
-              description={t('SettingsPage.agentsCanListAndReadYourConversationsTasks')}
-              control={(labelId) => (
-                <Toggle labelId={labelId} checked={chatSettings.readHistory ?? true} onChange={(next) => void setChatSettings({ readHistory: next })} />
-              )}
-            />
-          )}
-        </SettingsGroup>
       )}
+      {/* One row per agent makes a long page; folded, the current limits still read at a glance. */}
+      {concurrency && found.length > 0 && (
+        <SettingsRow
+          label={t('SettingsPage.perAgentLimits')}
+          description={found.map((agent) => `${agentLabel(agent)} ${concurrency[agent] ?? 6}`).join(' · ')}
+          control={() => (
+            <button type="button" className="button ghost" aria-expanded={perAgentOpen} onClick={() => setPerAgentOpen(!perAgentOpen)}>
+              {t(perAgentOpen ? 'ChatPlan.collapse' : 'SettingsPage.adjust')}
+            </button>
+          )}
+        />
+      )}
+      {concurrency && perAgentOpen && found.map((agent) => (
+        <SettingsRow
+          key={agent}
+          label={t('SettingsPage.concurrency', { value1: agentLabel(agent) })}
+          control={(labelId) => (
+            <Stepper labelId={labelId} value={concurrency[agent] ?? 6} min={1} max={50} unit={t('SettingsPage.items')} onChange={(count) => void setChatSettings({ agentConcurrency: { [agent]: count } })} />
+          )}
+        />
+      ))}
+      {awakeSupported && awake && (
+        <SettingsRow
+          label={t('SettingsPage.keepComputerAwake')}
+          description={t('SettingsPage.agentsWaitingForYourInputDoNotPrevent')}
+          control={(labelId) => (
+            <Segmented
+              labelId={labelId}
+              value={awake.mode}
+              onChange={(mode) => void setAwakeMode(mode)}
+              options={[
+                { value: 'on', label: t('SettingsPage.always') },
+                { value: 'auto', label: t('SettingsPage.whileAgentsWorkOrSchedulesArePending') },
+                { value: 'off', label: t('common.off') }
+              ]}
+            />
+          )}
+        />
+      )}
+    </>
+  )
+}
+
+// What an agent may do while nobody answers it, and what of the user's it may reach.
+function PermissionSettings() {
+  const chatSettings = useCore((s) => s.chatSettings)
+  return (
+    <>
+      {chatSettings?.unattendedMode && (
+        <SettingsRow
+          label={t('SettingsPage.scheduledRunPermissions')}
+          description={t('SettingsPage.scheduledTasksAndConversationsStartUnattendedInThis')}
+          control={(labelId) => (
+            <Segmented
+              labelId={labelId}
+              value={chatSettings.unattendedMode ?? 'acceptEdits'}
+              onChange={(unattendedMode) => void setChatSettings({ unattendedMode })}
+              options={UNATTENDED_MODES.map((value) => ({ value, label: UNATTENDED_LABEL[value] }))}
+            />
+          )}
+        />
+      )}
+      {chatSettings?.userBrowser !== undefined && (
+        <SettingsRow
+          label={t('SettingsPage.letClaudeCodeUseYourChrome')}
+          description={t('SettingsPage.useTheClaudeInChromeExtensionToOpen')}
+          control={(labelId) => (
+            <Toggle labelId={labelId} checked={chatSettings.userBrowser ?? true} onChange={(next) => void setChatSettings({ userBrowser: next })} />
+          )}
+        />
+      )}
+      {chatSettings?.readHistory !== undefined && (
+        <SettingsRow
+          label={t('SettingsPage.letAgentsReadYourAntumiRecords')}
+          description={t('SettingsPage.agentsCanListAndReadYourConversationsTasks')}
+          control={(labelId) => (
+            <Toggle labelId={labelId} checked={chatSettings.readHistory ?? true} onChange={(next) => void setChatSettings({ readHistory: next })} />
+          )}
+        />
+      )}
+    </>
+  )
+}
+
+function ConversationSettings() {
+  const chatSettings = useCore((s) => s.chatSettings)
+  const installed = useInstalledAgents()
+  return (
+    <>
+      {chatSettings && (
+        <SettingsRow
+          label={t('SettingsPage.suggestNextStepsAfterEachTurn')}
+          description={t('SettingsPage.predictYourNextMessageInGrayAfterEach')}
+          control={(labelId) => (
+            <Toggle labelId={labelId} checked={chatSettings.promptSuggestions} onChange={(next) => void setChatSettings({ promptSuggestions: next })} />
+          )}
+        />
+      )}
+      {chatSettings?.userTodos !== undefined && (
+        <SettingsRow
+          label={t('SettingsPage.trackToDos')}
+          description={t('SettingsPage.agentRecordsThingsYouNeedToDoLater')}
+          control={(labelId) => (
+            <Toggle labelId={labelId} checked={chatSettings.userTodos ?? true} onChange={(next) => void setChatSettings({ userTodos: next })} />
+          )}
+        />
+      )}
+      <TitleNamingSettings />
+      <AutoArchiveSettings />
+      <SettingsRow
+        label={t('SettingsPage.modelForQuickTasks_1609')}
+        description={t('SettingsPage.useThisAgentSModelForTranslationCommit')}
+        control={() => (
+          <span className="quick-models">
+            {installed.map((agent) => <QuickModelPicker key={agent} agent={agent} />)}
+          </span>
+        )}
+      />
     </>
   )
 }
@@ -743,7 +783,7 @@ const SECTIONS: readonly Section[] = localized(() => ([
     group: 'Agent',
     title: t('SettingsPage.localAgents'),
     description: t('SettingsPage.installationSignInAndDefaultsForAgentExecution'),
-    keywords: ['agent', t('ConversationList.agent'), t('SettingsPage.local'), t('CjkFontPicker.default'), t('chatTools.toDos'), 'todo', t('InstalledAgentsSettings.installed'), t('AgentPicker.notInstalled'), t('SettingsPage.install'), t('SettingsPage.signIn'), t('SettingsPage.version'), t('SettingsPage.scan'), t('SettingsPage.environment'), t('SettingsPage.check'), 'path', t('SettingsPage.notFound'), t('RoutinesSection.enable'), t('SettingsPage.disable'), ...AGENT_KINDS, t('ChatPlan.execute'), t('SettingsPage.chat'), t('BrowserPanel.conversation'), t('GitInspector.task'), t('SettingsPage.planning'), t('OverviewView.schedules'), t('SettingsPage.unattended'), t('SettingsPage.records'), t('SettingsPage.history'), t('DiscussionView.summary'), t('AgentModelPicker.model'), t('SettingsPage.quick'), t('ConversationBranches.commitMessage'), 'haiku', t('ConversationList.title'), t('SettingsPage.naming'), t('ConversationActions.rename'), t('SettingsPage.firstTurn'), t('SettingsPage.everyTurn'), t('ConversationActions.archive'), t('SettingsPage.autoArchive'), t('SettingsPage.inactive'), t('SettingsPage.cleanup')],
+    keywords: ['agent', t('ConversationList.agent'), t('SettingsPage.local'), t('InstalledAgentsSettings.installed'), t('AgentPicker.notInstalled'), t('SettingsPage.install'), t('SettingsPage.signIn'), t('SettingsPage.version'), t('SettingsPage.scan'), t('SettingsPage.environment'), t('SettingsPage.check'), 'path', t('SettingsPage.notFound'), t('RoutinesSection.enable'), t('SettingsPage.disable'), ...AGENT_KINDS],
     Icon: SparkIcon,
     Body: AgentSettings,
     grouped: true
@@ -777,21 +817,54 @@ const SECTIONS: readonly Section[] = localized(() => ([
   }
 ]))
 
-// On a core that keeps them: the user's own slash commands; it follows 本机 Agent.
+// How many agents run at once and keeping the computer awake; it follows 服务商.
+const RUN_SECTION: Section = localized(() => ({
+  id: 'run',
+  group: 'Agent',
+  title: t('ChatCodeRun.run'),
+  description: t('SettingsPage.runDescription'),
+  keywords: [t('SettingsPage.maximumConcurrentAgents'), t('SettingsPage.perAgentLimits'), t('SettingsPage.keepComputerAwake'), '并发', 'concurrency', 'awake', t('ChatPlan.execute'), t('GitInspector.task'), t('SettingsPage.planning'), ...AGENT_KINDS],
+  Icon: PulseIcon,
+  Body: RunSettings
+}))
+
+// What agents may do unattended and what of the user's they reach; it follows 运行.
+const PERMISSIONS_SECTION: Section = localized(() => ({
+  id: 'permissions',
+  group: 'Agent',
+  title: t('SettingsPage.permissions'),
+  description: t('SettingsPage.permissionsDescription'),
+  keywords: [t('SettingsPage.permissions'), 'permission', t('SettingsPage.scheduledRunPermissions'), t('SettingsPage.unattended'), t('OverviewView.schedules'), t('SettingsPage.access'), 'chrome', t('SettingsPage.letClaudeCodeUseYourChrome'), t('SettingsPage.letAgentsReadYourAntumiRecords'), t('SettingsPage.records'), t('SettingsPage.history')],
+  Icon: LockIcon,
+  Body: PermissionSettings
+}))
+
+// How conversations behave: suggestions, to-dos, titles, archiving, the quick-task model.
+const CONVERSATION_SECTION: Section = localized(() => ({
+  id: 'conversation',
+  group: t('sidebar.conversations'),
+  title: t('sidebar.conversations'),
+  description: t('SettingsPage.conversationDescription'),
+  keywords: [t('SettingsPage.chat'), t('BrowserPanel.conversation'), t('SettingsPage.suggestNextStepsAfterEachTurn'), t('chatTools.toDos'), 'todo', t('ConversationList.title'), t('SettingsPage.naming'), t('ConversationActions.rename'), t('SettingsPage.firstTurn'), t('SettingsPage.everyTurn'), t('ConversationActions.archive'), t('SettingsPage.autoArchive'), t('SettingsPage.inactive'), t('SettingsPage.cleanup'), t('AgentModelPicker.model'), t('SettingsPage.quick'), t('ConversationBranches.commitMessage'), t('DiscussionView.summary'), 'haiku'],
+  Icon: ChatIcon,
+  Body: ConversationSettings
+}))
+
+// On a core that keeps them: the user's own slash commands; it follows 会话.
 const CHAT_COMMANDS_SECTION: Section = localized(() => ({
   id: 'chat-commands',
-  group: 'Agent',
+  group: t('sidebar.conversations'),
   title: t('SettingsPage.chatCommands'),
   description: t('SettingsPage.savedPromptsAvailableWithInTheComposerEdit'),
   keywords: [t('chatTools.command'), t('SettingsPage.slash'), '/', t('ChatCommandSettings.prompt'), t('RoutinesSection.templates'), 'prompt', t('SettingsPage.chat'), t('BrowserPanel.conversation'), t('SettingsPage.shortcut')],
-  Icon: ChatIcon,
+  Icon: TerminalIcon,
   Body: ChatCommandSettings
 }))
 
-// On a core with a skills library: the Agent Skills it installs for agents; it follows 聊天命令.
+// On a core with a skills library: the Agent Skills it installs for agents; it opens 扩展.
 const SKILLS_SECTION: Section = localized(() => ({
   id: 'skills',
-  group: 'Agent',
+  group: t('SettingsPage.extensions'),
   title: t('SettingsPage.skills'),
   description: t('SettingsPage.installAgentSkillsSkillMdFromGitRepositories'),
   keywords: [t('SettingsPage.skills'), 'skill', 'skills', t('SettingsPage.plugins'), 'plugin', 'obsidian', 'markdown', t('SettingsPage.install'), t('SettingsPage.update'), t('SettingsPage.rollback'), t('SettingsPage.repository'), 'git', ...AGENT_KINDS],
@@ -803,7 +876,7 @@ const SKILLS_SECTION: Section = localized(() => ({
 // On a core that keeps them: the user's MCP servers, handed to agents at each start; it follows 技能.
 const MCP_SECTION: Section = localized(() => ({
   id: 'mcp',
-  group: 'Agent',
+  group: t('SettingsPage.extensions'),
   title: 'MCP',
   description: t('SettingsPage.manageMcpServersShareThemWithSelectedAgents'),
   keywords: ['mcp', t('SettingsPage.servers'), 'server', t('SettingsPage.tools'), 'tool', t('SettingsPage.import'), t('SettingsPage.connection'), t('SettingsPage.tests'), 'token', t('SettingsPage.token'), t('McpSettingsSection.environmentVariables'), t('McpSettingsSection.requestHeaders'), ...AGENT_KINDS],
@@ -822,10 +895,10 @@ const ACCOUNTS_SECTION: Section = localized(() => ({
   Body: AgentAccountSettings
 }))
 
-// On a core that reads them: sessions the agents ran in a terminal, taken in as conversations; it follows MCP.
+// On a core that reads them: sessions the agents ran in a terminal, taken in as conversations; it follows 聊天命令.
 const SESSION_IMPORT_SECTION: Section = localized(() => ({
   id: 'session-import',
-  group: 'Agent',
+  group: t('sidebar.conversations'),
   title: t('SettingsPage.sessionImport'),
   description: t('SettingsPage.sessionImportDescription'),
   keywords: [t('SettingsPage.sessionImport'), t('SettingsPage.import'), t('BrowserPanel.conversation'), t('SettingsPage.terminal'), 'import', 'session', 'resume', 'terminal', 'cli', ...AGENT_KINDS],
@@ -929,12 +1002,18 @@ export function SettingsPage() {
   const accounts = useAccountsSupported()
   const chatCommands = useChatCommandsSupported()
   const wireLog = useWireLogSupported()
+  const run = useRunSettingsShown()
+  const permissions = usePermissionSettingsShown()
   const sections = useMemo(() => {
     const information = SECTIONS.filter((section) => section.id === 'support' || section.id === 'about')
     const own = SECTIONS.filter((section) => section.id !== 'about' && section.id !== 'support' && (section.id !== 'notifications' || canNotify() || canShowRequestPopup()))
-      .flatMap((section) => (section.id === 'agents' ? [section, ...(accounts ? [ACCOUNTS_SECTION] : []), ...(modelProviders ? [MODEL_PROVIDERS_SECTION] : []), ...(chatCommands ? [CHAT_COMMANDS_SECTION] : []), ...(skills ? [SKILLS_SECTION] : []), ...(mcp ? [MCP_SECTION] : []), ...(sessionImport ? [SESSION_IMPORT_SECTION] : [])] : [section]))
+      .flatMap((section) => (section.id === 'agents' ? [
+        section, ...(accounts ? [ACCOUNTS_SECTION] : []), ...(modelProviders ? [MODEL_PROVIDERS_SECTION] : []), ...(run ? [RUN_SECTION] : []), ...(permissions ? [PERMISSIONS_SECTION] : []),
+        CONVERSATION_SECTION, ...(chatCommands ? [CHAT_COMMANDS_SECTION] : []), ...(sessionImport ? [SESSION_IMPORT_SECTION] : []),
+        ...(skills ? [SKILLS_SECTION] : []), ...(mcp ? [MCP_SECTION] : [])
+      ] : [section]))
     return [...own, ...(plugins ? [PLUGINS_SECTION] : []), ...sourceSections(sources ?? []), ...(knowledge ? [KNOWLEDGE_SECTION] : []), ...(browser ? [BROWSER_SECTION] : []), ...(wireLog ? [DEBUG_SECTION] : []), ...information]
-  }, [sources, browser, knowledge, skills, mcp, sessionImport, accounts, modelProviders, chatCommands, wireLog, plugins, getLocale()])
+  }, [sources, browser, knowledge, skills, mcp, sessionImport, accounts, modelProviders, chatCommands, wireLog, plugins, run, permissions, getLocale()])
   const activeId = useCore((state) => state.settingsSection) ?? SECTIONS[0]?.id ?? ''
   const [query, setQuery] = useState('')
   useEffect(() => { setQuery('') }, [activeId])

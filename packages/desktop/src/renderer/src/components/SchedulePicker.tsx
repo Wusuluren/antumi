@@ -13,7 +13,7 @@ type When = 'quota' | 'time'
 
 // Where the unattended mode is set.
 export function SettingsLink() {
-  return <button type="button" className="link-button settings-link" onClick={() => setSettingsOpen(true, 'agents')}>{t('SchedulePicker.changeInSettings')}</button>
+  return <button type="button" className="link-button settings-link" onClick={() => setSettingsOpen(true, 'permissions')}>{t('SchedulePicker.changeInSettings')}</button>
 }
 
 // When a run may start: as soon as its agent's quota allows, or not before a time, a night hour
