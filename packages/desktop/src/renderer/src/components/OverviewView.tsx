@@ -5,7 +5,7 @@ import { quickApproval, type ActionableItem } from '../attention'
 import {
   openAttentionItem, perform, refreshAttentionSummaries, selectConversation, selectTask, setConversationInspectorOpen,
   setConversationInspectorTab, setInspectorOpen, setOverviewFilter, setOverviewScroll, setOverviewView, setRoutinesOpen,
-  setSchedulesOpen, setTaskInspectorTab, showView, useDashboardSupported, useOverview, useCore, type OverviewFilter
+  setSchedulesOpen, setSettingsOpen, setTaskInspectorTab, showView, useDashboardSupported, useOverview, useCore, type OverviewFilter
 } from '../core-store'
 import { DashboardPanel } from './DashboardPanel'
 import { Segmented } from './SettingsControls'
@@ -21,6 +21,11 @@ import { conversationActivity, latestSquadRun, taskActivity, type WorkActivity }
 import { SchedulePicker } from './SchedulePicker'
 import { WorkingSummary } from './WorkingSummary'
 import { AgentIcon, BoardIcon, ChatIcon, ClockIcon, RefreshIcon, SquadIcon } from './icons'
+import { ResumableSessionList, resumableSummary } from './ResumableSessions'
+import { canResume, resumableSessions } from '../resumable-sessions'
+import { useExternalSessionsWhen } from '../external-sessions'
+import { usePreferences } from '../preferences'
+import { useProviderProbes } from '../provider-probes'
 
 const KIND_ICON = { task: BoardIcon, conversation: ChatIcon, squad: SquadIcon, routine: RefreshIcon, schedule: ClockIcon }
 const KIND_LABEL = localized(() => ({ task: t('GitInspector.task'), conversation: t('BrowserPanel.conversation'), squad: t('NewTaskDialog.developmentSquad'), routine: t('OverviewView.routines'), schedule: t('OverviewView.schedules') }))
@@ -313,6 +318,30 @@ function TodoEntryView({ entry, now }: { entry: TodoEntry; now: number }) {
   )
 }
 
+// Before there is any work here, the work already under way in a terminal, to go on with. Not while
+// the setup guide offers the same.
+function ResumablePanel() {
+  const blank = useCore((s) => Object.keys(s.tasks).length === 0 && Object.keys(s.conversations).length === 0)
+  const environment = useCore((s) => s.environment)
+  const providers = useCore((s) => s.modelProviders)
+  const disabled = usePreferences((s) => s.disabledAgents)
+  const guiding = usePreferences((s) => s.setup.status === 'active' && s.setup.sessionChoice === 'pending')
+  const probes = useProviderProbes((s) => s.probes)
+  const sessions = useExternalSessionsWhen(blank)
+  if (!blank || guiding || !sessions) return null
+  const { count, agents, shown } = resumableSessions(sessions, (agent) => canResume(agent, environment, disabled, providers, probes))
+  if (!shown.length) return null
+  return (
+    <Panel title={t('ResumableSessions.title')} count={count}>
+      <p className="resumable-note">{resumableSummary(count, agents)}</p>
+      <ResumableSessionList sessions={shown} />
+      {count > shown.length && <div className="resumable-more">
+        <button type="button" className="link-button" onClick={() => setSettingsOpen(true, 'session-import')}>{t('ResumableSessions.viewAll')}</button>
+      </div>}
+    </Panel>
+  )
+}
+
 const WEEKDAY = localized(() => [t('ActivityHeatmap.sun'), t('ActivityHeatmap.mon'), t('routines.tue'), t('ActivityHeatmap.wed'), t('routines.thu'), t('ActivityHeatmap.fri'), t('routines.sat')])
 const PANES = localized(() => ([{ value: 'now', label: t('OverviewView.now') }, { value: 'stats', label: t('OverviewView.statistics') }] as const))
 
@@ -434,7 +463,10 @@ export function OverviewView() {
         {(mine || todoPanel || unread) && <div className="overview-column">{mine}{todoPanel}{unread}</div>}
         {(running || next) && <div className="overview-column">{running}{next}</div>}
       </div>
-      {empty && emptyConfirmed && <p className="attention-empty muted">{t('OverviewView.noWorkInProgress')}</p>}
+      {empty && emptyConfirmed && <>
+        <ResumablePanel />
+        <p className="attention-empty muted">{t('OverviewView.noWorkInProgress')}</p>
+      </>}
       </>}
     </section>
   )

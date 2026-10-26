@@ -10,7 +10,7 @@ export function updateSetup(change: Partial<SetupProgress>): void {
 export function openSetup(): void {
   useCore.setState({ guideOpen: false })
   const previous = usePreferences.getState().setup
-  updateSetup({ status: 'active', ...(previous.status === 'complete' ? { sourceChoice: 'pending', confirmed: null } : {}) })
+  updateSetup({ status: 'active', ...(previous.status === 'complete' ? { sourceChoice: 'pending', sessionChoice: 'pending', confirmed: null } : {}) })
 }
 
 export function useFirstRunSetup(): void {

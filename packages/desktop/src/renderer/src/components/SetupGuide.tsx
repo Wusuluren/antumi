@@ -8,9 +8,11 @@ import { setPreference, usePreferences } from '../preferences'
 import { useProviderProbes } from '../provider-probes'
 import { useReducedMotion } from '../reduced-motion'
 import { updateSetup } from '../setup-controller'
-import { configuredSources, preferredSetupAgent, setupStep } from '../setup-progress'
+import { configuredSources, preferredSetupAgent, setupResumable, setupStep } from '../setup-progress'
+import { useExternalSessionsWhen } from '../external-sessions'
 import { ChatPicker } from './ChatPicker'
 import { PetSpeech } from './PetSpeech'
+import { ResumableSessionList, resumableSummary } from './ResumableSessions'
 import { usePetSkin } from './PetSprite'
 import { settingsSectionOf } from './SourceInboxView'
 import { AgentIcon } from './icons'
@@ -38,15 +40,18 @@ export function SetupGuide() {
   const skin = usePetSkin(petStyle, 80, petLevel === 'off' || progress.status !== 'active' || readingGuide)
   const [refreshing, setRefreshing] = useState(false)
   const [sourceId, setSourceId] = useState<string | null>(null)
+  // Looked for from the start, so it is there by the time the agent is.
+  const sessions = useExternalSessionsWhen(progress.status === 'active')
 
   if (progress.status !== 'active' || readingGuide) return null
-  const situation = { environment, disabled, providers, sources, probes }
+  const situation = { environment, disabled, providers, sources, probes, sessions }
   const agent = progress.agent ?? preferredSetupAgent(situation)
   const readiness = agent ? agentReadiness(agent, environment, disabled, providers, probes) : null
   const step = connected ? setupStep(progress, situation) : 'waiting'
   const descriptor = agent ? agentDescriptor(agent, getLocale()) : null
   const canProvide = Boolean(descriptor?.capabilities.modelProviders.length && features?.includes('model-providers'))
   const configured = configuredSources(sources ?? [])
+  const resumable = setupResumable(situation)
   const source = sources?.find((entry) => entry.provider === sourceId) ?? sources?.[0]
   const pause = () => updateSetup({ status: 'paused' })
   const goAgents = () => setSettingsOpen(true, 'agents')
@@ -66,6 +71,7 @@ export function SetupGuide() {
   const problem = Object.values(inboxes).find((inbox) => inbox.problem && configured.some((entry) => entry.provider === inbox.provider))?.problem
   const text = step === 'waiting' ? t(connected ? 'SetupGuide.waiting' : 'SetupGuide.disconnected')
     : step === 'agent' ? readiness ? agentReadinessText(readiness, agent ?? undefined) : t('SetupGuide.noSupportedAgent')
+    : step === 'sessions' ? sessions === null ? t('SetupGuide.findingSessions') : resumableSummary(resumable.count, resumable.agents)
     : step === 'sources' ? t('SetupGuide.sourceQuestion')
     : t('SetupGuide.done')
 
@@ -90,6 +96,10 @@ export function SetupGuide() {
               {step === 'agent' && readiness?.state === 'provider-failed' && readiness.message && <p>{readiness.message}</p>}
               {step !== 'agent' && step !== 'waiting' && readiness?.state === 'authorize-on-use' && <p>{t('SetupGuide.deferredAuth')}</p>}
               {step !== 'waiting' && provider && <p>{t('SetupGuide.providerConfigured', { name: provider.name })} {t(probe === 'running' ? 'SetupGuide.providerTesting' : probe ? probe.ok ? 'SetupGuide.providerPassed' : 'SetupGuide.providerFailed' : 'SetupGuide.providerUntested')}</p>}
+              {step === 'sessions' && resumable.shown.length > 0 && <>
+                <p>{t('SetupGuide.sessionsNote')}</p>
+                <ResumableSessionList sessions={resumable.shown} onResumed={() => updateSetup({ sessionChoice: 'resumed' })} />
+              </>}
               {step === 'sources' && progress.sourceChoice === 'configure' && <>
                 <p>{t('SetupGuide.sourceConfiguration')}</p>
                 {(sources?.length ?? 0) > 0 && <ChatPicker label={t('SetupGuide.selectSource')} value={source?.provider ?? null} placeholder={t('SetupGuide.selectSource')}
@@ -104,6 +114,8 @@ export function SetupGuide() {
               {step === 'agent' && canProvide && descriptor?.setup !== 'provider' && (readiness?.state === 'needs-account' || readiness?.state === 'unknown-auth') && <button type="button" className="button" onClick={goProviders}>{t('SetupGuide.providers')}</button>}
               {step === 'agent' && (readiness?.state === 'unknown-auth' || readiness?.state === 'authorize-on-use') && <button type="button" className="button" onClick={confirm}>{t(readiness.state === 'authorize-on-use' ? 'SetupGuide.deferAuth' : 'SetupGuide.confirm')}</button>}
               {step === 'agent' && <button type="button" className="button ghost" disabled={refreshing || !connected} onClick={() => void refresh()}>{t(refreshing ? 'SetupGuide.checking' : 'SetupGuide.refresh')}</button>}
+              {step === 'sessions' && resumable.count > 0 && <button type="button" className="button ghost" onClick={() => setSettingsOpen(true, 'session-import')}>{t('ResumableSessions.viewAll')}</button>}
+              {step === 'sessions' && <button type="button" className="button ghost" onClick={() => updateSetup({ sessionChoice: 'skip' })}>{t('SetupGuide.skipSessions')}</button>}
               {step === 'sources' && progress.sourceChoice === 'pending' && canConfigureSource && <button type="button" className={primaryClass} onClick={() => { updateSetup({ sourceChoice: 'configure' }); goSources() }}>{t('SetupGuide.configureSources')}</button>}
               {step === 'sources' && progress.sourceChoice === 'configure' && canConfigureSource && <button type="button" className={primaryClass} onClick={goSources}>{t(source ? 'SetupGuide.configureSources' : 'SetupGuide.installSources')}</button>}
               {step === 'sources' && progress.sourceChoice === 'configure' && source && features?.includes('plugins') && <button type="button" className="button" onClick={() => setSettingsOpen(true, 'plugins')}>{t('SetupGuide.installSources')}</button>}

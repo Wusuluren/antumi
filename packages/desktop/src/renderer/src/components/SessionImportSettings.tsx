@@ -6,6 +6,7 @@ import { agentLabel } from '../labels'
 import { timeAgo } from '../conversation-state'
 import { AgentIcon, ChevronRightIcon, RefreshIcon } from './icons'
 import { projectName } from './ProjectPicker'
+import { useExternalSessions } from '../external-sessions'
 import { Segmented, Toggle } from './SettingsControls'
 
 const keyOf = (session: ExternalSession) => `${session.agent}:${session.sessionId}`
@@ -31,7 +32,11 @@ export function SessionImportSettings() {
     setLoading(true)
     const found = await perform((rpc) => rpc.call('sessionImports.list', {}))
     setLoading(false)
-    if (found) setSessions(found.sessions)
+    if (found) {
+      setSessions(found.sessions)
+      // What the guide and the overview offer to go on with must not offer what came in here.
+      useExternalSessions.setState({ sessions: found.sessions })
+    }
   }
   useEffect(() => { if (connected) void load() }, [connected])
 

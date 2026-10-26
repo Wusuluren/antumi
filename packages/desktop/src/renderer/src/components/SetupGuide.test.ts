@@ -2,8 +2,9 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StateCreator } from 'zustand'
-import { agentSetupIdentity, ModelProvider, type Environment } from '@antumi/protocol'
+import { agentSetupIdentity, ModelProvider, type Environment, type ExternalSession } from '@antumi/protocol'
 import { openGuide, openOverview, setSettingsOpen, useCore } from '../core-store'
+import { useExternalSessions } from '../external-sessions'
 import { setLocale } from '../i18n'
 import { DEFAULT_PREFERENCES, usePreferences } from '../preferences'
 import { useProviderProbes } from '../provider-probes'
@@ -34,6 +35,7 @@ beforeEach(() => {
   useCore.setState({ ...useCore.getInitialState(), connection: 'connected', environment: env(false), sources: [] }, true)
   usePreferences.setState({ ...DEFAULT_PREFERENCES, petLevel: 'off', setup: SetupProgress.parse({ status: 'active' }) }, true)
   useProviderProbes.setState({ probes: {} })
+  useExternalSessions.setState({ sessions: [], loading: false })
   setLocale('zh-CN')
 })
 
@@ -78,6 +80,22 @@ describe('SetupGuide', () => {
     useCore.setState({ environment: env(false) })
     expect(render()).toBe('')
     expect(useCore.getState().conversations).toEqual({})
+  })
+
+  it('offers to go on with sessions run in a terminal once the agent is ready, and moves on when skipped', () => {
+    const session: ExternalSession = { agent: 'codex', sessionId: 'a', cwd: '/work/shop', title: 'Fix the CSV export', firstPrompt: 'fix it', startedAt: 0, updatedAt: Date.now(), status: 'new', conversationId: null, problem: null }
+    useCore.setState({ environment: env(true) })
+    useExternalSessions.setState({ sessions: null })
+    expect(render()).toContain('正在找你在终端里用过的会话')
+    useExternalSessions.setState({ sessions: [session, { ...session, sessionId: 'b', cwd: '/work/api' }] })
+    const html = render()
+    expect(html).toContain('找到 2 个 Codex 会话')
+    expect(html).toContain('Fix the CSV export')
+    expect(html).toContain('shop')
+    expect(html).toContain('接着聊')
+    expect(html).not.toContain('暂时不需要')
+    updateSetup({ sessionChoice: 'skip' })
+    expect(render()).toContain('暂时不需要')
   })
 
   it('keeps the pet and actions available in settings, without forcing an off pet on', () => {

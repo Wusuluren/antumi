@@ -312,7 +312,7 @@ Agent adapter 解析一次性命令的结构化输出：Claude 的 JSON、Codex 
 
 ### 导入终端里的会话
 
-设置 → 导入会话列出 Claude Code 和 Codex 在 Antumi 之外跑过的会话（`session-imports.ts`），勾选后各导入成一条会话，下一条消息用 Agent 自己的恢复接着聊。读哪里、怎么读归 adapter 的 `transcripts`（`agent-transcripts.ts`），没有它的 Agent 不出现在列表里：
+设置 → 导入会话（首次打开时新手引导和总览也会列出最近几个，见「首次使用环境引导」）列出 Claude Code 和 Codex 在 Antumi 之外跑过的会话（`session-imports.ts`），勾选后各导入成一条会话，下一条消息用 Agent 自己的恢复接着聊。读哪里、怎么读归 adapter 的 `transcripts`（`agent-transcripts.ts`），没有它的 Agent 不出现在列表里：
 
 - **Claude Code**（`claude-transcripts.ts`）：`$CLAUDE_CONFIG_DIR/projects/*/<会话 id>.jsonl`（默认 `~/.claude`），会话 id 取文件名，目录取记录里的 `cwd`，不从目录名反推。从最后一条主线记录沿 `parentUuid` 往回走（压缩处接 `logicalParentUuid`），/rewind 丢掉的分支和 sidechain 不算；`isMeta`、压缩摘要和 CLI 自己注入的用户轮次（`<local-command-…>`、`<system-reminder>`、`<task-notification>` 等）跳过，斜杠命令显示成 `/命令 参数`。标题依次取 `custom-title`（用户 /rename 的，导入后锁定）、`ai-title`、`summary`、第一条提问。`<id>/subagents/` 不是会话。
 - **Codex**（`codex-transcripts.ts`）：`$CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl`，旧的已压成 `.jsonl.zst`，两份都在时读没压的那份（Codex 还在写它）。第一行 `session_meta` 的 `source` 是对象（子 Agent、审查）、`thread_source` 不是 `user`，或 `originator` 是 Antumi 自己（`CODEX_CLIENT_NAME`）的线程不算。内容按回合读 `event_msg` 里的 `item_completed`，回合以 `task_complete` / `turn_aborted` 收尾；更早没有这些事件的 rollout 只显示消息。标题取 `session_index.jsonl` 的 `thread_name`，没有就用第一条提问。
@@ -388,9 +388,11 @@ ZCode 不说 ACP，有自己的 driver（`agents/zcode/zcode-app-server.ts`）�
 
 ### 首次使用环境引导
 
-desktop 在首次连接且环境、供应商和任务来源数据到齐后启动检查，不再自动打开整篇指导。引导只检查一个 Agent 的安装和可用条件，再询问是否配置任务来源，不创建会话、不发送模型请求。`agent-readiness.ts`（protocol）统一供引导和本机 Agent 设置页使用：先看启用、安装及兼容性，再看原生登录或兼容且有密钥的供应商。供应商已配置与连接测试成功是两件事，测试结果按配置 revision 保留在 renderer，编辑后旧结果不再使用；已知测试失败会展示原因并留在 Agent 配置步骤，原生账号或其他供应商可用时仍可继续，不强制发起测试。侧栏环境提示也识别供应商配置，避免误报未登录。descriptor 的 `setup` 声明原生账号、原生供应商或首次使用授权，客户端不按 Agent 名称判断。core 在环境检查中可选返回 `problem`，区分 `incompatible-version` 与 `probe-failed`；旧 core 未说明的原因保持未知。
+desktop 在首次连接且环境、供应商和任务来源数据到齐后启动检查，不再自动打开整篇指导。引导只检查一个 Agent 的安装和可用条件，再提出接着聊终端里的会话、询问是否配置任务来源，自己不创建会话、不发送模型请求。`agent-readiness.ts`（protocol）统一供引导和本机 Agent 设置页使用：先看启用、安装及兼容性，再看原生登录或兼容且有密钥的供应商。供应商已配置与连接测试成功是两件事，测试结果按配置 revision 保留在 renderer，编辑后旧结果不再使用；已知测试失败会展示原因并留在 Agent 配置步骤，原生账号或其他供应商可用时仍可继续，不强制发起测试。侧栏环境提示也识别供应商配置，避免误报未登录。descriptor 的 `setup` 声明原生账号、原生供应商或首次使用授权，客户端不按 Agent 名称判断。core 在环境检查中可选返回 `problem`，区分 `incompatible-version` 与 `probe-failed`；旧 core 未说明的原因保持未知。
 
-`setup-progress.ts` 计算当前步骤，本机偏好保存状态、所选 Agent、原生配置确认和任务来源选择。原生配置未知时用户可自行确认；确认按 Agent、实际路径和版本绑定，不改写检测事实，不能越过已知未登录、检测失败或版本不兼容。首次使用才授权的 Agent 可以明确推迟授权，不为此创建会话。已看过旧指导或已有任务、会话的用户不会自动触发，完成或主动退出后也不会自动重弹，可从左下角帮助 → 检查使用环境手动继续。任务来源凭证及必填设置保存后即可完成，是否启用同步、同步成功和导入任务不属于完成条件。
+`setup-progress.ts` 计算当前步骤，本机偏好保存状态、所选 Agent、原生配置确认、接着聊和任务来源选择。原生配置未知时用户可自行确认；确认按 Agent、实际路径和版本绑定，不改写检测事实，不能越过已知未登录、检测失败或版本不兼容。首次使用才授权的 Agent 可以明确推迟授权，不为此创建会话。已看过旧指导或已有任务、会话的用户不会自动触发，完成或主动退出后也不会自动重弹，可从左下角帮助 → 检查使用环境手动继续。任务来源凭证及必填设置保存后即可完成，是否启用同步、同步成功和导入任务不属于完成条件。
+
+Agent 可用之后、任务来源之前是「接着聊」一步：从零用一个新工具，不如在已有的工作上接着做。引导一开始就在后台调 `sessionImports.list`（`external-sessions.ts`，失败不报错，当作没有），到这一步时多半已有结果；还没回来时停在这一步显示「正在找」，不先跳到任务来源再跳回来。可接着聊的会话（`resumable-sessions.ts`）是未导入、目录还在、所属 Agent 已启用且没被确认未登录的；数量按全部算，列出最新的 3 个，每个目录只取一个。点「接着聊」导入这一个并打开它，「查看全部」去设置 → 导入会话，「从新会话开始」跳过；没有可接着聊的会话或 core 不支持导入时整步跳过。总览在还没有任何任务和会话时显示同样的「接着聊」卡片，引导这一步还没做完时不显示，免得重复；退出了引导，它还在。
 
 宠物引导在工作区下方预留固定区域，进入设置仍可见，输入、弹层和终端保持原有交互；开启引导时暂停普通宠物，关闭宠物则只显示文字和按钮。设置页导航读取 store 中的目标，支持引导在设置已打开时切换到正确章节。左下角齿轮旁的帮助菜单提供「使用指南」和「检查使用环境」；关于页只保留版本及产品信息。使用指南是静态配置与功能查阅，不读取完成状态、不创建会话。阅读时暂时隐藏宠物引导并保留进度，离开文档后恢复；从帮助启动环境检查会关闭文档。技巧的场景提示独立于首次引导。
 
