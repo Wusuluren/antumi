@@ -21,7 +21,8 @@ describe('environment check', () => {
     vi.stubEnv('ANTUMI_HOME', root)
   })
   afterEach(() => { vi.unstubAllEnvs(); rmSync(root, { recursive: true, force: true }) })
-  const others = (installations: readonly { agent: string }[] = []) => installations.filter((each) => each.agent !== 'antigravity')
+  // These agents offer installation even when no companion app is present.
+  const others = (installations: readonly { agent: string }[] = []) => installations.filter((each) => each.agent !== 'antigravity' && each.agent !== 'kimi')
 
   it('reads the first dotted triple as the version', () => {
     expect(parseVersion('git version 2.39.3 (Apple Git-145)')).toBe('2.39.3')
@@ -59,11 +60,12 @@ describe('environment check', () => {
         { tool: 'pi', status: 'missing', version: null, path: null, signedIn: null },
         { tool: 'dsh', status: 'missing', version: null, path: null, signedIn: null },
         { tool: 'antigravity', status: 'missing', version: null, path: null, signedIn: null },
-        { tool: 'zcode', status: 'missing', version: null, path: null, signedIn: null }
+        { tool: 'zcode', status: 'missing', version: null, path: null, signedIn: null },
+        { tool: 'kimi', status: 'missing', version: null, path: null, signedIn: null }
       ],
       detectedAgents: [{ id: 'claude', name: 'Claude Code', locations: [{ source: 'cli', path: path.join(bin, 'claude') }] }],
       // Antumi downloads Antigravity's server itself, so offers it with no application found.
-      cliInstallations: [expect.objectContaining({ agent: 'antigravity' })],
+      cliInstallations: [expect.objectContaining({ agent: 'antigravity' }), expect.objectContaining({ agent: 'kimi' })],
       searchPath: [bin],
       checkedAt: 1000
     })

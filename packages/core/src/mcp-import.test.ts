@@ -18,6 +18,24 @@ const codexList = (home: string) => JSON.stringify([
 ])
 
 describe('the agents\' own MCP servers', () => {
+  it('reads Kimi Code’s mcp.json from its configured home without importing disabled servers', async () => {
+    const kimiHome = path.join(home, 'custom-kimi')
+    mkdirSync(kimiHome)
+    writeFileSync(path.join(kimiHome, 'mcp.json'), JSON.stringify({ mcpServers: {
+      docs: { type: 'http', url: 'https://example.com/mcp', headers: { Authorization: 'Bearer test-only' } },
+      local: { command: 'node', args: ['server.js'], env: { KEY: 'test-only' } },
+      off: { command: 'off', enabled: false },
+      oldOff: { command: 'off', disabled: true },
+      token: { type: 'http', url: 'https://example.com/private', bearerTokenEnvVar: 'MY_TOKEN' }
+    } }))
+    expect(await findAgentMcpServers({ env: { KIMI_CODE_HOME: kimiHome }, homedir: home, codex: async () => '[]' })).toEqual([
+      { source: 'kimi', name: 'docs', transport: { type: 'http', url: 'https://example.com/mcp', headers: { Authorization: 'Bearer test-only' } }, problem: null },
+      { source: 'kimi', name: 'local', transport: { type: 'stdio', command: 'node', args: ['server.js'], cwd: null, env: { KEY: 'test-only' } }, problem: null },
+      { source: 'kimi', name: 'token', transport: null, problem: '令牌从环境变量读取，请在 Antumi 里手动添加' }
+    ])
+    expect(await findAgentMcpServers({ env: {}, homedir: home, codex: async () => '[]' })).toEqual([])
+  })
+
   it('reads Claude\'s, Codex\'s and Cursor\'s, values and all, leaving what the apps bundle', async () => {
     writeFileSync(path.join(home, '.claude.json'), JSON.stringify({ mcpServers: {
       github: { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'], env: { GITHUB_TOKEN: 'ghp' } },

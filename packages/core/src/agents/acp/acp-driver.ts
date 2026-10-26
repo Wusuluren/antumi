@@ -70,7 +70,7 @@ const SubagentSpawned = z.looseObject({ subagentSessionId: z.string() })
 const SubagentState = z.looseObject({ subagentSessionId: z.string(), state: z.string() })
 type Subagent = { card: string; text: string; said: string }
 const PermissionOutcome = z.looseObject({ outcome: z.looseObject({ outcome: z.string(), optionId: z.string().optional() }) })
-type Pending = { rawId: string | number; itemId: string; kind: 'permission' | 'question' | 'plan'; options?: z.infer<typeof Permission>['options'] }
+type Pending = { rawId: string | number; itemId: string; kind: 'permission' | 'permissionQuestion' | 'question' | 'plan'; options?: z.infer<typeof Permission>['options']; planRunMode?: ChatPermissionMode }
 type Request = { method: string; params: unknown }
 type ThoughtLevel = { id: string; name: string; values: AcpOptionValue[] }
 
@@ -153,8 +153,8 @@ export class AcpDriver implements ChatDriver {
     const known = ChatPermissionMode.safeParse(mode)
     return known.success && this.dialect.modes[known.data] !== undefined
   }
-  private toolName(update: Pick<z.infer<typeof Update>, 'kind' | 'rawInput' | 'name'>, old: string | undefined): string {
-    return this.dialect.toolName?.(update.rawInput, update.name) ?? (update.kind === 'execute' ? 'commandExecution' : update.kind === 'edit' ? 'fileChange' : old ?? update.kind ?? 'tool')
+  private toolName(update: Pick<z.infer<typeof Update>, 'kind' | 'rawInput' | 'name' | 'title'>, old: string | undefined): string {
+    return this.dialect.toolName?.(update.rawInput, update.name, update.title) ?? (update.kind === 'execute' ? 'commandExecution' : update.kind === 'edit' ? 'fileChange' : old ?? update.kind ?? 'tool')
   }
   // The agent's own requests Antumi answers by asking the user.
   private asked(method: string | undefined): boolean {
@@ -321,9 +321,21 @@ export class AcpDriver implements ChatDriver {
   respond(requestId: string, answer: ChatAnswer): unknown[] {
     const pending = this.pending.get(requestId)
     if (!pending) throw new Rejection('chat-request-gone', '这个请求已结束')
+    if (pending.kind === 'permissionQuestion') {
+      if (answer.decision === 'deny') return [result(pending.rawId, { outcome: { outcome: 'cancelled' } })]
+      const selected = answer.answers?.question
+      const option = selected?.length === 1 ? pending.options?.find((option) => option.optionId === selected[0] && option.kind === 'allow_once') : undefined
+      if (!option) throw new Rejection('chat-option-invalid', '请选择提供的一个回答')
+      return [result(pending.rawId, { outcome: { outcome: 'selected', optionId: option.optionId } })]
+    }
     if (pending.kind === 'permission') {
+      if (pending.planRunMode) {
+        if (answer.saved) return this.cancelFrames()
+        if (answer.decision !== 'deny' && (this.options.planOnly || this.options.readOnly)) throw new Rejection('plan-only', '此阶段只能规划，请先保存计划')
+        if (answer.decision !== 'deny' && answer.mode && answer.mode !== pending.planRunMode) throw new Rejection('chat-option-invalid', `${this.name} 的计划只能在 ${pending.planRunMode} 模式执行`)
+      }
       // A bare decision, as the overview's quick buttons send, takes the agent's option of that kind.
-      const bare = answer.decision === 'allow' ? 'allow_once' : answer.decision === 'allowForSession' ? 'allow_always' : null
+      const bare = answer.decision === 'allow' || (pending.planRunMode && answer.decision === 'allowForSession') ? 'allow_once' : answer.decision === 'allowForSession' ? 'allow_always' : null
       const selected = pending.options?.find((option) => answer.choice ? option.optionId === answer.choice : option.kind === bare)
       if (answer.choice && !selected) throw new Rejection('chat-option-invalid', `${this.name} 未提供这个审批选项`)
       if (!selected && answer.decision !== 'deny') throw new Rejection('chat-option-invalid', `请选择 ${this.name} 提供的具体审批选项`)
@@ -401,12 +413,18 @@ export class AcpDriver implements ChatDriver {
     if (item?.kind === 'approval') {
       const choice = pending.options?.find((option) => option.optionId === outcome?.optionId)
       const resolution = outcome?.outcome === 'accepted' || choice?.kind === 'allow_once' ? 'allowed' : choice?.kind === 'allow_always' ? 'allowedForSession' : outcome?.outcome === 'cancelled' ? 'cancelled' : 'denied'
-      this.items.put({ ...item, resolution, chosen: outcome?.optionId ?? null, ...(outcome?.outcome === 'accepted' ? { mode: 'ask' as const } : {}) }, at)
+      this.items.put({ ...item, resolution, chosen: outcome?.optionId ?? null, ...(pending.planRunMode && resolution === 'allowed' ? { mode: pending.planRunMode } : outcome?.outcome === 'accepted' ? { mode: 'ask' as const } : {}) }, at)
       // CreatePlan acceptance creates an artifact and ends the planning turn. Execution needs
       // its own prompt; deriving it from the logged acceptance also survives a core restart.
       const plan = this.dialect.requests?.plan
       if (pending.kind === 'plan' && plan && outcome?.outcome === 'accepted') this.execution = { text: plan.prompt, images: [], ref: `${this.id('plan')}:${this.stageId}:${id}` }
     } else if (item?.kind === 'question') {
+      if (pending.kind === 'permissionQuestion') {
+        const selected = pending.options?.find((option) => option.optionId === outcome?.optionId && option.kind === 'allow_once')
+        this.items.put({ ...item, answers: selected ? { question: [selected.optionId] } : null, resolution: selected ? 'answered' : 'cancelled' }, at)
+        this.pending.delete(id)
+        return
+      }
       const answered = z.looseObject({ outcome: z.looseObject({ answers: z.array(z.looseObject({ questionId: z.string(), selectedOptionIds: z.array(z.string()) })) }) }).safeParse(frame.result)
       const answers = answered.success ? Object.fromEntries(answered.data.outcome.answers.map((answer) => [answer.questionId, answer.selectedOptionIds])) : null
       this.items.put({ ...item, answers, resolution: answers ? 'answered' : 'cancelled' }, at)
@@ -450,7 +468,7 @@ export class AcpDriver implements ChatDriver {
       else if (!this.setup || String(frame.id).startsWith(this.id('initial-')) || OPENING.has(request.method)) {
         const detail = errorDetail(frame.error.data)
         this.startError = `${request.method}: ${detail ?? frame.error.message}`
-        this.lost = RESTORING.has(request.method) && /not found|not resumable/i.test(detail ?? frame.error.message)
+        this.lost = RESTORING.has(request.method) && /not found|not resumable|unknown sessionid/i.test(detail ?? frame.error.message)
       }
       else this.items.notice('error', frame.error.message, at)
       return
@@ -738,27 +756,40 @@ export class AcpDriver implements ChatDriver {
       if (request.success) {
         const itemId = `a:${id}`
         const tool = request.data.toolCall
+        const prompt = this.dialect.permissionPrompt?.(frame.params)
+        if (prompt?.kind === 'question') {
+          this.pending.set(id, { rawId: frame.id, itemId, kind: 'permissionQuestion', options: request.data.options })
+          this.items.put({ id: itemId, kind: 'question', requestId: id, questions: [{ id: 'question', header: '', question: prompt.text, options: request.data.options.filter((option) => option.kind === 'allow_once').map((option) => ({ id: option.optionId, label: option.name, description: null })), multiSelect: false }], answers: null, resolution: null }, at)
+          return
+        }
         // A subagent's call reaches Antumi only as this request, never with its result: a card made
         // from it would run until the turn ends. Its approval stands alone, as Claude's does.
         const announced = tool.toolCallId !== undefined && this.items.get(`tool:${tool.toolCallId}`)?.kind === 'tool'
         if (announced) this.tool({ ...tool, sessionUpdate: 'tool_call' }, null, at)
         const toolItem = tool.toolCallId ? this.items.get(`tool:${tool.toolCallId}`) : null
-        const name = toolItem?.kind === 'tool' ? toolItem.name : this.toolName(tool, undefined)
+        const name = prompt?.kind === 'plan' ? 'ExitPlanMode' : toolItem?.kind === 'tool' ? toolItem.name : this.toolName(tool, undefined)
         // An edit of a reference project is refused here, whoever would have answered it.
-        const fenced = referencePathIn(this.options.references ?? [], writtenPaths(tool))
+        // Kimi's permission frame may omit the path its preceding tool_call already named.
+        const announcedWrites = toolItem?.kind === 'tool' && toolItem.name === 'fileChange' ? toolItem.diffs.map((diff) => diff.path) : []
+        if (toolItem?.kind === 'tool' && toolItem.name === 'fileChange' && toolItem.input) {
+          let input: unknown
+          try { input = JSON.parse(toolItem.input) } catch { /* A non-JSON input carries no file fields. */ }
+          announcedWrites.push(...writtenPaths({ kind: 'edit', rawInput: input }))
+        }
+        const fenced = referencePathIn(this.options.references ?? [], [...writtenPaths(tool), ...announcedWrites])
         if (fenced) {
           const reject = request.data.options.find((option) => option.kind === 'reject_once')
           this.owed.set(id, result(frame.id, { outcome: reject ? { outcome: 'selected', optionId: reject.optionId } : { outcome: 'cancelled' } }))
           this.items.put({ id: itemId, kind: 'approval', requestId: id, tool: name, title: tool.title ?? fenced, detail: `参考项目只读，Antumi 已拒绝修改 ${fenced}`, toolItemId: tool.toolCallId ? `tool:${tool.toolCallId}` : null, decisions: ['allow', 'deny'], resolution: 'denied' }, at)
           return
         }
-        this.pending.set(id, { rawId: frame.id, itemId, kind: 'permission', options: request.data.options })
+        this.pending.set(id, { rawId: frame.id, itemId, kind: 'permission', options: request.data.options, ...(prompt?.kind === 'plan' ? { planRunMode: prompt.runMode } : {}) })
         // The agent's reason for asking, as Cursor's "Not in allowlist: rg".
         const reason = z.array(z.looseObject({ content: z.unknown().optional() })).safeParse(tool.content).data?.map((entry) => Content.safeParse(entry.content).data?.text ?? '').find(Boolean)
-        const detail = announced ? (tool.rawInput === undefined ? null : clip(JSON.stringify(tool.rawInput))) : reason ? `子 Agent 的请求：${reason}` : '子 Agent 的请求'
+        const detail = prompt?.text ?? (announced ? (tool.rawInput === undefined ? reason ?? null : clip(JSON.stringify(tool.rawInput))) : reason ? `子 Agent 的请求：${reason}` : '子 Agent 的请求')
         // A command quoted in backticks (as Cursor does); the bare command is what the request line names.
         const title = tool.title?.match(/^`([\s\S]+)`$/)?.[1] ?? tool.title ?? `${this.name} 工具调用`
-        this.items.put({ id: itemId, kind: 'approval', requestId: id, tool: name, title, detail, toolItemId: tool.toolCallId ? `tool:${tool.toolCallId}` : null, decisions: ['allow', 'deny'], choices: request.data.options.map((option) => ({ id: option.optionId, label: option.name, decision: option.kind === 'allow_once' ? 'allow' : option.kind === 'allow_always' ? 'allowForSession' : 'deny', grants: option.kind.endsWith('_always') ? [{ kind: 'other', values: [option.name], scope: 'agent', behavior: option.kind === 'reject_always' ? 'deny' : 'allow' }] : [] })), resolution: null }, at)
+        this.items.put({ id: itemId, kind: 'approval', requestId: id, tool: name, title, detail, toolItemId: tool.toolCallId ? `tool:${tool.toolCallId}` : null, decisions: ['allow', 'deny'], choices: request.data.options.map((option) => ({ id: option.optionId, label: option.name, decision: option.kind === 'allow_once' ? 'allow' : option.kind === 'allow_always' ? 'allowForSession' : 'deny', grants: option.kind.endsWith('_always') ? [{ kind: 'other', values: [option.name], scope: 'agent', behavior: option.kind === 'reject_always' ? 'deny' : 'allow' }] : [] })), ...(prompt?.kind === 'plan' ? { runModes: [prompt.runMode] } : {}), resolution: null }, at)
         return
       }
     } else if (requests?.question !== undefined && frame.method === requests.question) {

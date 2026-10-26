@@ -259,7 +259,9 @@ export const ChatItem = z.discriminatedUnion('kind', [
     // The choice it was answered with, once answered with one of choices. Older cores leave it out.
     chosen: z.string().nullable().optional(),
     // A plan carried out: the permission mode it was carried out in. Older cores leave it out.
-    mode: ChatPermissionMode.nullable().catch(null).optional()
+    mode: ChatPermissionMode.nullable().catch(null).optional(),
+    // A native plan review may resume in only some of the stage's permission modes.
+    runModes: z.array(ChatPermissionMode).optional()
   }),
   Base.extend({
     kind: z.literal('question'),

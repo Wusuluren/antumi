@@ -162,7 +162,7 @@ export function ChatPlanCard({ conversationId, item, modes }: { conversationId: 
   const routine = useCore((s) => Boolean(s.conversations[conversationId]?.routineId || s.conversations[conversationId]?.helperOf))
   const agent = useCore((s) => s.conversations[conversationId]?.agent ?? 'claude')
   const schedulable = useSchedulesSupported() && agentDescriptor(agent).capabilities.unattended && !savePlan && !routine
-  const runModes = RUN_MODES.filter((mode) => modes.includes(mode))
+  const runModes = RUN_MODES.filter((mode) => (item.runModes ?? modes).includes(mode))
   const picked = usePreferences((s) => s.planRunMode)
   const runMode: RunMode = runModes.includes(picked) ? picked : runModes.includes('auto') ? 'auto' : runModes[0] ?? 'ask'
   const modesSupported = usePlanModesSupported() && runModes.length > 0

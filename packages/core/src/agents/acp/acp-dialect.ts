@@ -26,9 +26,11 @@ export interface AcpDialect {
   readonly models?: { method: string; parse(result: unknown): AcpModel[] | null }
   // The tool a call runs, where its input or the name it gives (an extension) says more than its
   // kind: null leaves it to the kind.
-  toolName?(rawInput: unknown, name: string | undefined): string | null
+  toolName?(rawInput: unknown, name: string | undefined, title?: string): string | null
   // The input worth showing, where the agent wraps a call's arguments.
   toolInput?(rawInput: unknown): unknown
+  // Some agents carry questions and plan reviews over the standard permission request.
+  permissionPrompt?(request: unknown): { kind: 'question'; text: string } | { kind: 'plan'; text: string; runMode: ChatPermissionMode } | null
   // The Task call a subagent announced on its parent's session runs for; without it, subagents
   // are left out of the chat.
   subagentCall?(update: unknown): string | null

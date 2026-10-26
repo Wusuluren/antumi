@@ -372,6 +372,8 @@ Antigravity 也只是一份 dialect（`agents/antigravity/`）：`agy` 本身不
 
 ZCode 不说 ACP，有自己的 driver（`agents/zcode/zcode-app-server.ts`），讲它桌面端用的 ZCode Protocol：命令走 `v4/command`，会话内容是订阅来的快照加行增量，审批和提问是 ZCode 发来的请求。协议没有公开的 schema，`zcode-schema.ts` 只宽松地写用到的部分。细节见 [ZCode](ZCODE.md)。
 
+Kimi Code 使用官方 `kimi acp` 和通用 ACP driver，dialect 负责四种原生模式、工具命名，以及由权限请求承载的单选提问和计划审批。需要 Node.js 版 CLI 2.3.2 以上，恢复会话沿用标准 ACP；原生 fork 会保留来源 MCP，改用交接以隔离会话权限。安装、权限及用量边界见 [Kimi Code](KIMI.md)。
+
 ### 项目 Star
 
 设置 → 支持与反馈集中提供项目地址、GitHub Star 和 GitHub Issues 反馈入口，交流尚未开放时显示文字占位；关于页保留版本、更新、连接状态、Git 与快捷键。支持页可查询并为 `flyhero/antumi` 点 Star。desktop 仅调用 `support.starStatus` / `support.star`，通过 `project-star` 能力判断 core 是否支持；旧 core 只提供 GitHub 网页入口。状态不写入本机偏好，进入支持页或返回窗口时自动检查，以 GitHub 的响应为准，不提供手动检测按钮。
