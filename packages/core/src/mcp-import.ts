@@ -25,6 +25,8 @@ const JsonEntry = z.looseObject({
   // Antigravity's name for url.
   serverUrl: z.string().optional(),
   disabled: z.boolean().optional(),
+  enabled: z.boolean().optional(),
+  bearerTokenEnvVar: z.string().optional(),
   headers: z.record(z.string(), z.string()).catch({}).optional()
 })
 const JsonConfig = z.looseObject({ mcpServers: z.record(z.string(), z.unknown()).catch({}).optional() })
@@ -33,6 +35,7 @@ function fromJson(source: AgentKind, name: string, raw: unknown): FoundMcpServer
   const parsed = JsonEntry.safeParse(raw)
   if (!parsed.success) return { source, name, transport: null, problem: '读不懂这一项' }
   const entry = parsed.data
+  if (entry.bearerTokenEnvVar) return { source, name, transport: null, problem: '令牌从环境变量读取，请在 Antumi 里手动添加' }
   if (entry.type === 'sse') return { source, name, transport: null, problem: 'Antumi 不支持 SSE 传输' }
   if (entry.command) return { source, name, transport: { type: 'stdio', command: entry.command, args: entry.args ?? [], cwd: entry.cwd ?? null, env: entry.env ?? {} }, problem: null }
   const url = entry.url ?? entry.serverUrl
@@ -43,7 +46,10 @@ function fromJson(source: AgentKind, name: string, raw: unknown): FoundMcpServer
 async function readJsonServers(source: AgentKind, file: string): Promise<FoundMcpServer[]> {
   const parsed = JsonConfig.safeParse(await readJsonIfExists(file).catch(() => undefined))
   // What the user turned off is not in use.
-  return Object.entries(parsed.data?.mcpServers ?? {}).filter(([, raw]) => JsonEntry.safeParse(raw).data?.disabled !== true).map(([name, raw]) => fromJson(source, name, raw))
+  return Object.entries(parsed.data?.mcpServers ?? {}).filter(([, raw]) => {
+    const entry = JsonEntry.safeParse(raw).data
+    return entry?.disabled !== true && entry?.enabled !== false
+  }).map(([name, raw]) => fromJson(source, name, raw))
 }
 
 // ZCode's: an mcp.servers object in its CLI settings, each turned off with enabled: false.
@@ -99,7 +105,8 @@ export async function findAgentMcpServers({ env = process.env, homedir = os.home
   }).catch(() => [])
   const found = await Promise.all([readJsonServers('claude', claudeFile), codexServers, readJsonServers('cursor', path.join(homedir, '.cursor', 'mcp.json')),
     readJsonServers('antigravity', path.join(env.GEMINI_HOME || path.join(homedir, '.gemini'), 'config', 'mcp_config.json')),
-    readZCodeServers(env.ZCODE_CLI_SETTINGS_FILE?.trim() || path.join(homedir, '.zcode', 'cli', 'config.json'))])
+    readZCodeServers(env.ZCODE_CLI_SETTINGS_FILE?.trim() || path.join(homedir, '.zcode', 'cli', 'config.json')),
+    readJsonServers('kimi', path.join(env.KIMI_CODE_HOME || path.join(homedir, '.kimi-code'), 'mcp.json'))])
   return found.flat()
 }
 

@@ -132,6 +132,7 @@ Antumi drives the agent CLIs you already have installed and signed in to.
 | [**DeepSeek Harness**](docs/DEEPSEEK.md) | `dsh --profile antumi` (ACP) | default · automatic · plan · read-only | ✓ | ✓ | ✓ |
 | [**Antigravity**](docs/ANTIGRAVITY.md) | Google's Antigravity ACP server | Default · Auto Edit | — | ✓ | — |
 | [**ZCode**](docs/ZCODE.md) | `zcode app-server` | ask · edit freely · plan · autonomous · read-only | ✓ | ✓ | ✓ |
+| [**Kimi Code**](docs/KIMI.md) | `kimi acp` (Node.js CLI 2.3.2+) | Default · Plan · Auto | ✓ | ✓ | ✓ |
 
 "Bypass everything" is never selected by default. Settings → Agents also lists the agent CLIs Antumi recognises but does not drive yet.
 
