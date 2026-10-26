@@ -10,7 +10,7 @@ import { antumiEntries } from '../chat-commands'
 import { AgentQuotaHint, confirmQuota, modelText, RecommendedMark, useRecommendation } from './AgentQuota'
 import { usePreferences } from '../preferences'
 import { useChatTypeface } from '../chat-typeface'
-import { startOptions } from './ConversationActions'
+import { openWithFirstMessage, startOptions } from './ConversationActions'
 import { sendsMessage } from './ChatComposer'
 import { ChatAddMenu, ChatImageStrip, useComposerImages } from './ChatImages'
 import { useChatCommandMenu } from './ChatCommandMenu'
@@ -23,7 +23,6 @@ import { AgentIcon, CloseIcon, EnterIcon } from './icons'
 import { ProjectPicker } from './ProjectPicker'
 import { DraftBranchPicker, useProjectBranches } from './DraftBranchPicker'
 import { composerDraft, EMPTY_DRAFT, saveComposerDraft } from '../composer-drafts'
-import { keepInitialMessage, sendInitialMessage } from '../initial-messages'
 import { inboxKey, rememberInvestigationProjects } from '../source-inboxes'
 import { catalogKey, providerFor } from '../model-provider-choice'
 import { ProviderPicker } from './ProviderPicker'
@@ -172,18 +171,7 @@ export function ConversationDraft() {
     setBusy(true)
     const created = await create()
     if (created) {
-      if (deferStart && rpc) {
-        keepInitialMessage(created.id, written.trim(), attached.images)
-        saveComposerDraft(composerId, EMPTY_DRAFT)
-        useCore.setState((state) => ({ conversations: { ...state.conversations, [created.id]: created } }))
-        selectConversation(created.id)
-        void sendInitialMessage(created.id, rpc)
-        return
-      }
-      const images = attached.images.map((image) => image.id)
-      const sent = await perform((rpc) => rpc.call('conversations.send', { id: created.id, text: written.trim(), ...(images.length ? { images } : {}) }))
-      if (sent) saveComposerDraft(composerId, EMPTY_DRAFT)
-      selectConversation(created.id)
+      if (await openWithFirstMessage(created, written.trim(), attached.images, deferStart)) saveComposerDraft(composerId, EMPTY_DRAFT)
       return
     }
     setBusy(false)

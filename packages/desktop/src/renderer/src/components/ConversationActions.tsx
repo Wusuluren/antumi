@@ -1,5 +1,5 @@
 import { t } from '../i18n'
-import { canReuseConversation, type AgentKind, type ChatItem, type Conversation } from '@antumi/protocol'
+import { canReuseConversation, ChatPermissionMode, type AgentKind, type ChatImage, type ChatItem, type Conversation } from '@antumi/protocol'
 import { openBeside, openConversationDraft, perform, selectConversation, selectTask, showView, useConversationArchiveSupported, useConversationPinSupported, useCore } from '../core-store'
 import { proposeHandoff } from '../chat-handoff'
 import { agentLabel } from '../labels'
@@ -9,6 +9,7 @@ import { confirmQuota } from './AgentQuota'
 import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
 import { ArchiveIcon, CopyIcon, HandoffIcon, PencilIcon, PinIcon, SplitIcon, StopIcon, TrashIcon } from './icons'
 import { EMPTY_DRAFT, saveComposerDraft } from '../composer-drafts'
+import { keepInitialMessage, sendInitialMessage } from '../initial-messages'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { currentInstalledAgents, otherInstalledAgent, useInstalledAgents } from '../installed-agents'
 
@@ -46,6 +47,51 @@ export async function newConversationFrom(conversation: Conversation): Promise<v
   if (previous) saveComposerDraft(previous.key, EMPTY_DRAFT)
   const key = `new-from:${crypto.randomUUID()}`
   openConversationDraft(configuration.projectPaths, null, { key, title: conversation.title, configuration })
+}
+
+export function deferredStartSupported(): boolean {
+  return useCore.getState().rpc?.features.includes('deferred-conversation-start') ?? false
+}
+
+// A conversation core just made, opened on its first message. Created with deferStart, it shows
+// the message at once while the agent starts; an older core started it already. Resolves whether
+// the message is in its hands, so the input it came from knows to clear.
+export async function openWithFirstMessage(created: Conversation, text: string, images: readonly ChatImage[], deferred: boolean): Promise<boolean> {
+  const { rpc } = useCore.getState()
+  if (deferred && rpc) {
+    keepInitialMessage(created.id, text, images)
+    useCore.setState((state) => ({ conversations: { ...state.conversations, [created.id]: created } }))
+    selectConversation(created.id)
+    void sendInitialMessage(created.id, rpc)
+    return true
+  }
+  const ids = images.map((image) => image.id)
+  const sent = await perform((rpc) => rpc.call('conversations.send', { id: created.id, text, ...(ids.length ? { images: ids } : {}) }))
+  selectConversation(created.id)
+  return sent !== null
+}
+
+// The composer's other send: the message opens a new conversation on this one's settings, read in
+// core as the button in the header reads them, while this one keeps running.
+export async function sendToNewConversation(conversation: Conversation, text: string, images: readonly ChatImage[]): Promise<boolean> {
+  if (!canReuseConversation(conversation)) return false
+  const configuration = await perform((rpc) => rpc.call('conversations.configuration', { id: conversation.id }))
+  if (!configuration) return false
+  const { agent, projectPaths, modelProvider, model, effort } = configuration
+  // A start on a provider spends its plan, not the agent's own quota.
+  if (!modelProvider && !confirmQuota(agent)) return false
+  const options = useCore.getState().rpc?.features.includes('chat-options') ?? false
+  const mode = ChatPermissionMode.safeParse(configuration.permissionMode)
+  const deferred = deferredStartSupported()
+  const created = await perform((rpc) => rpc.call('conversations.create', {
+    agent,
+    projectPaths,
+    ...(deferred ? { deferStart: true } : {}),
+    ...startOptions(),
+    ...(options ? { ...(mode.success ? { permissionMode: mode.data } : {}), ...(model ? { model } : {}), ...(effort ? { effort } : {}) } : {}),
+    ...(modelProvider ? { modelProvider } : {})
+  }))
+  return created ? openWithFirstMessage(created, text, images, deferred) : false
 }
 
 // A new conversation holding this one's chat up to a message, opened once core has it. A fork

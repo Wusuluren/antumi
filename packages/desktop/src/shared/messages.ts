@@ -1374,6 +1374,18 @@ export const MESSAGES = {
     "zh": "发送（Enter）",
     "en": "Send (Enter)"
   },
+  "ChatComposer.moreWaysToSend": {
+    "zh": "更多发送方式",
+    "en": "More ways to send"
+  },
+  "ChatComposer.sendToNewConversation": {
+    "zh": "发到新会话",
+    "en": "Send to new conversation"
+  },
+  "ChatComposer.sendToNewConversationShortcut": {
+    "zh": "沿用当前配置，发到新会话（{PRIMARY_KEY_LABEL}Shift+Enter）",
+    "en": "Send to a new conversation with the current configuration ({PRIMARY_KEY_LABEL}Shift+Enter)"
+  },
   "ChatContextMenu.fileNotFound": {
     "zh": "找不到文件",
     "en": "File not found"

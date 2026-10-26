@@ -5,7 +5,8 @@ import type { StateCreator } from 'zustand'
 import { createRpcClient, type Conversation, type ConversationConfiguration, type RpcConnection } from '@antumi/protocol'
 import { useCore } from '../core-store'
 import { composerDraft, EMPTY_DRAFT, saveComposerDraft } from '../composer-drafts'
-import { newConversationFrom } from './ConversationActions'
+import { useInitialMessages } from '../initial-messages'
+import { newConversationFrom, sendToNewConversation } from './ConversationActions'
 import { ConversationDraft } from './ConversationDraft'
 import { ConversationView } from './ConversationView'
 
@@ -40,6 +41,7 @@ function connect(features = ['conversation-configuration', 'chat-options']) {
 
 beforeEach(() => useCore.setState(useCore.getInitialState(), true))
 afterEach(() => {
+  useInitialMessages.setState({}, true)
   saveComposerDraft(source.id, EMPTY_DRAFT)
   saveComposerDraft(null, EMPTY_DRAFT)
   const from = useCore.getState().conversationDraftFrom
@@ -99,5 +101,50 @@ describe('new conversation from current settings', () => {
       useCore.setState({ conversations: { [source.id]: { ...source, ...patch } } })
       expect(render()).not.toContain('aria-label="同配置新建"')
     }
+  })
+})
+
+describe('send to a new conversation', () => {
+  const image = { id: `${'b'.repeat(64)}.png`, width: 16, height: 16 }
+  const created: Conversation = { ...source, id: '22222222-2222-4222-8222-222222222222', agent: 'codex', sessionId: null, chat: undefined }
+
+  it('creates it on the core snapshot and opens it on the message, leaving the source alone', async () => {
+    const { rpc, sent } = connect(['conversation-configuration', 'chat-options', 'deferred-conversation-start'])
+    const reply = (index: number, result: unknown) => rpc.receive(JSON.stringify({ jsonrpc: '2.0', id: sent[index]?.id, result }))
+    const sending = sendToNewConversation(source, 'next task', [image])
+    expect(sent).toMatchObject([{ method: 'conversations.configuration', params: { id: source.id } }])
+    reply(0, configuration)
+    await vi.waitFor(() => expect(sent).toHaveLength(2))
+    expect(sent[1]).toMatchObject({ method: 'conversations.create', params: {
+      agent: 'codex', projectPaths: configuration.projectPaths, deferStart: true, allowBypass: true, permissionMode: 'plan', model: 'gpt-6', effort: 'high'
+    } })
+    reply(1, created)
+    expect(await sending).toBe(true)
+    expect(useCore.getState().selectedConversationId).toBe(created.id)
+    expect(useInitialMessages.getState()[created.id]).toMatchObject({ text: 'next task', images: [image] })
+    await vi.waitFor(() => expect(sent[2]).toMatchObject({ method: 'conversations.continue', params: { id: created.id } }))
+    expect(JSON.stringify(sent.slice(1))).not.toContain(source.id)
+  })
+
+  it('sends nothing for a conversation whose settings cannot be reused, and stays put when core refuses', async () => {
+    const { rpc, sent } = connect()
+    expect(await sendToNewConversation({ ...source, taskId: 'task' }, 'next task', [])).toBe(false)
+    expect(sent).toHaveLength(0)
+    const sending = sendToNewConversation(source, 'next task', [])
+    rpc.receive(JSON.stringify({ jsonrpc: '2.0', id: sent[0]?.id, error: { code: -32000, message: 'source is gone' } }))
+    expect(await sending).toBe(false)
+    expect(sent).toHaveLength(1)
+    expect(useCore.getState().selectedConversationId).toBe(source.id)
+  })
+
+  it('offers it beside the send button only where the header offers a new conversation', () => {
+    connect()
+    const render = () => renderToStaticMarkup(createElement(ConversationView, { id: source.id }))
+    expect(render()).toContain('aria-label="更多发送方式"')
+    connect([])
+    expect(render()).not.toContain('aria-label="更多发送方式"')
+    connect()
+    useCore.setState({ conversations: { [source.id]: { ...source, taskId: 'task' } } })
+    expect(render()).not.toContain('aria-label="更多发送方式"')
   })
 })

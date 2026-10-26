@@ -7511,6 +7511,9 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .chat-suggestion-hint ~ .chat-schedule-anchor ~ .chat-input-button { margin-left: 0; }
 .chat-schedule-button svg { width: 15px; height: 15px; }
 .chat-input-button svg { width: 16px; height: 16px; }
+/* The other ways to send: a narrow chevron against the send (or stop) button, quieter than it. */
+.chat-send-menu-button { flex-shrink: 0; width: 18px; height: 28px; border-radius: var(--radius); }
+.chat-send-menu-button svg { width: 12px; height: 12px; }
 .chat-input-button:disabled { background: transparent; color: var(--text-muted); cursor: default; }
 /* Stopping is there to reach, not to look at: a quiet fill beside the accent send, and the filled
    square every chat app uses. The fills are translucent, so hover stacks one more. */

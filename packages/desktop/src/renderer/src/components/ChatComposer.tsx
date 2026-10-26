@@ -1,7 +1,7 @@
 import { getLocale, t, tr } from '../i18n'
 import { HelperStartOptions } from './HelperModelPicker'
-import { useCallback, useContext, useEffect, useMemo, useState, type KeyboardEvent } from 'react'
-import { agentDescriptor, type ChatImage, type ChatItem, type ChatQueued, type Conversation } from '@antumi/protocol'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { agentDescriptor, canReuseConversation, type ChatImage, type ChatItem, type ChatQueued, type Conversation } from '@antumi/protocol'
 import { perform, useChatImagesSupported, useChatOptionsSupported, useCore, useFileMentionsSupported, useScheduleImagesSupported, useSchedulesSupported } from '../core-store'
 import { agentEntries, antumiEntries } from '../chat-commands'
 import { composeMessage, parseQuotes, setQuotes, useQuotes, type ChatQuote } from '../chat-quotes'
@@ -24,13 +24,20 @@ import { ChevronDownIcon, ClockIcon, CloseIcon, EnterIcon, PencilIcon, StopIcon 
 import { SchedulePicker } from './SchedulePicker'
 import { createSchedule } from '../schedules'
 import { ChatMessageRelay } from './chat-message-relay'
-import { composerDraft, saveComposerDraft } from '../composer-drafts'
+import { composerDraft, EMPTY_DRAFT, saveComposerDraft } from '../composer-drafts'
+import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
+import { sendToNewConversation, useReuseConversationSupported } from './ConversationActions'
 import { useInitialMessages } from '../initial-messages'
 
 // Enter sends and Shift+Enter breaks the line; Enter while an input method is composing picks a
 // candidate instead.
 export function sendsMessage(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
   return event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing
+}
+
+// ⌘⇧Enter (Ctrl+Shift+Enter elsewhere) sends to a new conversation on this one's settings.
+export function sendsToNewConversation(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
+  return event.key === 'Enter' && event.shiftKey && (event.metaKey || event.ctrlKey) && !event.nativeEvent.isComposing
 }
 
 // ⌘Enter (Ctrl+Enter elsewhere) sends into the running turn instead of queueing.
@@ -206,6 +213,39 @@ function QueuedList({ queue, held, steerable, ...actions }: {
   )
 }
 
+// Beside send (or stop, as a new conversation need not wait for this turn): the other ways to send.
+function SendMenu({ disabled, onNewConversation }: { disabled: boolean; onNewConversation: () => void }) {
+  const [at, setAt] = useState<MenuPoint | null>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  const close = useCallback(() => setAt(null), [])
+  return (
+    <>
+      <button
+        ref={button}
+        type="button"
+        className="tool-button chat-send-menu-button"
+        aria-label={t('ChatComposer.moreWaysToSend')}
+        aria-haspopup="menu"
+        aria-expanded={at !== null}
+        disabled={disabled}
+        data-tooltip={t('ChatComposer.sendToNewConversationShortcut', { PRIMARY_KEY_LABEL })}
+        data-tooltip-side="top-end"
+        onClick={(event) => {
+          const box = event.currentTarget.getBoundingClientRect()
+          setAt(at ? null : { x: box.right, y: box.top })
+        }}
+      >
+        <ChevronDownIcon />
+      </button>
+      {at && (
+        <ContextMenu at={at} align="end" above trigger={button.current} label={t('ChatComposer.moreWaysToSend')} onClose={close}>
+          <MenuItem label={t('ChatComposer.sendToNewConversation')} hint={`${PRIMARY_KEY_LABEL}Shift+Enter`} onSelect={() => { close(); onNewConversation() }} />
+        </ContextMenu>
+      )}
+    </>
+  )
+}
+
 // Enter sends when the agent is idle; while it works, Enter queues the message behind any already
 // waiting, and ⌘Enter puts it into the running turn where the agent takes that. With no agent
 // running, it starts one on the same session first. The corner button sends, or stops the turn.
@@ -264,6 +304,9 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
   const handingOff = handoff.target?.agent ?? null
   const suggestion = !handingOff && offered && offered !== dismissed && text === '' && attached.images.length === 0 && quotes.length === 0 && !surface.sendBlocker ? offered : null
   const canSteer = !handingOff && queueable && steerable && canSend
+  // Not held by this conversation's turn: the new one runs beside it.
+  const reusable = useReuseConversationSupported() && canReuseConversation(conversation) && !compact
+  const canSendNew = reusable && !handingOff && !busy && !starting && attached.uploading === 0 && (text.trim() !== '' || attached.images.length > 0 || quotes.length > 0)
   const chatCommands = useCore((s) => s.chatCommands)
   const commandEntries = useMemo(
     () => [...antumiEntries(chatCommands, conversation.projectPaths), ...agentEntries(state?.commands ?? [])],
@@ -309,6 +352,25 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
       attached.setImages([])
       if (quoting) setQuotes(id, [])
     } else relay?.cancel()
+  }
+  // The view moves to the new conversation as it opens, so the input is cleared in storage too.
+  const sendNew = async () => {
+    const expanded = commandMenu.expand(written)
+    if (expanded !== null) {
+      setText(expanded)
+      return
+    }
+    const quoting = quotes.length > 0 && !written.trim().startsWith('/')
+    const composed = quoting ? composeMessage(quotes, written) : written.trim()
+    if (!canSendNew || (composed === '' && attached.images.length === 0)) return
+    setBusy(true)
+    const went = await sendToNewConversation(conversation, composed, attached.images)
+    setBusy(false)
+    if (!went) return
+    setText('')
+    attached.setImages([])
+    if (quoting) setQuotes(id, [])
+    saveComposerDraft(id, EMPTY_DRAFT)
   }
   // The message goes with the handoff as the note the new agent reads first; images wait for the next.
   const handOff = async () => {
@@ -392,6 +454,9 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
             } else if (suggestion && takesSuggestion(event)) {
               event.preventDefault()
               setText(suggestion)
+            } else if (reusable && sendsToNewConversation(event)) {
+              event.preventDefault()
+              void sendNew()
             } else if (steersMessage(event)) {
               event.preventDefault()
               void send(true)
@@ -463,6 +528,7 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
             <EnterIcon />
           </button>
         )}
+        {reusable && !handingOff && <SendMenu disabled={!canSendNew} onNewConversation={() => void sendNew()} />}
       </div>
     </div>
     </>
