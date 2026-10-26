@@ -1366,25 +1366,29 @@ export const MESSAGES = {
     "zh": "中断这一回合（Esc）",
     "en": "Interrupt this turn (Esc)"
   },
-  "ChatComposer.interruptEsc": {
-    "zh": "中断（Esc）",
-    "en": "Interrupt (Esc)"
-  },
   "ChatComposer.sendEnter": {
     "zh": "发送（Enter）",
     "en": "Send (Enter)"
   },
-  "ChatComposer.moreWaysToSend": {
-    "zh": "更多发送方式",
-    "en": "More ways to send"
+  "ChatComposer.waysToSend": {
+    "zh": "发送方式",
+    "en": "Ways to send"
+  },
+  "ChatComposer.send": {
+    "zh": "发送",
+    "en": "Send"
+  },
+  "ChatComposer.interrupt": {
+    "zh": "中断",
+    "en": "Interrupt"
+  },
+  "ChatComposer.sendAfterTheTurn": {
+    "zh": "回合结束后发送",
+    "en": "Send after this turn"
   },
   "ChatComposer.sendToNewConversation": {
     "zh": "发到新会话",
     "en": "Send to new conversation"
-  },
-  "ChatComposer.sendToNewConversationShortcut": {
-    "zh": "沿用当前配置，发到新会话（{PRIMARY_KEY_LABEL}Shift+Enter）",
-    "en": "Send to a new conversation with the current configuration ({PRIMARY_KEY_LABEL}Shift+Enter)"
   },
   "ChatContextMenu.fileNotFound": {
     "zh": "找不到文件",

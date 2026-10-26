@@ -1,6 +1,6 @@
 import { getLocale, t, tr } from '../i18n'
 import { HelperStartOptions } from './HelperModelPicker'
-import { useCallback, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { agentDescriptor, canReuseConversation, type ChatImage, type ChatItem, type ChatQueued, type Conversation } from '@antumi/protocol'
 import { perform, useChatImagesSupported, useChatOptionsSupported, useCore, useFileMentionsSupported, useScheduleImagesSupported, useSchedulesSupported } from '../core-store'
 import { agentEntries, antumiEntries } from '../chat-commands'
@@ -25,7 +25,8 @@ import { SchedulePicker } from './SchedulePicker'
 import { createSchedule } from '../schedules'
 import { ChatMessageRelay } from './chat-message-relay'
 import { composerDraft, EMPTY_DRAFT, saveComposerDraft } from '../composer-drafts'
-import { ContextMenu, MenuItem, type MenuPoint } from './ContextMenu'
+import { useOccludesBrowser } from '../browser-occlusion'
+import { sendWayKeys, sendWays, type SendWay } from '../chat-send-ways'
 import { sendToNewConversation, useReuseConversationSupported } from './ConversationActions'
 import { useInitialMessages } from '../initial-messages'
 
@@ -213,36 +214,44 @@ function QueuedList({ queue, held, steerable, ...actions }: {
   )
 }
 
-// Beside send (or stop, as a new conversation need not wait for this turn): the other ways to send.
-function SendMenu({ disabled, onNewConversation }: { disabled: boolean; onNewConversation: () => void }) {
-  const [at, setAt] = useState<MenuPoint | null>(null)
-  const button = useRef<HTMLButtonElement>(null)
-  const close = useCallback(() => setAt(null), [])
+type SendRow = { way: SendWay; label: string; disabled: boolean; run: () => void }
+
+// Over send (or stop): every way the input can go now, each with its keys, as Claude's desktop app
+// shows them. A row also does what it names, for whoever reaches for the pointer.
+function SendCard({ rows, note, children }: { rows: readonly SendRow[]; note: string | null; children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const timer = useRef<number | undefined>(undefined)
+  const later = (next: boolean, delay: number) => {
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => setOpen(next), delay)
+  }
+  useEffect(() => () => window.clearTimeout(timer.current), [])
   return (
-    <>
-      <button
-        ref={button}
-        type="button"
-        className="tool-button chat-send-menu-button"
-        aria-label={t('ChatComposer.moreWaysToSend')}
-        aria-haspopup="menu"
-        aria-expanded={at !== null}
-        disabled={disabled}
-        data-tooltip={t('ChatComposer.sendToNewConversationShortcut', { PRIMARY_KEY_LABEL })}
-        data-tooltip-side="top-end"
-        onClick={(event) => {
-          const box = event.currentTarget.getBoundingClientRect()
-          setAt(at ? null : { x: box.right, y: box.top })
-        }}
-      >
-        <ChevronDownIcon />
-      </button>
-      {at && (
-        <ContextMenu at={at} align="end" above trigger={button.current} label={t('ChatComposer.moreWaysToSend')} onClose={close}>
-          <MenuItem label={t('ChatComposer.sendToNewConversation')} hint={`${PRIMARY_KEY_LABEL}Shift+Enter`} onSelect={() => { close(); onNewConversation() }} />
-        </ContextMenu>
-      )}
-    </>
+    <span
+      className="chat-send-anchor"
+      // As slow to come as a tooltip; a moment to go, so the pointer can cross to the card.
+      onPointerEnter={() => later(true, open ? 0 : 300)}
+      onPointerLeave={() => later(false, 120)}
+      onClickCapture={() => later(false, 0)}
+    >
+      {children}
+      {open && <SendCardRows rows={rows} note={note} />}
+    </span>
+  )
+}
+
+function SendCardRows({ rows, note }: { rows: readonly SendRow[]; note: string | null }) {
+  useOccludesBrowser()
+  return (
+    <div className="chat-send-card" role="group" aria-label={t('ChatComposer.waysToSend')}>
+      {note && <div className="chat-send-card-note">{note}</div>}
+      {rows.map((row) => (
+        <button key={row.way} type="button" className="chat-send-card-row" disabled={row.disabled} onClick={row.run}>
+          <span>{row.label}</span>
+          <span className="chat-send-card-keys">{sendWayKeys(row.way).map((key) => <kbd key={key}>{key}</kbd>)}</span>
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -402,6 +411,14 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
     }
   }
   const interrupt = () => void perform((rpc) => rpc.call('conversations.interrupt', { id }))
+  const sendRow: Record<SendWay, Omit<SendRow, 'way'>> = {
+    send: { label: t('ChatComposer.send'), disabled: !canSend, run: () => void send() },
+    interrupt: { label: t('ChatComposer.interrupt'), disabled: false, run: interrupt },
+    queue: { label: t('ChatComposer.sendAfterTheTurn'), disabled: !canSend, run: () => void send() },
+    steer: { label: t('ChatComposer.insertNow'), disabled: !canSteer, run: () => void send(true) },
+    newConversation: { label: t('ChatComposer.sendToNewConversation'), disabled: !canSendNew, run: () => void sendNew() }
+  }
+  const sendRows = sendWays({ working, queueable, steerable, reusable }).map((way) => ({ way, ...sendRow[way] }))
   return (
     <>
     {queue.length > 0 && (
@@ -519,16 +536,19 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
             disabled={busy || starting}
             onClick={() => void handOff()}
           >{t('ChatComposer.handOff')}</button>
-        ) : working ? (
-          <button type="button" className="chat-input-button" data-tooltip-side="top-end" data-stop aria-label={t('ChatComposer.interruptThisTurnEsc')} data-tooltip={t('ChatComposer.interruptEsc')} onClick={interrupt}>
-            <StopIcon />
-          </button>
         ) : (
-          <button type="button" className="chat-input-button" data-tooltip-side="top-end" aria-label={t('ChatComposer.sendEnter')} data-tooltip={initialHint ?? (starting ? t('ChatComposer.starting', { value1: agentLabel(conversation.agent) }) : t('ChatComposer.sendEnter'))} disabled={!canSend} onClick={() => void send()}>
-            <EnterIcon />
-          </button>
+          <SendCard rows={sendRows} note={initialHint ?? (starting ? t('ChatComposer.starting', { value1: agentLabel(conversation.agent) }) : null)}>
+            {working ? (
+              <button type="button" className="chat-input-button" data-stop aria-label={t('ChatComposer.interruptThisTurnEsc')} onClick={interrupt}>
+                <StopIcon />
+              </button>
+            ) : (
+              <button type="button" className="chat-input-button" aria-label={t('ChatComposer.sendEnter')} disabled={!canSend} onClick={() => void send()}>
+                <EnterIcon />
+              </button>
+            )}
+          </SendCard>
         )}
-        {reusable && !handingOff && <SendMenu disabled={!canSendNew} onNewConversation={() => void sendNew()} />}
       </div>
     </div>
     </>

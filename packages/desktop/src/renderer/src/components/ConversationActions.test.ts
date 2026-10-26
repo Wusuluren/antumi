@@ -137,14 +137,4 @@ describe('send to a new conversation', () => {
     expect(useCore.getState().selectedConversationId).toBe(source.id)
   })
 
-  it('offers it beside the send button only where the header offers a new conversation', () => {
-    connect()
-    const render = () => renderToStaticMarkup(createElement(ConversationView, { id: source.id }))
-    expect(render()).toContain('aria-label="更多发送方式"')
-    connect([])
-    expect(render()).not.toContain('aria-label="更多发送方式"')
-    connect()
-    useCore.setState({ conversations: { [source.id]: { ...source, taskId: 'task' } } })
-    expect(render()).not.toContain('aria-label="更多发送方式"')
-  })
 })

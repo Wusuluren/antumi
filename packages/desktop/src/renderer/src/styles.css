@@ -7511,9 +7511,55 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .chat-suggestion-hint ~ .chat-schedule-anchor ~ .chat-input-button { margin-left: 0; }
 .chat-schedule-button svg { width: 15px; height: 15px; }
 .chat-input-button svg { width: 16px; height: 16px; }
-/* The other ways to send: a narrow chevron against the send (or stop) button, quieter than it. */
-.chat-send-menu-button { flex-shrink: 0; width: 18px; height: 28px; border-radius: var(--radius); }
-.chat-send-menu-button svg { width: 12px; height: 12px; }
+/* Send or stop, wrapped with the card of ways to send: the wrapper takes the button's place in the row. */
+.chat-send-anchor { position: relative; display: flex; flex-shrink: 0; margin-left: auto; }
+.chat-suggestion-hint ~ .chat-send-anchor,
+.chat-schedule-anchor ~ .chat-send-anchor { margin-left: 8px; }
+.chat-suggestion-hint ~ .chat-schedule-anchor ~ .chat-send-anchor { margin-left: 0; }
+/* A tooltip grown into rows, so it takes the tooltip's inverted colours. */
+.chat-send-card {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 30;
+  display: grid;
+  min-width: 200px;
+  padding: 4px;
+  border-radius: var(--radius);
+  background: var(--text);
+  color: var(--bg);
+  font-size: 13px;
+  box-shadow: var(--shadow-float);
+}
+.chat-send-card-note { padding: 4px 8px; color: color-mix(in srgb, var(--bg) 65%, transparent); font-size: 12px; }
+.chat-send-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 4px 4px 4px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.chat-send-card-row:hover:not(:disabled) { background: color-mix(in srgb, var(--bg) 16%, transparent); }
+.chat-send-card-row:disabled { opacity: 0.5; cursor: default; }
+.chat-send-card-keys { display: flex; gap: 3px; }
+.chat-send-card-keys kbd {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid color-mix(in srgb, var(--bg) 35%, transparent);
+  border-radius: var(--radius-xs);
+  /* The mono face draws ⌘ ⇧ ↩ at half the size of the interface face. */
+  font: 13px/1 var(--font);
+}
 .chat-input-button:disabled { background: transparent; color: var(--text-muted); cursor: default; }
 /* Stopping is there to reach, not to look at: a quiet fill beside the accent send, and the filled
    square every chat app uses. The fills are translucent, so hover stacks one more. */
