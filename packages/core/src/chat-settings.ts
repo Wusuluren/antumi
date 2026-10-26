@@ -2,7 +2,8 @@ import { z } from 'zod'
 import { AGENT_KINDS, ChatSettings, KnowledgeBase, TitleNaming, UnattendedMode } from '@antumi/protocol'
 import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 
-// Suggestions on, as in Claude Code itself; scheduled runs let edits through but still ask for
+// Suggestions on, as in Claude Code itself; a title summed up after the first turn, since the first
+// message is rarely a good one; scheduled runs let edits through but still ask for
 // anything else; an agent that can drives the user's own browser; agents may read the user's
 // history in Antumi; no knowledge base until the user picks one; nothing archived on its own; the
 // resets services announce for everyone shown with the usage. Each field falls back on its own,
@@ -10,7 +11,7 @@ import { readJsonIfExists, writePrivateJson } from '@antumi/protocol/node'
 export const DEFAULT_AGENT_CONCURRENCY = 6
 const DEFAULTS = {
   promptSuggestions: true,
-  titleNaming: 'off',
+  titleNaming: 'first',
   titleModels: {},
   unattendedMode: 'acceptEdits',
   maxConcurrentAgents: 20,
