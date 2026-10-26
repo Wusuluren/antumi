@@ -5,7 +5,7 @@ import { ALL_TABS, useBrowserTabs } from '../browser-state'
 import { formatBytes, worktreeRows, worktreeSummary } from '../worktree-groups'
 import { useWorktrees } from '../worktree-store'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
-import { BranchIcon, CheckIcon, ClockIcon, CoffeeIcon, GearIcon, GlobeIcon, HelpIcon, PortsIcon, TerminalIcon } from './icons'
+import { BookIcon, BranchIcon, ChatIcon, CheckIcon, ClockIcon, CoffeeIcon, GearIcon, GlobeIcon, HelpIcon, PortsIcon, PulseIcon, TerminalIcon } from './icons'
 import { usePorts } from '../port-state'
 import { UsageBar } from './UsageBar'
 import { openRuns } from '../schedules'
@@ -84,8 +84,11 @@ function HelpButton() {
         <HelpIcon />
       </button>
       {at && <ContextMenu at={at} above trigger={trigger.current} label={t('StatusBar.help')} onClose={() => setAt(null)}>
-        <MenuItem label={t('GuideView.guide')} onSelect={() => select(openGuide)} />
-        <MenuItem label={t('SetupGuide.title')} onSelect={() => select(openSetup)} />
+        <MenuItem icon={<BookIcon />} label={t('GuideView.guide')} onSelect={() => select(openGuide)} />
+        <MenuItem icon={<PulseIcon />} label={t('SetupGuide.title')} onSelect={() => select(openSetup)} />
+        <div className="menu-separator" role="separator" />
+        {/* The icon its Settings section shows. */}
+        <MenuItem icon={<ChatIcon />} label={t('SupportSettings.title')} onSelect={() => select(() => setSettingsOpen(true, 'support'))} />
       </ContextMenu>}
     </>
   )
