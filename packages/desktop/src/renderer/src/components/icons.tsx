@@ -486,6 +486,28 @@ export function SparkIcon() {
   )
 }
 
+// A robot: the agents installed on this computer.
+export function RobotIcon() {
+  return (
+    <svg {...stroked}>
+      <rect x="4" y="7" width="12" height="9" rx="2.5" />
+      <path d="M10 7V4.6M2.5 10.5v2.5M17.5 10.5v2.5M8.4 13.4h3.2" />
+      <circle cx="10" cy="3.6" r="1" />
+      <circle cx="7.6" cy="10.6" r="0.6" fill="currentColor" />
+      <circle cx="12.4" cy="10.6" r="0.6" fill="currentColor" />
+    </svg>
+  )
+}
+
+// A bolt: the skills an agent picks up.
+export function BoltIcon() {
+  return (
+    <svg {...stroked}>
+      <path d="M11.2 2.5L4.8 11h4.6l-0.8 6.5L15.2 9h-4.6z" />
+    </svg>
+  )
+}
+
 export function FolderIcon() {
   return (
     <svg {...stroked}>

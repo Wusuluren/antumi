@@ -40,6 +40,8 @@ import {
   SearchIcon,
   SparkIcon,
   LockIcon,
+  BoltIcon,
+  RobotIcon,
   PulseIcon,
   TerminalIcon,
   TranslateIcon
@@ -784,7 +786,7 @@ const SECTIONS: readonly Section[] = localized(() => ([
     title: t('SettingsPage.localAgents'),
     description: t('SettingsPage.installationSignInAndDefaultsForAgentExecution'),
     keywords: ['agent', t('ConversationList.agent'), t('SettingsPage.local'), t('InstalledAgentsSettings.installed'), t('AgentPicker.notInstalled'), t('SettingsPage.install'), t('SettingsPage.signIn'), t('SettingsPage.version'), t('SettingsPage.scan'), t('SettingsPage.environment'), t('SettingsPage.check'), 'path', t('SettingsPage.notFound'), t('RoutinesSection.enable'), t('SettingsPage.disable'), ...AGENT_KINDS],
-    Icon: SparkIcon,
+    Icon: RobotIcon,
     Body: AgentSettings,
     grouped: true
   },
@@ -868,7 +870,7 @@ const SKILLS_SECTION: Section = localized(() => ({
   title: t('SettingsPage.skills'),
   description: t('SettingsPage.installAgentSkillsSkillMdFromGitRepositories'),
   keywords: [t('SettingsPage.skills'), 'skill', 'skills', t('SettingsPage.plugins'), 'plugin', 'obsidian', 'markdown', t('SettingsPage.install'), t('SettingsPage.update'), t('SettingsPage.rollback'), t('SettingsPage.repository'), 'git', ...AGENT_KINDS],
-  Icon: SparkIcon,
+  Icon: BoltIcon,
   Body: SkillsSettingsSection,
   grouped: true
 }))
