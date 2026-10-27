@@ -11,9 +11,22 @@ import { antumiPaths, daemonSchemas, readCoreEndpoint } from '@antumi/protocol/n
 // Where CLIs land that a Finder-launched app's minimal PATH misses.
 const EXTRA_PATH_DIRS = ['/opt/homebrew/bin', '/usr/local/bin', join(homedir(), '.local/bin')]
 const START_WAIT_MS = 15_000
+// Interactive rc files are slower than a bare login shell; the answer is worth the wait, and a
+// shell that never answers falls back to the PATH the app was started with.
+const SHELL_PATH_TIMEOUT_MS = 5_000
+const PATH_MARKER = '__antumi_path__'
+
+// The PATH between the last marker and the end of that line, whatever the shell's rc files
+// printed before it; the fallback when it printed no marker at all.
+export function pathFromShellOutput(stdout: string, fallback: string): string {
+  const at = stdout.lastIndexOf(PATH_MARKER)
+  return at === -1 ? fallback : (stdout.slice(at + PATH_MARKER.length).split('\n')[0] ?? '').trim()
+}
 
 // A GUI app inherits launchd's PATH, which has no homebrew or ~/.local: the agents and the
-// user's shell live there, so ask the login shell once and pass the result down.
+// user's shell live there, so ask the login shell once and pass the result down. Interactive as
+// well as login, the way a terminal starts it: version managers and installers add their
+// directories from rc files (~/.zshrc), which a login shell alone never reads.
 function loginShellPath(): Promise<string> {
   if (process.platform === 'win32') {
     const parts = (process.env.PATH ?? '').split(';').filter(Boolean)
@@ -26,8 +39,9 @@ function loginShellPath(): Promise<string> {
   }
   const shell = process.env.SHELL || '/bin/zsh'
   return new Promise((resolve) => {
-    execFile(shell, ['-l', '-c', 'echo -n "$PATH"'], { timeout: 3000 }, (error, stdout) => {
-      const parts = (error ? (process.env.PATH ?? '') : stdout).split(':').filter(Boolean)
+    execFile(shell, ['-l', '-i', '-c', `printf '%s%s' '${PATH_MARKER}' "$PATH"`], { timeout: SHELL_PATH_TIMEOUT_MS }, (_error, stdout) => {
+      const reported = pathFromShellOutput(stdout, '')
+      const parts = (reported || process.env.PATH || '').split(':').filter(Boolean)
       for (const dir of EXTRA_PATH_DIRS) {
         if (!parts.includes(dir)) parts.push(dir)
       }
