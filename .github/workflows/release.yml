@@ -61,8 +61,7 @@ jobs:
           const next = lines.findIndex((line, index) => index > start && line.startsWith('## '));
           const notes = lines.slice(start + 1, next === -1 ? undefined : next).join('\n').trim();
           if (!notes) throw new Error(`CHANGELOG.md entry for ${version} is empty`);
-          const repository = process.env.GITHUB_REPOSITORY;
-          writeFileSync('release-notes.md', `${notes}\n\n### 安装包\n\n| 平台 | 文件 |\n| --- | --- |\n| macOS · Apple Silicon | Antumi-${version}-arm64.dmg |\n| Windows · x64 | Antumi-Setup-${version}-x64.exe |\n\n安装前需安装并登录至少一种支持的 Agent CLI。macOS 采用 ad-hoc 签名，未经 Apple 公证；Windows 安装包未签名。安装步骤见 [README](https://github.com/${repository}/blob/${tag}/README.md#快速开始)。\n`);
+          writeFileSync('release-notes.md', `${notes}\n\n### 安装包\n\n| 平台 | 文件 |\n| --- | --- |\n| macOS · Apple Silicon | Antumi-${version}-arm64.dmg |\n| Windows · x64 | Antumi-Setup-${version}-x64.exe |\n\nmacOS 若提示无法打开，到「系统设置 → 隐私与安全性」点「仍要打开」；Windows 被 SmartScreen 拦住时，点「更多信息 → 仍要运行」。\n`);
           const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
           appendFileSync(process.env.GITHUB_OUTPUT, `commit=${commit}\nprerelease=${version.includes('-')}\n`);
           NODE
