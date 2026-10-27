@@ -266,7 +266,7 @@ export function overview(input: OverviewInput): Overview {
     }
   }
   for (const conversation of Object.values(conversations)) {
-    if (isHelper(conversation) || conversation.chat?.turn !== 'running' || taskOwners.has(conversation.id) || conversation.taskId || conversation.squadRunId || conversation.discussionId || routineOwners.has(conversation.id)) continue
+    if (isHelper(conversation) || conversation.chat?.turn !== 'running' || taskOwners.has(conversation.id) || conversation.taskId || conversation.squadRunId || conversation.parentConversationId || conversation.discussionId || routineOwners.has(conversation.id)) continue
     const row = conversationRow(conversation)
     if (mine.has(row.key)) continue
     row.reason = t('ChatTodos.inProgress')

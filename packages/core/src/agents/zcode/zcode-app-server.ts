@@ -192,7 +192,7 @@ export class ZCodeAppServer implements ChatDriver {
     if (!this.ready() || !this.sessionId) throw new Rejection('chat-starting', 'ZCode 尚未就绪')
     if (this.turn) throw new Rejection('chat-busy', 'ZCode 正在处理上一条消息')
     if (this.changing()) throw new Rejection('chat-option-changing', '请等待 ZCode 确认配置变更')
-    const note = this.turns === 0 ? startNote({ knowledgeBase: this.options.knowledgeBase, todos: Boolean(this.options.mcp) && this.options.todos !== false }) : null
+    const note = this.turns === 0 ? startNote({ instructions: this.options.instructions, knowledgeBase: this.options.knowledgeBase, todos: Boolean(this.options.mcp) && this.options.todos !== false }) : null
     const wired = note ? `${note}\n\n${text}` : text
     if (images.length) {
       if (!this.currentModel()?.images) throw new Rejection('chat-images-unsupported', '当前 ZCode 模型不支持图片输入')

@@ -211,8 +211,8 @@ export const SCHEDULED_GO_TEXT = '按上面定下的计划开始实现。'
 // ahead of its first message: where the user's notes are, and, where Antumi's tools are at hand,
 // when to note down what is left for the user. The tools' own descriptions say how; an agent that
 // defers them (Claude Code) reads those only once it goes looking, so this is what makes it look.
-export function startNote({ knowledgeBase, todos }: { knowledgeBase?: KnowledgeBase | undefined; todos: boolean }): string | null {
-  const notes = [...(knowledgeBase ? [knowledgeBaseNote(knowledgeBase)] : []), ...(todos ? [USER_TODO_NOTE] : [])]
+export function startNote({ knowledgeBase, todos, instructions }: { knowledgeBase?: KnowledgeBase | undefined; todos: boolean; instructions?: string | undefined }): string | null {
+  const notes = [...(instructions ? [instructions] : []), ...(knowledgeBase ? [knowledgeBaseNote(knowledgeBase)] : []), ...(todos ? [USER_TODO_NOTE] : [])]
   return notes.length ? notes.join('\n\n') : null
 }
 

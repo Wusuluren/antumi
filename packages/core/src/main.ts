@@ -1,3 +1,5 @@
+import { AgentProfileStore } from './agent-profile-store'
+import { AgentProfileService } from './agent-profile-service'
 import { AgentCliMaintenance } from './agent-cli-maintenance'
 import { randomBytes } from 'node:crypto'
 import { mkdir, rm, stat } from 'node:fs/promises'
@@ -120,6 +122,7 @@ const conversations = new ConversationService(
       routines.conversationChanged(event.conversation)
       discussions.conversationChanged(event.conversation)
       squads.conversationChanged(event.conversation)
+      profiles.tick()
       refreshAwake()
     } else if (event.type === 'deleted') {
       server?.broadcast('conversations.deleted', { id: event.id })
@@ -148,6 +151,7 @@ const conversations = new ConversationService(
       routines.observe(event.conversationId, event.items)
       discussions.observe(event.conversationId, event.items)
       squads.observe(event.conversationId, event.items)
+      if (event.items.some((item) => item.kind === 'turn')) profiles.tick()
       notifyChatItems(event.conversationId, limits.decorate(smallModels.decorate(event.items)))
     } else if (event.type === 'planApproved') {
       service.recordPlan(event.taskId, event.plan)
@@ -343,8 +347,20 @@ const squads = new SquadService(new SquadStore(paths.database), service, convers
   squad: (squad) => server?.broadcast('squads.changed', { squad }),
   run: (run) => server?.broadcast('squads.runChanged', { run })
 }, (id) => terminals.stopForConversation(id))
+const profiles = new AgentProfileService(new AgentProfileStore(paths.database), conversations, {
+  profile: (profile) => server?.broadcast('agentProfiles.changed', { profile }),
+  call: (call) => {
+    server?.broadcast('agentCalls.changed', { call })
+    conversations.refreshDelegation(call.parentId)
+  }
+}, (id) => terminals.stopForConversation(id), (conversation) => !conversation.taskId || !service.get(conversation.taskId).squadId)
 service.setSquads(squads)
-conversations.setSquadGuard((conversation) => squads.guardMember(conversation))
+conversations.setSquadGuard((conversation) => { squads.guardMember(conversation); profiles.guard(conversation) })
+squads.setProfiles((id) => profiles.get(id))
+conversations.setCallCleanup((id) => profiles.cancelForParent(id))
+service.setDelegationBusy((id) => profiles.busy(id))
+conversations.setDelegationStatus((id) => profiles.summary(id))
+conversations.setDelegationAvailable((id) => profiles.available(id).length > 0)
 
 const terminals = new TerminalService(paths.database, daemon, (list) => server?.broadcast('terminals.changed', { terminals: list }), Date.now, new ShellPrompt(path.join(paths.home, 'shell')))
 // Looked for where the daemon looks: it was started with the same PATH as core.
@@ -391,7 +407,7 @@ const chatSettings = new ChatSettingsStore(paths.chatSettings, (settings) => {
   conversations.setUserBrowser(settings.userBrowser ?? true)
   conversations.setUserTodos(settings.userTodos ?? true)
   conversations.setKnowledgeBase(settings.knowledgeBase ?? null)
-  conversations.setCapacity(settings, () => { void schedules.tick(); squads.tick() })
+  conversations.setCapacity(settings, () => { void schedules.tick(); squads.tick(); profiles.tick() })
   wire.setEnabled(settings.wireLog ?? false)
   void autoArchive.sweep()
   announcements.settingsChanged()
@@ -416,10 +432,11 @@ const modelProviders = new ModelProviderStore(paths.modelProviders, credentials,
 await modelProviders.load()
 conversations.setModelProviders(modelProviders)
 // Handed through Antumi's launcher, so no secret is in an agent's command line or Antumi's logs.
-conversations.setUserMcpProvider((agent, readOnly) => agentDescriptor(agent).capabilities.userMcp ? mcpServers.forAgent(agent).map((server) => userMcpServer(paths.home, server, readOnly)) : [])
+conversations.setUserMcpProvider((agent, readOnly, selected) => agentDescriptor(agent).capabilities.userMcp ? mcpServers.forAgent(agent).filter((server) => selected == null || selected.includes(server.name)).map((server) => userMcpServer(paths.home, server, readOnly)) : [])
 // Explicit activation takes precedence over the legacy, knowledge-base-provided selection.
-conversations.setSkillsProvider(async (agent) => {
-  const bundle = await skills.bundleForAgent(agent)
+conversations.setSkillsProvider(async (agent, selected) => {
+  if (!agentDescriptor(agent).capabilities.skills) return null
+  const bundle = await (selected == null ? skills.bundleForAgent(agent) : skills.bundleFor(selected))
   return bundle ? { dir: bundle.dir } : null
 })
 const initialChatSettings = await chatSettings.load()
@@ -428,7 +445,7 @@ conversations.setTitleNaming(initialChatSettings.titleNaming)
 conversations.setUserBrowser(initialChatSettings.userBrowser)
 conversations.setUserTodos(initialChatSettings.userTodos)
 conversations.setKnowledgeBase(initialChatSettings.knowledgeBase)
-conversations.setCapacity(initialChatSettings, () => { void schedules.tick(); squads.tick() })
+conversations.setCapacity(initialChatSettings, () => { void schedules.tick(); squads.tick(); profiles.tick() })
 wire.setEnabled(initialChatSettings.wireLog)
 
 daemon.onEvent((event) => {
@@ -463,6 +480,7 @@ daemon.onConnect(() => {
       terminals.reconcile(sessions)
       await discussions.reconcile()
       await squads.reconcile()
+      await profiles.reconcile()
       void environment.check(true).catch((error: unknown) => console.error('[antumi-core] agent discovery failed', error))
       // What came due while core or the daemon was away goes now, not at the next tick.
       await schedules.tick()
@@ -477,7 +495,7 @@ server = await startRpcServer({
   handlers: createRpcHandlers(service, conversations, projects, daemon, usage, sources, {
     store: attachments,
     uploads: new AttachmentUploads(attachments)
-  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts, cliMaintenance, analytics, automation, pets, new ProjectStar(sources))
+  }, terminals, worktrees, browser, awake, terminalCommands, limits, runs, turns, chatSettings, environment, schedules, chatCommands, routines, discussions, wire, () => server?.broadcast('git.changed', {}), squads, todos, plugins, skills, mcpServers, smallModels, projectConfigs, modelProviders, new SessionImports(conversationsStore, conversations, paths.home), accounts, cliMaintenance, analytics, automation, pets, new ProjectStar(sources), profiles)
 })
 await writeCoreEndpoint({ port: server.port, token, pid: process.pid, protocolVersion: PROTOCOL_VERSION, version: packageJson.version })
 daemon.start()
@@ -517,6 +535,7 @@ async function shutdown(): Promise<void> {
   await analytics.close()
   routines.stop()
   autoArchive.stop()
+  await profiles.close()
   await squads.close()
   discussions.close()
   sources.stop()

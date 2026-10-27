@@ -14,7 +14,7 @@ type InputProps = Pick<TextareaHTMLAttributes<HTMLTextAreaElement>, 'onSelect' |
 }
 
 // `opens`: what Tab puts after the @ to look inside a folder, its path under its project.
-type MentionEntry = { key: string; group: 'files' | 'projects'; target: MentionTarget; name: string; detail: string; opens: string | null }
+type MentionEntry = { key: string; group: 'files' | 'projects' | 'profiles'; target: MentionTarget | null; name: string; detail: string; opens: string | null }
 
 function fileEntry(match: ProjectFileMatch, cwd: string | null, manyRoots: boolean): MentionEntry {
   const folder = match.relative.includes('/') ? match.relative.slice(0, match.relative.lastIndexOf('/')) : ''
@@ -49,7 +49,7 @@ function MentionOption({ entry, id, active, onHover, onPick }: {
       }}
       onClick={onPick}
     >
-      <span className="chat-command-option-name mono">{entry.name}{entry.target.kind === 'directory' ? '/' : ''}</span>
+      <span className="chat-command-option-name mono">{entry.name}{entry.target?.kind === 'directory' ? '/' : ''}</span>
       <span className="chat-command-option-description">{entry.detail}</span>
     </li>
   )
@@ -59,7 +59,8 @@ function MentionOption({ entry, id, active, onHover, onPick }: {
 // one picked in as a mention, its name in colour, written out for the agent as the message goes
 // (see writeMentions); Tab on a folder opens it to pick inside, and elsewhere picks too; Esc puts
 // the list away until the text changes.
-export function useChatMentionMenu({ value, setText, setValue, roots, cwd, agent }: {
+export function useChatMentionMenu({ value, setText, setValue, roots, cwd, agent, conversationId }: {
+  conversationId?: string
   value: MentionedText
   setText: SetText
   setValue: (value: MentionedText) => void
@@ -82,6 +83,11 @@ export function useChatMentionMenu({ value, setText, setValue, roots, cwd, agent
   const [closedAt, setClosedAt] = useState<string | null>(null)
   const supported = useFileMentionsSupported() && agent !== null
   const rpc = useCore((s) => s.rpc)
+  const profiles = useCore((s) => s.agentProfiles)
+  const conversation = useCore((s) => conversationId ? s.conversations[conversationId] : null)
+  const callable = Object.values(profiles).filter((profile) => conversation && profile.archivedAt === null && profile.id !== conversation.profile?.id
+    && !conversation.parentConversationId && !conversation.discussionId && !conversation.squadRunId && !conversation.routineId && !conversation.helperOf
+    && (!conversation.profile || conversation.profile.callableProfiles.includes(profile.id)))
   const range = supported ? mentionQuery(text, Math.min(caret, text.length)) : null
   const query = range?.query ?? null
   const rootsKey = roots.join('\0')
@@ -131,15 +137,23 @@ export function useChatMentionMenu({ value, setText, setValue, roots, cwd, agent
       detail: projectPath,
       opens: null
     }))
-    return [...fileRows, ...projectRows]
-  }, [query, files, projects, cwd, rootsKey, roots.length, getLocale()])
+    const profileRows = callable.filter((profile) => profile.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map((profile): MentionEntry => ({
+      key: `profile:${profile.id}`, group: 'profiles', target: null, name: profile.name, detail: profile.description, opens: null
+    }))
+    return [...profileRows, ...fileRows, ...projectRows]
+  }, [query, files, projects, cwd, rootsKey, roots.length, profiles, conversation, getLocale()])
   const open = range !== null && text !== closedAt && shown.length > 0
   const active = Math.min(highlight, shown.length - 1)
   useEffect(() => setHighlight(0), [query])
 
   const pick = (entry: MentionEntry, tab: boolean) => {
     if (!range) return
-    if (tab && entry.opens !== null) {
+    if (!entry.target) {
+      const next = insertMention(text, range, `@${entry.name}`, true)
+      placed.current = next.caret
+      setText(next.text, next.caret)
+      setClosedAt(next.text)
+    } else if (tab && entry.opens !== null) {
       const next = insertMention(text, range, `@${entry.opens}`, false)
       placed.current = next.caret
       setText(next.text, next.caret)
@@ -193,6 +207,7 @@ export function useChatMentionMenu({ value, setText, setValue, roots, cwd, agent
   const menu = open ? (
     <div className="menu menu-up chat-command-menu">
       <ul id={listId} role="listbox" aria-label={t('ChatMentionMenu.referenceAFileOrProject')} className="menu-list">
+        {group('profiles', t('AgentProfiles.title'))}
         {group('files', t('ChatMentionMenu.file'))}
         {group('projects', t('ChatMentionMenu.project'))}
       </ul>

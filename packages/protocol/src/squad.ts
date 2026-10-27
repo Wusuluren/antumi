@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AgentProfile } from './agent-profile'
 import { AgentKind } from './agent'
 import { agentDescriptor } from './agents'
 import { ChatPermissionMode } from './chat'
@@ -6,6 +7,8 @@ import { ChatPermissionMode } from './chat'
 export const SQUAD_TOOL_NAMES = { roster: 'antumi_squad_roster', dispatch: 'antumi_squad_dispatch', finish: 'antumi_squad_finish' } as const
 
 export const SquadMember = z.object({
+  profileId: z.string().uuid().nullable().optional(),
+  profile: AgentProfile.optional(),
   id: z.string().uuid(),
   name: z.string().trim().min(1).max(60),
   agent: AgentKind,

@@ -35,10 +35,14 @@ export function ConversationDraft() {
   const installed = useInstalledAgents()
   const recommendation = useRecommendation(installed)
   const from = useCore((s) => s.conversationDraftFrom)
+  const draftProfileId = useCore((state) => state.draftProfileId)
+  const profiles = useCore((state) => state.agentProfiles)
+  const [profileId, setProfileId] = useState<string | null>(draftProfileId)
+  const profile = profileId ? profiles[profileId] : null
   const initial = from?.configuration
   const composerId = from?.key ?? null
   // Unset when nothing settles it, for each start to pick.
-  const [agent, setAgent] = useState<AgentKind | null>(() => initial?.agent ?? defaultAgent(useCore.getState().tasks, useCore.getState().conversations))
+  const [agent, setAgent] = useState<AgentKind | null>(() => (draftProfileId ? profiles[draftProfileId]?.agent : null) ?? initial?.agent ?? defaultAgent(useCore.getState().tasks, useCore.getState().conversations))
   // Asked for again while the page is open (another project's ＋), it takes the new ones.
   const requested = useCore((s) => s.conversationDraftProjects)
   const [projectPaths, setProjectPaths] = useState<string[]>(() => [...(requested?.paths ?? [])])
@@ -59,9 +63,9 @@ export function ConversationDraft() {
   // A model or effort left unpicked is the agent's own default, which the start does not pass.
   const [picks, setPicks] = useState<Partial<Record<AgentKind, { model?: string; effort?: string }>>>(() => initial ? {
     [initial.agent]: { model: initial.model ?? undefined, effort: initial.effort ?? undefined }
-  } : {})
+  } : profile ? { [profile.agent]: { model: profile.model ?? undefined, effort: profile.effort ?? undefined } } : {})
   // The model provider picked, for whichever agent it serves; null is the agent's own account.
-  const [providerId, setProviderId] = useState<string | null>(() => initial?.modelProvider ?? null)
+  const [providerId, setProviderId] = useState<string | null>(() => profile?.modelProvider ?? initial?.modelProvider ?? null)
   const providers = useCore((s) => s.modelProviders)
   const providerOf = (kind: AgentKind | null) => providerFor(providers, providerId, kind)
   // Each agent's models (a provider's where it runs on one), asked for once it is picked; absent
@@ -115,7 +119,7 @@ export function ConversationDraft() {
   const chosenMode = agent ? modes[agent] : undefined
   // Looking into an issue starts where the agent only reads, as a group chat member does.
   const reading = agent && issue && offeredModes.includes(agentDescriptor(agent).discussionMode) ? agentDescriptor(agent).discussionMode : null
-  const mode = agent ? (chosenMode && offeredModes.includes(chosenMode) ? chosenMode : reading ?? defaultStartMode(agent, offeredModes)) : null
+  const mode = profile?.capability === 'readOnly' && agent ? agentDescriptor(agent).readOnlyMode : agent ? (chosenMode && offeredModes.includes(chosenMode) ? chosenMode : reading ?? defaultStartMode(agent, offeredModes)) : null
   const effort = pick.effort && (!catalog || efforts.includes(pick.effort)) ? pick.effort : null
   const settingsLoading = Boolean(initial && agent && optionsSupported && catalog === undefined)
   const canSend = agent !== null && !busy && !settingsLoading && attached.uploading === 0 && (issue !== null || text.trim() !== '' || attached.images.length > 0)
@@ -131,7 +135,8 @@ export function ConversationDraft() {
 
   const chosen = {
     ...(optionsSupported ? { permissionMode: mode ?? undefined, ...(pick.model ? { model: pick.model } : {}), ...(effort ? { effort } : {}) } : {}),
-    ...(provider ? { modelProvider: provider.id } : {})
+    ...(provider ? { modelProvider: provider.id } : {}),
+    ...(profile ? { profileId: profile.id } : {})
   }
   // A start on a provider spends its plan, not the agent's own quota.
   const quotaAllows = (kind: AgentKind) => providerOf(kind) !== null || confirmQuota(kind, modelFor(kind))
@@ -198,6 +203,10 @@ export function ConversationDraft() {
                 </div>
               )}
               <h2 className="chat-draft-title">{from ? t('ConversationDraft.startANewConversation') : t('ConversationDraft.chooseAnAgentToStart')}</h2>
+              {!issue && Object.values(profiles).some((item) => item.archivedAt === null) && <ChatPicker label={t('AgentProfiles.role')} value={profileId ?? ''} placeholder={t('AgentProfiles.noRole')}
+                size="large" placement="below" disabled={busy}
+                options={[{ value: '', label: t('AgentProfiles.noRole') }, ...Object.values(profiles).filter((item) => item.archivedAt === null).map((item) => ({ value: item.id, label: item.name, description: item.description }))]}
+                onChange={(id) => { setProfileId(id || null); const picked = profiles[id]; if (picked) { setAgent(picked.agent); setPicks((known) => ({ ...known, [picked.agent]: { model: picked.model ?? undefined, effort: picked.effort ?? undefined } })); setProviderId(picked.modelProvider) } }} />}
               <div className="chat-draft-agents" role="radiogroup" aria-label="agent">
                 {installed.map((kind) => (
                   <button
@@ -207,7 +216,7 @@ export function ConversationDraft() {
                     aria-checked={agent === kind}
                     className="chat-draft-agent"
                     disabled={busy}
-                    onClick={() => setAgent(kind)}
+                    onClick={() => { setAgent(kind); setProfileId(null) }}
                   >
                     <AgentIcon agent={kind} />
                     <span>{agentLabel(kind)}</span>
@@ -283,7 +292,7 @@ export function ConversationDraft() {
               <div className="chat-options">
                 {imagesSupported && !issue && <ChatAddMenu disabled={busy} onAdd={attached.add} />}
                 {agent && (
-                  <ProviderPicker agent={agent} value={providerId} disabled={busy} onChange={(next) => {
+                  <ProviderPicker agent={agent} value={providerId} disabled={busy || Boolean(profile)} onChange={(next) => {
                     // Models differ between accounts, so what was picked for the old one goes.
                     setProviderId(next)
                     setPicks({})
@@ -297,7 +306,7 @@ export function ConversationDraft() {
                       placeholder={t('ChatHandoff.permissionMode')}
                       options={modeOptions(agent, offeredModes)}
                       tone={modeTone(mode)}
-                      disabled={busy}
+                      disabled={busy || profile?.capability === 'readOnly'}
                       onChange={(value) => {
                         const picked = ChatPermissionMode.safeParse(value)
                         if (picked.success) setModes({ ...modes, [agent]: picked.data })

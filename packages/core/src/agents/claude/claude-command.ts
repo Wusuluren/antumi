@@ -61,7 +61,7 @@ export function claudeCommand(launch: AgentLaunch): AgentCommand {
     ...(mcp ? antumiReadTools(todos).map((tool) => `mcp__${RESERVED_MCP_SERVER_NAME}__${tool}`) : [])
   ]
   const denials = claudeEditDenials([...(fenced?.dirs ?? []), ...references])
-  const note = startNote({ knowledgeBase, todos: Boolean(mcp) && todos })
+  const note = startNote({ knowledgeBase, instructions: launch.instructions, todos: Boolean(mcp) && todos })
   const servers = {
     ...(mcp ? { [RESERVED_MCP_SERVER_NAME]: { type: 'stdio', command: mcp.command, args: mcp.args, ...(mcp.env ? { env: mcp.env } : {}) } } : {}),
     ...Object.fromEntries(userMcp.map((server) => [server.name, server.type === 'stdio' ? { type: 'stdio', command: server.command, args: server.args, ...(server.env ? { env: server.env } : {}) } : { type: 'http', url: server.url }]))

@@ -20,12 +20,13 @@ const LEADER_DUTY = () => t('Squads.readOnlyLeaderBreaksDownWorkAssignsMembers')
 // no list of them.
 export function SquadsEntry() {
   const supported = useSquadsSupported()
+  const profilesSupported = useCore((state) => state.rpc?.features.includes('agent-profiles') ?? false)
   const open = useCore((state) => state.section === 'squads' && !state.routinesOpen && !state.overviewOpen && !state.worktreesOpen)
-  if (!supported) return null
+  if (!supported && !profilesSupported) return null
   return (
-    <button type="button" className="inbox-entry sidebar-squads" aria-current={open} onClick={() => selectSquad(null)}>
+    <button type="button" className="inbox-entry sidebar-squads" aria-current={open} onClick={() => { selectSquad(null); if (profilesSupported) useCore.setState({ agentProfilesTab: 'profiles' }) }}>
       <SquadIcon />
-      <span>{t('ChatPlan.squad')}</span>
+      <span>{t(profilesSupported ? 'AgentProfiles.title' : 'ChatPlan.squad')}</span>
     </button>
   )
 }
@@ -174,7 +175,9 @@ function MemberEditor({ member, leader, open, agents, disabled, onToggle, onChan
   member: SquadMember; leader: boolean; open: boolean; agents: readonly AgentKind[]; disabled: boolean
   onToggle(): void; onChange(member: SquadMember): void; onLead(): void; onRemove(): void
 }) {
-  const catalog = useAgentCatalog(member.agent, open)
+  const catalog = useAgentCatalog(member.agent, open, null)
+  const profiles = useCore((state) => state.agentProfiles)
+  const profile = member.profileId ? profiles[member.profileId] : null
   const offered = agents.includes(member.agent) ? agents : [...agents, member.agent]
   return (
     <li className="squad-member-edit" data-open={open || undefined}>
@@ -198,19 +201,27 @@ function MemberEditor({ member, leader, open, agents, disabled, onToggle, onChan
       </div>
       {open && (
         <fieldset className="squad-member-fields" disabled={disabled}>
+          <label className="squad-field">{t('AgentProfiles.role')}
+            <ChatPicker label={t('AgentProfiles.role')} value={member.profileId ?? ''} placeholder={t('AgentProfiles.customMember')} size="field" placement="below"
+              options={[{ value: '', label: t('AgentProfiles.customMember') }, ...Object.values(profiles).filter((item) => item.archivedAt === null && (!leader || item.capability === 'readOnly')).map((item) => ({ value: item.id, label: item.name, description: item.description }))]}
+              onChange={(id) => {
+                const picked = profiles[id]
+                onChange(picked ? { ...member, profileId: id, name: picked.name, agent: picked.agent, model: picked.model, effort: picked.effort, capability: leader ? 'readOnly' : picked.capability } : { ...member, profileId: null, profile: undefined })
+              }} />
+          </label>
           <div className="squad-member-options">
             <label className="squad-field">{tr('Squads.name', { value1: <input className="input" value={member.name} maxLength={60} required onChange={(event) => onChange({ ...member, name: event.target.value })} /> })}</label>
             <div className="squad-field">Agent
-              <ChatPicker label="Agent" value={member.agent} placeholder={agentLabel(member.agent)} size="field" placement="below"
+              <ChatPicker label="Agent" disabled={Boolean(profile)} value={member.agent} placeholder={agentLabel(member.agent)} size="field" placement="below"
                 options={offered.map((agent) => ({ value: agent, label: agentLabel(agent), icon: <AgentIcon agent={agent} />, description: agents.includes(agent) ? null : t('AgentPicker.notInstalled') }))}
                 onChange={(value) => {
                   const parsed = AgentKind.safeParse(value)
                   if (parsed.success && parsed.data !== member.agent) onChange({ ...member, agent: parsed.data, model: null, effort: null })
                 }} />
             </div>
-            <div className="squad-field">{tr('Squads.model', { value1: <AgentModelPicker catalog={catalog} choice={{ model: member.model ?? undefined, effort: member.effort ?? undefined }} size="field"
+            <div className="squad-field">{tr('Squads.model', { value1: <AgentModelPicker catalog={catalog} choice={{ model: member.model ?? undefined, effort: member.effort ?? undefined }} size="field" disabled={Boolean(profile)}
                 onChange={(next) => onChange({ ...member, model: next.model ?? null, effort: next.effort ?? null })} /> })}</div>
-            {!leader && <div className="squad-field">{tr('Squads.capability', { value1: <ChatPicker label={t('Squads.capability_1905')} value={member.capability} placeholder={t('Squads.readOnlyAnalysisReview')} size="field" placement="below"
+            {!leader && <div className="squad-field">{tr('Squads.capability', { value1: <ChatPicker label={t('Squads.capability_1905')} disabled={Boolean(profile)} value={member.capability} placeholder={t('Squads.readOnlyAnalysisReview')} size="field" placement="below"
                 options={[
                   { value: 'readOnly', label: t('Squads.readOnlyAnalysisReview'), description: t('Squads.readAnalyzeAndReviewCodeWithoutEditingMultiple') },
                   { value: 'develop', label: t('Squads.developmentTesting'), description: t('Squads.editCodeAndRunTestsSequentiallyWithOther') }

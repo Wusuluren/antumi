@@ -302,7 +302,7 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
   const stopped = !running
   const starting = Boolean(conversation.starting) || (stopped && busy) || Boolean(initialMessage)
   const initialHint = initialMessage ? initialMessage.phase === 'failed' ? t('ChatComposer.retryTheFirstMessageAboveFirst') : initialMessage.phase === 'sending' ? t('ChatComposer.sendingFirstMessage') : t('ChatComposer.starting', { value1: agentLabel(conversation.agent) }) : null
-  const canTake = (idle || queueable || stopped) && !busy && !starting && !surface.sendBlocker && attached.uploading === 0
+  const canTake = (idle || queueable || stopped) && !busy && !starting && !surface.sendBlocker && !conversation.delegation?.writing && attached.uploading === 0
   const canSend = canTake && (text.trim() !== '' || attached.images.length > 0 || quotes.length > 0)
   // What the agent guesses comes next, as Claude Code shows it: grey in the empty input, Tab or →
   // takes it, typing anything else puts it away for good.
@@ -328,7 +328,7 @@ export function ChatComposer({ conversation, state, compact = false }: { convers
     setText,
     sendCommand: (command) => void send(false, command)
   })
-  const mentionMenu = useChatMentionMenu({ value, setText, setValue, roots: conversation.projectPaths, cwd: conversation.workspacePath, agent: conversation.agent })
+  const mentionMenu = useChatMentionMenu({ conversationId: conversation.id, value, setText, setValue, roots: conversation.projectPaths, cwd: conversation.workspacePath, agent: conversation.agent })
   // The input as the agent reads it, each mention written out.
   const written = writeMentions(value, conversation.agent)
   // steer: into the running turn now; otherwise a message while the agent works waits its turn.

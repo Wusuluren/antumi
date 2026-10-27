@@ -26,8 +26,8 @@ function codexServer(server: AgentMcpServer): string {
 // writable root of each turn, see CodexAppServer). A JSON string is a TOML basic string. A skills
 // bundle (AgentLaunch.skills) is not given: Codex reads skills from fixed folders only; the places
 // to try are skills.config in its config and the cwds of skills/list (CodexAppServer).
-export function codexCommand({ mcp, userMcp = [], knowledgeBase, todos = true, provider, preferred, account }: AgentLaunch): AgentCommand {
-  const note = startNote({ knowledgeBase, todos: Boolean(mcp) && todos })
+export function codexCommand({ mcp, userMcp = [], knowledgeBase, instructions, todos = true, provider, preferred, account }: AgentLaunch): AgentCommand {
+  const note = startNote({ knowledgeBase, instructions, todos: Boolean(mcp) && todos })
   const onProvider = provider ? codexProviderLaunch(provider, preferred?.model) : null
   // A provider is reached with a key, not an account: it takes the place of one.
   const env = onProvider ? onProvider.env : account?.env

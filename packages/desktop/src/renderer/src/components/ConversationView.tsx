@@ -1,3 +1,4 @@
+import { useAgentCallsSupported } from '../agent-calls'
 import { t, tr } from '../i18n'
 import { RouteBadge } from './RouteBadge'
 import { useHelper, useHelperSupported } from '../helper-conversations'
@@ -38,6 +39,7 @@ function ForkOrigin({ id }: { id: string }) {
 // Whether the conversation has anything for the inspector to show, and what its button says.
 export function useConversationPanel(conversation: Conversation | undefined) {
   const id = conversation?.id ?? ''
+  const delegationSupported = useAgentCallsSupported(conversation)
   const helperSupported = useHelperSupported(conversation)
   const files = useFileTabs((state) => state[id] ?? EMPTY_FILE_TABS)
   const plans = usePlans(id)
@@ -47,7 +49,7 @@ export function useConversationPanel(conversation: Conversation | undefined) {
   // A managed workspace is Antumi's own scratch folder: nothing of the user's to compare, but the
   // inspector still shows the agent's plans.
   const inspectable = (conversation?.projectPaths.length ?? 0) > 0
-  const hasPanel = helperSupported || inspectable || plans.length > 0 || wire || files.tabs.length > 0 || todosShown
+  const hasPanel = delegationSupported || helperSupported || inspectable || plans.length > 0 || wire || files.tabs.length > 0 || todosShown
   const hint = todoLeft > 0 ? t('ConversationView.inspectorToDos', { todoLeft: todoLeft }) : inspectable ? t('ConversationView.viewChanges') : plans.length > 0 ? t('ConversationView.viewPlan') : wire ? t('ConversationView.viewRawData') : t('chatTools.listToDos')
   return { hasPanel, wire, todoLeft, hint }
 }
@@ -138,6 +140,8 @@ export function ConversationView({ id, pane }: { id: string; pane?: Conversation
         <BranchStatus target={{ kind: 'conversation', id }} updatedAt={conversation.updatedAt} />
         <span className={state.failed ? 'conversation-exit-failed' : 'muted'} title={state.detail ?? undefined}>{state.label}</span>
         {archived && <span className="archived-tag">{t('ConversationList.archived')}</span>}
+        {conversation.parentConversationId && <button type="button" className="link-button" onClick={() => selectConversation(conversation.parentConversationId ?? null)}>{t('AgentProfiles.parent')}</button>}
+        {conversation.profile && <span className="muted">{conversation.profile.name}</span>}
         {conversation.forkedFromId && <ForkOrigin id={conversation.forkedFromId} />}
         {conversation.source && <span className="muted conversation-origin">{tr('ConversationView.investigate', { value1: conversation.source.name, value2: <SourceLink source={conversation.source} /> })}</span>}
         {conversation.routineId && (
@@ -170,7 +174,7 @@ export function ConversationView({ id, pane }: { id: string; pane?: Conversation
       </div>
     </header>
     <div className="terminal-body">
-      <ConversationChat conversation={conversation} onHandoff={conversation.discussionId ? undefined : openHandoff} />
+      <ConversationChat conversation={conversation} onHandoff={conversation.discussionId || conversation.parentConversationId ? undefined : openHandoff} />
       {!pane && hasPanel && inspectorOpen && <ConversationInspector conversation={conversation} widthRatio={panelRatio} onWidthRatioChange={setPanelRatio} wire={wire} />}
     </div>
     {dropping && <div className="split-drop" aria-hidden="true"><SplitIcon /><strong>{t('ConversationView.releaseToOpenInARightSplitPane')}</strong></div>}

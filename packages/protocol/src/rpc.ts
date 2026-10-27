@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AgentProfile, AgentProfileFields, AgentCall } from './agent-profile'
 import { GitTarget, GitStatus, GitHistory, GitDetail, GitComparison, GitAction, GitResult, GitOutgoing } from './git'
 import { AgentKind, MAX_DETAILS_LENGTH, MAX_TASK_REPOS, RepoStartOptions, Task, TaskStatus } from './task'
 import { ATTACHMENT_CHUNK_BYTES, AttachmentId, AttachmentInfo, Base64Chunk, ImageRef, MAX_ATTACHMENT_BYTES, MAX_CHAT_IMAGES, MAX_TASK_IMAGES } from './attachments'
@@ -95,7 +96,7 @@ const UsageParams = z.object({ windowKinds: z.array(z.string()).optional() })
 // project's .antumi/project.json, once the user trusts its commands (projects.config, projects.trustConfig).
 // project-config-edit: core writes that file as the user filled it in (projects.writeConfig), and
 // suggests what to fill it with (projects.suggestConfig).
-export const CORE_FEATURES = ['pets', 'plugins', 'plugin-recommendations', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-configuration', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'agent-cli-maintenance', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'handoff-mode', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'skills-search', 'skills-activation', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit', 'model-providers', 'git-update', 'git-push-target', 'task-auto-run', 'session-import', 'agent-accounts', 'usage-analytics', 'task-references', 'release-idle-chats', 'project-star'] as const
+export const CORE_FEATURES = ['agent-profiles', 'pets', 'plugins', 'plugin-recommendations', 'chat-options', 'chat-images', 'task-start', 'worktrees', 'conversation-branches', 'conversation-commit-push', 'find-file', 'conversation-projects', 'browser', 'keep-awake', 'terminal-commands', 'usage-limit', 'agent-stats', 'conversation-stats', 'prompt-suggestions', 'environment', 'conversation-pin', 'schedules', 'chat-commands', 'file-mentions', 'plan-modes', 'agent-terminals', 'schedule-images', 'dashboard', 'task-conversation-summaries', 'routines', 'ports', 'conversation-fork', 'conversation-configuration', 'conversation-commit-steps', 'conversation-worktrees', 'conversation-start-branch', 'wire-log', 'file-preview', 'deferred-conversation-start', 'agent-cli-installation', 'agent-cli-maintenance', 'task-launch-options', 'git-management', 'git-commit-branches', 'task-handoff', 'handoff-model', 'handoff-mode', 'task-launch', 'discussions', 'discussion-members', 'discussion-projects', 'discussion-topics', 'discussion-requirements', 'task-cancel', 'task-redo-in-place', 'conversation-archive', 'discussion-archive', 'translate', 'commit-message', 'squads', 'squad-leader-planning', 'conversation-todos', 'knowledge-base', 'knowledge-base-kind', 'skills-library', 'skills-search', 'skills-activation', 'mcp-servers', 'source-investigate', 'todo-overview', 'conversation-helper', 'small-model-stats', 'terminal-color-prompt', 'git-commit-actions', 'file-editor', 'project-config', 'project-config-edit', 'model-providers', 'git-update', 'git-push-target', 'task-auto-run', 'session-import', 'agent-accounts', 'usage-analytics', 'task-references', 'release-idle-chats', 'project-star'] as const
 // session-import: core lists the sessions agents ran outside Antumi and imports them as conversations (sessionImports.*).
 // agent-accounts: Claude and Codex sign in to several accounts, one active each, and a usage limit
 // moves the agent to the next with quota (accounts.*); usage readings name their account.
@@ -146,6 +147,13 @@ export const rpcMethods = {
   'plugins.setEnabled': { params: z.object({ id: PluginId, enabled: z.boolean() }), result: PluginInfo },
   'plugins.rollback': { params: z.object({ id: PluginId, version: PluginVersion }), result: PluginInfo },
   'plugins.uninstall': { params: z.object({ id: PluginId }), result: Ok },
+  'agentProfiles.list': { params: z.object({}), result: z.array(AgentProfile) },
+  'agentProfiles.save': { params: AgentProfileFields.extend({ id: z.string().uuid().optional() }), result: AgentProfile },
+  'agentProfiles.archive': { params: z.object({ id: z.string().uuid(), archived: z.boolean() }), result: AgentProfile },
+  'agentProfiles.available': { params: ConversationRef, result: z.array(AgentProfile) },
+  'agentCalls.list': { params: ConversationRef, result: z.array(AgentCall) },
+  'agentCalls.dispatch': { params: ConversationRef.extend({ profileId: z.string().uuid(), instruction: AgentCall.shape.instruction, ref: z.string().min(1).max(200).optional() }), result: AgentCall },
+  'agentCalls.cancel': { params: ConversationRef.extend({ callId: z.string().uuid() }), result: AgentCall },
   'squads.list': { params: z.object({}), result: z.array(Squad) },
   'squads.create': { params: SquadFields, result: Squad },
   'squads.update': { params: SquadFields.safeExtend({ id: z.string().uuid() }), result: Squad },
@@ -316,7 +324,7 @@ export const rpcMethods = {
   'tasks.changes': { params: TaskRef, result: z.array(RepoChanges) },
   // One file of those changes; `repo` is the path the user picked, `file` a path from the change list.
   'tasks.diff': { params: TaskRef.extend({ repo: z.string().min(1), file: z.string().min(1) }), result: FileDiff },
-  'conversations.list': { params: z.object({ includeTasks: z.boolean().optional(), includeSquads: z.boolean().optional() }), result: z.array(Conversation) },
+  'conversations.list': { params: z.object({ includeTasks: z.boolean().optional(), includeSquads: z.boolean().optional(), includeDelegates: z.boolean().optional() }), result: z.array(Conversation) },
   'conversations.get': { params: ConversationRef, result: Conversation },
   'conversations.configuration': { params: ConversationRef, result: ConversationConfiguration },
   // A parent's helper, reached here because list and search exclude it. Needs conversation-helper.
@@ -325,6 +333,7 @@ export const rpcMethods = {
     // permissionMode, model and effort: what the first start begins with, from what the agent has.
     params: z.object({
       agent: AgentKind,
+      profileId: z.string().uuid().optional(),
       // Primary (cwd) first; other directories are available to the agent in place.
       projectPaths: z.array(z.string().trim().min(1)).max(MAX_TASK_REPOS),
       // Each project, which must then be a git repo, gets a worktree on a new branch from its HEAD,
@@ -775,6 +784,8 @@ export const rpcNotifications = {
   // Every routine (routines.list) whenever one, or one of its runs, changes.
   'routines.changed': z.object({ routines: RoutineList }),
   // A group chat changed: its state, its members' status, or a post was added or settled.
+  'agentProfiles.changed': z.object({ profile: AgentProfile }),
+  'agentCalls.changed': z.object({ call: AgentCall }),
   'squads.changed': z.object({ squad: Squad }),
   'squads.runChanged': z.object({ run: SquadRun }),
   'discussions.changed': z.object({ discussion: Discussion }),

@@ -10,7 +10,7 @@ export function defaultAgent(tasks: Readonly<Record<string, Task>>, conversation
   const started = [
     ...Object.values(tasks).flatMap((task) => task.agent ? [{ agent: task.agent, at: task.createdAt }] : []),
     ...Object.values(conversations)
-      .filter((each) => !isHelper(each) && !each.taskId && !each.discussionId && !each.squadRunId && !each.routineId)
+      .filter((each) => !isHelper(each) && !each.taskId && !each.discussionId && !each.squadRunId && !each.parentConversationId && !each.routineId)
       .map((each) => ({ agent: each.agent, at: each.createdAt }))
   ]
   const wanted = started.sort((a, b) => b.at - a.at)[0]?.agent ?? null

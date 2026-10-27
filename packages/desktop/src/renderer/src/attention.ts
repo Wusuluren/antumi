@@ -25,7 +25,7 @@ export type Snapshot = {
 export const waiting = (conversation: Conversation) => conversation.sessionId !== null && conversation.chat?.turn === 'awaiting'
 // The turn is over with a question the agent asked in passing still open.
 const asking = (conversation: Conversation) => conversation.sessionId !== null && conversation.chat?.turn === 'idle' && conversation.chat.request?.async === true
-const working = (conversation: Conversation) => conversation.chat?.turn === 'running' || conversation.chat?.turn === 'awaiting'
+const working = (conversation: Conversation) => Boolean(conversation.delegation?.open) || conversation.chat?.turn === 'running' || conversation.chat?.turn === 'awaiting'
 const crashed = (conversation: Conversation) => conversation.sessionId === null && (conversation.lastExit?.code ?? 0) !== 0
 // Put away by the user: its agent was stopped and it takes no message until it is taken out, so
 // nothing in it waits on them.
@@ -102,17 +102,18 @@ export function actionableItems(s: Pick<Snapshot, 'tasks' | 'conversations' | 's
   for (const conversation of Object.values(s.conversations)) {
     if (isHelper(conversation) || archived(conversation)) continue
     if (owned.has(conversation.id)) continue
+    if (conversation.parentConversationId && !waitingOrAsking(conversation)) continue
     if (conversation.squadRunId) {
       const run = s.squadRuns?.[conversation.squadRunId]
       const task = run ? s.tasks[run.taskId] : undefined
       if (!task || task.status === 'done' || task.status === 'abandoned' || !waitingOrAsking(conversation)) continue
-      const reasons = chatReasons(conversation)
+      const reasons = conversation.delegation?.open && !waitingOrAsking(conversation) ? [] : chatReasons(conversation)
       const primaryReason = reasons[0]
       if (primaryReason) items.push({ target: { kind: 'task', id: task.id }, title: `${task.title} · ${conversation.title}`, agent: conversation.agent,
         projectPaths: task.repos.map((repo) => repo.path), conversationId: conversation.id, primaryReason, reasons, request: requestOf(conversation, reasons), updatedAt: conversation.updatedAt })
       continue
     }
-    const reasons = chatReasons(conversation)
+    const reasons = conversation.delegation?.open && !waitingOrAsking(conversation) ? [] : chatReasons(conversation)
     const primaryReason = reasons[0]
     if (!primaryReason) continue
     items.push({
@@ -142,7 +143,7 @@ export function attentionCount(s: Snapshot): number {
   const counted = new Set<string>()
   for (const conversation of Object.values(s.conversations)) {
     if (isHelper(conversation) || archived(conversation)) continue
-    if (conversation.routineId || (conversation.squadRunId && !waitingOrAsking(conversation))) continue
+    if (conversation.routineId || (conversation.parentConversationId && !waitingOrAsking(conversation)) || (conversation.squadRunId && !waitingOrAsking(conversation))) continue
     const coordinated = conversation.taskId && s.tasks[conversation.taskId]?.squadId
     if (coordinated && !waitingOrAsking(conversation)) continue
     if (waiting(conversation) || asking(conversation) || s.unseen[conversation.id]) counted.add(conversation.id)
@@ -174,7 +175,7 @@ export function noticesBetween(prev: Snapshot, next: Snapshot, tellWaiting = tru
     const before = prev.conversations[conversation.id]
     if (!before || before === conversation || conversation.routineId) continue
     // A group chat's member finishes a turn every round: only one waiting on the user is told of.
-    if ((conversation.discussionId || conversation.squadRunId) && !(waiting(conversation) && !waiting(before))) continue
+    if ((conversation.discussionId || conversation.squadRunId || conversation.parentConversationId) && !(waiting(conversation) && !waiting(before))) continue
     if (conversation.taskId && next.tasks[conversation.taskId]?.squadId && !waitingOrAsking(conversation)) continue
     const { title, target } = named(conversation, next.tasks, next.squadRuns)
     if (crashed(conversation) && !crashed(before)) {

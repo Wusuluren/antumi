@@ -90,7 +90,7 @@ function withCurrent(values: readonly string[], current: string | null): string[
 // stage left them.
 export function ChatOptionsBar({ conversation, state, compact = false }: { conversation: Conversation; state: StateItem; compact?: boolean }) {
   const { id, agent, chatOptions: next } = conversation
-  const managed = Boolean(conversation.squadRunId || conversation.workspaceReadOnly)
+  const managed = Boolean(conversation.squadRunId || conversation.parentConversationId || conversation.workspaceReadOnly)
   const running = conversation.sessionId !== null
   // An older core takes options only from a running agent.
   if (!running && !next) return null
@@ -119,10 +119,10 @@ export function ChatOptionsBar({ conversation, state, compact = false }: { conve
           label={t('ChatHandoff.permissionMode')}
           value={permissionMode}
           placeholder={t('ChatHandoff.permissionMode')}
-          options={modeOptions(agent, modes, offered).map((option) => conversation.workspaceReadOnly ? { ...option, label: conversation.squadRunId ? t('ChatOptionsBar.readOnly') : t('ChatOptionsBar.readOnlyCoordination') } : option)}
+          options={modeOptions(agent, modes, offered).map((option) => conversation.workspaceReadOnly ? { ...option, label: conversation.squadRunId || conversation.profile ? t('ChatOptionsBar.readOnly') : t('ChatOptionsBar.readOnlyCoordination') } : option)}
           tone={modeTone(permissionMode)}
           disabled={managed || (!agentDescriptor(agent).capabilities.optionsWhileBusy && !idle)}
-          title={managed ? t('ChatOptionsBar.useThisSquadSConfiguration') : later ?? undefined}
+          title={managed ? t(conversation.profile ? 'AgentProfiles.fixedConfig' : 'ChatOptionsBar.useThisSquadSConfiguration') : later ?? undefined}
           onChange={(mode) => set('permissionMode', mode)}
         />
       )}
@@ -133,7 +133,7 @@ export function ChatOptionsBar({ conversation, state, compact = false }: { conve
           model={modelId}
           effort={effort}
           disabled={managed || !idle}
-          title={managed ? t('ChatOptionsBar.useThisSquadSConfiguration') : later ?? (idle ? undefined : t('ChatOptionsBar.changeModelAndReasoningEffortAfterThisTurn'))}
+          title={managed ? t(conversation.profile ? 'AgentProfiles.fixedConfig' : 'ChatOptionsBar.useThisSquadSConfiguration') : later ?? (idle ? undefined : t('ChatOptionsBar.changeModelAndReasoningEffortAfterThisTurn'))}
           onModel={(value) => set('model', value)}
           onEffort={(value) => set('effort', value)}
         />

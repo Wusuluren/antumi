@@ -1,3 +1,4 @@
+import { agentToolsOverCore } from './mcp-agent-tools'
 import { squadToolsOverCore, type SquadTools } from './mcp-squad-tools'
 import { todoToolsOverCore } from './mcp-todo-tools'
 import readline from 'node:readline'
@@ -63,6 +64,7 @@ export type McpTools = {
   terminal?: TerminalTools
   // The user's conversations, tasks and group chats, read-only; there unless turned off.
   history?: HistoryTools
+  agents?: ReturnType<typeof agentToolsOverCore>
   squad?: SquadTools
   // The conversation's to-dos, there when the server was started for one.
   todo?: ReturnType<typeof todoToolsOverCore>
@@ -94,7 +96,7 @@ const describe = (error: unknown) => (error instanceof Error ? error.message : S
 // arguments are the model's to fix, so they come back as a tool error it can read.
 type ToolEntry = { spec: object & { name: string }; run(args: Record<string, unknown>): Promise<McpResult> }
 
-function toolTable({ preview, browser, terminal, history, squad, todo, planOnly }: McpTools): ToolEntry[] {
+function toolTable({ preview, browser, terminal, history, squad, agents, todo, planOnly }: McpTools): ToolEntry[] {
   const entries: ToolEntry[] = [
     {
       spec: PREVIEW_TOOL,
@@ -151,6 +153,7 @@ function toolTable({ preview, browser, terminal, history, squad, todo, planOnly 
     }
   }
   if (squad) entries.push(...squad)
+  if (agents) entries.push(...agents)
   // Antumi's list, not the checkout: a planning agent writes to it too.
   if (todo) entries.push(...todo)
   return entries
@@ -218,9 +221,9 @@ export async function checkPreviewFile(path: string): Promise<void> {
 
 // A group chat member only talks: like a read-only workspace it gets no tool that acts, and no to-dos,
 // since its findings go to the group's summary, not onto a list of the user's.
-export function conversationToolLimits(conversation: Pick<Conversation, 'workspaceReadOnly' | 'discussionId'>): { readOnly: boolean; todos: boolean } {
+export function conversationToolLimits(conversation: Pick<Conversation, 'workspaceReadOnly' | 'discussionId' | 'parentConversationId'>): { readOnly: boolean; todos: boolean } {
   const member = Boolean(conversation.discussionId)
-  return { readOnly: Boolean(conversation.workspaceReadOnly) || member, todos: !member }
+  return { readOnly: Boolean(conversation.workspaceReadOnly) || member, todos: !member && !conversation.parentConversationId }
 }
 
 // A server started for a conversation has the browser tools, acting for that conversation alone;
@@ -242,11 +245,12 @@ export async function serveMcp(home: string | undefined, conversationId?: string
   const scope = conversationId ? await withCore(async (rpc) => {
     const conversation = await rpc.call('conversations.get', { id: conversationId })
     const run = rpc.features.includes('squads') ? await rpc.call('squads.roster', { id: conversationId }) : null
-    return { ...conversationToolLimits(conversation), run }
+    return { ...conversationToolLimits(conversation), run, delegate: !run && rpc.features.includes('agent-profiles') && !conversation.parentConversationId && !conversation.discussionId && !conversation.squadRunId && !conversation.routineId && !conversation.helperOf }
   }) : null
   const handle = createMcpHandler({
     planOnly: planOnly || scope?.readOnly,
     ...(conversationId && scope?.run ? { squad: squadToolsOverCore(withCore, conversationId, scope.run) } : {}),
+    ...(conversationId && scope?.delegate ? { agents: agentToolsOverCore(withCore, conversationId) } : {}),
     initialized,
     ...(listed ? { listed } : {}),
     preview: checkPreviewFile,

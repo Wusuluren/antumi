@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AgentProfile } from './agent-profile'
 import { ChatDecision, ChatTurnActivity } from './chat'
 import { ConversationRoute, ModelProviderId, ProviderRoute } from './model-provider'
 import { TaskSource } from './source'
@@ -83,6 +84,10 @@ export const Conversation = z.object({
   // the group chat. Older cores leave it out.
   discussionId: z.string().uuid().nullable().optional(),
   squadRunId: z.string().uuid().nullable().optional(),
+  profile: AgentProfile.nullable().optional(),
+  parentConversationId: z.string().uuid().nullable().optional(),
+  agentCallId: z.string().uuid().nullable().optional(),
+  delegation: z.object({ open: z.number().int().nonnegative(), awaiting: z.number().int().nonnegative(), writing: z.boolean() }).optional(),
   helperOf: z.string().uuid().nullable().optional(),
   workspaceReadOnly: z.boolean().optional(),
   // The issue it was opened to look into, from the inbox. Older cores leave it out.
@@ -103,7 +108,7 @@ export const ConversationConfiguration = Conversation.pick({ agent: true, projec
 export type ConversationConfiguration = z.infer<typeof ConversationConfiguration>
 
 export function canReuseConversation(conversation: Conversation): boolean {
-  return !conversation.taskId && !conversation.discussionId && !conversation.squadRunId && !conversation.routineId && !isHelper(conversation)
+  return !conversation.taskId && !conversation.discussionId && !conversation.squadRunId && !conversation.routineId && !conversation.parentConversationId && !isHelper(conversation)
 }
 
 export const ConversationStage = z.object({
@@ -220,5 +225,5 @@ export function helperAllowsMode(mode: string): boolean {
 }
 
 export function canHaveHelper(conversation: Conversation): boolean {
-  return !isHelper(conversation) && !conversation.discussionId && !conversation.squadRunId && !conversation.routineId && conversation.archivedAt == null
+  return !isHelper(conversation) && !conversation.parentConversationId && !conversation.discussionId && !conversation.squadRunId && !conversation.routineId && conversation.archivedAt == null
 }

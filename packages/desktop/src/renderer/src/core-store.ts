@@ -1,3 +1,4 @@
+import type { AgentProfile } from '@antumi/protocol'
 import { mergeCliStatuses } from './agent-cli-state'
 import { getLocale, t } from './i18n'
 import { accountsSupported, activeAccount, isHelper, usageAccount, type AgentAccounts } from '@antumi/protocol'
@@ -93,6 +94,9 @@ export type CoreState = {
   // The page a new conversation starts from while chats are the default (see ConversationDraft).
   conversationDraft: boolean
   // Group chats as core keeps them; empty on a core without them.
+  agentProfiles: Record<string, AgentProfile>
+  agentProfilesTab: 'profiles' | 'squads'
+  draftProfileId: string | null
   squads: Record<string, Squad>
   squadRuns: Record<string, SquadRun>
   selectedSquadId: string | null
@@ -220,6 +224,9 @@ export const useCore = create<CoreState>()(() => ({
   conversationDraftProjects: null,
   conversationDraftIssue: null,
   conversationDraftFrom: null,
+  agentProfiles: {},
+  agentProfilesTab: 'profiles',
+  draftProfileId: null,
   squads: {},
   squadRuns: {},
   selectedSquadId: null,
@@ -641,7 +648,7 @@ export function markRoutineRunSeen(conversationId: string): void {
 // A turn that was going and is now over, in a conversation the user is not looking at. A
 // routine's conversation is left out: core keeps whether its run was looked at.
 function finishedUnseen(s: CoreState, previous: Conversation | undefined, next: Conversation): boolean {
-  if (isHelper(next) || next.routineId || next.discussionId || next.squadRunId) return false
+  if (next.delegation?.open || isHelper(next) || next.routineId || next.discussionId || next.squadRunId || next.parentConversationId) return false
   const working = previous?.chat?.turn === 'running' || previous?.chat?.turn === 'awaiting'
   // Both columns of a split are in view: neither one finishing is news.
   const looking = s.section === 'conversations' && (s.selectedConversationId === next.id || Boolean(visiblePanes(s)?.includes(next.id)))
@@ -654,7 +661,7 @@ export type DraftIssue = { provider: string; instance: string; key: string; titl
 // `projects`: what the page starts with, as from a project's group; without, it starts with none.
 // `issue`: the inbox issue the conversation is opened to look into.
 export function openConversationDraft(projects?: readonly string[], issue: DraftIssue | null = null, from: CoreState['conversationDraftFrom'] = null): void {
-  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: true, conversationDraftProjects: projects ? { paths: [...projects] } : null, conversationDraftIssue: issue, conversationDraftFrom: from })
+  useCore.setState({ selectedConversationId: null, section: 'conversations', settingsOpen: false, worktreesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false, conversationDraft: true, conversationDraftProjects: projects ? { paths: [...projects] } : null, conversationDraftIssue: issue, conversationDraftFrom: from, draftProfileId: null })
 }
 
 export function useSourceInvestigateSupported(): boolean {
@@ -668,7 +675,7 @@ export function closeConversationDraft(): void {
 const PAGES_CLOSED = { settingsOpen: false, worktreesOpen: false, routinesOpen: false, overviewOpen: false, inboxOpen: false } as const
 
 export function selectSquad(id: string | null, draft = false): void {
-  useCore.setState({ section: 'squads', selectedSquadId: id, squadDraft: draft, ...PAGES_CLOSED })
+  useCore.setState({ section: 'squads', agentProfilesTab: 'squads', selectedSquadId: id, squadDraft: draft, ...PAGES_CLOSED })
 }
 
 export function useSquadsSupported(): boolean {
@@ -1246,6 +1253,11 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         let changedRoutines: Routine[] | null = null
         const runChanges = new Map<string, SquadRun | null>()
         const squadChanges = new Map<string, Squad | null>()
+        const profileChanges = new Map<string, AgentProfile | null>()
+        rpc.on('agentProfiles.changed', ({ profile }) => {
+          if (!initialized) profileChanges.set(profile.id, profile)
+          useCore.setState((state) => ({ agentProfiles: { ...state.agentProfiles, [profile.id]: profile } }))
+        })
         const discussionChanges = new Map<string, Discussion | null>()
         useCore.setState({ attentionSummaryLoading: true, attentionSummaryError: null, agentCli: {} })
         rpc.on('squads.changed', ({ squad }) => {
@@ -1370,6 +1382,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
         const schedules = full && rpc.features.includes('schedules') ? await rpc.call('schedules.list', {}).catch(() => []) : []
         const routines = full && rpc.features.includes('routines') ? await rpc.call('routines.list', {}).catch(() => []) : []
         const activeSquadRuns = full && rpc.features.includes('squads') ? await rpc.call('squads.activeRuns', {}) : []
+        const agentProfiles = full && rpc.features.includes('agent-profiles') ? await rpc.call('agentProfiles.list', {}) : []
         const squads = full && rpc.features.includes('squads') ? await rpc.call('squads.list', {}) : []
         const discussions = full && rpc.features.includes('discussions') ? await rpc.call('discussions.list', {}).catch(() => []) : []
         if (full && rpc.features.includes('chat-commands')) void rpc.call('chatCommands.list', {}).then((chatCommands) => useCore.setState({ chatCommands })).catch(() => {})
@@ -1384,6 +1397,7 @@ export function startCoreConnection(scope: 'app' | 'requests' = 'app'): void {
           conversations: replaySummaryChanges(Object.values(conversations ?? s.conversations), conversationChanges),
           schedules: changedSchedules ?? schedules,
           routines: changedRoutines ?? routines,
+          agentProfiles: replaySummaryChanges(agentProfiles, profileChanges),
           squads: replaySummaryChanges(squads, squadChanges),
           squadRuns: replaySummaryChanges(activeSquadRuns, runChanges),
           discussions: replaySummaryChanges(discussions, discussionChanges),

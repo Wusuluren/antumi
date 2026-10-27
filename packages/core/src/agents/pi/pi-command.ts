@@ -57,10 +57,10 @@ export function piProvider(provider: ProviderLaunch): PiProvider {
 // What Pi is told once, in its system prompt: Antumi's start note, and the folders it may work in
 // besides its own, which it reaches by their paths (Pi has no option for more folders).
 export function piSystemNote(launch: AgentLaunch): string | null {
-  const { extraProjects, knowledgeBase, mcp, todos = true } = launch
+  const { extraProjects, knowledgeBase, instructions, mcp, todos = true } = launch
   const fenced = launch.planOnly ?? launch.readOnly
   const notes = [
-    startNote({ knowledgeBase, todos: Boolean(mcp) && todos }),
+    startNote({ knowledgeBase, instructions, todos: Boolean(mcp) && todos }),
     extraProjects.length ? `这个会话还涉及以下项目文件夹，需要时按绝对路径访问：\n${extraProjects.map((dir) => `- ${dir}`).join('\n')}` : null,
     fenced ? `以下文件夹只读，不能修改其中的文件：\n${fenced.dirs.map((dir) => `- ${dir}`).join('\n')}` : null
   ]

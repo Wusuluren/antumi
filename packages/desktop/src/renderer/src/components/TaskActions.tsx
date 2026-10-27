@@ -1,5 +1,6 @@
 import { t, tr } from '../i18n'
 import { useHelper, useHelperSupported } from '../helper-conversations'
+import { useAgentCallsSupported } from '../agent-calls'
 import { useCallback, useState, type ReactElement } from 'react'
 import {
   agentDescriptor,
@@ -701,6 +702,7 @@ export function TaskSteps({ task, labelled = false }: { task: Task; labelled?: b
 // switching between them never moves those.
 export function TaskToolbar({ task, view }: { task: Task; view: TaskView }) {
   const parent = useCore((state) => state.conversations[task.conversationId ?? ''])
+  const delegationSupported = useAgentCallsSupported(parent)
   const helperSupported = useHelperSupported(parent)
   const worktree = task.repos.some((repo) => repo.worktreePath !== null)
   const hasFiles = useFileTabs((state) => (state[task.conversationId ?? '']?.tabs.length ?? 0) > 0)
@@ -709,7 +711,7 @@ export function TaskToolbar({ task, view }: { task: Task; view: TaskView }) {
   return (
     <div className="toolbar">
       {view === 'chat' && <TaskSteps task={task} />}
-      {task.conversationId && (helperSupported || worktree || wire || hasFiles || todosShown) && <InspectorToggle view={view} conversationId={task.conversationId} />}
+      {task.conversationId && (delegationSupported || helperSupported || worktree || wire || hasFiles || todosShown) && <InspectorToggle view={view} conversationId={task.conversationId} />}
       {task.conversationId && <ViewToggle view={view} />}
       <MoreMenu task={task} />
       <span className="toolbar-separator" aria-hidden="true" />

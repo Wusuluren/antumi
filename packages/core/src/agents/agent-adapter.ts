@@ -9,6 +9,7 @@ import type { TranscriptSource } from '../agent-transcripts'
 // What a chat stage's agent starts with, which its adapter turns into its own command line. The
 // stream carries every message, the handoff prompt included: none goes in argv.
 export type AgentLaunch = {
+  instructions?: string
   providerSessionId: string | null
   resume: boolean
   handoffPath: string | null

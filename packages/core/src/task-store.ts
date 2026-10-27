@@ -346,7 +346,13 @@ export const MIGRATIONS = [
    CREATE TABLE usage_automation_log (id TEXT PRIMARY KEY, at INTEGER NOT NULL, data TEXT NOT NULL);`,
   // An additional project a task only reads, and the folders its conversation may only read (JSON).
   `ALTER TABLE task_repos ADD COLUMN is_reference INTEGER NOT NULL DEFAULT 0;
-   ALTER TABLE conversations ADD COLUMN reference_paths TEXT NOT NULL DEFAULT '[]';`
+   ALTER TABLE conversations ADD COLUMN reference_paths TEXT NOT NULL DEFAULT '[]';`,
+  `CREATE TABLE agent_profiles (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+   CREATE TABLE agent_calls (id TEXT PRIMARY KEY, parent_id TEXT NOT NULL, data TEXT NOT NULL);
+   CREATE INDEX agent_calls_parent ON agent_calls(parent_id);
+   ALTER TABLE conversations ADD COLUMN agent_profile TEXT;
+   ALTER TABLE conversations ADD COLUMN parent_conversation_id TEXT;
+   ALTER TABLE conversations ADD COLUMN agent_call_id TEXT;`
 ]
 
 

@@ -1,8 +1,9 @@
+import type { AgentProfileService } from './agent-profile-service'
 import type { AgentCliMaintenance } from './agent-cli-maintenance'
 import { suggestForProject } from './project-config-suggest'
 import { EMPTY_BASELINE, type SmallModelStore } from './small-model-store'
 import { GitService } from './git-service'
-import { CORE_FEATURES, PROTOCOL_VERSION, type ChatItem } from '@antumi/protocol'
+import { agentDescriptor, CORE_FEATURES, PROTOCOL_VERSION, type ChatItem } from '@antumi/protocol'
 import packageJson from '../package.json' with { type: 'json' }
 import type { AgentRunStore } from './agent-run-store'
 import type { ChatTurnStore } from './chat-turn-store'
@@ -95,8 +96,13 @@ export function createRpcHandlers(
   analytics?: UsageAnalytics,
   automation?: UsageAutomation,
   pets?: PetLibrary,
-  projectStar?: ProjectStar
+  projectStar?: ProjectStar,
+  profiles?: AgentProfileService
 ): RpcHandlers {
+  const profileService = () => {
+    if (!profiles) throw new Rejection('profile-unavailable')
+    return profiles
+  }
   const petLibrary = (): PetLibrary => {
     if (!pets) throw new Rejection('pets-unavailable')
     return pets
@@ -198,6 +204,13 @@ export function createRpcHandlers(
     'plugins.setEnabled': ({ id, enabled }) => pluginService().setEnabled(id, enabled),
     'plugins.rollback': ({ id, version }) => pluginService().rollback(id, version),
     'plugins.uninstall': async ({ id }) => { await pluginService().uninstall(id); return OK },
+    'agentProfiles.list': () => profileService().list(),
+    'agentProfiles.save': ({ id, ...fields }) => profileService().save(fields, id),
+    'agentProfiles.archive': ({ id, archived }) => profileService().archive(id, archived),
+    'agentProfiles.available': ({ id }) => profileService().available(id),
+    'agentCalls.list': ({ id }) => profileService().calls(id),
+    'agentCalls.dispatch': ({ id, profileId, instruction, ref }) => profileService().dispatch(id, profileId, instruction, ref),
+    'agentCalls.cancel': ({ id, callId }) => profileService().cancel(id, callId),
     'squads.list': () => squadService().list(),
     'squads.create': (fields) => squadService().create(fields),
     'squads.update': ({ id, ...fields }) => squadService().update(id, fields),
@@ -233,7 +246,7 @@ export function createRpcHandlers(
     'pets.cancel': ({ id }) => { petLibrary().cancel(id); return OK },
     'pets.remove': ({ id }) => petLibrary().remove(id),
     'pets.read': ({ id }) => petLibrary().read(id),
-    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'project-star' || Boolean(projectStar)) && (feature !== 'pets' || Boolean(pets)) && (feature !== 'squads' || Boolean(squads)) && (!['plugins', 'plugin-recommendations'].includes(feature) || Boolean(plugins)) && (!['skills-library', 'skills-search', 'skills-activation'].includes(feature) || Boolean(skills)) && (feature !== 'mcp-servers' || Boolean(mcpServers)) && (feature !== 'small-model-stats' || Boolean(smallModels)) && (feature !== 'model-providers' || Boolean(modelProviders)) && (feature !== 'agent-accounts' || Boolean(accounts))) }),
+    'system.hello': () => ({ protocolVersion: PROTOCOL_VERSION, serverVersion: packageJson.version, features: CORE_FEATURES.filter((feature) => (feature !== 'agent-profiles' || Boolean(profiles)) && (feature !== 'project-star' || Boolean(projectStar)) && (feature !== 'pets' || Boolean(pets)) && (feature !== 'squads' || Boolean(squads)) && (!['plugins', 'plugin-recommendations'].includes(feature) || Boolean(plugins)) && (!['skills-library', 'skills-search', 'skills-activation'].includes(feature) || Boolean(skills)) && (feature !== 'mcp-servers' || Boolean(mcpServers)) && (feature !== 'small-model-stats' || Boolean(smallModels)) && (feature !== 'model-providers' || Boolean(modelProviders)) && (feature !== 'agent-accounts' || Boolean(accounts))) }),
     'files.resolve': ({ conversationId, path }) => files.resolve(conversationId, path),
     'files.read': ({ conversationId, path }) => files.read(conversationId, path),
     'files.list': ({ conversationId, path }) => files.list(conversationId, path),
@@ -338,12 +351,17 @@ export function createRpcHandlers(
     'tasks.branches': ({ id }) => service.branches(id),
     'tasks.changes': ({ id }) => service.changes(id),
     'tasks.diff': ({ id, repo, file }) => service.diff(id, repo, file),
-    'conversations.list': ({ includeTasks, includeSquads }) => conversations.list(includeTasks, includeSquads),
+    'conversations.list': ({ includeTasks, includeSquads, includeDelegates }) => conversations.list(includeTasks, includeSquads, includeDelegates),
     'conversations.get': ({ id }) => conversations.get(id),
     'conversations.configuration': ({ id }) => conversations.configuration(id),
     'conversations.helper': ({ id }) => conversations.helper(id),
-    'conversations.create': ({ agent, projectPaths, worktree, branch, allowBypass, permissionMode, model, effort, deferStart, helperOf, modelProvider }) =>
-      conversations.create(agent, projectPaths, allowBypass, { permissionMode, model, effort, worktree, branch, deferStart, helperOf, modelProvider }),
+    'conversations.create': ({ agent, projectPaths, worktree, branch, allowBypass, permissionMode, model, effort, deferStart, helperOf, modelProvider, profileId }) => {
+      const profile = profileId ? profileService().get(profileId) : undefined
+      if (profile && (profile.agent !== agent || helperOf)) throw new Rejection('invalid-params', '智能体配置与会话不匹配')
+      return conversations.create(agent, projectPaths, allowBypass, { permissionMode: profile?.capability === 'readOnly' ? agentDescriptor(agent).readOnlyMode : permissionMode,
+        model: model ?? profile?.model ?? undefined, effort: effort ?? profile?.effort ?? undefined, worktree, branch, deferStart, helperOf,
+        modelProvider: profile?.modelProvider ?? modelProvider, profile })
+    },
     'conversations.chatCatalog': ({ agent, modelProvider }) => conversations.chatCatalog(agent, modelProvider),
     'conversations.translate': ({ id, text, to, model }) => translations.translate(conversations.get(id).agent, text, to, model, { kind: 'translation', conversationId: id, baseline: () => conversations.costBaseline(id) }, conversations.quickProvider(id)),
     'conversations.setAdditionalProjects': ({ id, projectPaths }) => conversations.setAdditionalProjects(id, projectPaths),
@@ -359,11 +377,11 @@ export function createRpcHandlers(
     'todos.edit': ({ id, groupId, itemId, text }) => todosOf(id).edit(id, groupId, itemId, text),
     'todos.remove': ({ id, groupId, itemId }) => todosOf(id).remove(id, groupId, itemId),
     'conversations.setArchived': ({ id, archived }) => conversations.setArchived(id, archived),
-    'conversations.continue': ({ id, allowBypass }) => userActed(id, () => { squads?.guardUser(id, true); return conversations.continue(id, allowBypass) }),
+    'conversations.continue': ({ id, allowBypass }) => userActed(id, () => { profiles?.guardUser(id, true); squads?.guardUser(id, true); return conversations.continue(id, allowBypass) }),
     'conversations.handoff': ({ id, agent, note, stopRunning, allowBypass, permissionMode, model, effort }) => conversations.handoff(id, agent, note, stopRunning, allowBypass, { permissionMode, model, effort }),
     'conversations.fork': ({ id, stageId, itemId }) => conversations.fork(id, stageId, itemId),
-    'conversations.setOption': async ({ id, option, value }) => { squads?.guardUser(id, true); await conversations.setOption(id, option, value); return OK },
-    'conversations.send': ({ id, text, images, queue, steer, ref }) => userActed(id, async () => { squads?.guardUser(id, true); await conversations.send(id, text, images, queue, steer, ref); return OK }),
+    'conversations.setOption': async ({ id, option, value }) => { profiles?.guardUser(id, true); squads?.guardUser(id, true); await conversations.setOption(id, option, value); return OK },
+    'conversations.send': ({ id, text, images, queue, steer, ref }) => userActed(id, async () => { profiles?.guardUser(id, true); squads?.guardUser(id, true); await conversations.send(id, text, images, queue, steer, ref); return OK }),
     'conversations.cancelQueued': ({ id, ref }) => { conversations.cancelQueued(id, ref); return OK },
     'conversations.sendQueued': ({ id, ref, now }) => userActed(id, async () => { await conversations.sendQueued(id, ref, now); return OK }),
     'conversations.setUsageLimitAutoContinue': ({ id, stageId, itemId, autoContinue }) => {
@@ -373,6 +391,9 @@ export function createRpcHandlers(
     'conversations.retryUsageLimit': async ({ id, stageId, itemId }) => { await limits.retry(id, stageId, itemId); return OK },
     'conversations.retryTurn': async ({ id, stageId, itemId }) => { await conversations.retryTurn(id, stageId, itemId); return OK },
     'conversations.interrupt': async ({ id }) => {
+      const child = conversations.get(id)
+      if (child.agentCallId && child.parentConversationId) { await profiles?.cancel(child.parentConversationId, child.agentCallId); return OK }
+      await profiles?.cancelForParent(id)
       const run = squads?.roster(id)
       if (run?.leaderConversationId === id && run.state === 'running') await squads?.control(run.id, 'stop')
       else await conversations.interrupt(id)
@@ -390,11 +411,14 @@ export function createRpcHandlers(
     // Any idle time will do: Infinity is past every agent's last activity.
     'conversations.releaseIdle': async () => ({ released: await conversations.releaseIdle(Infinity) }),
     'conversations.stop': ({ id }) => userActed(id, async () => {
+      const child = conversations.get(id)
+      if (child.agentCallId && child.parentConversationId) { await profiles?.cancel(child.parentConversationId, child.agentCallId); return conversations.get(id) }
+      await profiles?.cancelForParent(id)
       const run = squads?.roster(id)
       if (run?.leaderConversationId === id && run.state === 'running') await squads?.control(run.id, 'stop')
       return conversations.stop(id)
     }),
-    'conversations.delete': async ({ id }) => { squads?.guardUser(id, true); await conversations.delete(id); return OK },
+    'conversations.delete': async ({ id }) => { profiles?.guardUser(id, true); await profiles?.cancelForParent(id); squads?.guardUser(id, true); await conversations.delete(id); return OK },
     'conversations.messages': ({ id }) => conversations.messages(id),
     'conversations.stages': ({ id }) => conversations.stages(id),
     'conversations.branches': ({ id }) => conversations.branches(id),

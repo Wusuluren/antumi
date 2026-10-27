@@ -1,3 +1,4 @@
+import type { AgentProfile, SkillRef } from '@antumi/protocol'
 import { agentCliAccess } from './agent-cli-access'
 import { randomUUID } from 'node:crypto'
 import { mkdir, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
@@ -63,6 +64,7 @@ export type ModelChoice = Pick<TaskLaunchOptions, 'model' | 'effort'>
 export type HandoffChoice = Pick<TaskLaunchOptions, 'permissionMode' | 'model' | 'effort'>
 
 export type TaskChatLaunch = TaskLaunchOptions & {
+  profile?: AgentProfile
   cwd: string
   extraDirs: readonly string[]
   // The task's reference projects, which the agent may read but never edit.
@@ -133,6 +135,13 @@ async function resolveProjects(projectPaths: readonly string[], taken: readonly 
 }
 
 export class ConversationService {
+  private delegationStatus: ((id: string) => Conversation['delegation']) | null = null
+  setDelegationStatus(status: (id: string) => Conversation['delegation']): void { this.delegationStatus = status }
+  refreshDelegation(id: string): void { const conversation = this.store.get(id); if (conversation) this.changed(conversation) }
+  private delegationAvailable: ((id: string) => boolean) | null = null
+  setDelegationAvailable(available: (id: string) => boolean): void { this.delegationAvailable = available }
+  private callCleanup: ((id: string) => Promise<void>) | null = null
+  setCallCleanup(cleanup: (id: string) => Promise<void>): void { this.callCleanup = cleanup }
   private squadGuard: ((conversation: Conversation) => void) | null = null
   setSquadGuard(guard: (conversation: Conversation) => void): void { this.squadGuard = guard }
 
@@ -278,14 +287,14 @@ export class ConversationService {
 
   // The skills bundle an agent's start gets, from the library, or null for none; asked at each
   // start. A bundle that cannot be built keeps no agent from starting: it is noted and left out.
-  private skillsFor: ((agent: AgentKind) => Promise<{ dir: string } | null>) | null = null
+  private skillsFor: ((agent: AgentKind, selected?: readonly SkillRef[] | null) => Promise<{ dir: string } | null>) | null = null
   // The user's MCP servers an agent's start gets beside Antumi's; asked at each start, like skills.
   // readOnly: for a group chat member, which gets only the servers' read-only tools.
-  private userMcpFor: ((agent: AgentKind, readOnly: boolean) => AgentMcpServer[]) | null = null
-  setUserMcpProvider(provider: (agent: AgentKind, readOnly: boolean) => AgentMcpServer[]): void {
+  private userMcpFor: ((agent: AgentKind, readOnly: boolean, selected?: readonly string[] | null) => AgentMcpServer[]) | null = null
+  setUserMcpProvider(provider: (agent: AgentKind, readOnly: boolean, selected?: readonly string[] | null) => AgentMcpServer[]): void {
     this.userMcpFor = provider
   }
-  setSkillsProvider(provider: (agent: AgentKind) => Promise<{ dir: string } | null>): void {
+  setSkillsProvider(provider: (agent: AgentKind, selected?: readonly SkillRef[] | null) => Promise<{ dir: string } | null>): void {
     this.skillsFor = provider
   }
 
@@ -366,8 +375,8 @@ export class ConversationService {
 
   // Task summaries are opt-in; older clients expect only free conversations. A group chat's members
   // are never listed: a client that does not know group chats would show them as its own.
-  list(includeTasks = false, includeSquads = false): Conversation[] {
-    return this.store.list().filter((conversation) => (includeTasks || !conversation.taskId) && !isHelper(conversation) && !conversation.discussionId && (includeSquads || !conversation.squadRunId)).map((conversation) => this.withChat(conversation))
+  list(includeTasks = false, includeSquads = false, includeDelegates = false): Conversation[] {
+    return this.store.list().filter((conversation) => (includeTasks || !conversation.taskId) && !isHelper(conversation) && !conversation.discussionId && (includeSquads || !conversation.squadRunId) && (includeDelegates || !conversation.parentConversationId)).map((conversation) => this.withChat(conversation))
   }
   helper(parentId: string): Conversation | null {
     this.get(parentId)
@@ -532,7 +541,7 @@ export class ConversationService {
     agent: AgentKind,
     projectPaths: readonly string[],
     allowBypass?: boolean,
-    start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string; deferStart?: boolean; helperOf?: string; modelProvider?: string } = {},
+    start: { permissionMode?: string; model?: string; effort?: string; worktree?: boolean; branch?: string; deferStart?: boolean; helperOf?: string; modelProvider?: string; profile?: AgentProfile; parentId?: string; callId?: string; readOnly?: boolean; referencePaths?: readonly string[] } = {},
     routine: { id: string; title: string } | null = null,
     id: string = randomUUID(),
     discussion: { id: string; title: string } | null = null,
@@ -599,6 +608,9 @@ export class ConversationService {
     }
     const created = this.store.create(agent, workspace, projects, id, starts, null, routine, discussion)
     if (start.modelProvider) this.store.setModelProvider(id, start.modelProvider)
+    if (start.profile) this.store.setProfile(id, start.profile, start.parentId ?? null, start.callId ?? null)
+    if (start.readOnly || start.profile?.capability === 'readOnly') this.store.setWorkspaceReadOnly(id, true)
+    if (start.referencePaths?.length) this.store.setReferencePaths(id, start.referencePaths)
     if (squad) this.store.setSquad(id, squad.runId, squad.readOnly)
     if (squad?.referencePaths?.length) this.store.setReferencePaths(id, squad.referencePaths)
     if (allowBypass !== undefined) this.store.setChatOptions(id, { allowBypass })
@@ -620,7 +632,7 @@ export class ConversationService {
   // directories at launch, so an idle one restarts and goes on from where it was, as after /add-dir.
   async setAdditionalProjects(id: string, projectPaths: readonly string[]): Promise<Conversation> {
     const conversation = this.free(id)
-    if (conversation.squadRunId) throw new Rejection('squad-managed')
+    if (conversation.squadRunId || conversation.parentConversationId) throw new Rejection('squad-managed')
     const blocker = this.launching.has(id) ? 'conversation-running' : checkEditAdditionalProjects(conversation)
     if (blocker) throw new Rejection(blocker)
     const primary = conversation.workspacePath
@@ -680,6 +692,7 @@ export class ConversationService {
     const conversation = existing ?? this.store.create(task.agent, cwd, projectPaths, randomUUID(), {}, { id: task.id, title: task.title })
     if (!existing && launch.modelProvider) this.store.setModelProvider(conversation.id, launch.modelProvider)
     const { id } = conversation
+    if (launch.profile) this.store.setProfile(id, launch.profile)
     if (this.launching.has(id)) throw new Rejection('conversation-running')
     // Another cwd is another place for the agent; only the directories it was given changed, the
     // agent restarts with them but goes on from where it was, as it would take /add-dir.
@@ -755,7 +768,7 @@ export class ConversationService {
   // agent, which must be idle, is let go; the next message after taking it out resumes it.
   async setArchived(id: string, archived: boolean): Promise<Conversation> {
     const current = this.free(id)
-    if (current.squadRunId) throw new Rejection('squad-managed')
+    if (current.squadRunId || current.parentConversationId) throw new Rejection('squad-managed')
     if (current.discussionId) throw new Rejection('discussion-member', 'a group chat member is put away with its group chat')
     if ((current.archivedAt != null) === archived) return current
     if (archived) {
@@ -763,6 +776,7 @@ export class ConversationService {
       if (current.sessionId && !this.chats.idle(id)) throw new Rejection('chat-busy', 'the agent is still working')
       this.retiring.add(id)
       try {
+        await this.callCleanup?.(id)
         if (current.sessionId) await this.stop(id)
         const helper = this.store.helper(id)
         if (helper) await this.remove(helper.id)
@@ -790,6 +804,13 @@ export class ConversationService {
     return this.start(id, current.agent, '', false, { readable })
   }
 
+  async resumeDelegation(id: string): Promise<Conversation> {
+    const current = this.writable(id)
+    if (!current.taskId) return this.continue(id)
+    if (current.sessionId && this.chats.activity(id) !== null) return current
+    return this.start(id, current.agent, '', false, { planOnly: current.planOnly })
+  }
+
   // Stops an agent left idle on another account than its agent's active one, so the next start
   // resumes its session there: how a usage limit's resume moves to the account switched to. One
   // at work, or waiting on the user, is left as it is.
@@ -806,7 +827,7 @@ export class ConversationService {
     const current = this.free(id)
     // A group chat's member is the agent the group chat names; another would speak in its place.
     if (isHelper(current)) throw new Rejection('invalid-params', '小助手不能移交')
-    if (current.squadRunId) throw new Rejection('squad-managed')
+    if (current.squadRunId || current.parentConversationId) throw new Rejection('squad-managed')
     if (current.discussionId) throw new Rejection('discussion-member', 'a group chat member keeps its agent')
     if (agent === current.agent) throw new Rejection('conversation-same-agent')
     const decision = this.routeFor(current, agent)
@@ -878,7 +899,7 @@ export class ConversationService {
   async fork(sourceId: string, stageId: string, itemId: string): Promise<Conversation> {
     const source = this.free(sourceId)
     if (isHelper(source)) throw new Rejection('invalid-params', '小助手不能 fork')
-    if (source.squadRunId) throw new Rejection('squad-managed')
+    if (source.squadRunId || source.parentConversationId) throw new Rejection('squad-managed')
     const stages = this.store.stages(sourceId)
     const index = stages.findIndex((stage) => stage.id === stageId)
     if (index < 0) throw new Rejection('stage-not-found', `no chat stage ${stageId}`)
@@ -1077,13 +1098,13 @@ export class ConversationService {
     const { id } = current
     const { agent } = stage
     const knowledgeBase = await this.stageKnowledgeBase(current, stage)
-    const skills = await this.skillsFor?.(agent).catch((error: unknown) => {
+    const skills = await this.skillsFor?.(agent, current.profile?.skills).catch((error: unknown) => {
       this.wire?.record(id, stage.id, [{ dir: 'note', text: JSON.stringify({ event: 'skills-unavailable', error: error instanceof Error ? error.message : String(error) }) }])
       return null
     }) ?? null
     let userMcp: AgentMcpServer[] = []
     try {
-      userMcp = this.userMcpFor?.(agent, Boolean(current.discussionId)) ?? []
+      userMcp = this.userMcpFor?.(agent, Boolean(current.discussionId || current.workspaceReadOnly || stage.planOnly), current.profile?.mcpServers) ?? []
     } catch (error) {
       this.wire?.record(id, stage.id, [{ dir: 'note', text: JSON.stringify({ event: 'user-mcp-unavailable', error: error instanceof Error ? error.message : String(error) }) }])
     }
@@ -1091,6 +1112,7 @@ export class ConversationService {
     const { launch } = adapterOf(agent)
     const agentStage = this.agentStage(id, stage)
     const agentLaunch: AgentLaunch = {
+      instructions: this.roleInstructions(current),
       providerSessionId: stage.providerSessionId,
       resume,
       handoffPath: handoff?.path ?? null,
@@ -1106,7 +1128,7 @@ export class ConversationService {
       ...(this.mcp ? { mcp: launch ? launch.mcp(this.mcp(id), agentStage) : this.mcp(id) } : {}),
       ...(userMcp.length ? { userMcp } : {}),
       ...(this.userBrowser === undefined ? {} : { userBrowser: this.userBrowser }),
-      todos: this.userTodos && !current.discussionId,
+      todos: this.userTodos && !current.discussionId && !current.parentConversationId,
       ...(knowledgeBase ? { knowledgeBase } : {}),
       ...(skills ? { skills } : {}),
       ...(provider ? { provider } : {}),
@@ -1181,6 +1203,15 @@ export class ConversationService {
   // forkAt: only while the stage is being opened as a fork; a stage taken back later resumes the
   // session the fork made, which the stage then holds. knowledgeBase and userMcp: only at a start,
   // as its process was given them; a stage taken back keeps what its process started with.
+  private roleInstructions(conversation: Conversation): string {
+    const profile = conversation.profile
+    const notes = [profile ? `你是用户配置的智能体「${profile.name}」。\n${profile.instructions}` : '']
+    if (this.delegationAvailable?.(conversation.id) && !conversation.parentConversationId && !conversation.discussionId && !conversation.squadRunId && !conversation.routineId && !isHelper(conversation)) {
+      notes.push('用户用 @ 点名智能体时，先查找对应角色并委派，不要自行冒充该角色回答。需要其他专业角色协助时，可用 Antumi 的 antumi_agent_list 查找可调用的智能体，再用 antumi_agent_dispatch 委派具体子任务（说明目标、必要背景、文件范围和交付要求）。这是独立子会话，不自动继承聊天历史。调用后结束当前回合，Antumi 会在结果就绪后自动继续当前会话。用 antumi_agent_status 查看进度；不要反复轮询。')
+    }
+    return notes.filter(Boolean).join('\n\n')
+  }
+
   private chatStage(conversation: Conversation, stage: ConversationStage, forkAt: string | null = null, knowledgeBase?: KnowledgeBase, userMcp: readonly AgentMcpServer[] = []): ChatStage {
     const chosen = this.store.chatOptions(conversation.id)
     const mcp = this.mcp?.(conversation.id)
@@ -1195,6 +1226,7 @@ export class ConversationService {
       agent: stage.agent,
       ended: stage.endedAt != null,
       options: {
+        instructions: this.roleInstructions(conversation),
         cwd: conversation.workspacePath,
         ...(mcp ? { mcp: launch ? launch.mcp(mcp, this.agentStage(conversation.id, stage)) : mcp } : {}),
         extraDirs: conversation.projectPaths.slice(1),
@@ -1208,7 +1240,7 @@ export class ConversationService {
         promptSuggestions: this.promptSuggestions,
         preferred: { permissionMode, ...remembered.preferred },
         keepImage: (data) => this.keepImage(data),
-        todos: this.userTodos && !conversation.discussionId,
+        todos: this.userTodos && !conversation.discussionId && !conversation.parentConversationId,
         ...(knowledgeBase ? { knowledgeBase } : {}),
         ...(userMcp.length ? { userMcp } : {}),
         ...(onProvider ? { providerModels: onProvider } : {})
@@ -1237,7 +1269,7 @@ export class ConversationService {
   // remembered, from what the last chat stage offered.
   async setOption(id: string, option: ChatOption, value: string): Promise<void> {
     const conversation = this.get(id)
-    if (conversation.squadRunId || conversation.workspaceReadOnly) throw new Rejection('squad-managed', '本次运行沿用小队配置')
+    if (conversation.squadRunId || conversation.parentConversationId || conversation.workspaceReadOnly) throw new Rejection(conversation.profile ? 'profile-managed' : 'squad-managed', conversation.profile ? '本次运行沿用智能体配置' : '本次运行沿用小队配置')
     if (isHelper(conversation) && option === 'permissionMode' && !helperAllowsMode(value)) throw new Rejection('chat-option-invalid', '小助手不能只做规划')
     const { agent } = conversation
     if (isHelper(conversation) && this.chats.activity(id) === null && this.store.stages(id).length === 0) {
@@ -1742,6 +1774,7 @@ export class ConversationService {
   // Lets a task's agent go, as a task given up or closed no longer needs it.
   async stopForTask(taskId: string): Promise<void> {
     const conversation = this.store.byTask(taskId)
+    if (conversation) await this.callCleanup?.(conversation.id)
     if (conversation?.sessionId) await this.stop(conversation.id)
   }
 
@@ -1751,6 +1784,7 @@ export class ConversationService {
     this.attend(id)
     try {
       const current = this.get(id)
+      await this.callCleanup?.(id)
       const helper = this.store.helper(id)
       if (helper) await this.remove(helper.id)
       if (current.sessionId) await this.stop(id)
@@ -1963,7 +1997,7 @@ export class ConversationService {
     const doing = turn === 'running' ? this.chats.doing(conversation.id) : null
     const providerId = conversation.modelProvider ?? null
     const route = providerId === null ? null : conversationRoute(providerId, this.routeFor(conversation, conversation.agent), this.providers?.get(providerId)?.name ?? this.store.latestStage(conversation.id, conversation.agent)?.route?.name ?? null)
-    return { ...conversation, starting: this.launching.has(conversation.id), chat: turn ? { turn, ...(suggestion ? { suggestion } : {}), ...(request ? { request } : {}), ...(doing ? { doing } : {}) } : null, chatOptions, route }
+    return { ...conversation, ...(this.delegationStatus ? { delegation: this.delegationStatus(conversation.id) } : {}), starting: this.launching.has(conversation.id), chat: turn ? { turn, ...(suggestion ? { suggestion } : {}), ...(request ? { request } : {}), ...(doing ? { doing } : {}) } : null, chatOptions, route }
   }
 
   private changed(value: Conversation): Conversation {

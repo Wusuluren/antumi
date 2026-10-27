@@ -1,3 +1,5 @@
+import { AgentCalls } from './AgentCalls'
+import { useAgentCallsSupported } from '../agent-calls'
 import { t, tr } from '../i18n'
 import { HelperPanel } from './HelperPanel'
 import { useHelper, useHelperSupported } from '../helper-conversations'
@@ -80,6 +82,7 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
 }) {
   const conversationId = task.conversationId ?? ''
   const parent = useCore((state) => state.conversations[conversationId])
+  const delegationSupported = useAgentCallsSupported(parent)
   const helperSupported = useHelperSupported(parent)
   const helper = useHelper(helperSupported ? conversationId : null)
   const files = useFileTabs((state) => state[conversationId] ?? EMPTY_FILE_TABS)
@@ -92,7 +95,7 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
   const worktree = task.repos.some((repo) => repo.worktreePath !== null)
   const todosShown = useTodosShown() && task.conversationId !== null
   const todos = useConversationTodos(todosShown ? task.conversationId : null)
-  const tabs: InspectorTab[] = [...(helperSupported ? ['helper' as const] : []),...(squadRuns.length ? ['squad' as const] : []),...(worktree ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(todosShown ? ['todos' as const] : []), ...(wire && task.conversationId ? ['wire' as const] : []), ...(files.tabs.length > 0 || (fileEditor && fileRoots.length > 0) ? ['files' as const] : [])]
+  const tabs: InspectorTab[] = [...(helperSupported ? ['helper' as const] : []), ...(delegationSupported ? ['delegation' as const] : []),...(squadRuns.length ? ['squad' as const] : []),...(worktree ? GIT_TABS : []), ...(plans.length > 0 ? ['plan' as const] : []), ...(todosShown ? ['todos' as const] : []), ...(wire && task.conversationId ? ['wire' as const] : []), ...(files.tabs.length > 0 || (fileEditor && fileRoots.length > 0) ? ['files' as const] : [])]
   const tab = tabs.includes(wanted) ? wanted : (tabs[0] ?? 'changes')
   useEffect(() => {
     if (wanted !== 'files') updateFileTabs(conversationId, (state) => state.maximized ? { ...state, maximized: false } : state)
@@ -132,6 +135,8 @@ export function TaskInspector({ task, widthRatio, onWidthRatioChange, plans = []
       <DiffCommentConversation.Provider value={task.conversationId}>
         {tab === 'helper' && parent ? (
           <HelperPanel key={parent.id} parent={parent} />
+        ) : tab === 'delegation' && parent ? (
+          <AgentCalls key={parent.id} conversation={parent} />
         ) : tab === 'squad' ? (
           <SquadWorkPanel runs={squadRuns} onConversation={(id) => onMemberConversation?.(id)} />
         ) : tab === 'todos' && task.conversationId ? (

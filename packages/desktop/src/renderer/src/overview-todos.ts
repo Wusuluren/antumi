@@ -40,7 +40,7 @@ export function overviewTodos(
   let archived = 0
   for (const [conversationId, groups] of Object.entries(todos)) {
     const conversation = conversations[conversationId]
-    if (!conversation || isHelper(conversation) || conversation.discussionId || conversation.squadRunId || conversation.routineId) continue
+    if (!conversation || isHelper(conversation) || conversation.discussionId || conversation.squadRunId || conversation.parentConversationId || conversation.routineId) continue
     const shown = groups.flatMap((group) => group.items.filter((item) => !item.done || kept.has(item.id))
       .map((item) => ({ groupId: group.id, group: group.title, note: group.note, item })))
     const open = shown.filter((line) => !line.item.done).length

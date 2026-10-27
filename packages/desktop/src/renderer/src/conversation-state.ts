@@ -36,6 +36,7 @@ export function conversationState(conversation: Conversation): ConversationState
   if (conversation.starting) return { label: t('conversationState.starting'), running: true, failed: false, detail: t('conversationState.preparingAgentYourMessageWillBeSentAfterward') }
   if (sessionId && chat?.turn === 'awaiting') return { label: t('conversationState.awaitingApproval'), running: true, failed: false, detail: t('attention.agentNeedsYourApprovalOrAnswer') }
   if (sessionId && chat?.turn === 'running') return { label: t('ConversationList.running'), running: true, failed: false, detail: null }
+  if (conversation.delegation?.open) return { label: t(conversation.delegation.awaiting ? 'AgentProfiles.awaiting' : 'AgentProfiles.delegating'), running: !conversation.delegation.awaiting, failed: false, detail: t('AgentProfiles.calls') }
   // A question the agent asked in passing, still open after its turn.
   if (sessionId && chat?.turn === 'idle' && chat.request?.async) return { label: t('ChatWorking.waitingForYourAnswer'), running: false, failed: false, detail: t('conversationState.agentHasAQuestionForYouAnswerIn') }
   if (!sessionId && lastExit?.code) return { label: t('SettingsPage.unexpectedExit'), running: false, failed: true, detail: t('attention.agentExitedUnexpectedlyCodeSendAMessageTo', { value1: lastExit.code }) }

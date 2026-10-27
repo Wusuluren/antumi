@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { z } from 'zod'
-import { AgentKind, Conversation, ConversationMessage, ConversationStage, ProviderRoute, TaskSource } from '@antumi/protocol'
+import { AgentKind, AgentProfile, Conversation, ConversationMessage, ConversationStage, ProviderRoute, TaskSource } from '@antumi/protocol'
 
 const lastEnded = (column: string) => `(SELECT ${column} FROM conversation_stages
   WHERE conversation_id = conversations.id AND ended_at IS NOT NULL ORDER BY started_at DESC, rowid DESC LIMIT 1)`
@@ -12,6 +12,7 @@ const SELECT = `SELECT id, title, title_locked AS titleLocked, agent, workspace_
   (SELECT plan_only FROM conversation_stages WHERE conversation_id = conversations.id ORDER BY started_at DESC, rowid DESC LIMIT 1) AS planOnly,
   task_id AS taskId, pinned_at AS pinnedAt, archived_at AS archivedAt, routine_id AS routineId, forked_from_id AS forkedFromId,
   discussion_id AS discussionId, squad_run_id AS squadRunId, workspace_read_only AS workspaceReadOnly, helper_of AS helperOf, source,
+  agent_profile AS profile, parent_conversation_id AS parentConversationId, agent_call_id AS agentCallId,
   model_provider AS modelProvider
   FROM conversations`
 const STAGE_SELECT = `SELECT id, conversation_id AS conversationId, agent, provider_session_id AS providerSessionId,
@@ -51,7 +52,7 @@ function parsedJson<T>(raw: unknown, schema: z.ZodType<T>): T | null {
 function conversation(row: Record<string, unknown>): Conversation {
   const { lastExitCode, lastExitAt, ...rest } = row
   const references: unknown = JSON.parse(String(row.referencePaths ?? '[]'))
-  return Conversation.parse({ ...rest, source: source(row.source), projectPaths: JSON.parse(String(row.projectPaths)),
+  return Conversation.parse({ ...rest, profile: parsedJson(row.profile, AgentProfile), source: source(row.source), projectPaths: JSON.parse(String(row.projectPaths)),
     referencePaths: Array.isArray(references) && references.length ? references : undefined,
     titleLocked: Boolean(row.titleLocked), managedWorkspace: Boolean(row.managedWorkspace), planOnly: Boolean(row.planOnly), workspaceReadOnly: Boolean(row.workspaceReadOnly),
     lastExit: lastExitAt === null ? null : { code: lastExitCode, at: lastExitAt } })
@@ -120,6 +121,10 @@ export class ConversationStore {
       id, named?.title ?? '新会话', Number(named !== null), agent, workspacePath, JSON.stringify(projectPaths), JSON.stringify(projectStarts),
       Number(projectPaths.length === 0), task?.id ?? null, routine?.id ?? null, discussion?.id ?? null, helperOf, now, now)
     return this.get(id)!
+  }
+
+  setProfile(id: string, profile: AgentProfile, parentId: string | null = null, callId: string | null = null): void {
+    this.db.prepare('UPDATE conversations SET agent_profile = ?, parent_conversation_id = ?, agent_call_id = ? WHERE id = ?').run(JSON.stringify(profile), parentId, callId, id)
   }
 
   setSquad(id: string, runId: string | null, readOnly: boolean): void {
@@ -223,7 +228,7 @@ export class ConversationStore {
   // of the archive: not pinned, and not a task's, a group chat's, a squad's or a helper.
   idleSince(before: number): string[] {
     return this.db.prepare(`SELECT id FROM conversations WHERE archived_at IS NULL AND pinned_at IS NULL
-      AND task_id IS NULL AND discussion_id IS NULL AND squad_run_id IS NULL AND helper_of IS NULL
+      AND task_id IS NULL AND discussion_id IS NULL AND squad_run_id IS NULL AND helper_of IS NULL AND parent_conversation_id IS NULL
       AND MAX(updated_at, COALESCE(restored_at, 0)) < ? ORDER BY updated_at`).all(before).map((row) => String(row.id))
   }
 
@@ -325,7 +330,7 @@ export class ConversationStore {
   searchMessages(query: string): Array<{ conversationId: string; text: string }> {
     return this.db.prepare(`SELECT conversation_id AS conversationId, text, MAX(sequence) AS sequence
       FROM conversation_messages WHERE instr(lower(text), lower(?)) > 0
-      AND conversation_id IN (SELECT id FROM conversations WHERE task_id IS NULL AND discussion_id IS NULL AND squad_run_id IS NULL AND helper_of IS NULL) GROUP BY conversation_id`)
+      AND conversation_id IN (SELECT id FROM conversations WHERE task_id IS NULL AND discussion_id IS NULL AND squad_run_id IS NULL AND helper_of IS NULL AND parent_conversation_id IS NULL) GROUP BY conversation_id`)
       .all(query).map((row) => ({ conversationId: String(row.conversationId), text: String(row.text) }))
   }
 

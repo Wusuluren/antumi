@@ -1,3 +1,4 @@
+import type { AgentProfile } from '@antumi/protocol'
 import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import {
@@ -383,7 +384,7 @@ export class TaskService {
   async releaseAgent(id: string): Promise<void> {
     const task = this.get(id)
     if (this.isLaunching(task.id)) throw new Rejection('run-in-progress')
-    if (this.squads?.busy(task.id)) throw new Rejection('worktree-in-use')
+    if (this.squads?.busy(task.id) || (task.conversationId && this.delegationBusy?.(task.conversationId))) throw new Rejection('worktree-in-use')
     if (!task.conversationId || !this.chats) return
     if (this.chats.get(task.conversationId).chat?.turn === 'running') throw new Rejection('worktree-in-use')
     await this.chats.stopForTask(task.id)
@@ -414,6 +415,7 @@ export class TaskService {
       throw new Rejection(blocker, `cannot move task from ${task.status} to ${status}`)
     }
     if (this.squads?.busy(task.id)) throw new Rejection('squad-busy')
+    if (task.conversationId && this.delegationBusy?.(task.conversationId)) throw new Rejection('agent-call-writing', '请先等待委派工作结束')
     return this.changed(this.save(task.id, { status }))
   }
 
@@ -468,7 +470,7 @@ export class TaskService {
   // What `options` leaves out comes from the task's launch, which a start by hand then keeps.
   // coordinator: a squad leader's brief; resume, when the leader planned the task itself, goes on
   // from that planning with what it read and settled instead of starting over.
-  async start(id: string, allowBypass?: boolean, unattended?: UnattendedMode, options: TaskLaunchOptions = {}, coordinator?: string, resume = false): Promise<Task> {
+  async start(id: string, allowBypass?: boolean, unattended?: UnattendedMode, options: TaskLaunchOptions = {}, coordinator?: string, resume = false, profile?: AgentProfile): Promise<Task> {
     if (this.get(id).squadId && !coordinator) {
       if (unattended) throw new Rejection('squad-schedule-unsupported')
       return this.requireSquads().start(id, allowBypass, options)
@@ -486,7 +488,7 @@ export class TaskService {
     }
     if (!chats.capacityAvailable(agent, task.conversationId)) throw new Rejection('agent-capacity')
     return this.launchChat(task, async () => {
-      const launch = { ...task.launch, ...options }
+      const launch = { ...task.launch, ...options, ...(profile?.modelProvider ? { modelProvider: profile.modelProvider } : {}) }
       const permissionMode = unattended ?? launch.permissionMode ?? 'plan'
       const modeBlocker = checkStartMode(dependencies, permissionMode)
       if (modeBlocker) throw new Rejection(modeBlocker)
@@ -519,7 +521,7 @@ export class TaskService {
       const conversation = await chats.startForTask({ id: task.id, title: task.title, agent }, {
         cwd: workspace.cwd, extraDirs: workspace.extraDirs, referenceDirs: workspace.referenceDirs, planOnly: false, session: coordinator && resume ? 'resume' : 'new', readable: images.readable,
         allowBypass: coordinator ? false : unattended === 'bypass' || allowBypass, ...launch,
-        permissionMode: coordinator ? agentDescriptor(agent).readOnlyMode : permissionMode, workspaceReadOnly: Boolean(coordinator),
+        permissionMode: coordinator ? agentDescriptor(agent).readOnlyMode : permissionMode, workspaceReadOnly: Boolean(coordinator), profile,
         // A leader going on from its planning reads its brief first, in a handoff if it moved.
         ...(coordinator && resume ? { opening: { text: leaderStartPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, task.plan, coordinator), imageIds } } : {})
       })
@@ -626,6 +628,7 @@ export class TaskService {
     const blocker = checkSubmit(task, this.turnOf(task))
     if (blocker) throw new Rejection(blocker)
     if (this.squads?.busy(task.id)) throw new Rejection('squad-busy')
+    if (task.conversationId && this.delegationBusy?.(task.conversationId)) throw new Rejection('agent-call-writing', '请先等待委派工作结束')
     const { conversationId } = task
     if (!this.setup || !conversationId) return this.submit(id)
     if (this.checking.has(task.id)) throw new Rejection('check-running')
@@ -671,6 +674,7 @@ export class TaskService {
     const task = this.get(id)
     const turn = task.conversationId ? (this.requireChats().get(task.conversationId).chat?.turn ?? null) : null
     if (this.squads?.busy(task.id)) throw new Rejection('squad-busy')
+    if (task.conversationId && this.delegationBusy?.(task.conversationId)) throw new Rejection('agent-call-writing', '请先等待委派工作结束')
     const blocker = checkSubmit(task, turn)
     if (blocker) {
       throw new Rejection(blocker)
@@ -701,13 +705,15 @@ export class TaskService {
 
   // Flags a task whose agent waits on the user: a running task whose agent is not working (it may
   // be gone), a planning one whose agent is up and not working.
+  private delegationBusy: ((id: string) => boolean) | null = null
+  setDelegationBusy(busy: (id: string) => boolean): void { this.delegationBusy = busy }
   chatChanged(conversation: Conversation): void {
     const task = conversation.taskId ? this.store.get(conversation.taskId) : null
     if (!task) {
       return
     }
     const turn = conversation.chat?.turn ?? null
-    const waiting = this.settingUp.has(task.id) ? false : task.squadId && task.status !== 'pending' ? (this.squads?.awaiting(task.id) ?? false) : task.status === 'running' ? turn !== 'running' : task.status === 'pending' && (turn === 'idle' || turn === 'awaiting')
+    const waiting = this.settingUp.has(task.id) || this.delegationBusy?.(conversation.id) ? false : task.squadId && task.status !== 'pending' ? (this.squads?.awaiting(task.id) ?? false) : task.status === 'running' ? turn !== 'running' : task.status === 'pending' && (turn === 'idle' || turn === 'awaiting')
     if (task.awaitingInput !== waiting) {
       this.changed(this.store.update(task.id, { awaitingInput: waiting }))
     }
@@ -729,7 +735,7 @@ export class TaskService {
 
   // A squad's leader plans the task with the user first, read-only, on its own model; the plan it
   // settles on is carried out when the squad starts (SquadService.start), by the same leader.
-  async planForSquad(id: string, choice: ModelChoice, brief: PlanBrief): Promise<Task> {
+  async planForSquad(id: string, choice: ModelChoice, brief: PlanBrief, profile?: AgentProfile): Promise<Task> {
     const chats = this.requireChats()
     const task = this.get(id)
     if (task.status !== 'pending') throw new Rejection('not-pending')
@@ -743,7 +749,7 @@ export class TaskService {
       const workspace = await prepareRefineWorkspace(task, dependencies, this.worktreesRoot)
       const conversation = await chats.startForTask({ id: task.id, title: task.title, agent }, {
         cwd: workspace.cwd, extraDirs: workspace.dirs.filter((dir) => dir !== workspace.cwd && !workspace.references.has(dir)), referenceDirs: [...workspace.references], planOnly: true, session: 'new',
-        readable: images.readable, allowBypass: false, permissionMode: 'plan', ...choice
+        readable: images.readable, allowBypass: false, permissionMode: 'plan', ...choice, profile, ...(profile?.modelProvider ? { modelProvider: profile.modelProvider } : {})
       })
       await chats.send(conversation.id, chatPlanPrompt(task, workspace, dependencies, this.previousAttempt(task), images.prompt, brief), this.chatImageIds(task, images.prompt))
       return this.changed(this.get(task.id))

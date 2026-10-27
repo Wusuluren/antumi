@@ -18,6 +18,10 @@ import { forkConversation } from './ConversationActions'
 import { agentLabel, chatDayAndTime, dayAndTime, messageTime } from '../labels'
 import { usePreferences } from '../preferences'
 import { ChatDock } from './ChatDock'
+import { AgentDelegationResult } from './AgentDelegation'
+import { isAgentCallResult, useAgentCalls, useAgentCallsSupported } from '../agent-calls'
+import { withDelegations } from '../delegation-timeline'
+import { ChatDelegationCard } from './ChatDelegationCard'
 import { ProjectRunNotice } from './ProjectRunNotice'
 import { ChatImageStrip } from './ChatImages'
 import { ChatMarkdown, ChatRoots } from './ChatMarkdown'
@@ -351,6 +355,7 @@ function Item({ conversationId, item, completedAt, blockKey }: { conversationId:
   const compact = useContext(ChatVariant) === 'compact'
   switch (item.kind) {
     case 'user':
+      if (isAgentCallResult(item)) return <AgentDelegationResult />
       return <UserMessage item={item} />
     case 'assistant':
       return <AssistantReply conversationId={conversationId} item={item} completedAt={completedAt} ending={ending} blockKey={blockKey} />
@@ -415,7 +420,7 @@ function userAt(block: ChatBlock): number | null {
 
 // The user's own messages are what ↑ steps back through.
 function isUserEntry(entry: TimelineEntry): boolean {
-  return entry.kind === 'item' && entry.item.kind === 'user'
+  return entry.kind === 'item' && entry.item.kind === 'user' && !isAgentCallResult(entry.item)
 }
 
 type TurnItem = Extract<ChatItem, { kind: 'turn' }>
@@ -537,6 +542,7 @@ function TurnChanges({ conversationId, fold, files, turn, reply, collapsible }: 
 function Block({ conversationId, block, task, replies, fresh }: { conversationId: string; block: ChatBlock; task: boolean; replies: ReadonlyMap<string, number>; fresh?: boolean }) {
   const compact = useContext(ChatVariant) === 'compact'
   const entering = fresh || undefined
+  if (block.kind === 'delegation') return <div className="chat-entry" data-entry-key={block.key}><ChatDelegationCard call={block.call} fresh={fresh} /></div>
   if (compact && block.kind === 'changes') return null
   if (block.kind === 'browser') return <ChatCopyRegion text={block.tools.map(copyTextForItem).join('\n\n')}><div className="chat-entry" data-fresh={entering}><ChatBrowserRun tools={block.tools} /></div></ChatCopyRegion>
   if (block.kind === 'tools') return <ChatCopyRegion text={block.tools.map(copyTextForItem).join('\n\n')}><div className="chat-entry" data-fresh={entering}><ChatToolRun tools={block.tools} /></div></ChatCopyRegion>
@@ -644,7 +650,12 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
     })
   }, [stages, items, redoneAt, getLocale()])
   const foldTurns = usePreferences((s) => s.foldTurns)
-  const blocks = useMemo(() => chatBlocks(entries, { foldTurns: variant === 'compact' || foldTurns }), [entries, foldTurns, variant, getLocale()])
+  const delegationSupported = useAgentCallsSupported(conversation)
+  const { calls } = useAgentCalls(delegationSupported ? id : null)
+  const blocks = useMemo(() => {
+    const grouped = chatBlocks(entries, { foldTurns: variant === 'compact' || foldTurns })
+    return page && calls?.length ? withDelegations(grouped, calls, Boolean(page.before)) : grouped
+  }, [entries, foldTurns, variant, calls, page?.before, Boolean(page), getLocale()])
   for (const key of freshKeys(seen.current, blocks.map((block) => block.key), olderLoaded.current)) entered.current.add(key)
   useEffect(() => {
     if (!page) return
@@ -857,7 +868,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
   // A turn runs from the message that set it going.
   const since = useMemo(() => items.findLast((item) => item.kind === 'user')?.at ?? null, [items, getLocale()])
   const beginRelay = useMessageRelay(view, list, items, id)
-  const lastUserKey = sent.at(-1)?.key
+  const lastUserKey = blocks.findLast((block) => userItem(block) !== null)?.key
   const fileScope = useMemo(() => ({ conversationId: id, inspector: shown.inspector, roots }), [id, shown.inspector, roots, getLocale()])
   const contextMenu = useChatContextMenu(list, fileScope)
   const stopBackground = useCallback(async (tool: { id: string }) => (await perform((rpc) => rpc.call('conversations.stopBackground', { id, itemId: tool.id }))) !== null, [id])

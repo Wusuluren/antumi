@@ -1,6 +1,6 @@
 import { t, tr } from '../i18n'
 import { useContext, useState } from 'react'
-import { focusPaneInput, setSchedulesOpen, useCore } from '../core-store'
+import { focusPaneInput, selectConversation, setSchedulesOpen, useCore } from '../core-store'
 import { composerDraft } from '../composer-drafts'
 import { PRIMARY_KEY_LABEL } from '../shortcut-keys'
 import { cancelSchedule, openRunsForConversation, runAction, scheduleState } from '../schedules'
@@ -10,6 +10,7 @@ import { toolLabel } from '../chat-tools'
 import { useChatSurface } from './chat-surface'
 import { ArchivedBar } from './ArchivedBar'
 import { ChatComposer } from './ChatComposer'
+import { AgentDelegation } from './AgentDelegation'
 import { archiveConversation } from './ConversationActions'
 import { ChatMessageList, type SentMessage } from './ChatMessageList'
 import { ChatPlanCard } from './ChatPlan'
@@ -153,7 +154,8 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
         <ChatProjects conversation={conversation} />
         {running && state && <ChatTodosChip todos={state.todos} />}
         {inspectable && <ChangesChip conversation={conversation} finishedCalls={finishedCalls} />}
-        <span className="chat-dock-spacer" />
+          <span className="chat-dock-spacer" />
+          <AgentDelegation key={conversation.id} conversation={conversation} />
         <ChatMessageList messages={sent} onJump={onJump} />
         <button type="button" className="tool-button" aria-label={t('ChatDock.previousMessage')} data-tooltip={t('ChatDock.previousMessage')} onClick={onPrevious}>
           <ArrowUpIcon />
@@ -163,9 +165,10 @@ export function ChatDock({ conversation, state, pending, tools, finishedCalls, o
       {waiting && <PendingRequests conversation={conversation} pending={pending} tools={tools} modes={(state?.permissionModes ?? []).filter((mode) => !isHelper(conversation) || helperAllowsMode(mode))} />}
       {archived && <ArchivedBar what={t('BrowserPanel.conversation')} onRestore={() => archiveConversation(conversation.id, false)} />}
       {/* The composer stays mounted while a request or the archive takes its place, so a draft is not lost. */}
-      <div className="chat-dock-composer" hidden={waiting || archived || resting}>
+      <div className="chat-dock-composer" hidden={waiting || archived || resting || Boolean(conversation.parentConversationId)}>
         <ChatComposer compact={compact} conversation={conversation} state={state} />
       </div>
+      {conversation.parentConversationId && !waiting && <p className="muted"><button type="button" className="link-button" onClick={() => selectConversation(conversation.parentConversationId ?? null)}>{t('AgentProfiles.parent')}</button></p>}
       {resting && !waiting && !archived && <PaneReply conversationId={conversation.id} pane={pane} />}
     </div>
   )

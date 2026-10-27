@@ -62,6 +62,7 @@ export type ChatAnswer = { decision: ChatDecision; choice?: string; mode?: ChatP
 export const WHOLE_SESSION_FORK = 'whole-session'
 
 export type ChatStageOptions = {
+  instructions?: string
   cwd: string
   mcp?: McpServer
   // The user's MCP servers, for a driver that gives MCP servers over its protocol.

@@ -1,3 +1,4 @@
+import { AgentsView } from './components/AgentProfiles'
 import { t, useLocale } from './i18n'
 import { onBrowserShortcut } from './desktop-bridge'
 import { useEffect } from 'react'
@@ -10,7 +11,7 @@ import { SourceLoginDialog } from './components/SourceLoginDialog'
 import { ProjectTrustDialog } from './components/ProjectTrustDialog'
 import { TaskDetail } from './components/TaskDetail'
 import { TaskBoard } from './components/TaskBoard'
-import { SquadsEntry, SquadsView } from './components/Squads'
+import { SquadsEntry } from './components/Squads'
 import { SidebarTasks } from './components/SidebarTasks'
 import { TaskChat } from './components/TaskChat'
 import { ConversationList } from './components/ConversationList'
@@ -183,7 +184,7 @@ export function App() {
             ) : routinesOpen ? (
               <RoutinesView />
             ) : section === 'squads' ? (
-              <SquadsView />
+              <AgentsView />
             ) : section === 'discussions' ? (
               selectedDiscussionId ? <DiscussionView key={selectedDiscussionId} id={selectedDiscussionId} /> :
                 discussionDraft ? <DiscussionDraft key={discussionDraftFrom?.discussion.id ?? 'blank'} from={discussionDraftFrom?.discussion ?? null} /> :
