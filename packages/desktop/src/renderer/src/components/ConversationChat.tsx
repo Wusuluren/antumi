@@ -4,7 +4,7 @@ import { addQuote } from '../chat-quotes'
 import { focusChatInput } from '../helper-conversations'
 import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { CODEX_IMAGE_GENERATION, cursorProviderError, isBrowserTool, isPlanApproval, isPreviewTool, parseHandoffMessage, toolImagePath, type AgentKind, type ChatItem, type Conversation, type ConversationStage } from '@antumi/protocol'
-import { firstBrowserCall, shouldOpenBrowser } from '../browser-state'
+import { ChatBrowserTabs, firstBrowserCall, shouldOpenBrowser, useWatchBrowserTabs } from '../browser-state'
 import { ChatBrowserCard, ChatBrowserRun, ChatShotCard } from './ChatBrowserCard'
 import { chatBlocks, dropChat, finalReplies, foldsOfTools, itemKey, pathShortener, prependChatPage, previousTodos, saidText, setChatPage, stageAgents, thoughtDurations, timeline, useChat, type ChatBlock, type TimelineEntry, type TurnAgent, type TurnFile } from '../chat-state'
 import { ChatDisclosureScope, ChatFindExpansion, setOpened, useDisclosure } from '../chat-disclosure'
@@ -628,6 +628,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
   }, [rpc, id, conversation.sessionId])
 
   const items = page?.items ?? NO_ITEMS
+  const browserTabs = useWatchBrowserTabs(items.some((item) => item.kind === 'tool' && isBrowserTool(item.name)) ? id : null)
   useEffect(() => acknowledgeInitialMessage(id, items), [id, items])
   // A task's redos, each starting its chat over.
   const attempts = useCore((s) => (conversation.taskId ? s.tasks[conversation.taskId]?.attempts : undefined))
@@ -880,6 +881,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
     <ChatPaths.Provider value={shorten}>
     <StopBackground.Provider value={stopBackground}>
     <ChatRoots.Provider value={roots}>
+    <ChatBrowserTabs.Provider value={browserTabs}>
     <ChatFilesContext.Provider value={fileScope}>
     <ChatRunScope.Provider value={runScope}>
     <Thoughts.Provider value={thoughts}>
@@ -975,6 +977,7 @@ export function ConversationChat({ conversation, surface, onHandoff, variant = '
     </Thoughts.Provider>
     </ChatRunScope.Provider>
     </ChatFilesContext.Provider>
+    </ChatBrowserTabs.Provider>
     </ChatRoots.Provider>
     </StopBackground.Provider>
     </ChatPaths.Provider>

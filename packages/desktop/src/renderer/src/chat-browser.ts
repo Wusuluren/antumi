@@ -1,31 +1,31 @@
 import { browserToolKind, parseBrowserPage, parseClosedTab, type BrowserTab, type ChatItem } from '@antumi/protocol'
 
 type ToolItem = Extract<ChatItem, { kind: 'tool' }>
-export type RunTab = Pick<BrowserTab, 'id' | 'url' | 'title'>
-export type RunTabs = { open: RunTab[]; current: RunTab | null; closed: number }
+export type RunTab = Pick<BrowserTab, 'id' | 'url' | 'title'> & { closed: boolean }
+export type RunTabs = { tabs: RunTab[]; current: RunTab | null }
 
-// The tabs a turn's browser calls leave: each at the last page a successful call reported, in the
-// order they first came up, less the ones it closed. The tab acted on last is current.
-export function browserRunTabs(tools: readonly ToolItem[]): RunTabs {
-  const pages = new Map<string, RunTab>()
+// Keep each tab's last successful page even after closure. Live tabs decide whether it can still
+// open; before the watch answers, only an explicit successful close proves it closed.
+export function browserRunTabs(tools: readonly ToolItem[], liveTabs?: readonly Pick<BrowserTab, 'id'>[]): RunTabs {
+  const pages = new Map<string, Pick<BrowserTab, 'id' | 'url' | 'title'>>()
   const closed = new Set<string>()
   let current: string | null = null
   for (const item of tools) {
     if (!browserToolKind(item.name) || item.status !== 'done' || !item.output) continue
     const gone = parseClosedTab(item.output)
     if (gone) {
-      pages.delete(gone)
       closed.add(gone)
-      if (current === gone) current = null
       continue
     }
     const page = parseBrowserPage(item.output)
     if (!page) continue
     pages.set(page.id, page)
+    closed.delete(page.id)
     current = page.id
   }
-  const open = [...pages.values()]
-  return { open, current: (current ? pages.get(current) : open.at(-1)) ?? null, closed: closed.size }
+  const live = liveTabs === undefined ? null : new Set(liveTabs.map((tab) => tab.id))
+  const tabs = [...pages.values()].map((page) => ({ ...page, closed: live ? !live.has(page.id) : closed.has(page.id) }))
+  return { tabs, current: tabs.find((tab) => tab.id === current) ?? null }
 }
 
 // The host a URL names, with its path; the URL itself when it is not one.

@@ -9,7 +9,6 @@ vi.mock('../chat-disclosure', async (original) => ({ ...await original<typeof im
 vi.mock('../core-store', () => ({
   useCore: () => false, showBrowserTab: vi.fn(), showTerminal: vi.fn()
 }))
-vi.mock('../browser-state', () => ({ useBrowserTabs: () => null, ALL_TABS: 'all' }))
 vi.mock('../attachment-images', () => ({ useImageUrl: () => 'data:image/png;base64,test' }))
 vi.mock('./ChatMarkdown', () => ({ LocalImageViewer: () => null }))
 vi.mock('./ImageViewer', () => ({ ImageViewer: () => null }))

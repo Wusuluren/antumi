@@ -1,6 +1,6 @@
-import { useEffect } from 'react'
+import { createContext, useEffect, useState } from 'react'
 import { create } from 'zustand'
-import { isBrowserTool, type BrowserTab } from '@antumi/protocol'
+import { isBrowserTool, type BrowserTab, type RpcConnection } from '@antumi/protocol'
 import { perform, showBrowserPanel, useCore } from './core-store'
 import { urlPath } from './file-links'
 import { usePreferences } from './preferences'
@@ -12,6 +12,36 @@ type BrowserTabs = { tabs: BrowserTab[]; selectedId: string | null }
 export const USER_TABS = 'user'
 export const ALL_TABS = '*'
 export const useBrowserTabs = create<Record<string, BrowserTabs>>()(() => ({}))
+export const ChatBrowserTabs = createContext<readonly BrowserTab[] | undefined>(undefined)
+
+// One watch per chat, shared by every historical browser card without opening the browser panel.
+export function useWatchBrowserTabs(conversationId: string | null): readonly BrowserTab[] | undefined {
+  const rpc = useCore((state) => state.rpc)
+  const tabs = useBrowserTabs((state) => conversationId ? state[conversationId]?.tabs : undefined)
+  const [known, setKnown] = useState<{ rpc: RpcConnection; id: string } | null>(null)
+  useEffect(() => {
+    if (!rpc || !conversationId || !rpc.features.includes('browser')) return
+    let current = true
+    let changed = false
+    const off = rpc.on('browser.tabsChanged', ({ conversationId: id, tabs: next }) => {
+      if (id !== conversationId) return
+      changed = true
+      receiveBrowserTabs(id, next)
+      setKnown({ rpc, id })
+    })
+    void rpc.call('browser.watch', { conversationId }).then((next) => {
+      if (!current) return
+      if (!changed) receiveBrowserTabs(conversationId, next)
+      setKnown({ rpc, id: conversationId })
+    }).catch(() => {})
+    return () => {
+      current = false
+      off()
+      void rpc.call('browser.unwatch', { conversationId }).catch(() => {})
+    }
+  }, [rpc, conversationId])
+  return known?.rpc === rpc && known?.id === conversationId ? tabs : undefined
+}
 
 function scopeOf(conversationId: string | null): string {
   return conversationId ?? USER_TABS

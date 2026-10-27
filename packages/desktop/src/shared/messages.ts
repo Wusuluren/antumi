@@ -1079,10 +1079,8 @@ export const MESSAGES = {
     "zh": "浏览器操作已中断",
     "en": "Browser action interrupted"
   },
-  "ChatBrowserWindow.tabsClosed": {
-    "zh": "打开过 {count} 个标签页，都已关闭",
-    "en": "{count, plural, one {The tab it opened is closed} other {The tabs it opened are all closed}}"
-  },
+  "ChatBrowserWindow.closed": { "zh": "已关闭", "en": "Closed" },
+  "ChatBrowserWindow.closedTab": { "zh": "{title}（已关闭）", "en": "{title} (closed)" },
   "ChatBrowserWindow.openTab": {
     "zh": "在浏览器面板打开 {title}",
     "en": "Open {title} in the browser panel"

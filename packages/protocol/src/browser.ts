@@ -135,7 +135,7 @@ export function parseBrowserPage(text: string): Pick<BrowserTab, 'id' | 'url' | 
   return match ? { title: match[1] ?? '', url: match[2] ?? '', id: match[3] ?? '' } : null
 }
 
-// What closing a tab tells the model; a client reads it back with parseClosedTab to drop the tab.
+// What closing a tab tells the model; a client reads it back with parseClosedTab to mark its historical page closed.
 export function describeClosedTab(id: string): string {
   return `已关闭标签页 ${id}`
 }

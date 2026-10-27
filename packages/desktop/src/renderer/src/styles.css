@@ -8751,7 +8751,7 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .settings-inline { display: inline-flex; align-items: center; gap: 10px; }
 .browser-tab-owner { display: inline-block; max-width: 72px; margin-right: 6px; padding: 0 5px; overflow: hidden; border-radius: var(--radius-xs); background: var(--fill-2); color: var(--text-3); font-size: 11px; text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap; }
 
-/* A turn's browser work: a schematic browser window whose tabs are the pages it left open. */
+/* A turn's browser work, retaining its tabs' last pages after they close. */
 .chat-browser-work { display: flex; flex-direction: column; gap: 8px; }
 .chat-browser-activity { width: 100%; max-width: 460px; min-width: 0; margin: 0 auto 8px; color: var(--accent); }
 .chat-browser-activity[data-status='done'] { color: var(--status-done); }
@@ -8765,6 +8765,8 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .chat-browser-tab span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .chat-browser-tab:hover { color: var(--text); }
 .chat-browser-tab[data-active] { border-color: var(--border); background: var(--surface); color: var(--text); }
+.chat-browser-tab-state { flex-shrink: 0; color: var(--text-3); }
+.chat-browser-tab[data-closed] .chat-browser-tab-dot { border-color: var(--text-3); background: var(--fill-2); }
 .chat-browser-tab-dot { flex-shrink: 0; width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; }
 .chat-browser-activity[data-status='running'] .chat-browser-tab[data-active] { color: var(--accent); }
 .chat-browser-activity[data-status='running'] .chat-browser-tab[data-active] .chat-browser-tab-dot { background: currentColor; }
@@ -8774,7 +8776,8 @@ div.inspector-empty > p { margin: 0 0 8px; }
 /* Highlighted text, not a button: the window is a sketch, and the way into the panel stays light. */
 .chat-browser-open { display: inline-flex; flex-shrink: 0; align-items: center; gap: 3px; padding: 2px 6px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--accent); font: inherit; font-size: var(--chat-font-small, 12px); font-weight: 500; cursor: pointer; }
 .chat-browser-open svg { width: 13px; height: 13px; }
-.chat-browser-open:hover { background: var(--accent-bg); }
+.chat-browser-open:hover:not(:disabled) { background: var(--accent-bg); }
+.chat-browser-open:disabled { color: var(--text-muted); cursor: default; }
 .chat-browser-body { position: relative; flex: 1; min-height: 0; }
 .chat-browser-page { padding: 14px 16px; }
 .chat-browser-page-label { margin-bottom: 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); font-size: var(--chat-font-small, 12px); }
@@ -8792,7 +8795,6 @@ div.inspector-empty > p { margin: 0 0 8px; }
 .chat-browser-activity:is([data-status='failed'], [data-status='denied']) .chat-browser-activity-dot { background: var(--danger); }
 .chat-browser-activity[data-status='interrupted'] .chat-browser-activity-dot { background: var(--text-muted); }
 .chat-tool > .chat-browser-activity { width: auto; margin: 4px 12px 12px; }
-.chat-browser-gone { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-muted); font-size: var(--chat-font-small, 12px); }
 .chat-browser-activity[data-status='running'] .chat-browser-window { animation: chat-browser-window-open 0.3s cubic-bezier(.2, .8, .2, 1) both; }
 .chat-browser-activity[data-status='running']:is([data-action='navigate'], [data-action='tabs'], [data-action='wait'], [data-action='working']) .chat-browser-loading { opacity: 1; animation: chat-browser-load 1.8s ease-in-out infinite; }
 .chat-browser-activity[data-status='running'][data-action='click'] .chat-browser-cursor { animation: chat-browser-point 2.4s ease-in-out infinite; }
