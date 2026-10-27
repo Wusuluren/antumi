@@ -587,6 +587,7 @@ pnpm dist:win     # 产物在 packages/desktop/dist/Antumi-Setup-<版本>-x64.ex
 
 几个注意点：
 
+- **Electron 版本**：停在 43.x，打出来的 App 最低 macOS 12（Monterey）；44 起要 macOS 13。决定不再支持 macOS 12 之前不要升到 44+，否则 App 在 macOS 12 上会因缺 `_objc_claimAutoreleasedReturnValue` 起不来。
 - **macOS 签名**：没有 Apple 开发者证书，打包时由 afterPack 钩子 `packages/desktop/scripts/mac-adhoc-sign.mjs` 给 App 做 ad-hoc 签名：由内向外逐个签，`Resources/backend` 里 node-pty 的 `pty.node` 和 `spawn-helper` 也签上，最后用 `codesign --verify --deep --strict` 检查。找到证书时，electron-builder 会在这之后重签并覆盖。不能放在 afterSign：electron-builder 26.0 没签任何东西时会跳过那个钩子。这个签名不过 Gatekeeper，但少不了：签名坏掉的 App（Electron 原来的签名在打包改写 Info.plist 后就失效了），macOS 不让它发系统通知，请求在 App 里就报 `UNErrorDomain` 错误 1，根本到不了通知中心。
 - **在别的 Mac 上安装**：拖进「应用程序」，`xattr -dr com.apple.quarantine /Applications/Antumi.app`（或双击被拦后去「系统设置 → 隐私与安全性」点「仍要打开」），然后打开；第一次发通知时选「允许」。本机构建的不带隔离属性，直接打开即可。用下面的命令确认签名完好，应该看到 `valid on disk` 和 `Identifier=dev.antumi.desktop`：
 
