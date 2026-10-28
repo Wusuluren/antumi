@@ -12,9 +12,11 @@ DSH 可沿用自己的服务商配置，也能选择 Antumi 设置里的服务�
 
 `packages/dsh-runtime` 是随 Antumi 提供的 DSH 插件，不需要发布到 npm。`scripts/build-plugins.mjs` 构建并打包它；桌面后端打包时将 tarball 放入 `plugins/dsh/runtime.tgz`。
 
-首次读取模型目录或启动 DSH 时，core 通过 argv 调用 `dsh plugin --profile antumi add <tarball>`。profile 位于 `$DSH_HOME/profiles/antumi`，默认 `~/.dsh/profiles/antumi`；DSH 自己准备基础依赖，因此主机需要可用的 pnpm 和网络。首次准备可能比正常启动久。
+首次读取模型目录或启动 DSH 时，core 通过 argv 调用 `dsh plugin --profile antumi add <tarball>`。profile 位于 `$DSH_HOME/profiles/antumi`，默认 `~/.dsh/profiles/antumi`；主机需要可用的 pnpm 和网络。首次准备可能比正常启动久。
 
-内容摘要与安装记录一致时复用已有插件；更新 Antumi 后按新摘要安装。并发准备合并为一次，失败不清理 profile，下一次操作可重试。其他 profile、凭据文件和用户的 DSH 默认模型设置不改动。用户对专用 profile 的额外自定义可能影响兼容性。
+profile 还必须自带与 dsh-tools 同版本的 `@deepseek-ai/dsh-base`：缺了它，模块会向上解析到 `$DSH_HOME/profiles/node_modules`，那可能是 DeepSeek Harness 桌面版留下的旧版本，两边的 scheduler Symbol 对不上，每次工具调用都会报 `Cannot read properties of undefined (reading 'prepare')`。因此准备时若发现版本不符，会再执行 `dsh plugin --profile antumi add @deepseek-ai/dsh-base@<版本>`。安装是否成功以包是否落盘为准：拉取原生依赖时 pnpm 会因跳过 build script 返回非零退出码，包其实已经装好。
+
+内容摘要与安装记录一致、且基础包版本相符时复用已有插件；否则只补缺的那一项。更新 Antumi 后按新摘要安装。并发准备合并为一次，失败不清理 profile，下一次操作可重试。其他 profile、凭据文件和用户的 DSH 默认模型设置不改动。用户对专用 profile 的额外自定义可能影响兼容性。
 
 core 为每个阶段在自己的会话目录写入启动覆盖层，注入技能路径和服务商元数据。Key 仅通过子进程环境交付，不写入参数、覆盖层或 wire 日志；DSH 的 MCP 启动器会过滤凭据形状的环境变量，Antumi 的 shell 提供者还显式清空服务商 Key。启用服务商时只允许选择该服务商的模型。
 

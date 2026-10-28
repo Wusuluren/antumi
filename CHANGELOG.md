@@ -8,6 +8,7 @@
 
 - Antumi 在 macOS 12（Monterey）上不再一启动就崩。
 - 从「应用程序」打开时，Antumi 也能找到装在 nvm、~/.opencode 等目录里的 codex 和 opencode。
+- 装过 DeepSeek Harness 桌面版的机器上，它在这里的工具调用不再每次都失败。
 
 ## 0.21.0-beta.2 — 2026-10-26
 

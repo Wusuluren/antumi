@@ -19,6 +19,7 @@ import { DSH_PROVIDER_ENV, dshCommand } from './dsh-command'
 
 const execute = promisify(execFile)
 export const DSH_VERSION = '0.2.1-rc.2'
+const DSH_BASE = '@deepseek-ai/dsh-base'
 const prepares = new Map<string, Promise<void>>()
 
 async function output(command: string, args: string[], timeout = 10_000, env = process.env): Promise<string> {
@@ -61,6 +62,13 @@ export function bundledDsh(): string {
   return existsSync(packaged) ? packaged : fileURLToPath(new URL('../../../../dsh-runtime/dist/runtime.tgz', import.meta.url))
 }
 
+async function installedVersion(manifest: string): Promise<string | null> {
+  try {
+    const parsed = z.looseObject({ version: z.string() }).safeParse(JSON.parse(await readFile(manifest, 'utf8')))
+    return parsed.success ? parsed.data.version : null
+  } catch { return null }
+}
+
 export async function prepareDshProfile(command: string, bundle = bundledDsh(), home = process.env.DSH_HOME || path.join(homedir(), '.dsh')): Promise<void> {
   const hash = createHash('sha256').update(await readFile(bundle).catch(() => { throw new Rejection('dsh-runtime-missing', 'DeepSeek Harness 运行时插件缺失，请重新构建或安装 Antumi') })).digest('hex')
   const key = `${home}:${hash}`
@@ -70,9 +78,23 @@ export async function prepareDshProfile(command: string, bundle = bundledDsh(), 
     const profile = path.join(home, 'profiles', 'antumi')
     const marker = path.join(profile, '.antumi-runtime')
     const installed = path.join(profile, 'node_modules', '@antumi', 'dsh-runtime', 'package.json')
-    if ((await readFile(marker, 'utf8').catch(() => '')) === hash && existsSync(installed)) return
-    try { await output(command, ['plugin', '--profile', 'antumi', 'add', bundle], 180_000, { ...process.env, DSH_HOME: home }) } catch {
-      throw new Rejection('dsh-runtime-install-failed', 'DeepSeek Harness 运行时准备失败，请检查网络和 pnpm 后重试；已有配置已保留')
+    // Without its own copy the profile resolves dsh-base from a parent install, whose
+    // scheduler symbol differs from this profile's dsh-tools and fails every tool call.
+    const base = path.join(profile, 'node_modules', '@deepseek-ai', 'dsh-base', 'package.json')
+    const env = { ...process.env, DSH_HOME: home }
+    const runtimeReady = (await readFile(marker, 'utf8').catch(() => '')) === hash && existsSync(installed)
+    const baseReady = await installedVersion(base) === DSH_VERSION
+    if (runtimeReady && baseReady) return
+    if (!runtimeReady) {
+      try { await output(command, ['plugin', '--profile', 'antumi', 'add', bundle], 180_000, env) } catch {
+        throw new Rejection('dsh-runtime-install-failed', 'DeepSeek Harness 运行时准备失败，请检查网络和 pnpm 后重试；已有配置已保留')
+      }
+    }
+    if (await installedVersion(base) !== DSH_VERSION) {
+      // Installs that pull native dependencies exit non-zero over the build scripts pnpm
+      // skipped, so the package landing is what decides, not the exit code.
+      await output(command, ['plugin', '--profile', 'antumi', 'add', `${DSH_BASE}@${DSH_VERSION}`], 180_000, env).catch(() => '')
+      if (await installedVersion(base) !== DSH_VERSION) throw new Rejection('dsh-runtime-install-failed', 'DeepSeek Harness 未能把运行时基础包装进 profile，请检查网络和 pnpm 后重试')
     }
     const manifest = z.looseObject({ name: z.literal('@antumi/dsh-runtime') }).safeParse(JSON.parse(await readFile(installed, 'utf8')))
     if (!manifest.success) throw new Rejection('dsh-runtime-install-failed', 'DeepSeek Harness 未能安装 Antumi 运行时插件，请重试')
