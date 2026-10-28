@@ -2,13 +2,15 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { DEFAULT_DISCUSSION_REQUIREMENTS, type Discussion, type DiscussionCreate, type DiscussionPost } from '@antumi/protocol'
+import { DEFAULT_DISCUSSION_REQUIREMENTS, type Discussion, type DiscussionCreate, type DiscussionPost, type ModelProviderInput } from '@antumi/protocol'
 import { DatabaseSync } from 'node:sqlite'
 import { AttachmentStore } from './attachment-store'
 import { ConversationService } from './conversation-service'
 import { ConversationStore } from './conversation-store'
+import { CredentialStore } from './credential-store'
 import { DiscussionService } from './discussion-service'
 import { fakeChatDaemon } from './fake-chat-agent'
+import { ModelProviderStore } from './model-providers'
 import { ProjectRegistry } from './project-registry'
 import { Rejection } from './rejection'
 import { TaskStore } from './task-store'
@@ -103,6 +105,33 @@ describe('DiscussionService', () => {
     })
   }
   const kinds = (posts: DiscussionPost[]) => posts.map((post) => `${post.round}:${post.kind}:${post.state}`)
+
+  it('runs a member on the provider it was picked for, and leaves the others on their own account', async () => {
+    const credentials = new CredentialStore(path.join(root, 'credentials.json'))
+    await credentials.load()
+    const providers = new ModelProviderStore(path.join(root, 'model-providers.json'), credentials)
+    await providers.load()
+    conversations.setModelProviders(providers)
+    const gateway: ModelProviderInput = {
+      id: null, name: 'Gateway', preset: 'custom', agents: ['claude'], apiKey: 'sk-gateway-secret',
+      anthropic: { baseUrl: 'http://127.0.0.1:4000', auth: 'auth_token', env: {} }, openai: null,
+      models: [{ id: 'gw-big', label: null, contextWindow: null, maxOutput: null, efforts: [] }],
+      defaultModel: 'gw-big', smallModel: 'gw-big'
+    }
+    const { id: providerId } = await providers.save(gateway)
+    const discussion = await discussions.create(fields({
+      members: [
+        { agent: 'claude', name: 'Ann', role: '', modelProvider: providerId },
+        { agent: 'claude', name: 'Bob' },
+        { agent: 'claude', name: 'Cid' }
+      ]
+    }))
+    expect(by(discussion, 'Ann').modelProvider).toBe(providerId)
+    expect(by(discussion, 'Bob').modelProvider).toBeNull()
+    expect(conversations.get(by(discussion, 'Ann').conversationId)).toMatchObject({ modelProvider: providerId })
+    expect(conversations.get(by(discussion, 'Bob').conversationId).modelProvider).toBeNull()
+    await until(() => state(discussion.id) === 'done')
+  })
 
   it('runs independent openings, rebuttals that see only the others, then the chair sums up', async () => {
     const discussion = await discussions.create(fields())

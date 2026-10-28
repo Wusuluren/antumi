@@ -99,6 +99,21 @@ describe('TaskStore migrations', () => {
     reopened.close()
   })
 
+  it('gives a group chat member recorded before model providers a null provider', () => {
+    const raw = new DatabaseSync(file)
+    applyLegacyMigrations(raw, MIGRATIONS.slice(0, MIGRATIONS.length - 1))
+    raw.exec(`INSERT INTO discussions (id, title, topic, project_paths, chair_id, max_rounds, anonymous, state, round, last_round, created_at, updated_at)
+      VALUES ('d', 'Topic', 'A topic', '[]', 'm', 2, 0, 'paused', 0, 2, 1, 1);
+      INSERT INTO discussion_members (id, discussion_id, position, conversation_id, agent, model, effort, name, role)
+      VALUES ('m', 'd', 0, 'c', 'claude', NULL, NULL, 'Ann', '');`)
+    raw.close()
+
+    new TaskStore(file).close()
+    const schema = new DatabaseSync(file)
+    expect(schema.prepare('SELECT model_provider FROM discussion_members').get()).toEqual({ model_provider: null })
+    schema.close()
+  })
+
   it('round-trips a source and treats an unreadable one as absent', () => {
     const store = new TaskStore(file)
     const task = store.create('A')

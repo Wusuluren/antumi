@@ -2,13 +2,16 @@ import { t, tr } from '../i18n'
 import { useCallback, useState } from 'react'
 import { checkAddDiscussionMember, MAX_DISCUSSION_MEMBERS, type AgentKind, type Discussion } from '@antumi/protocol'
 import { resolveModel, useAgentCatalog } from '../agent-models'
+import { useCore } from '../core-store'
 import { addDiscussionMember, defaultMemberName } from '../discussions'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
+import { providerFor, servingProviders } from '../model-provider-choice'
 import { effortLabel } from './ChatOptionsBar'
 import { ChatModelPicker, ChatPicker } from './ChatPicker'
 import { AgentIcon } from './icons'
 import { Popover } from './Popover'
+import { ProviderPicker } from './ProviderPicker'
 
 // A name no member has: the agent's and model's, numbered when another already goes by it.
 function freeName(base: string, taken: readonly string[]): string {
@@ -19,13 +22,16 @@ function freeName(base: string, taken: readonly string[]): string {
 
 function MemberForm({ discussion, onDone }: { discussion: Discussion; onDone: () => void }) {
   const installed = useInstalledAgents()
+  const providers = useCore((s) => s.modelProviders)
   const [agent, setAgent] = useState<AgentKind>(installed[0] ?? 'claude')
+  const [providerId, setProviderId] = useState<string | null>(null)
   const [model, setModel] = useState<string | undefined>()
   const [effort, setEffort] = useState<string | undefined>()
   const [name, setName] = useState<string | null>(null)
   const [role, setRole] = useState('')
   const [busy, setBusy] = useState(false)
-  const catalog = useAgentCatalog(agent, true)
+  const provider = providerFor(providers, providerId, agent)
+  const catalog = useAgentCatalog(agent, true, provider)
   const resolved = resolveModel(catalog, { model, effort })
   const names = discussion.members.map((member) => member.name)
   const shownName = name ?? freeName(defaultMemberName(agent, model ?? null), names)
@@ -34,7 +40,7 @@ function MemberForm({ discussion, onDone }: { discussion: Discussion; onDone: ()
     if (busy || taken || !shownName.trim()) return
     setBusy(true)
     const added = await addDiscussionMember(discussion.id, {
-      agent, name: shownName.trim(), role: role.trim(), ...(model ? { model } : {}), ...(resolved.effort ? { effort: resolved.effort } : {})
+      agent, name: shownName.trim(), role: role.trim(), ...(provider ? { modelProvider: provider.id } : {}), ...(model ? { model } : {}), ...(resolved.effort ? { effort: resolved.effort } : {})
     })
     setBusy(false)
     if (added) onDone()
@@ -53,9 +59,13 @@ function MemberForm({ discussion, onDone }: { discussion: Discussion; onDone: ()
           options={installed.map((each) => ({ value: each, label: agentLabel(each), icon: <AgentIcon agent={each} /> }))}
           onChange={(value) => {
             const next = installed.find((each) => each === value)
-            if (next) { setAgent(next); setModel(undefined); setEffort(undefined) }
+            if (next) { setAgent(next); setProviderId(providerFor(providers, providerId, next)?.id ?? null); setModel(undefined); setEffort(undefined) }
           }}
         />
+        {servingProviders(providers, agent).length > 0 && (
+          <ProviderPicker agent={agent} value={providerId} disabled={busy} placement="below"
+            onChange={(next) => { setProviderId(next); setModel(undefined); setEffort(undefined) }} />
+        )}
         {catalog?.models.length ? (
           <ChatModelPicker
             align="start"

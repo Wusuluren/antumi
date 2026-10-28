@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { AgentKind } from './agent'
+import { ModelProviderId } from './model-provider-id'
 import { MAX_TASK_REPOS } from './task'
 
 // A group chat: several agents, each in a conversation of its own that the list does not show,
@@ -20,6 +21,8 @@ export const DiscussionMemberFields = z.object({
   agent: AgentKind,
   model: z.string().trim().min(1).max(200).optional(),
   effort: z.string().trim().min(1).max(200).optional(),
+  // One of the user's model providers, which the member runs on; null is the agent's own account.
+  modelProvider: ModelProviderId.nullable().default(null),
   name: z.string().trim().min(1).max(60),
   // The stance or angle it is to take, in the user's words; empty for none.
   role: z.string().trim().max(2000).default('')

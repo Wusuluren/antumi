@@ -346,7 +346,9 @@ export const MIGRATIONS = [
    CREATE TABLE usage_automation_log (id TEXT PRIMARY KEY, at INTEGER NOT NULL, data TEXT NOT NULL);`,
   // An additional project a task only reads, and the folders its conversation may only read (JSON).
   `ALTER TABLE task_repos ADD COLUMN is_reference INTEGER NOT NULL DEFAULT 0;
-   ALTER TABLE conversations ADD COLUMN reference_paths TEXT NOT NULL DEFAULT '[]';`
+   ALTER TABLE conversations ADD COLUMN reference_paths TEXT NOT NULL DEFAULT '[]';`,
+  // The model provider a group chat member runs on; null on the agent's own account.
+  `ALTER TABLE discussion_members ADD COLUMN model_provider TEXT;`
 ]
 
 

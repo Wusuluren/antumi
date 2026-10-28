@@ -33,8 +33,8 @@ const PLAN_DENIAL = '这是只读讨论，不执行计划。请不要提交计�
 const DISCUSSION_SELECT = `SELECT id, title, topic, requirements, project_paths AS projectPaths, chair_id AS chairId, max_rounds AS maxRounds,
   anonymous, state, step, round, last_round AS lastRound, topic_start AS topicStart, pinned_at AS pinnedAt, archived_at AS archivedAt, created_at AS createdAt, updated_at AS updatedAt
   FROM discussions`
-const MEMBER_SELECT = `SELECT id, discussion_id AS discussionId, conversation_id AS conversationId, agent, model, effort, name, role,
-  position, removed_at AS removedAt FROM discussion_members`
+const MEMBER_SELECT = `SELECT id, discussion_id AS discussionId, conversation_id AS conversationId, agent, model, effort,
+  model_provider AS modelProvider, name, role, position, removed_at AS removedAt FROM discussion_members`
 const POST_SELECT = `SELECT id, discussion_id AS discussionId, sequence, round, member_id AS memberId, kind, text, mentions,
   topic, delivered, state, error, created_at AS createdAt, updated_at AS updatedAt FROM discussion_posts`
 
@@ -110,7 +110,7 @@ export class DiscussionService {
   async create(fields: DiscussionCreate): Promise<Discussion> {
     const parsed = DiscussionCreate.parse(fields)
     for (const member of parsed.members) {
-      await this.deps.conversations.validateStartOptions(member.agent, { permissionMode: agentDescriptor(member.agent).discussionMode, model: member.model, effort: member.effort })
+      await this.deps.conversations.validateStartOptions(member.agent, { permissionMode: agentDescriptor(member.agent).discussionMode, model: member.model, effort: member.effort }, member.modelProvider ?? undefined)
     }
     for (const agent of new Set(parsed.members.map((member) => member.agent))) {
       if (!this.deps.conversations.capacityAvailable(agent)) throw new Rejection('agent-capacity')
@@ -123,14 +123,14 @@ export class DiscussionService {
     this.db.prepare(`INSERT INTO discussions (id, title, topic, requirements, project_paths, chair_id, max_rounds, anonymous, state, step, round, last_round, pinned_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'running', NULL, 0, ?, NULL, ?, ?)`)
       .run(id, title, parsed.topic, parsed.requirements, JSON.stringify(parsed.projectPaths), chairId, parsed.maxRounds, Number(parsed.anonymous), parsed.maxRounds, at, at)
-    const insert = this.db.prepare(`INSERT INTO discussion_members (id, discussion_id, position, conversation_id, agent, model, effort, name, role)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    members.forEach((member, position) => insert.run(member.id, id, position, member.conversationId, member.agent, member.model ?? null, member.effort ?? null, member.name, member.role))
+    const insert = this.db.prepare(`INSERT INTO discussion_members (id, discussion_id, position, conversation_id, agent, model, effort, model_provider, name, role)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    members.forEach((member, position) => insert.run(member.id, id, position, member.conversationId, member.agent, member.model ?? null, member.effort ?? null, member.modelProvider ?? null, member.name, member.role))
     const created: string[] = []
     try {
       for (const member of members) {
         await this.deps.conversations.create(member.agent, parsed.projectPaths, undefined,
-          { permissionMode: agentDescriptor(member.agent).discussionMode, model: member.model, effort: member.effort, deferStart: true },
+          { permissionMode: agentDescriptor(member.agent).discussionMode, model: member.model, effort: member.effort, modelProvider: member.modelProvider ?? undefined, deferStart: true },
           null, member.conversationId, { id, title: `${title} · ${member.name}` })
         created.push(member.conversationId)
       }
@@ -249,17 +249,17 @@ export class DiscussionService {
       if (discussion.members.some((each) => each.name.toLowerCase() === member.name.toLowerCase())) {
         throw new Rejection('discussion-member-name-taken', `a member is already called ${member.name}`)
       }
-      await this.deps.conversations.validateStartOptions(member.agent, { permissionMode: agentDescriptor(member.agent).discussionMode, model: member.model, effort: member.effort })
+      await this.deps.conversations.validateStartOptions(member.agent, { permissionMode: agentDescriptor(member.agent).discussionMode, model: member.model, effort: member.effort }, member.modelProvider ?? undefined)
       if (!this.deps.conversations.capacityAvailable(member.agent)) throw new Rejection('agent-capacity')
       const memberId = randomUUID()
       const conversationId = randomUUID()
       const last = this.db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS next FROM discussion_members WHERE discussion_id = ?').get(id)
-      this.db.prepare(`INSERT INTO discussion_members (id, discussion_id, position, conversation_id, agent, model, effort, name, role)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(memberId, id, Number(last?.next ?? 0), conversationId, member.agent, member.model ?? null, member.effort ?? null, member.name, member.role)
+      this.db.prepare(`INSERT INTO discussion_members (id, discussion_id, position, conversation_id, agent, model, effort, model_provider, name, role)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(memberId, id, Number(last?.next ?? 0), conversationId, member.agent, member.model ?? null, member.effort ?? null, member.modelProvider ?? null, member.name, member.role)
       try {
         await this.deps.conversations.create(member.agent, discussion.projectPaths, undefined,
-          { permissionMode: agentDescriptor(member.agent).discussionMode, model: member.model, effort: member.effort, deferStart: true },
+          { permissionMode: agentDescriptor(member.agent).discussionMode, model: member.model, effort: member.effort, modelProvider: member.modelProvider ?? undefined, deferStart: true },
           null, conversationId, { id, title: `${discussion.title} · ${member.name}` })
       } catch (error) {
         this.db.prepare('DELETE FROM discussion_members WHERE id = ?').run(memberId)

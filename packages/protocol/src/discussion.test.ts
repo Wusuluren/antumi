@@ -37,7 +37,7 @@ describe('checkDiscussionAction', () => {
 
 describe('changing a group chat midway', () => {
   const member = (id: string, position: number, status: 'idle' | 'working' = 'idle') => ({
-    id, conversationId: id, agent: 'claude' as const, model: null, effort: null, name: id, role: '', status, position
+    id, conversationId: id, agent: 'claude' as const, model: null, effort: null, modelProvider: null, name: id, role: '', status, position
   })
   const group = (members: ReturnType<typeof member>[], projectPaths: string[] = ['/repo']) => ({ members, formerMembers: [], chairId: 'a', projectPaths })
 

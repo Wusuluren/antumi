@@ -2,18 +2,20 @@ import { localized, t, tr } from '../i18n'
 import { useState } from 'react'
 import { DEFAULT_DISCUSSION_REQUIREMENTS, DEFAULT_DISCUSSION_ROUNDS, MAX_DISCUSSION_MEMBERS, MAX_DISCUSSION_ROUNDS, MIN_DISCUSSION_MEMBERS, type AgentKind, type Discussion } from '@antumi/protocol'
 import { resolveModel, useAgentCatalog } from '../agent-models'
-import { closeDiscussionDraft, selectDiscussion, useDiscussionRequirementsSupported } from '../core-store'
+import { closeDiscussionDraft, selectDiscussion, useCore, useDiscussionRequirementsSupported } from '../core-store'
 import { createDiscussion, defaultMemberName, loadDiscussionPosts } from '../discussions'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel } from '../labels'
+import { providerFor, servingProviders } from '../model-provider-choice'
 import { effortLabel } from './ChatOptionsBar'
 import { ChatModelPicker, ChatPicker } from './ChatPicker'
 import { AgentIcon, CloseIcon } from './icons'
 import { ProjectPicker } from './ProjectPicker'
+import { ProviderPicker } from './ProviderPicker'
 import { DiscussionRequirements } from './DiscussionRequirements'
 
 // A member as picked: name is null while it follows the agent and model.
-type Draft = { key: string; agent: AgentKind; model?: string; effort?: string; name: string | null; role: string }
+type Draft = { key: string; agent: AgentKind; model?: string; effort?: string; modelProvider: string | null; name: string | null; role: string }
 
 const ROLE_HINTS = localized(() => ([t('DiscussionDraft.supporter'), t('DiscussionDraft.opponent'), t('DiscussionDraft.focusOnSecurityAndRisk'), t('DiscussionDraft.focusOnPerformanceAndCost'), t('DiscussionDraft.critic')]))
 
@@ -28,7 +30,9 @@ function MemberRow({ member, index, agents, chair, busy, removable, onChange, on
   onRemove: () => void
   onChair: () => void
 }) {
-  const catalog = useAgentCatalog(member.agent, true)
+  const providers = useCore((s) => s.modelProviders)
+  const provider = providerFor(providers, member.modelProvider, member.agent)
+  const catalog = useAgentCatalog(member.agent, true, provider)
   const { model, effort } = resolveModel(catalog, { model: member.model, effort: member.effort })
   const shownName = member.name ?? defaultMemberName(member.agent, member.model ?? null)
   return (
@@ -42,9 +46,13 @@ function MemberRow({ member, index, agents, chair, busy, removable, onChange, on
         options={agents.map((agent) => ({ value: agent, label: agentLabel(agent), icon: <AgentIcon agent={agent} /> }))}
         onChange={(value) => {
           const agent = agents.find((each) => each === value)
-          if (agent) onChange({ ...member, agent, model: undefined, effort: undefined })
+          if (agent) onChange({ ...member, agent, model: undefined, effort: undefined, modelProvider: providerFor(providers, member.modelProvider, agent)?.id ?? null })
         }}
       />
+      {servingProviders(providers, member.agent).length > 0 && (
+        <ProviderPicker agent={member.agent} value={member.modelProvider} disabled={busy}
+          onChange={(next) => onChange({ ...member, modelProvider: next, model: undefined, effort: undefined })} />
+      )}
       {!catalog && <span className="chat-options-note muted">{catalog === undefined ? t('AgentModelPicker.loadingModels') : t('ChatPicker.defaultModel')}</span>}
       {catalog && (
         <ChatModelPicker
@@ -97,14 +105,14 @@ export function DiscussionDraft({ from }: { from: Discussion | null }) {
   const [members, setMembers] = useState<Draft[]>(() => {
     if (from) {
       return from.members.map((member) => ({
-        key: crypto.randomUUID(), agent: member.agent, model: member.model ?? undefined, effort: member.effort ?? undefined, name: member.name, role: member.role
+        key: crypto.randomUUID(), agent: member.agent, model: member.model ?? undefined, effort: member.effort ?? undefined, modelProvider: member.modelProvider, name: member.name, role: member.role
       }))
     }
     const first = installed[0] ?? 'claude'
     const second = installed[1] ?? first
     return [
-      { key: crypto.randomUUID(), agent: first, name: null, role: '' },
-      { key: crypto.randomUUID(), agent: second, name: null, role: '' }
+      { key: crypto.randomUUID(), agent: first, modelProvider: null, name: null, role: '' },
+      { key: crypto.randomUUID(), agent: second, modelProvider: null, name: null, role: '' }
     ]
   })
   const [chair, setChair] = useState(() => Math.max(0, from?.members.findIndex((member) => member.id === from.chairId) ?? 0))
@@ -117,7 +125,7 @@ export function DiscussionDraft({ from }: { from: Discussion | null }) {
   const canStart = !busy && topic.trim() !== '' && members.length >= MIN_DISCUSSION_MEMBERS && !clash && names.every(Boolean)
 
   const update = (index: number, next: Draft) => setMembers(members.map((each, at) => (at === index ? next : each)))
-  const add = () => setMembers([...members, { key: crypto.randomUUID(), agent: installed[members.length % Math.max(installed.length, 1)] ?? 'claude', name: null, role: '' }])
+  const add = () => setMembers([...members, { key: crypto.randomUUID(), agent: installed[members.length % Math.max(installed.length, 1)] ?? 'claude', modelProvider: null, name: null, role: '' }])
   const remove = (index: number) => {
     setMembers(members.filter((_, at) => at !== index))
     setChair((current) => (current === index ? 0 : current > index ? current - 1 : current))
@@ -134,6 +142,7 @@ export function DiscussionDraft({ from }: { from: Discussion | null }) {
         agent: member.agent,
         ...(member.model ? { model: member.model } : {}),
         ...(member.effort ? { effort: member.effort } : {}),
+        ...(member.modelProvider ? { modelProvider: member.modelProvider } : {}),
         name: names[index] ?? agentLabel(member.agent),
         role: member.role.trim()
       })),
