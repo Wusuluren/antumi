@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { resolveUiLocale, UiLocale } from '@antumi/protocol'
 import { applicationMenu } from './application-menu'
 import { antumiPaths, readCoreEndpoint } from '@antumi/protocol/node'
-import { ensureBackend, stopBackendForInstall } from './backend'
+import { ensureBackend, forceStopBackend, stopBackend, stopBackendOnQuit } from './backend'
 import { popupWindowOptions, RequestPopup } from './request-popup'
 import { startBrowserHost, type BrowserHost } from './browser/browser-host'
 import { WindowSlot } from './browser/window-slot'
@@ -21,6 +21,8 @@ const slot = new WindowSlot()
 let browserHost: BrowserHost | null = null
 let mainWindow: BrowserWindow | null = null
 let uiLocale: UiLocale = 'en'
+// Set when an update relaunches the app: its daemon, core and sessions carry on into the new version.
+let relaunching = false
 const uiText = (en: string, zh: string): string => uiLocale === 'en' ? en : zh
 const PRELOAD = join(__dirname, '../preload/index.js')
 
@@ -334,8 +336,9 @@ const updater = app.isPackaged || updateApi ? new AppUpdater({
     if (!bundle) throw new Error('not-a-bundle')
     const staged = await stageFromDmg(installer, bundle, version)
     await swapInto(bundle, staged)
-    // The daemon and core outlive the app (backend.ts): agents keep running, and the new version
-    // takes core over when it starts.
+    // An update leaves daemon, core and their sessions running: the new version takes core over
+    // when it starts (backend.ts).
+    relaunching = true
     app.relaunch()
     app.quit()
   },
@@ -347,7 +350,7 @@ const updater = app.isPackaged || updateApi ? new AppUpdater({
 // The installer then runs silently into the same folder (--updated keeps it an update) and starts
 // the new version when done (--force-run).
 async function installOnWindows(installer: string): Promise<void> {
-  const backend = await stopBackendForInstall()
+  const backend = await stopBackend()
   if (!backend.stopped) {
     if (backend.blockers) throw new InstallBlocked(backend.blockers)
     // Part of it may have gone before the rest would not: bring back what is missing.
@@ -426,15 +429,47 @@ void app.whenReady().then(async () => {
 })
 
 // The tabs go with the app, and the host file with them, so core sees the browser as closed
-// rather than finding a port nothing answers on.
+// rather than finding a port nothing answers on. Daemon and core end with the app, so the next
+// launch runs this build; sessions still running are named first, and end only on a yes.
 let quitting = false
 app.on('before-quit', (event) => {
   updater?.stop()
-  if (quitting || !browserHost) return
+  if (quitting) return
   event.preventDefault()
   quitting = true
-  void browserHost.shutdown().finally(() => app.quit())
+  void endBackendOnQuit().then((ending) => {
+    if (!ending) {
+      quitting = false
+      return
+    }
+    void browserHost?.shutdown().finally(() => app.quit())
+  })
 })
+
+// False when the user chose to keep the app open rather than lose what the sessions are doing.
+async function endBackendOnQuit(): Promise<boolean> {
+  // An update swaps the bundle and relaunches: its sessions carry on, as before.
+  if (relaunching) return true
+  const stop = await stopBackendOnQuit()
+  if (stop.stopped) return true
+  if (!stop.blockers) {
+    console.error('[antumi] daemon or core did not answer; leaving it running')
+    return true
+  }
+  const count = stop.blockers.length
+  const options = {
+    type: 'warning' as const,
+    buttons: [uiText('Quit anyway', '仍然退出'), uiText('Cancel', '取消')],
+    defaultId: 1,
+    cancelId: 1,
+    message: uiText(`${count} session${count === 1 ? '' : 's'} still running`, `还有 ${count} 个会话在运行`),
+    detail: uiText('Quitting ends them, with whatever they are working on.', '退出会结束它们，正在做的工作也会停下。')
+  }
+  const answer = mainWindow ? await dialog.showMessageBox(mainWindow, options) : await dialog.showMessageBox(options)
+  if (answer.response !== 0) return false
+  await forceStopBackend()
+  return true
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

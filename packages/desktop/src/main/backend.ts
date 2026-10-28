@@ -133,17 +133,20 @@ async function retireOldDaemon(): Promise<boolean> {
   return true
 }
 
-// Asks an older core to leave, and waits for it to: it closes its server and removes its endpoint
-// file on SIGTERM. Sessions live in the daemon, so the agents it served run on; the new core takes
-// them up again. True once its process is gone.
+// Asks core to leave, and waits for it to: it closes its server and removes its endpoint file on
+// SIGTERM. Sessions live in the daemon, so the agents it served run on. True once its process is gone.
 async function retireCore(endpoint: CoreEndpoint): Promise<boolean> {
-  console.log(`[antumi] core ${endpoint.version ?? '(unversioned)'} is older than this app (${app.getVersion()}); replacing it`)
+  return terminate(endpoint.pid)
+}
+
+// SIGTERM, then waiting: a core leaves cleanly on it, and one already gone counts as gone.
+export async function terminate(pid: number, ms = 10_000): Promise<boolean> {
   try {
-    process.kill(endpoint.pid, 'SIGTERM')
+    process.kill(pid, 'SIGTERM')
   } catch {
-    return !alive(endpoint.pid)
+    return !alive(pid)
   }
-  return exited(endpoint.pid)
+  return exited(pid, ms)
 }
 
 // Whether a process still exists: only ESRCH says it does not (EPERM is one of someone else's).
@@ -182,12 +185,12 @@ export type InstallBlocker = { sessionId: string; agent?: AgentKind }
 // could not be shown to have stopped (no answer, or still there after the wait).
 export type BackendStop = { stopped: true } | { stopped: false; blockers: InstallBlocker[] | null }
 
-// Before an installer replaces the app's files, which Windows will not do while daemon and core
-// run from them (and the NSIS installer ends every Antumi.exe it finds): the daemon leaves only if
-// it runs nothing (it decides, as for retireOldDaemon), then core goes. Running agents are never
-// stopped for an update; which sessions run comes back instead. Nothing counts as stopped until
-// its process is seen gone.
-export async function stopBackendForInstall(): Promise<BackendStop> {
+// Leaves daemon and core stopped: before an installer replaces the app's files (Windows will not
+// overwrite what runs from them, and the NSIS installer ends every Antumi.exe it finds), or as the
+// app quits. The daemon leaves only if it runs nothing (it decides, as for retireOldDaemon), then
+// core goes; the sessions still running come back instead. Nothing counts as stopped until its
+// process is seen gone.
+export async function stopBackend(): Promise<BackendStop> {
   const presence = await daemonPresence()
   if (presence === 'unknown') return { stopped: false, blockers: null }
   if (presence === 'there') {
@@ -213,19 +216,41 @@ async function daemonGone(): Promise<boolean> {
   return false
 }
 
+// Quitting the app leaves nothing behind: the daemon and core end, so the next launch starts this
+// build's instead of talking to whatever an earlier launch left serving the home. The daemon leaves
+// only once nothing runs in it, and names the sessions that still do. A build run from source
+// leaves both to the user.
+export async function stopBackendOnQuit(): Promise<BackendStop> {
+  if (!app.isPackaged) return { stopped: true }
+  return stopBackend()
+}
+
+// Ends daemon and core whatever they run: on SIGTERM the daemon takes its agents and shells with it.
+// Only after the user has agreed to lose what runs there.
+export async function forceStopBackend(): Promise<void> {
+  const info = await daemonCall('info')
+  const daemonPid = typeof info?.pid === 'number' ? info.pid : null
+  const core = await runningCore()
+  if (daemonPid !== null) await terminate(daemonPid, 5_000)
+  if (core) await terminate(core.pid, 5_000)
+}
+
 // Starts daemon and core from the app's bundled copies when none serve this home yet, or when
 // the ones that do are of another build: an app updated in place would otherwise keep talking to
-// what it found, and lack whatever the update put there. The daemon only goes when it runs nothing. Both are detached with their own
-// logs: closing the window or quitting the app never touches them, exactly as when they run from
-// source. A daemon already serving the socket makes the spawned one exit by itself
-// (endpoint-claim), so starting one is safe to over-ask.
+// what it found, and lack whatever the update put there. The daemon only goes when it runs nothing.
+// Both are detached with their own logs: closing the window never touches them, and quitting ends
+// them (stopBackendOnQuit). A daemon already serving the socket makes the spawned one exit by
+// itself (endpoint-claim), so starting one is safe to over-ask.
 export async function ensureBackend(): Promise<void> {
   if (!app.isPackaged) return
   const daemonReplaced = await retireOldDaemon()
   const running = await runningCore()
   const coreCurrent = running?.version === app.getVersion()
   if (coreCurrent && !daemonReplaced) return
-  if (running && !coreCurrent) await retireCore(running)
+  if (running && !coreCurrent) {
+    console.log(`[antumi] core ${running.version ?? '(unversioned)'} is older than this app (${app.getVersion()}); replacing it`)
+    await retireCore(running)
+  }
   const paths = antumiPaths()
   const logs = join(paths.home, 'logs')
   mkdirSync(logs, { recursive: true, mode: 0o700 })

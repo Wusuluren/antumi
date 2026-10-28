@@ -575,7 +575,7 @@ pnpm dist:mac     # 产物在 packages/desktop/dist/Antumi-<版本>-arm64.dmg
 
 `dist:mac` 依次执行 electron-vite 构建、`bundle-backend`（esbuild 把 core、daemon 和 MCP 服务各打成一个 JS，附上 node-pty 的 macOS 预编译）和 electron-builder。打包的 App 由 Electron 自带的 Node 运行这些文件（`ELECTRON_RUN_AS_NODE`），所以**装了 App 的机器不需要 Node 和 pnpm**，只需要 `claude` / `codex` CLI 本身。
 
-安装：打开 dmg，把 Antumi 拖进「应用程序」。启动时 App 会检查 `~/.antumi/core.json`，没有在运行的 core 就自动拉起随附的 daemon 和 core（日志在 `~/.antumi/logs/`）；Agent 的查找用的是交互式登录 shell 的 PATH（和终端一样会读 `~/.zshrc`，nvm、`~/.opencode` 这类目录也算），所以 CLI 装在 Homebrew 或 `~/.local/bin` 都能找到。和从源码运行时一样，关闭或退出 App 不会停掉 core、daemon 和正在跑的 Agent。
+安装：打开 dmg，把 Antumi 拖进「应用程序」。启动时 App 会检查 `~/.antumi/core.json`，没有在运行的 core 就自动拉起随附的 daemon 和 core（日志在 `~/.antumi/logs/`）；Agent 的查找用的是交互式登录 shell 的 PATH（和终端一样会读 `~/.zshrc`，nvm、`~/.opencode` 这类目录也算），所以 CLI 装在 Homebrew 或 `~/.local/bin` 都能找到。关闭窗口不停后台，退出 App 则一并结束 core 和 daemon：daemon 只在没有会话在跑时离开，否则先问一句，确认后连同正在跑的 Agent 一起结束；从源码运行时后台是用户自己的进程，不跟着退出。
 
 Windows（x64）打成 NSIS 安装包，在 macOS 上也能打（electron-builder 自带 NSIS 和 wine）：
 
