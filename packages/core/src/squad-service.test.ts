@@ -7,7 +7,9 @@ import { agentDescriptor, type Squad, type SquadRun, type SquadWork } from '@ant
 import { AttachmentStore } from './attachment-store'
 import { ConversationService } from './conversation-service'
 import { ConversationStore } from './conversation-store'
+import { CredentialStore } from './credential-store'
 import { fakeChatDaemon } from './fake-chat-agent'
+import { ModelProviderStore } from './model-providers'
 import { ProjectRegistry } from './project-registry'
 import { SquadService } from './squad-service'
 import { SquadStore } from './squad-store'
@@ -91,6 +93,33 @@ describe('squad execution', () => {
     expect(current().squad.name).toBe(run.squad.name)
     expect(current().squad.members[1]?.role).toBe('implement')
     expect(service.get(taskId).status).toBe('running')
+  })
+
+  it('starts a member on the model provider its squad entry names', async () => {
+    const credentials = new CredentialStore(path.join(root, 'credentials.json'))
+    await credentials.load()
+    const providers = new ModelProviderStore(path.join(root, 'model-providers.json'), credentials)
+    await providers.load()
+    chats.setModelProviders(providers)
+    const { id: providerId } = await providers.save({
+      id: null, name: 'Gateway', preset: 'custom', agents: ['claude'], apiKey: 'sk-squad-key',
+      anthropic: { baseUrl: 'http://127.0.0.1:4000', auth: 'auth_token', env: {} }, openai: null,
+      models: [{ id: 'gw-big', label: null, contextWindow: null, maxOutput: null, efforts: [] }], defaultModel: 'gw-big', smallModel: 'gw-big'
+    })
+    const hosted = squads.create({ name: 'Hosted', leaderId: id(1), members: [
+      { id: id(1), name: 'Lead', agent: 'claude', capability: 'readOnly', role: 'coordinate' },
+      { id: id(2), name: 'Build', agent: 'claude', capability: 'develop', role: 'implement', modelProvider: providerId },
+      { id: id(3), name: 'Review', agent: 'claude', capability: 'readOnly', role: 'review' }
+    ] })
+    const hostedTask = service.create({ title: 'Hosted feature', details: 'Acceptance criteria', repos: [path.join(root, 'project')], squadId: hosted.id }).id
+    await service.start(hostedTask)
+    const hostedLeader = service.get(hostedTask).conversationId!
+    complete(chats.get(hostedLeader).sessionId!, 'delegated')
+    await squads.dispatch(hostedLeader, id(2), 'Do this part', 'develop')
+    await waitFor(() => (squads.runs(hostedTask)[0]?.works ?? []).some((work) => work.state === 'running'))
+    const work = squads.runs(hostedTask)[0]!.works[0]!
+    expect(chats.get(work.conversationId!)).toMatchObject({ modelProvider: providerId, route: { reason: 'served' } })
+    expect(daemon.spawns.at(-1)?.env).toMatchObject({ ANTHROPIC_AUTH_TOKEN: 'sk-squad-key' })
   })
 
   it('serializes developers, runs analysis in parallel and reports each result once', async () => {

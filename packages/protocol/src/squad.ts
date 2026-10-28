@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { AgentKind } from './agent'
 import { agentDescriptor } from './agents'
 import { ChatPermissionMode } from './chat'
+import { ModelProviderId } from './model-provider-id'
 
 export const SQUAD_TOOL_NAMES = { roster: 'antumi_squad_roster', dispatch: 'antumi_squad_dispatch', finish: 'antumi_squad_finish' } as const
 
@@ -11,6 +12,8 @@ export const SquadMember = z.object({
   agent: AgentKind,
   model: z.string().trim().min(1).max(200).nullable().default(null),
   effort: z.string().trim().min(1).max(200).nullable().default(null),
+  // The provider this member runs on; null its agent's own account.
+  modelProvider: ModelProviderId.nullable().default(null),
   role: z.string().trim().max(2000).default(''),
   capability: z.enum(['readOnly', 'develop']).default('readOnly')
 })

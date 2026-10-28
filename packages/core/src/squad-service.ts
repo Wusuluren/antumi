@@ -68,7 +68,7 @@ export class SquadService {
       for (const member of squad.members) await this.chats.validateStartOptions(member.agent, {
         model: member.model, effort: member.effort,
         permissionMode: member.capability === 'readOnly' ? agentDescriptor(member.agent).readOnlyMode : mode
-      })
+      }, member.modelProvider ?? undefined)
       const leader = squad.members.find((member) => member.id === squad.leaderId)!
       if (!this.chats.capacityAvailable(leader.agent, task.conversationId)) throw new Rejection('agent-capacity')
       const transferred = plan && task.conversationId ? this.chats.planForTransfer(task.conversationId, plan.stageId, plan.requestId) : null
@@ -89,7 +89,8 @@ export class SquadService {
       created = this.store.saveRun({ id: randomUUID(), taskId: task.id, squad, leaderConversationId: task.conversationId,
         state: 'running', permissionMode: mode, allowBypass, summary: null, delivery: null, works: [], createdAt: at, updatedAt: at })
       this.announce(created)
-      const started = await this.tasks.start(task.id, allowBypass, undefined, { permissionMode: mode, model: leader.model, effort: leader.effort }, squadLeaderPrompt(squad), resume)
+      // The leader's provider settles with its first conversation, as a task's does.
+      const started = await this.tasks.start(task.id, allowBypass, undefined, { permissionMode: mode, model: leader.model, effort: leader.effort, ...(task.conversationId ? {} : { modelProvider: leader.modelProvider ?? undefined }) }, squadLeaderPrompt(squad), resume)
       this.announce(this.store.patchRun(created.id, { leaderConversationId: started.conversationId }))
       this.tick()
       return started
@@ -350,7 +351,7 @@ export class SquadService {
         const task = this.tasks.get(run.taskId)
         const context = await this.tasks.squadContext(task.id)
         await this.chats.create(member.agent, task.repos.flatMap((repo) => repo.reference ? [] : [repo.worktreePath ?? repo.path]), run.allowBypass,
-          { permissionMode: work.capability === 'readOnly' ? agentDescriptor(member.agent).readOnlyMode : run.permissionMode, model: member.model ?? undefined, effort: member.effort ?? undefined, deferStart: true },
+          { permissionMode: work.capability === 'readOnly' ? agentDescriptor(member.agent).readOnlyMode : run.permissionMode, model: member.model ?? undefined, effort: member.effort ?? undefined, modelProvider: member.modelProvider ?? undefined, deferStart: true },
           null, conversationId, null, { runId: id, readOnly: work.capability === 'readOnly', referencePaths: task.repos.flatMap((repo) => repo.reference ? [repo.path] : []) })
         await this.chats.continue(conversationId, run.allowBypass, context.readable)
         await this.chats.send(conversationId, squadMemberPrompt(task, member, work, context.text), [], false, false, refOf(work))

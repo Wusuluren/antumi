@@ -5,12 +5,14 @@ import { useAgentCatalog } from '../agent-models'
 import { openOverview, perform, selectSquad, useCore, useSquadsSupported } from '../core-store'
 import { useInstalledAgents } from '../installed-agents'
 import { agentLabel, reasonText } from '../labels'
+import { providerFor } from '../model-provider-choice'
 import { saveSquad } from '../squads'
 import { timeAgo } from '../conversation-state'
 import { AgentIcon, ArrowLeftIcon, ChevronRightIcon, CloseIcon, PencilIcon, PlusIcon, SquadIcon } from './icons'
 import { AgentModelPicker } from './AgentModelPicker'
 import { effortLabel } from './ChatOptionsBar'
 import { ChatPicker } from './ChatPicker'
+import { ProviderPicker } from './ProviderPicker'
 import { Segmented } from './SettingsControls'
 
 const MAX_MEMBERS = 5
@@ -174,7 +176,8 @@ function MemberEditor({ member, leader, open, agents, disabled, onToggle, onChan
   member: SquadMember; leader: boolean; open: boolean; agents: readonly AgentKind[]; disabled: boolean
   onToggle(): void; onChange(member: SquadMember): void; onLead(): void; onRemove(): void
 }) {
-  const catalog = useAgentCatalog(member.agent, open)
+  const providers = useCore((state) => state.modelProviders)
+  const catalog = useAgentCatalog(member.agent, open, providerFor(providers, member.modelProvider, member.agent))
   const offered = agents.includes(member.agent) ? agents : [...agents, member.agent]
   return (
     <li className="squad-member-edit" data-open={open || undefined}>
@@ -205,8 +208,12 @@ function MemberEditor({ member, leader, open, agents, disabled, onToggle, onChan
                 options={offered.map((agent) => ({ value: agent, label: agentLabel(agent), icon: <AgentIcon agent={agent} />, description: agents.includes(agent) ? null : t('AgentPicker.notInstalled') }))}
                 onChange={(value) => {
                   const parsed = AgentKind.safeParse(value)
-                  if (parsed.success && parsed.data !== member.agent) onChange({ ...member, agent: parsed.data, model: null, effort: null })
+                  if (parsed.success && parsed.data !== member.agent) onChange({ ...member, agent: parsed.data, modelProvider: null, model: null, effort: null })
                 }} />
+            </div>
+            <div className="squad-field">
+              <ProviderPicker agent={member.agent} value={member.modelProvider} size="field" placement="below"
+                onChange={(next) => onChange({ ...member, modelProvider: next, model: null, effort: null })} />
             </div>
             <div className="squad-field">{tr('Squads.model', { value1: <AgentModelPicker catalog={catalog} choice={{ model: member.model ?? undefined, effort: member.effort ?? undefined }} size="field"
                 onChange={(next) => onChange({ ...member, model: next.model ?? null, effort: next.effort ?? null })} /> })}</div>
@@ -230,9 +237,9 @@ function SquadEditor({ squad, onDone }: { squad: Squad | null; onDone: (saved: b
   const [description, setDescription] = useState(squad?.description ?? '')
   const [instructions, setInstructions] = useState(squad?.instructions ?? '')
   const [members, setMembers] = useState<SquadMember[]>(() => squad?.members ?? [
-    { id: crypto.randomUUID(), name: t('SquadWorkPanel.leader'), agent: installed[0] ?? 'claude', model: null, effort: null, role: t('Squads.breakDownWorkCoordinateDevelopmentAndReviewSummarize'), capability: 'readOnly' },
-    { id: crypto.randomUUID(), name: t('Squads.development'), agent: installed[0] ?? 'claude', model: null, effort: null, role: t('Squads.implementFeaturesAndRunRelevantChecksAndTests'), capability: 'develop' },
-    { id: crypto.randomUUID(), name: t('ConversationChat.review'), agent: installed[1] ?? installed[0] ?? 'claude', model: null, effort: null, role: t('Squads.reviewCorrectnessEdgeCasesAndCodeQualityReport'), capability: 'readOnly' }
+    { id: crypto.randomUUID(), name: t('SquadWorkPanel.leader'), agent: installed[0] ?? 'claude', model: null, effort: null, modelProvider: null, role: t('Squads.breakDownWorkCoordinateDevelopmentAndReviewSummarize'), capability: 'readOnly' },
+    { id: crypto.randomUUID(), name: t('Squads.development'), agent: installed[0] ?? 'claude', model: null, effort: null, modelProvider: null, role: t('Squads.implementFeaturesAndRunRelevantChecksAndTests'), capability: 'develop' },
+    { id: crypto.randomUUID(), name: t('ConversationChat.review'), agent: installed[1] ?? installed[0] ?? 'claude', model: null, effort: null, modelProvider: null, role: t('Squads.reviewCorrectnessEdgeCasesAndCodeQualityReport'), capability: 'readOnly' }
   ])
   const [leaderId, setLeaderId] = useState(squad?.leaderId ?? members[0]!.id)
   const [opened, setOpened] = useState<string | null>(null)
@@ -249,7 +256,7 @@ function SquadEditor({ squad, onDone }: { squad: Squad | null; onDone: (saved: b
       onRemove={() => { setMembers(members.filter((each) => each.id !== member.id)); if (opened === member.id) setOpened(null) }} />
   )
   const add = () => {
-    const member: SquadMember = { id: crypto.randomUUID(), name: t('Squads.member', { value1: members.length }), agent: installed[0] ?? 'claude', model: null, effort: null, role: '', capability: 'readOnly' }
+    const member: SquadMember = { id: crypto.randomUUID(), name: t('Squads.member', { value1: members.length }), agent: installed[0] ?? 'claude', model: null, effort: null, modelProvider: null, role: '', capability: 'readOnly' }
     setMembers([...members, member])
     setOpened(member.id)
   }
